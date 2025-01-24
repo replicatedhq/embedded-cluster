@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -323,7 +324,7 @@ func (h *Helm) Install(ctx context.Context, opts InstallOptions) (*release.Relea
 		defer os.RemoveAll(localPath)
 	} else {
 		// airgapped, use chart from airgap path
-		localPath = filepath.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", opts.ReleaseName, opts.ChartVersion))
+		localPath = path.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", opts.ReleaseName, opts.ChartVersion))
 	}
 
 	chartRequested, err := loader.Load(localPath)
@@ -375,7 +376,7 @@ func (h *Helm) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Relea
 		defer os.RemoveAll(localPath)
 	} else {
 		// airgapped, use chart from airgap path
-		localPath = filepath.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", opts.ReleaseName, opts.ChartVersion))
+		localPath = path.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", opts.ReleaseName, opts.ChartVersion))
 	}
 
 	chartRequested, err := loader.Load(localPath)
