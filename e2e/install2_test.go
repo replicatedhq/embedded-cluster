@@ -276,13 +276,6 @@ func TestSingleNodeAirgapInstall2Upgrade(t *testing.T) {
 	// install "curl" dependency on node 0 for app version checks.
 	tc.InstallTestDependenciesDebian(t, 0, true)
 
-	if err = tc.RunCommandsOnNode(0, [][]string{{"curl", `"https://kots.io/install"`, "|", "bash"}}, map[string]string{
-		"http_proxy":  lxd.HTTPProxy,
-		"https_proxy": lxd.HTTPProxy,
-	}); err != nil {
-		t.Fatalf("failed to install kots on node 0")
-	}
-
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
 

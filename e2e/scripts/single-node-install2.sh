@@ -96,9 +96,11 @@ main() {
         echo "Failed to ensure the embedded binary has been copied to ${EMBEDDED_CLUSTER_BASE_DIR}/bin"
         exit 1
     fi
-    if ! install_kots_cli; then
-        echo "Failed to install kots cli"
-        exit 1
+    if [[ "$app_deploy_method" == "cli" ]]; then
+        if ! install_kots_cli; then
+            echo "Failed to install kots cli"
+            exit 1
+        fi
     fi
     if ! wait_for_healthy_node; then
         echo "Failed to wait for healthy node"
