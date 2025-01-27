@@ -150,6 +150,16 @@ func TestSingleNodeInstall2UpgradeDebian12(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+// this test is used as a a placeholder for tests that run as part of the 'not yet implemented, thus expected to fail' list
+// github actions requires that the list of tests is not empty, so this test is always included in case there are no other tests
+// that are not yet implemented.
+func TestAlwaysFail(t *testing.T) {
+	t.Parallel()
+
+	t.Logf("This test always fails")
+	t.Fail()
+}
+
 func TestSingleNodeAirgapInstall2(t *testing.T) {
 	t.Parallel()
 

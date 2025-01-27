@@ -979,7 +979,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test: []
+        test:
+        - TestAlwaysFail
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -1093,6 +1094,7 @@ jobs:
       matrix:
         test:
           - TestSingleNodeAirgapInstall2Upgrade
+          - TestAlwaysFail
     steps:
       - name: Checkout
         uses: actions/checkout@v4
