@@ -8,8 +8,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type OpenEBS struct {
-}
+type OpenEBS struct{}
 
 const (
 	releaseName = "openebs"
