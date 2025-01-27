@@ -12,8 +12,8 @@ function check_nginx_version {
 }
 
 main() {
-    local k8s_version="$1"
-    local ec_version="$2"
+    local version="$1"
+    local k8s_version="$2"
 
     echo "TODO: check installation configmap state"
 
