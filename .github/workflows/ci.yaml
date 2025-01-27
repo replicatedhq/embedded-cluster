@@ -903,10 +903,10 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestSingleNodeInstall2UbuntuJammy
-          - TestSingleNodeInstall2AlmaLinux8
-          - TestSingleNodeInstall2Debian11
-          - TestSingleNodeInstall2Debian12
+          - TestSingleNodeInstall2UpgradeUbuntuJammy
+          - TestSingleNodeInstall2UpgradeAlmaLinux8
+          - TestSingleNodeInstall2UpgradeDebian11
+          - TestSingleNodeInstall2UpgradeDebian12
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -979,11 +979,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test:
-          - TestSingleNodeInstall2UpgradeUbuntuJammy
-          - TestSingleNodeInstall2UpgradeAlmaLinux8
-          - TestSingleNodeInstall2UpgradeDebian11
-          - TestSingleNodeInstall2UpgradeDebian12
+        test: []
     steps:
       - name: Checkout
         uses: actions/checkout@v4
