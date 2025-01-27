@@ -14,7 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
 
-func Install(ctx context.Context) error {
+func Install(ctx context.Context, isAirgap bool) error {
 	// check if there are any extensions
 	if len(config.AdditionalCharts()) == 0 {
 		return nil
@@ -23,9 +23,15 @@ func Install(ctx context.Context) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
+	airgapChartsPath := ""
+	if isAirgap {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
+
 	hcli, err := helm.NewHelm(helm.HelmOptions{
 		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
 	})
 	if err != nil {
 		return errors.Wrap(err, "create helm client")
