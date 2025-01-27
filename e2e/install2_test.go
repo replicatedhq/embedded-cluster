@@ -58,7 +58,11 @@ func singleNodeInstallUpgradeTest(t *testing.T, tc cluster.Cluster, additionalAr
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// TODO: check postupgrade installation state
+	t.Logf("%s: checking postuprgrade state for an install2 cluster", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state2.sh", fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
+	}
 
 	t.Logf("%s: resetting admin console password", time.Now().Format(time.RFC3339))
 	newPassword := "newpass"
@@ -105,7 +109,7 @@ func TestSingleNodeInstall2AlmaLinux8(t *testing.T) {
 	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
 	line := []string{"yum-install-tar.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to yum install tar: %v: %s: %s", err, stdout, stderr)
 	}
 
 	singleNodeInstallTest(t, tc, nil)
