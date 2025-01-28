@@ -5,9 +5,9 @@ import (
 	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
-	"github.com/replicatedhq/embedded-cluster/pkg/manager"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/spf13/cobra"
@@ -18,9 +18,6 @@ import (
 func UpgradeJobCmd() *cobra.Command {
 	var installationFile, previousInstallationVersion string
 	var installation *ecv1beta1.Installation
-
-	var migrateV2 bool
-	var migrateV2Secret, appSlug, appVersionLabel string
 
 	cmd := &cobra.Command{
 		Use:          "upgrade-job",
@@ -35,20 +32,6 @@ func UpgradeJobCmd() *cobra.Command {
 
 			// set the runtime config from the installation spec
 			runtimeconfig.Set(installation.Spec.RuntimeConfig)
-
-			if migrateV2 {
-				if migrateV2Secret == "" {
-					return fmt.Errorf("--migrate-v2 is set to true but --migrate-v2-secret is not set")
-				}
-				if appSlug == "" {
-					return fmt.Errorf("--migrate-v2 is set to true but --app-slug is not set")
-				}
-				if appVersionLabel == "" {
-					return fmt.Errorf("--migrate-v2 is set to true but --app-version-label is not set")
-				}
-
-				manager.SetServiceName(appSlug)
-			}
 
 			return nil
 		},
@@ -67,6 +50,15 @@ func UpgradeJobCmd() *cobra.Command {
 			i := 0
 			sleepDuration := time.Second * 5
 			for {
+				logf := func(format string, args ...any) {
+					fmt.Println(fmt.Sprintf(format, args...))
+				}
+
+				err = migratev2.Run(ctx, logf, cli, installation)
+				if err != nil {
+					return fmt.Errorf("failed to run v2 migration: %w", err)
+				}
+
 				err = upgrade.Upgrade(ctx, cli, installation)
 				if err != nil {
 					fmt.Printf("Upgrade failed, retrying: %s\n", err.Error())
@@ -83,17 +75,6 @@ func UpgradeJobCmd() *cobra.Command {
 
 			fmt.Println("Upgrade completed successfully")
 
-			if migrateV2 {
-				logf := func(format string, args ...any) {
-					fmt.Println(fmt.Sprintf(format, args...))
-				}
-
-				err = runMigrateV2PodAndWait(ctx, logf, cli, installation, migrateV2Secret, appSlug, appVersionLabel)
-				if err != nil {
-					return fmt.Errorf("failed to run v2 migration: %w", err)
-				}
-			}
-
 			return nil
 		},
 	}
@@ -108,11 +89,6 @@ func UpgradeJobCmd() *cobra.Command {
 	if err != nil {
 		panic(err)
 	}
-
-	cmd.Flags().BoolVar(&migrateV2, "migrate-v2", false, "Set to true to run the v2 migration")
-	cmd.Flags().StringVar(&migrateV2Secret, "migrate-v2-secret", "", "The secret name from which to read the license (required if --migrate-v2 is set to true)")
-	cmd.Flags().StringVar(&appSlug, "app-slug", "", "The application slug (required if --migrate-v2 is set to true)")
-	cmd.Flags().StringVar(&appVersionLabel, "app-version-label", "", "The application version label (required if --migrate-v2 is set to true)")
 
 	return cmd
 }
