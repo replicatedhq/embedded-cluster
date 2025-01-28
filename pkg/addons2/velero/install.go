@@ -71,7 +71,7 @@ func createCredentialsSecret(ctx context.Context, kcli client.Client) error {
 		},
 		Type: "Opaque",
 	}
-	if err := kcli.Create(ctx, &credentialsSecret); err != nil {
+	if err := kcli.Create(ctx, &credentialsSecret); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "create credentials secret")
 	}
 

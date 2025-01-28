@@ -65,7 +65,7 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 		return errors.Wrap(err, "create kots CA configmap")
 	}
 
-	if a.AirgapBundle != "" {
+	if a.IsAirgap {
 		err := createRegistrySecret(ctx, kcli, namespace)
 		if err != nil {
 			return errors.Wrap(err, "create registry secret")

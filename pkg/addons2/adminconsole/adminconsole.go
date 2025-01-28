@@ -12,14 +12,12 @@ import (
 )
 
 type AdminConsole struct {
-	Password         string
-	AirgapBundle     string
-	IsAirgap         bool
-	IsHA             bool
-	Proxy            *ecv1beta1.ProxySpec
-	PrivateCAs       []string
-	ConfigValuesFile string
-	KotsInstaller    KotsInstaller
+	Password      string
+	IsAirgap      bool
+	IsHA          bool
+	Proxy         *ecv1beta1.ProxySpec
+	PrivateCAs    []string
+	KotsInstaller KotsInstaller
 }
 
 type KotsInstaller func(msg *spinner.MessageWriter) error
@@ -53,4 +51,12 @@ func init() {
 
 func (a *AdminConsole) Name() string {
 	return "Admin Console"
+}
+
+func (a *AdminConsole) ReleaseName() string {
+	return releaseName
+}
+
+func (a *AdminConsole) Namespace() string {
+	return namespace
 }

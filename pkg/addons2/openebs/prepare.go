@@ -6,15 +6,15 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
-func (a *OpenEBS) prepare() error {
-	if err := a.generateHelmValues(); err != nil {
+func (o *OpenEBS) prepare() error {
+	if err := o.generateHelmValues(); err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
 	return nil
 }
 
-func (a *OpenEBS) generateHelmValues() error {
+func (o *OpenEBS) generateHelmValues() error {
 	var err error
 	helmValues, err = helm.SetValue(helmValues, `["localpv-provisioner"].localpv.basePath`, runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir())
 	if err != nil {

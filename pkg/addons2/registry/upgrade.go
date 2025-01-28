@@ -6,8 +6,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,21 +18,13 @@ const (
 	s3SecretName = "seaweedfs-s3-rw"
 )
 
-func (r *Registry) Upgrade(ctx context.Context, kcli client.Client) error {
+func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.Helm) error {
 	if err := r.prepare(); err != nil {
 		return errors.Wrap(err, "prepare registry")
 	}
 
 	if err := r.createUpgradePreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
-	}
-
-	hcli, err := helm.NewHelm(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
-	})
-	if err != nil {
-		return errors.Wrap(err, "create helm client")
 	}
 
 	var values map[string]interface{}
@@ -44,7 +34,7 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client) error {
 		values = helmValues
 	}
 
-	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
+	_, err := hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,

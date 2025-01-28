@@ -286,11 +286,9 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 	if err := addons2.Install(cmd.Context(), addons2.InstallOptions{
 		AdminConsolePwd:         flags.adminConsolePassword,
 		License:                 flags.license,
-		LicenseFile:             flags.licenseFile,
-		AirgapBundle:            flags.airgapBundle,
+		IsAirgap:                flags.airgapBundle != "",
 		Proxy:                   flags.proxy,
 		PrivateCAs:              flags.privateCAs,
-		ConfigValuesFile:        flags.configValues,
 		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
 		DisasterRecoveryEnabled: disasterRecoveryEnabled,
 		KotsInstaller: func(msg *spinner.MessageWriter) error {
@@ -310,12 +308,6 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 
 	logrus.Debugf("installing extensions")
 	if err := extensions.Install(cmd.Context(), flags.airgapBundle != ""); err != nil {
-		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
-		return err
-	}
-
-	logrus.Debugf("installing manager")
-	if err := installAndEnableManager(cmd.Context()); err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
 	}

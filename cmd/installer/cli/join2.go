@@ -162,13 +162,6 @@ func runJoin2(cmd *cobra.Command, args []string, name string, flags Join2CmdFlag
 		return err
 	}
 
-	logrus.Debugf("installing manager")
-	if err := installAndEnableManager(cmd.Context()); err != nil {
-		err := fmt.Errorf("unable to install and enable manager: %w", err)
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
-	}
-
 	if flags.enableHighAvailability {
 		if err := maybeEnableHA(cmd.Context(), kcli, flags.airgapBundle != "", cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy); err != nil {
 			err := fmt.Errorf("unable to enable high availability: %w", err)

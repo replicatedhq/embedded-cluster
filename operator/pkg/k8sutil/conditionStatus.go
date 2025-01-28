@@ -1,11 +1,16 @@
 package k8sutil
 
 import (
-	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"context"
+	"fmt"
+
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CheckConditionStatus(inStat v1beta1.InstallationStatus, conditionName string) v1.ConditionStatus {
+func CheckConditionStatus(inStat ecv1beta1.InstallationStatus, conditionName string) metav1.ConditionStatus {
 	for _, cond := range inStat.Conditions {
 		if cond.Type == conditionName {
 			return cond.Status
@@ -13,4 +18,23 @@ func CheckConditionStatus(inStat v1beta1.InstallationStatus, conditionName strin
 	}
 
 	return ""
+}
+
+func SetConditionStatus(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, condition metav1.Condition) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var copy ecv1beta1.Installation
+		err := cli.Get(ctx, client.ObjectKey{Name: in.Name}, &copy)
+		if err != nil {
+			return fmt.Errorf("get installation: %w", err)
+		}
+
+		copy.Status.SetCondition(condition)
+
+		err = cli.Status().Update(ctx, &copy)
+		if err != nil {
+			return fmt.Errorf("update installation status: %w", err)
+		}
+
+		return nil
+	})
 }

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -55,11 +54,9 @@ func UpgradeJobCmd() *cobra.Command {
 					fmt.Println(fmt.Sprintf(format, args...))
 				}
 
-				if os.Getenv("MIGRATE_V2") == "true" {
-					err := migratev2.Run(ctx, logf, cli, installation)
-					if err != nil {
-						return fmt.Errorf("failed to run v2 migration: %w", err)
-					}
+				err := migratev2.Run(ctx, logf, cli, installation)
+				if err != nil {
+					return fmt.Errorf("failed to run v2 migration: %w", err)
 				}
 
 				err = upgrade.Upgrade(ctx, cli, installation)

@@ -43,29 +43,35 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
 	return ncps >= 3, nil
 }
 
+// TODO (@salah): make this idempotent
 // EnableHA enables high availability.
 func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
+	hcli, err := helm.NewHelm(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		K0sVersion: versions.K0sVersion,
+		AirgapPath: runtimeconfig.EmbeddedClusterChartsSubDir(),
+	})
+	if err != nil {
+		return errors.Wrap(err, "create helm client")
+	}
+
 	if isAirgap {
 		loading.Infof("Enabling high availability")
-
-		// install the helm chart
-		hcli, err := helm.NewHelm(helm.HelmOptions{
-			KubeConfig: runtimeconfig.PathToKubeConfig(),
-			K0sVersion: versions.K0sVersion,
-			AirgapPath: runtimeconfig.EmbeddedClusterChartsSubDir(),
-		})
-		if err != nil {
-			return errors.Wrap(err, "create helm client")
-		}
 
 		sw := &seaweedfs.SeaweedFS{
 			ServiceCIDR: serviceCIDR,
 		}
-		if err := sw.Install(ctx, kcli, hcli, nil); err != nil {
-			return errors.Wrap(err, "install seaweedfs")
+		exists, err := hcli.ReleaseExists(ctx, sw.Namespace(), sw.ReleaseName())
+		if err != nil {
+			return errors.Wrap(err, "check if seaweedfs release exists")
+		}
+		if !exists {
+			if err := sw.Install(ctx, kcli, hcli, nil); err != nil {
+				return errors.Wrap(err, "install seaweedfs")
+			}
 		}
 
 		reg := &registry.Registry{
@@ -75,7 +81,7 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 		if err := reg.Migrate(ctx, kcli, loading); err != nil {
 			return errors.Wrap(err, "migrate registry data")
 		}
-		if err := reg.Upgrade(ctx, kcli); err != nil {
+		if err := reg.Upgrade(ctx, kcli, hcli); err != nil {
 			return errors.Wrap(err, "upgrade registry")
 		}
 	}
@@ -87,7 +93,7 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 		IsHA:     true,
 		Proxy:    proxy,
 	}
-	if err := ac.Upgrade(ctx, kcli); err != nil {
+	if err := ac.Upgrade(ctx, kcli, hcli); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
 	}
 

@@ -10,73 +10,60 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/charts"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-const (
-	operatorChartName   = "embedded-cluster-operator"
-	upgradeJobName      = "embedded-cluster-upgrade-%s"
-	upgradeJobConfigMap = "upgrade-job-configmap-%s"
 )
 
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
 func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
-	fmt.Printf("Upgrading to version %s\n", in.Spec.Config.Version)
-	err := k0sUpgrade(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("k0s upgrade: %w", err)
-	}
-
 	// Augment the installation with data dirs that may not be present in the previous version.
 	// This is important to do ahead of updating the cluster config.
 	// We still cannot update the installation object as the CRDs are not updated yet.
-	in, err = maybeOverrideInstallationDataDirs(ctx, cli, in)
+	in, err := maybeOverrideInstallationDataDirs(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("override installation data dirs: %w", err)
+	}
+
+	fmt.Printf("Upgrading to version %s\n", in.Spec.Config.Version)
+	err = upgradeK0s(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("k0s upgrade: %w", err)
 	}
 
 	// We must update the cluster config after we upgrade k0s as it is possible that the schema
 	// between versions has changed. One drawback of this is that the sandbox (pause) image does
 	// not get updated, and possibly others but I cannot confirm this.
-	err = clusterConfigUpdate(ctx, cli, in)
+	err = updateClusterConfig(ctx, cli)
 	if err != nil {
 		return fmt.Errorf("cluster config update: %w", err)
 	}
 
-	fmt.Printf("Updating registry migration status\n")
-	err = registryMigrationStatus(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("registry migration status: %w", err)
-	}
-
 	fmt.Printf("Upgrading addons\n")
-	err = chartUpgrade(ctx, cli, in)
+	err = upgradeAddons(ctx, cli, in)
 	if err != nil {
-		return fmt.Errorf("chart upgrade: %w", err)
+		return fmt.Errorf("upgrade addons: %w", err)
 	}
 
-	fmt.Printf("Waiting for operator chart to be ready\n")
-	// wait for the operator chart to be ready
-	err = waitForOperatorChart(ctx, cli, in.Spec.Config.Version)
+	fmt.Printf("Upgrading extensions\n")
+	err = upgradeExtensions(ctx, cli, in)
 	if err != nil {
-		return fmt.Errorf("wait for operator chart: %w", err)
+		return fmt.Errorf("upgrade extensions: %w", err)
 	}
 
 	fmt.Printf("Re-applying installation\n")
-	// Finally, re-apply the installation as the CRDs are up-to-date.
+	// re-apply the installation as the CRDs are up-to-date.
 	err = reApplyInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("unlock installation: %w", err)
@@ -87,11 +74,16 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 		logrus.Warnf("Failed to upgrade host support bundle: %v", err)
 	}
 
+	err = setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateInstalled, "Installed")
+	if err != nil {
+		return fmt.Errorf("set installation state: %w", err)
+	}
+
 	return nil
 }
 
 func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*clusterv1beta1.Installation, error) {
-	previous, err := kubeutils.GetPreviousCRDInstallation(ctx, cli, in)
+	previous, err := kubeutils.GetPreviousInstallation(ctx, cli, in)
 	if err != nil {
 		return in, fmt.Errorf("get latest installation: %w", err)
 	}
@@ -102,7 +94,7 @@ func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, i
 	return &next, nil
 }
 
-func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+func upgradeK0s(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
 	meta, err := release.MetadataFor(ctx, in, cli)
 	if err != nil {
 		return fmt.Errorf("failed to get release metadata: %w", err)
@@ -122,26 +114,18 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 
 	fmt.Printf("Upgrading k0s to version %s\n", desiredVersion)
 
-	// create an autopilot upgrade plan if one does not yet exist
-	var plan apv1b2.Plan
-	okey := client.ObjectKey{Name: "autopilot"}
-	if err := cli.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to get upgrade plan: %w", err)
-	} else if errors.IsNotFound(err) {
-		// if the kubernetes version has changed we create an upgrade command
-		fmt.Printf("Starting k0s autopilot upgrade plan to version %s\n", desiredVersion)
-
-		// there is no autopilot plan in the cluster so we are free to
-		// start our own plan. here we link the plan to the installation
-		// by its name.
-		if err := StartAutopilotUpgrade(ctx, cli, in, meta); err != nil {
-			return fmt.Errorf("failed to start upgrade: %w", err)
-		}
+	if err := setInstallationState(ctx, cli, in.Name, clusterv1beta1.InstallationStateInstalling, "Upgrading Kubernetes", ""); err != nil {
+		return fmt.Errorf("update installation status: %w", err)
 	}
 
-	// restart this function/pod until the plan is complete
-	if !autopilot.HasThePlanEnded(plan) {
-		return fmt.Errorf("an autopilot upgrade is in progress (%s)", plan.Spec.ID)
+	// create an autopilot upgrade plan if one does not yet exist
+	if err := createAutopilotPlan(ctx, cli, desiredVersion, in, meta); err != nil {
+		return fmt.Errorf("failed to create autpilot upgrade plan: %w", err)
+	}
+
+	plan, err := waitForAutopilotPlan(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("failed to wait for autpilot plan: %w", err)
 	}
 
 	if autopilot.HasPlanFailed(plan) {
@@ -165,7 +149,7 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 		if err != nil {
 			return fmt.Errorf("delete autopilot plan: %w", err)
 		}
-		return k0sUpgrade(ctx, cli, in)
+		return upgradeK0s(ctx, cli, in)
 	}
 
 	match, err = k8sutil.ClusterNodesMatchVersion(ctx, cli, desiredVersion)
@@ -190,8 +174,8 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 	return nil
 }
 
-// clusterConfigUpdate updates the cluster config with the latest images.
-func clusterConfigUpdate(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+// updateClusterConfig updates the cluster config with the latest images.
+func updateClusterConfig(ctx context.Context, cli client.Client) error {
 	var currentCfg k0sv1beta1.ClusterConfig
 	err := cli.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &currentCfg)
 	if err != nil {
@@ -221,36 +205,27 @@ func clusterConfigUpdate(ctx context.Context, cli client.Client, in *clusterv1be
 	return nil
 }
 
-// registryMigrationStatus ensures that the registry migration complete condition is set orior to
-// reconciling the helm charts. Otherwise, the registry chart will revert back to non-ha mode.
-func registryMigrationStatus(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
-	if in == nil || !in.Spec.AirGap || !in.Spec.HighAvailability {
-		return nil
-	}
-
-	_, err := registry.EnsureRegistryMigrationCompleteCondition(ctx, in, cli)
+func upgradeAddons(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (finalErr error) {
+	err := setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalling, "Upgrading addons")
 	if err != nil {
-		return fmt.Errorf("ensure registry migration complete condition: %w", err)
+		return fmt.Errorf("set installation state: %w", err)
 	}
-	return nil
-}
 
-func chartUpgrade(ctx context.Context, cli client.Client, original *clusterv1beta1.Installation) error {
-	input := original.DeepCopy()
-	input.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "", nil)
-
-	_, err := charts.ReconcileHelmCharts(ctx, cli, input)
+	// TODO (@salah): use this meta for operator?
+	meta, err := release.MetadataFor(ctx, in, cli)
 	if err != nil {
-		return fmt.Errorf("failed to reconcile helm charts: %w", err)
+		return fmt.Errorf("get release metadata: %w", err)
 	}
 
-	// check the status and return an error if appropriate
-	// 'InstallationStateAddonsInstalling' is the one we expect to be set
-	if input.Status.State != v1beta1.InstallationStateAddonsInstalling && input.Status.State != v1beta1.InstallationStateInstalled {
-		return fmt.Errorf("got unexpected state %s with message %s reconciling charts", input.Status.State, input.Status.Reason)
+	if meta == nil || meta.Images == nil {
+		return fmt.Errorf("no images available")
 	}
 
-	err = setInstallationState(ctx, cli, original.Name, input.Status.State, input.Status.Reason, input.Status.PendingCharts...)
+	if err := addons2.Upgrade(ctx, in); err != nil {
+		return fmt.Errorf("upgrade addons: %w", err)
+	}
+
+	err = setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalled, "Addons upgraded")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -258,13 +233,59 @@ func chartUpgrade(ctx context.Context, cli client.Client, original *clusterv1bet
 	return nil
 }
 
-func waitForOperatorChart(ctx context.Context, cli client.Client, version string) error {
-	err := wait.PollUntilContextCancel(ctx, 5*time.Second, true, func(ctx context.Context) (bool, error) {
-		ready, err := k8sutil.GetChartHealthVersion(ctx, cli, operatorChartName, version)
-		if err != nil {
-			return false, fmt.Errorf("get chart health: %w", err)
+// TODO (@salah): make this idempotent
+func upgradeExtensions(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+	err := setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalling, "Upgrading extensions")
+	if err != nil {
+		return fmt.Errorf("set installation state: %w", err)
+	}
+
+	previous, err := kubeutils.GetPreviousCRDInstallation(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("get previous installation: %w", err)
+	}
+
+	if err := extensions.Upgrade(ctx, cli, previous, in); err != nil {
+		return fmt.Errorf("upgrade extensions: %w", err)
+	}
+
+	err = setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalled, "Extensions upgraded")
+	if err != nil {
+		return fmt.Errorf("set installation state: %w", err)
+	}
+
+	return nil
+}
+
+func createAutopilotPlan(ctx context.Context, cli client.Client, desiredVersion string, in *clusterv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
+	var plan apv1b2.Plan
+	okey := client.ObjectKey{Name: "autopilot"}
+	if err := cli.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to get upgrade plan: %w", err)
+	} else if errors.IsNotFound(err) {
+		// if the kubernetes version has changed we create an upgrade command
+		fmt.Printf("Starting k0s autopilot upgrade plan to version %s\n", desiredVersion)
+
+		// there is no autopilot plan in the cluster so we are free to
+		// start our own plan. here we link the plan to the installation
+		// by its name.
+		if err := StartAutopilotUpgrade(ctx, cli, in, meta); err != nil {
+			return fmt.Errorf("failed to start upgrade: %w", err)
 		}
-		return ready, nil
-	})
-	return err
+	}
+	return nil
+}
+
+func waitForAutopilotPlan(ctx context.Context, cli client.Client) (apv1b2.Plan, error) {
+	for {
+		var plan apv1b2.Plan
+		if err := cli.Get(ctx, client.ObjectKey{Name: "autopilot"}, &plan); err != nil {
+			return plan, fmt.Errorf("get upgrade plan: %w", err)
+		}
+		if autopilot.HasThePlanEnded(plan) {
+			return plan, nil
+		}
+		logrus.Infof("an autopilot upgrade is in progress (%s)", plan.Spec.ID)
+		time.Sleep(5 * time.Second)
+	}
 }

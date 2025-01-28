@@ -45,3 +45,11 @@ func init() {
 func (v *Velero) Name() string {
 	return "Velero"
 }
+
+func (v *Velero) ReleaseName() string {
+	return releaseName
+}
+
+func (v *Velero) Namespace() string {
+	return namespace
+}

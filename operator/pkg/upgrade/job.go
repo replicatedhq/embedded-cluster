@@ -15,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,6 +28,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const (
+	upgradeJobName      = "embedded-cluster-upgrade-%s"
+	upgradeJobConfigMap = "upgrade-job-configmap-%s"
+)
+
 // CreateUpgradeJob creates a job that upgrades the embedded cluster to the version specified in the installation.
 // if the installation is airgapped, the artifacts are copied to the nodes and the autopilot plan is
 // created to copy the images to the cluster. A configmap is then created containing the target installation
@@ -37,7 +43,7 @@ func CreateUpgradeJob(
 ) error {
 	// check if the job already exists - if it does, we've already rolled out images and can return now
 	job := &batchv1.Job{}
-	err := cli.Get(ctx, client.ObjectKey{Namespace: "embedded-cluster", Name: fmt.Sprintf(upgradeJobName, in.Name)}, job)
+	err := cli.Get(ctx, client.ObjectKey{Namespace: runtimeconfig.KotsadmNamespace, Name: fmt.Sprintf(upgradeJobName, in.Name)}, job)
 	if err == nil {
 		return nil
 	}
@@ -72,7 +78,7 @@ func CreateUpgradeJob(
 
 	// check if the configmap exists already or if we can just create it
 	existingCm := &corev1.ConfigMap{}
-	err = cli.Get(ctx, client.ObjectKey{Namespace: "embedded-cluster", Name: fmt.Sprintf(upgradeJobConfigMap, in.Name)}, existingCm)
+	err = cli.Get(ctx, client.ObjectKey{Namespace: runtimeconfig.KotsadmNamespace, Name: fmt.Sprintf(upgradeJobConfigMap, in.Name)}, existingCm)
 	if err == nil {
 		// if the configmap already exists, update it to have the expected data just in case
 		existingCm.Data["installation.yaml"] = string(installationData)
@@ -85,7 +91,7 @@ func CreateUpgradeJob(
 	} else {
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "embedded-cluster",
+				Namespace: runtimeconfig.KotsadmNamespace,
 				Name:      fmt.Sprintf(upgradeJobConfigMap, in.Name),
 			},
 			Data: map[string]string{
@@ -127,7 +133,7 @@ func CreateUpgradeJob(
 	// create the upgrade job
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "embedded-cluster",
+			Namespace: runtimeconfig.KotsadmNamespace,
 			Name:      fmt.Sprintf(upgradeJobName, in.Name),
 			Labels: map[string]string{
 				"app.kubernetes.io/instance": "embedded-cluster-upgrade",
@@ -144,7 +150,7 @@ func CreateUpgradeJob(
 				},
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
-					ServiceAccountName: "embedded-cluster-operator",
+					ServiceAccountName: runtimeconfig.KotsadmServiceAccount,
 					Volumes: []corev1.Volume{
 						{
 							Name: "config",
@@ -161,7 +167,7 @@ func CreateUpgradeJob(
 							VolumeSource: corev1.VolumeSource{
 								ConfigMap: &corev1.ConfigMapVolumeSource{
 									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "private-cas",
+										Name: "kotsadm-private-cas",
 									},
 									Optional: ptr.To[bool](true),
 								},

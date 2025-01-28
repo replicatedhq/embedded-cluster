@@ -23,7 +23,7 @@ func (a *AdminConsole) generateHelmValues() error {
 	helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 	helmValues["isHA"] = a.IsHA
 
-	if a.IsAirgap || a.AirgapBundle != "" {
+	if a.IsAirgap {
 		helmValues["isAirgap"] = "true"
 	} else {
 		helmValues["isAirgap"] = "false"

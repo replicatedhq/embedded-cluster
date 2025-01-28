@@ -55,3 +55,11 @@ func init() {
 func (s *SeaweedFS) Name() string {
 	return "SeaweedFS"
 }
+
+func (s *SeaweedFS) ReleaseName() string {
+	return releaseName
+}
+
+func (s *SeaweedFS) Namespace() string {
+	return namespace
+}

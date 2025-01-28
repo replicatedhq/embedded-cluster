@@ -25,7 +25,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
-	"github.com/replicatedhq/embedded-cluster/pkg/manager"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
@@ -566,7 +565,6 @@ func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig, withChannelRelease b
 	artifacts := map[string]string{
 		"k0s":                         fmt.Sprintf("k0s-binaries/%s-%s", versions.K0sVersion, runtime.GOARCH),
 		"kots":                        fmt.Sprintf("kots-binaries/%s-%s.tar.gz", adminconsole.KotsVersion, runtime.GOARCH),
-		"manager":                     fmt.Sprintf("manager-binaries/%s-%s.tar.gz", versions.Version, runtime.GOARCH),
 		"operator":                    fmt.Sprintf("operator-binaries/%s-%s.tar.gz", embeddedclusteroperator.Metadata.Version, runtime.GOARCH),
 		"local-artifact-mirror-image": versions.LocalArtifactMirrorImage,
 	}
@@ -575,9 +573,6 @@ func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig, withChannelRelease b
 	}
 	if versions.KOTSBinaryURLOverride != "" {
 		artifacts["kots"] = versions.KOTSBinaryURLOverride
-	}
-	if versions.ManagerBinaryURLOverride != "" {
-		artifacts["manager"] = versions.ManagerBinaryURLOverride
 	}
 	if versions.OperatorBinaryURLOverride != "" {
 		artifacts["operator"] = versions.OperatorBinaryURLOverride
@@ -827,15 +822,6 @@ func installAndEnableLocalArtifactMirror() error {
 	}
 	if _, err := helpers.RunCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
 		return fmt.Errorf("unable to start the local artifact mirror service: %w", err)
-	}
-	return nil
-}
-
-// installAndEnableManager installs and enables the manager. This service is
-// responsible for managing the embedded cluster after the initial installation.
-func installAndEnableManager(ctx context.Context) error {
-	if err := manager.Install(ctx, logrus.Debugf); err != nil {
-		return fmt.Errorf("failed to install manager service: %w", err)
 	}
 	return nil
 }

@@ -62,6 +62,14 @@ func (r *Registry) Name() string {
 	return "Registry"
 }
 
+func (r *Registry) ReleaseName() string {
+	return releaseName
+}
+
+func (r *Registry) Namespace() string {
+	return namespace
+}
+
 func GetRegistryPassword() string {
 	return registryPassword
 }
