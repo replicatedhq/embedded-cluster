@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/charts"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
@@ -238,11 +239,10 @@ func chartUpgrade(ctx context.Context, cli client.Client, original *clusterv1bet
 	input := original.DeepCopy()
 	input.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "", nil)
 
-	// TODO
-	// _, err := charts.ReconcileHelmCharts(ctx, cli, input)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to reconcile helm charts: %w", err)
-	// }
+	_, err := charts.ReconcileHelmCharts(ctx, cli, input)
+	if err != nil {
+		return fmt.Errorf("failed to reconcile helm charts: %w", err)
+	}
 
 	// check the status and return an error if appropriate
 	// 'InstallationStateAddonsInstalling' is the one we expect to be set
@@ -250,7 +250,7 @@ func chartUpgrade(ctx context.Context, cli client.Client, original *clusterv1bet
 		return fmt.Errorf("got unexpected state %s with message %s reconciling charts", input.Status.State, input.Status.Reason)
 	}
 
-	err := setInstallationState(ctx, cli, original.Name, input.Status.State, input.Status.Reason, input.Status.PendingCharts...)
+	err = setInstallationState(ctx, cli, original.Name, input.Status.State, input.Status.Reason, input.Status.PendingCharts...)
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
