@@ -590,11 +590,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	if k8sutil.CheckConditionStatus(in.Status, v1beta1.ConditionTypeDisableReconcile) == metav1.ConditionTrue {
-		log.Info("Installation reconciliation is disabled, reconciliation ended")
-		return ctrl.Result{}, nil
-	}
-
 	// if this installation points to a cluster configuration living on
 	// a secret we need to fetch this configuration before moving on.
 	// at this stage we bail out with an error if we can't fetch or

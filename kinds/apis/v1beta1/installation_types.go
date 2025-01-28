@@ -51,7 +51,6 @@ const (
 
 const (
 	ConditionTypeV2MigrationInProgress = "V2MigrationInProgress"
-	ConditionTypeDisableReconcile      = "DisableReconcile"
 )
 
 // ConfigSecretEntryName holds the entry name we are looking for in the secret

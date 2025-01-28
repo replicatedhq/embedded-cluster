@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -15,56 +14,58 @@ type LogFunc func(string, ...any)
 // Run runs the v1 to v2 migration. It installs the manager service on all nodes, copies the
 // installations to configmaps, enables the v2 admin console, and finally removes the operator
 // chart.
-func Run(
-	ctx context.Context, logf LogFunc, cli client.Client, helmCLI helm.Client,
-	in *ecv1beta1.Installation,
-	migrationSecret string, appSlug string, appVersionLabel string,
-) error {
-	err := setV2MigrationInProgress(ctx, logf, cli, in)
+func Run(ctx context.Context, logf LogFunc, cli client.Client, in *ecv1beta1.Installation) (err error) {
+	ok, err := needsMigration(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("check if migration is needed: %w", err)
+	}
+	if !ok {
+		logf("No v2 migration needed")
+		return nil
+	}
+
+	logf("Running v2 migration")
+
+	err = setV2MigrationInProgress(ctx, logf, cli, in)
 	if err != nil {
 		return fmt.Errorf("set v2 migration in progress: %w", err)
 	}
+	defer func() {
+		if err == nil {
+			return
+		}
+		if err := setV2MigrationFailed(ctx, logf, cli, in, err); err != nil {
+			logf("Failed to set v2 migration failed: %v", err)
+		}
+	}()
 
-	err = waitForInstallationStateInstalled(ctx, logf, cli, in)
-	if err != nil {
-		return fmt.Errorf("failed to wait for addon installation: %w", err)
-	}
-
-	err = runManagerInstallPodsAndWait(ctx, logf, cli, in, migrationSecret, appSlug, appVersionLabel)
-	if err != nil {
-		return fmt.Errorf("run manager install pods: %w", err)
-	}
-
-	err = deleteManagerInstallPods(ctx, logf, cli)
-	if err != nil {
-		return fmt.Errorf("delete pods: %w", err)
-	}
-
-	err = copyInstallationsToConfigMaps(ctx, logf, cli)
-	if err != nil {
-		return fmt.Errorf("copy installations to config maps: %w", err)
-	}
-
-	// disable the operator to ensure that it does not reconcile and revert our changes.
-	err = disableOperator(ctx, logf, cli, in)
+	// scale down the operator to ensure that it does not reconcile and revert our changes.
+	err = scaleDownOperator(ctx, logf, cli)
 	if err != nil {
 		return fmt.Errorf("disable operator: %w", err)
 	}
 
-	err = enableV2AdminConsole(ctx, logf, cli, in)
+	err = cleanupK0sCharts(ctx, logf, cli)
 	if err != nil {
-		return fmt.Errorf("enable v2 admin console: %w", err)
+		return fmt.Errorf("cleanup k0s: %w", err)
 	}
 
-	err = ensureInstallationStateInstalled(ctx, logf, cli, in)
+	err = setV2MigrationComplete(ctx, logf, cli, in)
 	if err != nil {
-		return fmt.Errorf("set installation state to installed: %w", err)
+		return fmt.Errorf("set v2 migration complete: %w", err)
 	}
 
-	err = cleanupV1(ctx, logf, cli)
-	if err != nil {
-		return fmt.Errorf("cleanup v1: %w", err)
-	}
+	logf("Successfully migrated from v2")
 
 	return nil
+}
+
+// needsMigration checks if the installation needs to be migrated to v2.
+func needsMigration(ctx context.Context, cli client.Client) (bool, error) {
+	ok, err := needsK0sChartCleanup(ctx, cli)
+	if err != nil {
+		return false, fmt.Errorf("check if k0s charts need cleanup: %w", err)
+	}
+
+	return ok, nil
 }

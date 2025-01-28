@@ -5,126 +5,91 @@ import (
 	"fmt"
 	"time"
 
-	k0shelmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// disableOperator sets the DisablingReconcile condition to true on the installation object which
-// will prevent the operator from reconciling the installation.
-func disableOperator(ctx context.Context, logf LogFunc, cli client.Client, in *ecv1beta1.Installation) error {
-	logf("Disabling operator")
+const (
+	OperatorNamespace      = "embedded-cluster"
+	OperatorDeploymentName = "embedded-cluster-operator"
+)
 
-	err := setInstallationCondition(ctx, cli, in, metav1.Condition{
-		Type:   ecv1beta1.ConditionTypeDisableReconcile,
-		Status: metav1.ConditionTrue,
-		Reason: "V2MigrationInProgress",
-	})
+// scaleDownOperator scales down the operator deployment to 0 replicas to prevent the operator from
+// reconciling the installation.
+func scaleDownOperator(ctx context.Context, logf LogFunc, cli client.Client) error {
+	logf("Scaling down operator")
+
+	err := setOperatorDeploymentReplicasZero(ctx, cli)
 	if err != nil {
-		return fmt.Errorf("set disable reconcile condition: %w", err)
+		return fmt.Errorf("set operator deployment replicas to 0: %w", err)
 	}
 
-	logf("Successfully disabled operator")
+	logf("Waiting for operator to scale down")
+
+	err = waitForOperatorDeployment(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("wait for operator deployment: %w", err)
+	}
+
+	logf("Successfully scaled down operator")
 	return nil
 }
 
-// cleanupV1 removes control of the Helm Charts from the k0s controller and uninstalls the Embedded
-// Cluster operator.
-func cleanupV1(ctx context.Context, logf LogFunc, cli client.Client) error {
-	logf("Force deleting Chart custom resources")
-	// forceDeleteChartCRs is necessary because the k0s controller will otherwise uninstall the
-	// Helm releases and we don't want that.
-	err := forceDeleteChartCRs(ctx, cli)
-	if err != nil {
-		return fmt.Errorf("delete chart custom resources: %w", err)
+func setOperatorDeploymentReplicasZero(ctx context.Context, cli client.Client) error {
+	obj := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      OperatorDeploymentName,
+			Namespace: OperatorNamespace,
+		},
 	}
-	logf("Successfully force deleted Chart custom resources")
 
-	logf("Removing Helm Charts from ClusterConfig")
-	err = removeClusterConfigHelmExtensions(ctx, cli)
+	patch := []byte(fmt.Sprintf(`{"spec":{"replicas":%d}}`, 0))
+	err := cli.Patch(ctx, obj, client.RawPatch(apitypes.MergePatchType, patch))
 	if err != nil {
-		return fmt.Errorf("cleanup cluster config: %w", err)
+		return fmt.Errorf("patch deployment: %w", err)
 	}
-	logf("Successfully removed Helm Charts from ClusterConfig")
-
 	return nil
 }
 
-func forceDeleteChartCRs(ctx context.Context, cli client.Client) error {
-	var chartList k0shelmv1beta1.ChartList
-	err := cli.List(ctx, &chartList)
-	if err != nil {
-		return fmt.Errorf("list charts: %w", err)
-	}
-
-	for _, chart := range chartList.Items {
-		chart.ObjectMeta.Finalizers = []string{}
-		err := cli.Update(ctx, &chart)
-		if err != nil {
-			return fmt.Errorf("update chart: %w", err)
-		}
-	}
-
-	// wait for all finalizers to be removed before deleting the charts
-	for hasFinalizers := true; hasFinalizers; {
-		err = cli.List(ctx, &chartList)
-		if err != nil {
-			return fmt.Errorf("list charts: %w", err)
-		}
-
-		hasFinalizers = false
-		for _, chart := range chartList.Items {
-			if len(chart.GetFinalizers()) > 0 {
-				hasFinalizers = true
-				break
+// waitForOperatorDeployment waits for the operator deployment to be updated.
+func waitForOperatorDeployment(ctx context.Context, cli client.Client) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			ready, err := isOperatorDeploymentUpdated(ctx, cli)
+			if err != nil {
+				lasterr = fmt.Errorf("check deployment: %w", err)
+				return false, nil
 			}
+			return ready, nil
+		},
+	); err != nil {
+		if lasterr != nil {
+			return lasterr
 		}
-
-		time.Sleep(100 * time.Millisecond)
+		return err
 	}
-
-	for _, chart := range chartList.Items {
-		err := cli.Delete(ctx, &chart, client.GracePeriodSeconds(0))
-		if err != nil {
-			return fmt.Errorf("delete chart: %w", err)
-		}
-	}
-
 	return nil
 }
 
-func removeClusterConfigHelmExtensions(ctx context.Context, cli client.Client) error {
-	var clusterConfig k0sv1beta1.ClusterConfig
-	err := cli.Get(ctx, apitypes.NamespacedName{Namespace: "kube-system", Name: "k0s"}, &clusterConfig)
+// isOperatorDeploymentUpdated checks that the operator pods are removed.
+func isOperatorDeploymentUpdated(ctx context.Context, cli client.Client) (bool, error) {
+	var podList corev1.PodList
+	err := cli.List(ctx, &podList, client.InNamespace(OperatorNamespace), client.MatchingLabels(operatorPodLabels()))
 	if err != nil {
-		return fmt.Errorf("get cluster config: %w", err)
+		return false, fmt.Errorf("list embedded-cluster-operator pods: %w", err)
 	}
-
-	clusterConfig.Spec.Extensions.Helm = &k0sv1beta1.HelmExtensions{}
-
-	unstructured, err := helpers.K0sClusterConfigTo129Compat(&clusterConfig)
-	if err != nil {
-		return fmt.Errorf("convert cluster config to 1.29 compat: %w", err)
-	}
-
-	err = cli.Update(ctx, unstructured)
-	if err != nil {
-		return fmt.Errorf("update cluster config: %w", err)
-	}
-
-	return nil
+	return len(podList.Items) == 0, nil
 }
 
-func helmUninstallOperator(ctx context.Context, helmCLI helm.Client) error {
-	return helmCLI.Uninstall(ctx, helm.UninstallOptions{
-		ReleaseName:    "embedded-cluster-operator",
-		Namespace:      "embedded-cluster",
-		Wait:           true,
-		IgnoreNotFound: true,
-	})
+func operatorPodLabels() map[string]string {
+	return map[string]string{
+		"app.kubernetes.io/instance": "embedded-cluster-operator",
+		"app.kubernetes.io/name":     "embedded-cluster-operator",
+	}
 }
