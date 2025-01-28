@@ -31,7 +31,7 @@ func Test_setOperatorDeploymentReplicasZero(t *testing.T) {
 			deployment: &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{Name: OperatorDeploymentName, Namespace: OperatorNamespace},
 				Spec: appsv1.DeploymentSpec{
-					Replicas: ptr.To(int32(1)),
+					Replicas: ptr.To[int32](1),
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
@@ -55,7 +55,7 @@ func Test_setOperatorDeploymentReplicasZero(t *testing.T) {
 			deployment: &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{Name: OperatorDeploymentName, Namespace: OperatorNamespace},
 				Spec: appsv1.DeploymentSpec{
-					Replicas: ptr.To(int32(0)),
+					Replicas: ptr.To[int32](0),
 				},
 			},
 			expectError: false,
