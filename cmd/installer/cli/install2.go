@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/operator/charts"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"os"
+	"sigs.k8s.io/yaml"
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -445,8 +449,14 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 		return nil, fmt.Errorf("create kube client: %w", err)
 	}
 
+	// ensure that the embedded-cluster namespace exists
 	if err := createECNamespace(ctx, kcli); err != nil {
 		return nil, fmt.Errorf("create embedded-cluster namespace: %w", err)
+	}
+
+	// ensure that the installation CRD exists
+	if err := createInstallationCRD(ctx, kcli); err != nil {
+		return nil, fmt.Errorf("create installation CRD: %w", err)
 	}
 
 	cfg, err := release.GetEmbeddedClusterConfig()
@@ -487,7 +497,7 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 			RuntimeConfig:             runtimeconfig.Get(),
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                runtimeconfig.BinaryName(),
-			SourceType:                ecv1beta1.InstallationSourceTypeConfigMap,
+			SourceType:                ecv1beta1.InstallationSourceTypeCRD,
 			LicenseInfo: &ecv1beta1.LicenseInfo{
 				IsDisasterRecoverySupported: disasterRecoveryEnabled,
 			},
@@ -509,7 +519,7 @@ func updateInstallation(ctx context.Context, install *ecv1beta1.Installation) er
 		return fmt.Errorf("create kube client: %w", err)
 	}
 
-	if err := kubeutils.UpdateInstallation(ctx, kcli, install); err != nil {
+	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, install); err != nil {
 		return fmt.Errorf("update installation")
 	}
 	return nil
@@ -524,6 +534,39 @@ func createECNamespace(ctx context.Context, kcli client.Client) error {
 	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return err
 	}
+	return nil
+}
+
+func createInstallationCRD(ctx context.Context, kcli client.Client) error {
+	var crd apiextensions.CustomResourceDefinition
+
+	// decode the CRD file
+	crdYaml := []byte(charts.InstallationCRDFile)
+	if err := yaml.Unmarshal(crdYaml, &crd); err != nil {
+		return fmt.Errorf("unmarshal installation CRD: %w", err)
+	}
+
+	// apply the CRD
+	if err := kcli.Create(ctx, &crd); err != nil {
+		return fmt.Errorf("create installation CRD: %w", err)
+	}
+
+	// wait for the CRD to be ready
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		newCrd := apiextensions.CustomResourceDefinition{}
+		err := kcli.Get(ctx, client.ObjectKey{Name: "installations.embeddedcluster.replicated.com"}, &newCrd)
+		if err != nil {
+			return false, nil // not ready yet
+		}
+		if newCrd.Status.Conditions[0].Type == apiextensions.Established {
+			return true, nil
+		}
+		return false, nil
+	}); err != nil {
+		return fmt.Errorf("wait for installation CRD to be ready: %w", err)
+	}
+
 	return nil
 }
 
