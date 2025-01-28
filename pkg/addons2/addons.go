@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/types"
@@ -69,6 +70,7 @@ func Install(ctx context.Context, opts InstallOptions) error {
 func getAddOns(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{},
+		&embeddedclusteroperator.EmbeddedClusterOperator{},
 	}
 
 	if opts.AirgapBundle != "" {
