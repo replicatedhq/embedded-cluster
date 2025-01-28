@@ -149,10 +149,9 @@ main() {
         exit 1
     fi
 
-# TODO: enable this once we cache the license in the data dir in install2
-#    if ! ensure_license_in_data_dir; then
-#        exit 1
-#    fi
+    if ! ensure_license_in_data_dir; then
+        exit 1
+    fi
 
     echo "kotsadm logs"
     kubectl logs -n kotsadm -l app=kotsadm --tail=50 || true
