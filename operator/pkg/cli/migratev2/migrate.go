@@ -15,6 +15,15 @@ type LogFunc func(string, ...any)
 // installations to configmaps, enables the v2 admin console, and finally removes the operator
 // chart.
 func Run(ctx context.Context, logf LogFunc, cli client.Client, in *ecv1beta1.Installation) (err error) {
+	ok, err := needsMigration(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("check if migration is needed: %w", err)
+	}
+	if !ok {
+		logf("No v2 migration needed")
+		return nil
+	}
+
 	logf("Running v2 migration")
 
 	err = setV2MigrationInProgress(ctx, logf, cli, in)
@@ -29,15 +38,6 @@ func Run(ctx context.Context, logf LogFunc, cli client.Client, in *ecv1beta1.Ins
 			logf("Failed to set v2 migration failed: %v", err)
 		}
 	}()
-
-	ok, err := needsMigration(ctx, cli)
-	if err != nil {
-		return fmt.Errorf("check if migration is needed: %w", err)
-	}
-	if !ok {
-		logf("No v2 migration needed")
-		return nil
-	}
 
 	// scale down the operator to ensure that it does not reconcile and revert our changes.
 	err = scaleDownOperator(ctx, logf, cli)
