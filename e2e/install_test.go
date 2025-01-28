@@ -553,11 +553,21 @@ func TestMigrateV2FromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state after v2 upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion(), "true"}
+	t.Logf("%s: checking postuprgrade state for an install2 cluster", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state2.sh", appUpgradeVersion, k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
+
+	t.Logf("%s: resetting admin console password", time.Now().Format(time.RFC3339))
+	newPassword := "newpass"
+	line = []string{"embedded-cluster", "admin-console", "reset-password", newPassword}
+	_, _, err := tc.RunCommandOnNode(0, line)
+	require.NoError(t, err, "unable to reset admin console password")
+
+	t.Logf("%s: logging in with the new password", time.Now().Format(time.RFC3339))
+	_, _, err = tc.RunPlaywrightTest("login-with-custom-password", newPassword)
+	require.NoError(t, err, "unable to login with the new password")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
