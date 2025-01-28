@@ -183,6 +183,12 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return err
 	}
 
+	logrus.Debugf("copy license file to %s", flags.dataDir)
+	if err := copyLicenseFileToDataDir(flags.licenseFile, flags.dataDir); err != nil {
+		// We have decided not to report this error
+		logrus.Warnf("unable to copy license file to %s: %v", flags.dataDir, err)
+	}
+
 	logrus.Debugf("configuring sysctl")
 	if err := configutils.ConfigureSysctl(); err != nil {
 		return fmt.Errorf("unable to configure sysctl: %w", err)
