@@ -56,6 +56,8 @@ func Join2Cmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
+			flags.isAirgap = flags.airgapBundle != ""
+
 			return nil
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
@@ -175,13 +177,8 @@ func runJoin2(ctx context.Context, name string, flags Join2CmdFlags, jcmd *kotsa
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
-	logrus.Debugf("installing manager")
-	if err := installAndEnableManager(ctx); err != nil {
-		return fmt.Errorf("unable to install and enable manager: %w", err)
-	}
-
 	if flags.enableHighAvailability {
-		if err := maybeEnableHA(ctx, kcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy); err != nil {
+		if err := maybeEnableHA(ctx, kcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config); err != nil {
 			return fmt.Errorf("unable to enable high availability: %w", err)
 		}
 	}
@@ -445,7 +442,7 @@ func waitForNode(ctx context.Context, kcli client.Client, hostname string) error
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
 	canEnableHA, err := addons2.CanEnableHA(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
@@ -461,5 +458,5 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, isAirgap bool, servi
 		return nil
 	}
 	logrus.Info("")
-	return addons2.EnableHA(ctx, kcli, isAirgap, serviceCIDR, proxy)
+	return addons2.EnableHA(ctx, kcli, isAirgap, serviceCIDR, proxy, cfgspec)
 }

@@ -2,19 +2,28 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/gosimple/slug"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/charts"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -28,6 +37,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -73,7 +83,7 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 	var flags Install2CmdFlags
 
 	cmd := &cobra.Command{
-		Use:           "install2",
+		Use:           "install",
 		Short:         fmt.Sprintf("Experimental installer for %s", name),
 		Hidden:        true,
 		SilenceUsage:  true,
@@ -214,6 +224,8 @@ func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags) error {
 
 	flags.isAirgap = flags.airgapBundle != ""
 
+	flags.isAirgap = flags.airgapBundle != ""
+
 	return nil
 }
 
@@ -266,24 +278,38 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error
 		return fmt.Errorf("unable to check if disaster recovery is enabled: %w", err)
 	}
 
-	installObject, err := recordInstallation(ctx, flags, k0sCfg, disasterRecoveryEnabled)
+	in, err := recordInstallation(ctx, kcli, flags, k0sCfg, disasterRecoveryEnabled)
 	if err != nil {
 		return fmt.Errorf("unable to record installation: %w", err)
 	}
 
+	if err := createVersionMetadataConfigmap(ctx, kcli); err != nil {
+		return fmt.Errorf("unable to create version metadata configmap: %w", err)
+	}
+
 	// TODO (@salah): update installation status to reflect what's happening
+
+	releaseConfig, err := release.GetEmbeddedClusterConfig()
+	if err != nil {
+		return fmt.Errorf("unable to get release embedded cluster config: %w", err)
+	}
+
+	endUserConfig, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return fmt.Errorf("unable to process overrides file: %w", err)
+	}
 
 	logrus.Debugf("installing addons")
 	if err := addons2.Install(ctx, addons2.InstallOptions{
 		AdminConsolePwd:         flags.adminConsolePassword,
 		License:                 flags.license,
-		LicenseFile:             flags.licenseFile,
-		AirgapBundle:            flags.airgapBundle,
+		IsAirgap:                flags.airgapBundle != "",
 		Proxy:                   flags.proxy,
 		PrivateCAs:              flags.privateCAs,
-		ConfigValuesFile:        flags.configValues,
 		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
 		DisasterRecoveryEnabled: disasterRecoveryEnabled,
+		ReleaseConfig:           releaseConfig,
+		EndUserConfig:           endUserConfig,
 		KotsInstaller: func(msg *spinner.MessageWriter) error {
 			opts := kotscli.InstallOptions{
 				AppSlug:          flags.license.Spec.AppSlug,
@@ -303,13 +329,9 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error
 		return fmt.Errorf("unable to install extensions: %w", err)
 	}
 
-	logrus.Debugf("installing manager")
-	if err := installAndEnableManager(ctx); err != nil {
-		return fmt.Errorf("unable to install manager: %w", err)
-	}
-
-	// mark that the installation is installed as everything has been applied
-	if err := setInstallationState(ctx, installObject, ecv1beta1.InstallationStateInstalled); err != nil {
+	// mark that the installation as installed as everything has been applied
+	in.Status.State = ecv1beta1.InstallationStateInstalled
+	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, in); err != nil {
 		return fmt.Errorf("unable to update installation: %w", err)
 	}
 
@@ -570,15 +592,10 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 	return cfg, nil
 }
 
-func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, disasterRecoveryEnabled bool) (*ecv1beta1.Installation, error) {
+func recordInstallation(ctx context.Context, kcli client.Client, flags Install2CmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, disasterRecoveryEnabled bool) (*ecv1beta1.Installation, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Creating types")
-
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return nil, fmt.Errorf("create kube client: %w", err)
-	}
 
 	// ensure that the embedded-cluster namespace exists
 	if err := createECNamespace(ctx, kcli); err != nil {
@@ -728,6 +745,128 @@ func createInstallationCRD(ctx context.Context, kcli client.Client) error {
 	}
 
 	return nil
+}
+
+func createVersionMetadataConfigmap(ctx context.Context, kcli client.Client) error {
+	// This metadata should be the same as the artifact from the release without the vendor customizations
+	metadata, err := gatherVersionMetadata(false)
+	if err != nil {
+		return fmt.Errorf("unable to gather release metadata: %w", err)
+	}
+
+	data, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("unable to marshal release metadata: %w", err)
+	}
+
+	// we trim out the prefix v from the version and then slugify it, we use
+	// the result as a suffix for the config map name.
+	slugver := slug.Make(strings.TrimPrefix(versions.Version, "v"))
+	configmap := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("version-metadata-%s", slugver),
+			Namespace: "embedded-cluster",
+			Labels: map[string]string{
+				"replicated.com/disaster-recovery": "ec-install",
+			},
+		},
+		Data: map[string]string{
+			"metadata.json": string(data),
+		},
+	}
+
+	if err := kcli.Create(ctx, configmap); err != nil {
+		return fmt.Errorf("unable to create version metadata config map: %w", err)
+	}
+	return nil
+}
+
+// gatherVersionMetadata returns the release metadata for this version of
+// embedded cluster. Release metadata involves the default versions of the
+// components that are included in the release plus the default values used
+// when deploying them.
+func gatherVersionMetadata(withChannelRelease bool) (*types.ReleaseMetadata, error) {
+	versionsMap := map[string]string{}
+	for name, version := range addons2.Versions() {
+		versionsMap[name] = version
+	}
+	for name, version := range extensions.Versions() {
+		versionsMap[name] = version
+	}
+
+	versionsMap["Kubernetes"] = versions.K0sVersion
+	versionsMap["Installer"] = versions.Version
+	versionsMap["Troubleshoot"] = versions.TroubleshootVersion
+
+	if withChannelRelease {
+		channelRelease, err := release.GetChannelRelease()
+		if err == nil && channelRelease != nil {
+			versionsMap[runtimeconfig.BinaryName()] = channelRelease.VersionLabel
+		}
+	}
+
+	sha, err := goods.K0sBinarySHA256()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get k0s binary sha256: %w", err)
+	}
+
+	artifacts := map[string]string{
+		"k0s":                         fmt.Sprintf("k0s-binaries/%s-%s", versions.K0sVersion, runtime.GOARCH),
+		"kots":                        fmt.Sprintf("kots-binaries/%s-%s.tar.gz", adminconsole.KotsVersion, runtime.GOARCH),
+		"operator":                    fmt.Sprintf("operator-binaries/%s-%s.tar.gz", embeddedclusteroperator.Metadata.Version, runtime.GOARCH),
+		"local-artifact-mirror-image": versions.LocalArtifactMirrorImage,
+	}
+	if versions.K0sBinaryURLOverride != "" {
+		artifacts["k0s"] = versions.K0sBinaryURLOverride
+	}
+	if versions.KOTSBinaryURLOverride != "" {
+		artifacts["kots"] = versions.KOTSBinaryURLOverride
+	}
+	if versions.OperatorBinaryURLOverride != "" {
+		artifacts["operator"] = versions.OperatorBinaryURLOverride
+	}
+
+	meta := types.ReleaseMetadata{
+		Versions:  versionsMap,
+		K0sSHA:    sha,
+		Artifacts: artifacts,
+	}
+
+	chtconfig, repconfig, err := addons2.GenerateChartConfigs()
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate chart configs: %w", err)
+	}
+
+	additionalCharts := []ecv1beta1.Chart{}
+	additionalRepos := []k0sconfig.Repository{}
+	if withChannelRelease {
+		additionalCharts = config.AdditionalCharts()
+		additionalRepos = config.AdditionalRepositories()
+	}
+
+	meta.Configs = ecv1beta1.Helm{
+		ConcurrencyLevel: 1,
+		Charts:           append(chtconfig, additionalCharts...),
+		Repositories:     append(repconfig, additionalRepos...),
+	}
+
+	k0sCfg := config.RenderK0sConfig()
+	meta.K0sImages = config.ListK0sImages(k0sCfg)
+	meta.K0sImages = append(meta.K0sImages, addons2.GetAdditionalImages()...)
+	meta.K0sImages = helpers.UniqueStringSlice(meta.K0sImages)
+	sort.Strings(meta.K0sImages)
+
+	meta.Images = config.ListK0sImages(k0sCfg)
+	meta.Images = append(meta.Images, addons2.GetImages()...)
+	meta.Images = append(meta.Images, versions.LocalArtifactMirrorImage)
+	meta.Images = helpers.UniqueStringSlice(meta.Images)
+	sort.Strings(meta.Images)
+
+	return &meta, nil
 }
 
 func networkSpecFromK0sConfig(k0sCfg *k0sv1beta1.ClusterConfig) *ecv1beta1.NetworkSpec {

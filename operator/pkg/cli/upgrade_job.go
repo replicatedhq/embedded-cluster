@@ -2,13 +2,14 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"time"
 
+	"github.com/google/uuid"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/spf13/cobra"
@@ -34,6 +35,13 @@ func UpgradeJobCmd() *cobra.Command {
 			// set the runtime config from the installation spec
 			runtimeconfig.Set(installation.Spec.RuntimeConfig)
 
+			// initialize the cluster ID
+			clusterUUID, err := uuid.Parse(installation.Spec.ClusterID)
+			if err != nil {
+				return fmt.Errorf("failed to parse cluster ID: %w", err)
+			}
+			metrics.SetClusterID(clusterUUID)
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -55,11 +63,9 @@ func UpgradeJobCmd() *cobra.Command {
 					fmt.Println(fmt.Sprintf(format, args...))
 				}
 
-				if os.Getenv("MIGRATE_V2") == "true" {
-					err := migratev2.Run(ctx, logf, cli, installation)
-					if err != nil {
-						return fmt.Errorf("failed to run v2 migration: %w", err)
-					}
+				err := migratev2.Run(ctx, logf, cli, installation)
+				if err != nil {
+					return fmt.Errorf("failed to run v2 migration: %w", err)
 				}
 
 				err = upgrade.Upgrade(ctx, cli, installation)

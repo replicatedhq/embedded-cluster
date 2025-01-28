@@ -295,11 +295,6 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags Install2Cm
 			return err
 		}
 
-		logrus.Debugf("installing manager")
-		if err := installAndEnableManager(ctx); err != nil {
-			return fmt.Errorf("unable to install manager: %w", err)
-		}
-
 		fallthrough
 
 	case ecRestoreStateWaitForNodes:

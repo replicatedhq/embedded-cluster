@@ -249,7 +249,14 @@ func UpdateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.In
 func UpdateInstallationStatus(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
 	// if the installation source type is CRD (or not set), just update directly
 	if in.Spec.SourceType == "" || in.Spec.SourceType == ecv1beta1.InstallationSourceTypeCRD {
-		if err := cli.Status().Update(ctx, in); err != nil {
+		updatedCRD := ecv1beta1.Installation{}
+		err := cli.Get(ctx, types.NamespacedName{Name: in.Name, Namespace: in.Namespace}, &updatedCRD)
+		if err != nil {
+			return fmt.Errorf("get crd installation before updating status: %w", err)
+		}
+		updatedCRD.Status = in.Status
+		err = cli.Status().Update(ctx, &updatedCRD)
+		if err != nil {
 			return fmt.Errorf("update crd installation status: %w", err)
 		}
 		return nil

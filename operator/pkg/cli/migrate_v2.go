@@ -7,6 +7,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
 )
 
@@ -26,6 +27,10 @@ func MigrateV2Cmd() *cobra.Command {
 				return fmt.Errorf("failed to get installation from file: %w", err)
 			}
 			installation = in
+
+			// set the runtime config from the installation spec
+			// NOTE: this is run in a pod so the data dir is not available
+			runtimeconfig.Set(installation.Spec.RuntimeConfig)
 
 			return nil
 		},
