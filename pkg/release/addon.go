@@ -115,5 +115,11 @@ func (a *AddonMetadata) Save(addon string) error {
 	if err := os.WriteFile(fpath, buf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write addon metadata: %w", err)
 	}
+	if addon != "embeddedclusteroperator" {
+		fpath = filepath.Join("pkg", "addons2", addon, "static", "metadata.yaml")
+		if err := os.WriteFile(fpath, buf.Bytes(), 0600); err != nil {
+			return fmt.Errorf("failed to write addon metadata: %w", err)
+		}
+	}
 	return nil
 }
