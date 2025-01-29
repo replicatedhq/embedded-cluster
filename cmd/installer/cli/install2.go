@@ -4,17 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/replicatedhq/embedded-cluster/operator/charts"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"os"
 	"sigs.k8s.io/yaml"
+	"strings"
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/charts"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
@@ -33,8 +32,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -510,6 +512,17 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 		return nil, fmt.Errorf("create installation: %w", err)
 	}
 
+	// TODO remove this once the operator no longer reconciles the installation
+	meta.SetStatusCondition(&installation.Status.Conditions, metav1.Condition{
+		Type:   ecv1beta1.ConditionTypeDisableReconcile,
+		Status: metav1.ConditionTrue,
+		Reason: "Install In Progress", // make sure that the current operator doesn't reconcile the installation
+	})
+
+	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, &installation); err != nil {
+		return nil, fmt.Errorf("update installation status: %w", err)
+	}
+
 	return &installation, nil
 }
 
@@ -538,33 +551,40 @@ func createECNamespace(ctx context.Context, kcli client.Client) error {
 }
 
 func createInstallationCRD(ctx context.Context, kcli client.Client) error {
-	var crd apiextensions.CustomResourceDefinition
+	var crd apiextensionsv1.CustomResourceDefinition
 
 	// decode the CRD file
-	crdYaml := []byte(charts.InstallationCRDFile)
-	if err := yaml.Unmarshal(crdYaml, &crd); err != nil {
-		return fmt.Errorf("unmarshal installation CRD: %w", err)
-	}
+	crds := strings.Split(charts.InstallationCRDFile, "\n---\n")
 
-	// apply the CRD
-	if err := kcli.Create(ctx, &crd); err != nil {
-		return fmt.Errorf("create installation CRD: %w", err)
-	}
+	for _, crdYaml := range crds {
+		if err := yaml.Unmarshal([]byte(crdYaml), &crd); err != nil {
+			return fmt.Errorf("unmarshal installation CRD: %w", err)
+		}
 
-	// wait for the CRD to be ready
-	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
-	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
-		newCrd := apiextensions.CustomResourceDefinition{}
-		err := kcli.Get(ctx, client.ObjectKey{Name: "installations.embeddedcluster.replicated.com"}, &newCrd)
-		if err != nil {
-			return false, nil // not ready yet
+		// apply the CRD
+		if err := kcli.Create(ctx, &crd); err != nil {
+			return fmt.Errorf("create installation CRD: %w", err)
 		}
-		if newCrd.Status.Conditions[0].Type == apiextensions.Established {
-			return true, nil
+
+		// wait for the CRD to be ready
+		backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+		fmt.Printf("Waiting for installation CRD %s to be ready\n", crd.Name)
+		if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+			newCrd := apiextensionsv1.CustomResourceDefinition{}
+			err := kcli.Get(ctx, client.ObjectKey{Name: crd.Name}, &newCrd)
+			if err != nil {
+				return false, nil // not ready yet
+			}
+			for _, cond := range newCrd.Status.Conditions {
+				if cond.Type == apiextensionsv1.Established && cond.Status == apiextensionsv1.ConditionTrue {
+					return true, nil
+				}
+			}
+			return false, nil
+		}); err != nil {
+			return fmt.Errorf("wait for installation CRD to be ready: %w", err)
 		}
-		return false, nil
-	}); err != nil {
-		return fmt.Errorf("wait for installation CRD to be ready: %w", err)
+		fmt.Printf("Installation CRD %s is ready\n", crd.Name)
 	}
 
 	return nil
