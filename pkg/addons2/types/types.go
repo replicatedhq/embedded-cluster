@@ -16,6 +16,7 @@ import (
 type AddOn interface {
 	Name() string
 	Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, writer *spinner.MessageWriter) error
+	InstallForRestore(ctx context.Context, kcli client.Client, hcli *helm.Helm, writer *spinner.MessageWriter) error
 }
 
 var _ AddOn = (*adminconsole.AdminConsole)(nil)

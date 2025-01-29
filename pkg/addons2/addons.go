@@ -30,6 +30,7 @@ type InstallOptions struct {
 	ServiceCIDR             string
 	DisasterRecoveryEnabled bool
 	KotsInstaller           adminconsole.KotsInstaller
+	IsRestore               bool
 }
 
 func Install(ctx context.Context, opts InstallOptions) error {
@@ -56,9 +57,16 @@ func Install(ctx context.Context, opts InstallOptions) error {
 		loading := spinner.Start()
 		loading.Infof("Installing %s", addon.Name())
 
-		if err := addon.Install(ctx, kcli, hcli, loading); err != nil {
-			loading.CloseWithError()
-			return errors.Wrap(err, "install addon")
+		if opts.IsRestore {
+			if err := addon.InstallForRestore(ctx, kcli, hcli, loading); err != nil {
+				loading.CloseWithError()
+				return errors.Wrap(err, "install addon")
+			}
+		} else {
+			if err := addon.Install(ctx, kcli, hcli, loading); err != nil {
+				loading.CloseWithError()
+				return errors.Wrap(err, "install addon")
+			}
 		}
 
 		loading.Closef("%s is ready!", addon.Name())

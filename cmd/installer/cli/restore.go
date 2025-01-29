@@ -19,17 +19,18 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
-	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
+	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -60,6 +61,7 @@ const (
 	ecRestoreStateRestoreSeaweedFS    ecRestoreState = "restore-seaweedfs"
 	ecRestoreStateRestoreRegistry     ecRestoreState = "restore-registry"
 	ecRestoreStateRestoreECO          ecRestoreState = "restore-embedded-cluster-operator"
+	ecRestoreStateRestoreExtensions   ecRestoreState = "restore-extensions"
 	ecRestoreStateRestoreApp          ecRestoreState = "restore-app"
 )
 
@@ -72,6 +74,7 @@ var ecRestoreStates = []ecRestoreState{
 	ecRestoreStateRestoreSeaweedFS,
 	ecRestoreStateRestoreRegistry,
 	ecRestoreStateRestoreECO,
+	ecRestoreStateRestoreExtensions,
 	ecRestoreStateRestoreApp,
 }
 
@@ -183,19 +186,6 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags Install2Cm
 	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
 	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
-	opts := addonsApplierOpts{
-		assumeYes:    flags.assumeYes,
-		license:      "",
-		airgapBundle: flags.airgapBundle,
-		overrides:    "",               // TODO: why not set this?
-		privateCAs:   flags.privateCAs, // TODO: this was changed, are we sure...
-		configValues: "",
-	}
-	applier, err := getAddonsApplier(cmd, opts, "", flags.proxy)
-	if err != nil {
-		return err
-	}
-
 	switch state {
 	case ecRestoreStateNew:
 		logrus.Debugf("checking if k0s is already installed")
@@ -235,17 +225,24 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags Install2Cm
 		}
 
 		logrus.Debugf("running host preflights")
-		if err := RunHostPreflightsForRestore(cmd, applier, flags.proxy, flags.assumeYes); err != nil {
-			return fmt.Errorf("unable to finish preflight checks: %w", err)
+		if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
+			Proxy:                flags.proxy,
+			PodCIDR:              flags.cidrCfg.PodCIDR,
+			ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
+			GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
+			PrivateCAs:           flags.privateCAs,
+			IsAirgap:             flags.isAirgap,
+			SkipHostPreflights:   flags.skipHostPreflights,
+			IgnoreHostPreflights: flags.ignoreHostPreflights,
+			AssumeYes:            flags.assumeYes,
+		}); err != nil {
+			if err == preflights.ErrPreflightsHaveFail {
+				return ErrNothingElseToAdd
+			}
+			return fmt.Errorf("unable to prepare and run preflights: %w", err)
 		}
 
-		mutateK0sCfg := func(k0sCfg *k0sv1beta1.ClusterConfig) error {
-			if err := config.UpdateHelmConfigsForRestore(applier, k0sCfg); err != nil {
-				return fmt.Errorf("unable to update helm configs: %w", err)
-			}
-			return nil
-		}
-		k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, mutateK0sCfg)
+		_, err = installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides)
 		if err != nil {
 			return err
 		}
@@ -263,9 +260,18 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags Install2Cm
 			}
 		}()
 
-		logrus.Debugf("running outro")
-		if err := runOutroForRestore(cmd, applier, k0sCfg); err != nil {
-			return fmt.Errorf("unable to run outro: %w", err)
+		// TODO (@salah): update installation status to reflect what's happening
+
+		logrus.Debugf("installing addons")
+		if err := addons2.Install(ctx, addons2.InstallOptions{
+			AirgapBundle:     flags.airgapBundle,
+			Proxy:            flags.proxy,
+			PrivateCAs:       flags.privateCAs,
+			ConfigValuesFile: flags.configValues,
+			ServiceCIDR:      flags.cidrCfg.ServiceCIDR,
+			IsRestore:        true,
+		}); err != nil {
+			return err
 		}
 
 		logrus.Debugf("configuring velero backup storage location")
@@ -437,6 +443,19 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags Install2Cm
 		logrus.Debugf("restoring embedded cluster operator from backup %q", backupToRestore.GetName())
 		if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentECO); err != nil {
 			return err
+		}
+
+		fallthrough
+
+	case ecRestoreStateRestoreExtensions:
+		logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreExtensions)
+		if err := setECRestoreState(ctx, ecRestoreStateRestoreExtensions, backupToRestore.GetName()); err != nil {
+			return fmt.Errorf("unable to set restore state: %w", err)
+		}
+
+		logrus.Debugf("installing extensions")
+		if err := extensions.Install(ctx, flags.isAirgap); err != nil {
+			return fmt.Errorf("unable to install extensions: %w", err)
 		}
 
 		fallthrough
@@ -704,23 +723,6 @@ func validateS3BackupStore(s *s3BackupStore) error {
 	}
 
 	return nil
-}
-
-// RunHostPreflightsForRestore runs the host preflights we found embedded in the binary
-// on all configured hosts. We attempt to read HostPreflights from all the
-// embedded Helm Charts for restore operations.
-func RunHostPreflightsForRestore(cmd *cobra.Command, applier *addons.Applier, proxy *ecv1beta1.ProxySpec, assumeYes bool) error {
-	hpf, err := applier.HostPreflightsForRestore()
-	if err != nil {
-		return fmt.Errorf("unable to read host preflights: %w", err)
-	}
-
-	return runHostPreflights(cmd, hpf, proxy, assumeYes, "")
-}
-
-// runOutroForRestore calls Outro() in all enabled addons for restore operations by means of Applier.
-func runOutroForRestore(cmd *cobra.Command, applier *addons.Applier, cfg *k0sv1beta1.ClusterConfig) error {
-	return applier.OutroForRestore(cmd.Context(), cfg)
 }
 
 func isReplicatedBackupRestorable(backup disasterrecovery.ReplicatedBackup, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig) (bool, string) {

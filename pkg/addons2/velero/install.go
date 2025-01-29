@@ -35,6 +35,10 @@ func (v *Velero) Install(ctx context.Context, kcli client.Client, hcli *helm.Hel
 	return nil
 }
 
+func (v *Velero) InstallForRestore(ctx context.Context, kcli client.Client, hcli *helm.Helm, writer *spinner.MessageWriter) error {
+	return v.Install(ctx, kcli, hcli, writer)
+}
+
 func (v *Velero) createPreRequisites(ctx context.Context, kcli client.Client) error {
 	if err := createNamespace(ctx, kcli, namespace); err != nil {
 		return errors.Wrap(err, "create namespace")

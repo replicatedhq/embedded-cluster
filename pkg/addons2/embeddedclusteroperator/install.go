@@ -27,3 +27,8 @@ func (o *EmbeddedClusterOperator) Install(ctx context.Context, kcli client.Clien
 
 	return nil
 }
+
+func (o *EmbeddedClusterOperator) InstallForRestore(ctx context.Context, kcli client.Client, hcli *helm.Helm, writer *spinner.MessageWriter) error {
+	// not included in a restore
+	return nil
+}

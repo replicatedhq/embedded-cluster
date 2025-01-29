@@ -39,6 +39,11 @@ func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli *helm.
 	return nil
 }
 
+func (s *SeaweedFS) InstallForRestore(ctx context.Context, kcli client.Client, hcli *helm.Helm, writer *spinner.MessageWriter) error {
+	// not included in a restore
+	return nil
+}
+
 func (s *SeaweedFS) createPreRequisites(ctx context.Context, kcli client.Client) error {
 	if err := createNamespace(ctx, kcli, namespace); err != nil {
 		return errors.Wrap(err, "create namespace")
