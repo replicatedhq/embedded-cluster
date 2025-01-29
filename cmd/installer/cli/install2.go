@@ -490,7 +490,7 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 			Kind:       "Installation",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: time.Now().Format("20060102150405"),
+			Name: fmt.Sprintf("embedded-cluster-installation-%s", time.Now().Format("20060102150405")),
 		},
 		Spec: ecv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),
