@@ -23,6 +23,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
@@ -238,7 +239,13 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags Install2Cm
 			return fmt.Errorf("unable to finish preflight checks: %w", err)
 		}
 
-		k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides)
+		mutateK0sCfg := func(k0sCfg *k0sv1beta1.ClusterConfig) error {
+			if err := config.UpdateHelmConfigsForRestore(applier, k0sCfg); err != nil {
+				return fmt.Errorf("unable to update helm configs: %w", err)
+			}
+			return nil
+		}
+		k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, mutateK0sCfg)
 		if err != nil {
 			return err
 		}
