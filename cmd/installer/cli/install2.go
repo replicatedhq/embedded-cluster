@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/charts"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
@@ -29,9 +31,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 )
 
 type Install2CmdFlags struct {
@@ -478,13 +483,23 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 }
 
 func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, disasterRecoveryEnabled bool) (*ecv1beta1.Installation, error) {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Creating types")
+
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return nil, fmt.Errorf("create kube client: %w", err)
 	}
 
+	// ensure that the embedded-cluster namespace exists
 	if err := createECNamespace(ctx, kcli); err != nil {
 		return nil, fmt.Errorf("create embedded-cluster namespace: %w", err)
+	}
+
+	// ensure that the installation CRD exists
+	if err := createInstallationCRD(ctx, kcli); err != nil {
+		return nil, fmt.Errorf("create installation CRD: %w", err)
 	}
 
 	cfg, err := release.GetEmbeddedClusterConfig()
@@ -525,7 +540,7 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 			RuntimeConfig:             runtimeconfig.Get(),
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                runtimeconfig.BinaryName(),
-			SourceType:                ecv1beta1.InstallationSourceTypeConfigMap,
+			SourceType:                ecv1beta1.InstallationSourceTypeCRD,
 			LicenseInfo: &ecv1beta1.LicenseInfo{
 				IsDisasterRecoverySupported: disasterRecoveryEnabled,
 			},
@@ -538,6 +553,11 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 		return nil, fmt.Errorf("create installation: %w", err)
 	}
 
+	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, &installation); err != nil {
+		return nil, fmt.Errorf("update installation status: %w", err)
+	}
+
+	loading.Infof("Types created!")
 	return &installation, nil
 }
 
@@ -547,7 +567,7 @@ func updateInstallation(ctx context.Context, install *ecv1beta1.Installation) er
 		return fmt.Errorf("create kube client: %w", err)
 	}
 
-	if err := kubeutils.UpdateInstallation(ctx, kcli, install); err != nil {
+	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, install); err != nil {
 		return fmt.Errorf("update installation")
 	}
 	return nil
@@ -562,6 +582,54 @@ func createECNamespace(ctx context.Context, kcli client.Client) error {
 	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return err
 	}
+	return nil
+}
+
+func createInstallationCRD(ctx context.Context, kcli client.Client) error {
+	// decode the CRD file
+	crds := strings.Split(charts.InstallationCRDFile, "\n---\n")
+
+	for _, crdYaml := range crds {
+		var crd apiextensionsv1.CustomResourceDefinition
+		if err := yaml.Unmarshal([]byte(crdYaml), &crd); err != nil {
+			return fmt.Errorf("unmarshal installation CRD: %w", err)
+		}
+
+		// apply labels and annotations so that the CRD can be taken over by helm shortly
+		if crd.Labels == nil {
+			crd.Labels = map[string]string{}
+		}
+		crd.Labels["app.kubernetes.io/managed-by"] = "Helm"
+		if crd.Annotations == nil {
+			crd.Annotations = map[string]string{}
+		}
+		crd.Annotations["meta.helm.sh/release-name"] = "embedded-cluster-operator"
+		crd.Annotations["meta.helm.sh/release-namespace"] = "embedded-cluster"
+
+		// apply the CRD
+		if err := kcli.Create(ctx, &crd); err != nil {
+			return fmt.Errorf("apply installation CRD: %w", err)
+		}
+
+		// wait for the CRD to be ready
+		backoff := wait.Backoff{Steps: 600, Duration: 100 * time.Millisecond, Factor: 1.0, Jitter: 0.1}
+		if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+			newCrd := apiextensionsv1.CustomResourceDefinition{}
+			err := kcli.Get(ctx, client.ObjectKey{Name: crd.Name}, &newCrd)
+			if err != nil {
+				return false, nil // not ready yet
+			}
+			for _, cond := range newCrd.Status.Conditions {
+				if cond.Type == apiextensionsv1.Established && cond.Status == apiextensionsv1.ConditionTrue {
+					return true, nil
+				}
+			}
+			return false, nil
+		}); err != nil {
+			return fmt.Errorf("wait for installation CRD to be ready: %w", err)
+		}
+	}
+
 	return nil
 }
 

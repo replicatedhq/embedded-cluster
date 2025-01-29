@@ -19,7 +19,15 @@ main() {
     echo "pods"
     kubectl get pods -A
 
-    echo "TODO: check installation configmap state"
+    echo "ensure that installation is installed"
+    if echo "$version" | grep "pre-minio-removal"; then
+        echo "waiting for installation as this is a pre-minio-removal embedded-cluster version (and so the installer doesn't wait for the installation to be ready itself)"
+        wait_for_installation
+    fi
+    if ! ensure_installation_is_installed; then
+        echo "installation is not installed"
+        exit 1
+    fi
 
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"

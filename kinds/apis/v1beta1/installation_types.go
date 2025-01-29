@@ -45,8 +45,7 @@ const (
 
 // Valid installation source types
 const (
-	InstallationSourceTypeCRD       string = "CRD"
-	InstallationSourceTypeConfigMap string = "ConfigMap"
+	InstallationSourceTypeCRD string = "CRD"
 )
 
 const (

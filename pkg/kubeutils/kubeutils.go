@@ -2,7 +2,6 @@ package kubeutils
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -228,34 +227,10 @@ func (k *KubeUtils) WaitForInstallation(ctx context.Context, cli client.Client, 
 }
 
 func CreateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
-	in.Spec.SourceType = ecv1beta1.InstallationSourceTypeConfigMap
-
-	data, err := json.Marshal(in)
-	if err != nil {
-		return fmt.Errorf("marshal installation: %w", err)
+	in.Spec.SourceType = ecv1beta1.InstallationSourceTypeCRD
+	if err := cli.Create(ctx, in); err != nil {
+		return fmt.Errorf("create installation: %w", err)
 	}
-
-	cm := &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "embedded-cluster",
-			Name:      in.Name,
-			Labels: map[string]string{
-				"replicated.com/installation":      "embedded-cluster",
-				"replicated.com/disaster-recovery": "ec-install",
-			},
-		},
-		Data: map[string]string{
-			"installation": string(data),
-		},
-	}
-	if err := cli.Create(ctx, cm); err != nil {
-		return fmt.Errorf("create configmap: %w", err)
-	}
-
 	return nil
 }
 
@@ -267,24 +242,7 @@ func UpdateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.In
 		}
 		return nil
 	}
-
-	// find configmap with the same name as the installation
-	var cm corev1.ConfigMap
-	if err := cli.Get(ctx, types.NamespacedName{Namespace: "embedded-cluster", Name: in.Name}, &cm); err != nil {
-		return fmt.Errorf("get configmap: %w", err)
-	}
-
-	// marshal the installation and update the configmap
-	data, err := json.Marshal(in)
-	if err != nil {
-		return fmt.Errorf("marshal installation: %w", err)
-	}
-	cm.Data["installation"] = string(data)
-
-	if err := cli.Update(ctx, &cm); err != nil {
-		return fmt.Errorf("update configmap: %w", err)
-	}
-	return nil
+	return fmt.Errorf("update installation: source type %q not supported", in.Spec.SourceType)
 }
 
 func UpdateInstallationStatus(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
@@ -296,36 +254,7 @@ func UpdateInstallationStatus(ctx context.Context, cli client.Client, in *ecv1be
 		return nil
 	}
 
-	return UpdateInstallation(ctx, cli, in)
-}
-
-func ListCMInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.Installation, error) {
-	var cmList corev1.ConfigMapList
-	if err := cli.List(ctx, &cmList,
-		client.InNamespace("embedded-cluster"),
-		client.MatchingLabels(labels.Set{"replicated.com/installation": "embedded-cluster"}),
-	); err != nil {
-		return nil, fmt.Errorf("list configmaps: %w", err)
-	}
-
-	installs := []ecv1beta1.Installation{}
-	for _, cm := range cmList.Items {
-		var install ecv1beta1.Installation
-		data, ok := cm.Data["installation"]
-		if !ok {
-			return nil, fmt.Errorf("installation data not found in configmap %s/%s", cm.Namespace, cm.Name)
-		}
-		if err := json.Unmarshal([]byte(data), &install); err != nil {
-			return nil, fmt.Errorf("unmarshal installation: %w", err)
-		}
-		installs = append(installs, install)
-	}
-
-	sort.SliceStable(installs, func(i, j int) bool {
-		return installs[j].Name < installs[i].Name
-	})
-
-	return installs, nil
+	return fmt.Errorf("update installation status: source type %q not supported", in.Spec.SourceType)
 }
 
 func ListCRDInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.Installation, error) {
@@ -362,16 +291,8 @@ func ListCRDInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.I
 }
 
 func ListInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.Installation, error) {
-	installs, err := ListCMInstallations(ctx, cli)
-	if err != nil {
-		return nil, fmt.Errorf("list cm installations: %w", err)
-	}
-	if len(installs) > 0 {
-		return installs, nil
-	}
-
 	// fall back to CRD-based installations
-	installs, err = ListCRDInstallations(ctx, cli)
+	installs, err := ListCRDInstallations(ctx, cli)
 	if err != nil {
 		return nil, err
 	}
