@@ -484,8 +484,41 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 	// init the kubeconfig
 	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
 
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return nil, fmt.Errorf("create kube client: %w", err)
+	}
+
+	if err := createV2ConfigMap(ctx, kcli); err != nil {
+		return nil, fmt.Errorf("create v2 configmap: %w", err)
+	}
+
 	loading.Infof("Node installation finished!")
 	return cfg, nil
+}
+
+// createV2ConfigMap creates a configmap so that the operator knows the cluster was installed with
+// v2.
+func createV2ConfigMap(ctx context.Context, kcli client.Client) error {
+	// ensure that the embedded-cluster namespace exists
+	if err := createECNamespace(ctx, kcli); err != nil {
+		return fmt.Errorf("create embedded-cluster namespace: %w", err)
+	}
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "embedded-cluster",
+			Name:      "v2-enabled",
+		},
+		Data: map[string]string{
+			"enabled": "true",
+		},
+	}
+	if err := kcli.Create(ctx, cm); err != nil && !k8serrors.IsAlreadyExists(err) {
+		return fmt.Errorf("create v2 configmap: %w", err)
+	}
+
+	return nil
 }
 
 func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, disasterRecoveryEnabled bool) (*ecv1beta1.Installation, error) {
@@ -534,7 +567,7 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 			Kind:       "Installation",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("embedded-cluster-installation-%s", time.Now().Format("20060102150405")),
+			Name: time.Now().Format("20060102150405"),
 		},
 		Spec: ecv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),

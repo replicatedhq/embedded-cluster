@@ -27,7 +27,15 @@ import (
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	apcore "github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
+	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/charts"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
@@ -42,17 +50,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-
-	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/charts"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 )
 
 const HAConditionType = "HighAvailability"
@@ -387,40 +384,6 @@ func (r *InstallationReconciler) ReconcileHAStatus(ctx context.Context, in *v1be
 	return nil
 }
 
-// SetStateBasedOnPlan sets the installation state based on the Plan state. For now we do not
-// report anything fancy but we should consider reporting here a summary of how many nodes
-// have been upgraded and how many are still pending.
-func (r *InstallationReconciler) SetStateBasedOnPlan(in *v1beta1.Installation, plan apv1b2.Plan, desiredVersion string) {
-	reason := autopilot.ReasonForState(plan)
-	switch plan.Status.State {
-	case "":
-		in.Status.SetState(v1beta1.InstallationStateEnqueued, reason, nil)
-	case apcore.PlanIncompleteTargets:
-		fallthrough
-	case apcore.PlanInconsistentTargets:
-		fallthrough
-	case apcore.PlanRestricted:
-		fallthrough
-	case apcore.PlanWarning:
-		fallthrough
-	case apcore.PlanMissingSignalNode:
-		fallthrough
-	case apcore.PlanApplyFailed:
-		r.Recorder.Eventf(in, corev1.EventTypeNormal, "K0sUpgradeFailed", "Upgrade of k0s to %s failed (%q)", desiredVersion, plan.Status.State)
-		in.Status.SetState(v1beta1.InstallationStateFailed, reason, nil)
-	case apcore.PlanSchedulable:
-		fallthrough
-	case apcore.PlanSchedulableWait:
-		in.Status.SetState(v1beta1.InstallationStateInstalling, reason, nil)
-	case apcore.PlanCompleted:
-		r.Recorder.Eventf(in, corev1.EventTypeNormal, "K0sUpgradeComplete", "Upgrade of k0s to %s completed", desiredVersion)
-		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, reason, nil)
-	default:
-		r.Recorder.Eventf(in, corev1.EventTypeNormal, "K0sUpgradeUnknownState", "Upgrade of k0s to %s has an unknown state %q", desiredVersion, plan.Status.State)
-		in.Status.SetState(v1beta1.InstallationStateFailed, reason, nil)
-	}
-}
-
 // StartAutopilotUpgrade creates an autopilot plan to upgrade to version specified in spec.config.version.
 func (r *InstallationReconciler) StartAutopilotUpgrade(ctx context.Context, in *v1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
 	return upgrade.StartAutopilotUpgrade(ctx, r.Client, in, meta)
@@ -553,6 +516,11 @@ func constructHostPreflightResultsJob(in *v1beta1.Installation, nodeName string)
 
 // Reconcile reconcile the installation object.
 func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	isV2Enabled, err := r.isV2Enabled(ctx)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to check if v2 is enabled: %w", err)
+	}
+
 	// we start by fetching all installation objects and coalescing them. we
 	// are going to operate only on the newest one (sorting by installation
 	// name).
@@ -596,12 +564,14 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// parse the config otherwise we risk moving on with a reconcile
 	// using an erroneous config.
 	if err := r.ReadClusterConfigSpecFromSecret(ctx, in); err != nil {
-		in.Status.SetState(v1beta1.InstallationStateFailed, err.Error(), nil)
-		if err := r.Status().Update(ctx, in); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
+		if !isV2Enabled {
+			in.Status.SetState(v1beta1.InstallationStateFailed, err.Error(), nil)
+			if err := r.Status().Update(ctx, in); err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
+			}
+			r.DisableOldInstallations(ctx, items)
 		}
-		r.DisableOldInstallations(ctx, items)
-		return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
+		return ctrl.Result{}, fmt.Errorf("failed to read cluster config from secret: %w", err)
 	}
 
 	// verify if a new node has been added, removed or changed.
@@ -620,23 +590,25 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile openebs: %w", err)
 	}
 
-	// reconcile helm chart dependencies including secrets.
-	if err := r.ReconcileRegistry(ctx, in); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to pre-reconcile helm charts: %w", err)
-	}
+	if !isV2Enabled {
+		// reconcile helm chart dependencies including secrets.
+		if err := r.ReconcileRegistry(ctx, in); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to pre-reconcile helm charts: %w", err)
+		}
 
-	// reconcile the add-ons (k0s helm extensions).
-	log.Info("Reconciling helm charts")
-	ev, err := charts.ReconcileHelmCharts(ctx, r.Client, in)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to reconcile helm charts: %w", err)
-	}
-	if ev != nil {
-		r.Recorder.Event(in, corev1.EventTypeNormal, ev.Reason, ev.Message)
-	}
+		// reconcile the add-ons (k0s helm extensions).
+		log.Info("Reconciling helm charts")
+		ev, err := charts.ReconcileHelmCharts(ctx, r.Client, in)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to reconcile helm charts: %w", err)
+		}
+		if ev != nil {
+			r.Recorder.Event(in, corev1.EventTypeNormal, ev.Reason, ev.Message)
+		}
 
-	if err := r.ReconcileHAStatus(ctx, in); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to reconcile HA status: %w", err)
+		if err := r.ReconcileHAStatus(ctx, in); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to reconcile HA status: %w", err)
+		}
 	}
 
 	// save the installation status. nothing more to do with it.
@@ -647,10 +619,12 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
 	}
 
-	// now that the status has been updated we can flag all older installation
-	// objects as obsolete. these are not necessary anymore and are kept only
-	// for historic reasons.
-	r.DisableOldInstallations(ctx, items)
+	if !isV2Enabled {
+		// now that the status has been updated we can flag all older installation
+		// objects as obsolete. these are not necessary anymore and are kept only
+		// for historic reasons.
+		r.DisableOldInstallations(ctx, items)
+	}
 
 	// if we are not in an airgap environment this is the time to call back to
 	// replicated and inform the status of this installation.
@@ -673,6 +647,16 @@ func (r *InstallationReconciler) needsUpgrade(ctx context.Context, in *v1beta1.I
 		err = fmt.Errorf("current version (%s) is different from the desired version (%s)", curstr, desstr)
 	}
 	return curstr != desstr, err
+}
+
+func (r *InstallationReconciler) isV2Enabled(ctx context.Context) (bool, error) {
+	err := r.Get(ctx, client.ObjectKey{Namespace: "embedded-cluster", Name: "v2-enabled"}, &corev1.ConfigMap{})
+	if err == nil {
+		return true, nil
+	} else if !k8serrors.IsNotFound(err) {
+		return false, fmt.Errorf("get v2 configmap: %w", err)
+	}
+	return false, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
