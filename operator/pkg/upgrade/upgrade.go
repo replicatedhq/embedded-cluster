@@ -82,6 +82,12 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 		return fmt.Errorf("unlock installation: %w", err)
 	}
 
+	in.Status.State = clusterv1beta1.InstallationStateInstalled
+	err = kubeutils.UpdateInstallationStatus(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("update installation state after completion: %w", err)
+	}
+
 	err = support.CreateHostSupportBundle()
 	if err != nil {
 		logrus.Warnf("Failed to upgrade host support bundle: %v", err)
