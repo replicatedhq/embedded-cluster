@@ -34,7 +34,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -512,13 +511,6 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 		return nil, fmt.Errorf("create installation: %w", err)
 	}
 
-	// TODO remove this once the operator no longer reconciles the installation
-	meta.SetStatusCondition(&installation.Status.Conditions, metav1.Condition{
-		Type:   ecv1beta1.ConditionTypeDisableReconcile,
-		Status: metav1.ConditionTrue,
-		Reason: "Install In Progress", // make sure that the current operator doesn't reconcile the installation
-	})
-
 	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, &installation); err != nil {
 		return nil, fmt.Errorf("update installation status: %w", err)
 	}
@@ -551,19 +543,18 @@ func createECNamespace(ctx context.Context, kcli client.Client) error {
 }
 
 func createInstallationCRD(ctx context.Context, kcli client.Client) error {
-	var crd apiextensionsv1.CustomResourceDefinition
-
 	// decode the CRD file
 	crds := strings.Split(charts.InstallationCRDFile, "\n---\n")
 
 	for _, crdYaml := range crds {
+		var crd apiextensionsv1.CustomResourceDefinition
 		if err := yaml.Unmarshal([]byte(crdYaml), &crd); err != nil {
 			return fmt.Errorf("unmarshal installation CRD: %w", err)
 		}
 
 		// apply the CRD
 		if err := kcli.Create(ctx, &crd); err != nil {
-			return fmt.Errorf("create installation CRD: %w", err)
+			return fmt.Errorf("apply installation CRD: %w", err)
 		}
 
 		// wait for the CRD to be ready
