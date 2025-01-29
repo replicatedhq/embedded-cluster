@@ -19,8 +19,6 @@ var (
 	systemdfs embed.FS
 	//go:embed internal/bins/*
 	internalBinfs embed.FS
-	//go:embed static/*
-	staticfs embed.FS
 )
 
 // K0sBinarySHA256 returns the SHA256 checksum of the embedded k0s binary.

@@ -10,12 +10,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func addCIDRFlags(cmd *cobra.Command) {
+func addCIDRFlags(cmd *cobra.Command) error {
 	cmd.Flags().String("pod-cidr", k0sv1beta1.DefaultNetwork().PodCIDR, "IP address range for Pods")
-	cmd.Flags().MarkHidden("pod-cidr")
+	if err := cmd.Flags().MarkHidden("pod-cidr"); err != nil {
+		return err
+	}
 	cmd.Flags().String("service-cidr", k0sv1beta1.DefaultNetwork().ServiceCIDR, "IP address range for Services")
-	cmd.Flags().MarkHidden("service-cidr")
+	if err := cmd.Flags().MarkHidden("service-cidr"); err != nil {
+		return err
+	}
 	cmd.Flags().String("cidr", ecv1beta1.DefaultNetworkCIDR, "CIDR block of available private IP addresses (/16 or larger)")
+
+	return nil
 }
 
 func validateCIDRFlags(cmd *cobra.Command) error {
