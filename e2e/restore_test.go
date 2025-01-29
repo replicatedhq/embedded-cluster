@@ -39,7 +39,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
+	line := []string{"single-node-install2.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -49,7 +49,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line = []string{"check-installation-state2.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -80,7 +80,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line = []string{"check-installation-state2.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -100,7 +100,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	line = []string{"check-postupgrade-state2.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -136,7 +136,7 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
+	line := []string{"single-node-install2.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -151,7 +151,7 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	appVersion := fmt.Sprintf("appver-%s-legacydr", os.Getenv("SHORT_SHA"))
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", appVersion, k8sVersion()}
+	line = []string{"check-installation-state2.sh", appVersion, k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -182,7 +182,7 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", appVersion, k8sVersion()}
+	line = []string{"check-installation-state2.sh", appVersion, k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -224,7 +224,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	tc.InstallTestDependenciesDebian(t, 0, true)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
+	line := []string{"single-node-install2.sh", "ui", os.Getenv("SHORT_SHA")}
 	line = append(line, "--http-proxy", lxd.HTTPProxy)
 	line = append(line, "--https-proxy", lxd.HTTPProxy)
 	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
@@ -237,7 +237,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line = []string{"check-installation-state2.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -265,7 +265,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line = []string{"check-installation-state2.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -307,7 +307,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
+	line := []string{"single-node-install2.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -317,7 +317,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line = []string{"check-installation-state2.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -342,7 +342,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line = []string{"check-installation-state2.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -478,7 +478,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	line = []string{"check-postupgrade-state2.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -514,7 +514,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"single-node-install2.sh", "ui", os.Getenv("SHORT_SHA")}); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -676,7 +676,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	line = []string{"check-postupgrade-state2.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
