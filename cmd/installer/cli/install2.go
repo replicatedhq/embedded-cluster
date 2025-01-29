@@ -96,6 +96,9 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringVar(&flags.adminConsolePassword, "admin-console-password", "", "Password for the Admin Console")
 	cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
 	cmd.Flags().StringVarP(&flags.licenseFile, "license", "l", "", "Path to the license file")
+	if err := cmd.MarkFlagRequired("license"); err != nil {
+		panic(err)
+	}
 	cmd.Flags().StringVar(&flags.configValues, "config-values", "", "Path to the config values to use when installing")
 
 	return cmd
@@ -172,16 +175,18 @@ func preRunInstall2(cmd *cobra.Command, args []string, flags *Install2CmdFlags) 
 		}
 	}
 
-	// validate the the license is indeed a license file
-	l, err := helpers.ParseLicense(flags.licenseFile)
-	if err != nil {
-		if err == helpers.ErrNotALicenseFile {
-			return fmt.Errorf("license file is not a valid license file")
-		}
+	if flags.licenseFile != "" {
+		// validate the the license is indeed a license file
+		l, err := helpers.ParseLicense(flags.licenseFile)
+		if err != nil {
+			if err == helpers.ErrNotALicenseFile {
+				return fmt.Errorf("license file is not a valid license file")
+			}
 
-		return fmt.Errorf("unable to parse license file: %w", err)
+			return fmt.Errorf("unable to parse license file: %w", err)
+		}
+		flags.license = l
 	}
-	flags.license = l
 
 	runtimeconfig.ApplyFlags(cmd.Flags())
 	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
