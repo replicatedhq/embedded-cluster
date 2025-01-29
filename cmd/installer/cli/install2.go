@@ -71,62 +71,8 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if os.Getuid() != 0 {
-				return fmt.Errorf("install command must be run as root")
-			}
-
-			if flags.skipHostPreflights {
-				logrus.Warnf("Warning: --skip-host-preflights is deprecated and will be removed in a later version. Use --ignore-host-preflights instead.")
-			}
-
-			p, err := parseProxyFlags(cmd)
-			if err != nil {
+			if err := preRunInstall2(cmd, args, &flags); err != nil {
 				return err
-			}
-			flags.proxy = p
-
-			if err := validateCIDRFlags(cmd); err != nil {
-				return err
-			}
-
-			// parse the various cidr flags to make sure we have exactly what we want
-			cidrCfg, err := getCIDRConfig(cmd)
-			if err != nil {
-				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
-			}
-			flags.cidrCfg = cidrCfg
-
-			// if a network interface flag was not provided, attempt to discover it
-			if flags.networkInterface == "" {
-				autoInterface, err := determineBestNetworkInterface()
-				if err != nil {
-					flags.autoSelectNetworkInterfaceErr = err
-				} else {
-					flags.isAutoSelectedNetworkInterface = true
-					flags.networkInterface = autoInterface
-				}
-			}
-
-			// validate the the license is indeed a license file
-			l, err := helpers.ParseLicense(flags.licenseFile)
-			if err != nil {
-				if err == helpers.ErrNotALicenseFile {
-					return fmt.Errorf("license file is not a valid license file")
-				}
-
-				return fmt.Errorf("unable to parse license file: %w", err)
-			}
-			flags.license = l
-
-			runtimeconfig.ApplyFlags(cmd.Flags())
-			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
-
-			if err := runtimeconfig.WriteToDisk(); err != nil {
-				return fmt.Errorf("unable to write runtime config to disk: %w", err)
-			}
-
-			if os.Getenv("DISABLE_TELEMETRY") != "" {
-				metrics.DisableMetrics()
 			}
 
 			return nil
@@ -140,36 +86,115 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			return nil
-
 		},
+	}
+
+	if err := addInstallFlags(cmd, &flags); err != nil {
+		panic(err)
 	}
 
 	cmd.Flags().StringVar(&flags.adminConsolePassword, "admin-console-password", "", "Password for the Admin Console")
 	cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
+	cmd.Flags().StringVarP(&flags.licenseFile, "license", "l", "", "Path to the license file")
+	cmd.Flags().StringVar(&flags.configValues, "config-values", "", "Path to the config values to use when installing")
+
+	return cmd
+}
+
+func addInstallFlags(cmd *cobra.Command, flags *Install2CmdFlags) error {
 	cmd.Flags().StringVar(&flags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
 	cmd.Flags().StringVar(&flags.dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
-	cmd.Flags().StringVarP(&flags.licenseFile, "license", "l", "", "Path to the license file")
 	cmd.Flags().IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
 	cmd.Flags().BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
+	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	cmd.Flags().StringVar(&flags.overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
-	cmd.Flags().MarkHidden("overrides")
+	if err := cmd.Flags().MarkHidden("overrides"); err != nil {
+		return err
+	}
 
 	cmd.Flags().StringSliceVar(&flags.privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
 
+	if err := addProxyFlags(cmd); err != nil {
+		return err
+	}
+	if err := addCIDRFlags(cmd); err != nil {
+		return err
+	}
+
 	cmd.Flags().BoolVar(&flags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
-	cmd.Flags().MarkHidden("skip-host-preflights")
-	cmd.Flags().MarkDeprecated("skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead.")
-
+	if err := cmd.Flags().MarkHidden("skip-host-preflights"); err != nil {
+		return err
+	}
+	if err := cmd.Flags().MarkDeprecated("skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead."); err != nil {
+		return err
+	}
 	cmd.Flags().BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
-	cmd.Flags().StringVar(&flags.configValues, "config-values", "", "Path to the config values to use when installing")
 
-	addProxyFlags(cmd)
-	addCIDRFlags(cmd)
-	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
+	return nil
+}
 
-	return cmd
+func preRunInstall2(cmd *cobra.Command, args []string, flags *Install2CmdFlags) error {
+	if os.Getuid() != 0 {
+		return fmt.Errorf("install command must be run as root")
+	}
+
+	if flags.skipHostPreflights {
+		logrus.Warnf("Warning: --skip-host-preflights is deprecated and will be removed in a later version. Use --ignore-host-preflights instead.")
+	}
+
+	p, err := parseProxyFlags(cmd)
+	if err != nil {
+		return err
+	}
+	flags.proxy = p
+
+	if err := validateCIDRFlags(cmd); err != nil {
+		return err
+	}
+
+	// parse the various cidr flags to make sure we have exactly what we want
+	cidrCfg, err := getCIDRConfig(cmd)
+	if err != nil {
+		return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+	}
+	flags.cidrCfg = cidrCfg
+
+	// if a network interface flag was not provided, attempt to discover it
+	if flags.networkInterface == "" {
+		autoInterface, err := determineBestNetworkInterface()
+		if err != nil {
+			flags.autoSelectNetworkInterfaceErr = err
+		} else {
+			flags.isAutoSelectedNetworkInterface = true
+			flags.networkInterface = autoInterface
+		}
+	}
+
+	// validate the the license is indeed a license file
+	l, err := helpers.ParseLicense(flags.licenseFile)
+	if err != nil {
+		if err == helpers.ErrNotALicenseFile {
+			return fmt.Errorf("license file is not a valid license file")
+		}
+
+		return fmt.Errorf("unable to parse license file: %w", err)
+	}
+	flags.license = l
+
+	runtimeconfig.ApplyFlags(cmd.Flags())
+	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+
+	if err := runtimeconfig.WriteToDisk(); err != nil {
+		return fmt.Errorf("unable to write runtime config to disk: %w", err)
+	}
+
+	if os.Getenv("DISABLE_TELEMETRY") != "" {
+		metrics.DisableMetrics()
+	}
+
+	return nil
 }
 
 func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2CmdFlags) error {
@@ -318,17 +343,9 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 		os.Exit(1)
 	}
 
-	channelRelease, err := release.GetChannelRelease()
+	_, err = getChannelReleaseAndVerify(ctx, flags)
 	if err != nil {
-		return fmt.Errorf("unable to read channel release data: %w", err)
-	}
-
-	if channelRelease != nil && channelRelease.Airgap && flags.airgapBundle == "" && !flags.assumeYes {
-		logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
-		logrus.Warnf("If you continue, the installation will not use an air gap bundle and will connect to the internet.")
-		if !prompts.New().Confirm("Do you want to proceed with an online installation?", false) {
-			return ErrNothingElseToAdd
-		}
+		return err
 	}
 
 	metrics.ReportApplyStarted(ctx, flags.licenseFile)
@@ -397,6 +414,22 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	}
 
 	return nil
+}
+
+func getChannelReleaseAndVerify(ctx context.Context, flags *Install2CmdFlags) (*release.ChannelRelease, error) {
+	channelRelease, err := release.GetChannelRelease()
+	if err != nil {
+		return nil, fmt.Errorf("unable to read channel release data: %w", err)
+	}
+
+	if channelRelease != nil && channelRelease.Airgap && flags.airgapBundle == "" && !flags.assumeYes {
+		logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
+		logrus.Warnf("If you continue, the installation will not use an air gap bundle and will connect to the internet.")
+		if !prompts.New().Confirm("Do you want to proceed with an online installation?", false) {
+			return nil, ErrNothingElseToAdd
+		}
+	}
+	return channelRelease, nil
 }
 
 func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, license *kotsv1beta1.License, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, overrides string) (*k0sconfig.ClusterConfig, error) {

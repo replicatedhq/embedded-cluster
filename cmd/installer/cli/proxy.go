@@ -13,14 +13,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func addProxyFlags(cmd *cobra.Command) {
+func addProxyFlags(cmd *cobra.Command) error {
 	cmd.Flags().String("http-proxy", "", "HTTP proxy to use for the installation")
 	cmd.Flags().String("https-proxy", "", "HTTPS proxy to use for the installation")
 	cmd.Flags().String("no-proxy", "", "Comma-separated list of hosts for which not to use a proxy")
 
 	// the "proxy" flag is hidden and used in tests to detect the proxy from the env
 	cmd.Flags().Bool("proxy", false, "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.")
-	cmd.Flags().MarkHidden("proxy")
+	if err := cmd.Flags().MarkHidden("proxy"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func parseProxyFlags(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
