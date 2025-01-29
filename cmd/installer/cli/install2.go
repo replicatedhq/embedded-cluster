@@ -43,6 +43,7 @@ type Install2CmdFlags struct {
 	adminConsolePassword    string
 	adminConsolePort        int
 	airgapBundle            string
+	isAirgap                bool
 	dataDir                 string
 	licenseFile             string
 	localArtifactMirrorPort int
@@ -76,7 +77,7 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall2(cmd, args, &flags); err != nil {
+			if err := preRunInstall2(cmd, &flags); err != nil {
 				return err
 			}
 
@@ -143,13 +144,9 @@ func addInstallFlags(cmd *cobra.Command, flags *Install2CmdFlags) error {
 	return nil
 }
 
-func preRunInstall2(cmd *cobra.Command, args []string, flags *Install2CmdFlags) error {
+func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags) error {
 	if os.Getuid() != 0 {
 		return fmt.Errorf("install command must be run as root")
-	}
-
-	if flags.skipHostPreflights {
-		logrus.Warnf("Warning: --skip-host-preflights is deprecated and will be removed in a later version. Use --ignore-host-preflights instead.")
 	}
 
 	p, err := parseProxyFlags(cmd)
@@ -204,17 +201,21 @@ func preRunInstall2(cmd *cobra.Command, args []string, flags *Install2CmdFlags) 
 		metrics.DisableMetrics()
 	}
 
+	flags.isAirgap = flags.airgapBundle != ""
+
 	return nil
 }
 
 func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2CmdFlags) error {
-	if err := runInstallVerifyAndPrompt(cmd.Context(), name, &flags); err != nil {
+	ctx := cmd.Context()
+
+	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
 		return err
 	}
 
 	logrus.Debugf("materializing binaries")
 	if err := materializeFiles(flags.airgapBundle); err != nil {
-		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -230,7 +231,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 	}
 
 	logrus.Debugf("configuring network manager")
-	if err := configureNetworkManager(cmd.Context()); err != nil {
+	if err := configureNetworkManager(ctx); err != nil {
 		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
@@ -241,7 +242,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 	}
 
 	logrus.Debugf("running host preflights")
-	if err := preflights.PrepareAndRun(cmd.Context(), preflights.PrepareAndRunOptions{
+	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
 		ReplicatedAPIURL:     replicatedAPIURL,
 		ProxyRegistryURL:     proxyRegistryURL,
 		Proxy:                flags.proxy,
@@ -249,23 +250,20 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
 		GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
 		PrivateCAs:           flags.privateCAs,
-		IsAirgap:             flags.airgapBundle != "",
+		IsAirgap:             flags.isAirgap,
 		SkipHostPreflights:   flags.skipHostPreflights,
 		IgnoreHostPreflights: flags.ignoreHostPreflights,
 		AssumeYes:            flags.assumeYes,
 	}); err != nil {
 		if err == preflights.ErrPreflightsHaveFail {
-			// we exit and not return an error to prevent the error from being printed to stderr
-			// we already handled the output
-			os.Exit(1)
-			return nil
+			return ErrNothingElseToAdd
 		}
 		return fmt.Errorf("unable to prepare and run preflights: %w", err)
 	}
 
-	k0sCfg, err := installAndStartCluster(cmd.Context(), flags.networkInterface, flags.airgapBundle, flags.license, flags.proxy, flags.cidrCfg, flags.overrides)
+	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides)
 	if err != nil {
-		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -274,16 +272,16 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return fmt.Errorf("unable to check if disaster recovery is enabled: %w", err)
 	}
 
-	installObject, err := recordInstallation(cmd.Context(), flags, k0sCfg, disasterRecoveryEnabled)
+	installObject, err := recordInstallation(ctx, flags, k0sCfg, disasterRecoveryEnabled)
 	if err != nil {
-		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
 	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("installing addons")
-	if err := addons2.Install(cmd.Context(), addons2.InstallOptions{
+	if err := addons2.Install(ctx, addons2.InstallOptions{
 		AdminConsolePwd:         flags.adminConsolePassword,
 		License:                 flags.license,
 		LicenseFile:             flags.licenseFile,
@@ -304,26 +302,26 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 			return kotscli.Install(opts, msg)
 		},
 	}); err != nil {
-		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
 	logrus.Debugf("installing extensions")
-	if err := extensions.Install(cmd.Context(), flags.airgapBundle != ""); err != nil {
-		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+	if err := extensions.Install(ctx, flags.isAirgap); err != nil {
+		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
 	logrus.Debugf("installing manager")
-	if err := installAndEnableManager(cmd.Context()); err != nil {
-		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+	if err := installAndEnableManager(ctx); err != nil {
+		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
 	// mark that the installation is installed as everything has been applied
 	installObject.Status.State = ecv1beta1.InstallationStateInstalled
-	if err := updateInstallation(cmd.Context(), installObject); err != nil {
-		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+	if err := updateInstallation(ctx, installObject); err != nil {
+		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -332,7 +330,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 	}
 
 	if err := printSuccessMessage(flags.license, flags.networkInterface); err != nil {
-		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -340,20 +338,13 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 }
 
 func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2CmdFlags) error {
-	logrus.Debugf("checking if %s is already installed", name)
-	installed, err := k0s.IsInstalled()
+	logrus.Debugf("checking if k0s is already installed")
+	err := verifyNoInstallation(name, "reinstall")
 	if err != nil {
 		return err
 	}
-	if installed {
-		logrus.Errorf("An installation has been detected on this machine.")
-		logrus.Infof("If you want to reinstall, you need to remove the existing installation first.")
-		logrus.Infof("You can do this by running the following command:")
-		logrus.Infof("\n  sudo ./%s reset\n", name)
-		os.Exit(1)
-	}
 
-	_, err = getChannelReleaseAndVerify(ctx, flags)
+	err = verifyChannelRelease("installation", flags.isAirgap, flags.assumeYes)
 	if err != nil {
 		return err
 	}
@@ -367,18 +358,14 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 		metrics.ReportApplyFinished(ctx, "", flags.license, metricErr)
 		return err // do not return the metricErr, as we want the user to see the error message without a prefix
 	}
-	isAirgap := false
-	if flags.airgapBundle != "" {
-		isAirgap = true
-	}
-	if isAirgap {
+	if flags.isAirgap {
 		logrus.Debugf("checking airgap bundle matches binary")
 		if err := checkAirgapMatches(flags.airgapBundle); err != nil {
 			return err // we want the user to see the error message without a prefix
 		}
 	}
 
-	if !isAirgap {
+	if !flags.isAirgap {
 		if err := maybePromptForAppUpdate(ctx, prompts.New(), license, flags.assumeYes); err != nil {
 			if errors.Is(err, ErrNothingElseToAdd) {
 				metrics.ReportApplyFinished(ctx, "", flags.license, err)
@@ -426,23 +413,38 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	return nil
 }
 
-func getChannelReleaseAndVerify(ctx context.Context, flags *Install2CmdFlags) (*release.ChannelRelease, error) {
+func verifyChannelRelease(cmdName string, isAirgap bool, assumeYes bool) error {
 	channelRelease, err := release.GetChannelRelease()
 	if err != nil {
-		return nil, fmt.Errorf("unable to read channel release data: %w", err)
+		return fmt.Errorf("unable to read channel release data: %w", err)
 	}
 
-	if channelRelease != nil && channelRelease.Airgap && flags.airgapBundle == "" && !flags.assumeYes {
+	if channelRelease != nil && channelRelease.Airgap && !isAirgap && !assumeYes {
 		logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
-		logrus.Warnf("If you continue, the installation will not use an air gap bundle and will connect to the internet.")
-		if !prompts.New().Confirm("Do you want to proceed with an online installation?", false) {
-			return nil, ErrNothingElseToAdd
+		logrus.Warnf("If you continue, the %s will not use an air gap bundle and will connect to the internet.", cmdName)
+		if !prompts.New().Confirm(fmt.Sprintf("Do you want to proceed with an online %s?", cmdName), false) {
+			return ErrNothingElseToAdd
 		}
 	}
-	return channelRelease, nil
+	return nil
 }
 
-func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, license *kotsv1beta1.License, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, overrides string) (*k0sconfig.ClusterConfig, error) {
+func verifyNoInstallation(name string, cmdName string) error {
+	installed, err := k0s.IsInstalled()
+	if err != nil {
+		return err
+	}
+	if installed {
+		logrus.Errorf("An installation has been detected on this machine.")
+		logrus.Infof("If you want to %s, you need to remove the existing installation first.", cmdName)
+		logrus.Infof("You can do this by running the following command:")
+		logrus.Infof("\n  sudo ./%s reset\n", name)
+		return ErrNothingElseToAdd
+	}
+	return nil
+}
+
+func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, overrides string) (*k0sconfig.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", runtimeconfig.BinaryName())
@@ -451,27 +453,23 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides)
 	if err != nil {
 		err := fmt.Errorf("unable to create config file: %w", err)
-		metrics.ReportApplyFinished(ctx, "", license, err)
 		return nil, err
 	}
 	logrus.Debugf("creating systemd unit files")
 	if err := createSystemdUnitFiles(false, proxy); err != nil {
 		err := fmt.Errorf("unable to create systemd unit files: %w", err)
-		metrics.ReportApplyFinished(ctx, "", license, err)
 		return nil, err
 	}
 
 	logrus.Debugf("installing k0s")
 	if err := k0s.Install(networkInterface); err != nil {
 		err := fmt.Errorf("unable to install cluster: %w", err)
-		metrics.ReportApplyFinished(ctx, "", license, err)
 		return nil, err
 	}
 	loading.Infof("Waiting for %s node to be ready", runtimeconfig.BinaryName())
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
 		err := fmt.Errorf("unable to wait for node: %w", err)
-		metrics.ReportApplyFinished(ctx, "", license, err)
 		return nil, err
 	}
 
@@ -533,7 +531,7 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 		Spec: ecv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),
 			MetricsBaseURL:            metrics.BaseURL(flags.license),
-			AirGap:                    flags.airgapBundle != "",
+			AirGap:                    flags.isAirgap,
 			Proxy:                     flags.proxy,
 			Network:                   networkSpecFromK0sConfig(k0sCfg),
 			Config:                    cfgspec,
