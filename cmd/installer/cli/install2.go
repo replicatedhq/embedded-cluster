@@ -176,6 +176,7 @@ func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags) error {
 		}
 	}
 
+	// license file can be empty for restore
 	if flags.licenseFile != "" {
 		// validate the the license is indeed a license file
 		l, err := helpers.ParseLicense(flags.licenseFile)
@@ -581,7 +582,7 @@ func updateInstallation(ctx context.Context, install *ecv1beta1.Installation) er
 func createECNamespace(ctx context.Context, kcli client.Client) error {
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "embedded-cluster",
+			Name: runtimeconfig.EmbeddedClusterNamespace,
 		},
 	}
 	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
@@ -694,7 +695,10 @@ func getAdminConsoleURL(networkInterface string, port int) string {
 func logKubernetesErrors(errCh <-chan error) {
 	for {
 		select {
-		case err := <-errCh:
+		case err, ok := <-errCh:
+			if !ok {
+				return
+			}
 			logrus.Errorf("Infrastructure failed to become ready: %v", err)
 		default:
 			return

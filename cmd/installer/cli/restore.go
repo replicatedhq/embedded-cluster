@@ -618,7 +618,7 @@ func getECRestoreState(ctx context.Context) ecRestoreState {
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "embedded-cluster",
+			Namespace: runtimeconfig.EmbeddedClusterNamespace,
 			Name:      constants.EcRestoreStateCMName,
 		},
 	}
@@ -650,7 +650,7 @@ func setECRestoreState(ctx context.Context, state ecRestoreState, backupName str
 
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "embedded-cluster",
+			Name: runtimeconfig.EmbeddedClusterNamespace,
 		},
 	}
 
@@ -660,7 +660,7 @@ func setECRestoreState(ctx context.Context, state ecRestoreState, backupName str
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "embedded-cluster",
+			Namespace: runtimeconfig.EmbeddedClusterNamespace,
 			Name:      constants.EcRestoreStateCMName,
 		},
 		Data: map[string]string{
@@ -695,7 +695,7 @@ func resetECRestoreState(ctx context.Context) error {
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "embedded-cluster",
+			Namespace: runtimeconfig.EmbeddedClusterNamespace,
 			Name:      constants.EcRestoreStateCMName,
 		},
 	}
@@ -720,7 +720,7 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*disasterrec
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "embedded-cluster",
+			Namespace: runtimeconfig.EmbeddedClusterNamespace,
 			Name:      constants.EcRestoreStateCMName,
 		},
 	}
@@ -1237,7 +1237,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
-		if err := kubeutils.WaitForDeployment(ctx, kcli, "embedded-cluster", "embedded-cluster-operator", nil); err != nil {
+		if err := kubeutils.WaitForDeployment(ctx, kcli, runtimeconfig.EmbeddedClusterNamespace, "embedded-cluster-operator", nil); err != nil {
 			return fmt.Errorf("unable to wait for embedded cluster operator to be ready: %w", err)
 		}
 	}
