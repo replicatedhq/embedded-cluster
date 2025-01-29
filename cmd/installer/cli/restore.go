@@ -28,7 +28,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -83,7 +82,7 @@ const (
 func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	var flags Install2CmdFlags
 
-	var s3Store = &s3BackupStore{}
+	var s3Store s3BackupStore
 
 	cmd := &cobra.Command{
 		Use:           "restore",
@@ -91,7 +90,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall2(cmd, args, &flags); err != nil {
+			if err := preRunInstall2(cmd, &flags); err != nil {
 				return err
 			}
 
@@ -101,7 +100,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runRestore(cmd, args, name, &flags, s3Store); err != nil {
+			if err := runRestore(cmd, args, name, flags, s3Store); err != nil {
 				return err
 			}
 
@@ -109,7 +108,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
-	addS3Flags(cmd, s3Store)
+	addS3Flags(cmd, &s3Store)
 	cmd.Flags().Bool("skip-store-validation", false, "Skip validation of the backup storage location")
 
 	if err := addInstallFlags(cmd, &flags); err != nil {
@@ -119,12 +118,19 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runRestore(cmd *cobra.Command, args []string, name string, flags *Install2CmdFlags, s3Store *s3BackupStore) error {
+func runRestore(cmd *cobra.Command, args []string, name string, flags Install2CmdFlags, s3Store s3BackupStore) error {
 	ctx := cmd.Context()
 
-	_, err := getChannelReleaseAndVerify(ctx, flags)
+	err := verifyChannelRelease("restore", flags.isAirgap, flags.assumeYes)
 	if err != nil {
 		return err
+	}
+
+	if flags.isAirgap {
+		logrus.Debugf("checking airgap bundle matches binary")
+		if err := checkAirgapMatches(flags.airgapBundle); err != nil {
+			return err // we want the user to see the error message without a prefix
+		}
 	}
 
 	logrus.Debugf("configuring sysctl")
@@ -144,19 +150,12 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags *Install2C
 		}
 	}
 
-	if flags.airgapBundle != "" {
-		logrus.Debugf("checking airgap bundle matches binary")
-		if err := checkAirgapMatches(flags.airgapBundle); err != nil {
-			return err // we want the user to see the error message without a prefix
-		}
-	}
-
 	// if the user wants to resume, check if a backup has already been picked.
 	var backupToRestore *disasterrecovery.ReplicatedBackup
 	if state != ecRestoreStateNew {
 		logrus.Debugf("getting backup from restore state")
 		var err error
-		backupToRestore, err = getBackupFromRestoreState(ctx, flags.airgapBundle != "")
+		backupToRestore, err = getBackupFromRestoreState(ctx, flags.isAirgap)
 		if err != nil {
 			return fmt.Errorf("unable to resume: %w", err)
 		}
@@ -199,24 +198,17 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags *Install2C
 
 	switch state {
 	case ecRestoreStateNew:
-		logrus.Debugf("checking if %s is already installed", name)
-		installed, err := k0s.IsInstalled()
+		logrus.Debugf("checking if k0s is already installed")
+		err := verifyNoInstallation(name, "restore")
 		if err != nil {
 			return err
 		}
-		if installed {
-			logrus.Errorf("An installation has been detected on this machine.")
-			logrus.Infof("Before you can restore, you must remove the existing installation.")
-			logrus.Infof("You can do this by running the following command:")
-			logrus.Infof("\n  sudo ./%s reset\n", name)
-			os.Exit(1)
-		}
 
-		if !s3BackupStoreHasData(s3Store) {
+		if !s3BackupStoreHasData(&s3Store) {
 			logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", name)
 			logrus.Info("Enter information to configure access to your backup storage location.\n")
 
-			promptForS3BackupStore(s3Store)
+			promptForS3BackupStore(&s3Store)
 		}
 		s3Store.prefix = strings.TrimPrefix(s3Store.prefix, "/")
 
@@ -227,7 +219,7 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags *Install2C
 
 		if !skipStoreValidationFlag {
 			logrus.Debugf("validating backup store configuration")
-			if err := validateS3BackupStore(s3Store); err != nil {
+			if err := validateS3BackupStore(&s3Store); err != nil {
 				return fmt.Errorf("unable to validate backup store: %w", err)
 			}
 		}
@@ -247,7 +239,13 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags *Install2C
 			return fmt.Errorf("unable to finish preflight checks: %w", err)
 		}
 
-		cfg, err := installAndWaitForRestoredK0sNode(cmd, name, applier)
+		mutateK0sCfg := func(k0sCfg *k0sv1beta1.ClusterConfig) error {
+			if err := config.UpdateHelmConfigsForRestore(applier, k0sCfg); err != nil {
+				return fmt.Errorf("unable to update helm configs: %w", err)
+			}
+			return nil
+		}
+		k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, mutateK0sCfg)
 		if err != nil {
 			return err
 		}
@@ -266,7 +264,7 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags *Install2C
 		}()
 
 		logrus.Debugf("running outro")
-		if err := runOutroForRestore(cmd, applier, cfg); err != nil {
+		if err := runOutroForRestore(cmd, applier, k0sCfg); err != nil {
 			return fmt.Errorf("unable to run outro: %w", err)
 		}
 
@@ -301,7 +299,7 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags *Install2C
 		}
 
 		logrus.Debugf("waiting for backups to become available")
-		backups, err := waitForBackups(ctx, cmd.OutOrStdout(), kcli, k0sCfg, flags.airgapBundle != "")
+		backups, err := waitForBackups(ctx, cmd.OutOrStdout(), kcli, k0sCfg, flags.isAirgap)
 		if err != nil {
 			return err
 		}
@@ -393,7 +391,7 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags *Install2C
 			return err
 		}
 
-		if highAvailability && flags.airgapBundle != "" {
+		if highAvailability && flags.isAirgap {
 			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreSeaweedFS)
 			if err := setECRestoreState(ctx, ecRestoreStateRestoreSeaweedFS, backupToRestore.GetName()); err != nil {
 				return fmt.Errorf("unable to set restore state: %w", err)
@@ -408,7 +406,7 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags *Install2C
 
 	case ecRestoreStateRestoreRegistry:
 		// only restore registry in case of airgap
-		if flags.airgapBundle != "" {
+		if flags.isAirgap {
 			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreRegistry)
 			if err := setECRestoreState(ctx, ecRestoreStateRestoreRegistry, backupToRestore.GetName()); err != nil {
 				return fmt.Errorf("unable to set restore state: %w", err)
@@ -718,80 +716,6 @@ func RunHostPreflightsForRestore(cmd *cobra.Command, applier *addons.Applier, pr
 	}
 
 	return runHostPreflights(cmd, hpf, proxy, assumeYes, "")
-}
-
-// ensureK0sConfigForRestore creates a new k0s.yaml configuration file for restore operations.
-// The file is saved in the global location (as returned by runtimeconfig.PathToK0sConfig()).
-// If a file already sits there, this function returns an error.
-func ensureK0sConfigForRestore(cmd *cobra.Command, applier *addons.Applier) (*k0sv1beta1.ClusterConfig, error) {
-	cfgpath := runtimeconfig.PathToK0sConfig()
-	if _, err := os.Stat(cfgpath); err == nil {
-		return nil, fmt.Errorf("configuration file already exists")
-	}
-
-	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
-		return nil, fmt.Errorf("unable to create directory: %w", err)
-	}
-
-	cfg := config.RenderK0sConfig()
-
-	networkInterfaceFlag, err := cmd.Flags().GetString("network-interface")
-	if err != nil {
-		return nil, fmt.Errorf("unable to get network-interface flag: %w", err)
-	}
-
-	address, err := netutils.FirstValidAddress(networkInterfaceFlag)
-	if err != nil {
-		return nil, fmt.Errorf("unable to find first valid address: %w", err)
-	}
-
-	cfg.Spec.API.Address = address
-	cfg.Spec.Storage.Etcd.PeerAddress = address
-
-	cidrCfg, err := getCIDRConfig(cmd)
-	if err != nil {
-		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
-	}
-
-	cfg.Spec.Network.PodCIDR = cidrCfg.PodCIDR
-	cfg.Spec.Network.ServiceCIDR = cidrCfg.ServiceCIDR
-
-	if err := config.UpdateHelmConfigsForRestore(applier, cfg); err != nil {
-		return nil, fmt.Errorf("unable to update helm configs: %w", err)
-	}
-
-	cfg, err = applyUnsupportedOverrides(cmd, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
-	}
-
-	airgapBundleFlag, err := cmd.Flags().GetString("airgap-bundle")
-	if err != nil {
-		return nil, fmt.Errorf("unable to get airgap-bundle flag: %w", err)
-	}
-
-	if airgapBundleFlag != "" {
-		// update the k0s config to install with airgap
-		airgap.RemapHelm(cfg)
-		airgap.SetAirgapConfig(cfg)
-	}
-
-	// This is necessary to install the previous version of k0s in e2e tests
-	// TODO: remove this once the previous version is > 1.29
-	unstructured, err := helpers.K0sClusterConfigTo129Compat(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
-	}
-
-	data, err := k8syaml.Marshal(unstructured)
-	if err != nil {
-		return nil, fmt.Errorf("unable to marshal config: %w", err)
-	}
-
-	if err := os.WriteFile(cfgpath, data, 0600); err != nil {
-		return nil, fmt.Errorf("unable to write config file: %w", err)
-	}
-	return cfg, nil
 }
 
 // runOutroForRestore calls Outro() in all enabled addons for restore operations by means of Applier.
@@ -1465,49 +1389,6 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkI
 	loading.Closef("All nodes are ready!")
 
 	return nil
-}
-
-func installAndWaitForRestoredK0sNode(cmd *cobra.Command, name string, applier *addons.Applier) (*k0sv1beta1.ClusterConfig, error) {
-	loading := spinner.Start()
-	defer loading.Close()
-
-	loading.Infof("Installing %s node", name)
-	logrus.Debugf("creating k0s configuration file")
-
-	cfg, err := ensureK0sConfigForRestore(cmd, applier)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create config file: %w", err)
-	}
-
-	proxy, err := getProxySpecFromFlags(cmd)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get proxy spec from flags: %w", err)
-	}
-
-	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(false, proxy); err != nil {
-		return nil, fmt.Errorf("unable to create systemd unit files: %w", err)
-	}
-
-	logrus.Debugf("installing k0s")
-	networkInterface, err := cmd.Flags().GetString("network-interface")
-	if err != nil {
-		return nil, fmt.Errorf("unable to get network-interface flag: %w", err)
-	}
-
-	if err := k0s.Install(networkInterface); err != nil {
-		return nil, fmt.Errorf("unable to install cluster: %w", err)
-	}
-
-	loading.Infof("Waiting for %s node to be ready", name)
-	logrus.Debugf("waiting for k0s to be ready")
-	if err := waitForK0s(); err != nil {
-		return nil, fmt.Errorf("unable to wait for node: %w", err)
-	}
-
-	loading.Infof("Node installation finished!")
-
-	return cfg, nil
 }
 
 // restoreReconcileInstallationFromRuntimeConfig will update the installation to match the runtime
