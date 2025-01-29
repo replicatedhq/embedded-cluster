@@ -55,7 +55,7 @@ func IsInstalled() (bool, error) {
 // WriteK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by runtimeconfig.PathToK0sConfig()). If a file already sits
 // there, this function returns an error.
-func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, overrides string) (*k0sconfig.ClusterConfig, error) {
+func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, overrides string, mutate func(*k0sconfig.ClusterConfig) error) (*k0sconfig.ClusterConfig, error) {
 	cfgpath := runtimeconfig.PathToK0sConfig()
 	if _, err := os.Stat(cfgpath); err == nil {
 		return nil, fmt.Errorf("configuration file already exists")
@@ -74,6 +74,12 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 
 	cfg.Spec.Network.PodCIDR = podCIDR
 	cfg.Spec.Network.ServiceCIDR = serviceCIDR
+
+	if mutate != nil {
+		if err := mutate(cfg); err != nil {
+			return nil, err
+		}
+	}
 
 	cfg, err = applyUnsupportedOverrides(cfg, overrides)
 	if err != nil {

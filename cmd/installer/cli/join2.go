@@ -19,7 +19,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -32,6 +31,7 @@ import (
 
 type Join2CmdFlags struct {
 	airgapBundle           string
+	isAirgap               bool
 	enableHighAvailability bool
 	networkInterface       string
 	assumeYes              bool
@@ -59,6 +59,8 @@ func Join2Cmd(ctx context.Context, name string) *cobra.Command {
 			if flags.skipHostPreflights {
 				logrus.Warnf("Warning: --skip-host-preflights is deprecated and will be removed in a later version. Use --ignore-host-preflights instead.")
 			}
+
+			flags.isAirgap = flags.airgapBundle != ""
 
 			return nil
 		},
@@ -163,7 +165,7 @@ func runJoin2(cmd *cobra.Command, args []string, name string, flags Join2CmdFlag
 	}
 
 	if flags.enableHighAvailability {
-		if err := maybeEnableHA(cmd.Context(), kcli, flags.airgapBundle != "", cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config); err != nil {
+		if err := maybeEnableHA(cmd.Context(), kcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config); err != nil {
 			err := fmt.Errorf("unable to enable high availability: %w", err)
 			metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -176,37 +178,18 @@ func runJoin2(cmd *cobra.Command, args []string, name string, flags Join2CmdFlag
 }
 
 func runJoinVerifyAndPrompt(name string, flags Join2CmdFlags, jcmd *kotsadm.JoinCommandResponse) error {
-	logrus.Debugf("checking if %s is already installed", name)
-	installed, err := k0s.IsInstalled()
+	logrus.Debugf("checking if k0s is already installed")
+	err := verifyNoInstallation(name, "join a node")
 	if err != nil {
 		return err
 	}
-	if installed {
-		logrus.Errorf("An installation has been detected on this machine.")
-		logrus.Infof("If you want to join a node to an existing installation, you need to remove the existing installation first.")
-		logrus.Infof("You can do this by running the following command:")
-		logrus.Infof("\n  sudo ./%s reset\n", name)
-		os.Exit(1)
-	}
 
-	channelRelease, err := release.GetChannelRelease()
+	err = verifyChannelRelease("join", flags.isAirgap, flags.assumeYes)
 	if err != nil {
-		return fmt.Errorf("unable to read channel release data: %w", err)
+		return err
 	}
 
-	if channelRelease != nil && channelRelease.Airgap && flags.airgapBundle == "" && !flags.assumeYes {
-		logrus.Infof("You downloaded an air gap bundle but are performing an online join.")
-		logrus.Infof("To do an air gap join, pass the air gap bundle with --airgap-bundle.")
-		if !prompts.New().Confirm("Do you want to proceed with an online join?", false) {
-			return ErrNothingElseToAdd
-		}
-	}
-
-	isAirgap := false
-	if flags.airgapBundle != "" {
-		isAirgap = true
-	}
-	if isAirgap {
+	if flags.isAirgap {
 		logrus.Debugf("checking airgap bundle matches binary")
 		if err := checkAirgapMatches(flags.airgapBundle); err != nil {
 			return err // we want the user to see the error message without a prefix
@@ -272,17 +255,14 @@ func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, f
 		Proxy:                  jcmd.InstallationSpec.Proxy,
 		PodCIDR:                cidrCfg.PodCIDR,
 		ServiceCIDR:            cidrCfg.ServiceCIDR,
-		IsAirgap:               flags.airgapBundle != "",
+		IsAirgap:               flags.isAirgap,
 		SkipHostPreflights:     flags.skipHostPreflights,
 		IgnoreHostPreflights:   flags.ignoreHostPreflights,
 		AssumeYes:              flags.assumeYes,
 		TCPConnectionsRequired: jcmd.TCPConnectionsRequired,
 	}); err != nil {
 		if err == preflights.ErrPreflightsHaveFail {
-			// we exit and not return an error to prevent the error from being printed to stderr
-			// we already handled the output
-			os.Exit(1)
-			return nil
+			return ErrNothingElseToAdd
 		}
 		return fmt.Errorf("unable to prepare and run preflights: %w", err)
 	}
