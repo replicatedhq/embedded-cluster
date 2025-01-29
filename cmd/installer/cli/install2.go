@@ -557,6 +557,17 @@ func createInstallationCRD(ctx context.Context, kcli client.Client) error {
 			return fmt.Errorf("unmarshal installation CRD: %w", err)
 		}
 
+		// apply labels and annotations so that the CRD can be taken over by helm shortly
+		if crd.Labels == nil {
+			crd.Labels = map[string]string{}
+		}
+		crd.Labels["app.kubernetes.io/managed-by"] = "Helm"
+		if crd.Annotations == nil {
+			crd.Annotations = map[string]string{}
+		}
+		crd.Annotations["meta.helm.sh/release-name"] = "embedded-cluster-operator"
+		crd.Annotations["meta.helm.sh/release-namespace"] = "embedded-cluster"
+
 		// apply the CRD
 		if err := kcli.Create(ctx, &crd); err != nil {
 			return fmt.Errorf("apply installation CRD: %w", err)
