@@ -19,8 +19,6 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
@@ -44,6 +42,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	k8snet "k8s.io/utils/net"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -103,7 +102,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runRestore(cmd, args, name, flags, s3Store); err != nil {
+			if err := runRestore(cmd, name, flags, s3Store); err != nil {
 				return err
 			}
 
@@ -121,7 +120,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runRestore(cmd *cobra.Command, args []string, name string, flags Install2CmdFlags, s3Store s3BackupStore) error {
+func runRestore(cmd *cobra.Command, name string, flags Install2CmdFlags, s3Store s3BackupStore) error {
 	ctx := cmd.Context()
 
 	err := verifyChannelRelease("restore", flags.isAirgap, flags.assumeYes)
@@ -188,260 +187,114 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags Install2Cm
 
 	switch state {
 	case ecRestoreStateNew:
-		logrus.Debugf("checking if k0s is already installed")
-		err := verifyNoInstallation(name, "restore")
-		if err != nil {
-			return err
-		}
-
-		if !s3BackupStoreHasData(&s3Store) {
-			logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", name)
-			logrus.Info("Enter information to configure access to your backup storage location.\n")
-
-			promptForS3BackupStore(&s3Store)
-		}
-		s3Store.prefix = strings.TrimPrefix(s3Store.prefix, "/")
-
-		skipStoreValidationFlag, err := cmd.Flags().GetBool("skip-store-validation")
+		skipStoreValidation, err := cmd.Flags().GetBool("skip-store-validation")
 		if err != nil {
 			return fmt.Errorf("unable to get skip-store-validation flag: %w", err)
 		}
 
-		if !skipStoreValidationFlag {
-			logrus.Debugf("validating backup store configuration")
-			if err := validateS3BackupStore(&s3Store); err != nil {
-				return fmt.Errorf("unable to validate backup store: %w", err)
-			}
-		}
-
-		logrus.Debugf("configuring network manager")
-		if err := configureNetworkManager(ctx); err != nil {
-			return fmt.Errorf("unable to configure network manager: %w", err)
-		}
-
-		logrus.Debugf("materializing binaries")
-		if err := materializeFiles(flags.airgapBundle); err != nil {
-			return fmt.Errorf("unable to materialize binaries: %w", err)
-		}
-
-		logrus.Debugf("running host preflights")
-		if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
-			Proxy:                flags.proxy,
-			PodCIDR:              flags.cidrCfg.PodCIDR,
-			ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
-			GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
-			PrivateCAs:           flags.privateCAs,
-			IsAirgap:             flags.isAirgap,
-			SkipHostPreflights:   flags.skipHostPreflights,
-			IgnoreHostPreflights: flags.ignoreHostPreflights,
-			AssumeYes:            flags.assumeYes,
-		}); err != nil {
-			if err == preflights.ErrPreflightsHaveFail {
-				return ErrNothingElseToAdd
-			}
-			return fmt.Errorf("unable to prepare and run preflights: %w", err)
-		}
-
-		_, err = installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides)
+		err = runRestoreStepNew(ctx, name, flags, &s3Store, skipStoreValidation)
 		if err != nil {
 			return err
 		}
 
-		kcli, err := kubeutils.KubeClient()
-		if err != nil {
-			return fmt.Errorf("unable to create kube client: %w", err)
-		}
-
-		errCh := kubeutils.WaitForKubernetes(ctx, kcli)
-		defer func() {
-			for len(errCh) > 0 {
-				err := <-errCh
-				logrus.Error(fmt.Errorf("infrastructure failed to become ready: %w", err))
-			}
-		}()
-
-		// TODO (@salah): update installation status to reflect what's happening
-
-		logrus.Debugf("installing addons")
-		if err := addons2.Install(ctx, addons2.InstallOptions{
-			AirgapBundle:     flags.airgapBundle,
-			Proxy:            flags.proxy,
-			PrivateCAs:       flags.privateCAs,
-			ConfigValuesFile: flags.configValues,
-			ServiceCIDR:      flags.cidrCfg.ServiceCIDR,
-			IsRestore:        true,
-		}); err != nil {
-			return err
-		}
-
-		logrus.Debugf("configuring velero backup storage location")
-		if err := kotscli.VeleroConfigureOtherS3(kotscli.VeleroConfigureOtherS3Options{
-			Endpoint:        s3Store.endpoint,
-			Region:          s3Store.region,
-			Bucket:          s3Store.bucket,
-			Path:            s3Store.prefix,
-			AccessKeyID:     s3Store.accessKeyID,
-			SecretAccessKey: s3Store.secretAccessKey,
-			Namespace:       runtimeconfig.KotsadmNamespace,
-		}); err != nil {
-			return err
-		}
 		fallthrough
 
 	case ecRestoreStateConfirmBackup:
 		logrus.Debugf("setting restore state to %q", ecRestoreStateConfirmBackup)
-		if err := setECRestoreState(ctx, ecRestoreStateConfirmBackup, ""); err != nil {
+		err := setECRestoreState(ctx, ecRestoreStateConfirmBackup, "")
+		if err != nil {
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		kcli, err := kubeutils.KubeClient()
-		if err != nil {
-			return fmt.Errorf("unable to create kube client: %w", err)
-		}
-
-		k0sCfg, err := getK0sConfigFromDisk()
-		if err != nil {
-			return fmt.Errorf("unable to get k0s config from disk: %w", err)
-		}
-
-		logrus.Debugf("waiting for backups to become available")
-		backups, err := waitForBackups(ctx, cmd.OutOrStdout(), kcli, k0sCfg, flags.isAirgap)
+		backup, ok, err := runRestoreStepConfirmBackup(ctx, cmd, flags)
 		if err != nil {
 			return err
-		}
-
-		logrus.Debugf("picking backup to restore")
-		backupToRestore = pickBackupToRestore(backups)
-		logrus.Debugf("backup to restore: %s", backupToRestore.GetName())
-
-		logrus.Info("")
-		completionTimestamp := backupToRestore.GetCompletionTimestamp().Format("2006-01-02 15:04:05 UTC")
-		shouldRestore := prompts.New().Confirm(fmt.Sprintf("Restore from backup %q (%s)?", backupToRestore.GetName(), completionTimestamp), true)
-		logrus.Info("")
-		if !shouldRestore {
-			logrus.Infof("Aborting restore...")
+		} else if !ok {
 			return nil
 		}
+		backupToRestore = backup
+
 		fallthrough
 
 	case ecRestoreStateRestoreECInstall:
 		logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECInstall)
-		if err := setECRestoreState(ctx, ecRestoreStateRestoreECInstall, backupToRestore.GetName()); err != nil {
+		err := setECRestoreState(ctx, ecRestoreStateRestoreECInstall, backupToRestore.GetName())
+		if err != nil {
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.GetName())
-		if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentECInstall); err != nil {
-			return fmt.Errorf("unable to restore from backup: %w", err)
-		}
-
-		logrus.Debugf("updating installation from backup %q", backupToRestore.GetName())
-		if err := restoreReconcileInstallationFromRuntimeConfig(ctx); err != nil {
-			return fmt.Errorf("unable to update installation from backup: %w", err)
-		}
-
-		logrus.Debugf("updating local artifact mirror service from backup %q", backupToRestore.GetName())
-		if err := updateLocalArtifactMirrorService(); err != nil {
-			return fmt.Errorf("unable to update local artifact mirror service from backup: %w", err)
+		err = runRestoreECInstall(ctx, backupToRestore)
+		if err != nil {
+			return err
 		}
 
 		fallthrough
 
 	case ecRestoreStateRestoreAdminConsole:
 		logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreAdminConsole)
-		if err := setECRestoreState(ctx, ecRestoreStateRestoreAdminConsole, backupToRestore.GetName()); err != nil {
+		err := setECRestoreState(ctx, ecRestoreStateRestoreAdminConsole, backupToRestore.GetName())
+		if err != nil {
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		logrus.Debugf("restoring admin console from backup %q", backupToRestore.GetName())
-		if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentAdminConsole); err != nil {
+		err = runRestoreAdminConsole(ctx, backupToRestore)
+		if err != nil {
 			return err
-		}
-
-		logrus.Debugf("installing manager")
-		if err := installAndEnableManager(ctx); err != nil {
-			return fmt.Errorf("unable to install manager: %w", err)
 		}
 
 		fallthrough
 
 	case ecRestoreStateWaitForNodes:
 		logrus.Debugf("setting restore state to %q", ecRestoreStateWaitForNodes)
-		if err := setECRestoreState(ctx, ecRestoreStateWaitForNodes, backupToRestore.GetName()); err != nil {
+		err := setECRestoreState(ctx, ecRestoreStateWaitForNodes, backupToRestore.GetName())
+		if err != nil {
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		logrus.Debugf("checking if backup is high availability")
-		highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
+		err = runRestoreWaitForNodes(ctx, flags, backupToRestore)
 		if err != nil {
-			return err
-		}
-
-		logrus.Debugf("waiting for additional nodes to be added")
-
-		networkInterfaceFlag, err := cmd.Flags().GetString("network-interface")
-		if err != nil {
-			return fmt.Errorf("unable to get network-interface flag: %w", err)
-		}
-
-		if err := waitForAdditionalNodes(ctx, highAvailability, networkInterfaceFlag); err != nil {
 			return err
 		}
 
 		fallthrough
 
 	case ecRestoreStateRestoreSeaweedFS:
-		// only restore seaweedfs in case of high availability and airgap
-		highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
+		logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreSeaweedFS)
+		err := setECRestoreState(ctx, ecRestoreStateRestoreSeaweedFS, backupToRestore.GetName())
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		if highAvailability && flags.isAirgap {
-			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreSeaweedFS)
-			if err := setECRestoreState(ctx, ecRestoreStateRestoreSeaweedFS, backupToRestore.GetName()); err != nil {
-				return fmt.Errorf("unable to set restore state: %w", err)
-			}
-			logrus.Debugf("restoring seaweedfs from backup %q", backupToRestore.GetName())
-			if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentSeaweedFS); err != nil {
-				return err
-			}
+		err = runRestoreSeaweedFS(ctx, flags, backupToRestore)
+		if err != nil {
+			return err
 		}
 
 		fallthrough
 
 	case ecRestoreStateRestoreRegistry:
-		// only restore registry in case of airgap
-		if flags.isAirgap {
-			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreRegistry)
-			if err := setECRestoreState(ctx, ecRestoreStateRestoreRegistry, backupToRestore.GetName()); err != nil {
-				return fmt.Errorf("unable to set restore state: %w", err)
-			}
-
-			logrus.Debugf("restoring embedded cluster registry from backup %q", backupToRestore.GetName())
-			if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentRegistry); err != nil {
-				return err
-			}
-
-			registryAddress, ok := backupToRestore.GetAnnotation("kots.io/embedded-registry")
-			if !ok {
-				return fmt.Errorf("unable to read registry address from backup")
-			}
-
-			if err := airgap.AddInsecureRegistry(registryAddress); err != nil {
-				return fmt.Errorf("failed to add insecure registry: %w", err)
-			}
+		logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreRegistry)
+		err := setECRestoreState(ctx, ecRestoreStateRestoreRegistry, backupToRestore.GetName())
+		if err != nil {
+			return fmt.Errorf("unable to set restore state: %w", err)
 		}
+
+		err = runRestoreRegistry(ctx, flags, backupToRestore)
+		if err != nil {
+			return err
+		}
+
 		fallthrough
 
 	case ecRestoreStateRestoreECO:
 		logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECO)
-		if err := setECRestoreState(ctx, ecRestoreStateRestoreECO, backupToRestore.GetName()); err != nil {
+		err := setECRestoreState(ctx, ecRestoreStateRestoreECO, backupToRestore.GetName())
+		if err != nil {
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		logrus.Debugf("restoring embedded cluster operator from backup %q", backupToRestore.GetName())
-		if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentECO); err != nil {
+		err = runRestoreECO(ctx, backupToRestore)
+		if err != nil {
 			return err
 		}
 
@@ -449,35 +302,279 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags Install2Cm
 
 	case ecRestoreStateRestoreExtensions:
 		logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreExtensions)
-		if err := setECRestoreState(ctx, ecRestoreStateRestoreExtensions, backupToRestore.GetName()); err != nil {
+		err := setECRestoreState(ctx, ecRestoreStateRestoreExtensions, backupToRestore.GetName())
+		if err != nil {
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		logrus.Debugf("installing extensions")
-		if err := extensions.Install(ctx, flags.isAirgap); err != nil {
-			return fmt.Errorf("unable to install extensions: %w", err)
+		err = runRestoreExtensions(ctx, flags)
+		if err != nil {
+			return err
 		}
 
 		fallthrough
 
 	case ecRestoreStateRestoreApp:
 		logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreApp)
-		if err := setECRestoreState(ctx, ecRestoreStateRestoreApp, backupToRestore.GetName()); err != nil {
+		err := setECRestoreState(ctx, ecRestoreStateRestoreApp, backupToRestore.GetName())
+		if err != nil {
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		logrus.Debugf("restoring app from backup %q", backupToRestore.GetName())
-		if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentApp); err != nil {
+		err = runRestoreApp(ctx, backupToRestore)
+		if err != nil {
 			return err
-		}
-
-		logrus.Debugf("resetting restore state")
-		if err := resetECRestoreState(ctx); err != nil {
-			return fmt.Errorf("unable to reset restore state: %w", err)
 		}
 
 	default:
 		return fmt.Errorf("unknown restore state: %q", state)
+	}
+
+	return nil
+}
+
+func runRestoreStepNew(ctx context.Context, name string, flags Install2CmdFlags, s3Store *s3BackupStore, skipStoreValidation bool) error {
+	logrus.Debugf("checking if k0s is already installed")
+	err := verifyNoInstallation(name, "restore")
+	if err != nil {
+		return err
+	}
+
+	if !s3BackupStoreHasData(s3Store) {
+		logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", name)
+		logrus.Info("Enter information to configure access to your backup storage location.\n")
+
+		promptForS3BackupStore(s3Store)
+	}
+	s3Store.prefix = strings.TrimPrefix(s3Store.prefix, "/")
+
+	if !skipStoreValidation {
+		logrus.Debugf("validating backup store configuration")
+		if err := validateS3BackupStore(s3Store); err != nil {
+			return fmt.Errorf("unable to validate backup store: %w", err)
+		}
+	}
+
+	logrus.Debugf("configuring network manager")
+	if err := configureNetworkManager(ctx); err != nil {
+		return fmt.Errorf("unable to configure network manager: %w", err)
+	}
+
+	logrus.Debugf("materializing binaries")
+	if err := materializeFiles(flags.airgapBundle); err != nil {
+		return fmt.Errorf("unable to materialize binaries: %w", err)
+	}
+
+	logrus.Debugf("running host preflights")
+	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
+		Proxy:                flags.proxy,
+		PodCIDR:              flags.cidrCfg.PodCIDR,
+		ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
+		GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
+		PrivateCAs:           flags.privateCAs,
+		IsAirgap:             flags.isAirgap,
+		SkipHostPreflights:   flags.skipHostPreflights,
+		IgnoreHostPreflights: flags.ignoreHostPreflights,
+		AssumeYes:            flags.assumeYes,
+	}); err != nil {
+		if err == preflights.ErrPreflightsHaveFail {
+			return ErrNothingElseToAdd
+		}
+		return fmt.Errorf("unable to prepare and run preflights: %w", err)
+	}
+
+	_, err = installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides)
+	if err != nil {
+		return err
+	}
+
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+
+	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
+	defer logKubernetesErrors(errCh)
+
+	// TODO (@salah): update installation status to reflect what's happening
+
+	logrus.Debugf("installing addons")
+	if err := addons2.Install(ctx, addons2.InstallOptions{
+		AirgapBundle:     flags.airgapBundle,
+		Proxy:            flags.proxy,
+		PrivateCAs:       flags.privateCAs,
+		ConfigValuesFile: flags.configValues,
+		ServiceCIDR:      flags.cidrCfg.ServiceCIDR,
+		IsRestore:        true,
+	}); err != nil {
+		return err
+	}
+
+	logrus.Debugf("configuring velero backup storage location")
+	if err := kotscli.VeleroConfigureOtherS3(kotscli.VeleroConfigureOtherS3Options{
+		Endpoint:        s3Store.endpoint,
+		Region:          s3Store.region,
+		Bucket:          s3Store.bucket,
+		Path:            s3Store.prefix,
+		AccessKeyID:     s3Store.accessKeyID,
+		SecretAccessKey: s3Store.secretAccessKey,
+		Namespace:       runtimeconfig.KotsadmNamespace,
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func runRestoreStepConfirmBackup(ctx context.Context, cmd *cobra.Command, flags Install2CmdFlags) (*disasterrecovery.ReplicatedBackup, bool, error) {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return nil, false, fmt.Errorf("unable to create kube client: %w", err)
+	}
+
+	k0sCfg, err := getK0sConfigFromDisk()
+	if err != nil {
+		return nil, false, fmt.Errorf("unable to get k0s config from disk: %w", err)
+	}
+
+	logrus.Debugf("waiting for backups to become available")
+	backups, err := waitForBackups(ctx, cmd.OutOrStdout(), kcli, k0sCfg, flags.isAirgap)
+	if err != nil {
+		return nil, false, err
+	}
+
+	logrus.Debugf("picking backup to restore")
+	backupToRestore := pickBackupToRestore(backups)
+	logrus.Debugf("backup to restore: %s", backupToRestore.GetName())
+
+	logrus.Info("")
+	completionTimestamp := backupToRestore.GetCompletionTimestamp().Format("2006-01-02 15:04:05 UTC")
+	shouldRestore := prompts.New().Confirm(fmt.Sprintf("Restore from backup %q (%s)?", backupToRestore.GetName(), completionTimestamp), true)
+	logrus.Info("")
+	if !shouldRestore {
+		logrus.Infof("Aborting restore...")
+		return nil, false, nil
+	}
+
+	return backupToRestore, true, nil
+}
+
+func runRestoreECInstall(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+	logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.GetName())
+	if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentECInstall); err != nil {
+		return fmt.Errorf("unable to restore from backup: %w", err)
+	}
+
+	logrus.Debugf("updating installation from backup %q", backupToRestore.GetName())
+	if err := restoreReconcileInstallationFromRuntimeConfig(ctx); err != nil {
+		return fmt.Errorf("unable to update installation from backup: %w", err)
+	}
+
+	logrus.Debugf("updating local artifact mirror service from backup %q", backupToRestore.GetName())
+	if err := updateLocalArtifactMirrorService(); err != nil {
+		return fmt.Errorf("unable to update local artifact mirror service from backup: %w", err)
+	}
+
+	return nil
+}
+
+func runRestoreAdminConsole(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+	logrus.Debugf("restoring admin console from backup %q", backupToRestore.GetName())
+	if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentAdminConsole); err != nil {
+		return err
+	}
+
+	logrus.Debugf("installing manager")
+	if err := installAndEnableManager(ctx); err != nil {
+		return fmt.Errorf("unable to install manager: %w", err)
+	}
+
+	return nil
+}
+
+func runRestoreWaitForNodes(ctx context.Context, flags Install2CmdFlags, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+	logrus.Debugf("checking if backup is high availability")
+	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
+	if err != nil {
+		return err
+	}
+
+	logrus.Debugf("waiting for additional nodes to be added")
+
+	if err := waitForAdditionalNodes(ctx, highAvailability, flags.networkInterface); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func runRestoreSeaweedFS(ctx context.Context, flags Install2CmdFlags, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
+	if err != nil {
+		return err
+	} else if !flags.isAirgap || !highAvailability {
+		// only restore seaweedfs in case of high availability and airgap
+		return nil
+	}
+
+	logrus.Debugf("restoring seaweedfs from backup %q", backupToRestore.GetName())
+	if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentSeaweedFS); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func runRestoreRegistry(ctx context.Context, flags Install2CmdFlags, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+	// only restore registry in case of airgap
+	if !flags.isAirgap {
+		return nil
+	}
+
+	logrus.Debugf("restoring embedded cluster registry from backup %q", backupToRestore.GetName())
+	if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentRegistry); err != nil {
+		return err
+	}
+
+	registryAddress, ok := backupToRestore.GetAnnotation("kots.io/embedded-registry")
+	if !ok {
+		return fmt.Errorf("unable to read registry address from backup")
+	}
+
+	if err := airgap.AddInsecureRegistry(registryAddress); err != nil {
+		return fmt.Errorf("failed to add insecure registry: %w", err)
+	}
+
+	return nil
+}
+
+func runRestoreECO(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+	logrus.Debugf("restoring embedded cluster operator from backup %q", backupToRestore.GetName())
+	if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentECO); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func runRestoreExtensions(ctx context.Context, flags Install2CmdFlags) error {
+	logrus.Debugf("installing extensions")
+	if err := extensions.Install(ctx, flags.isAirgap); err != nil {
+		return fmt.Errorf("unable to install extensions: %w", err)
+	}
+
+	return nil
+}
+
+func runRestoreApp(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+	logrus.Debugf("restoring app from backup %q", backupToRestore.GetName())
+	if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentApp); err != nil {
+		return err
+	}
+
+	logrus.Debugf("resetting restore state")
+	if err := resetECRestoreState(ctx); err != nil {
+		return fmt.Errorf("unable to reset restore state: %w", err)
 	}
 
 	return nil
@@ -1110,7 +1207,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
-		if err := adminconsole.WaitForReady(ctx, kcli, runtimeconfig.KotsadmNamespace, loading); err != nil {
+		if err := restoreWaitForAdminConsoleReady(ctx, kcli, runtimeconfig.KotsadmNamespace, loading); err != nil {
 			return fmt.Errorf("unable to wait for admin console: %w", err)
 		}
 	} else if drComponent == disasterRecoveryComponentSeaweedFS {
@@ -1120,7 +1217,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
-		if err := seaweedfs.WaitForReady(ctx, kcli, runtimeconfig.SeaweedFSNamespace, nil); err != nil {
+		if err := restoreWaitForSeaweedfsReady(ctx, kcli, runtimeconfig.SeaweedFSNamespace, nil); err != nil {
 			return fmt.Errorf("unable to wait for seaweedfs to be ready: %w", err)
 		}
 	} else if drComponent == disasterRecoveryComponentRegistry {
@@ -1140,8 +1237,8 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
-		if err := kubeutils.WaitForInstallation(ctx, kcli, loading); err != nil {
-			return fmt.Errorf("unable to wait for installation to be ready: %w", err)
+		if err := kubeutils.WaitForDeployment(ctx, kcli, "embedded-cluster", "embedded-cluster-operator", nil); err != nil {
+			return fmt.Errorf("unable to wait for embedded cluster operator to be ready: %w", err)
 		}
 	}
 
@@ -1354,10 +1451,12 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkI
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
+	adminConsoleURL := getAdminConsoleURL(networkInterface, runtimeconfig.AdminConsolePort())
+
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
 	joinNodesMsg := fmt.Sprintf("\nVisit the Admin Console if you need to add nodes to the cluster: %s%s%s\n",
-		successColor, adminconsole.GetURL(networkInterface, runtimeconfig.AdminConsolePort()), colorReset,
+		successColor, adminConsoleURL, colorReset,
 	)
 	logrus.Info(joinNodesMsg)
 
@@ -1514,5 +1613,81 @@ func updateLocalArtifactMirrorService() error {
 		return fmt.Errorf("unable to restart the local artifact mirror service: %w", err)
 	}
 
+	return nil
+}
+
+func restoreWaitForSeaweedfsReady(ctx context.Context, cli client.Client, ns string, writer *spinner.MessageWriter) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		var count int
+		ready, err := kubeutils.IsStatefulSetReady(ctx, cli, ns, "seaweedfs-filer")
+		if err != nil {
+			lasterr = fmt.Errorf("check status of seaweedfs-filer: %v", err)
+			return false, nil
+		}
+		if ready {
+			count++
+		}
+		ready, err = kubeutils.IsStatefulSetReady(ctx, cli, ns, "seaweedfs-master")
+		if err != nil {
+			lasterr = fmt.Errorf("check status of seaweedfs-master: %v", err)
+			return false, nil
+		}
+		if ready {
+			count++
+		}
+		ready, err = kubeutils.IsStatefulSetReady(ctx, cli, ns, "seaweedfs-volume")
+		if err != nil {
+			lasterr = fmt.Errorf("check status of seaweedfs-volume: %v", err)
+			return false, nil
+		}
+		if ready {
+			count++
+		}
+		if writer != nil {
+			writer.Infof("Waiting for SeaweedFS to deploy: %d/3 ready", count)
+		}
+		return count == 3, nil
+	}); err != nil {
+		if lasterr == nil {
+			lasterr = err
+		}
+		return lasterr
+	}
+	return nil
+}
+
+func restoreWaitForAdminConsoleReady(ctx context.Context, cli client.Client, ns string, writer *spinner.MessageWriter) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		var count int
+		ready, err := kubeutils.IsDeploymentReady(ctx, cli, ns, "kotsadm")
+		if err != nil {
+			lasterr = fmt.Errorf("check status of kotsadm: %v", err)
+			return false, nil
+		}
+		if ready {
+			count++
+		}
+		ready, err = kubeutils.IsStatefulSetReady(ctx, cli, ns, "kotsadm-rqlite")
+		if err != nil {
+			lasterr = fmt.Errorf("check status of kotsadm-rqlite: %v", err)
+			return false, nil
+		}
+		if ready {
+			count++
+		}
+		if writer != nil {
+			writer.Infof("Waiting for the Admin Console to deploy: %d/2 ready", count)
+		}
+		return count == 2, nil
+	}); err != nil {
+		if lasterr == nil {
+			lasterr = err
+		}
+		return lasterr
+	}
 	return nil
 }

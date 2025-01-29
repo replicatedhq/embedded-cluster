@@ -266,6 +266,14 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return err
 	}
 
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+
+	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
+	defer logKubernetesErrors(errCh)
+
 	disasterRecoveryEnabled, err := helpers.DisasterRecoveryEnabled(flags.license)
 	if err != nil {
 		return fmt.Errorf("unable to check if disaster recovery is enabled: %w", err)
@@ -678,4 +686,18 @@ func getAdminConsoleURL(networkInterface string, port int) string {
 		}
 	}
 	return fmt.Sprintf("http://%s:%v", ipaddr, port)
+}
+
+// logKubernetesErrors prints errors that may be related to k8s not coming up that manifest as
+// addons failing to install. We run this in the background as waiting for kubernetes can take
+// minutes and we can install addons in parallel.
+func logKubernetesErrors(errCh <-chan error) {
+	for {
+		select {
+		case err := <-errCh:
+			logrus.Errorf("Infrastructure failed to become ready: %v", err)
+		default:
+			return
+		}
+	}
 }

@@ -161,7 +161,7 @@ jobs:
 
   build-current:
     name: Build current
-    runs-on: embedded-cluster
+    runs-on: embedded-cluster-2
     needs:
       - git-sha
     outputs:

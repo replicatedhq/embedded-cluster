@@ -73,7 +73,9 @@ func (k *KubeUtils) IsJobComplete(ctx context.Context, cli client.Client, ns, na
 }
 
 func (k *KubeUtils) WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error {
-	return nil
+	errCh := make(chan error)
+	close(errCh)
+	return errCh
 }
 
 func (k *KubeUtils) WaitAndMarkInstallation(ctx context.Context, cli client.Client, name string, state string) error {
