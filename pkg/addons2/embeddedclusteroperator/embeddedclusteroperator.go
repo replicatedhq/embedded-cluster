@@ -40,3 +40,11 @@ func init() {
 func (a *EmbeddedClusterOperator) Name() string {
 	return "Embedded Cluster Operator"
 }
+
+func (a *EmbeddedClusterOperator) ReleaseName() string {
+	return releaseName
+}
+
+func (a *EmbeddedClusterOperator) Namespace() string {
+	return namespace
+}

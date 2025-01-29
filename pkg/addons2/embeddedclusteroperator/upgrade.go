@@ -5,24 +5,24 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (o *EmbeddedClusterOperator) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, writer *spinner.MessageWriter) error {
+func (o *EmbeddedClusterOperator) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.Helm) error {
 	if err := o.prepare(); err != nil {
 		return errors.Wrap(err, "prepare embedded cluster operator")
 	}
 
-	_, err := hcli.Install(ctx, helm.InstallOptions{
+	_, err := hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,
 		Values:       helmValues,
 		Namespace:    namespace,
+		Force:        true,
 	})
 	if err != nil {
-		return errors.Wrap(err, "install metrics operator")
+		return errors.Wrap(err, "upgrade metrics operator")
 	}
 
 	return nil

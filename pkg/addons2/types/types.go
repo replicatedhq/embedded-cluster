@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/seaweedfs"
@@ -26,3 +27,4 @@ var _ AddOn = (*openebs.OpenEBS)(nil)
 var _ AddOn = (*registry.Registry)(nil)
 var _ AddOn = (*seaweedfs.SeaweedFS)(nil)
 var _ AddOn = (*velero.Velero)(nil)
+var _ AddOn = (*embeddedclusteroperator.EmbeddedClusterOperator)(nil)
