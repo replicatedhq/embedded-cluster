@@ -445,6 +445,10 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 }
 
 func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, disasterRecoveryEnabled bool) (*ecv1beta1.Installation, error) {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Creating types")
+
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return nil, fmt.Errorf("create kube client: %w", err)
@@ -515,6 +519,7 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 		return nil, fmt.Errorf("update installation status: %w", err)
 	}
 
+	loading.Infof("Types created!")
 	return &installation, nil
 }
 
@@ -558,8 +563,7 @@ func createInstallationCRD(ctx context.Context, kcli client.Client) error {
 		}
 
 		// wait for the CRD to be ready
-		backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
-		fmt.Printf("Waiting for installation CRD %s to be ready\n", crd.Name)
+		backoff := wait.Backoff{Steps: 600, Duration: 100 * time.Millisecond, Factor: 1.0, Jitter: 0.1}
 		if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
 			newCrd := apiextensionsv1.CustomResourceDefinition{}
 			err := kcli.Get(ctx, client.ObjectKey{Name: crd.Name}, &newCrd)
@@ -575,7 +579,6 @@ func createInstallationCRD(ctx context.Context, kcli client.Client) error {
 		}); err != nil {
 			return fmt.Errorf("wait for installation CRD to be ready: %w", err)
 		}
-		fmt.Printf("Installation CRD %s is ready\n", crd.Name)
 	}
 
 	return nil
