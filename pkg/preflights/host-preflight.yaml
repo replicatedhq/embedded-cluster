@@ -905,11 +905,20 @@ spec:
         checkName: "Adequate inotify max_user_instances"
         outcomes:
           - fail:
-              when: 'fs.inotify.max_user_instances < 1000'
-              message: "Inadequate inotify max_user_instances. To enable it, edit /etc/sysctl.conf, add or edit 'fs.inotify.max_user_instances' to a value of at least 1000, and run 'sudo sysctl -p'."
+              when: 'fs.inotify.max_user_instances < 8192'
+              message: "Inadequate inotify max_user_instances. To enable it, edit /etc/sysctl.conf, add or edit 'fs.inotify.max_user_instances' to a value of at least 8192, and run 'sudo sysctl -p'."
           - pass:
-              when: 'fs.inotify.max_user_instances > 999'
+              when: 'fs.inotify.max_user_instances > 8191'
               message: "Adequate inotify max_user_instances."
+    - sysctl:
+        checkName: "Adequate inotify max_user_watches"
+        outcomes:
+          - fail:
+              when: 'fs.inotify.max_user_watches < 8192'
+              message: "Inadequate inotify max_user_watches. To enable it, edit /etc/sysctl.conf, add or edit 'fs.inotify.max_user_watches' to a value of at least 8192, and run 'sudo sysctl -p'."
+          - pass:
+              when: 'fs.inotify.max_user_watches > 8191'
+              message: "Adequate inotify max_user_watches."
     - networkNamespaceConnectivity:
         collectorName: check-network-namespace-connectivity
         outcomes:
