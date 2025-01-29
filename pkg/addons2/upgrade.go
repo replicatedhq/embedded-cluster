@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/openebs"
@@ -17,10 +18,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // TODO (@salah): add ability to remove addons
-// TODO (@salah): make this idempotent
 func Upgrade(ctx context.Context, in *ecv1beta1.Installation) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
@@ -41,19 +43,9 @@ func Upgrade(ctx context.Context, in *ecv1beta1.Installation) error {
 	}
 
 	for _, addon := range getAddOnsForUpgrade(in) {
-		fmt.Printf("Upgrading %s\n", addon.Name())
-
-		// TODO (@salah): add support for end user overrides
-		overrides := []string{}
-		if in.Spec.Config != nil {
-			overrides = append(overrides, in.Spec.Config.OverrideForBuiltIn(addon.ReleaseName()))
+		if err := upgradeAddOn(ctx, hcli, kcli, in, addon); err != nil {
+			return err
 		}
-
-		if err := addon.Upgrade(ctx, kcli, hcli, overrides); err != nil {
-			return errors.Wrap(err, addon.Name())
-		}
-
-		fmt.Printf("%s is ready!\n", addon.Name())
 	}
 
 	return nil
@@ -90,4 +82,58 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation) []types.AddOn {
 	})
 
 	return addOns
+}
+
+func upgradeAddOn(ctx context.Context, hcli *helm.Helm, kcli client.Client, in *ecv1beta1.Installation, addon types.AddOn) (finalErr error) {
+	if k8sutil.CheckConditionStatus(in.Status, conditionName(addon)) == metav1.ConditionTrue {
+		fmt.Printf("%s is ready\n", addon.Name())
+		return nil
+	}
+
+	fmt.Printf("Upgrading %s\n", addon.Name())
+
+	if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
+		Type:   conditionName(addon),
+		Status: metav1.ConditionFalse,
+		Reason: "Upgrading",
+	}); err != nil {
+		return fmt.Errorf("set condition status: %w", err)
+	}
+
+	defer func() {
+		if finalErr == nil {
+			if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
+				Type:   conditionName(addon),
+				Status: metav1.ConditionTrue,
+				Reason: "Upgraded",
+			}); err != nil {
+				fmt.Printf("failed to set condition status: %v", err)
+			}
+		} else {
+			if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
+				Type:    conditionName(addon),
+				Status:  metav1.ConditionFalse,
+				Reason:  "Upgrade failed",
+				Message: finalErr.Error(),
+			}); err != nil {
+				fmt.Printf("failed to set condition status: %v", err)
+			}
+		}
+	}()
+
+	// TODO (@salah): add support for end user overrides
+	overrides := []string{}
+	if in.Spec.Config != nil {
+		overrides = append(overrides, in.Spec.Config.OverrideForBuiltIn(addon.ReleaseName()))
+	}
+	if err := addon.Upgrade(ctx, kcli, hcli, overrides); err != nil {
+		return errors.Wrap(err, addon.Name())
+	}
+
+	fmt.Printf("%s is ready\n", addon.Name())
+	return nil
+}
+
+func conditionName(addon types.AddOn) string {
+	return fmt.Sprintf("%s-%s", addon.Namespace(), addon.ReleaseName())
 }
