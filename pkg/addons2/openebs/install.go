@@ -27,7 +27,3 @@ func (o *OpenEBS) Install(ctx context.Context, kcli client.Client, hcli *helm.He
 
 	return nil
 }
-
-func (o *OpenEBS) InstallForRestore(ctx context.Context, kcli client.Client, hcli *helm.Helm, writer *spinner.MessageWriter) error {
-	return o.Install(ctx, kcli, hcli, writer)
-}
