@@ -3,11 +3,15 @@ package registry
 import (
 	_ "embed"
 
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v2"
+	"k8s.io/utils/ptr"
 )
 
 type Registry struct {
@@ -62,12 +66,46 @@ func (r *Registry) Name() string {
 	return "Registry"
 }
 
+func (r *Registry) Version() map[string]string {
+	return map[string]string{"Registry": "v" + Metadata.Version}
+}
+
 func (r *Registry) ReleaseName() string {
 	return releaseName
 }
 
 func (r *Registry) Namespace() string {
 	return namespace
+}
+
+func (r *Registry) GetImages() []string {
+	var images []string
+	for _, image := range Metadata.Images {
+		images = append(images, image.String())
+	}
+	return images
+}
+
+func (r *Registry) GetAdditionalImages() []string {
+	return nil
+}
+
+func (r *Registry) GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
+	values, err := helm.MarshalValues(helmValues)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "marshal helm values")
+	}
+
+	chartConfig := ecv1beta1.Chart{
+		Name:         releaseName,
+		ChartName:    Metadata.Location,
+		Version:      Metadata.Version,
+		Values:       string(values),
+		TargetNS:     namespace,
+		ForceUpgrade: ptr.To(false),
+		Order:        3,
+	}
+	return []ecv1beta1.Chart{chartConfig}, nil, nil
 }
 
 func GetRegistryPassword() string {

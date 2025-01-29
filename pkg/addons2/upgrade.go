@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/seaweedfs"
@@ -19,6 +20,7 @@ import (
 )
 
 // TODO (@salah): add ability to remove addons
+// TODO (@salah): make this idempotent
 func Upgrade(ctx context.Context, in *ecv1beta1.Installation) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
@@ -39,23 +41,19 @@ func Upgrade(ctx context.Context, in *ecv1beta1.Installation) error {
 	}
 
 	for _, addon := range getAddOnsForUpgrade(in) {
-		exists, err := hcli.ReleaseExists(ctx, addon.Namespace(), addon.ReleaseName())
-		if err != nil {
-			return errors.Wrap(err, "check if release exists")
+		fmt.Printf("Upgrading %s\n", addon.Name())
+
+		// TODO (@salah): add support for end user overrides
+		overrides := []string{}
+		if in.Spec.Config != nil {
+			overrides = append(overrides, in.Spec.Config.OverrideForBuiltIn(addon.ReleaseName()))
 		}
-		if exists {
-			fmt.Printf("Upgrading %s\n", addon.Name())
-			if err := addon.Upgrade(ctx, kcli, hcli); err != nil {
-				return errors.Wrap(err, "upgrade addon")
-			}
-			fmt.Printf("%s upgraded successfully\n", addon.Name())
-		} else {
-			fmt.Printf("Installing %s\n", addon.Name())
-			if err := addon.Install(ctx, kcli, hcli, nil); err != nil {
-				return errors.Wrap(err, "install addon")
-			}
-			fmt.Printf("%s installed successfully\n", addon.Name())
+
+		if err := addon.Upgrade(ctx, kcli, hcli, overrides); err != nil {
+			return errors.Wrap(err, addon.Name())
 		}
+
+		fmt.Printf("%s is ready!\n", addon.Name())
 	}
 
 	return nil
@@ -64,6 +62,7 @@ func Upgrade(ctx context.Context, in *ecv1beta1.Installation) error {
 func getAddOnsForUpgrade(in *ecv1beta1.Installation) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{},
+		&embeddedclusteroperator.EmbeddedClusterOperator{},
 	}
 
 	if in.Spec.AirGap {

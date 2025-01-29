@@ -282,6 +282,16 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 
 	// TODO (@salah): update installation status to reflect what's happening
 
+	releaseConfig, err := release.GetEmbeddedClusterConfig()
+	if err != nil {
+		return fmt.Errorf("unable to get release embedded cluster config: %w", err)
+	}
+
+	endUserConfig, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return fmt.Errorf("unable to process overrides file: %w", err)
+	}
+
 	logrus.Debugf("installing addons")
 	if err := addons2.Install(cmd.Context(), addons2.InstallOptions{
 		AdminConsolePwd:         flags.adminConsolePassword,
@@ -291,6 +301,8 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		PrivateCAs:              flags.privateCAs,
 		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
 		DisasterRecoveryEnabled: disasterRecoveryEnabled,
+		ReleaseConfig:           releaseConfig,
+		EndUserConfig:           endUserConfig,
 		KotsInstaller: func(msg *spinner.MessageWriter) error {
 			opts := kotscli.InstallOptions{
 				AppSlug:          flags.license.Spec.AppSlug,

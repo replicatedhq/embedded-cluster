@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/seaweedfs"
@@ -18,9 +19,21 @@ const (
 	s3SecretName = "seaweedfs-s3-rw"
 )
 
-func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.Helm) error {
-	if err := r.prepare(); err != nil {
-		return errors.Wrap(err, "prepare registry")
+func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string) error {
+	exists, err := hcli.ReleaseExists(ctx, namespace, releaseName)
+	if err != nil {
+		return errors.Wrap(err, "check if release exists")
+	}
+	if !exists {
+		fmt.Printf("%s release not found in %s namespace, installing\n", releaseName, namespace)
+		if err := r.Install(ctx, kcli, hcli, overrides, nil); err != nil {
+			return errors.Wrap(err, "install")
+		}
+		return nil
+	}
+
+	if err := r.prepare(overrides); err != nil {
+		return errors.Wrap(err, "prepare")
 	}
 
 	if err := r.createUpgradePreRequisites(ctx, kcli); err != nil {
@@ -34,7 +47,7 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.H
 		values = helmValues
 	}
 
-	_, err := hcli.Upgrade(ctx, helm.UpgradeOptions{
+	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,
@@ -43,7 +56,7 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.H
 		Force:        false,
 	})
 	if err != nil {
-		return errors.Wrap(err, "upgrade registry")
+		return errors.Wrap(err, "upgrade")
 	}
 
 	return nil

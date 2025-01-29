@@ -45,7 +45,7 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
 
 // TODO (@salah): make this idempotent
 // EnableHA enables high availability.
-func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec) error {
+func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
@@ -69,7 +69,8 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 			return errors.Wrap(err, "check if seaweedfs release exists")
 		}
 		if !exists {
-			if err := sw.Install(ctx, kcli, hcli, nil); err != nil {
+			// TODO (@salah): add support for overrides
+			if err := sw.Install(ctx, kcli, hcli, nil, nil); err != nil {
 				return errors.Wrap(err, "install seaweedfs")
 			}
 		}
@@ -81,7 +82,8 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 		if err := reg.Migrate(ctx, kcli, loading); err != nil {
 			return errors.Wrap(err, "migrate registry data")
 		}
-		if err := reg.Upgrade(ctx, kcli, hcli); err != nil {
+		// TODO (@salah): add support for overrides
+		if err := reg.Upgrade(ctx, kcli, hcli, nil); err != nil {
 			return errors.Wrap(err, "upgrade registry")
 		}
 	}
@@ -93,7 +95,8 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 		IsHA:     true,
 		Proxy:    proxy,
 	}
-	if err := ac.Upgrade(ctx, kcli, hcli); err != nil {
+	// TODO (@salah): add support for overrides
+	if err := ac.Upgrade(ctx, kcli, hcli, nil); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
 	}
 

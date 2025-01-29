@@ -7,19 +7,17 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
 
-func (a *AdminConsole) prepare() error {
-	if err := a.generateHelmValues(); err != nil {
+func (a *AdminConsole) prepare(overrides []string) error {
+	if err := a.generateHelmValues(overrides); err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
 	return nil
 }
 
-func (a *AdminConsole) generateHelmValues() error {
-	helmValues["embeddedClusterVersion"] = versions.Version
+func (a *AdminConsole) generateHelmValues(overrides []string) error {
 	helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 	helmValues["isHA"] = a.IsHA
 
@@ -52,6 +50,13 @@ func (a *AdminConsole) generateHelmValues() error {
 	helmValues, err = helm.SetValue(helmValues, "kurlProxy.nodePort", runtimeconfig.AdminConsolePort())
 	if err != nil {
 		return errors.Wrap(err, "set kurlProxy.nodePort")
+	}
+
+	for _, override := range overrides {
+		helmValues, err = helm.PatchValues(helmValues, override)
+		if err != nil {
+			return errors.Wrap(err, "patch helm values")
+		}
 	}
 
 	return nil

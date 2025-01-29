@@ -163,7 +163,7 @@ func runJoin2(cmd *cobra.Command, args []string, name string, flags Join2CmdFlag
 	}
 
 	if flags.enableHighAvailability {
-		if err := maybeEnableHA(cmd.Context(), kcli, flags.airgapBundle != "", cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy); err != nil {
+		if err := maybeEnableHA(cmd.Context(), kcli, flags.airgapBundle != "", cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config); err != nil {
 			err := fmt.Errorf("unable to enable high availability: %w", err)
 			metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -492,7 +492,7 @@ func waitForNode(ctx context.Context, kcli client.Client, hostname string) error
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
 	canEnableHA, err := addons2.CanEnableHA(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
@@ -508,5 +508,5 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, isAirgap bool, servi
 		return nil
 	}
 	logrus.Info("")
-	return addons2.EnableHA(ctx, kcli, isAirgap, serviceCIDR, proxy)
+	return addons2.EnableHA(ctx, kcli, isAirgap, serviceCIDR, proxy, cfgspec)
 }

@@ -75,7 +75,7 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 	cfg.Spec.Network.PodCIDR = podCIDR
 	cfg.Spec.Network.ServiceCIDR = serviceCIDR
 
-	cfg, err = applyUnsupportedOverrides(ctx, overrides, cfg)
+	cfg, err = applyUnsupportedOverrides(cfg, overrides)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
@@ -103,8 +103,7 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 
 // applyUnsupportedOverrides applies overrides to the k0s configuration. Applies first the
 // overrides embedded into the binary and after the ones provided by the user (--overrides).
-// we first apply the k0s config override and then apply the built in overrides.
-func applyUnsupportedOverrides(ctx context.Context, overrides string, cfg *k0sconfig.ClusterConfig) (*k0sconfig.ClusterConfig, error) {
+func applyUnsupportedOverrides(cfg *k0sconfig.ClusterConfig, overrides string) (*k0sconfig.ClusterConfig, error) {
 	embcfg, err := release.GetEmbeddedClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
@@ -114,10 +113,6 @@ func applyUnsupportedOverrides(ctx context.Context, overrides string, cfg *k0sco
 		cfg, err = config.PatchK0sConfig(cfg, overrides)
 		if err != nil {
 			return nil, fmt.Errorf("unable to patch k0s config: %w", err)
-		}
-		cfg, err = config.ApplyBuiltInExtensionsOverrides(cfg, embcfg)
-		if err != nil {
-			return nil, fmt.Errorf("unable to release built in overrides: %w", err)
 		}
 	}
 
@@ -130,10 +125,6 @@ func applyUnsupportedOverrides(ctx context.Context, overrides string, cfg *k0sco
 		cfg, err = config.PatchK0sConfig(cfg, overrides)
 		if err != nil {
 			return nil, fmt.Errorf("unable to apply overrides: %w", err)
-		}
-		cfg, err = config.ApplyBuiltInExtensionsOverrides(cfg, eucfg)
-		if err != nil {
-			return nil, fmt.Errorf("unable to end user built in overrides: %w", err)
 		}
 	}
 

@@ -27,6 +27,8 @@ type InstallOptions struct {
 	PrivateCAs              []string
 	ServiceCIDR             string
 	DisasterRecoveryEnabled bool
+	ReleaseConfig           *ecv1beta1.Config
+	EndUserConfig           *ecv1beta1.Config
 	KotsInstaller           adminconsole.KotsInstaller
 }
 
@@ -50,11 +52,19 @@ func Install(ctx context.Context, opts InstallOptions) error {
 		return errors.Wrap(err, "create helm client")
 	}
 
-	for _, addon := range getAddOns(opts) {
+	for _, addon := range getAddOnsForInstall(opts) {
 		loading := spinner.Start()
 		loading.Infof("Installing %s", addon.Name())
 
-		if err := addon.Install(ctx, kcli, hcli, loading); err != nil {
+		overrides := []string{}
+		if opts.ReleaseConfig != nil {
+			overrides = append(overrides, opts.ReleaseConfig.Spec.OverrideForBuiltIn(addon.ReleaseName()))
+		}
+		if opts.EndUserConfig != nil {
+			overrides = append(overrides, opts.EndUserConfig.Spec.OverrideForBuiltIn(addon.ReleaseName()))
+		}
+
+		if err := addon.Install(ctx, kcli, hcli, overrides, loading); err != nil {
 			loading.CloseWithError()
 			return errors.Wrap(err, "install addon")
 		}
@@ -65,7 +75,7 @@ func Install(ctx context.Context, opts InstallOptions) error {
 	return nil
 }
 
-func getAddOns(opts InstallOptions) []types.AddOn {
+func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{},
 		&embeddedclusteroperator.EmbeddedClusterOperator{},

@@ -16,8 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, writer *spinner.MessageWriter) error {
-	if err := s.prepare(); err != nil {
+func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
+	if err := s.prepare(overrides); err != nil {
 		return errors.Wrap(err, "prepare seaweedfs")
 	}
 

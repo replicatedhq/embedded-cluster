@@ -9,8 +9,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (o *OpenEBS) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, writer *spinner.MessageWriter) error {
-	if err := o.prepare(); err != nil {
+func (o *OpenEBS) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
+	if err := o.prepare(overrides); err != nil {
 		return errors.Wrap(err, "prepare openebs")
 	}
 

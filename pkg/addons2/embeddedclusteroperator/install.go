@@ -9,8 +9,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (o *EmbeddedClusterOperator) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, writer *spinner.MessageWriter) error {
-	if err := o.prepare(); err != nil {
+func (e *EmbeddedClusterOperator) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
+	if err := e.prepare(overrides); err != nil {
 		return errors.Wrap(err, "prepare embedded cluster operator")
 	}
 

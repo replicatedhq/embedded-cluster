@@ -3,9 +3,13 @@ package embeddedclusteroperator
 import (
 	_ "embed"
 
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"gopkg.in/yaml.v2"
+	"k8s.io/utils/ptr"
 )
 
 type EmbeddedClusterOperator struct{}
@@ -37,14 +41,54 @@ func init() {
 	helmValues = hv
 }
 
-func (a *EmbeddedClusterOperator) Name() string {
+func (e *EmbeddedClusterOperator) Name() string {
 	return "Embedded Cluster Operator"
 }
 
-func (a *EmbeddedClusterOperator) ReleaseName() string {
+func (e *EmbeddedClusterOperator) Version() map[string]string {
+	return map[string]string{
+		"EmbeddedClusterOperator": "v" + Metadata.Version,
+	}
+}
+
+func (e *EmbeddedClusterOperator) ReleaseName() string {
 	return releaseName
 }
 
-func (a *EmbeddedClusterOperator) Namespace() string {
+func (e *EmbeddedClusterOperator) Namespace() string {
 	return namespace
+}
+
+func (e *EmbeddedClusterOperator) GetImages() []string {
+	var images []string
+	for _, image := range Metadata.Images {
+		images = append(images, image.String())
+	}
+	return images
+}
+
+func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
+	var images []string
+	if image, ok := Metadata.Images["utils"]; ok {
+		images = append(images, image.String())
+	}
+	return images
+}
+
+func (e *EmbeddedClusterOperator) GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
+	values, err := helm.MarshalValues(helmValues)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "marshal helm values")
+	}
+
+	chartConfig := ecv1beta1.Chart{
+		Name:         releaseName,
+		ChartName:    Metadata.Location,
+		Version:      Metadata.Version,
+		Values:       string(values),
+		TargetNS:     namespace,
+		ForceUpgrade: ptr.To(false),
+		Order:        3,
+	}
+	return []ecv1beta1.Chart{chartConfig}, nil, nil
 }
