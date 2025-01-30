@@ -9,10 +9,12 @@ import (
 	"time"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/charts"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -261,7 +263,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return fmt.Errorf("unable to prepare and run preflights: %w", err)
 	}
 
-	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides)
+	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, nil)
 	if err != nil {
 		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
@@ -452,13 +454,47 @@ func verifyNoInstallation(name string, cmdName string) error {
 	return nil
 }
 
-func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, overrides string) (*k0sv1beta1.ClusterConfig, error) {
+func materializeFiles(airgapBundle string) error {
+	mat := spinner.Start()
+	defer mat.Close()
+	mat.Infof("Materializing files")
+
+	materializer := goods.NewMaterializer()
+	if err := materializer.Materialize(); err != nil {
+		return fmt.Errorf("unable to materialize binaries: %w", err)
+	}
+	if err := support.MaterializeSupportBundleSpec(); err != nil {
+		return fmt.Errorf("unable to materialize support bundle spec: %w", err)
+	}
+
+	if airgapBundle != "" {
+		mat.Infof("Materializing airgap installation files")
+
+		// read file from path
+		rawfile, err := os.Open(airgapBundle)
+		if err != nil {
+			return fmt.Errorf("failed to open airgap file: %w", err)
+		}
+		defer rawfile.Close()
+
+		if err := airgap.MaterializeAirgap(rawfile); err != nil {
+			err = fmt.Errorf("unable to materialize airgap files: %w", err)
+			return err
+		}
+	}
+
+	mat.Infof("Host files materialized!")
+
+	return nil
+}
+
+func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", runtimeconfig.BinaryName())
 	logrus.Debugf("creating k0s configuration file")
 
-	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides)
+	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides, mutate)
 	if err != nil {
 		err := fmt.Errorf("unable to create config file: %w", err)
 		return nil, err
