@@ -9,10 +9,12 @@ import (
 	"time"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/charts"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -86,25 +88,21 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runInstall2(cmd, args, name, flags); err != nil {
-				return err
-			}
-
-			return nil
+			metrics.ReportApplyStarted(ctx, flags.licenseFile)
+			err := runInstall2(cmd.Context(), cmd, args, name, flags)
+			metrics.ReportApplyFinished(ctx, flags.licenseFile, flags.license, err)
+			return err
 		},
 	}
 
 	if err := addInstallFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
-
-	cmd.Flags().StringVar(&flags.adminConsolePassword, "admin-console-password", "", "Password for the Admin Console")
-	cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
-	cmd.Flags().StringVarP(&flags.licenseFile, "license", "l", "", "Path to the license file")
-	if err := cmd.MarkFlagRequired("license"); err != nil {
+	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
-	cmd.Flags().StringVar(&flags.configValues, "config-values", "", "Path to the config values to use when installing")
+
+	cmd.AddCommand(InstallRunPreflightsCmd(ctx, name))
 
 	return cmd
 }
@@ -139,6 +137,18 @@ func addInstallFlags(cmd *cobra.Command, flags *Install2CmdFlags) error {
 		return err
 	}
 	cmd.Flags().BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
+
+	return nil
+}
+
+func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *Install2CmdFlags) error {
+	cmd.Flags().StringVar(&flags.adminConsolePassword, "admin-console-password", "", "Password for the Admin Console")
+	cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
+	cmd.Flags().StringVarP(&flags.licenseFile, "license", "l", "", "Path to the license file")
+	if err := cmd.MarkFlagRequired("license"); err != nil {
+		panic(err)
+	}
+	cmd.Flags().StringVar(&flags.configValues, "config-values", "", "Path to the config values to use when installing")
 
 	return nil
 }
@@ -206,16 +216,13 @@ func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags) error {
 	return nil
 }
 
-func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2CmdFlags) error {
-	ctx := cmd.Context()
-
+func runInstall2(ctx context.Context, cmd *cobra.Command, args []string, name string, flags Install2CmdFlags) error {
 	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
 		return err
 	}
 
 	logrus.Debugf("materializing binaries")
 	if err := materializeFiles(flags.airgapBundle); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -235,35 +242,13 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
-	var replicatedAPIURL, proxyRegistryURL string
-	if flags.license != nil {
-		replicatedAPIURL = flags.license.Spec.Endpoint
-		proxyRegistryURL = fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
-	}
-
 	logrus.Debugf("running host preflights")
-	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
-		ReplicatedAPIURL:     replicatedAPIURL,
-		ProxyRegistryURL:     proxyRegistryURL,
-		Proxy:                flags.proxy,
-		PodCIDR:              flags.cidrCfg.PodCIDR,
-		ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
-		GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
-		PrivateCAs:           flags.privateCAs,
-		IsAirgap:             flags.isAirgap,
-		SkipHostPreflights:   flags.skipHostPreflights,
-		IgnoreHostPreflights: flags.ignoreHostPreflights,
-		AssumeYes:            flags.assumeYes,
-	}); err != nil {
-		if err == preflights.ErrPreflightsHaveFail {
-			return ErrNothingElseToAdd
-		}
-		return fmt.Errorf("unable to prepare and run preflights: %w", err)
+	if err := runInstallPreflights(ctx, cmd, name, flags); err != nil {
+		return err
 	}
 
 	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides)
 	if err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -282,7 +267,6 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 
 	installObject, err := recordInstallation(ctx, flags, k0sCfg, disasterRecoveryEnabled)
 	if err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -310,26 +294,22 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 			return kotscli.Install(opts, msg)
 		},
 	}); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
 	logrus.Debugf("installing extensions")
 	if err := extensions.Install(ctx, flags.isAirgap); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
 	logrus.Debugf("installing manager")
 	if err := installAndEnableManager(ctx); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
 	// mark that the installation is installed as everything has been applied
 	installObject.Status.State = ecv1beta1.InstallationStateInstalled
 	if err := updateInstallation(ctx, installObject); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -338,7 +318,6 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 	}
 
 	if err := printSuccessMessage(flags.license, flags.networkInterface); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -357,13 +336,9 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 		return err
 	}
 
-	metrics.ReportApplyStarted(ctx, flags.licenseFile)
-
 	logrus.Debugf("checking license matches")
 	license, err := getLicenseFromFilepath(flags.licenseFile)
 	if err != nil {
-		metricErr := fmt.Errorf("unable to get license: %w", err)
-		metrics.ReportApplyFinished(ctx, "", flags.license, metricErr)
 		return err // do not return the metricErr, as we want the user to see the error message without a prefix
 	}
 	if flags.isAirgap {
@@ -376,7 +351,6 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	if !flags.isAirgap {
 		if err := maybePromptForAppUpdate(ctx, prompts.New(), license, flags.assumeYes); err != nil {
 			if errors.Is(err, ErrNothingElseToAdd) {
-				metrics.ReportApplyFinished(ctx, "", flags.license, err)
 				return err
 			}
 			// If we get an error other than ErrNothingElseToAdd, we warn and continue as
@@ -386,7 +360,6 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	}
 
 	if err := preflights.ValidateApp(); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -414,8 +387,88 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	}
 	if flags.adminConsolePassword == "" {
 		err := fmt.Errorf("no admin console password")
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
+	}
+
+	return nil
+}
+
+func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
+	rel, err := release.GetChannelRelease()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
+	}
+
+	// handle the three cases that do not require parsing the license file
+	// 1. no release and no license, which is OK
+	// 2. no license and a release, which is not OK
+	// 3. a license and no release, which is not OK
+	if rel == nil && licenseFile == "" {
+		// no license and no release, this is OK
+		return nil, nil
+	} else if rel == nil && licenseFile != "" {
+		// license is present but no release, this means we would install without vendor charts and k0s overrides
+		return nil, fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
+	} else if rel != nil && licenseFile == "" {
+		// release is present but no license, this is not OK
+		return nil, fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
+	}
+
+	license, err := helpers.ParseLicense(licenseFile)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
+	}
+
+	// Check if the license matches the application version data
+	if rel.AppSlug != license.Spec.AppSlug {
+		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
+		return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
+	}
+
+	// Ensure the binary channel actually is present in the supplied license
+	if err := checkChannelExistence(license, rel); err != nil {
+		return nil, err
+	}
+
+	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
+		// read the expiration date, and check it against the current date
+		expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse expiration date: %w", err)
+		}
+		if time.Now().After(expiration) {
+			return nil, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
+		}
+	}
+
+	if !license.Spec.IsEmbeddedClusterDownloadEnabled {
+		return nil, fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
+	}
+
+	return license, nil
+}
+
+// checkChannelExistence verifies that a channel exists in a supplied license, returning a user-friendly
+// error message actually listing available channels, if it does not.
+func checkChannelExistence(license *kotsv1beta1.License, rel *release.ChannelRelease) error {
+	var allowedChannels []string
+	channelExists := false
+
+	if len(license.Spec.Channels) == 0 { // support pre-multichannel licenses
+		allowedChannels = append(allowedChannels, fmt.Sprintf("%s (%s)", license.Spec.ChannelName, license.Spec.ChannelID))
+		channelExists = license.Spec.ChannelID == rel.ChannelID
+	} else {
+		for _, channel := range license.Spec.Channels {
+			allowedChannels = append(allowedChannels, fmt.Sprintf("%s (%s)", channel.ChannelSlug, channel.ChannelID))
+			if channel.ChannelID == rel.ChannelID {
+				channelExists = true
+			}
+		}
+	}
+
+	if !channelExists {
+		return fmt.Errorf("binary channel %s (%s) not present in license, channels allowed by license are: %s",
+			rel.ChannelID, rel.ChannelSlug, strings.Join(allowedChannels, ", "))
 	}
 
 	return nil
@@ -449,6 +502,40 @@ func verifyNoInstallation(name string, cmdName string) error {
 		logrus.Infof("\n  sudo ./%s reset\n", name)
 		return ErrNothingElseToAdd
 	}
+	return nil
+}
+
+func materializeFiles(airgapBundle string) error {
+	mat := spinner.Start()
+	defer mat.Close()
+	mat.Infof("Materializing files")
+
+	materializer := goods.NewMaterializer()
+	if err := materializer.Materialize(); err != nil {
+		return fmt.Errorf("unable to materialize binaries: %w", err)
+	}
+	if err := support.MaterializeSupportBundleSpec(); err != nil {
+		return fmt.Errorf("unable to materialize support bundle spec: %w", err)
+	}
+
+	if airgapBundle != "" {
+		mat.Infof("Materializing airgap installation files")
+
+		// read file from path
+		rawfile, err := os.Open(airgapBundle)
+		if err != nil {
+			return fmt.Errorf("failed to open airgap file: %w", err)
+		}
+		defer rawfile.Close()
+
+		if err := airgap.MaterializeAirgap(rawfile); err != nil {
+			err = fmt.Errorf("unable to materialize airgap files: %w", err)
+			return err
+		}
+	}
+
+	mat.Infof("Host files materialized!")
+
 	return nil
 }
 

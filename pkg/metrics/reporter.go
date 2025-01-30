@@ -153,7 +153,7 @@ func ReportApplyStarted(ctx context.Context, licenseFlag string) {
 
 // ReportApplyFinished reports an InstallationSucceeded or an InstallationFailed.
 func ReportApplyFinished(ctx context.Context, licenseFlag string, license *kotsv1beta1.License, err error) {
-	if licenseFlag != "" {
+	if license == nil && licenseFlag != "" {
 		license = License(licenseFlag)
 	}
 
