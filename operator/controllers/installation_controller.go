@@ -46,7 +46,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/charts"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
@@ -615,29 +614,29 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("failed to copy host preflight results: %w", err)
 	}
 
-	// cleanup openebs stateful pods
-	if err := r.ReconcileOpenebs(ctx, in); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to reconcile openebs: %w", err)
-	}
+	//// cleanup openebs stateful pods
+	//if err := r.ReconcileOpenebs(ctx, in); err != nil {
+	//	return ctrl.Result{}, fmt.Errorf("failed to reconcile openebs: %w", err)
+	//}
+	//
+	//// reconcile helm chart dependencies including secrets.
+	//if err := r.ReconcileRegistry(ctx, in); err != nil {
+	//	return ctrl.Result{}, fmt.Errorf("failed to pre-reconcile helm charts: %w", err)
+	//}
+	//
+	//// reconcile the add-ons (k0s helm extensions).
+	//log.Info("Reconciling helm charts")
+	//ev, err := charts.ReconcileHelmCharts(ctx, r.Client, in)
+	//if err != nil {
+	//	return ctrl.Result{}, fmt.Errorf("failed to reconcile helm charts: %w", err)
+	//}
+	//if ev != nil {
+	//	r.Recorder.Event(in, corev1.EventTypeNormal, ev.Reason, ev.Message)
+	//}
 
-	// reconcile helm chart dependencies including secrets.
-	if err := r.ReconcileRegistry(ctx, in); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to pre-reconcile helm charts: %w", err)
-	}
-
-	// reconcile the add-ons (k0s helm extensions).
-	log.Info("Reconciling helm charts")
-	ev, err := charts.ReconcileHelmCharts(ctx, r.Client, in)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to reconcile helm charts: %w", err)
-	}
-	if ev != nil {
-		r.Recorder.Event(in, corev1.EventTypeNormal, ev.Reason, ev.Message)
-	}
-
-	if err := r.ReconcileHAStatus(ctx, in); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to reconcile HA status: %w", err)
-	}
+	//if err := r.ReconcileHAStatus(ctx, in); err != nil {
+	//	return ctrl.Result{}, fmt.Errorf("failed to reconcile HA status: %w", err)
+	//}
 
 	// save the installation status. nothing more to do with it.
 	if err := r.Status().Update(ctx, in.DeepCopy()); err != nil {
