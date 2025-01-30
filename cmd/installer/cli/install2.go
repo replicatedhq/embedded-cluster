@@ -671,12 +671,15 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 				IsDisasterRecoverySupported: disasterRecoveryEnabled,
 			},
 		},
-		Status: ecv1beta1.InstallationStatus{
-			State: ecv1beta1.InstallationStateKubernetesInstalled,
-		},
 	}
 	if err := kcli.Create(ctx, installation); err != nil {
 		return nil, fmt.Errorf("create installation: %w", err)
+	}
+
+	// the kubernetes api does not allow us to set the state of an object when creating it
+	err = setInstallationState(ctx, installation, ecv1beta1.InstallationStateKubernetesInstalled)
+	if err != nil {
+		return nil, fmt.Errorf("set installation state to KubernetesInstalled: %w", err)
 	}
 
 	loading.Infof("Types created!")
@@ -689,7 +692,8 @@ func setInstallationState(ctx context.Context, installation *ecv1beta1.Installat
 		return fmt.Errorf("create kube client: %w", err)
 	}
 
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	// retry on all errors
+	return retry.OnError(retry.DefaultRetry, func(_ error) bool { return true }, func() error {
 		err := kcli.Get(ctx, client.ObjectKey{Name: installation.Name}, installation)
 		if err != nil {
 			return fmt.Errorf("get installation: %w", err)
