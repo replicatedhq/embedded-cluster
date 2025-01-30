@@ -60,6 +60,7 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 	if isAirgap {
 		loading.Infof("Enabling high availability")
 
+		// TODO (@salah): add support for end user overrides
 		sw := &seaweedfs.SeaweedFS{
 			ServiceCIDR: serviceCIDR,
 		}
@@ -68,15 +69,12 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 			return errors.Wrap(err, "check if seaweedfs release exists")
 		}
 		if !exists {
-			overrides := []string{} // TODO (@salah): add support for end user overrides
-			if cfgspec != nil {
-				overrides = append(overrides, cfgspec.OverrideForBuiltIn(sw.ReleaseName()))
-			}
-			if err := sw.Install(ctx, kcli, hcli, overrides, nil); err != nil {
+			if err := sw.Install(ctx, kcli, hcli, addOnOverrides(sw, cfgspec, nil), nil); err != nil {
 				return errors.Wrap(err, "install seaweedfs")
 			}
 		}
 
+		// TODO (@salah): add support for end user overrides
 		reg := &registry.Registry{
 			ServiceCIDR: serviceCIDR,
 			IsHA:        true,
@@ -84,27 +82,20 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 		if err := reg.Migrate(ctx, kcli, loading); err != nil {
 			return errors.Wrap(err, "migrate registry data")
 		}
-		overrides := []string{} // TODO (@salah): add support for end user overrides
-		if cfgspec != nil {
-			overrides = append(overrides, cfgspec.OverrideForBuiltIn(reg.ReleaseName()))
-		}
-		if err := reg.Upgrade(ctx, kcli, hcli, nil); err != nil {
+		if err := reg.Upgrade(ctx, kcli, hcli, addOnOverrides(reg, cfgspec, nil)); err != nil {
 			return errors.Wrap(err, "upgrade registry")
 		}
 	}
 
 	loading.Infof("Updating the Admin Console for high availability")
 
+	// TODO (@salah): add support for end user overrides
 	ac := &adminconsole.AdminConsole{
 		IsAirgap: isAirgap,
 		IsHA:     true,
 		Proxy:    proxy,
 	}
-	overrides := []string{} // TODO (@salah): add support for end user overrides
-	if cfgspec != nil {
-		overrides = append(overrides, cfgspec.OverrideForBuiltIn(ac.ReleaseName()))
-	}
-	if err := ac.Upgrade(ctx, kcli, hcli, nil); err != nil {
+	if err := ac.Upgrade(ctx, kcli, hcli, addOnOverrides(ac, cfgspec, nil)); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
 	}
 

@@ -3,7 +3,6 @@ package addons2
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -148,10 +147,8 @@ func upgradeAddOn(ctx context.Context, hcli *helm.Helm, kcli client.Client, in *
 	}()
 
 	// TODO (@salah): add support for end user overrides
-	overrides := []string{}
-	if in.Spec.Config != nil {
-		overrides = append(overrides, in.Spec.Config.OverrideForBuiltIn(addon.ReleaseName()))
-	}
+	overrides := addOnOverrides(addon, in.Spec.Config, nil)
+
 	if err := addon.Upgrade(ctx, kcli, hcli, overrides); err != nil {
 		return errors.Wrap(err, addon.Name())
 	}
@@ -162,31 +159,4 @@ func upgradeAddOn(ctx context.Context, hcli *helm.Helm, kcli client.Client, in *
 
 func conditionName(addon types.AddOn) string {
 	return fmt.Sprintf("%s-%s", addon.Namespace(), addon.ReleaseName())
-}
-
-func operatorImages(images []string) (string, string, string, error) {
-	// determine the images to use for the operator chart
-	ecOperatorImage := ""
-	ecUtilsImage := ""
-
-	for _, image := range images {
-		if strings.Contains(image, "/embedded-cluster-operator-image:") {
-			ecOperatorImage = image
-		}
-		if strings.Contains(image, "/ec-utils:") {
-			ecUtilsImage = image
-		}
-	}
-
-	if ecOperatorImage == "" {
-		return "", "", "", fmt.Errorf("no embedded-cluster-operator-image found in images")
-	}
-	if ecUtilsImage == "" {
-		return "", "", "", fmt.Errorf("no ec-utils found in images")
-	}
-
-	repo := strings.Split(ecOperatorImage, ":")[0]
-	tag := strings.Join(strings.Split(ecOperatorImage, ":")[1:], ":")
-
-	return repo, tag, ecUtilsImage, nil
 }

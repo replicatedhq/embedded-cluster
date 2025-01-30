@@ -27,8 +27,8 @@ type InstallOptions struct {
 	PrivateCAs              []string
 	ServiceCIDR             string
 	DisasterRecoveryEnabled bool
-	ReleaseConfig           *ecv1beta1.Config
-	EndUserConfig           *ecv1beta1.Config
+	EmbeddedConfigSpec      *ecv1beta1.ConfigSpec
+	EndUserConfigSpec       *ecv1beta1.ConfigSpec
 	KotsInstaller           adminconsole.KotsInstaller
 	IsRestore               bool
 }
@@ -62,13 +62,7 @@ func Install(ctx context.Context, opts InstallOptions) error {
 		loading := spinner.Start()
 		loading.Infof("Installing %s", addon.Name())
 
-		overrides := []string{}
-		if opts.ReleaseConfig != nil {
-			overrides = append(overrides, opts.ReleaseConfig.Spec.OverrideForBuiltIn(addon.ReleaseName()))
-		}
-		if opts.EndUserConfig != nil {
-			overrides = append(overrides, opts.EndUserConfig.Spec.OverrideForBuiltIn(addon.ReleaseName()))
-		}
+		overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
 		if err := addon.Install(ctx, kcli, hcli, overrides, loading); err != nil {
 			loading.CloseWithError()

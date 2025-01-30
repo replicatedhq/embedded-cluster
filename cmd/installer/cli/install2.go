@@ -289,14 +289,22 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error
 
 	// TODO (@salah): update installation status to reflect what's happening
 
-	releaseConfig, err := release.GetEmbeddedClusterConfig()
+	embCfg, err := release.GetEmbeddedClusterConfig()
 	if err != nil {
 		return fmt.Errorf("unable to get release embedded cluster config: %w", err)
 	}
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
 
-	endUserConfig, err := helpers.ParseEndUserConfig(flags.overrides)
+	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
 	if err != nil {
 		return fmt.Errorf("unable to process overrides file: %w", err)
+	}
+	var euCfgSpec *ecv1beta1.ConfigSpec
+	if euCfg != nil {
+		euCfgSpec = &euCfg.Spec
 	}
 
 	logrus.Debugf("installing addons")
@@ -308,8 +316,8 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error
 		PrivateCAs:              flags.privateCAs,
 		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
 		DisasterRecoveryEnabled: disasterRecoveryEnabled,
-		ReleaseConfig:           releaseConfig,
-		EndUserConfig:           endUserConfig,
+		EmbeddedConfigSpec:      embCfgSpec,
+		EndUserConfigSpec:       euCfgSpec,
 		KotsInstaller: func(msg *spinner.MessageWriter) error {
 			opts := kotscli.InstallOptions{
 				AppSlug:          flags.license.Spec.AppSlug,
