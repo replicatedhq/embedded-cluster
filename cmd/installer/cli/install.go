@@ -60,7 +60,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:           "install",
+		Use:           "install-legacy",
 		Short:         fmt.Sprintf("Install %s", name),
 		SilenceErrors: true,
 		SilenceUsage:  true,

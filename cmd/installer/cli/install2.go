@@ -70,7 +70,7 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 	var flags Install2CmdFlags
 
 	cmd := &cobra.Command{
-		Use:           "install2",
+		Use:           "install",
 		Short:         fmt.Sprintf("Experimental installer for %s", name),
 		Hidden:        true,
 		SilenceUsage:  true,
