@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -297,11 +298,10 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error
 		return fmt.Errorf("unable to install addons: %w", err)
 	}
 
-	// TODO: add this back
-	// logrus.Debugf("installing extensions")
-	// if err := extensions.Install(ctx, flags.isAirgap); err != nil {
-	// 	return fmt.Errorf("unable to install extensions: %w", err)
-	// }
+	logrus.Debugf("installing extensions")
+	if err := extensions.Install(ctx, flags.isAirgap); err != nil {
+		return fmt.Errorf("unable to install extensions: %w", err)
+	}
 
 	logrus.Debugf("installing manager")
 	if err := installAndEnableManager(ctx); err != nil {
