@@ -576,16 +576,16 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 		return nil, fmt.Errorf("create kube client: %w", err)
 	}
 
-	if err := createV2ConfigMap(ctx, kcli); err != nil {
-		return nil, fmt.Errorf("create v2 configmap: %w", err)
-	}
+	// if err := createV2ConfigMap(ctx, kcli); err != nil {
+	// 	return nil, fmt.Errorf("create v2 configmap: %w", err)
+	// }
 
 	loading.Infof("Node installation finished!")
 	return cfg, nil
 }
 
 // createV2ConfigMap creates a configmap so that the operator knows the cluster was installed with
-// v2.
+// v2. This is a hack and should be removed once we have v2 passing tests.
 func createV2ConfigMap(ctx context.Context, kcli client.Client) error {
 	// ensure that the embedded-cluster namespace exists
 	if err := createECNamespace(ctx, kcli); err != nil {
