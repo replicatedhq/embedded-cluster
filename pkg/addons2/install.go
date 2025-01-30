@@ -78,7 +78,10 @@ func Install(ctx context.Context, opts InstallOptions) error {
 func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{},
-		&embeddedclusteroperator.EmbeddedClusterOperator{},
+		&embeddedclusteroperator.EmbeddedClusterOperator{
+			IsAirgap: opts.IsAirgap,
+			Proxy:    opts.Proxy,
+		},
 	}
 
 	if opts.IsAirgap {

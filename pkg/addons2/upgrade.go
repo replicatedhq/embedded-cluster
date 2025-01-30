@@ -54,7 +54,11 @@ func Upgrade(ctx context.Context, in *ecv1beta1.Installation) error {
 func getAddOnsForUpgrade(in *ecv1beta1.Installation) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{},
-		&embeddedclusteroperator.EmbeddedClusterOperator{},
+		&embeddedclusteroperator.EmbeddedClusterOperator{
+			BinaryNameOverride: in.Spec.BinaryName,
+			IsAirgap:           in.Spec.AirGap,
+			Proxy:              in.Spec.Proxy,
+		},
 	}
 
 	if in.Spec.AirGap {

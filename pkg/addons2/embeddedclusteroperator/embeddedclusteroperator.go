@@ -14,7 +14,11 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-type EmbeddedClusterOperator struct{}
+type EmbeddedClusterOperator struct {
+	BinaryNameOverride string
+	IsAirgap           bool
+	Proxy              *ecv1beta1.ProxySpec
+}
 
 const (
 	releaseName = "embedded-cluster-operator"

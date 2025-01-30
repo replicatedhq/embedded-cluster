@@ -18,7 +18,7 @@ import (
 )
 
 func (r *Registry) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
-	if err := r.prepare(overrides); err != nil {
+	if err := r.prepare(ctx, kcli, overrides); err != nil {
 		return errors.Wrap(err, "prepare")
 	}
 

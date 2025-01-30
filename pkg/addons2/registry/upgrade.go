@@ -32,7 +32,7 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.H
 		return nil
 	}
 
-	if err := r.prepare(overrides); err != nil {
+	if err := r.prepare(ctx, kcli, overrides); err != nil {
 		return errors.Wrap(err, "prepare")
 	}
 
