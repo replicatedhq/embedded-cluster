@@ -386,8 +386,7 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 		}
 	}
 	if flags.adminConsolePassword == "" {
-		err := fmt.Errorf("no admin console password")
-		return err
+		return fmt.Errorf("no admin console password")
 	}
 
 	return nil
@@ -547,25 +546,21 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 
 	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides, mutate)
 	if err != nil {
-		err := fmt.Errorf("create config file: %w", err)
-		return nil, err
+		return nil, fmt.Errorf("create config file: %w", err)
 	}
 	logrus.Debugf("creating systemd unit files")
 	if err := createSystemdUnitFiles(false, proxy); err != nil {
-		err := fmt.Errorf("create systemd unit files: %w", err)
-		return nil, err
+		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
 	logrus.Debugf("installing k0s")
 	if err := k0s.Install(networkInterface); err != nil {
-		err := fmt.Errorf("install cluster: %w", err)
-		return nil, err
+		return nil, fmt.Errorf("install cluster: %w", err)
 	}
 	loading.Infof("Waiting for %s node to be ready", runtimeconfig.BinaryName())
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
-		err := fmt.Errorf("wait for node: %w", err)
-		return nil, err
+		return nil, fmt.Errorf("wait for node: %w", err)
 	}
 
 	// init the kubeconfig

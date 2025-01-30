@@ -83,7 +83,6 @@ func runJoinRunPreflights(ctx context.Context, name string, flags Join2CmdFlags,
 }
 
 func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, flags Join2CmdFlags, cidrCfg *CIDRConfig) error {
-	logrus.Debugf("running host preflights")
 	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
 		ReplicatedAPIURL:       jcmd.InstallationSpec.MetricsBaseURL, // MetricsBaseURL is the replicated.app endpoint url
 		ProxyRegistryURL:       fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress),
