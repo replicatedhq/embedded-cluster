@@ -8,11 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
-	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -23,7 +21,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
@@ -221,40 +218,6 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 	}
 
 	return license, nil
-}
-
-func materializeFiles(airgapBundle string) error {
-	mat := spinner.Start()
-	defer mat.Close()
-	mat.Infof("Materializing files")
-
-	materializer := goods.NewMaterializer()
-	if err := materializer.Materialize(); err != nil {
-		return fmt.Errorf("unable to materialize binaries: %w", err)
-	}
-	if err := support.MaterializeSupportBundleSpec(); err != nil {
-		return fmt.Errorf("unable to materialize support bundle spec: %w", err)
-	}
-
-	if airgapBundle != "" {
-		mat.Infof("Materializing airgap installation files")
-
-		// read file from path
-		rawfile, err := os.Open(airgapBundle)
-		if err != nil {
-			return fmt.Errorf("failed to open airgap file: %w", err)
-		}
-		defer rawfile.Close()
-
-		if err := airgap.MaterializeAirgap(rawfile); err != nil {
-			err = fmt.Errorf("unable to materialize airgap files: %w", err)
-			return err
-		}
-	}
-
-	mat.Infof("Host files materialized!")
-
-	return nil
 }
 
 type addonsApplierOpts struct {
