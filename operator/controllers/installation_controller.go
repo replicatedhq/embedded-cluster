@@ -516,10 +516,7 @@ func constructHostPreflightResultsJob(in *v1beta1.Installation, nodeName string)
 
 // Reconcile reconcile the installation object.
 func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	isV2Enabled, err := r.isV2Enabled(ctx)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to check if v2 is enabled: %w", err)
-	}
+	isV2Enabled := false
 
 	// we start by fetching all installation objects and coalescing them. we
 	// are going to operate only on the newest one (sorting by installation
@@ -647,16 +644,6 @@ func (r *InstallationReconciler) needsUpgrade(ctx context.Context, in *v1beta1.I
 		err = fmt.Errorf("current version (%s) is different from the desired version (%s)", curstr, desstr)
 	}
 	return curstr != desstr, err
-}
-
-func (r *InstallationReconciler) isV2Enabled(ctx context.Context) (bool, error) {
-	err := r.Get(ctx, client.ObjectKey{Namespace: "embedded-cluster", Name: "v2-enabled"}, &corev1.ConfigMap{})
-	if err == nil {
-		return true, nil
-	} else if !k8serrors.IsNotFound(err) {
-		return false, fmt.Errorf("get v2 configmap: %w", err)
-	}
-	return false, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
