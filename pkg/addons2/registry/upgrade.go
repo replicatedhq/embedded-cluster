@@ -32,19 +32,13 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.H
 		return nil
 	}
 
-	if err := r.prepare(ctx, kcli, overrides); err != nil {
-		return errors.Wrap(err, "prepare")
-	}
-
 	if err := r.createUpgradePreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	var values map[string]interface{}
-	if r.IsHA {
-		values = helmValuesHA
-	} else {
-		values = helmValues
+	values, err := r.GenerateHelmValues(ctx, kcli, overrides)
+	if err != nil {
+		return errors.Wrap(err, "generate helm values")
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{

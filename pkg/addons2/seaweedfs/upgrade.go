@@ -22,15 +22,16 @@ func (s *SeaweedFS) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.
 		return nil
 	}
 
-	if err := s.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare")
+	values, err := s.GenerateHelmValues(ctx, kcli, overrides)
+	if err != nil {
+		return errors.Wrap(err, "generate helm values")
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,
-		Values:       helmValues,
+		Values:       values,
 		Namespace:    namespace,
 		Force:        false,
 	})

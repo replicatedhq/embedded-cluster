@@ -3,8 +3,6 @@ package types
 import (
 	"context"
 
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/openebs"
@@ -18,12 +16,9 @@ import (
 
 type AddOn interface {
 	Name() string
-	Version() map[string]string
 	ReleaseName() string
 	Namespace() string
-	GetImages() []string
-	GetAdditionalImages() []string
-	GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error)
+	GenerateHelmValues(ctx context.Context, kcli client.Client, overrides []string) (map[string]interface{}, error)
 	Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error
 	Upgrade(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string) error
 }

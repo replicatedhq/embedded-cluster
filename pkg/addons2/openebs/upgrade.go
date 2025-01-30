@@ -22,15 +22,16 @@ func (o *OpenEBS) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.He
 		return nil
 	}
 
-	if err := o.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare")
+	values, err := o.GenerateHelmValues(ctx, kcli, overrides)
+	if err != nil {
+		return errors.Wrap(err, "generate helm values")
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,
-		Values:       helmValues,
+		Values:       values,
 		Namespace:    namespace,
 		Force:        false,
 	})

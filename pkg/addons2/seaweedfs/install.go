@@ -17,19 +17,20 @@ import (
 )
 
 func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
-	if err := s.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare")
-	}
-
 	if err := s.createPreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	_, err := hcli.Install(ctx, helm.InstallOptions{
+	values, err := s.GenerateHelmValues(ctx, kcli, overrides)
+	if err != nil {
+		return errors.Wrap(err, "generate helm values")
+	}
+
+	_, err = hcli.Install(ctx, helm.InstallOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,
-		Values:       helmValues,
+		Values:       values,
 		Namespace:    namespace,
 	})
 	if err != nil {

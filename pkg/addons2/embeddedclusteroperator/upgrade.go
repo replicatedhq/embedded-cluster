@@ -22,15 +22,16 @@ func (e *EmbeddedClusterOperator) Upgrade(ctx context.Context, kcli client.Clien
 		return nil
 	}
 
-	if err := e.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare")
+	values, err := e.GenerateHelmValues(ctx, kcli, overrides)
+	if err != nil {
+		return errors.Wrap(err, "generate helm values")
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,
-		Values:       helmValues,
+		Values:       values,
 		Namespace:    namespace,
 		Force:        true,
 	})

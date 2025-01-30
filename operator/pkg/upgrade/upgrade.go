@@ -211,17 +211,15 @@ func upgradeAddons(ctx context.Context, cli client.Client, in *clusterv1beta1.In
 		return fmt.Errorf("set installation state: %w", err)
 	}
 
-	// TODO (@salah): use this meta for operator?
 	meta, err := release.MetadataFor(ctx, in, cli)
 	if err != nil {
 		return fmt.Errorf("get release metadata: %w", err)
 	}
-
 	if meta == nil || meta.Images == nil {
 		return fmt.Errorf("no images available")
 	}
 
-	if err := addons2.Upgrade(ctx, in); err != nil {
+	if err := addons2.Upgrade(ctx, in, meta); err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 

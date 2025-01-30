@@ -18,15 +18,16 @@ func (a *AdminConsole) Upgrade(ctx context.Context, kcli client.Client, hcli *he
 		return errors.New("admin console release not found")
 	}
 
-	if err := a.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare")
+	values, err := a.GenerateHelmValues(ctx, kcli, overrides)
+	if err != nil {
+		return errors.Wrap(err, "generate helm values")
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,
-		Values:       helmValues,
+		Values:       values,
 		Namespace:    namespace,
 		Force:        false,
 	})

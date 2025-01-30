@@ -18,10 +18,6 @@ import (
 )
 
 func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
-	if err := a.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare")
-	}
-
 	// some resources are not part of the helm chart and need to be created before the chart is installed
 	// TODO: move this to the helm chart
 
@@ -29,11 +25,16 @@ func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, hcli *he
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	_, err := hcli.Install(ctx, helm.InstallOptions{
+	values, err := a.GenerateHelmValues(ctx, kcli, overrides)
+	if err != nil {
+		return errors.Wrap(err, "generate helm values")
+	}
+
+	_, err = hcli.Install(ctx, helm.InstallOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,
-		Values:       helmValues,
+		Values:       values,
 		Namespace:    namespace,
 	})
 	if err != nil {
@@ -66,8 +67,11 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 	}
 
 	if a.IsAirgap {
-		err := createRegistrySecret(ctx, kcli, namespace)
+		registryIP, err := registry.GetRegistryClusterIP(a.ServiceCIDR)
 		if err != nil {
+			return errors.Wrap(err, "get registry cluster IP")
+		}
+		if err := createRegistrySecret(ctx, kcli, namespace, registryIP); err != nil {
 			return errors.Wrap(err, "create registry secret")
 		}
 	}
@@ -150,9 +154,9 @@ func createCAConfigmap(ctx context.Context, cli client.Client, namespace string,
 	return nil
 }
 
-func createRegistrySecret(ctx context.Context, kcli client.Client, namespace string) error {
+func createRegistrySecret(ctx context.Context, kcli client.Client, namespace string, registryIP string) error {
 	authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
-	authConfig := fmt.Sprintf(`{"auths":{"%s:5000":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`, registry.GetRegistryClusterIP(), registry.GetRegistryPassword(), authString)
+	authConfig := fmt.Sprintf(`{"auths":{"%s:5000":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`, registryIP, registry.GetRegistryPassword(), authString)
 
 	registryCreds := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{

@@ -97,9 +97,10 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	}
 
 	addOns = append(addOns, &adminconsole.AdminConsole{
-		Password:      opts.AdminConsolePwd,
 		IsAirgap:      opts.IsAirgap,
 		Proxy:         opts.Proxy,
+		ServiceCIDR:   opts.ServiceCIDR,
+		Password:      opts.AdminConsolePwd,
 		PrivateCAs:    opts.PrivateCAs,
 		KotsInstaller: opts.KotsInstaller,
 	})
