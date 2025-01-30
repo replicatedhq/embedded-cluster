@@ -159,3 +159,11 @@ func diffExtensions(oldExts, newExts ecv1beta1.Extensions) DiffResult {
 func conditionName(ext ecv1beta1.Chart) string {
 	return fmt.Sprintf("%s-%s", ext.TargetNS, ext.Name)
 }
+
+func cleanErrorMessage(err error) string {
+	msg := err.Error()
+	if len(msg) > 1024 {
+		msg = msg[:1024]
+	}
+	return msg
+}

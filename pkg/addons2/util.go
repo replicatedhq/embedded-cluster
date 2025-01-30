@@ -45,3 +45,11 @@ func operatorImages(images []string) (string, string, string, error) {
 
 	return repo, tag, ecUtilsImage, nil
 }
+
+func cleanErrorMessage(err error) string {
+	msg := err.Error()
+	if len(msg) > 1024 {
+		msg = msg[:1024]
+	}
+	return msg
+}
