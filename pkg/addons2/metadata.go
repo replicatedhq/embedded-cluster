@@ -40,6 +40,22 @@ func GenerateChartConfigs() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) 
 	return charts, repositories, nil
 }
 
+func GetImages() []string {
+	var images []string
+	for _, addon := range getAddOnsForMetadata() {
+		images = append(images, addon.GetImages()...)
+	}
+	return images
+}
+
+func GetAdditionalImages() []string {
+	var images []string
+	for _, addon := range getAddOnsForMetadata() {
+		images = append(images, addon.GetAdditionalImages()...)
+	}
+	return images
+}
+
 func getAddOnsForMetadata() []types.AddOn {
 	return []types.AddOn{
 		&openebs.OpenEBS{},

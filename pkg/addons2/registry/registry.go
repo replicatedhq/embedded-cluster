@@ -91,7 +91,14 @@ func (r *Registry) GetAdditionalImages() []string {
 }
 
 func (r *Registry) GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
-	values, err := helm.MarshalValues(helmValues)
+	var v map[string]interface{}
+	if r.IsHA {
+		v = helmValuesHA
+	} else {
+		v = helmValues
+	}
+
+	values, err := helm.MarshalValues(v)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "marshal helm values")
 	}
