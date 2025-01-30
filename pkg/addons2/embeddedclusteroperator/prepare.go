@@ -2,7 +2,6 @@ package embeddedclusteroperator
 
 import (
 	"github.com/pkg/errors"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
@@ -47,13 +46,13 @@ func (e *EmbeddedClusterOperator) generateHelmValues(overrides []string) error {
 		delete(helmValues, "extraEnv")
 	}
 
-	for _, override := range overrides {
-		var err error
-		helmValues, err = helm.PatchValues(helmValues, override)
-		if err != nil {
-			return errors.Wrap(err, "patch helm values")
-		}
-	}
+	//for _, override := range overrides {
+	//	var err error
+	//	helmValues, err = helm.PatchValues(helmValues, override)
+	//	if err != nil {
+	//		return errors.Wrap(err, "patch helm values")
+	//	}
+	//}
 
 	return nil
 }
