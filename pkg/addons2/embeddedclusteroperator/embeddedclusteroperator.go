@@ -6,7 +6,6 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -50,7 +49,6 @@ func Render() {
 	}
 	helmValues = hv
 
-	helmValues["kotsVersion"] = adminconsole.Metadata.Version
 	helmValues["embeddedClusterVersion"] = versions.Version
 	helmValues["embeddedClusterK0sVersion"] = versions.K0sVersion
 }

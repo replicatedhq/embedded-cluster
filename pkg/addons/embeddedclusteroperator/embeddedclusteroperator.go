@@ -110,7 +110,6 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterC
 		Order:        3,
 	}
 
-	// TODO (@salah): move this to addons2
 	if !onlyDefaults {
 		helmValues["embeddedBinaryName"] = e.binaryName
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
