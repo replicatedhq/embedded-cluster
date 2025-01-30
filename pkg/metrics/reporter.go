@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"strings"
 	"sync"
@@ -22,6 +23,21 @@ import (
 
 var clusterIDMut sync.Mutex
 var clusterID *uuid.UUID
+
+// ErrorNoFail is an error that is excluded from metrics failures.
+type ErrorNoFail struct {
+	Err error
+}
+
+func NewErrorNoFail(err error) ErrorNoFail {
+	return ErrorNoFail{
+		Err: err,
+	}
+}
+
+func (e ErrorNoFail) Error() string {
+	return e.Err.Error()
+}
 
 // BaseURL determines the base url to be used when sending metrics over.
 func BaseURL(license *kotsv1beta1.License) string {
@@ -67,7 +83,7 @@ func SetClusterID(id uuid.UUID) {
 }
 
 // ReportInstallationStarted reports that the installation has started.
-func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License) {
+func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License, clusterID uuid.UUID) {
 	rel, _ := release.GetChannelRelease()
 	appChannel, appVersion := "", ""
 	if rel != nil {
@@ -76,7 +92,7 @@ func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License
 	}
 
 	Send(ctx, BaseURL(license), types.InstallationStarted{
-		ClusterID:    ClusterID(),
+		ClusterID:    clusterID,
 		Version:      versions.Version,
 		Flags:        strings.Join(redactFlags(os.Args[1:]), " "),
 		BinaryName:   runtimeconfig.BinaryName(),
@@ -88,14 +104,17 @@ func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License
 }
 
 // ReportInstallationSucceeded reports that the installation has succeeded.
-func ReportInstallationSucceeded(ctx context.Context, license *kotsv1beta1.License) {
-	Send(ctx, BaseURL(license), types.InstallationSucceeded{ClusterID: ClusterID(), Version: versions.Version})
+func ReportInstallationSucceeded(ctx context.Context, license *kotsv1beta1.License, clusterID uuid.UUID) {
+	Send(ctx, BaseURL(license), types.InstallationSucceeded{ClusterID: clusterID, Version: versions.Version})
 }
 
 // ReportInstallationFailed reports that the installation has failed.
-func ReportInstallationFailed(ctx context.Context, license *kotsv1beta1.License, err error) {
+func ReportInstallationFailed(ctx context.Context, license *kotsv1beta1.License, clusterID uuid.UUID, err error) {
+	if errors.As(err, &ErrorNoFail{}) {
+		return
+	}
 	Send(ctx, BaseURL(license), types.InstallationFailed{
-		ClusterID: ClusterID(),
+		ClusterID: clusterID,
 		Version:   versions.Version,
 		Reason:    err.Error(),
 	})
@@ -130,17 +149,19 @@ func ReportJoinSucceeded(ctx context.Context, baseURL string, clusterID uuid.UUI
 }
 
 // ReportJoinFailed reports that a join has failed.
-func ReportJoinFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, exterr error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		logrus.Warnf("unable to get hostname: %s", err)
+func ReportJoinFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, err error) {
+	if errors.As(err, &ErrorNoFail{}) {
+		return
+	}
+	hostname, _ := os.Hostname()
+	if hostname == "" {
 		hostname = "unknown"
 	}
 	Send(ctx, baseURL, types.JoinFailed{
 		ClusterID: clusterID,
 		Version:   versions.Version,
 		NodeName:  hostname,
-		Reason:    exterr.Error(),
+		Reason:    err.Error(),
 	})
 }
 
@@ -148,7 +169,7 @@ func ReportJoinFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, 
 func ReportApplyStarted(ctx context.Context, licenseFlag string) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	ReportInstallationStarted(ctx, License(licenseFlag))
+	ReportInstallationStarted(ctx, License(licenseFlag), ClusterID())
 }
 
 // ReportApplyFinished reports an InstallationSucceeded or an InstallationFailed.
@@ -160,18 +181,14 @@ func ReportApplyFinished(ctx context.Context, licenseFlag string, license *kotsv
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err != nil {
-		ReportInstallationFailed(ctx, license, err)
+		ReportInstallationFailed(ctx, license, ClusterID(), err)
 		return
 	}
-	ReportInstallationSucceeded(ctx, license)
+	ReportInstallationSucceeded(ctx, license, ClusterID())
 }
 
 // ReportPreflightsFailed reports that the preflights failed but were bypassed.
-func ReportPreflightsFailed(ctx context.Context, url string, output preflightstypes.Output, bypassed bool, entryCommand string) {
-	if url == "" {
-		url = BaseURL(nil)
-	}
-
+func ReportPreflightsFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, output preflightstypes.Output, bypassed bool, entryCommand string) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		logrus.Warnf("unable to get hostname: %s", err)
@@ -190,12 +207,12 @@ func ReportPreflightsFailed(ctx context.Context, url string, output preflightsty
 	}
 
 	ev := types.PreflightsFailed{
-		ClusterID:       ClusterID(),
+		ClusterID:       clusterID,
 		Version:         versions.Version,
 		NodeName:        hostname,
 		PreflightOutput: string(outputJSON),
 		EventType:       eventType,
 		EntryCommand:    entryCommand,
 	}
-	go Send(ctx, url, ev)
+	go Send(ctx, baseURL, ev)
 }

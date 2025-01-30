@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -39,7 +40,7 @@ import (
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	velerov1api "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -88,10 +89,8 @@ func Restore2Cmd(ctx context.Context, name string) *cobra.Command {
 	var skipStoreValidation bool
 
 	cmd := &cobra.Command{
-		Use:           "restore2",
-		Short:         fmt.Sprintf("Restore a %s cluster", name),
-		SilenceErrors: true,
-		SilenceUsage:  true,
+		Use:   "restore2",
+		Short: fmt.Sprintf("Restore a %s cluster", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall2(cmd, &flags); err != nil {
 				return err
@@ -359,22 +358,12 @@ func runRestoreStepNew(ctx context.Context, name string, flags Install2CmdFlags,
 		return fmt.Errorf("unable to materialize binaries: %w", err)
 	}
 
-	logrus.Debugf("running host preflights")
-	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
-		Proxy:                flags.proxy,
-		PodCIDR:              flags.cidrCfg.PodCIDR,
-		ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
-		GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
-		PrivateCAs:           flags.privateCAs,
-		IsAirgap:             flags.isAirgap,
-		SkipHostPreflights:   flags.skipHostPreflights,
-		IgnoreHostPreflights: flags.ignoreHostPreflights,
-		AssumeYes:            flags.assumeYes,
-	}); err != nil {
-		if err == preflights.ErrPreflightsHaveFail {
-			return ErrNothingElseToAdd
+	logrus.Debugf("running install preflights")
+	if err := runInstallPreflights(ctx, flags, nil); err != nil {
+		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
+			return NewErrorNothingElseToAdd(err)
 		}
-		return fmt.Errorf("unable to prepare and run preflights: %w", err)
+		return fmt.Errorf("unable to run install preflights: %w", err)
 	}
 
 	_, err = installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, nil)
@@ -648,7 +637,7 @@ func setECRestoreState(ctx context.Context, state ecRestoreState, backupName str
 		},
 	}
 
-	if err := kcli.Create(ctx, ns); err != nil && !errors.IsAlreadyExists(err) {
+	if err := kcli.Create(ctx, ns); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return fmt.Errorf("unable to create namespace: %w", err)
 	}
 
@@ -667,14 +656,12 @@ func setECRestoreState(ctx context.Context, state ecRestoreState, backupName str
 	}
 
 	err = kcli.Create(ctx, cm)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("unable to create config map: %w", err)
-	}
-
-	if errors.IsAlreadyExists(err) {
+	if k8serrors.IsAlreadyExists(err) {
 		if err := kcli.Update(ctx, cm); err != nil {
 			return fmt.Errorf("unable to update config map: %w", err)
 		}
+	} else if err != nil {
+		return fmt.Errorf("unable to create config map: %w", err)
 	}
 
 	return nil
@@ -694,7 +681,7 @@ func resetECRestoreState(ctx context.Context) error {
 		},
 	}
 
-	if err := kcli.Delete(ctx, cm); err != nil && !errors.IsNotFound(err) {
+	if err := kcli.Delete(ctx, cm); err != nil && !k8serrors.IsNotFound(err) {
 		return fmt.Errorf("unable to delete config map: %w", err)
 	}
 
@@ -1157,7 +1144,7 @@ func ensureRestoreResourceModifiers(ctx context.Context, backup *velerov1.Backup
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
-	if err := kcli.Create(ctx, cm); err != nil && !errors.IsAlreadyExists(err) {
+	if err := kcli.Create(ctx, cm); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return fmt.Errorf("unable to create config map: %w", err)
 	}
 
@@ -1322,12 +1309,12 @@ func restoreAppFromBackup(ctx context.Context, backup *velerov1.Backup, restore 
 	// check if a restore object already exists
 	rest := velerov1api.Restore{}
 	err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: runtimeconfig.VeleroNamespace}, &rest)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !k8serrors.IsNotFound(err) {
 		return fmt.Errorf("unable to get restore: %w", err)
 	}
 
 	// create a new restore object if it doesn't exist
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		restore.Namespace = runtimeconfig.VeleroNamespace
 		restore.Name = restoreName
 		if restore.Annotations == nil {
@@ -1364,12 +1351,12 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 	// check if a restore object already exists
 	rest := velerov1api.Restore{}
 	err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: runtimeconfig.VeleroNamespace}, &rest)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !k8serrors.IsNotFound(err) {
 		return fmt.Errorf("unable to get restore: %w", err)
 	}
 
 	// create a new restore object if it doesn't exist
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		restoreLabels := map[string]string{}
 		switch drComponent {
 		case disasterRecoveryComponentAdminConsole, disasterRecoveryComponentECO:

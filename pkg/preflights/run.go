@@ -7,6 +7,7 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -16,10 +17,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// ErrPreflightsHaveFail is an error returned when we managed to execute the
-// host preflights but they contain failures. We use this to differentiate the
-// way we provide user feedback.
-var ErrPreflightsHaveFail = fmt.Errorf("host preflight failures detected")
+// ErrPreflightsHaveFail is an error returned when we managed to execute the host preflights but
+// they contain failures. We use this to differentiate the way we provide user feedback.
+var ErrPreflightsHaveFail = metrics.NewErrorNoFail(fmt.Errorf("host preflight failures detected"))
 
 type PrepareAndRunOptions struct {
 	ReplicatedAPIURL       string
@@ -34,6 +34,11 @@ type PrepareAndRunOptions struct {
 	IgnoreHostPreflights   bool
 	AssumeYes              bool
 	TCPConnectionsRequired []string
+	MetricsReporter        MetricsReporter
+}
+
+type MetricsReporter interface {
+	ReportPreflightsFailed(ctx context.Context, output types.Output, bypassed bool)
 }
 
 func PrepareAndRun(ctx context.Context, opts PrepareAndRunOptions) error {
@@ -144,9 +149,15 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 
 		if opts.IgnoreHostPreflights {
 			if opts.AssumeYes {
+				if opts.MetricsReporter != nil {
+					opts.MetricsReporter.ReportPreflightsFailed(ctx, *output, true)
+				}
 				return nil
 			}
 			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
+				if opts.MetricsReporter != nil {
+					opts.MetricsReporter.ReportPreflightsFailed(ctx, *output, true)
+				}
 				return nil // user continued after host preflights failed
 			}
 		}
@@ -157,6 +168,9 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 			logrus.Info("Please address this issue and try again.")
 		}
 
+		if opts.MetricsReporter != nil {
+			opts.MetricsReporter.ReportPreflightsFailed(ctx, *output, true)
+		}
 		return ErrPreflightsHaveFail
 	}
 
@@ -173,6 +187,9 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 			// so we just print the warnings and continue
 			pb.Close()
 			output.PrintTableWithoutInfo()
+			if opts.MetricsReporter != nil {
+				opts.MetricsReporter.ReportPreflightsFailed(ctx, *output, true)
+			}
 			return nil
 		}
 
@@ -180,10 +197,15 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 		output.PrintTableWithoutInfo()
 
 		if !prompts.New().Confirm("Do you want to continue?", false) {
-			pb.Close()
-			return fmt.Errorf("user aborted")
+			if opts.MetricsReporter != nil {
+				opts.MetricsReporter.ReportPreflightsFailed(ctx, *output, true)
+			}
+			return ErrPreflightsHaveFail
 		}
 
+		if opts.MetricsReporter != nil {
+			opts.MetricsReporter.ReportPreflightsFailed(ctx, *output, true)
+		}
 		return nil
 	}
 

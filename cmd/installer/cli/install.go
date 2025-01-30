@@ -64,10 +64,8 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:           "install",
-		Short:         fmt.Sprintf("Install %s", name),
-		SilenceErrors: true,
-		SilenceUsage:  true,
+		Use:   "install",
+		Short: fmt.Sprintf("Install %s", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("install command must be run as root")
@@ -134,7 +132,8 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
 				logrus.Warnf("If you continue, the installation will not use an air gap bundle and will connect to the internet.")
 				if !prompts.New().Confirm("Do you want to proceed with an online installation?", false) {
-					return ErrNothingElseToAdd
+					// TODO: send aborted metrics event
+					return NewErrorNothingElseToAdd(errors.New("user aborted: air gap bundle downloaded but flag not provided"))
 				}
 			}
 
@@ -170,7 +169,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 
 			if !isAirgap {
 				if err := maybePromptForAppUpdate(cmd.Context(), prompts.New(), license, assumeYes); err != nil {
-					if errors.Is(err, ErrNothingElseToAdd) {
+					if errors.As(err, &ErrorNothingElseToAdd{}) {
 						metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 						return err
 					}
@@ -231,8 +230,8 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 
 			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, cidrCfg, nil, assumeYes); err != nil {
 				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
-				if err == ErrPreflightsHaveFail {
-					return ErrNothingElseToAdd
+				if errors.Is(err, preflights.ErrPreflightsHaveFail) {
+					return NewErrorNothingElseToAdd(err)
 				}
 				return err
 			}
@@ -395,7 +394,8 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 
 	text := fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel)
 	if !prompt.Confirm(text, true) {
-		return ErrNothingElseToAdd
+		// TODO: send aborted metrics event
+		return NewErrorNothingElseToAdd(errors.New("user aborted: app not up-to-date"))
 	}
 
 	logrus.Debug("User confirmed prompt to continue installing out-of-date release")
@@ -1108,11 +1108,11 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 		}
 		if ignoreHostPreflightsFlag {
 			if assumeYes {
-				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
+				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, metrics.ClusterID(), *output, true, cmd.CalledAs())
 				return nil
 			}
 			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
-				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
+				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, metrics.ClusterID(), *output, true, cmd.CalledAs())
 				return nil // user continued after host preflights failed
 			}
 		}
@@ -1122,8 +1122,8 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 		} else {
 			logrus.Info("Please address this issue and try again.")
 		}
-		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false, cmd.CalledAs())
-		return ErrPreflightsHaveFail
+		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, metrics.ClusterID(), *output, false, cmd.CalledAs())
+		return preflights.ErrPreflightsHaveFail
 	}
 
 	// Warnings found
@@ -1138,16 +1138,16 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 			// so we just print the warnings and continue
 			pb.Close()
 			output.PrintTableWithoutInfo()
-			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
+			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, metrics.ClusterID(), *output, true, cmd.CalledAs())
 			return nil
 		}
 		pb.Close()
 		output.PrintTableWithoutInfo()
 		if prompts.New().Confirm("Do you want to continue?", false) {
-			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
+			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, metrics.ClusterID(), *output, true, cmd.CalledAs())
 			return nil
 		}
-		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false, cmd.CalledAs())
+		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, metrics.ClusterID(), *output, false, cmd.CalledAs())
 		return fmt.Errorf("user aborted")
 	}
 
