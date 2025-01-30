@@ -19,7 +19,7 @@ import (
 
 func (r *Registry) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
 	if err := r.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare registry")
+		return errors.Wrap(err, "prepare")
 	}
 
 	if err := r.createPreRequisites(ctx, kcli); err != nil {
@@ -34,7 +34,7 @@ func (r *Registry) Install(ctx context.Context, kcli client.Client, hcli *helm.H
 		Namespace:    namespace,
 	})
 	if err != nil {
-		return errors.Wrap(err, "install registry")
+		return errors.Wrap(err, "install")
 	}
 
 	if err := airgap.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryAddress)); err != nil {

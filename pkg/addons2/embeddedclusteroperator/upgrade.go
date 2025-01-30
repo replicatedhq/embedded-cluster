@@ -23,7 +23,7 @@ func (e *EmbeddedClusterOperator) Upgrade(ctx context.Context, kcli client.Clien
 	}
 
 	if err := e.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare embedded cluster operator")
+		return errors.Wrap(err, "prepare")
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
@@ -35,7 +35,7 @@ func (e *EmbeddedClusterOperator) Upgrade(ctx context.Context, kcli client.Clien
 		Force:        true,
 	})
 	if err != nil {
-		return errors.Wrap(err, "upgrade metrics operator")
+		return errors.Wrap(err, "upgrade")
 	}
 
 	return nil

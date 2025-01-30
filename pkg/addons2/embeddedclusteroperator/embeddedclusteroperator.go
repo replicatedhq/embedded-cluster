@@ -6,8 +6,10 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"gopkg.in/yaml.v2"
 	"k8s.io/utils/ptr"
 )
@@ -32,13 +34,21 @@ var (
 
 func init() {
 	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal metadata"))
+		panic(errors.Wrap(err, "unmarshal metadata"))
 	}
+	Render()
+}
+
+func Render() {
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal values"))
+		panic(errors.Wrap(err, "unmarshal values"))
 	}
 	helmValues = hv
+
+	helmValues["kotsVersion"] = adminconsole.Metadata.Version
+	helmValues["embeddedClusterVersion"] = versions.Version
+	helmValues["embeddedClusterK0sVersion"] = versions.K0sVersion
 }
 
 func (e *EmbeddedClusterOperator) Name() string {

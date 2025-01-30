@@ -19,7 +19,7 @@ func (a *AdminConsole) Upgrade(ctx context.Context, kcli client.Client, hcli *he
 	}
 
 	if err := a.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare admin console")
+		return errors.Wrap(err, "prepare")
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
@@ -31,7 +31,7 @@ func (a *AdminConsole) Upgrade(ctx context.Context, kcli client.Client, hcli *he
 		Force:        false,
 	})
 	if err != nil {
-		return errors.Wrap(err, "upgrade admin console")
+		return errors.Wrap(err, "upgrade")
 	}
 
 	return nil

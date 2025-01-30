@@ -14,7 +14,7 @@ import (
 
 func (v *Velero) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
 	if err := v.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare velero")
+		return errors.Wrap(err, "prepare")
 	}
 
 	if err := v.createPreRequisites(ctx, kcli); err != nil {
@@ -29,7 +29,7 @@ func (v *Velero) Install(ctx context.Context, kcli client.Client, hcli *helm.Hel
 		Namespace:    namespace,
 	})
 	if err != nil {
-		return errors.Wrap(err, "install velero")
+		return errors.Wrap(err, "install")
 	}
 
 	return nil

@@ -18,7 +18,7 @@ import (
 
 func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
 	if err := s.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare seaweedfs")
+		return errors.Wrap(err, "prepare")
 	}
 
 	if err := s.createPreRequisites(ctx, kcli); err != nil {
@@ -33,7 +33,7 @@ func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli *helm.
 		Namespace:    namespace,
 	})
 	if err != nil {
-		return errors.Wrap(err, "install seaweedfs")
+		return errors.Wrap(err, "install")
 	}
 
 	return nil

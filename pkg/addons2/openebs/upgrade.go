@@ -23,7 +23,7 @@ func (o *OpenEBS) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.He
 	}
 
 	if err := o.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare openebs")
+		return errors.Wrap(err, "prepare")
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
@@ -35,7 +35,7 @@ func (o *OpenEBS) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.He
 		Force:        false,
 	})
 	if err != nil {
-		return errors.Wrap(err, "upgrade openebs")
+		return errors.Wrap(err, "upgrade")
 	}
 
 	return nil

@@ -233,7 +233,6 @@ func upgradeAddons(ctx context.Context, cli client.Client, in *clusterv1beta1.In
 	return nil
 }
 
-// TODO (@salah): make this idempotent
 func upgradeExtensions(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
 	err := setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalling, "Upgrading extensions")
 	if err != nil {

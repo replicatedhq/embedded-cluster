@@ -369,7 +369,7 @@ func (h *Helm) Install(ctx context.Context, opts InstallOptions) (*release.Relea
 
 	release, err := client.RunWithContext(ctx, chartRequested, cleanVals)
 	if err != nil {
-		return nil, fmt.Errorf("run install: %w", err)
+		return nil, fmt.Errorf("helm install: %w", err)
 	}
 
 	return release, nil
@@ -422,7 +422,7 @@ func (h *Helm) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Relea
 
 	release, err := client.RunWithContext(ctx, opts.ReleaseName, chartRequested, cleanVals)
 	if err != nil {
-		return nil, fmt.Errorf("run upgrade: %w", err)
+		return nil, fmt.Errorf("helm upgrade: %w", err)
 	}
 
 	return release, nil

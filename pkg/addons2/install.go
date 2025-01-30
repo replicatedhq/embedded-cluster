@@ -66,7 +66,7 @@ func Install(ctx context.Context, opts InstallOptions) error {
 
 		if err := addon.Install(ctx, kcli, hcli, overrides, loading); err != nil {
 			loading.CloseWithError()
-			return errors.Wrap(err, "install addon")
+			return errors.Wrapf(err, "install %s", addon.Name())
 		}
 
 		loading.Closef("%s is ready!", addon.Name())

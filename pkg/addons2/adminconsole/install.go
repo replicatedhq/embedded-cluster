@@ -19,7 +19,7 @@ import (
 
 func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
 	if err := a.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare admin console")
+		return errors.Wrap(err, "prepare")
 	}
 
 	// some resources are not part of the helm chart and need to be created before the chart is installed
@@ -37,7 +37,7 @@ func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, hcli *he
 		Namespace:    namespace,
 	})
 	if err != nil {
-		return errors.Wrap(err, "install admin console")
+		return errors.Wrap(err, "install")
 	}
 
 	// install the application

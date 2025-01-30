@@ -1,6 +1,8 @@
 package addons2
 
 import (
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/openebs"
@@ -11,17 +13,8 @@ import (
 )
 
 func Versions() map[string]string {
-	addons := []types.AddOn{
-		&openebs.OpenEBS{},
-		&embeddedclusteroperator.EmbeddedClusterOperator{},
-		&registry.Registry{},
-		&seaweedfs.SeaweedFS{},
-		&velero.Velero{},
-		&adminconsole.AdminConsole{},
-	}
-
 	versions := map[string]string{}
-	for _, addon := range addons {
+	for _, addon := range getAddOnsForMetadata() {
 		version := addon.Version()
 		for k, v := range version {
 			versions[k] = v
@@ -29,4 +22,31 @@ func Versions() map[string]string {
 	}
 
 	return versions
+}
+
+func GenerateChartConfigs() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
+	charts := []ecv1beta1.Chart{}
+	repositories := []k0sv1beta1.Repository{}
+
+	for _, addon := range getAddOnsForMetadata() {
+		chart, repos, err := addon.GenerateChartConfig()
+		if err != nil {
+			return nil, nil, err
+		}
+		charts = append(charts, chart...)
+		repositories = append(repositories, repos...)
+	}
+
+	return charts, repositories, nil
+}
+
+func getAddOnsForMetadata() []types.AddOn {
+	return []types.AddOn{
+		&openebs.OpenEBS{},
+		&embeddedclusteroperator.EmbeddedClusterOperator{},
+		&registry.Registry{},
+		&seaweedfs.SeaweedFS{},
+		&velero.Velero{},
+		&adminconsole.AdminConsole{},
+	}
 }

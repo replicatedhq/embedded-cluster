@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	actionInstall   = "install"
-	actionUpgrade   = "upgrade"
-	actionUninstall = "uninstall"
+	actionInstall   = "Install"
+	actionUpgrade   = "Upgrade"
+	actionUninstall = "Uninstall"
 )
 
 func Upgrade(ctx context.Context, kcli client.Client, prev *ecv1beta1.Installation, in *ecv1beta1.Installation) error {
@@ -69,23 +69,30 @@ func Upgrade(ctx context.Context, kcli client.Client, prev *ecv1beta1.Installati
 }
 
 func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, action string) (finalErr error) {
-	if k8sutil.CheckConditionStatus(in.Status, conditionName(ext)) == metav1.ConditionTrue {
+	// check if we already processed this extension
+	conditionStatus, err := k8sutil.GetConditionStatus(ctx, kcli, in.Name, conditionName(ext))
+	if err != nil {
+		return errors.Wrap(err, "get condition status")
+	}
+	if conditionStatus == metav1.ConditionTrue {
 		fmt.Printf("%s already %sed\n", ext.Name, action)
 		return nil
 	}
 
 	fmt.Printf("%sing %s\n", action, ext.Name)
 
+	// mark as processing
 	if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
 		Type:   conditionName(ext),
 		Status: metav1.ConditionFalse,
 		Reason: action + "ing",
 	}); err != nil {
-		return fmt.Errorf("set condition status: %w", err)
+		return errors.Wrap(err, "set condition status")
 	}
 
 	defer func() {
 		if finalErr == nil {
+			// mark as processed successfully
 			if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
 				Type:   conditionName(ext),
 				Status: metav1.ConditionTrue,
@@ -94,10 +101,11 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 				fmt.Printf("failed to set condition status: %v", err)
 			}
 		} else {
+			// mark as failed
 			if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
 				Type:    conditionName(ext),
 				Status:  metav1.ConditionFalse,
-				Reason:  fmt.Sprintf("%s failed", action),
+				Reason:  action + "Failed",
 				Message: finalErr.Error(),
 			}); err != nil {
 				fmt.Printf("failed to set condition status: %v", err)

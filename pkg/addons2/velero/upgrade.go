@@ -23,7 +23,7 @@ func (v *Velero) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.Hel
 	}
 
 	if err := v.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare velero")
+		return errors.Wrap(err, "prepare")
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
@@ -35,7 +35,7 @@ func (v *Velero) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.Hel
 		Force:        false,
 	})
 	if err != nil {
-		return errors.Wrap(err, "upgrade velero")
+		return errors.Wrap(err, "upgrade")
 	}
 
 	return nil

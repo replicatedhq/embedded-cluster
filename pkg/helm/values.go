@@ -58,6 +58,10 @@ func GetValue(values map[string]interface{}, path string) (interface{}, error) {
 }
 
 func PatchValues(values map[string]interface{}, patchYAML string) (map[string]interface{}, error) {
+	if len(patchYAML) == 0 {
+		return values, nil
+	}
+
 	// convert original values to JSON
 	originalYAML, err := MarshalValues(values)
 	if err != nil {

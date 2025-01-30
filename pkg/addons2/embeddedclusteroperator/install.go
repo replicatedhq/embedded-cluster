@@ -11,7 +11,7 @@ import (
 
 func (e *EmbeddedClusterOperator) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
 	if err := e.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare embedded cluster operator")
+		return errors.Wrap(err, "prepare")
 	}
 
 	_, err := hcli.Install(ctx, helm.InstallOptions{
@@ -22,7 +22,7 @@ func (e *EmbeddedClusterOperator) Install(ctx context.Context, kcli client.Clien
 		Namespace:    namespace,
 	})
 	if err != nil {
-		return errors.Wrap(err, "install metrics operator")
+		return errors.Wrap(err, "install")
 	}
 
 	return nil

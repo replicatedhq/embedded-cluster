@@ -20,6 +20,21 @@ func CheckConditionStatus(inStat ecv1beta1.InstallationStatus, conditionName str
 	return ""
 }
 
+func GetConditionStatus(ctx context.Context, cli client.Client, name string, conditionName string) (metav1.ConditionStatus, error) {
+	var in ecv1beta1.Installation
+	if err := cli.Get(ctx, client.ObjectKey{Name: name}, &in); err != nil {
+		return "", fmt.Errorf("get installation: %w", err)
+	}
+
+	for _, cond := range in.Status.Conditions {
+		if cond.Type == conditionName {
+			return cond.Status, nil
+		}
+	}
+
+	return "", nil
+}
+
 func SetConditionStatus(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, condition metav1.Condition) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		var copy ecv1beta1.Installation
@@ -30,10 +45,12 @@ func SetConditionStatus(ctx context.Context, cli client.Client, in *ecv1beta1.In
 
 		copy.Status.SetCondition(condition)
 
-		err = cli.Status().Update(ctx, &copy)
-		if err != nil {
+		if err := cli.Status().Update(ctx, &copy); err != nil {
 			return fmt.Errorf("update installation status: %w", err)
 		}
+
+		// update the status in the original object
+		in.Status.Conditions = copy.Status.Conditions
 
 		return nil
 	})

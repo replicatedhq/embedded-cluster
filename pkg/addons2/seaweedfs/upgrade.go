@@ -23,7 +23,7 @@ func (s *SeaweedFS) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.
 	}
 
 	if err := s.prepare(overrides); err != nil {
-		return errors.Wrap(err, "prepare seaweedfs")
+		return errors.Wrap(err, "prepare")
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
@@ -35,7 +35,7 @@ func (s *SeaweedFS) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.
 		Force:        false,
 	})
 	if err != nil {
-		return errors.Wrap(err, "upgrade seaweedfs")
+		return errors.Wrap(err, "upgrade")
 	}
 
 	return nil
