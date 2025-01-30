@@ -553,6 +553,8 @@ func cleanUpMapValue(v interface{}) interface{} {
 	case []interface{}:
 		return cleanUpInterfaceArray(v)
 	case map[string]interface{}:
+		return cleanUpGenericMap(v)
+	case map[interface{}]interface{}:
 		return cleanUpInterfaceMap(v)
 	case string:
 		return v
@@ -577,7 +579,7 @@ func cleanUpInterfaceArray(in []interface{}) []interface{} {
 }
 
 // Cleans up the map keys to be strings
-func cleanUpInterfaceMap(in map[string]interface{}) map[string]interface{} {
+func cleanUpInterfaceMap(in map[interface{}]interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 	for k, v := range in {
 		result[fmt.Sprintf("%v", k)] = cleanUpMapValue(v)
