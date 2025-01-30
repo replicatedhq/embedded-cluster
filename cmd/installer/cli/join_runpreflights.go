@@ -37,7 +37,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
-			if err := runJoinRunPreflights(cmd.Context(), cmd, name, flags, jcmd); err != nil {
+			if err := runJoinRunPreflights(cmd.Context(), name, flags, jcmd); err != nil {
 				return err
 			}
 
@@ -52,7 +52,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runJoinRunPreflights(ctx context.Context, cmd *cobra.Command, name string, flags Join2CmdFlags, jcmd *kotsadm.JoinCommandResponse) error {
+func runJoinRunPreflights(ctx context.Context, name string, flags Join2CmdFlags, jcmd *kotsadm.JoinCommandResponse) error {
 	if err := runJoinVerifyAndPrompt(name, flags, jcmd); err != nil {
 		return err
 	}

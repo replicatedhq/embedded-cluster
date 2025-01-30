@@ -68,7 +68,7 @@ func Join2Cmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
 			metrics.ReportJoinStarted(ctx, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
-			if err := runJoin2(cmd.Context(), cmd, name, flags, jcmd); err != nil {
+			if err := runJoin2(cmd.Context(), name, flags, jcmd); err != nil {
 				metrics.ReportJoinFailed(ctx, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}
@@ -121,7 +121,7 @@ func addJoinFlags(cmd *cobra.Command, flags *Join2CmdFlags) error {
 	return nil
 }
 
-func runJoin2(ctx context.Context, cmd *cobra.Command, name string, flags Join2CmdFlags, jcmd *kotsadm.JoinCommandResponse) error {
+func runJoin2(ctx context.Context, name string, flags Join2CmdFlags, jcmd *kotsadm.JoinCommandResponse) error {
 	if err := runJoinVerifyAndPrompt(name, flags, jcmd); err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func runJoin2(ctx context.Context, cmd *cobra.Command, name string, flags Join2C
 	}
 
 	logrus.Debugf("installing and joining cluster")
-	if err := installAndJoinCluster(cmd, jcmd, name, flags); err != nil {
+	if err := installAndJoinCluster(ctx, jcmd, name, flags); err != nil {
 		return err
 	}
 
@@ -260,7 +260,7 @@ func getJoinCIDRConfig(jcmd *kotsadm.JoinCommandResponse) (*CIDRConfig, error) {
 	}, nil
 }
 
-func installAndJoinCluster(cmd *cobra.Command, jcmd *kotsadm.JoinCommandResponse, name string, flags Join2CmdFlags) error {
+func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, name string, flags Join2CmdFlags) error {
 	logrus.Debugf("saving token to disk")
 	if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 		return fmt.Errorf("unable to save token to disk: %w", err)
@@ -298,7 +298,7 @@ func installAndJoinCluster(cmd *cobra.Command, jcmd *kotsadm.JoinCommandResponse
 		return fmt.Errorf("unable to join node to cluster: %w", err)
 	}
 
-	if err := startAndWaitForK0s(cmd.Context(), name, jcmd); err != nil {
+	if err := startAndWaitForK0s(ctx, name, jcmd); err != nil {
 		return err
 	}
 

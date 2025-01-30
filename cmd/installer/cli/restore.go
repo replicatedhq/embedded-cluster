@@ -113,7 +113,7 @@ func runRestore(cmd *cobra.Command, args []string, name string, flags Install2Cm
 	}
 
 	// If the installation is available, we can further augment the runtime config from the installation.
-	rc, err := getRuntimeConfigFromInstallation(cmd)
+	rc, err := getRuntimeConfigFromInstallation(cmd.Context())
 	if err != nil {
 		logrus.Debugf(
 			"Unable to get runtime config from installation, this is expected if the installation is not yet available (restore state=%s): %v",

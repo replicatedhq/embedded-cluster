@@ -106,10 +106,6 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				}
 			}
 
-			if os.Getenv("DISABLE_TELEMETRY") != "" {
-				metrics.DisableMetrics()
-			}
-
 			return nil
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {

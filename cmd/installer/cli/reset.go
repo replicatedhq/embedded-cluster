@@ -67,7 +67,9 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := maybePrintHAWarning(cmd.Context()); err != nil && !force {
+			ctx := cmd.Context()
+
+			if err := maybePrintHAWarning(ctx); err != nil && !force {
 				return err
 			}
 
@@ -78,14 +80,14 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			// populate options struct with host information
-			currentHost, err := newHostInfo(cmd.Context())
+			currentHost, err := newHostInfo(ctx)
 			if !checkErrPrompt(assumeYes, force, err) {
 				return err
 			}
 
 			// basic check to see if it's safe to remove this node from the cluster
 			if currentHost.Status.Role == "controller" {
-				safeToRemove, reason, err := currentHost.checkResetSafety(cmd)
+				safeToRemove, reason, err := currentHost.checkResetSafety(ctx, force)
 				if !checkErrPrompt(assumeYes, force, err) {
 					return err
 				}
@@ -96,7 +98,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 
 			var numControllerNodes int
 			if currentHost.KclientError == nil {
-				numControllerNodes, _ = kubeutils.NumOfControlPlaneNodes(cmd.Context(), currentHost.Kclient)
+				numControllerNodes, _ = kubeutils.NumOfControlPlaneNodes(ctx, currentHost.Kclient)
 			}
 			// do not drain node if this is the only controller node in the cluster
 			// if there is an error (numControllerNodes == 0), drain anyway to be safe
@@ -109,7 +111,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 
 				// remove node from cluster
 				logrus.Info("Removing node from cluster...")
-				removeCtx, removeCancel := context.WithTimeout(cmd.Context(), time.Minute)
+				removeCtx, removeCancel := context.WithTimeout(ctx, time.Minute)
 				defer removeCancel()
 				err = currentHost.deleteNode(removeCtx)
 				if !checkErrPrompt(assumeYes, force, err) {
@@ -120,7 +122,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				if currentHost.Status.Role == "controller" {
 
 					// delete controlNode object from cluster
-					deleteControlCtx, deleteCancel := context.WithTimeout(cmd.Context(), time.Minute)
+					deleteControlCtx, deleteCancel := context.WithTimeout(ctx, time.Minute)
 					defer deleteCancel()
 					err := currentHost.deleteControlNode(deleteControlCtx)
 					if !checkErrPrompt(assumeYes, force, err) {
@@ -183,7 +185,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("failed to remove logs directory: %w", err)
 			}
 
-			if err := manager.Uninstall(cmd.Context(), logrus.Debugf); err != nil {
+			if err := manager.Uninstall(ctx, logrus.Debugf); err != nil {
 				return fmt.Errorf("failed to uninstall manager service: %w", err)
 			}
 
@@ -416,12 +418,8 @@ func (h *hostInfo) getControlNodeObject(ctx context.Context) {
 }
 
 // checkResetSafety performs checks to see if the reset would cause an outage
-func (h *hostInfo) checkResetSafety(cmd *cobra.Command) (bool, string, error) {
-	forceFlag, err := cmd.Flags().GetBool("force")
-	if err != nil {
-		return false, "", fmt.Errorf("unable to get force flag: %w", err)
-	}
-	if forceFlag {
+func (h *hostInfo) checkResetSafety(ctx context.Context, force bool) (bool, string, error) {
+	if force {
 		return true, "", nil
 	}
 
@@ -433,7 +431,7 @@ func (h *hostInfo) checkResetSafety(cmd *cobra.Command) (bool, string, error) {
 	if err != nil {
 		return false, "", fmt.Errorf("unable to create etcd client: %w", err)
 	}
-	if etcdClient.Health(cmd.Context()) != nil {
+	if etcdClient.Health(ctx) != nil {
 		return false, "Etcd is not ready. Please wait up to 5 minutes and try again.", nil
 	}
 
@@ -441,7 +439,7 @@ func (h *hostInfo) checkResetSafety(cmd *cobra.Command) (bool, string, error) {
 	workers := []string{}
 	controllers := []string{}
 	nodeList := corev1.NodeList{}
-	err = h.Kclient.List(cmd.Context(), &nodeList)
+	err = h.Kclient.List(ctx, &nodeList)
 	if err != nil {
 		return false, "", fmt.Errorf("unable to list Nodes: %w", err)
 	}

@@ -34,6 +34,10 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 				}
 			}
 
+			if os.Getenv("DISABLE_TELEMETRY") != "" {
+				metrics.DisableMetrics()
+			}
+
 			setManagerServiceName()
 
 			return nil

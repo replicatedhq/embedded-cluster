@@ -88,10 +88,13 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			metrics.ReportApplyStarted(ctx, flags.licenseFile)
-			err := runInstall2(cmd.Context(), cmd, args, name, flags)
-			metrics.ReportApplyFinished(ctx, flags.licenseFile, flags.license, err)
-			return err
+			metrics.ReportInstallationStarted(ctx, flags.license)
+			if err := runInstall2(cmd.Context(), name, flags); err != nil {
+				metrics.ReportInstallationFailed(ctx, flags.license, err)
+				return err
+			}
+			metrics.ReportInstallationSucceeded(ctx, flags.license)
+			return nil
 		},
 	}
 
@@ -208,16 +211,12 @@ func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags) error {
 		return fmt.Errorf("unable to write runtime config to disk: %w", err)
 	}
 
-	if os.Getenv("DISABLE_TELEMETRY") != "" {
-		metrics.DisableMetrics()
-	}
-
 	flags.isAirgap = flags.airgapBundle != ""
 
 	return nil
 }
 
-func runInstall2(ctx context.Context, cmd *cobra.Command, args []string, name string, flags Install2CmdFlags) error {
+func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error {
 	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
 		return err
 	}
@@ -244,7 +243,7 @@ func runInstall2(ctx context.Context, cmd *cobra.Command, args []string, name st
 	}
 
 	logrus.Debugf("running host preflights")
-	if err := runInstallPreflights(ctx, cmd, name, flags); err != nil {
+	if err := runInstallPreflights(ctx, flags); err != nil {
 		return err
 	}
 

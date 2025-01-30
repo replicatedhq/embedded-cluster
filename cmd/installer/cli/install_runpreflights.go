@@ -72,7 +72,7 @@ func runInstallRunPreflights(ctx context.Context, cmd *cobra.Command, name strin
 	}
 
 	logrus.Debugf("running host preflights")
-	if err := runInstallPreflights(ctx, cmd, name, flags); err != nil {
+	if err := runInstallPreflights(ctx, flags); err != nil {
 		return err
 	}
 
@@ -81,7 +81,7 @@ func runInstallRunPreflights(ctx context.Context, cmd *cobra.Command, name strin
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, cmd *cobra.Command, name string, flags Install2CmdFlags) error {
+func runInstallPreflights(ctx context.Context, flags Install2CmdFlags) error {
 	var replicatedAPIURL, proxyRegistryURL string
 	if flags.license != nil {
 		replicatedAPIURL = flags.license.Spec.Endpoint

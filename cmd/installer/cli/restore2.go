@@ -85,6 +85,7 @@ func Restore2Cmd(ctx context.Context, name string) *cobra.Command {
 	var flags Install2CmdFlags
 
 	var s3Store s3BackupStore
+	var skipStoreValidation bool
 
 	cmd := &cobra.Command{
 		Use:           "restore2",
@@ -102,7 +103,7 @@ func Restore2Cmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runRestore2(cmd, name, flags, s3Store); err != nil {
+			if err := runRestore2(cmd.Context(), name, flags, s3Store, skipStoreValidation); err != nil {
 				return err
 			}
 
@@ -111,7 +112,7 @@ func Restore2Cmd(ctx context.Context, name string) *cobra.Command {
 	}
 
 	addS3Flags(cmd, &s3Store)
-	cmd.Flags().Bool("skip-store-validation", false, "Skip validation of the backup storage location")
+	cmd.Flags().BoolVar(&skipStoreValidation, "skip-store-validation", false, "Skip validation of the backup storage location")
 
 	if err := addInstallFlags(cmd, &flags); err != nil {
 		panic(err)
@@ -120,9 +121,7 @@ func Restore2Cmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runRestore2(cmd *cobra.Command, name string, flags Install2CmdFlags, s3Store s3BackupStore) error {
-	ctx := cmd.Context()
-
+func runRestore2(ctx context.Context, name string, flags Install2CmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
 	err := verifyChannelRelease("restore", flags.isAirgap, flags.assumeYes)
 	if err != nil {
 		return err
@@ -172,7 +171,7 @@ func runRestore2(cmd *cobra.Command, name string, flags Install2CmdFlags, s3Stor
 	}
 
 	// If the installation is available, we can further augment the runtime config from the installation.
-	rc, err := getRuntimeConfigFromInstallation(cmd)
+	rc, err := getRuntimeConfigFromInstallation(ctx)
 	if err != nil {
 		logrus.Debugf(
 			"Unable to get runtime config from installation, this is expected if the installation is not yet available (restore state=%s): %v",
@@ -187,11 +186,6 @@ func runRestore2(cmd *cobra.Command, name string, flags Install2CmdFlags, s3Stor
 
 	switch state {
 	case ecRestoreStateNew:
-		skipStoreValidation, err := cmd.Flags().GetBool("skip-store-validation")
-		if err != nil {
-			return fmt.Errorf("unable to get skip-store-validation flag: %w", err)
-		}
-
 		err = runRestoreStepNew(ctx, name, flags, &s3Store, skipStoreValidation)
 		if err != nil {
 			return err
@@ -206,7 +200,7 @@ func runRestore2(cmd *cobra.Command, name string, flags Install2CmdFlags, s3Stor
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		backup, ok, err := runRestoreStepConfirmBackup(ctx, cmd, flags)
+		backup, ok, err := runRestoreStepConfirmBackup(ctx, flags)
 		if err != nil {
 			return err
 		} else if !ok {
@@ -426,7 +420,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags Install2CmdFlags,
 	return nil
 }
 
-func runRestoreStepConfirmBackup(ctx context.Context, cmd *cobra.Command, flags Install2CmdFlags) (*disasterrecovery.ReplicatedBackup, bool, error) {
+func runRestoreStepConfirmBackup(ctx context.Context, flags Install2CmdFlags) (*disasterrecovery.ReplicatedBackup, bool, error) {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return nil, false, fmt.Errorf("unable to create kube client: %w", err)
@@ -438,7 +432,7 @@ func runRestoreStepConfirmBackup(ctx context.Context, cmd *cobra.Command, flags 
 	}
 
 	logrus.Debugf("waiting for backups to become available")
-	backups, err := waitForBackups(ctx, cmd.OutOrStdout(), kcli, k0sCfg, flags.isAirgap)
+	backups, err := waitForBackups(ctx, os.Stdout, kcli, k0sCfg, flags.isAirgap)
 	if err != nil {
 		return nil, false, err
 	}
@@ -1550,13 +1544,13 @@ func overrideRuntimeConfigFromBackup(localArtifactMirrorPort int, backup disaste
 }
 
 // getRuntimeConfigFromInstallation returns the runtime config from the latest installation.
-func getRuntimeConfigFromInstallation(cmd *cobra.Command) (*ecv1beta1.RuntimeConfigSpec, error) {
+func getRuntimeConfigFromInstallation(ctx context.Context) (*ecv1beta1.RuntimeConfigSpec, error) {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create kube client: %w", err)
 	}
 
-	in, err := kubeutils.GetLatestInstallation(cmd.Context(), kcli)
+	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get latest installation: %w", err)
 	}
