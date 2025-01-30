@@ -394,12 +394,11 @@ func runRestoreStepNew(ctx context.Context, name string, flags Install2CmdFlags,
 
 	logrus.Debugf("installing addons")
 	if err := addons2.Install(ctx, addons2.InstallOptions{
-		AirgapBundle:     flags.airgapBundle,
-		Proxy:            flags.proxy,
-		PrivateCAs:       flags.privateCAs,
-		ConfigValuesFile: flags.configValues,
-		ServiceCIDR:      flags.cidrCfg.ServiceCIDR,
-		IsRestore:        true,
+		IsAirgap:    flags.airgapBundle != "",
+		Proxy:       flags.proxy,
+		PrivateCAs:  flags.privateCAs,
+		ServiceCIDR: flags.cidrCfg.ServiceCIDR,
+		IsRestore:   true,
 	}); err != nil {
 		return err
 	}
@@ -476,11 +475,6 @@ func runRestoreAdminConsole(ctx context.Context, backupToRestore *disasterrecove
 	logrus.Debugf("restoring admin console from backup %q", backupToRestore.GetName())
 	if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentAdminConsole, true); err != nil {
 		return err
-	}
-
-	logrus.Debugf("installing manager")
-	if err := installAndEnableManager(ctx); err != nil {
-		return fmt.Errorf("unable to install manager: %w", err)
 	}
 
 	return nil
