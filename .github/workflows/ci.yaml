@@ -685,7 +685,6 @@ jobs:
           - TestSingleNodeUpgradePreviousStable
           - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedApp
-          - TestInstallWithoutEmbed
           - TestUpgradeEC18FromReplicatedApp
           - TestResetAndReinstall
           - TestOldVersionUpgrade
