@@ -36,6 +36,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
@@ -308,8 +309,7 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error
 	}
 
 	// mark that the installation is installed as everything has been applied
-	installObject.Status.State = ecv1beta1.InstallationStateInstalled
-	if err := updateInstallation(ctx, installObject); err != nil {
+	if err := setInstallationState(ctx, installObject, ecv1beta1.InstallationStateInstalled); err != nil {
 		return fmt.Errorf("unable to update installation: %w", err)
 	}
 
@@ -648,7 +648,7 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 		}
 	}
 
-	installation := ecv1beta1.Installation{
+	installation := &ecv1beta1.Installation{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: ecv1beta1.GroupVersion.String(),
 			Kind:       "Installation",
@@ -657,6 +657,7 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 			Name: time.Now().Format("20060102150405"),
 		},
 		Spec: ecv1beta1.InstallationSpec{
+			SourceType:                ecv1beta1.InstallationSourceTypeCRD,
 			ClusterID:                 metrics.ClusterID().String(),
 			MetricsBaseURL:            metrics.BaseURL(flags.license),
 			AirGap:                    flags.isAirgap,
@@ -666,7 +667,6 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 			RuntimeConfig:             runtimeconfig.Get(),
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                runtimeconfig.BinaryName(),
-			SourceType:                ecv1beta1.InstallationSourceTypeCRD,
 			LicenseInfo: &ecv1beta1.LicenseInfo{
 				IsDisasterRecoverySupported: disasterRecoveryEnabled,
 			},
@@ -675,28 +675,33 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 			State: ecv1beta1.InstallationStateKubernetesInstalled,
 		},
 	}
-	if err := kubeutils.CreateInstallation(ctx, kcli, &installation); err != nil {
+	if err := kcli.Create(ctx, installation); err != nil {
 		return nil, fmt.Errorf("create installation: %w", err)
 	}
 
-	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, &installation); err != nil {
-		return nil, fmt.Errorf("update installation status: %w", err)
-	}
-
 	loading.Infof("Types created!")
-	return &installation, nil
+	return installation, nil
 }
 
-func updateInstallation(ctx context.Context, install *ecv1beta1.Installation) error {
+func setInstallationState(ctx context.Context, installation *ecv1beta1.Installation, state string) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("create kube client: %w", err)
 	}
 
-	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, install); err != nil {
-		return fmt.Errorf("update installation status: %w", err)
-	}
-	return nil
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := kcli.Get(ctx, client.ObjectKey{Name: installation.Name}, installation)
+		if err != nil {
+			return fmt.Errorf("get installation: %w", err)
+		}
+
+		installation.Status.State = state
+
+		if err := kcli.Status().Update(ctx, installation); err != nil {
+			return fmt.Errorf("update installation status: %w", err)
+		}
+		return nil
+	})
 }
 
 func createECNamespace(ctx context.Context, kcli client.Client) error {
