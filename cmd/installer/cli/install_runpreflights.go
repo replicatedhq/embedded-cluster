@@ -39,7 +39,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runInstallRunPreflights(cmd.Context(), cmd, name, flags); err != nil {
+			if err := runInstallRunPreflights(cmd.Context(), name, flags); err != nil {
 				return err
 			}
 
@@ -57,18 +57,18 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runInstallRunPreflights(ctx context.Context, cmd *cobra.Command, name string, flags Install2CmdFlags) error {
+func runInstallRunPreflights(ctx context.Context, name string, flags Install2CmdFlags) error {
 	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
 		return err
 	}
 
 	logrus.Debugf("materializing binaries")
 	if err := materializeFiles(flags.airgapBundle); err != nil {
-		return err
+		return fmt.Errorf("unable to materialize files: %w", err)
 	}
 
 	if err := configutils.ConfigureSysctl(); err != nil {
-		return err
+		return fmt.Errorf("unable to configure sysctl: %w", err)
 	}
 
 	logrus.Debugf("running host preflights")
@@ -104,7 +104,7 @@ func runInstallPreflights(ctx context.Context, flags Install2CmdFlags) error {
 		if err == preflights.ErrPreflightsHaveFail {
 			return ErrNothingElseToAdd
 		}
-		return fmt.Errorf("unable to prepare and run preflights: %w", err)
+		return err
 	}
 
 	return nil

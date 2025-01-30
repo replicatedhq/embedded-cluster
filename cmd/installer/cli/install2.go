@@ -223,13 +223,13 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error
 
 	logrus.Debugf("materializing binaries")
 	if err := materializeFiles(flags.airgapBundle); err != nil {
-		return err
+		return fmt.Errorf("unable to materialize files: %w", err)
 	}
 
 	logrus.Debugf("copy license file to %s", flags.dataDir)
 	if err := copyLicenseFileToDataDir(flags.licenseFile, flags.dataDir); err != nil {
 		// We have decided not to report this error
-		logrus.Warnf("unable to copy license file to %s: %v", flags.dataDir, err)
+		logrus.Warnf("Unable to copy license file to %s: %v", flags.dataDir, err)
 	}
 
 	logrus.Debugf("configuring sysctl")
@@ -244,12 +244,12 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error
 
 	logrus.Debugf("running host preflights")
 	if err := runInstallPreflights(ctx, flags); err != nil {
-		return err
+		return fmt.Errorf("unable to run preflights: %w", err)
 	}
 
 	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to install cluster: %w", err)
 	}
 
 	kcli, err := kubeutils.KubeClient()
@@ -267,7 +267,7 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error
 
 	installObject, err := recordInstallation(ctx, flags, k0sCfg, disasterRecoveryEnabled)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to record installation: %w", err)
 	}
 
 	// TODO (@salah): update installation status to reflect what's happening
@@ -294,27 +294,27 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error
 			return kotscli.Install(opts, msg)
 		},
 	}); err != nil {
-		return err
+		return fmt.Errorf("unable to install addons: %w", err)
 	}
 
 	logrus.Debugf("installing extensions")
 	if err := extensions.Install(ctx, flags.isAirgap); err != nil {
-		return err
+		return fmt.Errorf("unable to install extensions: %w", err)
 	}
 
 	logrus.Debugf("installing manager")
 	if err := installAndEnableManager(ctx); err != nil {
-		return err
+		return fmt.Errorf("unable to install manager: %w", err)
 	}
 
 	// mark that the installation is installed as everything has been applied
 	installObject.Status.State = ecv1beta1.InstallationStateInstalled
 	if err := updateInstallation(ctx, installObject); err != nil {
-		return err
+		return fmt.Errorf("unable to update installation: %w", err)
 	}
 
 	if err = support.CreateHostSupportBundle(); err != nil {
-		logrus.Warnf("unable to create host support bundle: %v", err)
+		logrus.Warnf("Unable to create host support bundle: %v", err)
 	}
 
 	if err := printSuccessMessage(flags.license, flags.networkInterface); err != nil {
@@ -434,7 +434,7 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 		// read the expiration date, and check it against the current date
 		expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse expiration date: %w", err)
+			return nil, fmt.Errorf("parse expiration date: %w", err)
 		}
 		if time.Now().After(expiration) {
 			return nil, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
@@ -477,7 +477,7 @@ func checkChannelExistence(license *kotsv1beta1.License, rel *release.ChannelRel
 func verifyChannelRelease(cmdName string, isAirgap bool, assumeYes bool) error {
 	channelRelease, err := release.GetChannelRelease()
 	if err != nil {
-		return fmt.Errorf("unable to read channel release data: %w", err)
+		return fmt.Errorf("read channel release data: %w", err)
 	}
 
 	if channelRelease != nil && channelRelease.Airgap && !isAirgap && !assumeYes {
@@ -512,10 +512,10 @@ func materializeFiles(airgapBundle string) error {
 
 	materializer := goods.NewMaterializer()
 	if err := materializer.Materialize(); err != nil {
-		return fmt.Errorf("unable to materialize binaries: %w", err)
+		return fmt.Errorf("materialize binaries: %w", err)
 	}
 	if err := support.MaterializeSupportBundleSpec(); err != nil {
-		return fmt.Errorf("unable to materialize support bundle spec: %w", err)
+		return fmt.Errorf("materialize support bundle spec: %w", err)
 	}
 
 	if airgapBundle != "" {
@@ -529,7 +529,7 @@ func materializeFiles(airgapBundle string) error {
 		defer rawfile.Close()
 
 		if err := airgap.MaterializeAirgap(rawfile); err != nil {
-			err = fmt.Errorf("unable to materialize airgap files: %w", err)
+			err = fmt.Errorf("materialize airgap files: %w", err)
 			return err
 		}
 	}
@@ -547,24 +547,24 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 
 	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides, mutate)
 	if err != nil {
-		err := fmt.Errorf("unable to create config file: %w", err)
+		err := fmt.Errorf("create config file: %w", err)
 		return nil, err
 	}
 	logrus.Debugf("creating systemd unit files")
 	if err := createSystemdUnitFiles(false, proxy); err != nil {
-		err := fmt.Errorf("unable to create systemd unit files: %w", err)
+		err := fmt.Errorf("create systemd unit files: %w", err)
 		return nil, err
 	}
 
 	logrus.Debugf("installing k0s")
 	if err := k0s.Install(networkInterface); err != nil {
-		err := fmt.Errorf("unable to install cluster: %w", err)
+		err := fmt.Errorf("install cluster: %w", err)
 		return nil, err
 	}
 	loading.Infof("Waiting for %s node to be ready", runtimeconfig.BinaryName())
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
-		err := fmt.Errorf("unable to wait for node: %w", err)
+		err := fmt.Errorf("wait for node: %w", err)
 		return nil, err
 	}
 
@@ -694,7 +694,7 @@ func updateInstallation(ctx context.Context, install *ecv1beta1.Installation) er
 	}
 
 	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, install); err != nil {
-		return fmt.Errorf("update installation")
+		return fmt.Errorf("update installation status: %w", err)
 	}
 	return nil
 }
@@ -802,7 +802,7 @@ func getAdminConsoleURL(networkInterface string, port int) string {
 		var err error
 		ipaddr, err = netutils.FirstValidAddress(networkInterface)
 		if err != nil {
-			logrus.Errorf("unable to determine node IP address: %v", err)
+			logrus.Errorf("Unable to determine node IP address: %v", err)
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
