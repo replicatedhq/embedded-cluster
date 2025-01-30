@@ -247,7 +247,7 @@ func runInstall2(ctx context.Context, cmd *cobra.Command, args []string, name st
 		return err
 	}
 
-	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides)
+	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, nil)
 	if err != nil {
 		return err
 	}
@@ -539,13 +539,13 @@ func materializeFiles(airgapBundle string) error {
 	return nil
 }
 
-func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, overrides string) (*k0sv1beta1.ClusterConfig, error) {
+func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", runtimeconfig.BinaryName())
 	logrus.Debugf("creating k0s configuration file")
 
-	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides)
+	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides, mutate)
 	if err != nil {
 		err := fmt.Errorf("unable to create config file: %w", err)
 		return nil, err

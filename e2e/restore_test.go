@@ -80,7 +80,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state2.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -100,7 +100,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state2.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -182,7 +182,7 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state2.sh", appVersion, k8sVersion()}
+	line = []string{"check-installation-state.sh", appVersion, k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -265,7 +265,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state2.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -478,7 +478,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state2.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -677,7 +677,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state2.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
