@@ -106,7 +106,7 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 				Type:    conditionName(ext),
 				Status:  metav1.ConditionFalse,
 				Reason:  action + "Failed",
-				Message: finalErr.Error(),
+				Message: cleanErrorMessage(finalErr),
 			}); err != nil {
 				fmt.Printf("failed to set condition status: %v", err)
 			}

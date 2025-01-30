@@ -139,7 +139,7 @@ func upgradeAddOn(ctx context.Context, hcli *helm.Helm, kcli client.Client, in *
 				Type:    conditionName(addon),
 				Status:  metav1.ConditionFalse,
 				Reason:  "UpgradeFailed",
-				Message: finalErr.Error(),
+				Message: cleanErrorMessage(finalErr),
 			}); err != nil {
 				fmt.Printf("failed to set condition status: %v", err)
 			}
