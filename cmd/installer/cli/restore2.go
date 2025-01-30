@@ -89,7 +89,7 @@ func Restore2Cmd(ctx context.Context, name string) *cobra.Command {
 	var skipStoreValidation bool
 
 	cmd := &cobra.Command{
-		Use:   "restore2",
+		Use:   "restore",
 		Short: fmt.Sprintf("Restore a %s cluster", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall2(cmd, &flags); err != nil {

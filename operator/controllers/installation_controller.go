@@ -516,7 +516,7 @@ func constructHostPreflightResultsJob(in *v1beta1.Installation, nodeName string)
 
 // Reconcile reconcile the installation object.
 func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	isV2Enabled := true
+	isV2Enabled := false
 
 	// we start by fetching all installation objects and coalescing them. we
 	// are going to operate only on the newest one (sorting by installation
