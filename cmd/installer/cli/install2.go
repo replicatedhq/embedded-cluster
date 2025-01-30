@@ -222,6 +222,10 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags, metri
 		return err
 	}
 
+	if err := ensureAdminConsolePassword(flags); err != nil {
+		return err
+	}
+
 	logrus.Debugf("materializing binaries")
 	if err := materializeFiles(flags.airgapBundle); err != nil {
 		return fmt.Errorf("unable to materialize files: %w", err)
@@ -342,7 +346,7 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	logrus.Debugf("checking license matches")
 	license, err := getLicenseFromFilepath(flags.licenseFile)
 	if err != nil {
-		return err // do not return the metricErr, as we want the user to see the error message without a prefix
+		return err
 	}
 	if flags.isAirgap {
 		logrus.Debugf("checking airgap bundle matches binary")
@@ -356,8 +360,8 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 			if errors.As(err, &ErrorNothingElseToAdd{}) {
 				return err
 			}
-			// If we get an error other than ErrNothingElseToAdd, we warn and continue as
-			// this check is not critical.
+			// If we get an error other than ErrorNothingElseToAdd, we warn and continue as this
+			// check is not critical.
 			logrus.Debugf("WARNING: Failed to check for newer app versions: %v", err)
 		}
 	}
@@ -366,14 +370,14 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 		return err
 	}
 
-	if flags.adminConsolePassword != "" {
-		if !validateAdminConsolePassword(flags.adminConsolePassword, flags.adminConsolePassword) {
-			return fmt.Errorf("unable to set the Admin Console password")
-		}
-	} else {
+	return nil
+}
+
+func ensureAdminConsolePassword(flags Install2CmdFlags) error {
+	if flags.adminConsolePassword == "" {
 		// no password was provided
 		if flags.assumeYes {
-			logrus.Infof("The Admin Console password is set to %s", "password")
+			logrus.Infof("The Admin Console password is set to %q", "password")
 			flags.adminConsolePassword = "password"
 		} else {
 			maxTries := 3
@@ -383,13 +387,15 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 
 				if validateAdminConsolePassword(promptA, promptB) {
 					flags.adminConsolePassword = promptA
-					break
+					return nil
 				}
 			}
+			return NewErrorNothingElseToAdd(errors.New("password is not valid"))
 		}
 	}
-	if flags.adminConsolePassword == "" {
-		return fmt.Errorf("no admin console password")
+
+	if !validateAdminConsolePassword(flags.adminConsolePassword, flags.adminConsolePassword) {
+		return NewErrorNothingElseToAdd(errors.New("password is not valid"))
 	}
 
 	return nil

@@ -441,11 +441,11 @@ const minAdminPasswordLength = 6
 
 func validateAdminConsolePassword(password, passwordCheck string) bool {
 	if password != passwordCheck {
-		logrus.Info("Passwords don't match. Please try again.")
+		logrus.Errorf("Passwords don't match. Please try again.")
 		return false
 	}
 	if len(password) < minAdminPasswordLength {
-		logrus.Infof("Passwords must have more than %d characters. Please try again.", minAdminPasswordLength)
+		logrus.Errorf("Password must have more than %d characters. Please try again.", minAdminPasswordLength)
 		return false
 	}
 	return true
