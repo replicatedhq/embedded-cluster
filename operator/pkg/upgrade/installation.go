@@ -23,7 +23,7 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *ecv1be
 	}
 	log.Info(fmt.Sprintf("Creating installation %s", in.Name))
 
-	err := cli.Create(ctx, in)
+	err := kubeutils.CreateInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("create installation: %w", err)
 	}

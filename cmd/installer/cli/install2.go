@@ -653,7 +653,6 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags Install2C
 			Name: time.Now().Format("20060102150405"),
 		},
 		Spec: ecv1beta1.InstallationSpec{
-			SourceType:                ecv1beta1.InstallationSourceTypeCRD,
 			ClusterID:                 metrics.ClusterID().String(),
 			MetricsBaseURL:            metrics.BaseURL(flags.license),
 			AirGap:                    flags.isAirgap,
@@ -668,7 +667,7 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags Install2C
 			},
 		},
 	}
-	if err := kcli.Create(ctx, installation); err != nil {
+	if err := kubeutils.CreateInstallation(ctx, kcli, installation); err != nil {
 		return nil, fmt.Errorf("create installation: %w", err)
 	}
 

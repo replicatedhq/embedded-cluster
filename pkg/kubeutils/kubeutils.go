@@ -230,10 +230,13 @@ func (k *KubeUtils) WaitForInstallation(ctx context.Context, cli client.Client, 
 
 func CreateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
 	in.Spec.SourceType = ecv1beta1.InstallationSourceTypeCRD
-	if err := cli.Create(ctx, in); err != nil {
-		return fmt.Errorf("create installation: %w", err)
+
+	if in.ObjectMeta.Labels == nil {
+		in.ObjectMeta.Labels = map[string]string{}
 	}
-	return nil
+	in.ObjectMeta.Labels["replicated.com/disaster-recovery"] = "ec-install"
+
+	return cli.Create(ctx, in)
 }
 
 func UpdateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
