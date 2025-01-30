@@ -571,10 +571,10 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 	// init the kubeconfig
 	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
 
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return nil, fmt.Errorf("create kube client: %w", err)
-	}
+	// kcli, err := kubeutils.KubeClient()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("create kube client: %w", err)
+	// }
 
 	// if err := createV2ConfigMap(ctx, kcli); err != nil {
 	// 	return nil, fmt.Errorf("create v2 configmap: %w", err)
