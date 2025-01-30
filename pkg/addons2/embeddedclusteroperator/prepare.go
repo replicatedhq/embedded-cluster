@@ -2,8 +2,6 @@ package embeddedclusteroperator
 
 import (
 	"github.com/pkg/errors"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
 
 func (a *EmbeddedClusterOperator) prepare() error {
@@ -15,9 +13,10 @@ func (a *EmbeddedClusterOperator) prepare() error {
 }
 
 func (a *EmbeddedClusterOperator) generateHelmValues() error {
-	helmValues["kotsVersion"] = adminconsole.Metadata.Version
-	helmValues["embeddedClusterVersion"] = versions.Version
-	helmValues["embeddedClusterK0sVersion"] = versions.K0sVersion
+	// TODO: add this back
+	// helmValues["kotsVersion"] = adminconsole.Metadata.Version
+	// helmValues["embeddedClusterVersion"] = versions.Version
+	// helmValues["embeddedClusterK0sVersion"] = versions.K0sVersion
 
 	return nil
 }
