@@ -222,7 +222,7 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags, metri
 		return err
 	}
 
-	if err := ensureAdminConsolePassword(flags); err != nil {
+	if err := ensureAdminConsolePassword(&flags); err != nil {
 		return err
 	}
 
@@ -373,7 +373,7 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	return nil
 }
 
-func ensureAdminConsolePassword(flags Install2CmdFlags) error {
+func ensureAdminConsolePassword(flags *Install2CmdFlags) error {
 	if flags.adminConsolePassword == "" {
 		// no password was provided
 		if flags.assumeYes {
