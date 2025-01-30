@@ -17,7 +17,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -53,14 +52,9 @@ func Join2Cmd(ctx context.Context, name string) *cobra.Command {
 		SilenceUsage:  true,
 		Hidden:        true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if os.Getuid() != 0 {
-				return fmt.Errorf("join command must be run as root")
+			if err := preRunJoin2(&flags); err != nil {
+				return err
 			}
-			if flags.skipHostPreflights {
-				logrus.Warnf("Warning: --skip-host-preflights is deprecated and will be removed in a later version. Use --ignore-host-preflights instead.")
-			}
-
-			flags.isAirgap = flags.airgapBundle != ""
 
 			return nil
 		},
@@ -68,48 +62,72 @@ func Join2Cmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runJoin2(cmd, args, name, flags); err != nil {
+			logrus.Debugf("fetching join token remotely")
+			jcmd, err := kotsadm.GetJoinToken(ctx, args[0], args[1])
+			if err != nil {
+				return fmt.Errorf("unable to get join token: %w", err)
+			}
+			metrics.ReportJoinStarted(ctx, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
+			if err := runJoin2(cmd.Context(), name, flags, jcmd); err != nil {
+				metrics.ReportJoinFailed(ctx, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}
 
+			metrics.ReportJoinSucceeded(ctx, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 			return nil
 		},
 	}
 
+	if err := addJoinFlags(cmd, &flags); err != nil {
+		panic(err)
+	}
+
+	cmd.AddCommand(JoinRunPreflightsCmd(ctx, name))
+
+	return cmd
+}
+
+func preRunJoin2(flags *Join2CmdFlags) error {
+	if os.Getuid() != 0 {
+		return fmt.Errorf("join command must be run as root")
+	}
+
+	flags.isAirgap = flags.airgapBundle != ""
+
+	return nil
+}
+
+func addJoinFlags(cmd *cobra.Command, flags *Join2CmdFlags) error {
 	cmd.Flags().StringVar(&flags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
 	cmd.Flags().StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
 	cmd.Flags().BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
 
 	cmd.Flags().BoolVar(&flags.enableHighAvailability, "enable-ha", false, "Enable high availability.")
-	cmd.Flags().MarkHidden("enable-ha")
+	if err := cmd.Flags().MarkHidden("enable-ha"); err != nil {
+		return err
+	}
 
 	cmd.Flags().BoolVar(&flags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
-	cmd.Flags().MarkHidden("skip-host-preflights")
-	cmd.Flags().MarkDeprecated("skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead.")
+	if err := cmd.Flags().MarkHidden("skip-host-preflights"); err != nil {
+		return err
+	}
+	if err := cmd.Flags().MarkDeprecated("skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead."); err != nil {
+		return err
+	}
 
 	cmd.Flags().BoolVar(&flags.assumeYes, "yes", false, "Assume yes to all prompts.")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
-	// TODO (@salah): add join preflights subcommand
-
-	return cmd
+	return nil
 }
 
-func runJoin2(cmd *cobra.Command, args []string, name string, flags Join2CmdFlags) error {
-	logrus.Debugf("fetching join token remotely")
-	jcmd, err := kotsadm.GetJoinToken(cmd.Context(), args[0], args[1])
-	if err != nil {
-		return fmt.Errorf("unable to get join token: %w", err)
-	}
-
+func runJoin2(ctx context.Context, name string, flags Join2CmdFlags, jcmd *kotsadm.JoinCommandResponse) error {
 	if err := runJoinVerifyAndPrompt(name, flags, jcmd); err != nil {
 		return err
 	}
 
-	metrics.ReportJoinStarted(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 	logrus.Debugf("materializing %s binaries", name)
 	if err := materializeFiles(flags.airgapBundle); err != nil {
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 		return err
 	}
 
@@ -119,7 +137,7 @@ func runJoin2(cmd *cobra.Command, args []string, name string, flags Join2CmdFlag
 	}
 
 	logrus.Debugf("configuring network manager")
-	if err := configureNetworkManager(cmd.Context()); err != nil {
+	if err := configureNetworkManager(ctx); err != nil {
 		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
@@ -129,57 +147,45 @@ func runJoin2(cmd *cobra.Command, args []string, name string, flags Join2CmdFlag
 	}
 
 	logrus.Debugf("running join preflights")
-	if err := runJoinPreflights(cmd.Context(), jcmd, flags, cidrCfg); err != nil {
+	if err := runJoinPreflights(ctx, jcmd, flags, cidrCfg); err != nil {
 		return fmt.Errorf("unable to run join preflights: %w", err)
 	}
 
 	logrus.Debugf("installing and joining cluster")
-	if err := installAndJoinCluster(cmd, jcmd, name, flags); err != nil {
+	if err := installAndJoinCluster(ctx, jcmd, name, flags); err != nil {
 		return err
 	}
 
 	if !strings.Contains(jcmd.K0sJoinCommand, "controller") {
-		metrics.ReportJoinSucceeded(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 		logrus.Debugf("worker node join finished")
 		return nil
 	}
 
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
-		err := fmt.Errorf("unable to get kube client: %w", err)
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
+		return fmt.Errorf("unable to get kube client: %w", err)
 	}
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		err := fmt.Errorf("unable to get hostname: %w", err)
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
+		return fmt.Errorf("unable to get hostname: %w", err)
 	}
 
-	if err := waitForNode(cmd.Context(), kcli, hostname); err != nil {
-		err := fmt.Errorf("unable to wait for node: %w", err)
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
+	if err := waitForNode(ctx, kcli, hostname); err != nil {
+		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
 	logrus.Debugf("installing manager")
-	if err := installAndEnableManager(cmd.Context()); err != nil {
-		err := fmt.Errorf("unable to install and enable manager: %w", err)
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
+	if err := installAndEnableManager(ctx); err != nil {
+		return fmt.Errorf("unable to install and enable manager: %w", err)
 	}
 
 	if flags.enableHighAvailability {
-		if err := maybeEnableHA(cmd.Context(), kcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy); err != nil {
-			err := fmt.Errorf("unable to enable high availability: %w", err)
-			metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-			return err
+		if err := maybeEnableHA(ctx, kcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy); err != nil {
+			return fmt.Errorf("unable to enable high availability: %w", err)
 		}
 	}
 
-	metrics.ReportJoinSucceeded(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 	logrus.Debugf("controller node join finished")
 	return nil
 }
@@ -254,81 +260,45 @@ func getJoinCIDRConfig(jcmd *kotsadm.JoinCommandResponse) (*CIDRConfig, error) {
 	}, nil
 }
 
-func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, flags Join2CmdFlags, cidrCfg *CIDRConfig) error {
-	logrus.Debugf("running host preflights")
-	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
-		ReplicatedAPIURL:       jcmd.InstallationSpec.MetricsBaseURL, // MetricsBaseURL is the replicated.app endpoint url
-		ProxyRegistryURL:       fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress),
-		Proxy:                  jcmd.InstallationSpec.Proxy,
-		PodCIDR:                cidrCfg.PodCIDR,
-		ServiceCIDR:            cidrCfg.ServiceCIDR,
-		IsAirgap:               flags.isAirgap,
-		SkipHostPreflights:     flags.skipHostPreflights,
-		IgnoreHostPreflights:   flags.ignoreHostPreflights,
-		AssumeYes:              flags.assumeYes,
-		TCPConnectionsRequired: jcmd.TCPConnectionsRequired,
-	}); err != nil {
-		if err == preflights.ErrPreflightsHaveFail {
-			return ErrNothingElseToAdd
-		}
-		return fmt.Errorf("unable to prepare and run preflights: %w", err)
-	}
-
-	return nil
-}
-
-func installAndJoinCluster(cmd *cobra.Command, jcmd *kotsadm.JoinCommandResponse, name string, flags Join2CmdFlags) error {
+func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, name string, flags Join2CmdFlags) error {
 	logrus.Debugf("saving token to disk")
 	if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
-		err := fmt.Errorf("unable to save token to disk: %w", err)
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
+		return fmt.Errorf("unable to save token to disk: %w", err)
 	}
 
 	logrus.Debugf("installing %s binaries", name)
 	if err := installK0sBinary(); err != nil {
-		err := fmt.Errorf("unable to install k0s binary: %w", err)
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
+		return fmt.Errorf("unable to install k0s binary: %w", err)
 	}
 
 	if jcmd.AirgapRegistryAddress != "" {
 		if err := airgap.AddInsecureRegistry(jcmd.AirgapRegistryAddress); err != nil {
-			err := fmt.Errorf("unable to add insecure registry: %w", err)
-			metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-			return err
+			return fmt.Errorf("unable to add insecure registry: %w", err)
 		}
 	}
 
 	logrus.Debugf("creating systemd unit files")
 	// both controller and worker nodes will have 'worker' in the join command
 	if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.InstallationSpec.Proxy); err != nil {
-		err := fmt.Errorf("unable to create systemd unit files: %w", err)
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
+		return fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 
 	logrus.Debugf("overriding network configuration")
 	if err := applyNetworkConfiguration(flags.networkInterface, jcmd); err != nil {
-		err := fmt.Errorf("unable to apply network configuration: %w", err)
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
+		return fmt.Errorf("unable to apply network configuration: %w", err)
 	}
 
 	logrus.Debugf("applying configuration overrides")
 	if err := applyJoinConfigurationOverrides(jcmd); err != nil {
-		err := fmt.Errorf("unable to apply configuration overrides: %w", err)
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
+		return fmt.Errorf("unable to apply configuration overrides: %w", err)
 	}
 
 	logrus.Debugf("joining node to cluster")
 	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand); err != nil {
-		err := fmt.Errorf("unable to join node to cluster: %w", err)
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
+		return fmt.Errorf("unable to join node to cluster: %w", err)
 	}
 
-	if err := startAndWaitForK0s(cmd.Context(), name, jcmd); err != nil {
+	if err := startAndWaitForK0s(ctx, name, jcmd); err != nil {
 		return err
 	}
 
@@ -397,17 +367,13 @@ func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinComm
 	loading.Infof("Installing %s node", name)
 	logrus.Debugf("starting %s service", name)
 	if _, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath(), "start"); err != nil {
-		err := fmt.Errorf("unable to start service: %w", err)
-		metrics.ReportJoinFailed(ctx, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
+		return fmt.Errorf("unable to start service: %w", err)
 	}
 
 	loading.Infof("Waiting for %s node to be ready", name)
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
-		err := fmt.Errorf("unable to wait for node: %w", err)
-		metrics.ReportJoinFailed(ctx, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
+		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
 	loading.Infof("Node installation finished!")

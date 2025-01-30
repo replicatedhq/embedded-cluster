@@ -12,6 +12,7 @@ import (
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	eckinds "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
@@ -29,12 +30,14 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
+	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -101,10 +104,6 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 					// set it in cobra since we pass the cmd around in this version
 					cmd.Flags().Set("network-interface", autoInterface)
 				}
-			}
-
-			if os.Getenv("DISABLE_TELEMETRY") != "" {
-				metrics.DisableMetrics()
 			}
 
 			return nil
@@ -914,4 +913,260 @@ func copyLicenseFileToDataDir(licenseFile, dataDir string) error {
 		return fmt.Errorf("unable to write license file: %w", err)
 	}
 	return nil
+}
+
+type addonsApplierOpts struct {
+	assumeYes    bool
+	license      string
+	airgapBundle string
+	overrides    string
+	privateCAs   []string
+	configValues string
+}
+
+func getAddonsApplier(cmd *cobra.Command, opts addonsApplierOpts, adminConsolePwd string, proxy *ecv1beta1.ProxySpec) (*addons.Applier, error) {
+	addonOpts := []addons.Option{}
+
+	if opts.assumeYes {
+		addonOpts = append(addonOpts, addons.WithoutPrompt())
+	}
+
+	if opts.license != "" {
+		license, err := helpers.ParseLicense(opts.license)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse license: %w", err)
+		}
+
+		addonOpts = append(addonOpts, addons.WithLicense(license))
+
+		addonOpts = append(addonOpts, addons.WithKotsInstaller(func(msg *spinner.MessageWriter) error {
+			opts := kotscli.InstallOptions{
+				AppSlug:          license.Spec.AppSlug,
+				LicenseFile:      opts.license,
+				Namespace:        runtimeconfig.KotsadmNamespace,
+				AirgapBundle:     opts.airgapBundle,
+				ConfigValuesFile: opts.configValues,
+			}
+			return kotscli.Install(opts, msg)
+		}))
+	}
+
+	if opts.airgapBundle != "" {
+		addonOpts = append(addonOpts, addons.WithAirgapBundle(opts.airgapBundle))
+	}
+
+	if proxy != nil {
+		addonOpts = append(addonOpts, addons.WithProxy(proxy))
+	}
+
+	if opts.overrides != "" {
+		eucfg, err := helpers.ParseEndUserConfig(opts.overrides)
+		if err != nil {
+			return nil, fmt.Errorf("unable to process overrides file: %w", err)
+		}
+		addonOpts = append(addonOpts, addons.WithEndUserConfig(eucfg))
+	}
+
+	if len(opts.privateCAs) > 0 {
+		privateCAs := map[string]string{}
+		for i, path := range opts.privateCAs {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("unable to read private CA file %s: %w", path, err)
+			}
+			name := fmt.Sprintf("ca_%d.crt", i)
+			privateCAs[name] = string(data)
+		}
+		addonOpts = append(addonOpts, addons.WithPrivateCAs(privateCAs))
+	}
+
+	if adminConsolePwd != "" {
+		addonOpts = append(addonOpts, addons.WithAdminConsolePassword(adminConsolePwd))
+	}
+
+	if opts.configValues != "" {
+		err := configutils.ValidateKotsConfigValues(opts.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("unable to validate config values file %q: %w", opts.configValues, err)
+		}
+
+		addonOpts = append(addonOpts, addons.WithConfigValuesFile(opts.configValues))
+	}
+
+	return addons.NewApplier(addonOpts...), nil
+}
+
+// RunHostPreflights runs the host preflights we found embedded in the binary
+// on all configured hosts. We attempt to read HostPreflights from all the
+// embedded Helm Charts and from the Kots Application Release files.
+func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, tcpConnectionsRequired []string, assumeYes bool) error {
+	hpf, err := applier.HostPreflights()
+	if err != nil {
+		return fmt.Errorf("unable to read host preflights: %w", err)
+	}
+
+	privateCAs := getPrivateCAPath(cmd)
+
+	data, err := preflightstypes.TemplateData{
+		ReplicatedAPIURL:        replicatedAPIURL,
+		ProxyRegistryURL:        proxyRegistryURL,
+		IsAirgap:                isAirgap,
+		AdminConsolePort:        runtimeconfig.AdminConsolePort(),
+		LocalArtifactMirrorPort: runtimeconfig.LocalArtifactMirrorPort(),
+		DataDir:                 runtimeconfig.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              runtimeconfig.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
+		PrivateCA:               privateCAs,
+		SystemArchitecture:      runtime.GOARCH,
+		FromCIDR:                cidrCfg.PodCIDR,
+		ToCIDR:                  cidrCfg.ServiceCIDR,
+		TCPConnectionsRequired:  tcpConnectionsRequired,
+	}.WithCIDRData(cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, cidrCfg.GlobalCIDR)
+
+	if err != nil {
+		return fmt.Errorf("unable to get host preflights data: %w", err)
+	}
+
+	if proxy != nil {
+		data.HTTPProxy = proxy.HTTPProxy
+		data.HTTPSProxy = proxy.HTTPSProxy
+		data.ProvidedNoProxy = proxy.ProvidedNoProxy
+		data.NoProxy = proxy.NoProxy
+	}
+
+	chpfs, err := preflights.GetClusterHostPreflights(cmd.Context(), data)
+	if err != nil {
+		return fmt.Errorf("unable to get cluster host preflights: %w", err)
+	}
+
+	for _, h := range chpfs {
+		hpf.Collectors = append(hpf.Collectors, h.Spec.Collectors...)
+		hpf.Analyzers = append(hpf.Analyzers, h.Spec.Analyzers...)
+	}
+
+	if dryrun.Enabled() {
+		dryrun.RecordHostPreflightSpec(hpf)
+		return nil
+	}
+
+	return runHostPreflights(cmd, hpf, proxy, assumeYes, replicatedAPIURL)
+}
+
+func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, assumeYes bool, replicatedAPIURL string) error {
+	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
+		return nil
+	}
+	pb := spinner.Start()
+
+	skipHostPreflightsFlag, err := cmd.Flags().GetBool("skip-host-preflights")
+	if err != nil {
+		pb.CloseWithError()
+		return fmt.Errorf("unable to get skip-host-preflights flag: %w", err)
+	}
+	if skipHostPreflightsFlag {
+		pb.Infof("Host preflights skipped")
+		pb.Close()
+		return nil
+	}
+	pb.Infof("Running host preflights")
+	output, stderr, err := preflights.Run(cmd.Context(), hpf, proxy)
+	if err != nil {
+		pb.CloseWithError()
+		return fmt.Errorf("host preflights failed to run: %w", err)
+	}
+	if stderr != "" {
+		logrus.Debugf("preflight stderr: %s", stderr)
+	}
+
+	err = output.SaveToDisk(runtimeconfig.PathToEmbeddedClusterSupportFile("host-preflight-results.json"))
+	if err != nil {
+		logrus.Warnf("unable to save preflights output: %v", err)
+	}
+
+	err = preflights.CopyBundleToECSupportDir()
+	if err != nil {
+		logrus.Warnf("unable to copy preflight bundle to embedded-cluster support dir: %v", err)
+	}
+
+	// Failures found
+	if output.HasFail() {
+		s := "preflights"
+		if len(output.Fail) == 1 {
+			s = "preflight"
+		}
+		if output.HasWarn() {
+			pb.Errorf("%d host %s failed and %d warned", len(output.Fail), s, len(output.Warn))
+		} else {
+			pb.Errorf("%d host %s failed", len(output.Fail), s)
+		}
+
+		pb.CloseWithError()
+		output.PrintTableWithoutInfo()
+		ignoreHostPreflightsFlag, err := cmd.Flags().GetBool("ignore-host-preflights")
+		if err != nil {
+			return fmt.Errorf("unable to get ignore-host-preflights flag: %w", err)
+		}
+		if ignoreHostPreflightsFlag {
+			if assumeYes {
+				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
+				return nil
+			}
+			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
+				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
+				return nil // user continued after host preflights failed
+			}
+		}
+
+		if len(output.Fail)+len(output.Warn) > 1 {
+			logrus.Info("Please address these issues and try again.")
+		} else {
+			logrus.Info("Please address this issue and try again.")
+		}
+		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false, cmd.CalledAs())
+		return ErrPreflightsHaveFail
+	}
+
+	// Warnings found
+	if output.HasWarn() {
+		s := "preflights"
+		if len(output.Warn) == 1 {
+			s = "preflight"
+		}
+		pb.Warnf("%d host %s warned", len(output.Warn), s)
+		if assumeYes {
+			// We have warnings but we are not in interactive mode
+			// so we just print the warnings and continue
+			pb.Close()
+			output.PrintTableWithoutInfo()
+			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
+			return nil
+		}
+		pb.Close()
+		output.PrintTableWithoutInfo()
+		if prompts.New().Confirm("Do you want to continue?", false) {
+			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
+			return nil
+		}
+		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false, cmd.CalledAs())
+		return fmt.Errorf("user aborted")
+	}
+
+	// No failures or warnings
+	pb.Infof("Host preflights succeeded!")
+	pb.Close()
+	return nil
+}
+
+// return only the first private CA path for now - troubleshoot needs a refactor to support multiple CAs in the future
+func getPrivateCAPath(cmd *cobra.Command) string {
+	privateCA := ""
+
+	privateCAsFlag, err := cmd.Flags().GetStringSlice("private-ca")
+	if err != nil {
+		return ""
+	}
+	if len(privateCAsFlag) > 0 {
+		privateCA = privateCAsFlag[0]
+	}
+	return privateCA
 }

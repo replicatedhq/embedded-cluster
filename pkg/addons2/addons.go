@@ -30,6 +30,7 @@ type InstallOptions struct {
 	ServiceCIDR             string
 	DisasterRecoveryEnabled bool
 	KotsInstaller           adminconsole.KotsInstaller
+	IsRestore               bool
 }
 
 func Install(ctx context.Context, opts InstallOptions) error {
@@ -70,29 +71,34 @@ func Install(ctx context.Context, opts InstallOptions) error {
 func getAddOns(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{},
-		&embeddedclusteroperator.EmbeddedClusterOperator{},
 	}
 
-	if opts.AirgapBundle != "" {
+	if !opts.IsRestore {
+		addOns = append(addOns, &embeddedclusteroperator.EmbeddedClusterOperator{})
+	}
+
+	if !opts.IsRestore && opts.AirgapBundle != "" {
 		addOns = append(addOns, &registry.Registry{
 			ServiceCIDR: opts.ServiceCIDR,
 		})
 	}
 
-	if opts.DisasterRecoveryEnabled {
+	if opts.IsRestore || opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
 			Proxy: opts.Proxy,
 		})
 	}
 
-	addOns = append(addOns, &adminconsole.AdminConsole{
-		Password:         opts.AdminConsolePwd,
-		AirgapBundle:     opts.AirgapBundle,
-		Proxy:            opts.Proxy,
-		PrivateCAs:       opts.PrivateCAs,
-		ConfigValuesFile: opts.ConfigValuesFile,
-		KotsInstaller:    opts.KotsInstaller,
-	})
+	if !opts.IsRestore {
+		addOns = append(addOns, &adminconsole.AdminConsole{
+			Password:         opts.AdminConsolePwd,
+			AirgapBundle:     opts.AirgapBundle,
+			Proxy:            opts.Proxy,
+			PrivateCAs:       opts.PrivateCAs,
+			ConfigValuesFile: opts.ConfigValuesFile,
+			KotsInstaller:    opts.KotsInstaller,
+		})
+	}
 
 	return addOns
 }

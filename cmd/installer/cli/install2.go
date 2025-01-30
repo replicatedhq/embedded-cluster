@@ -9,10 +9,12 @@ import (
 	"time"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/charts"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -34,6 +36,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
@@ -86,10 +89,12 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runInstall2(cmd, args, name, flags); err != nil {
+			metrics.ReportInstallationStarted(ctx, flags.license)
+			if err := runInstall2(cmd.Context(), name, flags); err != nil {
+				metrics.ReportInstallationFailed(ctx, flags.license, err)
 				return err
 			}
-
+			metrics.ReportInstallationSucceeded(ctx, flags.license)
 			return nil
 		},
 	}
@@ -97,14 +102,11 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 	if err := addInstallFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
-
-	cmd.Flags().StringVar(&flags.adminConsolePassword, "admin-console-password", "", "Password for the Admin Console")
-	cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
-	cmd.Flags().StringVarP(&flags.licenseFile, "license", "l", "", "Path to the license file")
-	if err := cmd.MarkFlagRequired("license"); err != nil {
+	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
-	cmd.Flags().StringVar(&flags.configValues, "config-values", "", "Path to the config values to use when installing")
+
+	cmd.AddCommand(InstallRunPreflightsCmd(ctx, name))
 
 	return cmd
 }
@@ -143,6 +145,19 @@ func addInstallFlags(cmd *cobra.Command, flags *Install2CmdFlags) error {
 	return nil
 }
 
+func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *Install2CmdFlags) error {
+	cmd.Flags().StringVar(&flags.adminConsolePassword, "admin-console-password", "", "Password for the Admin Console")
+	cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
+	cmd.Flags().StringVarP(&flags.licenseFile, "license", "l", "", "Path to the license file")
+	// TODO: uncomment this when we have tests passing
+	// if err := cmd.MarkFlagRequired("license"); err != nil {
+	// 	panic(err)
+	// }
+	cmd.Flags().StringVar(&flags.configValues, "config-values", "", "Path to the config values to use when installing")
+
+	return nil
+}
+
 func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags) error {
 	if os.Getuid() != 0 {
 		return fmt.Errorf("install command must be run as root")
@@ -176,6 +191,7 @@ func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags) error {
 		}
 	}
 
+	// license file can be empty for restore
 	if flags.licenseFile != "" {
 		// validate the the license is indeed a license file
 		l, err := helpers.ParseLicense(flags.licenseFile)
@@ -196,32 +212,25 @@ func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags) error {
 		return fmt.Errorf("unable to write runtime config to disk: %w", err)
 	}
 
-	if os.Getenv("DISABLE_TELEMETRY") != "" {
-		metrics.DisableMetrics()
-	}
-
 	flags.isAirgap = flags.airgapBundle != ""
 
 	return nil
 }
 
-func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2CmdFlags) error {
-	ctx := cmd.Context()
-
+func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error {
 	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
 		return err
 	}
 
 	logrus.Debugf("materializing binaries")
 	if err := materializeFiles(flags.airgapBundle); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
-		return err
+		return fmt.Errorf("unable to materialize files: %w", err)
 	}
 
 	logrus.Debugf("copy license file to %s", flags.dataDir)
 	if err := copyLicenseFileToDataDir(flags.licenseFile, flags.dataDir); err != nil {
 		// We have decided not to report this error
-		logrus.Warnf("unable to copy license file to %s: %v", flags.dataDir, err)
+		logrus.Warnf("Unable to copy license file to %s: %v", flags.dataDir, err)
 	}
 
 	logrus.Debugf("configuring sysctl")
@@ -234,37 +243,23 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
-	var replicatedAPIURL, proxyRegistryURL string
-	if flags.license != nil {
-		replicatedAPIURL = flags.license.Spec.Endpoint
-		proxyRegistryURL = fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
-	}
-
 	logrus.Debugf("running host preflights")
-	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
-		ReplicatedAPIURL:     replicatedAPIURL,
-		ProxyRegistryURL:     proxyRegistryURL,
-		Proxy:                flags.proxy,
-		PodCIDR:              flags.cidrCfg.PodCIDR,
-		ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
-		GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
-		PrivateCAs:           flags.privateCAs,
-		IsAirgap:             flags.isAirgap,
-		SkipHostPreflights:   flags.skipHostPreflights,
-		IgnoreHostPreflights: flags.ignoreHostPreflights,
-		AssumeYes:            flags.assumeYes,
-	}); err != nil {
-		if err == preflights.ErrPreflightsHaveFail {
-			return ErrNothingElseToAdd
-		}
-		return fmt.Errorf("unable to prepare and run preflights: %w", err)
+	if err := runInstallPreflights(ctx, flags); err != nil {
+		return fmt.Errorf("unable to run preflights: %w", err)
 	}
 
 	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, nil)
 	if err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
-		return err
+		return fmt.Errorf("unable to install cluster: %w", err)
 	}
+
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+
+	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
+	defer logKubernetesErrors(errCh)
 
 	disasterRecoveryEnabled, err := helpers.DisasterRecoveryEnabled(flags.license)
 	if err != nil {
@@ -273,8 +268,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 
 	installObject, err := recordInstallation(ctx, flags, k0sCfg, disasterRecoveryEnabled)
 	if err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
-		return err
+		return fmt.Errorf("unable to record installation: %w", err)
 	}
 
 	// TODO (@salah): update installation status to reflect what's happening
@@ -301,35 +295,29 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 			return kotscli.Install(opts, msg)
 		},
 	}); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
-		return err
+		return fmt.Errorf("unable to install addons: %w", err)
 	}
 
 	logrus.Debugf("installing extensions")
 	if err := extensions.Install(ctx, flags.isAirgap); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
-		return err
+		return fmt.Errorf("unable to install extensions: %w", err)
 	}
 
 	logrus.Debugf("installing manager")
 	if err := installAndEnableManager(ctx); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
-		return err
+		return fmt.Errorf("unable to install manager: %w", err)
 	}
 
 	// mark that the installation is installed as everything has been applied
-	installObject.Status.State = ecv1beta1.InstallationStateInstalled
-	if err := updateInstallation(ctx, installObject); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
-		return err
+	if err := setInstallationState(ctx, installObject, ecv1beta1.InstallationStateInstalled); err != nil {
+		return fmt.Errorf("unable to update installation: %w", err)
 	}
 
 	if err = support.CreateHostSupportBundle(); err != nil {
-		logrus.Warnf("unable to create host support bundle: %v", err)
+		logrus.Warnf("Unable to create host support bundle: %v", err)
 	}
 
 	if err := printSuccessMessage(flags.license, flags.networkInterface); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -348,13 +336,9 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 		return err
 	}
 
-	metrics.ReportApplyStarted(ctx, flags.licenseFile)
-
 	logrus.Debugf("checking license matches")
 	license, err := getLicenseFromFilepath(flags.licenseFile)
 	if err != nil {
-		metricErr := fmt.Errorf("unable to get license: %w", err)
-		metrics.ReportApplyFinished(ctx, "", flags.license, metricErr)
 		return err // do not return the metricErr, as we want the user to see the error message without a prefix
 	}
 	if flags.isAirgap {
@@ -367,7 +351,6 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	if !flags.isAirgap {
 		if err := maybePromptForAppUpdate(ctx, prompts.New(), license, flags.assumeYes); err != nil {
 			if errors.Is(err, ErrNothingElseToAdd) {
-				metrics.ReportApplyFinished(ctx, "", flags.license, err)
 				return err
 			}
 			// If we get an error other than ErrNothingElseToAdd, we warn and continue as
@@ -377,7 +360,6 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	}
 
 	if err := preflights.ValidateApp(); err != nil {
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -404,9 +386,88 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 		}
 	}
 	if flags.adminConsolePassword == "" {
-		err := fmt.Errorf("no admin console password")
-		metrics.ReportApplyFinished(ctx, "", flags.license, err)
-		return err
+		return fmt.Errorf("no admin console password")
+	}
+
+	return nil
+}
+
+func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
+	rel, err := release.GetChannelRelease()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
+	}
+
+	// handle the three cases that do not require parsing the license file
+	// 1. no release and no license, which is OK
+	// 2. no license and a release, which is not OK
+	// 3. a license and no release, which is not OK
+	if rel == nil && licenseFile == "" {
+		// no license and no release, this is OK
+		return nil, nil
+	} else if rel == nil && licenseFile != "" {
+		// license is present but no release, this means we would install without vendor charts and k0s overrides
+		return nil, fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
+	} else if rel != nil && licenseFile == "" {
+		// release is present but no license, this is not OK
+		return nil, fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
+	}
+
+	license, err := helpers.ParseLicense(licenseFile)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
+	}
+
+	// Check if the license matches the application version data
+	if rel.AppSlug != license.Spec.AppSlug {
+		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
+		return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
+	}
+
+	// Ensure the binary channel actually is present in the supplied license
+	if err := checkChannelExistence(license, rel); err != nil {
+		return nil, err
+	}
+
+	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
+		// read the expiration date, and check it against the current date
+		expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
+		if err != nil {
+			return nil, fmt.Errorf("parse expiration date: %w", err)
+		}
+		if time.Now().After(expiration) {
+			return nil, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
+		}
+	}
+
+	if !license.Spec.IsEmbeddedClusterDownloadEnabled {
+		return nil, fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
+	}
+
+	return license, nil
+}
+
+// checkChannelExistence verifies that a channel exists in a supplied license, returning a user-friendly
+// error message actually listing available channels, if it does not.
+func checkChannelExistence(license *kotsv1beta1.License, rel *release.ChannelRelease) error {
+	var allowedChannels []string
+	channelExists := false
+
+	if len(license.Spec.Channels) == 0 { // support pre-multichannel licenses
+		allowedChannels = append(allowedChannels, fmt.Sprintf("%s (%s)", license.Spec.ChannelName, license.Spec.ChannelID))
+		channelExists = license.Spec.ChannelID == rel.ChannelID
+	} else {
+		for _, channel := range license.Spec.Channels {
+			allowedChannels = append(allowedChannels, fmt.Sprintf("%s (%s)", channel.ChannelSlug, channel.ChannelID))
+			if channel.ChannelID == rel.ChannelID {
+				channelExists = true
+			}
+		}
+	}
+
+	if !channelExists {
+		return fmt.Errorf("binary channel %s (%s) not present in license, channels allowed by license are: %s",
+			rel.ChannelID, rel.ChannelSlug, strings.Join(allowedChannels, ", "))
 	}
 
 	return nil
@@ -415,7 +476,7 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 func verifyChannelRelease(cmdName string, isAirgap bool, assumeYes bool) error {
 	channelRelease, err := release.GetChannelRelease()
 	if err != nil {
-		return fmt.Errorf("unable to read channel release data: %w", err)
+		return fmt.Errorf("read channel release data: %w", err)
 	}
 
 	if channelRelease != nil && channelRelease.Airgap && !isAirgap && !assumeYes {
@@ -443,6 +504,40 @@ func verifyNoInstallation(name string, cmdName string) error {
 	return nil
 }
 
+func materializeFiles(airgapBundle string) error {
+	mat := spinner.Start()
+	defer mat.Close()
+	mat.Infof("Materializing files")
+
+	materializer := goods.NewMaterializer()
+	if err := materializer.Materialize(); err != nil {
+		return fmt.Errorf("materialize binaries: %w", err)
+	}
+	if err := support.MaterializeSupportBundleSpec(); err != nil {
+		return fmt.Errorf("materialize support bundle spec: %w", err)
+	}
+
+	if airgapBundle != "" {
+		mat.Infof("Materializing airgap installation files")
+
+		// read file from path
+		rawfile, err := os.Open(airgapBundle)
+		if err != nil {
+			return fmt.Errorf("failed to open airgap file: %w", err)
+		}
+		defer rawfile.Close()
+
+		if err := airgap.MaterializeAirgap(rawfile); err != nil {
+			err = fmt.Errorf("materialize airgap files: %w", err)
+			return err
+		}
+	}
+
+	mat.Infof("Host files materialized!")
+
+	return nil
+}
+
 func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
@@ -451,25 +546,21 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 
 	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides, mutate)
 	if err != nil {
-		err := fmt.Errorf("unable to create config file: %w", err)
-		return nil, err
+		return nil, fmt.Errorf("create config file: %w", err)
 	}
 	logrus.Debugf("creating systemd unit files")
 	if err := createSystemdUnitFiles(false, proxy); err != nil {
-		err := fmt.Errorf("unable to create systemd unit files: %w", err)
-		return nil, err
+		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
 	logrus.Debugf("installing k0s")
 	if err := k0s.Install(networkInterface); err != nil {
-		err := fmt.Errorf("unable to install cluster: %w", err)
-		return nil, err
+		return nil, fmt.Errorf("install cluster: %w", err)
 	}
 	loading.Infof("Waiting for %s node to be ready", runtimeconfig.BinaryName())
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
-		err := fmt.Errorf("unable to wait for node: %w", err)
-		return nil, err
+		return nil, fmt.Errorf("wait for node: %w", err)
 	}
 
 	// init the kubeconfig
@@ -519,15 +610,16 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 		}
 	}
 
-	installation := ecv1beta1.Installation{
+	installation := &ecv1beta1.Installation{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: ecv1beta1.GroupVersion.String(),
 			Kind:       "Installation",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("embedded-cluster-installation-%s", time.Now().Format("20060102150405")),
+			Name: time.Now().Format("20060102150405"),
 		},
 		Spec: ecv1beta1.InstallationSpec{
+			SourceType:                ecv1beta1.InstallationSourceTypeCRD,
 			ClusterID:                 metrics.ClusterID().String(),
 			MetricsBaseURL:            metrics.BaseURL(flags.license),
 			AirGap:                    flags.isAirgap,
@@ -537,43 +629,51 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 			RuntimeConfig:             runtimeconfig.Get(),
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                runtimeconfig.BinaryName(),
-			SourceType:                ecv1beta1.InstallationSourceTypeCRD,
 			LicenseInfo: &ecv1beta1.LicenseInfo{
 				IsDisasterRecoverySupported: disasterRecoveryEnabled,
 			},
 		},
-		Status: ecv1beta1.InstallationStatus{
-			State: ecv1beta1.InstallationStateKubernetesInstalled,
-		},
 	}
-	if err := kubeutils.CreateInstallation(ctx, kcli, &installation); err != nil {
+	if err := kcli.Create(ctx, installation); err != nil {
 		return nil, fmt.Errorf("create installation: %w", err)
 	}
 
-	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, &installation); err != nil {
-		return nil, fmt.Errorf("update installation status: %w", err)
+	// the kubernetes api does not allow us to set the state of an object when creating it
+	err = setInstallationState(ctx, installation, ecv1beta1.InstallationStateKubernetesInstalled)
+	if err != nil {
+		return nil, fmt.Errorf("set installation state to KubernetesInstalled: %w", err)
 	}
 
 	loading.Infof("Types created!")
-	return &installation, nil
+	return installation, nil
 }
 
-func updateInstallation(ctx context.Context, install *ecv1beta1.Installation) error {
+func setInstallationState(ctx context.Context, installation *ecv1beta1.Installation, state string) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("create kube client: %w", err)
 	}
 
-	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, install); err != nil {
-		return fmt.Errorf("update installation")
-	}
-	return nil
+	// retry on all errors
+	return retry.OnError(retry.DefaultRetry, func(_ error) bool { return true }, func() error {
+		err := kcli.Get(ctx, client.ObjectKey{Name: installation.Name}, installation)
+		if err != nil {
+			return fmt.Errorf("get installation: %w", err)
+		}
+
+		installation.Status.State = state
+
+		if err := kcli.Status().Update(ctx, installation); err != nil {
+			return fmt.Errorf("update installation status: %w", err)
+		}
+		return nil
+	})
 }
 
 func createECNamespace(ctx context.Context, kcli client.Client) error {
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "embedded-cluster",
+			Name: runtimeconfig.EmbeddedClusterNamespace,
 		},
 	}
 	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
@@ -673,9 +773,26 @@ func getAdminConsoleURL(networkInterface string, port int) string {
 		var err error
 		ipaddr, err = netutils.FirstValidAddress(networkInterface)
 		if err != nil {
-			logrus.Errorf("unable to determine node IP address: %v", err)
+			logrus.Errorf("Unable to determine node IP address: %v", err)
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
 	return fmt.Sprintf("http://%s:%v", ipaddr, port)
+}
+
+// logKubernetesErrors prints errors that may be related to k8s not coming up that manifest as
+// addons failing to install. We run this in the background as waiting for kubernetes can take
+// minutes and we can install addons in parallel.
+func logKubernetesErrors(errCh <-chan error) {
+	for {
+		select {
+		case err, ok := <-errCh:
+			if !ok {
+				return
+			}
+			logrus.Errorf("Infrastructure failed to become ready: %v", err)
+		default:
+			return
+		}
+	}
 }

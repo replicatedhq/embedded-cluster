@@ -13,5 +13,10 @@ func (a *EmbeddedClusterOperator) prepare() error {
 }
 
 func (a *EmbeddedClusterOperator) generateHelmValues() error {
+	// TODO: add this back
+	// helmValues["kotsVersion"] = adminconsole.Metadata.Version
+	// helmValues["embeddedClusterVersion"] = versions.Version
+	// helmValues["embeddedClusterK0sVersion"] = versions.K0sVersion
+
 	return nil
 }

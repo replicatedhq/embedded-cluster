@@ -7,6 +7,7 @@ import (
 	"io"
 	"regexp"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -661,13 +662,22 @@ func (k *KubeUtils) WaitForKubernetes(ctx context.Context, cli client.Client) <-
 			return len(deps.Items) >= 3, nil // coredns, metrics-server, and calico-kube-controllers
 		}); err != nil {
 		errch <- fmt.Errorf("timed out waiting for deployments in kube-system: %w", err)
+		close(errch)
 		return errch
 	}
 
 	errch = make(chan error, len(deps.Items))
 
+	wg := sync.WaitGroup{}
+	wg.Add(len(deps.Items))
+	go func() {
+		wg.Wait()
+		close(errch)
+	}()
+
 	for _, dep := range deps.Items {
 		go func(depName string) {
+			defer wg.Done()
 			err := k.WaitForDeployment(ctx, cli, "kube-system", depName, nil)
 			if err != nil {
 				errch <- fmt.Errorf("%s failed to become healthy: %w", depName, err)
