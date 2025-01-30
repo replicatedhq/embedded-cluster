@@ -614,11 +614,11 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("failed to copy host preflight results: %w", err)
 	}
 
-	//// cleanup openebs stateful pods
-	//if err := r.ReconcileOpenebs(ctx, in); err != nil {
-	//	return ctrl.Result{}, fmt.Errorf("failed to reconcile openebs: %w", err)
-	//}
-	//
+	// cleanup openebs stateful pods
+	if err := r.ReconcileOpenebs(ctx, in); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to reconcile openebs: %w", err)
+	}
+
 	//// reconcile helm chart dependencies including secrets.
 	//if err := r.ReconcileRegistry(ctx, in); err != nil {
 	//	return ctrl.Result{}, fmt.Errorf("failed to pre-reconcile helm charts: %w", err)
