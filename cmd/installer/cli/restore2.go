@@ -544,6 +544,24 @@ func runRestoreExtensions(ctx context.Context, flags Install2CmdFlags) error {
 }
 
 func runRestoreApp(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+	logrus.Debugf("setting installation status to installed")
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("create kube client: %w", err)
+	}
+
+	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get latest installation: %w", err)
+	}
+
+	err = kubeutils.UpdateInstallationStatus(ctx, kcli, in, func(status *ecv1beta1.InstallationStatus) {
+		status.SetState(ecv1beta1.InstallationStateInstalled, "Installed", nil)
+	})
+	if err != nil {
+		return fmt.Errorf("update installation status: %w", err)
+	}
+
 	logrus.Debugf("restoring app from backup %q", backupToRestore.GetName())
 	if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentApp, true); err != nil {
 		return err

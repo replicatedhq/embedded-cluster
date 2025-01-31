@@ -238,14 +238,14 @@ func CreateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.In
 	return cli.Create(ctx, in)
 }
 
-func UpdateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, fn func(in *ecv1beta1.Installation)) error {
+func UpdateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, mutate func(in *ecv1beta1.Installation)) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := cli.Get(ctx, client.ObjectKey{Namespace: in.Namespace, Name: in.Name}, in)
 		if err != nil {
 			return fmt.Errorf("get installation before updating: %w", err)
 		}
 
-		fn(in)
+		mutate(in)
 
 		err = cli.Update(ctx, in)
 		if err != nil {
@@ -255,14 +255,14 @@ func UpdateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.In
 	})
 }
 
-func UpdateInstallationStatus(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, fn func(status *ecv1beta1.InstallationStatus)) error {
+func UpdateInstallationStatus(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, mutate func(status *ecv1beta1.InstallationStatus)) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := cli.Get(ctx, client.ObjectKey{Namespace: in.Namespace, Name: in.Name}, in)
 		if err != nil {
 			return fmt.Errorf("get installation before updating status: %w", err)
 		}
 
-		fn(&in.Status)
+		mutate(&in.Status)
 
 		err = cli.Status().Update(ctx, in)
 		if err != nil {

@@ -31,24 +31,31 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 		copiedValues["isAirgap"] = "false"
 	}
 
+	extraEnv := []map[string]interface{}{
+		{
+			"name":  "ENABLE_IMPROVED_DR",
+			"value": "true",
+		},
+	}
+
 	if a.Proxy != nil {
-		copiedValues["extraEnv"] = []map[string]interface{}{
-			{
+		extraEnv = append(extraEnv,
+			map[string]interface{}{
 				"name":  "HTTP_PROXY",
 				"value": a.Proxy.HTTPProxy,
 			},
-			{
+			map[string]interface{}{
 				"name":  "HTTPS_PROXY",
 				"value": a.Proxy.HTTPSProxy,
 			},
-			{
+			map[string]interface{}{
 				"name":  "NO_PROXY",
 				"value": a.Proxy.NoProxy,
 			},
-		}
-	} else {
-		delete(copiedValues, "extraEnv")
+		)
 	}
+
+	copiedValues["extraEnv"] = extraEnv
 
 	copiedValues, err = helm.SetValue(copiedValues, "kurlProxy.nodePort", runtimeconfig.AdminConsolePort())
 	if err != nil {
