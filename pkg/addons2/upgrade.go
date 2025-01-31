@@ -3,6 +3,7 @@ package addons2
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"runtime/debug"
 
 	"github.com/pkg/errors"
@@ -110,44 +111,34 @@ func upgradeAddOn(ctx context.Context, hcli *helm.Helm, kcli client.Client, in *
 		return errors.Wrap(err, "get condition status")
 	}
 	if conditionStatus == metav1.ConditionTrue {
-		fmt.Printf("%s is ready\n", addon.Name())
+		slog.Info(addon.Name() + " is ready!")
 		return nil
 	}
 
-	fmt.Printf("Upgrading %s\n", addon.Name())
+	slog.Info("Upgrading", "addon", addon.Name())
 
 	// mark as processing
-	if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
-		Type:   conditionName(addon),
-		Status: metav1.ConditionFalse,
-		Reason: "Upgrading",
-	}); err != nil {
-		return errors.Wrap(err, "set condition status")
+	if err := setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionFalse, "Upgrading", ""); err != nil {
+		return errors.Wrap(err, "failed to set condition status")
 	}
 
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("upgrading %s recovered from panic: %v: %s", addon.Name(), r, string(debug.Stack()))
 		}
-		if finalErr == nil {
-			// mark as processed successfully
-			if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
-				Type:   conditionName(addon),
-				Status: metav1.ConditionTrue,
-				Reason: "Upgraded",
-			}); err != nil {
-				fmt.Printf("failed to set condition status: %v", err)
-			}
-		} else {
-			// mark as failed
-			if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
-				Type:    conditionName(addon),
-				Status:  metav1.ConditionFalse,
-				Reason:  "UpgradeFailed",
-				Message: helpers.CleanErrorMessage(finalErr),
-			}); err != nil {
-				fmt.Printf("failed to set condition status: %v", err)
-			}
+
+		status := metav1.ConditionTrue
+		reason := "Upgraded"
+		message := ""
+
+		if finalErr != nil {
+			status = metav1.ConditionFalse
+			reason = "UpgradeFailed"
+			message = helpers.CleanErrorMessage(finalErr)
+		}
+
+		if err := setCondition(ctx, kcli, in, conditionName(addon), status, reason, message); err != nil {
+			slog.Error("Failed to set condition status", "error", err)
 		}
 	}()
 
@@ -158,10 +149,19 @@ func upgradeAddOn(ctx context.Context, hcli *helm.Helm, kcli client.Client, in *
 		return errors.Wrap(err, addon.Name())
 	}
 
-	fmt.Printf("%s is ready\n", addon.Name())
+	slog.Info(addon.Name() + " is ready!")
 	return nil
 }
 
 func conditionName(addon types.AddOn) string {
 	return fmt.Sprintf("%s-%s", addon.Namespace(), addon.ReleaseName())
+}
+
+func setCondition(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, conditionType string, status metav1.ConditionStatus, reason, message string) error {
+	return k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
+		Type:    conditionType,
+		Status:  status,
+		Reason:  reason,
+		Message: message,
+	})
 }

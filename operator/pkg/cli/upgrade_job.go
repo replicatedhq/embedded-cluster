@@ -114,11 +114,7 @@ func attemptUpgrade(ctx context.Context, kcli client.Client, in *ecv1beta1.Insta
 		}
 	}()
 
-	logf := func(format string, args ...any) {
-		fmt.Println(fmt.Sprintf(format, args...))
-	}
-
-	if err := migratev2.Run(ctx, logf, kcli, in); err != nil {
+	if err := migratev2.Run(ctx, kcli, in); err != nil {
 		return fmt.Errorf("failed to run v2 migration: %w", err)
 	}
 

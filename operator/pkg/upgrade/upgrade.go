@@ -3,6 +3,7 @@ package upgrade
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"time"
 
@@ -28,6 +29,8 @@ import (
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
 func Upgrade(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+	slog.Info("Upgrading Embedded Cluster", "version", in.Spec.Config.Version)
+
 	// Augment the installation with data dirs that may not be present in the previous version.
 	// This is important to do ahead of updating the cluster config.
 	// We still cannot update the installation object as the CRDs are not updated yet.
@@ -36,7 +39,6 @@ func Upgrade(ctx context.Context, cli client.Client, in *ecv1beta1.Installation)
 		return fmt.Errorf("override installation data dirs: %w", err)
 	}
 
-	fmt.Printf("Upgrading to version %s\n", in.Spec.Config.Version)
 	err = upgradeK0s(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
@@ -50,19 +52,19 @@ func Upgrade(ctx context.Context, cli client.Client, in *ecv1beta1.Installation)
 		return fmt.Errorf("cluster config update: %w", err)
 	}
 
-	fmt.Printf("Upgrading addons\n")
+	slog.Info("Upgrading addons")
 	err = upgradeAddons(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 
-	fmt.Printf("Upgrading extensions\n")
+	slog.Info("Upgrading extensions")
 	err = upgradeExtensions(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("upgrade extensions: %w", err)
 	}
 
-	fmt.Printf("Re-applying installation\n")
+	slog.Info("Re-applying installation")
 	// re-apply the installation as the CRDs are up-to-date.
 	err = reApplyInstallation(ctx, cli, in)
 	if err != nil {
@@ -71,7 +73,7 @@ func Upgrade(ctx context.Context, cli client.Client, in *ecv1beta1.Installation)
 
 	err = support.CreateHostSupportBundle()
 	if err != nil {
-		logrus.Warnf("Failed to upgrade host support bundle: %v", err)
+		logrus.Warnf("upgrade host support bundle: %v", err)
 	}
 
 	err = k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateInstalled, "Installed")
@@ -97,7 +99,7 @@ func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, i
 func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
 	meta, err := release.MetadataFor(ctx, in, cli)
 	if err != nil {
-		return fmt.Errorf("failed to get release metadata: %w", err)
+		return fmt.Errorf("get release metadata: %w", err)
 	}
 
 	// check if the k0s version is the same as the current version
@@ -112,7 +114,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installati
 		return nil
 	}
 
-	fmt.Printf("Upgrading k0s to version %s\n", desiredVersion)
+	slog.Info("Upgrading k0s", "version", desiredVersion)
 
 	if err := k8sutil.SetInstallationState(ctx, cli, in.Name, ecv1beta1.InstallationStateInstalling, "Upgrading Kubernetes", ""); err != nil {
 		return fmt.Errorf("update installation status: %w", err)
@@ -120,12 +122,12 @@ func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installati
 
 	// create an autopilot upgrade plan if one does not yet exist
 	if err := createAutopilotPlan(ctx, cli, desiredVersion, in, meta); err != nil {
-		return fmt.Errorf("failed to create autpilot upgrade plan: %w", err)
+		return fmt.Errorf("create autpilot upgrade plan: %w", err)
 	}
 
 	plan, err := waitForAutopilotPlan(ctx, cli)
 	if err != nil {
-		return fmt.Errorf("failed to wait for autpilot plan: %w", err)
+		return fmt.Errorf("wait for autpilot plan: %w", err)
 	}
 
 	if autopilot.HasPlanFailed(plan) {
@@ -161,9 +163,9 @@ func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installati
 	}
 
 	// the plan has been completed, so we can move on - kubernetes is now upgraded
-	fmt.Printf("Upgrade to %s completed successfully\n", desiredVersion)
+	slog.Info("Upgrade completed successfully", "version", desiredVersion)
 	if err := cli.Delete(ctx, &plan); err != nil {
-		return fmt.Errorf("failed to delete successful upgrade plan: %w", err)
+		return fmt.Errorf("delete successful upgrade plan: %w", err)
 	}
 
 	err = k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateKubernetesInstalled, "Kubernetes upgraded")
@@ -200,7 +202,7 @@ func updateClusterConfig(ctx context.Context, cli client.Client) error {
 	if err != nil {
 		return fmt.Errorf("update cluster config: %w", err)
 	}
-	fmt.Println("Updated cluster config with new images")
+	slog.Info("Updated cluster config with new images")
 
 	return nil
 }
@@ -258,16 +260,16 @@ func createAutopilotPlan(ctx context.Context, cli client.Client, desiredVersion 
 	var plan apv1b2.Plan
 	okey := client.ObjectKey{Name: "autopilot"}
 	if err := cli.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to get upgrade plan: %w", err)
+		return fmt.Errorf("get upgrade plan: %w", err)
 	} else if errors.IsNotFound(err) {
 		// if the kubernetes version has changed we create an upgrade command
-		fmt.Printf("Starting k0s autopilot upgrade plan to version %s\n", desiredVersion)
+		slog.Info("Starting k0s autopilot upgrade plan", "version", desiredVersion)
 
 		// there is no autopilot plan in the cluster so we are free to
 		// start our own plan. here we link the plan to the installation
 		// by its name.
 		if err := StartAutopilotUpgrade(ctx, cli, in, meta); err != nil {
-			return fmt.Errorf("failed to start upgrade: %w", err)
+			return fmt.Errorf("start upgrade: %w", err)
 		}
 	}
 	return nil
