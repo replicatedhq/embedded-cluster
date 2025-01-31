@@ -1490,17 +1490,16 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context) error {
 		in.Spec.RuntimeConfig = &ecv1beta1.RuntimeConfigSpec{}
 	}
 
-	// We allow the user to override the port with a flag to the restore command.
-	in.Spec.RuntimeConfig.LocalArtifactMirror.Port = runtimeconfig.LocalArtifactMirrorPort()
-
-	err = kcli.Update(ctx, in)
+	err = kubeutils.UpdateInstallation(ctx, kcli, in, func(in *ecv1beta1.Installation) {
+		in.Spec.RuntimeConfig.LocalArtifactMirror.Port = runtimeconfig.LocalArtifactMirrorPort()
+	})
 	if err != nil {
 		return fmt.Errorf("update installation: %w", err)
 	}
 
-	in.Status.State = ecv1beta1.InstallationStateKubernetesInstalled
-
-	err = kcli.Status().Update(ctx, in)
+	err = kubeutils.UpdateInstallationStatus(ctx, kcli, in, func(status *ecv1beta1.InstallationStatus) {
+		status.SetState(ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed", nil)
+	})
 	if err != nil {
 		return fmt.Errorf("update installation status: %w", err)
 	}

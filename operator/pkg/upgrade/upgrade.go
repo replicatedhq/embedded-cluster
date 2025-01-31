@@ -239,7 +239,7 @@ func upgradeExtensions(ctx context.Context, cli client.Client, in *ecv1beta1.Ins
 		return fmt.Errorf("set installation state: %w", err)
 	}
 
-	previous, err := kubeutils.GetPreviousCRDInstallation(ctx, cli, in)
+	previous, err := kubeutils.GetPreviousInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("get previous installation: %w", err)
 	}
