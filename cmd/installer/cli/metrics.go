@@ -36,7 +36,9 @@ func (r *InstallReporter) ReportInstallationFailed(ctx context.Context, err erro
 }
 
 func (r *InstallReporter) ReportPreflightsFailed(ctx context.Context, output preflightstypes.Output, bypassed bool) {
-	metrics.ReportPreflightsFailed(ctx, r.license.Spec.Endpoint, r.clusterID, output, bypassed, r.cmd)
+	if r.license != nil && r.license.Spec.Endpoint != "" {
+		metrics.ReportPreflightsFailed(ctx, r.license.Spec.Endpoint, r.clusterID, output, bypassed, r.cmd)
+	}
 }
 
 type JoinReporter struct {
