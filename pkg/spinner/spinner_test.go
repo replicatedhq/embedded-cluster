@@ -137,3 +137,22 @@ func TestLineBreak(t *testing.T) {
 	assert.Contains(t, buf.String(), "ping 7")
 	assert.Contains(t, buf.String(), "test 99")
 }
+
+func TestSpinnerNoTTY(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	loading := Start(
+		WithWriter(WriteTo(buf)),
+		func(m *MessageWriter) {
+			m.tty = false
+		},
+	)
+
+	loading.Infof("Installing")
+	time.Sleep(time.Second)
+	loading.Infof("Waiting")
+	time.Sleep(time.Second)
+	loading.Infof("Done")
+	loading.Close()
+
+	assert.Equal(t, buf.String(), "○  Installing\n○  Waiting\n○  Done\n✔  Done\n")
+}
