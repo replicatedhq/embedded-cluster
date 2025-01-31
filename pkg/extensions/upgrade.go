@@ -86,7 +86,7 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 		actionEd = action + "ed"
 	} else if action == actionUpgrade {
 		actionIng = "Upgrading"
-		actionEd = "upgraded"
+		actionEd = "Upgraded"
 	}
 	fmt.Printf("%s %s\n", actionIng, ext.Name)
 
