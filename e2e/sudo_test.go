@@ -15,6 +15,7 @@ func TestCommandsRequireSudo(t *testing.T) {
 		Nodes:               1,
 		CreateRegularUser:   true,
 		Image:               "debian/12",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -29,12 +30,13 @@ func TestCommandsRequireSudo(t *testing.T) {
 		{"embedded-cluster", "reset", "--force"},
 		{"embedded-cluster", "node", "reset", "--force"},
 		{"embedded-cluster", "shell"},
-		{"embedded-cluster", "install", "--yes"},
+		{"embedded-cluster", "install", "--yes", "--license", "/assets/license.yaml"},
 		{"embedded-cluster", "restore"},
 	} {
 		t.Logf("%s: running %q as regular user", time.Now().Format(time.RFC3339), strings.Join(cmd, "_"))
 		stdout, stderr, err := tc.RunRegularUserCommandOnNode(t, 0, cmd)
 		if err == nil {
+			t.Logf("stdout:\n%s\nstderr:%s\n", stdout, stderr)
 			t.Fatalf("expected error running `%v` as regular user, got none", cmd)
 		}
 		if !strings.Contains(stderr, "command must be run as root") {
