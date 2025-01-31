@@ -2,8 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"log"
-
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
@@ -42,7 +40,7 @@ func MigrateV2Cmd() *cobra.Command {
 				return fmt.Errorf("failed to create kubernetes client: %w", err)
 			}
 
-			err = migratev2.Run(ctx, log.Printf, cli, installation)
+			err = migratev2.Run(ctx, cli, installation)
 			if err != nil {
 				return fmt.Errorf("failed to run v2 migration: %w", err)
 			}
