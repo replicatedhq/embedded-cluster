@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -12,11 +13,40 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// ErrorNothingElseToAdd is an error returned when there is nothing else to add to the screen. This
+// is useful when we want to exit an error from a function here but don't want to print anything
+// else (possibly because we have already printed the necessary data to the screen).
+type ErrorNothingElseToAdd struct {
+	Err error
+}
+
+func (e ErrorNothingElseToAdd) Error() string {
+	return e.Err.Error()
+}
+
+func NewErrorNothingElseToAdd(err error) ErrorNothingElseToAdd {
+	return ErrorNothingElseToAdd{
+		Err: err,
+	}
+}
+
+func InitAndExecute(ctx context.Context, name string) {
+	cmd := RootCmd(ctx, name)
+	err := cmd.Execute()
+	if err != nil {
+		if !errors.As(err, &ErrorNothingElseToAdd{}) {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		os.Exit(1)
+	}
+}
+
 func RootCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          name,
-		Short:        name,
-		SilenceUsage: true,
+		Use:           name,
+		Short:         name,
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if dryrun.Enabled() {
 				dryrun.RecordFlags(cmd.Flags())

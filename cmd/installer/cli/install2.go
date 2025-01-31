@@ -73,11 +73,9 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 	var flags Install2CmdFlags
 
 	cmd := &cobra.Command{
-		Use:           "install2",
-		Short:         fmt.Sprintf("Experimental installer for %s", name),
-		Hidden:        true,
-		SilenceUsage:  true,
-		SilenceErrors: true,
+		Use:    "install2",
+		Short:  fmt.Sprintf("Experimental installer for %s", name),
+		Hidden: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall2(cmd, &flags); err != nil {
 				return err
@@ -89,12 +87,14 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			metrics.ReportInstallationStarted(ctx, flags.license)
-			if err := runInstall2(cmd.Context(), name, flags); err != nil {
-				metrics.ReportInstallationFailed(ctx, flags.license, err)
+			clusterID := metrics.ClusterID()
+			metricsReporter := NewInstallReporter(flags.license, clusterID, cmd.CalledAs())
+			metricsReporter.ReportInstallationStarted(ctx)
+			if err := runInstall2(cmd.Context(), name, flags, metricsReporter); err != nil {
+				metricsReporter.ReportInstallationFailed(ctx, err)
 				return err
 			}
-			metrics.ReportInstallationSucceeded(ctx, flags.license)
+			metricsReporter.ReportInstallationSucceeded(ctx)
 			return nil
 		},
 	}
@@ -217,8 +217,12 @@ func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags) error {
 	return nil
 }
 
-func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error {
+func runInstall2(ctx context.Context, name string, flags Install2CmdFlags, metricsReporter preflights.MetricsReporter) error {
 	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
+		return err
+	}
+
+	if err := ensureAdminConsolePassword(&flags); err != nil {
 		return err
 	}
 
@@ -243,9 +247,12 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags) error
 		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
-	logrus.Debugf("running host preflights")
-	if err := runInstallPreflights(ctx, flags); err != nil {
-		return fmt.Errorf("unable to run preflights: %w", err)
+	logrus.Debugf("running install preflights")
+	if err := runInstallPreflights(ctx, flags, metricsReporter); err != nil {
+		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
+			return NewErrorNothingElseToAdd(err)
+		}
+		return fmt.Errorf("unable to run install preflights: %w", err)
 	}
 
 	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, nil)
@@ -339,7 +346,7 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	logrus.Debugf("checking license matches")
 	license, err := getLicenseFromFilepath(flags.licenseFile)
 	if err != nil {
-		return err // do not return the metricErr, as we want the user to see the error message without a prefix
+		return err
 	}
 	if flags.isAirgap {
 		logrus.Debugf("checking airgap bundle matches binary")
@@ -350,11 +357,11 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 
 	if !flags.isAirgap {
 		if err := maybePromptForAppUpdate(ctx, prompts.New(), license, flags.assumeYes); err != nil {
-			if errors.Is(err, ErrNothingElseToAdd) {
+			if errors.As(err, &ErrorNothingElseToAdd{}) {
 				return err
 			}
-			// If we get an error other than ErrNothingElseToAdd, we warn and continue as
-			// this check is not critical.
+			// If we get an error other than ErrorNothingElseToAdd, we warn and continue as this
+			// check is not critical.
 			logrus.Debugf("WARNING: Failed to check for newer app versions: %v", err)
 		}
 	}
@@ -363,14 +370,14 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 		return err
 	}
 
-	if flags.adminConsolePassword != "" {
-		if !validateAdminConsolePassword(flags.adminConsolePassword, flags.adminConsolePassword) {
-			return fmt.Errorf("unable to set the Admin Console password")
-		}
-	} else {
+	return nil
+}
+
+func ensureAdminConsolePassword(flags *Install2CmdFlags) error {
+	if flags.adminConsolePassword == "" {
 		// no password was provided
 		if flags.assumeYes {
-			logrus.Infof("The Admin Console password is set to %s", "password")
+			logrus.Infof("The Admin Console password is set to %q", "password")
 			flags.adminConsolePassword = "password"
 		} else {
 			maxTries := 3
@@ -380,13 +387,15 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 
 				if validateAdminConsolePassword(promptA, promptB) {
 					flags.adminConsolePassword = promptA
-					break
+					return nil
 				}
 			}
+			return NewErrorNothingElseToAdd(errors.New("password is not valid"))
 		}
 	}
-	if flags.adminConsolePassword == "" {
-		return fmt.Errorf("no admin console password")
+
+	if !validateAdminConsolePassword(flags.adminConsolePassword, flags.adminConsolePassword) {
+		return NewErrorNothingElseToAdd(errors.New("password is not valid"))
 	}
 
 	return nil
@@ -483,7 +492,8 @@ func verifyChannelRelease(cmdName string, isAirgap bool, assumeYes bool) error {
 		logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
 		logrus.Warnf("If you continue, the %s will not use an air gap bundle and will connect to the internet.", cmdName)
 		if !prompts.New().Confirm(fmt.Sprintf("Do you want to proceed with an online %s?", cmdName), false) {
-			return ErrNothingElseToAdd
+			// TODO: send aborted metrics event
+			return NewErrorNothingElseToAdd(errors.New("user aborted: air gap bundle downloaded but flag not provided"))
 		}
 	}
 	return nil
@@ -499,7 +509,7 @@ func verifyNoInstallation(name string, cmdName string) error {
 		logrus.Infof("If you want to %s, you need to remove the existing installation first.", cmdName)
 		logrus.Infof("You can do this by running the following command:")
 		logrus.Infof("\n  sudo ./%s reset\n", name)
-		return ErrNothingElseToAdd
+		return NewErrorNothingElseToAdd(errors.New("previous installation detected"))
 	}
 	return nil
 }
