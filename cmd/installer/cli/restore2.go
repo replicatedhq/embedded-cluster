@@ -1513,7 +1513,7 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context) error {
 		return fmt.Errorf("update installation: %w", err)
 	}
 
-	err = kubeutils.SetInstallationState(ctx, kcli, in, , ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed");
+	err = kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed")
 	if err != nil {
 		return fmt.Errorf("update installation status: %w", err)
 	}
