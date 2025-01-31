@@ -11,7 +11,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func WriteTo(to io.Writer) WriteFn {
+func startTest(opts ...Option) (*MessageWriter, *bytes.Buffer) {
+	buf := bytes.NewBuffer(nil)
+	opts = append(
+		[]Option{
+			WithWriter(writeTo(buf)),
+			func(m *MessageWriter) {
+				m.tty = true
+			},
+		},
+		opts...,
+	)
+	pb := Start(opts...)
+	return pb, buf
+}
+
+func writeTo(to io.Writer) WriteFn {
 	return func(format string, args ...interface{}) (int, error) {
 		fmt.Fprintf(to, format, args...)
 		return 0, nil
@@ -19,8 +34,7 @@ func WriteTo(to io.Writer) WriteFn {
 }
 
 func TestStartAndClosef(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb, buf := startTest()
 	pb.Infof("hello")
 	time.Sleep(time.Second)
 	pb.Closef("closing with this  value")
@@ -28,16 +42,14 @@ func TestStartAndClosef(t *testing.T) {
 }
 
 func TestStartAndClose(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb, buf := startTest()
 	pb.Infof("hello")
 	pb.Close()
 	assert.Contains(t, buf.String(), "hello")
 }
 
 func TestStartAndWrite(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb, buf := startTest()
 	pb.Infof("hello")
 	_, err := pb.Write([]byte("world"))
 	assert.NoError(t, err)
@@ -46,40 +58,35 @@ func TestStartAndWrite(t *testing.T) {
 }
 
 func TestStartAndTracef(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb, buf := startTest()
 	pb.Tracef("tracef")
 	pb.Close()
 	assert.Contains(t, buf.String(), "tracef")
 }
 
 func TestStartAndDebugf(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb, buf := startTest()
 	pb.Debugf("debugf")
 	pb.Close()
 	assert.Contains(t, buf.String(), "debugf")
 }
 
 func TestStartAndWarnf(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb, buf := startTest()
 	pb.Warnf("warnf")
 	pb.Close()
 	assert.Contains(t, buf.String(), "warnf")
 }
 
 func TestStartAndErrorf(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb, buf := startTest()
 	pb.Errorf("errorf")
 	pb.Close()
 	assert.Contains(t, buf.String(), "errorf")
 }
 
 func TestStartAndCloseWithError(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb, buf := startTest()
 	for i := 0; i < 1000; i++ {
 		pb.Infof("test nr %d", i)
 	}
@@ -88,7 +95,6 @@ func TestStartAndCloseWithError(t *testing.T) {
 }
 
 func TestMask(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
 	maskfn := func(s string) string {
 		if s == "test 0" {
 			return "masked 0"
@@ -98,8 +104,7 @@ func TestMask(t *testing.T) {
 		}
 		return s
 	}
-	pb := Start(
-		WithWriter(WriteTo(buf)),
+	pb, buf := startTest(
 		WithMask(maskfn),
 	)
 	pb.Infof("test 0")
@@ -110,7 +115,6 @@ func TestMask(t *testing.T) {
 }
 
 func TestLineBreak(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
 	lbreak := func(s string) (bool, string) {
 		if s == "test 3" {
 			return true, "ping 2"
@@ -120,8 +124,7 @@ func TestLineBreak(t *testing.T) {
 		}
 		return false, ""
 	}
-	pb := Start(
-		WithWriter(WriteTo(buf)),
+	pb, buf := startTest(
 		WithLineBreaker(lbreak),
 	)
 	for i := 0; i < 100; i++ {
@@ -132,8 +135,25 @@ func TestLineBreak(t *testing.T) {
 	// ✔  ping 2 (\n)
 	// ✔  ping 7 (\n)
 	// ✔  test 99 (\n)
-	assert.Equal(t, strings.Count(buf.String(), "\n"), 3)
+	assert.Equal(t, 3, strings.Count(buf.String(), "\n"))
 	assert.Contains(t, buf.String(), "ping 2")
 	assert.Contains(t, buf.String(), "ping 7")
 	assert.Contains(t, buf.String(), "test 99")
+}
+
+func TestNoTTY(t *testing.T) {
+	pb, buf := startTest(
+		func(m *MessageWriter) {
+			m.tty = false
+		},
+	)
+
+	pb.Infof("Installing")
+	time.Sleep(time.Second)
+	pb.Infof("Waiting")
+	time.Sleep(time.Second)
+	pb.Infof("Done")
+	pb.Close()
+
+	assert.Equal(t, "○  Installing\n○  Waiting\n○  Done\n✔  Done\n", buf.String())
 }
