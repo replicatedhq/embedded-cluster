@@ -83,8 +83,8 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 	var flags Install2CmdFlags
 
 	cmd := &cobra.Command{
-		Use:     "install",
-		Short:   fmt.Sprintf("Experimental installer for %s", name),
+		Use:   "install",
+		Short: fmt.Sprintf("Experimental installer for %s", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall2(cmd, &flags); err != nil {
 				return err
