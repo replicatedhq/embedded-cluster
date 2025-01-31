@@ -79,7 +79,11 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 		return nil
 	}
 
-	fmt.Printf("%sing %s\n", action, ext.Name)
+	if action == "install" || action == "uninstall" {
+		fmt.Printf("%sing %s\n", action, ext.Name)
+	} else if action == "upgrade" {
+		fmt.Printf("%supgrading %s\n", action, ext.Name)
+	}
 
 	// mark as processing
 	if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
@@ -146,6 +150,11 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 		}
 	}
 
-	fmt.Printf("%s %sed successfully\n", ext.Name, action)
+	if action == "install" || action == "upgrade" {
+		fmt.Printf("%s %sed successfully\n", ext.Name, action)
+	} else if action == "uninstall" {
+		fmt.Printf("%s uninstalled successfully\n", ext.Name)
+	}
+
 	return nil
 }
