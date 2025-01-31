@@ -53,5 +53,7 @@ func Install(ctx context.Context, isAirgap bool) error {
 		}
 	}
 
+	loading.Infof("Extensions installed!")
+
 	return nil
 }
