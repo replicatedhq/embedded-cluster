@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"

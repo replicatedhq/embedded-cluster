@@ -48,10 +48,15 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 	loading := spinner.Start()
 	defer loading.Close()
 
+	airgapChartsPath := ""
+	if isAirgap {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
+
 	hcli, err := helm.NewHelm(helm.HelmOptions{
 		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
-		AirgapPath: runtimeconfig.EmbeddedClusterChartsSubDir(),
+		AirgapPath: airgapChartsPath,
 	})
 	if err != nil {
 		return errors.Wrap(err, "create helm client")
@@ -91,9 +96,10 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 
 	// TODO (@salah): add support for end user overrides
 	ac := &adminconsole.AdminConsole{
-		IsAirgap: isAirgap,
-		IsHA:     true,
-		Proxy:    proxy,
+		IsAirgap:    isAirgap,
+		IsHA:        true,
+		Proxy:       proxy,
+		ServiceCIDR: serviceCIDR,
 	}
 	if err := ac.Upgrade(ctx, kcli, hcli, addOnOverrides(ac, cfgspec, nil)); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
