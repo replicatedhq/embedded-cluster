@@ -123,6 +123,8 @@ func upgradeAddOn(ctx context.Context, hcli *helm.Helm, kcli client.Client, in *
 		return errors.Wrap(err, "set condition status")
 	}
 
+	// TODO (@salah): handle panics
+
 	defer func() {
 		if finalErr == nil {
 			// mark as processed successfully

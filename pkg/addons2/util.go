@@ -47,6 +47,9 @@ func operatorImages(images []string) (string, string, string, error) {
 }
 
 func cleanErrorMessage(err error) string {
+	if err == nil {
+		return ""
+	}
 	msg := err.Error()
 	if len(msg) > 1024 {
 		msg = msg[:1024]

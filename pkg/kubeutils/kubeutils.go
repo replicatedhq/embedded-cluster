@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -236,33 +237,34 @@ func CreateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.In
 }
 
 func UpdateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
-	// if the installation source type is CRD (or not set), just update directly
-	if in.Spec.SourceType == "" || in.Spec.SourceType == ecv1beta1.InstallationSourceTypeCRD {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		if err := cli.Update(ctx, in); err != nil {
-			return fmt.Errorf("update crd installation: %w", err)
+			return fmt.Errorf("update installation: %w", err)
 		}
 		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("persistent conflict error, failed to update installation %s: %w", in.Name, err)
 	}
-	return fmt.Errorf("update installation: source type %q not supported", in.Spec.SourceType)
+	return nil
 }
 
 func UpdateInstallationStatus(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
-	// if the installation source type is CRD (or not set), just update directly
-	if in.Spec.SourceType == "" || in.Spec.SourceType == ecv1beta1.InstallationSourceTypeCRD {
-		updatedCRD := ecv1beta1.Installation{}
-		err := cli.Get(ctx, types.NamespacedName{Name: in.Name, Namespace: in.Namespace}, &updatedCRD)
-		if err != nil {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		updatedIn := ecv1beta1.Installation{}
+		if err := cli.Get(ctx, types.NamespacedName{Name: in.Name, Namespace: in.Namespace}, &updatedIn); err != nil {
 			return fmt.Errorf("get crd installation before updating status: %w", err)
 		}
-		updatedCRD.Status = in.Status
-		err = cli.Status().Update(ctx, &updatedCRD)
-		if err != nil {
+		updatedIn.Status = in.Status
+		if err := cli.Status().Update(ctx, &updatedIn); err != nil {
 			return fmt.Errorf("update crd installation status: %w", err)
 		}
 		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("persistent conflict error, failed to update installation %s status: %w", in.Name, err)
 	}
-
-	return fmt.Errorf("update installation status: source type %q not supported", in.Spec.SourceType)
+	return nil
 }
 
 func ListCRDInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.Installation, error) {

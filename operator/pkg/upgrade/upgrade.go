@@ -9,7 +9,7 @@ import (
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
@@ -27,7 +27,7 @@ import (
 
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
-func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+func Upgrade(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
 	// Augment the installation with data dirs that may not be present in the previous version.
 	// This is important to do ahead of updating the cluster config.
 	// We still cannot update the installation object as the CRDs are not updated yet.
@@ -74,7 +74,7 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 		logrus.Warnf("Failed to upgrade host support bundle: %v", err)
 	}
 
-	err = setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateInstalled, "Installed")
+	err = k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateInstalled, "Installed")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -82,7 +82,7 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 	return nil
 }
 
-func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*clusterv1beta1.Installation, error) {
+func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) (*ecv1beta1.Installation, error) {
 	previous, err := kubeutils.GetPreviousInstallation(ctx, cli, in)
 	if err != nil {
 		return in, fmt.Errorf("get latest installation: %w", err)
@@ -94,7 +94,7 @@ func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, i
 	return &next, nil
 }
 
-func upgradeK0s(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
 	meta, err := release.MetadataFor(ctx, in, cli)
 	if err != nil {
 		return fmt.Errorf("failed to get release metadata: %w", err)
@@ -114,7 +114,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 
 	fmt.Printf("Upgrading k0s to version %s\n", desiredVersion)
 
-	if err := setInstallationState(ctx, cli, in.Name, clusterv1beta1.InstallationStateInstalling, "Upgrading Kubernetes", ""); err != nil {
+	if err := k8sutil.SetInstallationState(ctx, cli, in.Name, ecv1beta1.InstallationStateInstalling, "Upgrading Kubernetes", ""); err != nil {
 		return fmt.Errorf("update installation status: %w", err)
 	}
 
@@ -166,7 +166,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 		return fmt.Errorf("failed to delete successful upgrade plan: %w", err)
 	}
 
-	err = setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateKubernetesInstalled, "Kubernetes upgraded")
+	err = k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateKubernetesInstalled, "Kubernetes upgraded")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -205,8 +205,8 @@ func updateClusterConfig(ctx context.Context, cli client.Client) error {
 	return nil
 }
 
-func upgradeAddons(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (finalErr error) {
-	err := setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalling, "Upgrading addons")
+func upgradeAddons(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) (finalErr error) {
+	err := k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalling, "Upgrading addons")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -223,7 +223,7 @@ func upgradeAddons(ctx context.Context, cli client.Client, in *clusterv1beta1.In
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 
-	err = setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalled, "Addons upgraded")
+	err = k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalled, "Addons upgraded")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -231,8 +231,8 @@ func upgradeAddons(ctx context.Context, cli client.Client, in *clusterv1beta1.In
 	return nil
 }
 
-func upgradeExtensions(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
-	err := setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalling, "Upgrading extensions")
+func upgradeExtensions(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+	err := k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalling, "Upgrading extensions")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -246,7 +246,7 @@ func upgradeExtensions(ctx context.Context, cli client.Client, in *clusterv1beta
 		return fmt.Errorf("upgrade extensions: %w", err)
 	}
 
-	err = setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalled, "Extensions upgraded")
+	err = k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalled, "Extensions upgraded")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -254,7 +254,7 @@ func upgradeExtensions(ctx context.Context, cli client.Client, in *clusterv1beta
 	return nil
 }
 
-func createAutopilotPlan(ctx context.Context, cli client.Client, desiredVersion string, in *clusterv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
+func createAutopilotPlan(ctx context.Context, cli client.Client, desiredVersion string, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
 	var plan apv1b2.Plan
 	okey := client.ObjectKey{Name: "autopilot"}
 	if err := cli.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
