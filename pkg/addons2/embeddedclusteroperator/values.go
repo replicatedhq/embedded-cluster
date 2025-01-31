@@ -27,6 +27,9 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, kcli c
 		copiedValues["embeddedBinaryName"] = runtimeconfig.BinaryName()
 	}
 
+	if copiedValues["image"] == nil {
+		copiedValues["image"] = map[string]interface{}{}
+	}
 	if e.ImageRepoOverride != "" {
 		copiedValues["image"].(map[string]interface{})["repository"] = e.ImageRepoOverride
 	}
