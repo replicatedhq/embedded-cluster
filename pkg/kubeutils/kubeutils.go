@@ -272,6 +272,12 @@ func UpdateInstallationStatus(ctx context.Context, cli client.Client, in *ecv1be
 	})
 }
 
+func SetInstallationState(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, state string, reason string, pendingCharts ...string) error {
+	return UpdateInstallationStatus(ctx, cli, in, func(status *ecv1beta1.InstallationStatus) {
+		status.SetState(state, reason, pendingCharts)
+	})
+}
+
 func ListInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.Installation, error) {
 	var list ecv1beta1.InstallationList
 	err := cli.List(ctx, &list)

@@ -288,9 +288,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client, 
 		return fmt.Errorf("unable to create installation: %w", err)
 	}
 
-	if err := kubeutils.UpdateInstallationStatus(ctx, cli, installation, func(status *ecv1beta1.InstallationStatus) {
-		status.SetState(ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed", nil)
-	}); err != nil {
+	if err := kubeutils.SetInstallationState(ctx, cli, installation, ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed"); err != nil {
 		return fmt.Errorf("unable to wait and mark installation: %w", err)
 	}
 

@@ -82,8 +82,8 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 	var flags Install2CmdFlags
 
 	cmd := &cobra.Command{
-		Use:     "install",
-		Short:   fmt.Sprintf("Experimental installer for %s", name),
+		Use:   "install",
+		Short: fmt.Sprintf("Experimental installer for %s", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall2(cmd, &flags); err != nil {
 				return err
@@ -342,9 +342,7 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags, metri
 		return fmt.Errorf("unable to install extensions: %w", err)
 	}
 
-	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, in, func(status *ecv1beta1.InstallationStatus) {
-		status.SetState(ecv1beta1.InstallationStateInstalled, "Installed", nil)
-	}); err != nil {
+	if err := kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateInstalled, "Installed"); err != nil {
 		return fmt.Errorf("unable to update installation: %w", err)
 	}
 
@@ -671,9 +669,7 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags Install2C
 	}
 
 	// the kubernetes api does not allow us to set the state of an object when creating it
-	err = kubeutils.UpdateInstallationStatus(ctx, kcli, installation, func(status *ecv1beta1.InstallationStatus) {
-		status.SetState(ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed", nil)
-	})
+	err = kubeutils.SetInstallationState(ctx, kcli, installation, ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed")
 	if err != nil {
 		return nil, fmt.Errorf("set installation state to KubernetesInstalled: %w", err)
 	}

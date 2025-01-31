@@ -555,9 +555,7 @@ func runRestoreApp(ctx context.Context, backupToRestore *disasterrecovery.Replic
 		return fmt.Errorf("get latest installation: %w", err)
 	}
 
-	err = kubeutils.UpdateInstallationStatus(ctx, kcli, in, func(status *ecv1beta1.InstallationStatus) {
-		status.SetState(ecv1beta1.InstallationStateInstalled, "Installed", nil)
-	})
+	err = kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateInstalled, "Installed")
 	if err != nil {
 		return fmt.Errorf("update installation status: %w", err)
 	}
@@ -1515,9 +1513,7 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context) error {
 		return fmt.Errorf("update installation: %w", err)
 	}
 
-	err = kubeutils.UpdateInstallationStatus(ctx, kcli, in, func(status *ecv1beta1.InstallationStatus) {
-		status.SetState(ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed", nil)
-	})
+	err = kubeutils.SetInstallationState(ctx, kcli, in, , ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed");
 	if err != nil {
 		return fmt.Errorf("update installation status: %w", err)
 	}
