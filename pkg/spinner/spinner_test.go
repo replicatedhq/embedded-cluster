@@ -20,7 +20,12 @@ func WriteTo(to io.Writer) WriteFn {
 
 func TestStartAndClosef(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb := Start(
+		WithWriter(WriteTo(buf)),
+		func(m *MessageWriter) {
+			m.tty = true
+		},
+	)
 	pb.Infof("hello")
 	time.Sleep(time.Second)
 	pb.Closef("closing with this  value")
@@ -29,7 +34,12 @@ func TestStartAndClosef(t *testing.T) {
 
 func TestStartAndClose(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb := Start(
+		WithWriter(WriteTo(buf)),
+		func(m *MessageWriter) {
+			m.tty = true
+		},
+	)
 	pb.Infof("hello")
 	pb.Close()
 	assert.Contains(t, buf.String(), "hello")
@@ -37,7 +47,12 @@ func TestStartAndClose(t *testing.T) {
 
 func TestStartAndWrite(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb := Start(
+		WithWriter(WriteTo(buf)),
+		func(m *MessageWriter) {
+			m.tty = true
+		},
+	)
 	pb.Infof("hello")
 	_, err := pb.Write([]byte("world"))
 	assert.NoError(t, err)
@@ -47,7 +62,12 @@ func TestStartAndWrite(t *testing.T) {
 
 func TestStartAndTracef(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb := Start(
+		WithWriter(WriteTo(buf)),
+		func(m *MessageWriter) {
+			m.tty = true
+		},
+	)
 	pb.Tracef("tracef")
 	pb.Close()
 	assert.Contains(t, buf.String(), "tracef")
@@ -55,7 +75,12 @@ func TestStartAndTracef(t *testing.T) {
 
 func TestStartAndDebugf(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb := Start(
+		WithWriter(WriteTo(buf)),
+		func(m *MessageWriter) {
+			m.tty = true
+		},
+	)
 	pb.Debugf("debugf")
 	pb.Close()
 	assert.Contains(t, buf.String(), "debugf")
@@ -63,7 +88,12 @@ func TestStartAndDebugf(t *testing.T) {
 
 func TestStartAndWarnf(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb := Start(
+		WithWriter(WriteTo(buf)),
+		func(m *MessageWriter) {
+			m.tty = true
+		},
+	)
 	pb.Warnf("warnf")
 	pb.Close()
 	assert.Contains(t, buf.String(), "warnf")
@@ -71,7 +101,12 @@ func TestStartAndWarnf(t *testing.T) {
 
 func TestStartAndErrorf(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb := Start(
+		WithWriter(WriteTo(buf)),
+		func(m *MessageWriter) {
+			m.tty = true
+		},
+	)
 	pb.Errorf("errorf")
 	pb.Close()
 	assert.Contains(t, buf.String(), "errorf")
@@ -79,7 +114,12 @@ func TestStartAndErrorf(t *testing.T) {
 
 func TestStartAndCloseWithError(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	pb := Start(WithWriter(WriteTo(buf)))
+	pb := Start(
+		WithWriter(WriteTo(buf)),
+		func(m *MessageWriter) {
+			m.tty = true
+		},
+	)
 	for i := 0; i < 1000; i++ {
 		pb.Infof("test nr %d", i)
 	}
@@ -101,6 +141,9 @@ func TestMask(t *testing.T) {
 	pb := Start(
 		WithWriter(WriteTo(buf)),
 		WithMask(maskfn),
+		func(m *MessageWriter) {
+			m.tty = true
+		},
 	)
 	pb.Infof("test 0")
 	pb.Infof("test 1")
@@ -141,7 +184,7 @@ func TestLineBreak(t *testing.T) {
 	assert.Contains(t, buf.String(), "test 99")
 }
 
-func TestSpinnerNoTTY(t *testing.T) {
+func TestNoTTY(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
 	loading := Start(
 		WithWriter(WriteTo(buf)),
