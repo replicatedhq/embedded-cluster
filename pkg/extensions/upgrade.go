@@ -3,11 +3,13 @@ package extensions
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -99,9 +101,10 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 		return errors.Wrap(err, "set condition status")
 	}
 
-	// TODO (@salah): handle panics
-
 	defer func() {
+		if r := recover(); r != nil {
+			finalErr = fmt.Errorf("%s %s recovered from panic: %v: %s", actionIng, ext.Name, r, string(debug.Stack()))
+		}
 		if finalErr == nil {
 			// mark as processed successfully
 			if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
@@ -117,7 +120,7 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 				Type:    conditionName(ext),
 				Status:  metav1.ConditionFalse,
 				Reason:  action + "Failed",
-				Message: cleanErrorMessage(finalErr),
+				Message: helpers.CleanErrorMessage(finalErr),
 			}); err != nil {
 				fmt.Printf("failed to set condition status: %v", err)
 			}

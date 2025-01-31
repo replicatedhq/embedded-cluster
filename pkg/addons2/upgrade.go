@@ -3,6 +3,7 @@ package addons2
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -16,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -123,9 +125,10 @@ func upgradeAddOn(ctx context.Context, hcli *helm.Helm, kcli client.Client, in *
 		return errors.Wrap(err, "set condition status")
 	}
 
-	// TODO (@salah): handle panics
-
 	defer func() {
+		if r := recover(); r != nil {
+			finalErr = fmt.Errorf("upgrading %s recovered from panic: %v: %s", addon.Name(), r, string(debug.Stack()))
+		}
 		if finalErr == nil {
 			// mark as processed successfully
 			if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
@@ -141,7 +144,7 @@ func upgradeAddOn(ctx context.Context, hcli *helm.Helm, kcli client.Client, in *
 				Type:    conditionName(addon),
 				Status:  metav1.ConditionFalse,
 				Reason:  "UpgradeFailed",
-				Message: cleanErrorMessage(finalErr),
+				Message: helpers.CleanErrorMessage(finalErr),
 			}); err != nil {
 				fmt.Printf("failed to set condition status: %v", err)
 			}

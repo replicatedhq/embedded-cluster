@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -108,7 +110,7 @@ func performUpgrade(ctx context.Context, kcli client.Client, in *ecv1beta1.Insta
 func attemptUpgrade(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
-			finalErr = fmt.Errorf("upgrade recovered from panic: %v", r)
+			finalErr = fmt.Errorf("upgrade recovered from panic: %v: %s", r, string(debug.Stack()))
 		}
 	}()
 
@@ -134,7 +136,7 @@ func maybeMarkAsFailed(ctx context.Context, kcli client.Client, in *ecv1beta1.In
 	if !lastAttempt {
 		return nil
 	}
-	if err := k8sutil.SetInstallationState(ctx, kcli, in.Name, ecv1beta1.InstallationStateFailed, cleanErrorMessage(err)); err != nil {
+	if err := k8sutil.SetInstallationState(ctx, kcli, in.Name, ecv1beta1.InstallationStateFailed, helpers.CleanErrorMessage(err)); err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
 	return nil
@@ -152,15 +154,4 @@ func isLastAttempt(ctx context.Context, kcli client.Client) (bool, error) {
 	}
 
 	return job.Status.Failed >= *job.Spec.BackoffLimit, nil
-}
-
-func cleanErrorMessage(err error) string {
-	if err == nil {
-		return ""
-	}
-	msg := err.Error()
-	if len(msg) > 1024 {
-		msg = msg[:1024]
-	}
-	return msg
 }
