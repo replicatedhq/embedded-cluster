@@ -46,10 +46,9 @@ func Join2Cmd(ctx context.Context, name string) *cobra.Command {
 	var flags Join2CmdFlags
 
 	cmd := &cobra.Command{
-		Use:    "join2 <url> <token>",
-		Short:  fmt.Sprintf("Join %s", name),
-		Args:   cobra.ExactArgs(2),
-		Hidden: true,
+		Use:   "join <url> <token>",
+		Short: fmt.Sprintf("Join %s", name),
+		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunJoin2(&flags); err != nil {
 				return err
