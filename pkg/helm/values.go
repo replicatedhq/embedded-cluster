@@ -6,7 +6,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/k0sproject/dig"
 	"github.com/ohler55/ojg/jp"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
