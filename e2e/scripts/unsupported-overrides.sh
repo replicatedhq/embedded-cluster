@@ -4,20 +4,6 @@ set -euox pipefail
 DIR=/usr/local/bin
 . $DIR/common.sh
 
-embedded_cluster_config="
-apiVersion: embeddedcluster.replicated.com/v1beta1
-kind: Config
-spec:
-
-"
-
-embed_cluster_config() {
-    content="$1"
-    echo "$content" > /root/release.yaml
-    tar -czvf /root/release.tar.gz /root/release.yaml
-    embedded-cluster-release-builder /usr/local/bin/embedded-cluster /root/release.tar.gz /usr/local/bin/embedded-cluster
-}
-
 override_applied() {
     grep -A1 telemetry "$K0SCONFIG" > /tmp/telemetry-section
     if ! grep -q "enabled: true" /tmp/telemetry-section; then
@@ -38,7 +24,6 @@ override_applied() {
 }
 
 main() {
-    embed_cluster_config "$embedded_cluster_config"
     if ! embedded-cluster install --yes --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         cat /tmp/log
