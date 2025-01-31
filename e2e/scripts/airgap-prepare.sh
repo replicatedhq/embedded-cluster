@@ -38,6 +38,35 @@ main() {
       exit 1
     fi
 
+    if [ -e /assets/ec-release-upgrade.tgz ]
+    then
+      mkdir -p upgrade
+      tar xzf /assets/ec-release-upgrade.tgz -C upgrade
+
+      mv upgrade/embedded-cluster-smoke-test-staging-app /usr/local/bin/embedded-cluster-upgrade
+      mkdir -p /assets/upgrade
+      mv upgrade/license.yaml /assets/upgrade/license.yaml
+
+      for file in upgrade/*.airgap;
+      do
+        if [ -e "$file" ]
+        then
+          mv "$file" /assets/upgrade/release.airgap
+          break
+        fi
+      done
+
+      # if there is no file at /assets/upgrade/release.airgap, this is an error
+      if [ ! -e /assets/upgrade/release.airgap ]
+      then
+        echo "No upgrade airgap file found"
+        exit 1
+      fi
+
+      # delete the ec upgrade airgap release
+      rm /assets/ec-release-upgrade.tgz
+    fi
+
     if [ -e /assets/ec-release-upgrade2.tgz ]
     then
       mkdir -p upgrade2

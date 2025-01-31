@@ -1284,8 +1284,8 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 	}
 
 	t.Logf("%s: running second airgap update", time.Now().Format(time.RFC3339))
-	line = []string{"/usr/local/bin/embedded-cluster-upgrade2", "update", "--airgap-bundle", "/assets/upgrade2/release.airgap"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+	line = []string{"airgap-update2.sh"}
+	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to run airgap update: %v", err)
 	}
 	// remove the airgap bundle and binary after upgrade
@@ -1787,8 +1787,8 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	}
 
 	t.Logf("%s: running second airgap update", time.Now().Format(time.RFC3339))
-	line = []string{"/usr/local/bin/embedded-cluster-upgrade2", "update", "--airgap-bundle", "/assets/upgrade2/release.airgap"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+	line = []string{"airgap-update2.sh"}
+	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to run airgap update: %v", err)
 	}
 	// remove the airgap bundle and binary after upgrade
