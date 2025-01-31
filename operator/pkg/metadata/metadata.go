@@ -65,11 +65,7 @@ func CopyVersionMetadataToCluster(ctx context.Context, cli client.Client, in *v1
 }
 
 func getRemoteMetadataAirgap(ctx context.Context, cli client.Client, in *v1beta1.Installation) ([]byte, error) {
-	log := ctrl.LoggerFrom(ctx)
-
-	// pull the artifact from the artifact location pointed by EmbeddedClusterMetadata. This property
-	// points to a repository inside the registry running on the cluster.
-	location, err := artifacts.Pull(ctx, log, cli, in.Spec.Artifacts.EmbeddedClusterMetadata)
+	location, err := pullArtifact(ctx, cli, in.Spec.Artifacts.EmbeddedClusterMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("pull artifact: %w", err)
 	}
@@ -83,6 +79,29 @@ func getRemoteMetadataAirgap(ctx context.Context, cli client.Client, in *v1beta1
 	}
 
 	return data, nil
+}
+
+func pullArtifact(ctx context.Context, cli client.Client, from string) (string, error) {
+	tmpdir, err := os.MkdirTemp("", "embedded-cluster-metadata-*")
+	if err != nil {
+		return "", fmt.Errorf("create temp dir: %w", err)
+	}
+
+	opts := artifacts.PullOptions{}
+	err = artifacts.Pull(ctx, cli, from, tmpdir, opts)
+	if err == nil {
+		return tmpdir, nil
+	}
+
+	// if we fail to fetch the artifact using https we gonna try once more using plain
+	// http as some versions of the registry were deployed without tls.
+	opts.PlainHTTP = true
+	if err := artifacts.Pull(ctx, cli, from, tmpdir, opts); err == nil {
+		return tmpdir, nil
+	}
+
+	os.RemoveAll(tmpdir)
+	return "", err
 }
 
 func getRemoteMetadataOnline(ctx context.Context, cli client.Client, in *v1beta1.Installation) ([]byte, error) {
