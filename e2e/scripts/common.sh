@@ -255,12 +255,25 @@ ensure_release_builtin_overrides() {
     fi
 }
 
-# ensure_release_builtin_overrides_install2 verifies if the built in overrides we provide as part
-# of the release have been applied to the helm charts.
-ensure_release_builtin_overrides_install2() {
-    if ! kubectl get secrets -n kotsadm sh.helm.release.v1.admin-console.v1 -o jsonpath='{.data.release}' | base64 -d | base64 -d | gzip -d | grep -q -E "^ +release-custom-label"; then
-        echo "release-custom-label not found in k0s-addon-chart-admin-console"
-        kubectl get secrets -n kotsadm sh.helm.release.v1.admin-console.v1 -o jsonpath='{.data.release}' | base64 -d | base64 -d | gzip -d
+# ensure_release_builtin_overrides_postupgrade verifies if the built in overrides we provide as part
+# of the upgrade release have been applied to the helm charts.
+ensure_release_builtin_overrides_postupgrade() {
+    # postugrade includes the same overrides as install (and also an extra one)
+    if ! ensure_release_builtin_overrides; then
+        return 1
+    fi
+
+    if ! kubectl get deployment -n kotsadm kotsadm -ojsonpath='{.metadata.labels}' | grep -q "second-custom-label"; then
+        echo "second-custom-label not found in admin-console"
+        kubectl get deployment -n kotsadm kotsadm -ojsonpath='{.metadata.labels}'
+        kubectl get deployment -n kotsadm kotsadm -o yaml
+        return 1
+    fi
+
+    if ! kubectl get deployment -n embedded-cluster embedded-cluster-operator -ojsonpath='{.metadata.labels}' | grep -q "second-custom-label"; then
+        echo "second-custom-label not found in embedded-cluster-operator"
+        kubectl get deployment -n embedded-cluster embedded-cluster-operator -ojsonpath='{.metadata.labels}'
+        kubectl get deployment -n embedded-cluster embedded-cluster-operator -o yaml
         return 1
     fi
 }

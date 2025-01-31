@@ -28,10 +28,10 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, kcli c
 	}
 
 	if e.ImageRepoOverride != "" {
-		copiedValues["image"].(map[string]interface{})["repository"] = e.ImageRepoOverride
+		copiedValues["image"].(map[interface{}]interface{})["repository"] = e.ImageRepoOverride
 	}
 	if e.ImageTagOverride != "" {
-		copiedValues["image"].(map[string]interface{})["tag"] = e.ImageTagOverride
+		copiedValues["image"].(map[interface{}]interface{})["tag"] = e.ImageTagOverride
 	}
 	if e.UtilsImageOverride != "" {
 		copiedValues["utilsImage"] = e.UtilsImageOverride

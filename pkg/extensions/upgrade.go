@@ -79,13 +79,22 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 		return nil
 	}
 
-	fmt.Printf("%sing %s\n", action, ext.Name)
+	actionIng := ""
+	actionEd := ""
+	if action == actionInstall || action == actionUninstall {
+		actionIng = action + "ing"
+		actionEd = action + "ed"
+	} else if action == actionUpgrade {
+		actionIng = "Upgrading"
+		actionEd = "Upgraded"
+	}
+	fmt.Printf("%s %s\n", actionIng, ext.Name)
 
 	// mark as processing
 	if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
 		Type:   conditionName(ext),
 		Status: metav1.ConditionFalse,
-		Reason: action + "ing",
+		Reason: actionIng,
 	}); err != nil {
 		return errors.Wrap(err, "set condition status")
 	}
@@ -98,7 +107,7 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 			if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
 				Type:   conditionName(ext),
 				Status: metav1.ConditionTrue,
-				Reason: action + "ed",
+				Reason: actionEd,
 			}); err != nil {
 				fmt.Printf("failed to set condition status: %v", err)
 			}
@@ -148,6 +157,7 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 		}
 	}
 
-	fmt.Printf("%s %sed successfully\n", ext.Name, action)
+	fmt.Printf("%s %sed successfully\n", ext.Name, actionEd)
+
 	return nil
 }
