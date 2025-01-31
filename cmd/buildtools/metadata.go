@@ -43,7 +43,7 @@ var metadataExtractHelmChartImagesCommand = &cli.Command{
 
 		repos := metadata.Configs.Repositories
 		charts := metadata.Configs.Charts
-		//lint:ignore SA1019 Using deprecated BuiltinConfigs for backwards compatibility
+		//nolint:staticcheck // SA1019 explanation Using deprecated BuiltinConfigs for backwards compatibility
 		for _, chart := range metadata.BuiltinConfigs {
 			repos = append(repos, chart.Repositories...)
 			charts = append(charts, chart.Charts...)
