@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/types"
 )
 
@@ -17,6 +18,16 @@ func addOnOverrides(addon types.AddOn, embCfgSpec *ecv1beta1.ConfigSpec, euCfgSp
 		overrides = append(overrides, euCfgSpec.OverrideForBuiltIn(addon.ReleaseName()))
 	}
 	return overrides
+}
+
+func operatorChart(meta *ectypes.ReleaseMetadata) (string, string, error) {
+	// search through for the operator chart, and find the location
+	for _, chart := range meta.Configs.Charts {
+		if chart.Name == "embedded-cluster-operator" {
+			return chart.ChartName, chart.Version, nil
+		}
+	}
+	return "", "", errors.New("no embedded-cluster-operator chart found in release metadata")
 }
 
 func operatorImages(images []string) (string, string, string, error) {

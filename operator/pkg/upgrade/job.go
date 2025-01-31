@@ -187,6 +187,8 @@ func CreateUpgradeJob(
 							Name: "ec-charts-dir",
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
+									// the job gets created by a process inside the kotsadm pod during an upgrade,
+									// and kots doesn't (and shouldn't) have permissions to create this directory
 									Path: runtimeconfig.EmbeddedClusterChartsSubDirNoCreate(),
 								},
 							},

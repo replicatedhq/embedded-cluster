@@ -17,8 +17,8 @@ func (e *EmbeddedClusterOperator) Install(ctx context.Context, kcli client.Clien
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    Metadata.Location,
-		ChartVersion: Metadata.Version,
+		ChartPath:    e.ChartLocation(),
+		ChartVersion: e.ChartVersion(),
 		Values:       values,
 		Namespace:    namespace,
 	})

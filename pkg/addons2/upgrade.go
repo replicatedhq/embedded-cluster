@@ -63,17 +63,23 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		&openebs.OpenEBS{},
 	}
 
-	ecoRepo, ecoTag, ecoUtilsImage, err := operatorImages(meta.Images)
+	ecoChartLocation, ecoChartVersion, err := operatorChart(meta)
+	if err != nil {
+		return nil, errors.Wrap(err, "get operator chart location")
+	}
+	ecoImageRepo, ecoImageTag, ecoUtilsImage, err := operatorImages(meta.Images)
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator images")
 	}
 	addOns = append(addOns, &embeddedclusteroperator.EmbeddedClusterOperator{
-		IsAirgap:           in.Spec.AirGap,
-		Proxy:              in.Spec.Proxy,
-		BinaryNameOverride: in.Spec.BinaryName,
-		ImageRepoOverride:  ecoRepo,
-		ImageTagOverride:   ecoTag,
-		UtilsImageOverride: ecoUtilsImage,
+		IsAirgap:              in.Spec.AirGap,
+		Proxy:                 in.Spec.Proxy,
+		ChartLocationOverride: ecoChartLocation,
+		ChartVersionOverride:  ecoChartVersion,
+		BinaryNameOverride:    in.Spec.BinaryName,
+		ImageRepoOverride:     ecoImageRepo,
+		ImageTagOverride:      ecoImageTag,
+		UtilsImageOverride:    ecoUtilsImage,
 	})
 
 	if in.Spec.AirGap {
