@@ -27,6 +27,7 @@ func TestCommandsRequireSudo(t *testing.T) {
 	}
 	t.Logf("version output:\n%s", stdout)
 
+	gotFailure := false
 	for _, cmd := range [][]string{
 		{"embedded-cluster", "node", "join", "https://test", "token"},
 		{"embedded-cluster", "join", "https://test", "token"},
@@ -40,12 +41,19 @@ func TestCommandsRequireSudo(t *testing.T) {
 		stdout, stderr, err := tc.RunRegularUserCommandOnNode(t, 0, cmd)
 		if err == nil {
 			t.Logf("stdout:\n%s\nstderr:%s\n", stdout, stderr)
-			t.Fatalf("expected error running `%v` as regular user, got none", cmd)
+			t.Logf("expected error running `%v` as regular user, got none", cmd)
+			gotFailure = true
+			continue
 		}
 		if !strings.Contains(stderr, "command must be run as root") {
 			t.Logf("stdout:\n%s\nstderr:%s\n", stdout, stderr)
-			t.Fatalf("invalid error found running `%v` as regular user", cmd)
+			t.Logf("invalid error found running `%v` as regular user", cmd)
+			gotFailure = true
+			continue
 		}
+	}
+	if gotFailure {
+		t.Fatalf("at least one command did not fail as regular user")
 	}
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
