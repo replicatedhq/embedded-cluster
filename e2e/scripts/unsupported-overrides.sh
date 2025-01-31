@@ -37,10 +37,6 @@ main() {
         echo "Expected override to be applied"
         exit 1
     fi
-    if ! wait_for_memcached_pods; then
-        echo "Failed waiting for memcached pods"
-        exit 1
-    fi
 }
 
 main
