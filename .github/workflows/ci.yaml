@@ -504,8 +504,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
-          export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade2
-          export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-upgrade2
+          export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-2upgrade
+          export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-2upgrade
           # avoid rate limiting
           export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
           ./scripts/build-and-release.sh
@@ -658,8 +658,8 @@ jobs:
           ./scripts/ci-release-app.sh
 
           # and finally a second app upgrade
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade2"
-          export APP_VERSION="appver-${SHORT_SHA}-upgrade2"
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-2upgrade"
+          export APP_VERSION="appver-${SHORT_SHA}-2upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
@@ -704,8 +704,8 @@ jobs:
           ./scripts/ci-release-app.sh
 
           # and finally a second app upgrade
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade2"
-          export APP_VERSION="appver-${SHORT_SHA}-upgrade2"
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-2upgrade"
+          export APP_VERSION="appver-${SHORT_SHA}-2upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 

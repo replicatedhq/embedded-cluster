@@ -536,7 +536,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade2", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion = fmt.Sprintf("appver-%s-2upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster a second time", time.Now().Format(time.RFC3339))
@@ -696,7 +696,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade2", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion = fmt.Sprintf("appver-%s-2upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster a second time", time.Now().Format(time.RFC3339))
@@ -1144,7 +1144,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 		}, func(t *testing.T) error {
 			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade2", os.Getenv("SHORT_SHA")), airgapUpgrade2BundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-2upgrade", os.Getenv("SHORT_SHA")), airgapUpgrade2BundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		},
 	)
 
@@ -1298,7 +1298,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 		t.Fatalf("fail to remove embedded-cluster-upgrade2 binary on node %s: %v", tc.Nodes[0], err)
 	}
 
-	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade2", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion = fmt.Sprintf("appver-%s-2upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster a second time", time.Now().Format(time.RFC3339))
@@ -1651,7 +1651,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		}, func(t *testing.T) error {
 			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade2", os.Getenv("SHORT_SHA")), airgapUpgrade2BundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-2upgrade", os.Getenv("SHORT_SHA")), airgapUpgrade2BundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		},
 	)
 
@@ -1801,7 +1801,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to remove embedded-cluster-upgrade2 binary on node %s: %v", tc.Nodes[0], err)
 	}
 
-	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade2", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion = fmt.Sprintf("appver-%s-2upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster a second time", time.Now().Format(time.RFC3339))

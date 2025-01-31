@@ -319,7 +319,7 @@ jobs:
 
           # and finally a second app upgrade
           export EC_VERSION="${{ github.ref_name }}"
-          export APP_VERSION="appver-${{ github.ref_name }}-upgrade2"
+          export APP_VERSION="appver-${{ github.ref_name }}-2upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
@@ -357,7 +357,7 @@ jobs:
 
           # and finally a second app upgrade
           export EC_VERSION="${{ github.ref_name }}"
-          export APP_VERSION="appver-${{ github.ref_name }}-upgrade2"
+          export APP_VERSION="appver-${{ github.ref_name }}-2upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
