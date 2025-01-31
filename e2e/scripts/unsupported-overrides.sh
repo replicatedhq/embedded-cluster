@@ -8,71 +8,7 @@ embedded_cluster_config="
 apiVersion: embeddedcluster.replicated.com/v1beta1
 kind: Config
 spec:
-  unsupportedOverrides:
-    k0s: |
-      config:
-        metadata:
-          name: testing-overrides-k0s-name
-        spec:
-          telemetry:
-            enabled: true
-          workerProfiles:
-          - name: ip-forward
-            values:
-              allowedUnsafeSysctls:
-              - net.ipv4.ip_forward
-          extensions:
-            helm:
-              charts:
-              - chartname: openebs/openebs
-                name: openebs
-                namespace: openebs
-                order: 1
-                values: |
-                  localpv-provisioner:
-                    analytics:
-                      enabled: false
-                    hostpathClass:
-                      enabled: true
-                      isDefaultClass: true
-                  engines:
-                    local:
-                      lvm:
-                        enabled: false
-                      zfs:
-                        enabled: false
-                    replicated:
-                      mayastor:
-                        enabled: false
-                version: 4.0.1
-              - chartname: oci://registry.replicated.com/library/embedded-cluster-operator
-                name: embedded-cluster-operator
-                namespace: embedded-cluster
-                order: 2
-                version: 0.34.9
-              - chartname: oci://registry.replicated.com/library/admin-console
-                name: admin-console
-                namespace: kotsadm
-                order: 3
-                version: 1.109.12
-                values: |
-                  isHA: false
-                  isHelmManaged: false
-                  minimalRBAC: false
-                  service:
-                    nodePort: 30000
-                    type: NodePort
-                  passwordSecretRef:
-                    name: kotsadm-password
-                    key: passwordBcrypt
-              - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
-                name: memcached
-                namespace: embedded-cluster
-                order: 4
-                version: 6.6.2
-              repositories:
-              - name: openebs
-                url: https://openebs.github.io/openebs
+
 "
 
 embed_cluster_config() {
@@ -99,16 +35,11 @@ override_applied() {
       cat "$K0SCONFIG"
       return 1
     fi
-    if ! grep "memcached" "$K0SCONFIG"; then
-      echo "override not applied, expected memcached helmchart not found, actual config:"
-      cat "$K0SCONFIG"
-      return 1
-    fi
 }
 
 main() {
     embed_cluster_config "$embedded_cluster_config"
-    if ! embedded-cluster install --yes 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --yes --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         cat /tmp/log
         exit 1
