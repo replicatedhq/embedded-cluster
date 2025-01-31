@@ -83,10 +83,10 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 	var flags Install2CmdFlags
 
 	cmd := &cobra.Command{
-		Use:     "install",
-		Short:   fmt.Sprintf("Experimental installer for %s", name),
+		Use:   "install",
+		Short: fmt.Sprintf("Experimental installer for %s", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall2(cmd, &flags); err != nil {
+			if err := preRunInstall2(cmd, &flags, true); err != nil {
 				return err
 			}
 
@@ -167,7 +167,7 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *Install2CmdFlags) er
 	return nil
 }
 
-func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags) error {
+func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags, requireLicense bool) error {
 	if os.Getuid() != 0 {
 		return fmt.Errorf("install command must be run as root")
 	}
@@ -212,6 +212,8 @@ func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags) error {
 			return fmt.Errorf("unable to parse license file: %w", err)
 		}
 		flags.license = l
+	} else if requireLicense {
+		return fmt.Errorf("license is required")
 	}
 
 	runtimeconfig.ApplyFlags(cmd.Flags())

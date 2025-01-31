@@ -92,7 +92,7 @@ func Restore2Cmd(ctx context.Context, name string) *cobra.Command {
 		Use:   "restore2",
 		Short: fmt.Sprintf("Restore a %s cluster", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall2(cmd, &flags); err != nil {
+			if err := preRunInstall2(cmd, &flags, false); err != nil {
 				return err
 			}
 
