@@ -85,7 +85,7 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 		Use:   "install",
 		Short: fmt.Sprintf("Experimental installer for %s", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall2(cmd, &flags, true); err != nil {
+			if err := preRunInstall2(cmd, &flags); err != nil {
 				return err
 			}
 
@@ -157,16 +157,15 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *Install2CmdFlags) er
 	cmd.Flags().StringVar(&flags.adminConsolePassword, "admin-console-password", "", "Password for the Admin Console")
 	cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
 	cmd.Flags().StringVarP(&flags.licenseFile, "license", "l", "", "Path to the license file")
-	// TODO: uncomment this when we have tests passing
-	// if err := cmd.MarkFlagRequired("license"); err != nil {
-	// 	panic(err)
-	// }
+	if err := cmd.MarkFlagRequired("license"); err != nil {
+		panic(err)
+	}
 	cmd.Flags().StringVar(&flags.configValues, "config-values", "", "Path to the config values to use when installing")
 
 	return nil
 }
 
-func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags, requireLicense bool) error {
+func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags) error {
 	if os.Getuid() != 0 {
 		return fmt.Errorf("install command must be run as root")
 	}
@@ -211,8 +210,6 @@ func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags, requireLicense 
 			return fmt.Errorf("unable to parse license file: %w", err)
 		}
 		flags.license = l
-	} else if requireLicense {
-		return fmt.Errorf("license is required")
 	}
 
 	runtimeconfig.ApplyFlags(cmd.Flags())
