@@ -87,6 +87,13 @@ func ecUpgradeTargetVersion() string {
 	return "-upgrade" // default to requiring an upgrade suffix
 }
 
+func ecUpgrade2TargetVersion() string {
+	if os.Getenv("EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION") != "" {
+		return os.Getenv("EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION") // use the env var if set
+	}
+	return "-upgrade2" // default to requiring an upgrade2 suffix
+}
+
 func runInParallel(t *testing.T, fns ...func(t *testing.T) error) {
 	runInParallelOffset(t, time.Duration(0), fns...)
 }
