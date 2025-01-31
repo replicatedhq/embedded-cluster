@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
@@ -10,17 +11,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
-
-// ErrNothingElseToAdd is an error returned when there is nothing else to add to the
-// screen. This is useful when we want to exit an error from a function here but
-// don't want to print anything else (possibly because we have already printed the
-// necessary data to the screen).
-var ErrNothingElseToAdd = fmt.Errorf("")
-
-// ErrPreflightsHaveFail is an error returned when we managed to execute the
-// host preflights but they contain failures. We use this to differentiate the
-// way we provide user feedback.
-var ErrPreflightsHaveFail = fmt.Errorf("host preflight failures detected")
 
 func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var flags Install2CmdFlags
@@ -71,9 +61,12 @@ func runInstallRunPreflights(ctx context.Context, name string, flags Install2Cmd
 		return fmt.Errorf("unable to configure sysctl: %w", err)
 	}
 
-	logrus.Debugf("running host preflights")
-	if err := runInstallPreflights(ctx, flags); err != nil {
-		return err
+	logrus.Debugf("running install preflights")
+	if err := runInstallPreflights(ctx, flags, nil); err != nil {
+		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
+			return NewErrorNothingElseToAdd(err)
+		}
+		return fmt.Errorf("unable to run install preflights: %w", err)
 	}
 
 	logrus.Info("Host preflights completed successfully")
@@ -81,7 +74,7 @@ func runInstallRunPreflights(ctx context.Context, name string, flags Install2Cmd
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, flags Install2CmdFlags) error {
+func runInstallPreflights(ctx context.Context, flags Install2CmdFlags, metricsReported preflights.MetricsReporter) error {
 	var replicatedAPIURL, proxyRegistryURL string
 	if flags.license != nil {
 		replicatedAPIURL = flags.license.Spec.Endpoint
@@ -100,10 +93,8 @@ func runInstallPreflights(ctx context.Context, flags Install2CmdFlags) error {
 		SkipHostPreflights:   flags.skipHostPreflights,
 		IgnoreHostPreflights: flags.ignoreHostPreflights,
 		AssumeYes:            flags.assumeYes,
+		MetricsReporter:      metricsReported,
 	}); err != nil {
-		if err == preflights.ErrPreflightsHaveFail {
-			return ErrNothingElseToAdd
-		}
 		return err
 	}
 

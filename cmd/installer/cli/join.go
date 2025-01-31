@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -35,11 +37,9 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:           "join <url> <token>",
-		Short:         fmt.Sprintf("Join %s", name),
-		Args:          cobra.ExactArgs(2),
-		SilenceErrors: true,
-		SilenceUsage:  true,
+		Use:   "join <url> <token>",
+		Short: fmt.Sprintf("Join %s", name),
+		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("join command must be run as root")
@@ -76,7 +76,8 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				logrus.Infof("You downloaded an air gap bundle but are performing an online join.")
 				logrus.Infof("To do an air gap join, pass the air gap bundle with --airgap-bundle.")
 				if !prompts.New().Confirm("Do you want to proceed with an online join?", false) {
-					return ErrNothingElseToAdd
+					// TODO: send aborted metrics event
+					return NewErrorNothingElseToAdd(errors.New("user aborted: air gap bundle downloaded but flag not provided"))
 				}
 			}
 
@@ -110,7 +111,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				logrus.Errorf("This node's IP address %s is not included in the no-proxy list (%s).", localIP, jcmd.InstallationSpec.Proxy.NoProxy)
 				logrus.Infof(`The no-proxy list cannot easily be modified after initial installation.`)
 				logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
-				return ErrNothingElseToAdd
+				return NewErrorNothingElseToAdd(errors.New("node ip address not included in no-proxy list"))
 			}
 
 			isAirgap := false
@@ -175,8 +176,8 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			proxyRegistryURL := fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
 			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, cidrCfg, jcmd.TCPConnectionsRequired, assumeYes); err != nil {
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-				if err == ErrPreflightsHaveFail {
-					return ErrNothingElseToAdd
+				if errors.Is(err, preflights.ErrPreflightsHaveFail) {
+					return NewErrorNothingElseToAdd(err)
 				}
 				return err
 			}

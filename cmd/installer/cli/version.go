@@ -17,10 +17,8 @@ import (
 
 func VersionCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:           "version",
-		Short:         fmt.Sprintf("Show the %s component versions", name),
-		SilenceErrors: true,
-		SilenceUsage:  true,
+		Use:   "version",
+		Short: fmt.Sprintf("Show the %s component versions", name),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			writer := table.NewWriter()
 			writer.AppendHeader(table.Row{"component", "version"})

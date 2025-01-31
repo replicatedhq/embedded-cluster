@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path"
 
@@ -22,12 +21,5 @@ func main() {
 
 	name := path.Base(os.Args[0])
 
-	InitAndExecute(ctx, name)
-}
-
-func InitAndExecute(ctx context.Context, name string) {
-	if err := cli.RootCmd(ctx, name).Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	cli.InitAndExecute(ctx, name)
 }

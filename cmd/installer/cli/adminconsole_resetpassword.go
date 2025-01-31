@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -13,10 +14,8 @@ import (
 
 func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:           "reset-password",
-		Short:         fmt.Sprintf("Reset the %s Admin Console password", name),
-		SilenceErrors: true,
-		SilenceUsage:  true,
+		Use:   "reset-password",
+		Short: fmt.Sprintf("Reset the %s Admin Console password", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("reset-password command must be run as root")
@@ -34,7 +33,7 @@ func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Comma
 
 			password := args[0]
 			if !validateAdminConsolePassword(password, password) {
-				return ErrNothingElseToAdd
+				return NewErrorNothingElseToAdd(errors.New("password is not valid"))
 			}
 
 			if err := kotscli.ResetPassword(password); err != nil {

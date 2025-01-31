@@ -19,10 +19,8 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:           "update",
-		Short:         fmt.Sprintf("Update %s", name),
-		SilenceErrors: true,
-		SilenceUsage:  true,
+		Use:   "update",
+		Short: fmt.Sprintf("Update %s", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("update command must be run as root")

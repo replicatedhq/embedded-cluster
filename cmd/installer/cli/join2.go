@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -15,8 +16,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -45,12 +46,10 @@ func Join2Cmd(ctx context.Context, name string) *cobra.Command {
 	var flags Join2CmdFlags
 
 	cmd := &cobra.Command{
-		Use:           "join2 <url> <token>",
-		Short:         fmt.Sprintf("Join %s", name),
-		Args:          cobra.ExactArgs(2),
-		SilenceErrors: true,
-		SilenceUsage:  true,
-		Hidden:        true,
+		Use:    "join2 <url> <token>",
+		Short:  fmt.Sprintf("Join %s", name),
+		Args:   cobra.ExactArgs(2),
+		Hidden: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunJoin2(&flags); err != nil {
 				return err
@@ -69,13 +68,14 @@ func Join2Cmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
-			metrics.ReportJoinStarted(ctx, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
-			if err := runJoin2(cmd.Context(), name, flags, jcmd); err != nil {
-				metrics.ReportJoinFailed(ctx, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
+			metricsReporter := NewJoinReporter(jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, cmd.CalledAs())
+			metricsReporter.ReportJoinStarted(ctx)
+			if err := runJoin2(cmd.Context(), name, flags, jcmd, metricsReporter); err != nil {
+				metricsReporter.ReportJoinFailed(ctx, err)
 				return err
 			}
 
-			metrics.ReportJoinSucceeded(ctx, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
+			metricsReporter.ReportJoinSucceeded(ctx)
 			return nil
 		},
 	}
@@ -123,7 +123,7 @@ func addJoinFlags(cmd *cobra.Command, flags *Join2CmdFlags) error {
 	return nil
 }
 
-func runJoin2(ctx context.Context, name string, flags Join2CmdFlags, jcmd *kotsadm.JoinCommandResponse) error {
+func runJoin2(ctx context.Context, name string, flags Join2CmdFlags, jcmd *kotsadm.JoinCommandResponse, metricsReporter preflights.MetricsReporter) error {
 	if err := runJoinVerifyAndPrompt(name, flags, jcmd); err != nil {
 		return err
 	}
@@ -149,7 +149,10 @@ func runJoin2(ctx context.Context, name string, flags Join2CmdFlags, jcmd *kotsa
 	}
 
 	logrus.Debugf("running join preflights")
-	if err := runJoinPreflights(ctx, jcmd, flags, cidrCfg); err != nil {
+	if err := runJoinPreflights(ctx, jcmd, flags, cidrCfg, metricsReporter); err != nil {
+		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
+			return NewErrorNothingElseToAdd(err)
+		}
 		return fmt.Errorf("unable to run join preflights: %w", err)
 	}
 
@@ -230,7 +233,7 @@ func runJoinVerifyAndPrompt(name string, flags Join2CmdFlags, jcmd *kotsadm.Join
 		logrus.Errorf("This node's IP address %s is not included in the no-proxy list (%s).", localIP, jcmd.InstallationSpec.Proxy.NoProxy)
 		logrus.Infof(`The no-proxy list cannot easily be modified after initial installation.`)
 		logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
-		return ErrNothingElseToAdd
+		return NewErrorNothingElseToAdd(errors.New("node ip address not included in no-proxy list"))
 	}
 
 	return nil

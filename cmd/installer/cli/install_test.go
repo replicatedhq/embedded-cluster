@@ -301,9 +301,9 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 			}
 
 			if tt.isErrNothingElseToAdd {
-				assert.Equal(t, ErrNothingElseToAdd, err)
+				assert.ErrorAs(t, err, &ErrorNothingElseToAdd{})
 			} else {
-				assert.NotEqual(t, ErrNothingElseToAdd, err)
+				assert.NotErrorAs(t, err, &ErrorNothingElseToAdd{})
 			}
 		})
 	}

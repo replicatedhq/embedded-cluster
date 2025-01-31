@@ -28,10 +28,8 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	var s3Store s3BackupStore
 
 	cmd := &cobra.Command{
-		Use:           "restore",
-		Short:         fmt.Sprintf("Restore a %s cluster", name),
-		SilenceErrors: true,
-		SilenceUsage:  true,
+		Use:   "restore",
+		Short: fmt.Sprintf("Restore a %s cluster", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall2(cmd, &flags); err != nil {
 				return err

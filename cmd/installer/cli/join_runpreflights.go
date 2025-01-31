@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
@@ -16,11 +17,9 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var flags Join2CmdFlags
 
 	cmd := &cobra.Command{
-		Use:           "run-preflights",
-		Short:         fmt.Sprintf("Run join host preflights for %s", name),
-		Args:          cobra.ExactArgs(2),
-		SilenceErrors: true,
-		SilenceUsage:  true,
+		Use:   "run-preflights",
+		Short: fmt.Sprintf("Run join host preflights for %s", name),
+		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunJoin2(&flags); err != nil {
 				return err
@@ -73,7 +72,10 @@ func runJoinRunPreflights(ctx context.Context, name string, flags Join2CmdFlags,
 	}
 
 	logrus.Debugf("running join preflights")
-	if err := runJoinPreflights(ctx, jcmd, flags, cidrCfg); err != nil {
+	if err := runJoinPreflights(ctx, jcmd, flags, cidrCfg, nil); err != nil {
+		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
+			return NewErrorNothingElseToAdd(err)
+		}
 		return fmt.Errorf("unable to run join preflights: %w", err)
 	}
 
@@ -82,7 +84,7 @@ func runJoinRunPreflights(ctx context.Context, name string, flags Join2CmdFlags,
 	return nil
 }
 
-func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, flags Join2CmdFlags, cidrCfg *CIDRConfig) error {
+func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, flags Join2CmdFlags, cidrCfg *CIDRConfig, metricsReported preflights.MetricsReporter) error {
 	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
 		ReplicatedAPIURL:       jcmd.InstallationSpec.MetricsBaseURL, // MetricsBaseURL is the replicated.app endpoint url
 		ProxyRegistryURL:       fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress),
@@ -95,10 +97,7 @@ func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, f
 		AssumeYes:              flags.assumeYes,
 		TCPConnectionsRequired: jcmd.TCPConnectionsRequired,
 	}); err != nil {
-		if err == preflights.ErrPreflightsHaveFail {
-			return ErrNothingElseToAdd
-		}
-		return fmt.Errorf("unable to prepare and run preflights: %w", err)
+		return err
 	}
 
 	return nil

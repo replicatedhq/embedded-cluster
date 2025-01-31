@@ -14,10 +14,8 @@ func VersionMetadataCmd(ctx context.Context, name string) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:           "metadata",
-		Short:         "Print metadata about this release",
-		SilenceErrors: true,
-		SilenceUsage:  true,
+		Use:   "metadata",
+		Short: "Print metadata about this release",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			metadata, err := gatherVersionMetadata(!omitReleaseMetadata)
 			if err != nil {

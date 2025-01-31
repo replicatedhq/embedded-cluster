@@ -13,10 +13,8 @@ func VersionListImagesCmd(ctx context.Context, name string) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:           "list-images",
-		Short:         "List images embedded in the cluster",
-		SilenceErrors: true,
-		SilenceUsage:  true,
+		Use:   "list-images",
+		Short: "List images embedded in the cluster",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			metadata, err := gatherVersionMetadata(!omitReleaseMetadata)
 			if err != nil {
