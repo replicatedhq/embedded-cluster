@@ -1788,7 +1788,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: running second airgap update", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-update2.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to run airgap update: %v", err)
 	}
 	// remove the airgap bundle and binary after upgrade
