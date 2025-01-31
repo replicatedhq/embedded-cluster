@@ -187,7 +187,7 @@ func CreateUpgradeJob(
 							Name: "ec-charts-dir",
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
-									Path: runtimeconfig.EmbeddedClusterChartsSubDir(),
+									Path: runtimeconfig.EmbeddedClusterChartsSubDirNoCreate(),
 								},
 							},
 						},
@@ -217,7 +217,7 @@ func CreateUpgradeJob(
 								},
 								{
 									Name:      "ec-charts-dir",
-									MountPath: runtimeconfig.EmbeddedClusterChartsSubDir(),
+									MountPath: runtimeconfig.EmbeddedClusterChartsSubDirNoCreate(),
 									ReadOnly:  true,
 								},
 							},
