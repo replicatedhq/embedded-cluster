@@ -21,9 +21,12 @@ func TestCommandsRequireSudo(t *testing.T) {
 	defer tc.Cleanup()
 	t.Logf(`%s: running "embedded-cluster version" as regular user`, time.Now().Format(time.RFC3339))
 	command := []string{"embedded-cluster", "version"}
-	if _, _, err := tc.RunRegularUserCommandOnNode(t, 0, command); err != nil {
+	stdout, _, err := tc.RunRegularUserCommandOnNode(t, 0, command)
+	if err != nil {
 		t.Errorf("expected no error running `version` as regular user, got %v", err)
 	}
+	t.Logf("version output:\n%s", stdout)
+
 	for _, cmd := range [][]string{
 		{"embedded-cluster", "node", "join", "https://test", "token"},
 		{"embedded-cluster", "join", "https://test", "token"},
@@ -33,7 +36,7 @@ func TestCommandsRequireSudo(t *testing.T) {
 		{"embedded-cluster", "install", "--yes", "--license", "/assets/license.yaml"},
 		{"embedded-cluster", "restore"},
 	} {
-		t.Logf("%s: running %q as regular user", time.Now().Format(time.RFC3339), strings.Join(cmd, "_"))
+		t.Logf("%s: running %q as regular user", time.Now().Format(time.RFC3339), "'"+strings.Join(cmd, " ")+"'")
 		stdout, stderr, err := tc.RunRegularUserCommandOnNode(t, 0, cmd)
 		if err == nil {
 			t.Logf("stdout:\n%s\nstderr:%s\n", stdout, stderr)
