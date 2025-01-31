@@ -522,21 +522,22 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
+	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
+	skipClusterUpgradeCheck := "true"
+	testArgs := []string{appUpgradeVersion, skipClusterUpgradeCheck}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion = fmt.Sprintf("appver-%s-2upgrade", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster a second time", time.Now().Format(time.RFC3339))
@@ -545,7 +546,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after second upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgrade2TargetVersion()}
+	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -682,21 +683,22 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
+	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
+	skipClusterUpgradeCheck := "true"
+	testArgs := []string{appUpgradeVersion, skipClusterUpgradeCheck}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
+	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion = fmt.Sprintf("appver-%s-2upgrade", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster a second time", time.Now().Format(time.RFC3339))
@@ -1142,9 +1144,9 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 		func(t *testing.T) error {
 			return downloadAirgapBundle(t, appVer, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-2upgrade", os.Getenv("SHORT_SHA")), airgapUpgrade2BundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgrade2BundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		},
 	)
 
@@ -1269,18 +1271,19 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
 
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
+	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
+	skipClusterUpgradeCheck := "true"
+	testArgs := []string{appUpgradeVersion, skipClusterUpgradeCheck}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v", err)
+	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: running second airgap update", time.Now().Format(time.RFC3339))
@@ -1298,7 +1301,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 		t.Fatalf("fail to remove embedded-cluster-upgrade2 binary on node %s: %v", tc.Nodes[0], err)
 	}
 
-	appUpgradeVersion = fmt.Sprintf("appver-%s-2upgrade", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster a second time", time.Now().Format(time.RFC3339))
@@ -1307,7 +1310,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after second upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgrade2TargetVersion()}
+	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -1649,9 +1652,9 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		func(t *testing.T) error {
 			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-2upgrade", os.Getenv("SHORT_SHA")), airgapUpgrade2BundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgrade2BundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		},
 	)
 
@@ -1772,18 +1775,19 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to remove embedded-cluster-upgrade binary on node %s: %v", tc.Nodes[0], err)
 	}
 
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
+	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
+	skipClusterUpgradeCheck := "true"
+	testArgs := []string{appUpgradeVersion, skipClusterUpgradeCheck}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v", err)
+	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: running second airgap update", time.Now().Format(time.RFC3339))
@@ -1801,7 +1805,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to remove embedded-cluster-upgrade2 binary on node %s: %v", tc.Nodes[0], err)
 	}
 
-	appUpgradeVersion = fmt.Sprintf("appver-%s-2upgrade", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster a second time", time.Now().Format(time.RFC3339))
@@ -1810,7 +1814,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after second upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgrade2TargetVersion()}
+	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}

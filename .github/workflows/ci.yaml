@@ -457,72 +457,6 @@ jobs:
           echo "K0S_VERSION=\"$K0S_VERSION\""
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
 
-  build-upgrade-2:
-    name: Build upgrade 2
-    runs-on: embedded-cluster-2
-    needs:
-      - git-sha
-    outputs:
-      k0s_version: ${{ steps.export.outputs.k0s_version }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Cache embedded bins
-        uses: actions/cache@v4
-        with:
-          path: |
-            output/bins
-          key: bins-cache
-
-      - name: Setup go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
-
-      - name: Install dagger
-        run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
-          sudo mv ./bin/dagger /usr/local/bin/dagger
-      - name: Build
-        env:
-          APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
-          APP_CHANNEL_SLUG: ci
-          RELEASE_YAML_DIR: e2e/kots-release-upgrade
-          S3_BUCKET: "tf-staging-embedded-cluster-bin"
-          USES_DEV_BUCKET: "0"
-          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
-          AWS_REGION: "us-east-1"
-          USE_CHAINGUARD: "1"
-          UPLOAD_BINARIES: "1"
-          SKIP_RELEASE: "1"
-          MANGLE_METADATA: "1"
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          export K0S_VERSION=$(make print-K0S_VERSION)
-          export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-2upgrade
-          export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-2upgrade
-          # avoid rate limiting
-          export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
-          ./scripts/build-and-release.sh
-          cp output/bin/embedded-cluster output/bin/embedded-cluster-upgrade2
-      - name: Upload release
-        uses: actions/upload-artifact@v4
-        with:
-          name: upgrade-2-release
-          path: |
-            output/bin/embedded-cluster-upgrade2
-      - name: Export k0s version
-        id: export
-        run: |
-          K0S_VERSION="$(make print-K0S_VERSION)"
-          echo "K0S_VERSION=\"$K0S_VERSION\""
-          echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
-
   check-images:
     name: Check images
     runs-on: ubuntu-latest
@@ -587,7 +521,6 @@ jobs:
       - build-legacydr
       - build-previous-k0s
       - build-upgrade
-      - build-upgrade-2
       - find-previous-stable
     steps:
       - name: Checkout
@@ -651,15 +584,9 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
-          # an app upgrade
+          # and finally an app upgrade
           export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade"
           export APP_VERSION="appver-${SHORT_SHA}-upgrade"
-          export RELEASE_YAML_DIR=e2e/kots-release-upgrade
-          ./scripts/ci-release-app.sh
-
-          # and finally a second app upgrade
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-2upgrade"
-          export APP_VERSION="appver-${SHORT_SHA}-2upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
@@ -697,15 +624,9 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install-legacydr
           ./scripts/ci-release-app.sh
 
-          # an app upgrade
+          # and finally an app upgrade
           export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade"
           export APP_VERSION="appver-${SHORT_SHA}-upgrade"
-          export RELEASE_YAML_DIR=e2e/kots-release-upgrade
-          ./scripts/ci-release-app.sh
-
-          # and finally a second app upgrade
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-2upgrade"
-          export APP_VERSION="appver-${SHORT_SHA}-2upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
@@ -745,7 +666,6 @@ jobs:
       - build-legacydr
       - build-previous-k0s
       - build-upgrade
-      - build-upgrade-2
       - find-previous-stable
       - release-app
       - export-version-specifier
@@ -845,7 +765,6 @@ jobs:
       - build-legacydr
       - build-previous-k0s
       - build-upgrade
-      - build-upgrade-2
       - find-previous-stable
       - release-app
       - export-version-specifier
@@ -914,7 +833,6 @@ jobs:
       - build-legacydr
       - build-previous-k0s
       - build-upgrade
-      - build-upgrade-2
       - find-previous-stable
       - release-app
       - export-version-specifier

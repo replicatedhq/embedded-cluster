@@ -311,15 +311,9 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
-          # an app upgrade
+          # and finally an app upgrade
           export EC_VERSION="${{ github.ref_name }}"
           export APP_VERSION="appver-${{ github.ref_name }}-upgrade"
-          export RELEASE_YAML_DIR=e2e/kots-release-upgrade	
-          ./scripts/ci-release-app.sh
-
-          # and finally a second app upgrade
-          export EC_VERSION="${{ github.ref_name }}"
-          export APP_VERSION="appver-${{ github.ref_name }}-2upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
@@ -349,15 +343,9 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
-          # an app upgrade
+          # and finally an app upgrade
           export EC_VERSION="${{ github.ref_name }}"
           export APP_VERSION="appver-${{ github.ref_name }}-upgrade"
-          export RELEASE_YAML_DIR=e2e/kots-release-upgrade	
-          ./scripts/ci-release-app.sh
-
-          # and finally a second app upgrade
-          export EC_VERSION="${{ github.ref_name }}"
-          export APP_VERSION="appver-${{ github.ref_name }}-2upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
