@@ -112,7 +112,7 @@ func TestVersion(t *testing.T) {
 		}
 	}
 
-	expectedCharts := []string{"openebs", "embedded-cluster-operator", "admin-console", "ingress-nginx", "goldpinger"}
+	expectedCharts := []string{"openebs", "embedded-cluster-operator", "admin-console", "velero", "seaweedfs", "docker-registry", "ingress-nginx", "goldpinger"}
 	if len(parsed.Configs.Charts) != len(expectedCharts) {
 		t.Log(output)
 		t.Fatalf("found %d charts in metadata, expected %d", len(parsed.Configs.Charts), len(expectedCharts))
@@ -128,44 +128,6 @@ func TestVersion(t *testing.T) {
 		}
 		if !foundName {
 			t.Errorf("failed to find chart %s in 'metadata' output", expectedName)
-			failed = true
-		}
-	}
-
-	expectedBuiltinConfigsCharts := []string{"velero", "seaweedfs", "registry", "registry-ha"}
-	//nolint:staticcheck // SA1019 explanation Using deprecated BuiltinConfigs for testing
-	if len(parsed.BuiltinConfigs) != len(expectedBuiltinConfigsCharts) {
-		t.Log(output)
-		//nolint:staticcheck // SA1019 explanation Using deprecated BuiltinConfigs for testing
-		t.Fatalf("found %d builtin charts in metadata, expected %d", len(parsed.BuiltinConfigs), len(expectedBuiltinConfigsCharts))
-	}
-	for _, expectedName := range expectedBuiltinConfigsCharts {
-		//nolint:staticcheck // SA1019 explanation Using deprecated BuiltinConfigs for testing
-		if _, ok := parsed.BuiltinConfigs[expectedName]; !ok {
-			t.Errorf("failed to find builtin chart %s in 'metadata' output", expectedName)
-			failed = true
-		}
-	}
-
-	expectedVeleroCharts := []string{"velero"}
-	//nolint:staticcheck // SA1019 explanation Using deprecated BuiltinConfigs for testing
-	if len(parsed.BuiltinConfigs["velero"].Charts) != len(expectedVeleroCharts) {
-		t.Log(output)
-		//nolint:staticcheck // SA1019 explanation Using deprecated BuiltinConfigs for testing
-		t.Fatalf("found %d velero charts in metadata, expected %d", len(parsed.BuiltinConfigs["velero"].Charts), len(expectedVeleroCharts))
-	}
-
-	for _, expectedName := range expectedVeleroCharts {
-		foundName := false
-		//nolint:staticcheck // SA1019 explanation Using deprecated BuiltinConfigs for testing
-		for _, foundChart := range parsed.BuiltinConfigs["velero"].Charts {
-			if foundChart.Name == expectedName {
-				foundName = true
-				break
-			}
-		}
-		if !foundName {
-			t.Errorf("failed to find velero chart %s in 'metadata' output", expectedName)
 			failed = true
 		}
 	}
