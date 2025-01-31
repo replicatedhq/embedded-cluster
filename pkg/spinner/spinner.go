@@ -3,11 +3,16 @@ package spinner
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
+
+	"github.com/mattn/go-isatty"
 )
 
 var blocks = []string{"◐", "◓", "◑", "◒"}
+
+var hasTTY = isatty.IsTerminal(os.Stdout.Fd())
 
 // WriteFn is a function that writes a formatted string.
 type WriteFn func(string, ...any) (int, error)
@@ -29,6 +34,7 @@ type MessageWriter struct {
 	printf WriteFn
 	mask   MaskFn
 	lbreak LineBreakerFn
+	tty    bool
 }
 
 // Write implements io.Writer for the MessageWriter.
@@ -95,6 +101,7 @@ func (m *MessageWriter) loop() {
 	var message string
 	var ticker = time.NewTicker(50 * time.Millisecond)
 	var end bool
+	var changed bool
 	for {
 		previous := message
 
@@ -113,19 +120,29 @@ func (m *MessageWriter) loop() {
 			message = m.mask(message)
 		}
 
-		if m.lbreak != nil && previous != message {
+		changed = previous != message
+
+		if m.lbreak != nil && changed {
 			if lbreak, lcontent := m.lbreak(message); lbreak {
 				if diff := len(previous) - len(lcontent); diff > 0 {
 					suffix := strings.Repeat(" ", diff)
 					lcontent = fmt.Sprintf("%s%s", lcontent, suffix)
 				}
-				m.printf("\033[K\r✔  %s\n", lcontent)
+				if m.tty {
+					m.printf("\033[K\r✔  %s\n", lcontent)
+				} else {
+					m.printf("✔  %s\n", lcontent)
+				}
 			}
 		}
 
 		pos := counter % len(blocks)
 		if !end {
-			m.printf("\033[K\r%s  %s", blocks[pos], message)
+			if m.tty {
+				m.printf("\033[K\r%s  %s", blocks[pos], message)
+			} else if changed {
+				m.printf("○  %s\n", message)
+			}
 			continue
 		}
 
@@ -133,7 +150,11 @@ func (m *MessageWriter) loop() {
 		if m.err {
 			prefix = "✗"
 		}
-		m.printf("\033[K\r%s  %s\n", prefix, message)
+		if m.tty {
+			m.printf("\033[K\r%s  %s\n", prefix, message)
+		} else {
+			m.printf("%s  %s\n", prefix, message)
+		}
 		close(m.end)
 		return
 	}
@@ -145,6 +166,7 @@ func Start(opts ...Option) *MessageWriter {
 		ch:     make(chan string, 1024),
 		end:    make(chan struct{}),
 		printf: fmt.Printf,
+		tty:    hasTTY,
 	}
 	for _, opt := range opts {
 		opt(mw)
