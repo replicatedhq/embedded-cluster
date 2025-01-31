@@ -298,8 +298,9 @@ func ListInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.Inst
 			return nil, fmt.Errorf("override installation data dirs: %w", err)
 		}
 		if didUpdate {
+			runtimeConfig := install.Spec.RuntimeConfig
 			err := UpdateInstallation(ctx, cli, &install, func(in *ecv1beta1.Installation) {
-				in.Spec.RuntimeConfig = install.Spec.RuntimeConfig
+				in.Spec.RuntimeConfig = runtimeConfig
 			})
 			if err != nil {
 				return nil, fmt.Errorf("update installation with legacy data dirs: %w", err)
