@@ -46,7 +46,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
@@ -345,9 +344,7 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags, metri
 		return fmt.Errorf("unable to install extensions: %w", err)
 	}
 
-	// mark that the installation as installed as everything has been applied
-	in.Status.State = ecv1beta1.InstallationStateInstalled
-	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, in); err != nil {
+	if err := kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateInstalled, "Installed"); err != nil {
 		return fmt.Errorf("unable to update installation: %w", err)
 	}
 
@@ -655,7 +652,6 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags Install2C
 			Name: time.Now().Format("20060102150405"),
 		},
 		Spec: ecv1beta1.InstallationSpec{
-			SourceType:                ecv1beta1.InstallationSourceTypeCRD,
 			ClusterID:                 metrics.ClusterID().String(),
 			MetricsBaseURL:            metrics.BaseURL(flags.license),
 			AirGap:                    flags.isAirgap,
@@ -670,40 +666,18 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags Install2C
 			},
 		},
 	}
-	if err := kcli.Create(ctx, installation); err != nil {
+	if err := kubeutils.CreateInstallation(ctx, kcli, installation); err != nil {
 		return nil, fmt.Errorf("create installation: %w", err)
 	}
 
 	// the kubernetes api does not allow us to set the state of an object when creating it
-	err = setInstallationState(ctx, installation, ecv1beta1.InstallationStateKubernetesInstalled)
+	err = kubeutils.SetInstallationState(ctx, kcli, installation, ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed")
 	if err != nil {
 		return nil, fmt.Errorf("set installation state to KubernetesInstalled: %w", err)
 	}
 
 	loading.Infof("Types created!")
 	return installation, nil
-}
-
-func setInstallationState(ctx context.Context, installation *ecv1beta1.Installation, state string) error {
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return fmt.Errorf("create kube client: %w", err)
-	}
-
-	// retry on all errors
-	return retry.OnError(retry.DefaultRetry, func(_ error) bool { return true }, func() error {
-		err := kcli.Get(ctx, client.ObjectKey{Name: installation.Name}, installation)
-		if err != nil {
-			return fmt.Errorf("get installation: %w", err)
-		}
-
-		installation.Status.State = state
-
-		if err := kcli.Status().Update(ctx, installation); err != nil {
-			return fmt.Errorf("update installation status: %w", err)
-		}
-		return nil
-	})
 }
 
 func createECNamespace(ctx context.Context, kcli client.Client) error {

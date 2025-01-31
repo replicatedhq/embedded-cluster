@@ -17,13 +17,13 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *ecv1be
 
 	// check if the installation already exists - this function can be called multiple times
 	// if the installation is already created, we can just return
-	if in, err := kubeutils.GetCRDInstallation(ctx, cli, in.Name); err == nil {
+	if in, err := kubeutils.GetInstallation(ctx, cli, in.Name); err == nil {
 		log.Info(fmt.Sprintf("Installation %s already exists", in.Name))
 		return nil
 	}
 	log.Info(fmt.Sprintf("Creating installation %s", in.Name))
 
-	err := cli.Create(ctx, in)
+	err := kubeutils.CreateInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("create installation: %w", err)
 	}
@@ -41,13 +41,15 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *ecv1be
 // reApplyInstallation updates the installation spec to match what's in the configmap used by the upgrade job.
 // This is required because the installation CRD may have been updated as part of this upgrade, and additional fields may be present now.
 func reApplyInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
-	existingIn, err := kubeutils.GetCRDInstallation(ctx, cli, in.Name)
+	existingIn, err := kubeutils.GetInstallation(ctx, cli, in.Name)
 	if err != nil {
 		return fmt.Errorf("get installation: %w", err)
 	}
 
-	existingIn.Spec = *in.Spec.DeepCopy() // copy the spec in, in case there were fields added to the spec
-	if err := kubeutils.UpdateInstallation(ctx, cli, existingIn); err != nil {
+	err = kubeutils.UpdateInstallation(ctx, cli, existingIn, func(ex *ecv1beta1.Installation) {
+		ex.Spec = *in.Spec.DeepCopy() // copy the spec in, in case there were fields added to the spec
+	})
+	if err != nil {
 		return fmt.Errorf("update installation: %w", err)
 	}
 

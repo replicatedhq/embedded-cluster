@@ -89,7 +89,7 @@ func Restore2Cmd(ctx context.Context, name string) *cobra.Command {
 	var skipStoreValidation bool
 
 	cmd := &cobra.Command{
-		Use:   "restore2",
+		Use:   "restore",
 		Short: fmt.Sprintf("Restore a %s cluster", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall2(cmd, &flags, false); err != nil {
@@ -544,6 +544,22 @@ func runRestoreExtensions(ctx context.Context, flags Install2CmdFlags) error {
 }
 
 func runRestoreApp(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+	logrus.Debugf("setting installation status to installed")
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("create kube client: %w", err)
+	}
+
+	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get latest installation: %w", err)
+	}
+
+	err = kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateInstalled, "Installed")
+	if err != nil {
+		return fmt.Errorf("update installation status: %w", err)
+	}
+
 	logrus.Debugf("restoring app from backup %q", backupToRestore.GetName())
 	if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentApp, true); err != nil {
 		return err
@@ -1490,16 +1506,15 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context) error {
 		in.Spec.RuntimeConfig = &ecv1beta1.RuntimeConfigSpec{}
 	}
 
-	// We allow the user to override the port with a flag to the restore command.
-	in.Spec.RuntimeConfig.LocalArtifactMirror.Port = runtimeconfig.LocalArtifactMirrorPort()
-
-	if err := kubeutils.UpdateInstallation(ctx, kcli, in); err != nil {
+	err = kubeutils.UpdateInstallation(ctx, kcli, in, func(in *ecv1beta1.Installation) {
+		in.Spec.RuntimeConfig.LocalArtifactMirror.Port = runtimeconfig.LocalArtifactMirrorPort()
+	})
+	if err != nil {
 		return fmt.Errorf("update installation: %w", err)
 	}
 
-	in.Status.State = ecv1beta1.InstallationStateKubernetesInstalled
-
-	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, in); err != nil {
+	err = kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed")
+	if err != nil {
 		return fmt.Errorf("update installation status: %w", err)
 	}
 

@@ -62,7 +62,7 @@ func UpgradeJobCmd() *cobra.Command {
 
 			if err := performUpgrade(cmd.Context(), kcli, in); err != nil {
 				// if this is the last attempt, mark the installation as failed
-				if err := maybeMarkAsFailed(cmd.Context(), kcli, in, err); err != nil {
+				if err := maybeMarkAsFailed(cmd.Context(), kcli, in); err != nil {
 					fmt.Printf("Failed to mark installation as failed: %v", err)
 				}
 				return err
@@ -124,7 +124,7 @@ func attemptUpgrade(ctx context.Context, kcli client.Client, in *ecv1beta1.Insta
 	return nil
 }
 
-func maybeMarkAsFailed(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, err error) error {
+func maybeMarkAsFailed(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation) error {
 	lastAttempt, err := isLastAttempt(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("check if last attempt: %w", err)

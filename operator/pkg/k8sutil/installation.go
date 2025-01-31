@@ -5,30 +5,19 @@ import (
 	"fmt"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func SetInstallationState(ctx context.Context, cli client.Client, name string, state string, reason string, pendingCharts ...string) error {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		updatedIn := ecv1beta1.Installation{}
-		if err := cli.Get(ctx, types.NamespacedName{Name: name}, &updatedIn); err != nil {
-			return fmt.Errorf("get crd installation before updating status: %w", err)
-		}
-
-		updatedIn.Status.SetState(state, reason, pendingCharts)
-
-		if err := cli.Status().Update(ctx, &updatedIn); err != nil {
-			return fmt.Errorf("update crd installation status: %w", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("persistent conflict error, failed to update installation %s status: %w", name, err)
+	in := &ecv1beta1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
 	}
-	return nil
+	return kubeutils.SetInstallationState(ctx, cli, in, state, reason, pendingCharts...)
 }
 
 func CheckConditionStatus(inStat ecv1beta1.InstallationStatus, conditionName string) metav1.ConditionStatus {

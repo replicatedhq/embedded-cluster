@@ -183,6 +183,14 @@ func CreateUpgradeJob(
 								},
 							},
 						},
+						{
+							Name: "ec-charts-dir",
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: runtimeconfig.EmbeddedClusterChartsSubDir(),
+								},
+							},
+						},
 					},
 					Containers: []corev1.Container{
 						{
@@ -206,6 +214,11 @@ func CreateUpgradeJob(
 								{
 									Name:      "private-cas",
 									MountPath: "/certs",
+								},
+								{
+									Name:      "ec-charts-dir",
+									MountPath: runtimeconfig.EmbeddedClusterChartsSubDir(),
+									ReadOnly:  true,
 								},
 							},
 						},
