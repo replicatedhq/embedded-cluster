@@ -3,6 +3,7 @@ package extensions
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"runtime/debug"
 
 	"github.com/pkg/errors"
@@ -77,53 +78,35 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 		return errors.Wrap(err, "get condition status")
 	}
 	if conditionStatus == metav1.ConditionTrue {
-		fmt.Printf("%s already %sed\n", ext.Name, action)
+		slog.Info(fmt.Sprintf("%s already %sed", ext.Name, action))
 		return nil
 	}
 
-	actionIng := ""
-	actionEd := ""
-	if action == actionInstall || action == actionUninstall {
-		actionIng = action + "ing"
-		actionEd = action + "ed"
-	} else if action == actionUpgrade {
-		actionIng = "Upgrading"
-		actionEd = "Upgraded"
-	}
-	fmt.Printf("%s %s\n", actionIng, ext.Name)
+	actionIng, actionEd := formatAction(action)
+	slog.Info(actionIng, "extension", ext.Name, "version", ext.Version)
 
 	// mark as processing
-	if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
-		Type:   conditionName(ext),
-		Status: metav1.ConditionFalse,
-		Reason: actionIng,
-	}); err != nil {
-		return errors.Wrap(err, "set condition status")
+	if err := setCondition(ctx, kcli, in, conditionName(ext), metav1.ConditionFalse, actionIng, ""); err != nil {
+		return errors.Wrap(err, "failed to set condition status")
 	}
 
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("%s %s recovered from panic: %v: %s", actionIng, ext.Name, r, string(debug.Stack()))
 		}
-		if finalErr == nil {
-			// mark as processed successfully
-			if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
-				Type:   conditionName(ext),
-				Status: metav1.ConditionTrue,
-				Reason: actionEd,
-			}); err != nil {
-				fmt.Printf("failed to set condition status: %v", err)
-			}
-		} else {
-			// mark as failed
-			if err := k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
-				Type:    conditionName(ext),
-				Status:  metav1.ConditionFalse,
-				Reason:  action + "Failed",
-				Message: helpers.CleanErrorMessage(finalErr),
-			}); err != nil {
-				fmt.Printf("failed to set condition status: %v", err)
-			}
+
+		status := metav1.ConditionTrue
+		reason := actionEd
+		message := ""
+
+		if finalErr != nil {
+			status = metav1.ConditionFalse
+			reason = action + "Failed"
+			message = helpers.CleanErrorMessage(finalErr)
+		}
+
+		if err := setCondition(ctx, kcli, in, conditionName(ext), status, reason, message); err != nil {
+			slog.Error("Failed to set condition status", "error", err)
 		}
 	}()
 
@@ -134,7 +117,7 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 			return errors.Wrap(err, "check if release exists")
 		}
 		if exists {
-			fmt.Printf("%s already installed\n", ext.Name)
+			slog.Info(fmt.Sprintf("%s already installed", ext.Name))
 			return nil
 		}
 		if err := install(ctx, hcli, ext); err != nil {
@@ -152,7 +135,7 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 			return errors.Wrap(err, "check if release exists")
 		}
 		if !exists {
-			fmt.Printf("%s already uninstalled\n", ext.Name)
+			slog.Info(fmt.Sprintf("%s already uninstalled", ext.Name))
 			return nil
 		}
 		if err := uninstall(ctx, hcli, ext); err != nil {
@@ -160,7 +143,27 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 		}
 	}
 
-	fmt.Printf("%s %sed successfully\n", ext.Name, actionEd)
+	slog.Info(fmt.Sprintf("%s %sed successfully", ext.Name, actionEd))
 
 	return nil
+}
+
+func formatAction(action string) (ing, ed string) {
+	switch action {
+	case actionInstall, actionUninstall:
+		return action + "ing", action + "ed"
+	case actionUpgrade:
+		return "Upgrading", "Upgraded"
+	default:
+		return "Processing", "Processed"
+	}
+}
+
+func setCondition(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, conditionType string, status metav1.ConditionStatus, reason, message string) error {
+	return k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
+		Type:    conditionType,
+		Status:  status,
+		Reason:  reason,
+		Message: message,
+	})
 }
