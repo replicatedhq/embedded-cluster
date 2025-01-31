@@ -123,6 +123,9 @@ func TestLineBreak(t *testing.T) {
 	pb := Start(
 		WithWriter(WriteTo(buf)),
 		WithLineBreaker(lbreak),
+		func(m *MessageWriter) {
+			m.tty = true
+		},
 	)
 	for i := 0; i < 100; i++ {
 		pb.Infof("test %d", i)
@@ -132,7 +135,7 @@ func TestLineBreak(t *testing.T) {
 	// ✔  ping 2 (\n)
 	// ✔  ping 7 (\n)
 	// ✔  test 99 (\n)
-	assert.Equal(t, strings.Count(buf.String(), "\n"), 3)
+	assert.Equal(t, 3, strings.Count(buf.String(), "\n"))
 	assert.Contains(t, buf.String(), "ping 2")
 	assert.Contains(t, buf.String(), "ping 7")
 	assert.Contains(t, buf.String(), "test 99")
@@ -154,5 +157,5 @@ func TestSpinnerNoTTY(t *testing.T) {
 	loading.Infof("Done")
 	loading.Close()
 
-	assert.Equal(t, buf.String(), "○  Installing\n○  Waiting\n○  Done\n✔  Done\n")
+	assert.Equal(t, "○  Installing\n○  Waiting\n○  Done\n✔  Done\n", buf.String())
 }
