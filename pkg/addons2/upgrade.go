@@ -63,6 +63,10 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		&openebs.OpenEBS{},
 	}
 
+	// ECO's embedded (wrong) metadata values do not match the published (correct) metadata values.
+	// This is because we re-generate the metadata.yaml file _after_ building the ECO binary / image.
+	// We do that because the SHA of the image needs to be included in the metadata.yaml file.
+	// HACK: to work around this, override the embedded metadata values with the published ones.
 	ecoChartLocation, ecoChartVersion, err := operatorChart(meta)
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator chart location")
