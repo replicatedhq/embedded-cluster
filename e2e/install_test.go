@@ -539,6 +539,12 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to download embedded-cluster version %s on node 0: %v: %s: %s", appUpgradeVersion, err, stdout, stderr)
 	}
 
+	t.Logf("%s: re-installing kots cli on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"install-kots-cli.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to install kots cli on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+
 	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
@@ -706,6 +712,12 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	line = []string{"vandoor-prepare.sh", appUpgradeVersion, os.Getenv("LICENSE_ID"), "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster version %s on node 0: %v: %s: %s", appUpgradeVersion, err, stdout, stderr)
+	}
+
+	t.Logf("%s: re-installing kots cli on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"install-kots-cli.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to install kots cli on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
