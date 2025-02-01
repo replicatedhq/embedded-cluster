@@ -343,6 +343,12 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
+          # then a noop upgrade
+          export EC_VERSION="${{ github.ref_name }}"
+          export APP_VERSION="appver-${{ github.ref_name }}-noop"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
           # and finally an app upgrade
           export EC_VERSION="${{ github.ref_name }}"
           export APP_VERSION="appver-${{ github.ref_name }}-upgrade"
