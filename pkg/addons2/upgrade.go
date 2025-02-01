@@ -89,6 +89,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	if in.Spec.AirGap {
 		addOns = append(addOns, &registry.Registry{
 			ServiceCIDR: in.Spec.Network.ServiceCIDR,
+			IsHA:        in.Spec.HighAvailability,
 		})
 
 		if in.Spec.HighAvailability {
