@@ -1288,8 +1288,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
-	skipClusterUpgradeCheck := "true"
-	testArgs := []string{appUpgradeVersion, skipClusterUpgradeCheck}
+	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
@@ -1792,8 +1791,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
-	skipClusterUpgradeCheck := "true"
-	testArgs := []string{appUpgradeVersion, skipClusterUpgradeCheck}
+	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
