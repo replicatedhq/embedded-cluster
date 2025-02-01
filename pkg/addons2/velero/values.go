@@ -23,7 +23,7 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 
 	if v.Proxy != nil {
 		copiedValues["configuration"] = map[string]interface{}{
-			"extraEnvVars": map[string]string{
+			"extraEnvVars": map[string]interface{}{
 				"HTTP_PROXY":  v.Proxy.HTTPProxy,
 				"HTTPS_PROXY": v.Proxy.HTTPSProxy,
 				"NO_PROXY":    v.Proxy.NoProxy,

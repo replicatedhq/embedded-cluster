@@ -784,8 +784,10 @@ func gatherVersionMetadata(withChannelRelease bool) (*types.ReleaseMetadata, err
 	for name, version := range addons2.Versions() {
 		versionsMap[name] = version
 	}
-	for name, version := range extensions.Versions() {
-		versionsMap[name] = version
+	if withChannelRelease {
+		for name, version := range extensions.Versions() {
+			versionsMap[name] = version
+		}
 	}
 
 	versionsMap["Kubernetes"] = versions.K0sVersion

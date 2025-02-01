@@ -63,22 +63,33 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		&openebs.OpenEBS{},
 	}
 
-	ecoRepo, ecoTag, ecoUtilsImage, err := operatorImages(meta.Images)
+	// ECO's embedded (wrong) metadata values do not match the published (correct) metadata values.
+	// This is because we re-generate the metadata.yaml file _after_ building the ECO binary / image.
+	// We do that because the SHA of the image needs to be included in the metadata.yaml file.
+	// HACK: to work around this, override the embedded metadata values with the published ones.
+	ecoChartLocation, ecoChartVersion, err := operatorChart(meta)
+	if err != nil {
+		return nil, errors.Wrap(err, "get operator chart location")
+	}
+	ecoImageRepo, ecoImageTag, ecoUtilsImage, err := operatorImages(meta.Images)
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator images")
 	}
 	addOns = append(addOns, &embeddedclusteroperator.EmbeddedClusterOperator{
-		IsAirgap:           in.Spec.AirGap,
-		Proxy:              in.Spec.Proxy,
-		BinaryNameOverride: in.Spec.BinaryName,
-		ImageRepoOverride:  ecoRepo,
-		ImageTagOverride:   ecoTag,
-		UtilsImageOverride: ecoUtilsImage,
+		IsAirgap:              in.Spec.AirGap,
+		Proxy:                 in.Spec.Proxy,
+		ChartLocationOverride: ecoChartLocation,
+		ChartVersionOverride:  ecoChartVersion,
+		BinaryNameOverride:    in.Spec.BinaryName,
+		ImageRepoOverride:     ecoImageRepo,
+		ImageTagOverride:      ecoImageTag,
+		UtilsImageOverride:    ecoUtilsImage,
 	})
 
 	if in.Spec.AirGap {
 		addOns = append(addOns, &registry.Registry{
 			ServiceCIDR: in.Spec.Network.ServiceCIDR,
+			IsHA:        in.Spec.HighAvailability,
 		})
 
 		if in.Spec.HighAvailability {

@@ -11,12 +11,14 @@ import (
 )
 
 type EmbeddedClusterOperator struct {
-	IsAirgap           bool
-	Proxy              *ecv1beta1.ProxySpec
-	BinaryNameOverride string
-	ImageRepoOverride  string
-	ImageTagOverride   string
-	UtilsImageOverride string
+	IsAirgap              bool
+	Proxy                 *ecv1beta1.ProxySpec
+	ChartLocationOverride string
+	ChartVersionOverride  string
+	BinaryNameOverride    string
+	ImageRepoOverride     string
+	ImageTagOverride      string
+	UtilsImageOverride    string
 }
 
 const (
@@ -60,4 +62,18 @@ func (e *EmbeddedClusterOperator) ReleaseName() string {
 
 func (e *EmbeddedClusterOperator) Namespace() string {
 	return namespace
+}
+
+func (e *EmbeddedClusterOperator) ChartLocation() string {
+	if e.ChartLocationOverride != "" {
+		return e.ChartLocationOverride
+	}
+	return Metadata.Location
+}
+
+func (e *EmbeddedClusterOperator) ChartVersion() string {
+	if e.ChartVersionOverride != "" {
+		return e.ChartVersionOverride
+	}
+	return Metadata.Version
 }

@@ -57,8 +57,10 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.H
 }
 
 func (r *Registry) createUpgradePreRequisites(ctx context.Context, kcli client.Client) error {
-	if err := createS3Secret(ctx, kcli); err != nil {
-		return errors.Wrap(err, "create s3 secret")
+	if r.IsHA {
+		if err := createS3Secret(ctx, kcli); err != nil {
+			return errors.Wrap(err, "create s3 secret")
+		}
 	}
 
 	return nil
