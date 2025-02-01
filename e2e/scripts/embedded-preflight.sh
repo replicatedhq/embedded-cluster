@@ -12,6 +12,7 @@ has_applied_host_preflight() {
 }
 
 main() {
+    echo "installing with failing preflights"
     if /usr/local/bin/embedded-cluster-failing-preflights install --yes --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
         cat /tmp/log
         echo "preflight_with_failure: Expected installation to fail"
@@ -31,11 +32,13 @@ main() {
     mv /tmp/log /tmp/log-failure
 
     # Warnings should not fail installations
-    if ! /usr/local/bin/embedded-cluster install run-preflights --yes 2>&1 | tee /tmp/log ; then
+    echo "running preflights with warning preflights"
+    if ! /usr/local/bin/embedded-cluster install run-preflights --yes --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
         echo "preflight_with_warning: Failed to run embedded-cluster preflights"
         exit 1
     fi
+    echo "installing with warning preflights"
     if ! /usr/local/bin/embedded-cluster install --yes --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
         echo "preflight_with_warning: Failed to install embedded-cluster"
