@@ -3,7 +3,7 @@ module github.com/replicatedhq/embedded-cluster/kinds
 go 1.23.2
 
 require (
-	github.com/evanphx/json-patch v5.9.0+incompatible
+	github.com/evanphx/json-patch v5.9.11+incompatible
 	github.com/k0sproject/k0s v1.30.7-0.20241029184556-a942e759e13b
 	github.com/stretchr/testify v1.10.0
 	k8s.io/api v0.32.1
