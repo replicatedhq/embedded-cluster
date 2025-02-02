@@ -1185,7 +1185,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 		WithProxy:                true,
 		AirgapInstallBundlePath:  airgapInstallBundlePath,
 		AirgapUpgradeBundlePath:  airgapUpgradeBundlePath,
-		AirgapUpgrade2BundlePath: airgapUpgradeBundlePath,
+		AirgapUpgrade2BundlePath: airgapUpgrade2BundlePath,
 	})
 	defer tc.Cleanup(withEnv)
 
@@ -1692,7 +1692,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		WithProxy:                true,
 		AirgapInstallBundlePath:  airgapInstallBundlePath,
 		AirgapUpgradeBundlePath:  airgapUpgradeBundlePath,
-		AirgapUpgrade2BundlePath: airgapUpgradeBundlePath,
+		AirgapUpgrade2BundlePath: airgapUpgrade2BundlePath,
 	})
 	defer tc.Cleanup()
 
