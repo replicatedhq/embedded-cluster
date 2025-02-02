@@ -1309,7 +1309,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 
 	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-installation-state.sh", appUpgradeVersion, k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
