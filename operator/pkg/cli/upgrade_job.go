@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime/debug"
 	"time"
@@ -52,8 +53,8 @@ func UpgradeJobCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Printf("Upgrade job version %s started\n", versions.Version)
-			fmt.Printf("Upgrading to installation %s (version %s)\n", in.Name, in.Spec.Config.Version)
+			slog.Info("Upgrade job started", "version", versions.Version)
+			slog.Info("Upgrading to installation", "name", in.Name, "version", in.Spec.Config.Version)
 
 			kcli, err := k8sutil.KubeClient()
 			if err != nil {
@@ -63,12 +64,12 @@ func UpgradeJobCmd() *cobra.Command {
 			if upgradeErr := performUpgrade(cmd.Context(), kcli, in); upgradeErr != nil {
 				// if this is the last attempt, mark the installation as failed
 				if err := maybeMarkAsFailed(cmd.Context(), kcli, in, upgradeErr); err != nil {
-					fmt.Printf("Failed to mark installation as failed: %v", err)
+					slog.Error("Failed to mark installation as failed", "error", err)
 				}
 				return err
 			}
 
-			fmt.Println("Upgrade completed successfully")
+			slog.Info("Upgrade completed successfully")
 
 			return nil
 		},
@@ -97,7 +98,7 @@ func performUpgrade(ctx context.Context, kcli client.Client, in *ecv1beta1.Insta
 				return fmt.Errorf("failed to upgrade after %s: %w", (sleepDuration * time.Duration(i)).String(), err)
 			}
 
-			fmt.Printf("Upgrade failed, retrying: %s\n", err.Error())
+			slog.Error("Upgrade failed, retrying", "error", err)
 			time.Sleep(sleepDuration)
 			i++
 			continue

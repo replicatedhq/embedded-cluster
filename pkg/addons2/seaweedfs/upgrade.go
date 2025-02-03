@@ -2,7 +2,7 @@ package seaweedfs
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -15,7 +15,7 @@ func (s *SeaweedFS) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.
 		return errors.Wrap(err, "check if release exists")
 	}
 	if !exists {
-		fmt.Printf("%s release not found in %s namespace, installing\n", releaseName, namespace)
+		slog.Info("Release not found, installing", "release", releaseName, "namespace", namespace)
 		if err := s.Install(ctx, kcli, hcli, overrides, nil); err != nil {
 			return errors.Wrap(err, "install")
 		}

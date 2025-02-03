@@ -2,7 +2,7 @@ package registry
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/seaweedfs"
@@ -25,7 +25,7 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.H
 		return errors.Wrap(err, "check if release exists")
 	}
 	if !exists {
-		fmt.Printf("%s release not found in %s namespace, installing\n", releaseName, namespace)
+		slog.Info("Release not found, installing", "release", releaseName, "namespace", namespace)
 		if err := r.Install(ctx, kcli, hcli, overrides, nil); err != nil {
 			return errors.Wrap(err, "install")
 		}
