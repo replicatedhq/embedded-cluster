@@ -42,17 +42,6 @@ func findJoinCommandInOutput(stdout string) (string, error) {
 	return command, nil
 }
 
-func injectString(original, injection, after string) string {
-	// Split the string into parts using the 'after' substring
-	parts := strings.SplitN(original, after, 2)
-	if len(parts) < 2 {
-		// If 'after' substring is not found, return the original string
-		return original
-	}
-	// Construct the new string by adding the injection between the parts
-	return parts[0] + after + " " + injection + parts[1]
-}
-
 func k8sVersion() string {
 	// split the version string (like 'v1.29.6+k0s.0') into the k8s version and the k0s revision
 	verParts := strings.Split(os.Getenv("EXPECT_K0S_VERSION"), "+")

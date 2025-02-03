@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
@@ -134,9 +133,4 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 	}
 
 	return nil
-}
-
-func getGitCommitHash() (string, error) {
-	out, err := exec.Command("git", "rev-parse", "HEAD").Output()
-	return string(out), err
 }
