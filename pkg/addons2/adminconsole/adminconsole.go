@@ -74,6 +74,10 @@ func (a *AdminConsole) Name() string {
 	return "Admin Console"
 }
 
+func (a *AdminConsole) Version() string {
+	return Metadata.Version
+}
+
 func (a *AdminConsole) ReleaseName() string {
 	return releaseName
 }

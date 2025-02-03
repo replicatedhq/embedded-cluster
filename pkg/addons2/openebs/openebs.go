@@ -41,6 +41,10 @@ func (o *OpenEBS) Name() string {
 	return "Storage"
 }
 
+func (o *OpenEBS) Version() string {
+	return Metadata.Version
+}
+
 func (o *OpenEBS) ReleaseName() string {
 	return releaseName
 }

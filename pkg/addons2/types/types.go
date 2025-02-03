@@ -16,6 +16,7 @@ import (
 
 type AddOn interface {
 	Name() string
+	Version() string
 	ReleaseName() string
 	Namespace() string
 	GenerateHelmValues(ctx context.Context, kcli client.Client, overrides []string) (map[string]interface{}, error)

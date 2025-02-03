@@ -46,6 +46,10 @@ func (v *Velero) Name() string {
 	return "Velero"
 }
 
+func (v *Velero) Version() string {
+	return Metadata.Version
+}
+
 func (v *Velero) ReleaseName() string {
 	return releaseName
 }

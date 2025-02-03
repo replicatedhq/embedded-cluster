@@ -61,6 +61,10 @@ func (r *Registry) Name() string {
 	return "Registry"
 }
 
+func (r *Registry) Version() string {
+	return Metadata.Version
+}
+
 func (r *Registry) ReleaseName() string {
 	return releaseName
 }

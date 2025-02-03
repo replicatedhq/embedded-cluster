@@ -56,6 +56,10 @@ func (e *EmbeddedClusterOperator) Name() string {
 	return "Embedded Cluster Operator"
 }
 
+func (e *EmbeddedClusterOperator) Version() string {
+	return e.ChartVersion()
+}
+
 func (e *EmbeddedClusterOperator) ReleaseName() string {
 	return releaseName
 }

@@ -56,6 +56,10 @@ func (s *SeaweedFS) Name() string {
 	return "SeaweedFS"
 }
 
+func (s *SeaweedFS) Version() string {
+	return Metadata.Version
+}
+
 func (s *SeaweedFS) ReleaseName() string {
 	return releaseName
 }

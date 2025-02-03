@@ -83,7 +83,7 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 	}
 
 	actionIng, actionEd := formatAction(action)
-	slog.Info(actionIng, "extension", ext.Name, "version", ext.Version)
+	slog.Info(fmt.Sprintf("%s extension", actionIng), "name", ext.Name, "version", ext.Version)
 
 	// mark as processing
 	if err := setCondition(ctx, kcli, in, conditionName(ext), metav1.ConditionFalse, actionIng, ""); err != nil {

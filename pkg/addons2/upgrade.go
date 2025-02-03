@@ -126,7 +126,7 @@ func upgradeAddOn(ctx context.Context, hcli *helm.Helm, kcli client.Client, in *
 		return nil
 	}
 
-	slog.Info("Upgrading", "addon", addon.Name())
+	slog.Info("Upgrading addon", "name", addon.Name(), "version", addon.Version())
 
 	// mark as processing
 	if err := setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionFalse, "Upgrading", ""); err != nil {
