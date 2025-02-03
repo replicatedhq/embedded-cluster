@@ -82,6 +82,5 @@ func getBackupLabels() map[string]string {
 	return map[string]string{
 		"replicated.com/disaster-recovery":       "infra",
 		"replicated.com/disaster-recovery-chart": "embedded-cluster-operator",
-		"BLAH":                                   "BLAH",
 	}
 }
