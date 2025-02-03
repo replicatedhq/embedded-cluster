@@ -708,7 +708,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
 		}, func(t *testing.T) error {
 			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
 		},
