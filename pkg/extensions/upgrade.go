@@ -78,7 +78,7 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 		return errors.Wrap(err, "get condition status")
 	}
 	if conditionStatus == metav1.ConditionTrue {
-		slog.Info(fmt.Sprintf("%s already %sed", ext.Name, action))
+		slog.Info(fmt.Sprintf("%s is ready!", ext.Name))
 		return nil
 	}
 
@@ -143,7 +143,7 @@ func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, i
 		}
 	}
 
-	slog.Info(fmt.Sprintf("%s %sed successfully", ext.Name, actionEd))
+	slog.Info(fmt.Sprintf("%s is ready!", ext.Name))
 
 	return nil
 }

@@ -63,6 +63,11 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		&openebs.OpenEBS{},
 	}
 
+	serviceCIDR := ""
+	if in.Spec.Network != nil {
+		serviceCIDR = in.Spec.Network.ServiceCIDR
+	}
+
 	// ECO's embedded (wrong) metadata values do not match the published (correct) metadata values.
 	// This is because we re-generate the metadata.yaml file _after_ building the ECO binary / image.
 	// We do that because the SHA of the image needs to be included in the metadata.yaml file.
@@ -88,18 +93,18 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 
 	if in.Spec.AirGap {
 		addOns = append(addOns, &registry.Registry{
-			ServiceCIDR: in.Spec.Network.ServiceCIDR,
+			ServiceCIDR: serviceCIDR,
 			IsHA:        in.Spec.HighAvailability,
 		})
 
 		if in.Spec.HighAvailability {
 			addOns = append(addOns, &seaweedfs.SeaweedFS{
-				ServiceCIDR: in.Spec.Network.ServiceCIDR,
+				ServiceCIDR: serviceCIDR,
 			})
 		}
 	}
 
-	if in.Spec.LicenseInfo.IsDisasterRecoverySupported {
+	if in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
 		addOns = append(addOns, &velero.Velero{
 			Proxy: in.Spec.Proxy,
 		})
@@ -109,7 +114,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		IsAirgap:    in.Spec.AirGap,
 		IsHA:        in.Spec.HighAvailability,
 		Proxy:       in.Spec.Proxy,
-		ServiceCIDR: in.Spec.Network.ServiceCIDR,
+		ServiceCIDR: serviceCIDR,
 	})
 
 	return addOns, nil
