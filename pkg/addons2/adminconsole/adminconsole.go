@@ -81,3 +81,10 @@ func (a *AdminConsole) ReleaseName() string {
 func (a *AdminConsole) Namespace() string {
 	return namespace
 }
+
+func getBackupLabels() map[string]string {
+	return map[string]string{
+		"replicated.com/disaster-recovery":       "infra",
+		"replicated.com/disaster-recovery-chart": "admin-console",
+	}
+}

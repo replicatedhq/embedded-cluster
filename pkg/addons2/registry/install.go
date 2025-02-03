@@ -38,10 +38,7 @@ func (r *Registry) Install(ctx context.Context, kcli client.Client, hcli *helm.H
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,
-		Labels: map[string]string{
-			// this is the backup/restore label
-			"app": "docker-registry",
-		},
+		Labels:       getBackupLabels(),
 	})
 	if err != nil {
 		return errors.Wrap(err, "install")

@@ -82,3 +82,9 @@ func GetRegistryClusterIP(serviceCIDR string) (string, error) {
 	}
 	return svcIP.String(), nil
 }
+
+func getBackupLabels() map[string]string {
+	return map[string]string{
+		"app": "docker-registry",
+	}
+}
