@@ -57,7 +57,7 @@ func ExtractImagesFromChart(hcli *Helm, repo, name, version string, values map[s
 }
 
 func ExtractImagesFromLocalChart(hcli *Helm, name, path string, values map[string]interface{}) ([]string, error) {
-	manifests, err := hcli.Render(name, path, values, "default")
+	manifests, err := hcli.Render(name, path, values, "default", nil)
 	if err != nil {
 		return nil, fmt.Errorf("render: %w", err)
 	}

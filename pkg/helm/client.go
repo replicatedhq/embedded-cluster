@@ -69,7 +69,7 @@ type Client interface {
 	Install(ctx context.Context, opts InstallOptions) (*release.Release, error)
 	Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error)
 	Uninstall(ctx context.Context, opts UninstallOptions) error
-	Render(releaseName string, chartPath string, values map[string]interface{}, namespace string) ([][]byte, error)
+	Render(releaseName string, chartPath string, values map[string]interface{}, namespace string, labels map[string]string) ([][]byte, error)
 }
 
 type RESTClientGetterFactory func(namespace string) genericclioptions.RESTClientGetter
@@ -121,6 +121,7 @@ type InstallOptions struct {
 	ChartVersion string
 	Values       map[string]interface{}
 	Namespace    string
+	Labels       map[string]string
 	Timeout      time.Duration
 }
 
@@ -130,6 +131,7 @@ type UpgradeOptions struct {
 	ChartVersion string
 	Values       map[string]interface{}
 	Namespace    string
+	Labels       map[string]string
 	Timeout      time.Duration
 	Force        bool
 }
@@ -329,6 +331,7 @@ func (h *Helm) Install(ctx context.Context, opts InstallOptions) (*release.Relea
 	client := action.NewInstall(cfg)
 	client.ReleaseName = opts.ReleaseName
 	client.Namespace = opts.Namespace
+	client.Labels = opts.Labels
 	client.Replace = true
 	client.CreateNamespace = true
 	client.WaitForJobs = true
@@ -383,6 +386,7 @@ func (h *Helm) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Relea
 
 	client := action.NewUpgrade(cfg)
 	client.Namespace = opts.Namespace
+	client.Labels = opts.Labels
 	client.WaitForJobs = true
 	client.Wait = true
 	client.Atomic = true
@@ -449,7 +453,7 @@ func (h *Helm) Uninstall(ctx context.Context, opts UninstallOptions) error {
 	return nil
 }
 
-func (h *Helm) Render(releaseName string, chartPath string, values map[string]interface{}, namespace string) ([][]byte, error) {
+func (h *Helm) Render(releaseName string, chartPath string, values map[string]interface{}, namespace string, labels map[string]string) ([][]byte, error) {
 	cfg := &action.Configuration{}
 
 	client := action.NewInstall(cfg)
@@ -459,6 +463,7 @@ func (h *Helm) Render(releaseName string, chartPath string, values map[string]in
 	client.ClientOnly = true
 	client.IncludeCRDs = true
 	client.Namespace = namespace
+	client.Labels = labels
 
 	if h.kversion != nil {
 		// since ClientOnly is true we need to initialize KubeVersion otherwise resorts defaults

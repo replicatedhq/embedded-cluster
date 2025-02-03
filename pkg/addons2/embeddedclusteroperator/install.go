@@ -21,6 +21,7 @@ func (e *EmbeddedClusterOperator) Install(ctx context.Context, kcli client.Clien
 		ChartVersion: e.ChartVersion(),
 		Values:       values,
 		Namespace:    namespace,
+		Labels:       getBackupLabels(),
 	})
 	if err != nil {
 		return errors.Wrap(err, "install")

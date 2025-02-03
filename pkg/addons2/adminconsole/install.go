@@ -36,6 +36,7 @@ func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, hcli *he
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,
+		Labels:       getBackupLabels(),
 	})
 	if err != nil {
 		return errors.Wrap(err, "install")

@@ -29,6 +29,7 @@ func (a *AdminConsole) Upgrade(ctx context.Context, kcli client.Client, hcli *he
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,
+		Labels:       getBackupLabels(),
 		Force:        false,
 	})
 	if err != nil {

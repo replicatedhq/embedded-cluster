@@ -67,3 +67,9 @@ func (s *SeaweedFS) ReleaseName() string {
 func (s *SeaweedFS) Namespace() string {
 	return namespace
 }
+
+func getBackupLabels() map[string]string {
+	return map[string]string{
+		"app.kubernetes.io/name": "seaweedfs",
+	}
+}

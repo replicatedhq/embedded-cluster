@@ -32,6 +32,7 @@ func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli *helm.
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,
+		Labels:       getBackupLabels(),
 	})
 	if err != nil {
 		return errors.Wrap(err, "install")
