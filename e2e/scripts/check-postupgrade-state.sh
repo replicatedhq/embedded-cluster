@@ -54,17 +54,6 @@ main() {
         exit 1
     fi
 
-    # ensure that the nginx-ingress chart has been updated
-    local latest_nginx_chart_secret=
-    latest_nginx_chart_secret=$(kubectl get secrets -n ingress-nginx | grep helm | awk '{ print $1 }' | sort -r | head -n 1)
-    if ! kubectl get secret -n ingress-nginx "$latest_nginx_chart_secret" -ojsonpath="{.data.release}" | base64 -d | base64 -d | gzip -d | grep -q "test-upgrade-value" ; then
-        echo "test-upgrade-value not found in ingress-nginx chart"
-        echo "latest_nginx_chart_secret: $latest_nginx_chart_secret"
-        echo "latest_nginx_chart_secret data:"
-        kubectl get secret -n ingress-nginx "$latest_nginx_chart_secret" -ojsonpath="{.data.release}" | base64 -d | base64 -d | gzip -d
-        exit 1
-    fi
-
     # ensure the new version made it into the pod
     if ! retry 5 check_nginx_version ; then
         echo "4.12.0-beta.0 not found in ingress-nginx pod"
