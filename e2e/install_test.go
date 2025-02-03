@@ -530,15 +530,6 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// use upgraded binaries to run the commands
-	// TODO: this is a temporary workaround and should eventually be a feature of EC
-
-	t.Logf("%s: downloading embedded-cluster %s on node 0", time.Now().Format(time.RFC3339), appUpgradeVersion)
-	line = []string{"vandoor-prepare.sh", appUpgradeVersion, os.Getenv("LICENSE_ID"), "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster version %s on node 0: %v: %s: %s", appUpgradeVersion, err, stdout, stderr)
-	}
-
 	t.Logf("%s: re-installing kots cli on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"install-kots-cli.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
@@ -703,15 +694,6 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	// use upgraded binaries to run the commands
-	// TODO: this is a temporary workaround and should eventually be a feature of EC
-
-	t.Logf("%s: downloading embedded-cluster %s on node 0", time.Now().Format(time.RFC3339), appUpgradeVersion)
-	line = []string{"vandoor-prepare.sh", appUpgradeVersion, os.Getenv("LICENSE_ID"), "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster version %s on node 0: %v: %s: %s", appUpgradeVersion, err, stdout, stderr)
 	}
 
 	t.Logf("%s: re-installing kots cli on node 0", time.Now().Format(time.RFC3339))
