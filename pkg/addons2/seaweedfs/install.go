@@ -32,6 +32,7 @@ func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli *helm.
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,
+		Labels:       map[string]string{"replicated.com/disaster-recovery": "infra"},
 	})
 	if err != nil {
 		return errors.Wrap(err, "install")

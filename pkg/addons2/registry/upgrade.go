@@ -47,6 +47,7 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.H
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,
+		Labels:       map[string]string{"replicated.com/disaster-recovery": "infra"},
 		Force:        false,
 	})
 	if err != nil {

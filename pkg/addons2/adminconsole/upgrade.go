@@ -29,6 +29,7 @@ func (a *AdminConsole) Upgrade(ctx context.Context, kcli client.Client, hcli *he
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,
+		Labels:       map[string]string{"replicated.com/disaster-recovery": "infra"},
 		Force:        false,
 	})
 	if err != nil {

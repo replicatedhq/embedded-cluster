@@ -33,6 +33,7 @@ func (e *EmbeddedClusterOperator) Upgrade(ctx context.Context, kcli client.Clien
 		ChartVersion: e.ChartVersion(),
 		Values:       values,
 		Namespace:    namespace,
+		Labels:       map[string]string{"replicated.com/disaster-recovery": "infra"},
 		Force:        true,
 	})
 	if err != nil {
