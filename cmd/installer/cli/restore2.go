@@ -26,6 +26,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -53,16 +54,17 @@ import (
 type ecRestoreState string
 
 const (
-	ecRestoreStateNew                 ecRestoreState = "new"
-	ecRestoreStateConfirmBackup       ecRestoreState = "confirm-backup"
-	ecRestoreStateRestoreECInstall    ecRestoreState = "restore-ec-install"
-	ecRestoreStateRestoreAdminConsole ecRestoreState = "restore-admin-console"
-	ecRestoreStateWaitForNodes        ecRestoreState = "wait-for-nodes"
-	ecRestoreStateRestoreSeaweedFS    ecRestoreState = "restore-seaweedfs"
-	ecRestoreStateRestoreRegistry     ecRestoreState = "restore-registry"
-	ecRestoreStateRestoreECO          ecRestoreState = "restore-embedded-cluster-operator"
-	ecRestoreStateRestoreExtensions   ecRestoreState = "restore-extensions"
-	ecRestoreStateRestoreApp          ecRestoreState = "restore-app"
+	ecRestoreStateNew                  ecRestoreState = "new"
+	ecRestoreStateConfirmBackup        ecRestoreState = "confirm-backup"
+	ecRestoreStateRestoreECInstall     ecRestoreState = "restore-ec-install"
+	ecRestoreStateRestoreAdminConsole  ecRestoreState = "restore-admin-console"
+	ecRestoreStateWaitForNodes         ecRestoreState = "wait-for-nodes"
+	ecRestoreStateRestoreSeaweedFS     ecRestoreState = "restore-seaweedfs"
+	ecRestoreStateRestoreRegistry      ecRestoreState = "restore-registry"
+	ecRestoreStateAdminConsoleEnableHA ecRestoreState = "admin-console-enable-ha"
+	ecRestoreStateRestoreECO           ecRestoreState = "restore-embedded-cluster-operator"
+	ecRestoreStateRestoreExtensions    ecRestoreState = "restore-extensions"
+	ecRestoreStateRestoreApp           ecRestoreState = "restore-app"
 )
 
 var ecRestoreStates = []ecRestoreState{
@@ -73,6 +75,7 @@ var ecRestoreStates = []ecRestoreState{
 	ecRestoreStateWaitForNodes,
 	ecRestoreStateRestoreSeaweedFS,
 	ecRestoreStateRestoreRegistry,
+	ecRestoreStateAdminConsoleEnableHA,
 	ecRestoreStateRestoreECO,
 	ecRestoreStateRestoreExtensions,
 	ecRestoreStateRestoreApp,
@@ -273,6 +276,20 @@ func runRestore2(ctx context.Context, name string, flags Install2CmdFlags, s3Sto
 		}
 
 		err = runRestoreRegistry(ctx, flags, backupToRestore)
+		if err != nil {
+			return err
+		}
+
+		fallthrough
+
+	case ecRestoreStateAdminConsoleEnableHA:
+		logrus.Debugf("setting restore state to %q", ecRestoreStateAdminConsoleEnableHA)
+		err := setECRestoreState(ctx, ecRestoreStateAdminConsoleEnableHA, backupToRestore.GetName())
+		if err != nil {
+			return fmt.Errorf("unable to set restore state: %w", err)
+		}
+
+		err = runRestoreEnableAdminConsoleHA(ctx, flags, backupToRestore)
 		if err != nil {
 			return err
 		}
@@ -481,6 +498,53 @@ func runRestoreWaitForNodes(ctx context.Context, flags Install2CmdFlags, backupT
 	if err := waitForAdditionalNodes(ctx, highAvailability, flags.networkInterface); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func runRestoreEnableAdminConsoleHA(ctx context.Context, flags Install2CmdFlags, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
+	if err != nil {
+		return err
+	} else if !highAvailability {
+		return nil
+	}
+
+	loading := spinner.Start()
+	defer loading.Close()
+
+	loading.Infof("Enabling high availability for the Admin Console")
+
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+
+	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get latest installation: %w", err)
+	}
+
+	airgapChartsPath := ""
+	if flags.isAirgap {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
+
+	hcli, err := helm.NewHelm(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
+	})
+	if err != nil {
+		return fmt.Errorf("create helm client: %w", err)
+	}
+
+	err = addons2.EnableAdminConsoleHA(ctx, kcli, hcli, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config)
+	if err != nil {
+		return err
+	}
+
+	loading.Infof("High availability enabled for the Admin Console!")
 
 	return nil
 }

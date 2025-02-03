@@ -94,15 +94,9 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 
 	loading.Infof("Updating the Admin Console for high availability")
 
-	// TODO (@salah): add support for end user overrides
-	ac := &adminconsole.AdminConsole{
-		IsAirgap:    isAirgap,
-		IsHA:        true,
-		Proxy:       proxy,
-		ServiceCIDR: serviceCIDR,
-	}
-	if err := ac.Upgrade(ctx, kcli, hcli, addOnOverrides(ac, cfgspec, nil)); err != nil {
-		return errors.Wrap(err, "upgrade admin console")
+	err = EnableAdminConsoleHA(ctx, kcli, isAirgap, serviceCIDR, proxy, cfgspec)
+	if err != nil {
+		return errors.Wrap(err, "enable admin console high availability")
 	}
 
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
@@ -117,5 +111,21 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 	}
 
 	loading.Infof("High availability enabled!")
+	return nil
+}
+
+// EnableAdminConsoleHA enables high availability for the admin console.
+func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli *helm.Helm, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
+	// TODO (@salah): add support for end user overrides
+	ac := &adminconsole.AdminConsole{
+		IsAirgap:    isAirgap,
+		IsHA:        true,
+		Proxy:       proxy,
+		ServiceCIDR: serviceCIDR,
+	}
+	if err := ac.Upgrade(ctx, kcli, hcli, addOnOverrides(ac, cfgspec, nil)); err != nil {
+		return errors.Wrap(err, "upgrade admin console")
+	}
+
 	return nil
 }
