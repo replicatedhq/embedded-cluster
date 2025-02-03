@@ -18,9 +18,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -244,7 +247,20 @@ func upgradeExtensions(ctx context.Context, cli client.Client, in *ecv1beta1.Ins
 		return fmt.Errorf("get previous installation: %w", err)
 	}
 
-	if err := extensions.Upgrade(ctx, cli, previous, in); err != nil {
+	airgapChartsPath := ""
+	if in.Spec.AirGap {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
+
+	hcli, err := helm.NewHelm(helm.HelmOptions{
+		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
+	})
+	if err != nil {
+		return fmt.Errorf("create helm client: %w", err)
+	}
+
+	if err := extensions.Upgrade(ctx, cli, hcli, previous, in); err != nil {
 		return fmt.Errorf("upgrade extensions: %w", err)
 	}
 
