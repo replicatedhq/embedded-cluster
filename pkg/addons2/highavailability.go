@@ -94,7 +94,7 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 
 	loading.Infof("Updating the Admin Console for high availability")
 
-	err = EnableAdminConsoleHA(ctx, kcli, isAirgap, serviceCIDR, proxy, cfgspec)
+	err = EnableAdminConsoleHA(ctx, kcli, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
 	if err != nil {
 		return errors.Wrap(err, "enable admin console high availability")
 	}
