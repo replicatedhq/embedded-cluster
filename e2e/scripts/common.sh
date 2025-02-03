@@ -182,6 +182,7 @@ ensure_app_deployed() {
     kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
     if ! kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app | grep -q "${version}\W*[01]\W*deployed"; then
         echo "application version ${version} not deployed"
+        kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
         return 1
     fi
 }
@@ -366,7 +367,7 @@ has_stored_host_preflight_results() {
 }
 
 install_kots_cli() {
-    if command -v kots; then
+    if command -v kubectl-kots; then
         return
     fi
 
