@@ -36,7 +36,10 @@ func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, hcli *he
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,
-		Labels:       map[string]string{"replicated.com/disaster-recovery": "infra"},
+		Labels: map[string]string{
+			"replicated.com/disaster-recovery":       "infra",
+			"replicated.com/disaster-recovery-chart": "admin-console",
+		},
 	})
 	if err != nil {
 		return errors.Wrap(err, "install")

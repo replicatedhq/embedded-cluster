@@ -47,8 +47,11 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.H
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,
-		Labels:       map[string]string{"replicated.com/disaster-recovery": "infra"},
-		Force:        false,
+		Labels: map[string]string{
+			// this is the backup/restore label
+			"app": "docker-registry",
+		},
+		Force: false,
 	})
 	if err != nil {
 		return errors.Wrap(err, "upgrade")

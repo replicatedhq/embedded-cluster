@@ -32,7 +32,10 @@ func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli *helm.
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,
-		Labels:       map[string]string{"replicated.com/disaster-recovery": "infra"},
+		Labels: map[string]string{
+			// this is the backup/restore label
+			"app.kubernetes.io/name": "seaweedfs",
+		},
 	})
 	if err != nil {
 		return errors.Wrap(err, "install")

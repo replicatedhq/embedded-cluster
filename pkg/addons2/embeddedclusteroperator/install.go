@@ -21,7 +21,11 @@ func (e *EmbeddedClusterOperator) Install(ctx context.Context, kcli client.Clien
 		ChartVersion: e.ChartVersion(),
 		Values:       values,
 		Namespace:    namespace,
-		Labels:       map[string]string{"replicated.com/disaster-recovery": "infra"},
+		Labels: map[string]string{
+			"replicated.com/disaster-recovery":       "infra",
+			"replicated.com/disaster-recovery-chart": "embedded-cluster-operator",
+			"BLAH":                                   "BLAH",
+		},
 	})
 	if err != nil {
 		return errors.Wrap(err, "install")
