@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 	"time"
 
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
@@ -540,12 +539,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// set the runtime config from the installation spec
 	runtimeconfig.Set(in.Spec.RuntimeConfig)
 
-	// if the embedded cluster version has changed we should not reconcile with the old version
-	versionChanged, err := r.needsUpgrade(ctx, in)
-	if versionChanged {
-		return ctrl.Result{}, err
-	}
-
 	// if this cluster has no id we bail out immediately.
 	if in.Spec.ClusterID == "" {
 		log.Info("No cluster ID found, reconciliation ended")
@@ -593,19 +586,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	log.Info("Installation reconciliation ended")
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
-}
-
-func (r *InstallationReconciler) needsUpgrade(ctx context.Context, in *v1beta1.Installation) (bool, error) {
-	if in.Spec.Config == nil || in.Spec.Config.Version == "" {
-		return false, nil
-	}
-	curstr := strings.TrimPrefix(os.Getenv("EMBEDDEDCLUSTER_VERSION"), "v")
-	desstr := strings.TrimPrefix(in.Spec.Config.Version, "v")
-	var err error
-	if curstr != desstr {
-		err = fmt.Errorf("current version (%s) is different from the desired version (%s)", curstr, desstr)
-	}
-	return curstr != desstr, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
