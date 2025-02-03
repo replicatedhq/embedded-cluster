@@ -11,6 +11,13 @@ function check_nginx_version {
     return 0
 }
 
+function check_nginx_annotation {
+    if ! kubectl describe service -n ingress-nginx ingress-nginx-controller | grep -q "test-upgrade-value"; then
+        return 1
+    fi
+    return 0
+}
+
 main() {
     local k8s_version="$1"
     local ec_version="$2"
@@ -47,23 +54,27 @@ main() {
         exit 1
     fi
 
-    # ensure that nginx-ingress has been updated
-    # TODO (@salah): fix this
-    # kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
-    # # ensure new values are present
-    # if ! kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "test-upgrade-value"; then
-    #     echo "test-upgrade-value not found in ingress-nginx chart"
-    #     exit 1
-    # fi
-    # # ensure new version is present
-    # if ! kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "4.12.0-beta.0"; then
-    #     echo "4.12.0-beta.0 not found in ingress-nginx chart"
-    #     exit 1
-    # fi
+    # ensure that the nginx-ingress chart has been updated
+    local latest_nginx_chart_secret=
+    latest_nginx_chart_secret=$(kubectl get secrets -n ingress-nginx | grep helm | awk '{ print $1 }' | sort -r | head -n 1)
+    if ! kubectl get secret -n ingress-nginx "$latest_nginx_chart_secret" -ojsonpath="{.data.release}" | base64 -d | base64 -d | gzip -d | grep -q "test-upgrade-value" ; then
+        echo "test-upgrade-value not found in ingress-nginx chart"
+        echo "latest_nginx_chart_secret: $latest_nginx_chart_secret"
+        echo "latest_nginx_chart_secret data:"
+        kubectl get secret -n ingress-nginx "$latest_nginx_chart_secret" -ojsonpath="{.data.release}" | base64 -d | base64 -d | gzip -d
+        exit 1
+    fi
+
     # ensure the new version made it into the pod
     if ! retry 5 check_nginx_version ; then
         echo "4.12.0-beta.0 not found in ingress-nginx pod"
         kubectl describe pod -n ingress-nginx
+        exit 1
+    fi
+    # ensure that the new annotation made it into the service
+    if ! retry 5 check_nginx_annotation ; then
+        echo "test-upgrade-value not found in ingress-nginx-controller service"
+        kubectl describe service -n ingress-nginx-controller
         exit 1
     fi
 
@@ -74,7 +85,6 @@ main() {
     fi
 
     # ensure that the embedded-cluster-operator has been updated
-    # TODO (@salah): fix this
     kubectl describe pod -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator
     # ensure the new value made it into the pod
     if ! kubectl describe pod -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator | grep "EMBEDDEDCLUSTER_VERSION" | grep -q -e "$ec_version" ; then
@@ -103,14 +113,6 @@ main() {
         kubectl get statefulset -n kotsadm kotsadm-minio
         exit 1
     fi
-
-    # TODO (@salah): fix this
-    # echo "ensure that the default chart order remained 110"
-    # if ! kubectl describe clusterconfig -n kube-system k0s | grep -q -e 'Order:\W*110' ; then
-    #     kubectl describe clusterconfig -n kube-system k0s
-    #     echo "no charts had an order of '110'"
-    #     exit 1
-    # fi
 
     echo "ensure that all nodes are running k8s $k8s_version"
     if ! ensure_nodes_match_kube_version "$k8s_version"; then
