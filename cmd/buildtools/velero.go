@@ -8,6 +8,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -64,12 +65,18 @@ var updateVeleroAddonCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating velero addon")
 
+		hcli, err := NewHelm()
+		if err != nil {
+			return fmt.Errorf("failed to create helm client: %w", err)
+		}
+		defer hcli.Close()
+
 		nextChartVersion := os.Getenv("INPUT_VELERO_CHART_VERSION")
 		if nextChartVersion != "" {
 			logrus.Infof("using input override from INPUT_VELERO_CHART_VERSION: %s", nextChartVersion)
 		} else {
 			logrus.Infof("fetching the latest velero chart version")
-			latest, err := LatestChartVersion(veleroRepo, "velero")
+			latest, err := LatestChartVersion(hcli, veleroRepo, "velero")
 			if err != nil {
 				return fmt.Errorf("failed to get the latest velero chart version: %v", err)
 			}
@@ -83,7 +90,7 @@ var updateVeleroAddonCommand = &cli.Command{
 			logrus.Infof("velero chart version is already up-to-date")
 		} else {
 			logrus.Infof("mirroring velero chart version %s", nextChartVersion)
-			if err := MirrorChart(veleroRepo, "velero", nextChartVersion); err != nil {
+			if err := MirrorChart(hcli, veleroRepo, "velero", nextChartVersion); err != nil {
 				return fmt.Errorf("failed to mirror velero chart: %v", err)
 			}
 		}
@@ -91,7 +98,7 @@ var updateVeleroAddonCommand = &cli.Command{
 		upstream := fmt.Sprintf("%s/velero", os.Getenv("CHARTS_DESTINATION"))
 		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
 
-		veleroVersion, err := findVeleroVersionFromChart(c.Context, withproto, nextChartVersion)
+		veleroVersion, err := findVeleroVersionFromChart(c.Context, hcli, withproto, nextChartVersion)
 		if err != nil {
 			return fmt.Errorf("failed to find velero version from chart: %w", err)
 		}
@@ -106,7 +113,7 @@ var updateVeleroAddonCommand = &cli.Command{
 
 		logrus.Infof("updating velero images")
 
-		err = updateVeleroAddonImages(c.Context, withproto, nextChartVersion, restoreHelperVersion, awsPluginVersion)
+		err = updateVeleroAddonImages(c.Context, hcli, withproto, nextChartVersion, restoreHelperVersion, awsPluginVersion)
 		if err != nil {
 			return fmt.Errorf("failed to update velero images: %w", err)
 		}
@@ -123,6 +130,12 @@ var updateVeleroImagesCommand = &cli.Command{
 	UsageText: environmentUsageText,
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating velero images")
+
+		hcli, err := NewHelm()
+		if err != nil {
+			return fmt.Errorf("failed to create helm client: %w", err)
+		}
+		defer hcli.Close()
 
 		current := velero.Metadata
 
@@ -142,7 +155,7 @@ var updateVeleroImagesCommand = &cli.Command{
 		awsPluginVersion = strings.TrimSuffix(awsPluginVersion, "-amd64")
 		awsPluginVersion = strings.TrimPrefix(awsPluginVersion, "v")
 
-		err := updateVeleroAddonImages(c.Context, current.Location, current.Version, restoreHelperVersion, awsPluginVersion)
+		err = updateVeleroAddonImages(c.Context, hcli, current.Location, current.Version, restoreHelperVersion, awsPluginVersion)
 		if err != nil {
 			return fmt.Errorf("failed to update velero images: %w", err)
 		}
@@ -153,12 +166,12 @@ var updateVeleroImagesCommand = &cli.Command{
 	},
 }
 
-func findVeleroVersionFromChart(ctx context.Context, chartURL string, chartVersion string) (string, error) {
+func findVeleroVersionFromChart(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string) (string, error) {
 	values, err := release.GetValuesWithOriginalImages("velero")
 	if err != nil {
 		return "", fmt.Errorf("failed to get velero values: %v", err)
 	}
-	images, err := GetImagesFromOCIChart(chartURL, "velero", chartVersion, values)
+	images, err := helm.ExtractImagesFromOCIChart(hcli, chartURL, "velero", chartVersion, values)
 	if err != nil {
 		return "", fmt.Errorf("failed to get images from velero chart: %w", err)
 	}
@@ -190,7 +203,7 @@ func findBestAWSPluginVersion(ctx context.Context, veleroVersion string) (string
 	return strings.TrimPrefix(awsPluginVersion, "v"), nil
 }
 
-func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion string, restoreHelperVersion string, awsPluginVersion string) error {
+func updateVeleroAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string, restoreHelperVersion string, awsPluginVersion string) error {
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
@@ -203,7 +216,7 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	images, err := GetImagesFromOCIChart(chartURL, "velero", chartVersion, values)
+	images, err := helm.ExtractImagesFromOCIChart(hcli, chartURL, "velero", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from velero chart: %w", err)
 	}

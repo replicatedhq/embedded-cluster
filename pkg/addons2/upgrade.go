@@ -20,29 +20,14 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func Upgrade(ctx context.Context, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
+func Upgrade(ctx context.Context, hcli helm.Client, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return errors.Wrap(err, "create kube client")
-	}
-
-	airgapChartsPath := ""
-	if in.Spec.AirGap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
-	}
-
-	hcli, err := helm.NewClient(helm.HelmOptions{
-		K0sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
-	})
-	if err != nil {
-		return errors.Wrap(err, "create helm client")
 	}
 
 	addons, err := getAddOnsForUpgrade(in, meta)

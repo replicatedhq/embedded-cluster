@@ -21,9 +21,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,7 +29,7 @@ import (
 
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
-func Upgrade(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1beta1.Installation) error {
 	slog.Info("Upgrading Embedded Cluster", "version", in.Spec.Config.Version)
 
 	// Augment the installation with data dirs that may not be present in the previous version.
@@ -56,13 +54,13 @@ func Upgrade(ctx context.Context, cli client.Client, in *ecv1beta1.Installation)
 	}
 
 	slog.Info("Upgrading addons")
-	err = upgradeAddons(ctx, cli, in)
+	err = upgradeAddons(ctx, cli, hcli, in)
 	if err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 
 	slog.Info("Upgrading extensions")
-	err = upgradeExtensions(ctx, cli, in)
+	err = upgradeExtensions(ctx, cli, hcli, in)
 	if err != nil {
 		return fmt.Errorf("upgrade extensions: %w", err)
 	}
@@ -210,7 +208,7 @@ func updateClusterConfig(ctx context.Context, cli client.Client) error {
 	return nil
 }
 
-func upgradeAddons(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) (finalErr error) {
+func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1beta1.Installation) (finalErr error) {
 	err := k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalling, "Upgrading addons")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
@@ -224,7 +222,7 @@ func upgradeAddons(ctx context.Context, cli client.Client, in *ecv1beta1.Install
 		return fmt.Errorf("no images available")
 	}
 
-	if err := addons2.Upgrade(ctx, in, meta); err != nil {
+	if err := addons2.Upgrade(ctx, hcli, in, meta); err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 
@@ -236,7 +234,7 @@ func upgradeAddons(ctx context.Context, cli client.Client, in *ecv1beta1.Install
 	return nil
 }
 
-func upgradeExtensions(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+func upgradeExtensions(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1beta1.Installation) error {
 	err := k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalling, "Upgrading extensions")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
@@ -245,19 +243,6 @@ func upgradeExtensions(ctx context.Context, cli client.Client, in *ecv1beta1.Ins
 	previous, err := kubeutils.GetPreviousInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("get previous installation: %w", err)
-	}
-
-	airgapChartsPath := ""
-	if in.Spec.AirGap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
-	}
-
-	hcli, err := helm.NewClient(helm.HelmOptions{
-		K0sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
-	})
-	if err != nil {
-		return fmt.Errorf("create helm client: %w", err)
 	}
 
 	if err := extensions.Upgrade(ctx, cli, hcli, previous, in); err != nil {

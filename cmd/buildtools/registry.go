@@ -9,6 +9,7 @@ import (
 	"helm.sh/helm/v3/pkg/repo"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
@@ -33,7 +34,14 @@ var updateRegistryAddonCommand = &cli.Command{
 	UsageText: environmentUsageText,
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating registry addon")
-		latest, err := LatestChartVersion(registryRepo, "docker-registry")
+
+		hcli, err := NewHelm()
+		if err != nil {
+			return fmt.Errorf("failed to create helm client: %w", err)
+		}
+		defer hcli.Close()
+
+		latest, err := LatestChartVersion(hcli, registryRepo, "docker-registry")
 		if err != nil {
 			return fmt.Errorf("unable to get the latest registry version: %v", err)
 		}
@@ -46,7 +54,7 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("mirroring registry chart version %s", latest)
-		if err := MirrorChart(registryRepo, "docker-registry", latest); err != nil {
+		if err := MirrorChart(hcli, registryRepo, "docker-registry", latest); err != nil {
 			return fmt.Errorf("unable to mirror chart: %w", err)
 		}
 
@@ -64,7 +72,7 @@ var updateRegistryAddonCommand = &cli.Command{
 
 		logrus.Infof("extracting images from chart")
 		withproto := fmt.Sprintf("oci://%s", upstream)
-		images, err := GetImagesFromOCIChart(withproto, "docker-registry", latest, values)
+		images, err := helm.ExtractImagesFromOCIChart(hcli, withproto, "docker-registry", latest, values)
 		if err != nil {
 			return fmt.Errorf("failed to get images from chart: %w", err)
 		}

@@ -26,6 +26,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -310,8 +311,23 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags, metri
 		euCfgSpec = &euCfg.Spec
 	}
 
+	airgapChartsPath := ""
+	if flags.isAirgap {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
+
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create helm client: %w", err)
+	}
+	defer hcli.Close()
+
 	logrus.Debugf("installing addons")
-	if err := addons2.Install(ctx, addons2.InstallOptions{
+	if err := addons2.Install(ctx, hcli, addons2.InstallOptions{
 		AdminConsolePwd:         flags.adminConsolePassword,
 		License:                 flags.license,
 		IsAirgap:                flags.airgapBundle != "",
@@ -336,7 +352,7 @@ func runInstall2(ctx context.Context, name string, flags Install2CmdFlags, metri
 	}
 
 	logrus.Debugf("installing extensions")
-	if err := extensions.Install(ctx, flags.isAirgap); err != nil {
+	if err := extensions.Install(ctx, hcli); err != nil {
 		return fmt.Errorf("unable to install extensions: %w", err)
 	}
 

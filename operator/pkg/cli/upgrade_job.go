@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -61,7 +62,21 @@ func UpgradeJobCmd() *cobra.Command {
 				return fmt.Errorf("failed to create kubernetes client: %w", err)
 			}
 
-			if upgradeErr := performUpgrade(cmd.Context(), kcli, in); upgradeErr != nil {
+			airgapChartsPath := ""
+			if in.Spec.AirGap {
+				airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+			}
+
+			hcli, err := helm.NewClient(helm.HelmOptions{
+				K0sVersion: versions.K0sVersion,
+				AirgapPath: airgapChartsPath,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create helm client: %w", err)
+			}
+			defer hcli.Close()
+
+			if upgradeErr := performUpgrade(cmd.Context(), kcli, hcli, in); upgradeErr != nil {
 				// if this is the last attempt, mark the installation as failed
 				if err := maybeMarkAsFailed(cmd.Context(), kcli, in, upgradeErr); err != nil {
 					slog.Error("Failed to mark installation as failed", "error", err)
@@ -89,11 +104,11 @@ func UpgradeJobCmd() *cobra.Command {
 	return cmd
 }
 
-func performUpgrade(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation) error {
+func performUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation) error {
 	i := 0
 	sleepDuration := time.Second * 5
 	for {
-		if err := attemptUpgrade(ctx, kcli, in); err != nil {
+		if err := attemptUpgrade(ctx, kcli, hcli, in); err != nil {
 			if i >= 10 {
 				return fmt.Errorf("failed to upgrade after %s: %w", (sleepDuration * time.Duration(i)).String(), err)
 			}
@@ -108,7 +123,7 @@ func performUpgrade(ctx context.Context, kcli client.Client, in *ecv1beta1.Insta
 	return nil
 }
 
-func attemptUpgrade(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation) (finalErr error) {
+func attemptUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("upgrade recovered from panic: %v: %s", r, string(debug.Stack()))
@@ -119,7 +134,7 @@ func attemptUpgrade(ctx context.Context, kcli client.Client, in *ecv1beta1.Insta
 		return fmt.Errorf("failed to run v2 migration: %w", err)
 	}
 
-	if err := upgrade.Upgrade(ctx, kcli, in); err != nil {
+	if err := upgrade.Upgrade(ctx, kcli, hcli, in); err != nil {
 		return err
 	}
 	return nil

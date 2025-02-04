@@ -63,7 +63,9 @@ func Init(outputFile string, client *Client) {
 		client.Kotsadm = NewKotsadm()
 	}
 	if client.HelmClient != nil {
-		helm.SetClient(client.HelmClient)
+		helm.SetClientFactory(func(opts helm.HelmOptions) (helm.Client, error) {
+			return client.HelmClient, nil
+		})
 	}
 	kubeutils.Set(client.KubeUtils)
 	helpers.Set(client.Helpers)

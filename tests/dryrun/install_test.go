@@ -21,12 +21,16 @@ import (
 
 func TestDefaultInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
-	hcli.On("Install", mock.Anything, mock.Anything).Return(nil, nil)
+
+	mock.InOrder(
+		// 4 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
 
 	dr := dryrunInstall(t, &dryrun.Client{HelmClient: hcli})
 
 	// --- validate addons --- //
-	require.Len(t, hcli.Calls, 4) // 4 addons
 
 	// openebs
 	assert.Equal(t, "Install", hcli.Calls[0].Method)
@@ -154,7 +158,12 @@ func TestDefaultInstallation(t *testing.T) {
 
 func TestCustomDataDir(t *testing.T) {
 	hcli := &helm.MockClient{}
-	hcli.On("Install", mock.Anything, mock.Anything).Return(nil, nil)
+
+	mock.InOrder(
+		// 4 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
 
 	dr := dryrunInstall(t,
 		&dryrun.Client{HelmClient: hcli},
@@ -162,7 +171,6 @@ func TestCustomDataDir(t *testing.T) {
 	)
 
 	// --- validate addons --- //
-	require.Len(t, hcli.Calls, 4) // 4 addons
 
 	// openebs
 	assert.Equal(t, "Install", hcli.Calls[0].Method)
@@ -235,7 +243,12 @@ func TestCustomDataDir(t *testing.T) {
 
 func TestCustomPortsInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
-	hcli.On("Install", mock.Anything, mock.Anything).Return(nil, nil)
+
+	mock.InOrder(
+		// 4 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
 
 	dr := dryrunInstall(t,
 		&dryrun.Client{HelmClient: hcli},
@@ -244,7 +257,6 @@ func TestCustomPortsInstallation(t *testing.T) {
 	)
 
 	// --- validate addons --- //
-	require.Len(t, hcli.Calls, 4) // 4 addons
 
 	// openebs
 	assert.Equal(t, "Install", hcli.Calls[0].Method)
@@ -339,7 +351,12 @@ func valuesFile(t *testing.T) string {
 
 func TestConfigValuesInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
-	hcli.On("Install", mock.Anything, mock.Anything).Return(nil, nil)
+
+	mock.InOrder(
+		// 4 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
 
 	vf := valuesFile(t)
 	dr := dryrunInstall(t,
