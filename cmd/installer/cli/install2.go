@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -25,9 +26,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -42,6 +45,7 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -83,7 +87,7 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "install",
-		Short: fmt.Sprintf("Experimental installer for %s", name),
+		Short: fmt.Sprintf("Install %s", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall2(cmd, &flags); err != nil {
 				return err
@@ -218,8 +222,6 @@ func preRunInstall2(cmd *cobra.Command, flags *Install2CmdFlags) error {
 	if err := runtimeconfig.WriteToDisk(); err != nil {
 		return fmt.Errorf("unable to write runtime config to disk: %w", err)
 	}
-
-	flags.isAirgap = flags.airgapBundle != ""
 
 	flags.isAirgap = flags.airgapBundle != ""
 
@@ -620,6 +622,282 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 	return cfg, nil
 }
 
+// configureNetworkManager configures the network manager (if the host is using it) to ignore
+// the calico interfaces. This function restarts the NetworkManager service if the configuration
+// was changed.
+func configureNetworkManager(ctx context.Context) error {
+	if active, err := helpers.IsSystemdServiceActive(ctx, "NetworkManager"); err != nil {
+		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
+	} else if !active {
+		logrus.Debugf("NetworkManager is not active, skipping configuration")
+		return nil
+	}
+
+	dir := "/etc/NetworkManager/conf.d"
+	if _, err := os.Stat(dir); err != nil {
+		logrus.Debugf("skiping NetworkManager config (%s): %v", dir, err)
+		return nil
+	}
+
+	logrus.Debugf("creating NetworkManager config file")
+	materializer := goods.NewMaterializer()
+	if err := materializer.CalicoNetworkManagerConfig(); err != nil {
+		return fmt.Errorf("unable to materialize configuration: %w", err)
+	}
+
+	logrus.Debugf("network manager config created, restarting the service")
+	if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
+		return fmt.Errorf("unable to restart network manager: %w", err)
+	}
+	return nil
+}
+
+func checkAirgapMatches(airgapBundle string) error {
+	rel, err := release.GetChannelRelease()
+	if err != nil {
+		return fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
+	}
+	if rel == nil {
+		return fmt.Errorf("airgap bundle provided but no release was found in binary, please rerun without the airgap-bundle flag")
+	}
+
+	// read file from path
+	rawfile, err := os.Open(airgapBundle)
+	if err != nil {
+		return fmt.Errorf("failed to open airgap file: %w", err)
+	}
+	defer rawfile.Close()
+
+	appSlug, channelID, airgapVersion, err := airgap.ChannelReleaseMetadata(rawfile)
+	if err != nil {
+		return fmt.Errorf("failed to get airgap bundle versions: %w", err)
+	}
+
+	// Check if the airgap bundle matches the application version data
+	if rel.AppSlug != appSlug {
+		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
+		return fmt.Errorf("airgap bundle app %s does not match binary app %s, please provide the correct bundle", appSlug, rel.AppSlug)
+	}
+	if rel.ChannelID != channelID {
+		// if the channel is different, we will not be able to install the pinned vendor application version within kots
+		return fmt.Errorf("airgap bundle channel %s does not match binary channel %s, please provide the correct bundle", channelID, rel.ChannelID)
+	}
+	if rel.VersionLabel != airgapVersion {
+		// if the version is different, who knows what might be different
+		return fmt.Errorf("airgap bundle version %s does not match binary version %s, please provide the correct bundle", airgapVersion, rel.VersionLabel)
+	}
+
+	return nil
+}
+
+// maybePromptForAppUpdate warns the user if the embedded release is not the latest for the current
+// channel. If stdout is a terminal, it will prompt the user to continue installing the out-of-date
+// release and return an error if the user chooses not to continue.
+func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license *kotsv1beta1.License, assumeYes bool) error {
+	channelRelease, err := release.GetChannelRelease()
+	if err != nil {
+		return fmt.Errorf("unable to get channel release: %w", err)
+	} else if channelRelease == nil {
+		// It is possible to install without embedding the release data. In this case, we cannot
+		// check for app updates.
+		return nil
+	}
+
+	if license == nil {
+		return errors.New("license required")
+	}
+
+	logrus.Debugf("Checking for pending app releases")
+
+	currentRelease, err := getCurrentAppChannelRelease(ctx, license, channelRelease.ChannelID)
+	if err != nil {
+		return fmt.Errorf("get current app channel release: %w", err)
+	}
+
+	// In the dev and test environments, the channelSequence is set to 0 for all releases.
+	if channelRelease.VersionLabel == currentRelease.VersionLabel {
+		logrus.Debugf("Current app release is up-to-date")
+		return nil
+	}
+	logrus.Debugf("Current app release is out-of-date")
+
+	apiURL := metrics.BaseURL(license)
+	releaseURL := fmt.Sprintf("%s/embedded/%s/%s", apiURL, channelRelease.AppSlug, channelRelease.ChannelSlug)
+	logrus.Warnf("A newer version %s is available.", currentRelease.VersionLabel)
+	logrus.Infof(
+		"To download it, run:\n  curl -fL \"%s\" \\\n    -H \"Authorization: %s\" \\\n    -o %s-%s.tgz",
+		releaseURL,
+		license.Spec.LicenseID,
+		channelRelease.AppSlug,
+		channelRelease.ChannelSlug,
+	)
+
+	// if the assumeYes flag is set, we don't prompt the user and continue by default.
+	if assumeYes {
+		return nil
+	}
+
+	text := fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel)
+	if !prompt.Confirm(text, true) {
+		// TODO: send aborted metrics event
+		return NewErrorNothingElseToAdd(errors.New("user aborted: app not up-to-date"))
+	}
+
+	logrus.Debug("User confirmed prompt to continue installing out-of-date release")
+
+	return nil
+}
+
+// Minimum character length for the Admin Console password
+const minAdminPasswordLength = 6
+
+func validateAdminConsolePassword(password, passwordCheck string) bool {
+	if password != passwordCheck {
+		logrus.Errorf("Passwords don't match. Please try again.")
+		return false
+	}
+	if len(password) < minAdminPasswordLength {
+		logrus.Errorf("Password must have more than %d characters. Please try again.", minAdminPasswordLength)
+		return false
+	}
+	return true
+}
+
+// createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
+// systemd unit file for the local artifact mirror service.
+func createSystemdUnitFiles(isWorker bool, proxy *ecv1beta1.ProxySpec) error {
+	dst := systemdUnitFileName()
+	if _, err := os.Lstat(dst); err == nil {
+		if err := os.Remove(dst); err != nil {
+			return err
+		}
+	}
+	src := "/etc/systemd/system/k0scontroller.service"
+	if isWorker {
+		src = "/etc/systemd/system/k0sworker.service"
+	}
+	if proxy != nil {
+		if err := ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy); err != nil {
+			return fmt.Errorf("unable to create proxy config: %w", err)
+		}
+	}
+	logrus.Debugf("linking %s to %s", src, dst)
+	if err := os.Symlink(src, dst); err != nil {
+		return fmt.Errorf("failed to create symlink: %w", err)
+	}
+
+	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
+		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
+	}
+	if err := installAndEnableLocalArtifactMirror(); err != nil {
+		return fmt.Errorf("unable to install and enable local artifact mirror: %w", err)
+	}
+	return nil
+}
+
+func systemdUnitFileName() string {
+	return fmt.Sprintf("/etc/systemd/system/%s.service", runtimeconfig.BinaryName())
+}
+
+// ensureProxyConfig creates a new http-proxy.conf configuration file. The file is saved in the
+// systemd directory (/etc/systemd/system/k0scontroller.service.d/).
+func ensureProxyConfig(servicePath string, httpProxy string, httpsProxy string, noProxy string) error {
+	// create the directory
+	if err := os.MkdirAll(servicePath, 0755); err != nil {
+		return fmt.Errorf("unable to create directory: %w", err)
+	}
+
+	// create and write the file
+	content := fmt.Sprintf(`[Service]
+Environment="HTTP_PROXY=%s"
+Environment="HTTPS_PROXY=%s"
+Environment="NO_PROXY=%s"`, httpProxy, httpsProxy, noProxy)
+
+	err := os.WriteFile(filepath.Join(servicePath, "http-proxy.conf"), []byte(content), 0644)
+	if err != nil {
+		return fmt.Errorf("unable to create and write proxy file: %w", err)
+	}
+
+	return nil
+}
+
+// installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
+// service is responsible for serving on localhost, through http, all files that are used
+// during a cluster upgrade.
+func installAndEnableLocalArtifactMirror() error {
+	materializer := goods.NewMaterializer()
+	if err := materializer.LocalArtifactMirrorUnitFile(); err != nil {
+		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
+	}
+	if err := writeLocalArtifactMirrorDropInFile(); err != nil {
+		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
+	}
+	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
+		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
+	}
+	if _, err := helpers.RunCommand("systemctl", "start", "local-artifact-mirror"); err != nil {
+		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
+	}
+	if _, err := helpers.RunCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
+		return fmt.Errorf("unable to start the local artifact mirror service: %w", err)
+	}
+	return nil
+}
+
+const (
+	localArtifactMirrorDropInFileContents = `[Service]
+Environment="LOCAL_ARTIFACT_MIRROR_PORT=%d"
+Environment="LOCAL_ARTIFACT_MIRROR_DATA_DIR=%s"
+# Empty ExecStart= will clear out the previous ExecStart value
+ExecStart=
+ExecStart=%s serve
+`
+)
+
+func writeLocalArtifactMirrorDropInFile() error {
+	contents := fmt.Sprintf(
+		localArtifactMirrorDropInFileContents,
+		runtimeconfig.LocalArtifactMirrorPort(),
+		runtimeconfig.EmbeddedClusterHomeDirectory(),
+		runtimeconfig.PathToEmbeddedClusterBinary("local-artifact-mirror"),
+	)
+	err := systemd.WriteDropInFile("local-artifact-mirror.service", "embedded-cluster.conf", []byte(contents))
+	if err != nil {
+		return fmt.Errorf("write drop-in file: %w", err)
+	}
+	return nil
+}
+
+// waitForK0s waits for the k0s API to be available. We wait for the k0s socket to
+// appear in the system and until the k0s status command to finish.
+func waitForK0s() error {
+	if !dryrun.Enabled() {
+		var success bool
+		for i := 0; i < 30; i++ {
+			time.Sleep(2 * time.Second)
+			spath := runtimeconfig.PathToK0sStatusSocket()
+			if _, err := os.Stat(spath); err != nil {
+				continue
+			}
+			success = true
+			break
+		}
+		if !success {
+			return fmt.Errorf("timeout waiting for %s", runtimeconfig.BinaryName())
+		}
+	}
+
+	for i := 1; ; i++ {
+		_, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath(), "status")
+		if err == nil {
+			return nil
+		} else if i == 30 {
+			return fmt.Errorf("unable to get status: %w", err)
+		}
+		time.Sleep(2 * time.Second)
+	}
+}
+
 func recordInstallation(ctx context.Context, kcli client.Client, flags Install2CmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, disasterRecoveryEnabled bool) (*ecv1beta1.Installation, error) {
 	loading := spinner.Start()
 	defer loading.Close()
@@ -878,6 +1156,28 @@ func networkSpecFromK0sConfig(k0sCfg *k0sv1beta1.ClusterConfig) *ecv1beta1.Netwo
 	}
 
 	return network
+}
+
+func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName {
+	switch name {
+	case "no-prompt":
+		name = "yes"
+	}
+	return pflag.NormalizedName(name)
+}
+
+func copyLicenseFileToDataDir(licenseFile, dataDir string) error {
+	if licenseFile == "" {
+		return nil
+	}
+	licenseData, err := os.ReadFile(licenseFile)
+	if err != nil {
+		return fmt.Errorf("unable to read license file: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "license.yaml"), licenseData, 0400); err != nil {
+		return fmt.Errorf("unable to write license file: %w", err)
+	}
+	return nil
 }
 
 func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) error {

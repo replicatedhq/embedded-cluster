@@ -25,14 +25,9 @@ import (
 
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -49,8 +44,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 )
-
-const HAConditionType = "HighAvailability"
 
 // requeueAfter is our default interval for requeueing. If nothing has changed with the
 // cluster nodes or the Installation object we will reconcile once every requeueAfter
@@ -258,135 +251,6 @@ func (r *InstallationReconciler) ReconcileOpenebs(ctx context.Context, in *v1bet
 	return nil
 }
 
-// ReconcileRegistry reconciles registry components, ensuring that the necessary secrets are
-// created as well as rebalancing stateful pods when nodes are removed from the cluster.
-func (r *InstallationReconciler) ReconcileRegistry(ctx context.Context, in *v1beta1.Installation) error {
-	if in == nil || !in.Spec.AirGap || !in.Spec.HighAvailability {
-		// do not create registry secrets or rebalance stateful pods if the installation is not HA or not airgapped
-		return nil
-	}
-
-	log := ctrl.LoggerFrom(ctx)
-
-	// fetch the current clusterConfig
-	var clusterConfig k0sv1beta1.ClusterConfig
-	if err := r.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &clusterConfig); err != nil {
-		return fmt.Errorf("failed to get cluster config: %w", err)
-	}
-
-	err := registry.MigrateRegistryData(ctx, in, r.Client)
-	if err != nil {
-		if err := r.Status().Update(ctx, in); err != nil {
-			log.Error(err, "Failed to update installation status")
-		}
-		return fmt.Errorf("failed to migrate registry data: %w", err)
-
-	}
-
-	return nil
-}
-
-// ReconcileHAStatus reconciles the HA migration status condition for the installation.
-// This status is based on the HA condition being set, the Registry deployment having two running + healthy replicas,
-// and the kotsadm rqlite statefulset having three healthy replicas.
-func (r *InstallationReconciler) ReconcileHAStatus(ctx context.Context, in *v1beta1.Installation) error {
-	if in == nil {
-		return nil
-	}
-
-	if !in.Spec.HighAvailability {
-		in.Status.SetCondition(metav1.Condition{
-			Type:               HAConditionType,
-			Status:             metav1.ConditionFalse,
-			Reason:             "HANotEnabled",
-			ObservedGeneration: in.Generation,
-		})
-		return nil
-	}
-
-	if in.Spec.AirGap {
-		seaweedReady, err := k8sutil.GetChartHealth(ctx, r.Client, "seaweedfs")
-		if err != nil {
-			return fmt.Errorf("failed to check seaweedfs readiness: %w", err)
-		}
-		if !seaweedReady {
-			in.Status.SetCondition(metav1.Condition{
-				Type:               HAConditionType,
-				Status:             metav1.ConditionFalse,
-				Reason:             "SeaweedFSNotReady",
-				ObservedGeneration: in.Generation,
-			})
-			return nil
-		}
-
-		registryMigrated, err := registry.HasRegistryMigrated(ctx, r.Client)
-		if err != nil {
-			return fmt.Errorf("failed to check registry migration status: %w", err)
-		}
-		if !registryMigrated {
-			in.Status.SetCondition(metav1.Condition{
-				Type:               HAConditionType,
-				Status:             metav1.ConditionFalse,
-				Reason:             "RegistryNotMigrated",
-				ObservedGeneration: in.Generation,
-			})
-			return nil
-		}
-
-		registryReady, err := k8sutil.GetChartHealth(ctx, r.Client, "docker-registry")
-		if err != nil {
-			return fmt.Errorf("failed to check docker-registry readiness: %w", err)
-		}
-		if !registryReady {
-			in.Status.SetCondition(metav1.Condition{
-				Type:               HAConditionType,
-				Status:             metav1.ConditionFalse,
-				Reason:             "RegistryNotReady",
-				ObservedGeneration: in.Generation,
-			})
-			return nil
-		}
-	}
-
-	adminConsole, err := k8sutil.GetChartHealth(ctx, r.Client, "admin-console")
-	if err != nil {
-		return fmt.Errorf("failed to check admin-console readiness: %w", err)
-	}
-	if !adminConsole {
-		in.Status.SetCondition(metav1.Condition{
-			Type:               HAConditionType,
-			Status:             metav1.ConditionFalse,
-			Reason:             "AdminConsoleNotReady",
-			ObservedGeneration: in.Generation,
-		})
-		return nil
-	}
-
-	if in.Status.State != v1beta1.InstallationStateInstalled {
-		in.Status.SetCondition(metav1.Condition{
-			Type:               HAConditionType,
-			Status:             metav1.ConditionFalse,
-			Reason:             "InstallationNotReady",
-			ObservedGeneration: in.Generation,
-		})
-		return nil
-	}
-
-	in.Status.SetCondition(metav1.Condition{
-		Type:               HAConditionType,
-		Status:             metav1.ConditionTrue,
-		Reason:             "HAReady",
-		ObservedGeneration: in.Generation,
-	})
-
-	return nil
-}
-
-// StartAutopilotUpgrade creates an autopilot plan to upgrade to version specified in spec.config.version.
-func (r *InstallationReconciler) StartAutopilotUpgrade(ctx context.Context, in *v1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
-	return upgrade.StartAutopilotUpgrade(ctx, r.Client, in, meta)
-}
-
 // CoalesceInstallations goes through all the installation objects and make sure that the
 // status of the newest one is coherent with whole cluster status. Returns the newest
 // installation object.
@@ -407,28 +271,6 @@ func (r *InstallationReconciler) CoalesceInstallations(
 		break
 	}
 	return &items[0]
-}
-
-// DisableOldInstallations resets the old installation statuses keeping only the newest one with
-// proper status set. This set the state for all old installations as "obsolete". We do not report
-// errors back as this is not a critical operation, if we fail to update the status we will just
-// retry on the next reconcile.
-func (r *InstallationReconciler) DisableOldInstallations(ctx context.Context, items []v1beta1.Installation) {
-	sort.SliceStable(items, func(i, j int) bool {
-		return items[j].Name < items[i].Name
-	})
-	for _, in := range items[1:] {
-		in.Status.NodesStatus = nil
-		if in.Status.State != v1beta1.InstallationStateObsolete {
-			r.Recorder.Eventf(&in, corev1.EventTypeNormal, "Obsolete", "This has been obsoleted by a newer installation object")
-			in.Status.SetState(
-				v1beta1.InstallationStateObsolete,
-				"This is not the most recent installation object",
-				nil,
-			)
-			r.Status().Update(ctx, &in)
-		}
-	}
 }
 
 // ReadClusterConfigSpecFromSecret reads the cluster config from the secret pointed by spec.ConfigSecret
