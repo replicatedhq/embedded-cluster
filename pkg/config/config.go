@@ -13,7 +13,6 @@ import (
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
@@ -52,52 +51,6 @@ func RenderK0sConfig() *k0sconfig.ClusterConfig {
 	cfg.Spec.API.SANs = append(cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
 	overrideK0sImages(cfg)
 	return cfg
-}
-
-// UpdateHelmConfigs updates the helm config in the provided cluster configuration.
-func UpdateHelmConfigs(applier *addons.Applier, k0sCfg *k0sconfig.ClusterConfig) error {
-	chtconfig, repconfig, err := applier.GenerateHelmConfigs(
-		k0sCfg, AdditionalCharts(), AdditionalRepositories(),
-	)
-	if err != nil {
-		return fmt.Errorf("unable to apply addons: %w", err)
-	}
-	return updateHelmConfigs(k0sCfg, chtconfig, repconfig)
-}
-
-// UpdateHelmConfigsForRestore updates the helm config in the provided cluster configuration for a restore operation.
-func UpdateHelmConfigsForRestore(applier *addons.Applier, k0sCfg *k0sconfig.ClusterConfig) error {
-	chtconfig, repconfig, err := applier.GenerateHelmConfigsForRestore(k0sCfg)
-	if err != nil {
-		return fmt.Errorf("unable to apply addons: %w", err)
-	}
-	return updateHelmConfigs(k0sCfg, chtconfig, repconfig)
-}
-
-func updateHelmConfigs(cfg *k0sconfig.ClusterConfig, chtconfig []embeddedclusterv1beta1.Chart, repconfig []k0sconfig.Repository) error {
-	// k0s sorts order numbers alphabetically because they're used in file names,
-	// which means double digits can be sorted before single digits (e.g. "10" comes before "5").
-	// We add 100 to the order of each chart to work around this.
-	for k := range chtconfig {
-		chtconfig[k].Order += 100
-	}
-
-	helm := embeddedclusterv1beta1.Helm{
-		Charts:       chtconfig,
-		Repositories: repconfig,
-	}
-
-	convertedHelm := &k0sconfig.HelmExtensions{}
-	var err error
-	convertedHelm, err = embeddedclusterv1beta1.ConvertTo(helm, convertedHelm)
-	if err != nil {
-		return err
-	}
-
-	cfg.Spec.Extensions = &k0sconfig.ClusterExtensions{
-		Helm: convertedHelm,
-	}
-	return nil
 }
 
 // extractK0sConfigPatch extracts the k0s config portion of the provided patch.
