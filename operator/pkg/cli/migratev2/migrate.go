@@ -38,6 +38,7 @@ func Run(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) err
 			if err != nil {
 				slog.Error("Failed to set v2 migration failed", "error", err)
 			}
+			panic(r)
 		}
 	}()
 
