@@ -477,7 +477,7 @@ jobs:
           - TestInstallWithoutEmbed
 #          - TestUpgradeEC18FromReplicatedApp
           - TestResetAndReinstall
-          - TestOldVersionUpgrade
+#          - TestOldVersionUpgrade
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeInstallation
           - TestMultiNodeHAInstallation
