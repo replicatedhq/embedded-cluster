@@ -118,7 +118,7 @@ func Test_ensureAdminConsolePassword(t *testing.T) {
 				req.Error(err)
 			} else {
 				req.NoError(err)
-				req.Equal(tt.wantPassword, flags.adminConsolePassword+"1")
+				req.Equal(tt.wantPassword, flags.adminConsolePassword)
 			}
 		})
 	}

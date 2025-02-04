@@ -32,8 +32,8 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 	runtimeconfig.SetDataDir("/custom")
 
 	hcli, err := helm.NewClient(helm.HelmOptions{KubeConfig: kubeconfig})
-	defer hcli.Close()
 	require.NoError(t, err)
+	defer hcli.Close()
 
 	addon := &openebs.OpenEBS{}
 	if err := addon.Install(context.Background(), nil, hcli, nil, nil); err != nil {
