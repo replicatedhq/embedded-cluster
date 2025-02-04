@@ -2,9 +2,7 @@ package extensions
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
-	"runtime/debug"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -76,7 +74,7 @@ func Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, prev *ec
 	return nil
 }
 
-func handleExtensionInstall(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) (finalErr error) {
+func handleExtensionInstall(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) error {
 	return handleExtension(ctx, kcli, in, ext, actionInstall, func() error {
 		exists, err := hcli.ReleaseExists(ctx, ext.TargetNS, ext.Name)
 		if err != nil {
@@ -93,7 +91,7 @@ func handleExtensionInstall(ctx context.Context, kcli client.Client, hcli helm.C
 	})
 }
 
-func handleExtensionUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) (finalErr error) {
+func handleExtensionUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) error {
 	return handleExtension(ctx, kcli, in, ext, actionUpgrade, func() error {
 		if err := upgrade(ctx, hcli, ext); err != nil {
 			return errors.Wrap(err, "upgrade")
@@ -109,7 +107,7 @@ func handleExtensionNoop(ctx context.Context, kcli client.Client, in *ecv1beta1.
 	})
 }
 
-func handleExtensionUninstall(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) (finalErr error) {
+func handleExtensionUninstall(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) error {
 	return handleExtension(ctx, kcli, in, ext, actionUninstall, func() error {
 		exists, err := hcli.ReleaseExists(ctx, ext.TargetNS, ext.Name)
 		if err != nil {
@@ -126,7 +124,7 @@ func handleExtensionUninstall(ctx context.Context, kcli client.Client, hcli helm
 	})
 }
 
-func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, action helmAction, processFn func() error) (finalErr error) {
+func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, action helmAction, processFn func() error) error {
 	slogArgs := slogArgs(ext, action)
 
 	processed, err := extensionAlreadyProcessed(ctx, kcli, in, ext)
@@ -146,23 +144,14 @@ func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Inst
 		}
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			actionIng, _ := formatAction(action)
-			finalErr = fmt.Errorf("%s %s recovered from panic: %v: %s", actionIng, ext.Name, r, string(debug.Stack()))
-		}
+	finalErr := processFn()
 
-		err := markExtensionProcessed(ctx, kcli, in, ext, action, finalErr)
-		if err != nil {
-			if finalErr == nil {
-				finalErr = errors.Wrap(err, "mark extension as processed")
-			} else {
-				slog.Error("Failed to mark extension as processed", append(slogArgs, "error", err)...)
-			}
-		}
-	}()
+	err = markExtensionProcessed(ctx, kcli, in, ext, action, finalErr)
+	if err != nil {
+		return errors.Wrap(err, "mark extension as processed")
+	}
 
-	if err := processFn(); err != nil {
+	if finalErr != nil {
 		return errors.Wrap(err, "process extension")
 	}
 
