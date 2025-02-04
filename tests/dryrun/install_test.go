@@ -23,11 +23,14 @@ func TestDefaultInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
+		// 4 addons
 		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
 	dr := dryrunInstall(t, &dryrun.Client{HelmClient: hcli})
+
+	// --- validate addons --- //
 
 	// openebs
 	assert.Equal(t, "Install", hcli.Calls[0].Method)
@@ -157,6 +160,7 @@ func TestCustomDataDir(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
+		// 4 addons
 		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
@@ -165,6 +169,8 @@ func TestCustomDataDir(t *testing.T) {
 		&dryrun.Client{HelmClient: hcli},
 		"--data-dir", "/custom/data/dir",
 	)
+
+	// --- validate addons --- //
 
 	// openebs
 	assert.Equal(t, "Install", hcli.Calls[0].Method)
@@ -239,6 +245,7 @@ func TestCustomPortsInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
+		// 4 addons
 		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
@@ -248,6 +255,8 @@ func TestCustomPortsInstallation(t *testing.T) {
 		"--local-artifact-mirror-port", "50001",
 		"--admin-console-port", "30002",
 	)
+
+	// --- validate addons --- //
 
 	// openebs
 	assert.Equal(t, "Install", hcli.Calls[0].Method)
@@ -344,6 +353,7 @@ func TestConfigValuesInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
+		// 4 addons
 		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
