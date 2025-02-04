@@ -100,9 +100,8 @@ func uninstall(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error
 }
 
 type diffResult struct {
-	Action       helmAction
-	Ext          ecv1beta1.Chart
-	NeedsUpgrade bool
+	Action helmAction
+	Ext    ecv1beta1.Chart
 }
 
 func diffExtensions(oldExts, newExts ecv1beta1.Extensions) []diffResult {
@@ -130,9 +129,10 @@ func diffExtensions(oldExts, newExts ecv1beta1.Extensions) []diffResult {
 		if !ok {
 			// chart was added.
 			r.Action = actionInstall
-		} else {
+		} else if !reflect.DeepEqual(oldChart, newChart) {
 			r.Action = actionUpgrade
-			r.NeedsUpgrade = !reflect.DeepEqual(oldChart, newChart)
+		} else {
+			r.Action = actionNoChange
 		}
 		results = append(results, r)
 	}

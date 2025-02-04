@@ -19,6 +19,7 @@ const (
 	actionInstall   = helmAction("Install")
 	actionUpgrade   = helmAction("Upgrade")
 	actionUninstall = helmAction("Uninstall")
+	actionNoChange  = helmAction("NoChange")
 )
 
 type helmAction string
@@ -60,8 +61,12 @@ func Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, prev *ec
 				return errors.Wrapf(err, "install extension %s", result.Ext.Name)
 			}
 		case actionUpgrade:
-			if err := handleExtensionUpgrade(ctx, kcli, hcli, in, result.Ext, result.NeedsUpgrade); err != nil {
+			if err := handleExtensionUpgrade(ctx, kcli, hcli, in, result.Ext); err != nil {
 				return errors.Wrapf(err, "upgrade extension %s", result.Ext.Name)
+			}
+		case actionNoChange:
+			if err := handleExtensionNoop(ctx, kcli, in, result.Ext); err != nil {
+				return errors.Wrapf(err, "noop extension %s", result.Ext.Name)
 			}
 		case actionUninstall:
 			continue
@@ -78,7 +83,7 @@ func handleExtensionInstall(ctx context.Context, kcli client.Client, hcli helm.C
 			return errors.Wrap(err, "check if release exists")
 		}
 		if exists {
-			slog.Info(fmt.Sprintf("Extension %s already installed", ext.Name))
+			slog.Info("Extension already installed", "name", ext.Name)
 			return nil
 		}
 		if err := install(ctx, hcli, ext); err != nil {
@@ -88,15 +93,18 @@ func handleExtensionInstall(ctx context.Context, kcli client.Client, hcli helm.C
 	})
 }
 
-func handleExtensionUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, needsUpgrade bool) (finalErr error) {
+func handleExtensionUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) (finalErr error) {
 	return handleExtension(ctx, kcli, in, ext, actionUpgrade, func() error {
-		if !needsUpgrade {
-			slog.Info(fmt.Sprintf("%s already up to date", ext.Name))
-			return nil
-		}
 		if err := upgrade(ctx, hcli, ext); err != nil {
 			return errors.Wrap(err, "upgrade")
 		}
+		return nil
+	})
+}
+
+func handleExtensionNoop(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) error {
+	return handleExtension(ctx, kcli, in, ext, actionUpgrade, func() error {
+		slog.Info("Extension is up to date", "name", ext.Name)
 		return nil
 	})
 }
@@ -108,7 +116,7 @@ func handleExtensionUninstall(ctx context.Context, kcli client.Client, hcli helm
 			return errors.Wrap(err, "check if release exists")
 		}
 		if !exists {
-			slog.Info(fmt.Sprintf("Extension %s already uninstalled", ext.Name))
+			slog.Info("Extension already uninstalled", "name", ext.Name)
 			return nil
 		}
 		if err := uninstall(ctx, hcli, ext); err != nil {
@@ -119,31 +127,38 @@ func handleExtensionUninstall(ctx context.Context, kcli client.Client, hcli helm
 }
 
 func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, action helmAction, processFn func() error) (finalErr error) {
+	slogArgs := slogArgs(ext, action)
+
 	processed, err := extensionAlreadyProcessed(ctx, kcli, in, ext)
 	if err != nil {
 		return errors.Wrap(err, "check if extension is already processed")
 	} else if processed {
-		slog.Info(fmt.Sprintf("Extension %s already processed!", ext.Name))
+		slog.Info("Extension already processed!", slogArgs...)
 		return nil
 	}
 
-	actionIng, _ := formatAction(action)
+	slog.Info("Extension processing", slogArgs...)
 
-	slog.Info(fmt.Sprintf("%s extension %s", actionIng, ext.Name))
-
-	err = markExtensionAsProcessing(ctx, kcli, in, ext, action)
-	if err != nil {
-		return errors.Wrap(err, "mark extension as processing")
+	if action != actionNoChange {
+		err = markExtensionAsProcessing(ctx, kcli, in, ext, action)
+		if err != nil {
+			return errors.Wrap(err, "mark extension as processing")
+		}
 	}
 
 	defer func() {
 		if r := recover(); r != nil {
+			actionIng, _ := formatAction(action)
 			finalErr = fmt.Errorf("%s %s recovered from panic: %v: %s", actionIng, ext.Name, r, string(debug.Stack()))
 		}
 
 		err := markExtensionProcessed(ctx, kcli, in, ext, action, finalErr)
 		if err != nil {
-			slog.Error("Failed to mark extension as processed", "error", err)
+			if finalErr == nil {
+				finalErr = errors.Wrap(err, "mark extension as processed")
+			} else {
+				slog.Error("Failed to mark extension as processed", append(slogArgs, "error", err)...)
+			}
 		}
 	}()
 
@@ -151,7 +166,7 @@ func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Inst
 		return errors.Wrap(err, "process extension")
 	}
 
-	slog.Info(fmt.Sprintf("Extension %s is ready!", ext.Name))
+	slog.Info("Extension is ready!", slogArgs...)
 
 	return nil
 }
@@ -210,4 +225,8 @@ func setCondition(ctx context.Context, kcli client.Client, in *ecv1beta1.Install
 		Reason:  reason,
 		Message: message,
 	})
+}
+
+func slogArgs(ext ecv1beta1.Chart, action helmAction) []any {
+	return []any{"name", ext.Name, "action", action}
 }
