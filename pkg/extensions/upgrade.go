@@ -147,7 +147,7 @@ func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Inst
 	err = processFn()
 	if err != nil {
 		if err := markExtensionAsFailed(ctx, kcli, in, ext, action, err); err != nil {
-			return errors.Wrap(err, "mark extension processed failed")
+			slog.Error("Failed to mark extension as failed", append(slogArgs, "error", err)...)
 		}
 		return errors.Wrap(err, "process extension")
 	}

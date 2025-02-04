@@ -129,7 +129,7 @@ func upgradeAddOn(ctx context.Context, hcli helm.Client, kcli client.Client, in 
 	if err != nil {
 		message := helpers.CleanErrorMessage(err)
 		if err := setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionFalse, "UpgradeFailed", message); err != nil {
-			return errors.Wrap(err, "set condition upgrade failed")
+			slog.Error("Failed to set condition upgrade failed", "error", err)
 		}
 		return errors.Wrap(err, "upgrade addon")
 	}
