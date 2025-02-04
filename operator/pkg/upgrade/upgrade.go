@@ -208,7 +208,7 @@ func updateClusterConfig(ctx context.Context, cli client.Client) error {
 	return nil
 }
 
-func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1beta1.Installation) (finalErr error) {
+func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1beta1.Installation) error {
 	err := k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalling, "Upgrading addons")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)

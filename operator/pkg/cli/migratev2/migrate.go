@@ -15,7 +15,7 @@ type LogFunc func(string, ...any)
 // Run runs the v1 to v2 migration. It installs the manager service on all nodes, copies the
 // installations to configmaps, enables the v2 admin console, and finally removes the operator
 // chart.
-func Run(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) (err error) {
+func Run(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
 	ok, err := needsMigration(ctx, cli)
 	if err != nil {
 		return fmt.Errorf("check if migration is needed: %w", err)
@@ -31,24 +31,23 @@ func Run(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) (er
 	if err != nil {
 		return fmt.Errorf("set v2 migration in progress: %w", err)
 	}
+
 	defer func() {
-		if err == nil {
-			return
-		}
-		if err := setV2MigrationFailed(ctx, cli, in, err); err != nil {
-			slog.Error("Failed to set v2 migration failed", "error", err)
+		if r := recover(); r != nil {
+			err := setV2MigrationFailed(ctx, cli, in, fmt.Errorf("panic: %v", err))
+			if err != nil {
+				slog.Error("Failed to set v2 migration failed", "error", err)
+			}
+			panic(r)
 		}
 	}()
 
-	// scale down the operator to ensure that it does not reconcile and revert our changes.
-	err = scaleDownOperator(ctx, cli)
+	err = runMigration(ctx, cli)
 	if err != nil {
-		return fmt.Errorf("disable operator: %w", err)
-	}
-
-	err = cleanupK0sCharts(ctx, cli)
-	if err != nil {
-		return fmt.Errorf("cleanup k0s: %w", err)
+		if err := setV2MigrationFailed(ctx, cli, in, err); err != nil {
+			slog.Error("Failed to set v2 migration failed", "error", err)
+		}
+		return err
 	}
 
 	err = setV2MigrationComplete(ctx, cli, in)
@@ -57,6 +56,21 @@ func Run(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) (er
 	}
 
 	slog.Info("Successfully migrated from v2")
+
+	return nil
+}
+
+func runMigration(ctx context.Context, cli client.Client) error {
+	// scale down the operator to ensure that it does not reconcile and revert our changes.
+	err := scaleDownOperator(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("disable operator: %w", err)
+	}
+
+	err = cleanupK0sCharts(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("cleanup k0s: %w", err)
+	}
 
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,7 +45,8 @@ func setV2MigrationComplete(ctx context.Context, cli client.Client, in *ecv1beta
 func setV2MigrationFailed(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, failure error) error {
 	slog.Info("Setting v2 migration failed")
 
-	err := setV2MigrationInProgressCondition(ctx, cli, in, metav1.ConditionFalse, "MigrationFailed", failure.Error())
+	message := helpers.CleanErrorMessage(failure)
+	err := setV2MigrationInProgressCondition(ctx, cli, in, metav1.ConditionFalse, "MigrationFailed", message)
 	if err != nil {
 		return fmt.Errorf("set v2 migration in progress condition: %w", err)
 	}
