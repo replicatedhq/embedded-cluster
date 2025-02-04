@@ -35,6 +35,9 @@ type dockerConfigEntry struct {
 	Password string `json:"password"`
 }
 
+// EnsureRegistrySecretInECNamespace reads the registry secret from the kotsadm namespace and
+// ensures that it exists in the embedded-cluster namespace. This secret is used by the job that
+// distributes the artifacts to all nodes so that LAM can serve them.
 func EnsureRegistrySecretInECNamespace(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (controllerutil.OperationResult, error) {
 	op := controllerutil.OperationResultNone
 

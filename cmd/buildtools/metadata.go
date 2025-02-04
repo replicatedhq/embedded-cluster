@@ -43,12 +43,16 @@ var metadataExtractHelmChartImagesCommand = &cli.Command{
 
 		repos := metadata.Configs.Repositories
 		charts := metadata.Configs.Charts
-		for _, chart := range metadata.BuiltinConfigs {
-			repos = append(repos, chart.Repositories...)
-			charts = append(charts, chart.Charts...)
-		}
 
-		images, err := extractImagesFromHelmExtensions(repos, charts, metadata.Versions["Kubernetes"])
+		hcli, err := helm.NewClient(helm.HelmOptions{
+			K0sVersion: metadata.Versions["Kubernetes"],
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create helm client: %w", err)
+		}
+		defer hcli.Close()
+
+		images, err := extractImagesFromHelmExtensions(hcli, repos, charts)
 		if err != nil {
 			return fmt.Errorf("failed to extract images from helm extensions: %w", err)
 		}
@@ -76,15 +80,7 @@ func readMetadataFromFile(path string) (*types.ReleaseMetadata, error) {
 	return &metadata, nil
 }
 
-func extractImagesFromHelmExtensions(repos []k0sv1beta1.Repository, charts []embeddedclusterv1beta1.Chart, k8sVersion string) ([]string, error) {
-	hcli, err := helm.NewHelm(helm.HelmOptions{
-		K0sVersion: k8sVersion,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create helm client: %w", err)
-	}
-	defer hcli.Close()
-
+func extractImagesFromHelmExtensions(hcli helm.Client, repos []k0sv1beta1.Repository, charts []embeddedclusterv1beta1.Chart) ([]string, error) {
 	for _, entry := range repos {
 		log.Printf("Adding helm repository %s", entry.Name)
 		repo := &repo.Entry{
@@ -120,7 +116,7 @@ func extractImagesFromHelmExtensions(repos []k0sv1beta1.Repository, charts []emb
 	return images, nil
 }
 
-func extractImagesFromChart(hcli *helm.Helm, chart embeddedclusterv1beta1.Chart) ([]string, error) {
+func extractImagesFromChart(hcli helm.Client, chart embeddedclusterv1beta1.Chart) ([]string, error) {
 	values := map[string]interface{}{}
 	if chart.Values != "" {
 		err := yaml.Unmarshal([]byte(chart.Values), &values)

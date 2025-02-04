@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
@@ -26,12 +27,13 @@ var (
 )
 
 type Client struct {
-	KubeUtils *KubeUtils
-	Helpers   *Helpers
-	Systemd   *Systemd
-	Metrics   *Sender
-	K0sClient *K0sClient
-	Kotsadm   *Kotsadm
+	KubeUtils  *KubeUtils
+	Helpers    *Helpers
+	Systemd    *Systemd
+	Metrics    *Sender
+	K0sClient  *K0sClient
+	HelmClient helm.Client
+	Kotsadm    *Kotsadm
 }
 
 func Init(outputFile string, client *Client) {
@@ -59,6 +61,11 @@ func Init(outputFile string, client *Client) {
 	}
 	if client.Kotsadm == nil {
 		client.Kotsadm = NewKotsadm()
+	}
+	if client.HelmClient != nil {
+		helm.SetClientFactory(func(opts helm.HelmOptions) (helm.Client, error) {
+			return client.HelmClient, nil
+		})
 	}
 	kubeutils.Set(client.KubeUtils)
 	helpers.Set(client.Helpers)

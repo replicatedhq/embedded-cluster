@@ -59,7 +59,7 @@ func TestReportInstallationStarted(t *testing.T) {
 			defer func() { os.Args = originalArgs }()
 			os.Args = append([]string{os.Args[0]}, test.OSArgs...)
 
-			ReportInstallationStarted(context.Background(), license)
+			ReportInstallationStarted(context.Background(), license, ClusterID())
 		})
 	}
 }

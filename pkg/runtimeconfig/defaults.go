@@ -13,9 +13,11 @@ var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".cluster.local", ".svc"
 
 const ProxyRegistryAddress = "proxy.replicated.com"
 const KotsadmNamespace = "kotsadm"
+const KotsadmServiceAccount = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"
 const RegistryNamespace = "registry"
 const VeleroNamespace = "velero"
+const EmbeddedClusterNamespace = "embedded-cluster"
 
 // BinaryName returns the binary name, this is useful for places where we
 // need to present the name of the binary to the user (the name may vary if

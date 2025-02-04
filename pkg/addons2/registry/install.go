@@ -9,9 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,42 +17,41 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *Registry) Install(ctx context.Context, kcli client.Client, writer *spinner.MessageWriter) error {
-	if err := r.prepare(); err != nil {
-		return errors.Wrap(err, "prepare registry")
+func (r *Registry) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
+	registryIP, err := GetRegistryClusterIP(r.ServiceCIDR)
+	if err != nil {
+		return errors.Wrap(err, "get registry cluster IP")
 	}
 
-	if err := r.createPreRequisites(ctx, kcli); err != nil {
+	if err := r.createPreRequisites(ctx, kcli, registryIP); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	hcli, err := helm.NewHelm(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
-	})
+	values, err := r.GenerateHelmValues(ctx, kcli, overrides)
 	if err != nil {
-		return errors.Wrap(err, "create helm client")
+		return errors.Wrap(err, "generate helm values")
 	}
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,
-		Values:       helmValues,
+		Values:       values,
 		Namespace:    namespace,
+		Labels:       getBackupLabels(),
 	})
 	if err != nil {
-		return errors.Wrap(err, "install registry")
+		return errors.Wrap(err, "install")
 	}
 
-	if err := airgap.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryAddress)); err != nil {
+	if err := airgap.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
 		return errors.Wrap(err, "add containerd registry config")
 	}
 
 	return nil
 }
 
-func (r *Registry) createPreRequisites(ctx context.Context, kcli client.Client) error {
+func (r *Registry) createPreRequisites(ctx context.Context, kcli client.Client, registryIP string) error {
 	if err := createNamespace(ctx, kcli, namespace); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
@@ -63,7 +60,7 @@ func (r *Registry) createPreRequisites(ctx context.Context, kcli client.Client) 
 		return errors.Wrap(err, "create registry-auth secret")
 	}
 
-	if err := createTLSSecret(ctx, kcli); err != nil {
+	if err := createTLSSecret(ctx, kcli, registryIP); err != nil {
 		return errors.Wrap(err, "create registry tls secret")
 	}
 
@@ -106,14 +103,14 @@ func createAuthSecret(ctx context.Context, kcli client.Client) error {
 		Type: "Opaque",
 	}
 	if err := kcli.Create(ctx, &htpasswd); err != nil {
-		return errors.Wrap(err, "create registry-auth secret")
+		return err
 	}
 
 	return nil
 }
 
-func createTLSSecret(ctx context.Context, kcli client.Client) error {
-	tlsCert, tlsKey, err := generateRegistryTLS(ctx, kcli)
+func createTLSSecret(ctx context.Context, kcli client.Client, registryIP string) error {
+	tlsCert, tlsKey, err := generateRegistryTLS(registryIP)
 	if err != nil {
 		return errors.Wrap(err, "generate registry tls")
 	}
@@ -137,11 +134,11 @@ func createTLSSecret(ctx context.Context, kcli client.Client) error {
 	return nil
 }
 
-func generateRegistryTLS(ctx context.Context, cli client.Client) (string, string, error) {
+func generateRegistryTLS(registryIP string) (string, string, error) {
 	opts := []certs.Option{
 		certs.WithCommonName("registry"),
 		certs.WithDuration(365 * 24 * time.Hour),
-		certs.WithIPAddress(registryAddress),
+		certs.WithIPAddress(registryIP),
 	}
 
 	for _, name := range []string{

@@ -4,20 +4,62 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
 	"regexp"
 	"testing"
 	"time"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDefaultInstallation(t *testing.T) {
-	dr := dryrunInstall(t)
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dr := dryrunInstall(t, &dryrun.Client{HelmClient: hcli})
+
+	// --- validate addons --- //
+
+	// openebs
+	assert.Equal(t, "Install", hcli.Calls[0].Method)
+	openebsOpts := hcli.Calls[0].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "openebs", openebsOpts.ReleaseName)
+	assertHelmValues(t, openebsOpts.Values, map[string]interface{}{
+		"['localpv-provisioner'].localpv.basePath": "/var/lib/embedded-cluster/openebs-local",
+	})
+
+	// embedded cluster operator
+	assert.Equal(t, "Install", hcli.Calls[1].Method)
+	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
+
+	// velero
+	assert.Equal(t, "Install", hcli.Calls[2].Method)
+	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "velero", veleroOpts.ReleaseName)
+	assertHelmValues(t, veleroOpts.Values, map[string]interface{}{
+		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
+	})
+
+	// admin console
+	assert.Equal(t, "Install", hcli.Calls[3].Method)
+	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
+	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
+		"kurlProxy.nodePort": int(30000),
+	})
 
 	// --- validate os env --- //
 	assertEnv(t, dr.OSEnv, map[string]string{
@@ -111,20 +153,50 @@ func TestDefaultInstallation(t *testing.T) {
 	assert.Equal(t, "10.244.128.0/17", k0sConfig.Spec.Network.ServiceCIDR)
 	assert.Contains(t, k0sConfig.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
 
-	assertHelmValues(t, k0sConfig, "openebs", map[string]interface{}{
-		"['localpv-provisioner'].localpv.basePath": "/var/lib/embedded-cluster/openebs-local",
-	})
-	assertHelmValues(t, k0sConfig, "velero", map[string]interface{}{
-		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
-	})
-
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
 func TestCustomDataDir(t *testing.T) {
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
 	dr := dryrunInstall(t,
+		&dryrun.Client{HelmClient: hcli},
 		"--data-dir", "/custom/data/dir",
 	)
+
+	// --- validate addons --- //
+
+	// openebs
+	assert.Equal(t, "Install", hcli.Calls[0].Method)
+	openebsOpts := hcli.Calls[0].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "openebs", openebsOpts.ReleaseName)
+	assertHelmValues(t, openebsOpts.Values, map[string]interface{}{
+		"['localpv-provisioner'].localpv.basePath": "/custom/data/dir/openebs-local",
+	})
+
+	// embedded cluster operator
+	assert.Equal(t, "Install", hcli.Calls[1].Method)
+	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
+
+	// velero
+	assert.Equal(t, "Install", hcli.Calls[2].Method)
+	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "velero", veleroOpts.ReleaseName)
+	assertHelmValues(t, veleroOpts.Values, map[string]interface{}{
+		"nodeAgent.podVolumePath": "/custom/data/dir/k0s/kubelet/pods",
+	})
+
+	// admin console
+	assert.Equal(t, "Install", hcli.Calls[3].Method)
+	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
 
 	// --- validate os env --- //
 	assertEnv(t, dr.OSEnv, map[string]string{
@@ -166,24 +238,48 @@ func TestCustomDataDir(t *testing.T) {
 	}
 	assert.Equal(t, "/custom/data/dir", in.Spec.RuntimeConfig.DataDir)
 
-	// --- validate k0s cluster config --- //
-	k0sConfig := readK0sConfig(t)
-
-	assertHelmValues(t, k0sConfig, "openebs", map[string]interface{}{
-		"['localpv-provisioner'].localpv.basePath": "/custom/data/dir/openebs-local",
-	})
-	assertHelmValues(t, k0sConfig, "velero", map[string]interface{}{
-		"nodeAgent.podVolumePath": "/custom/data/dir/k0s/kubelet/pods",
-	})
-
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
 func TestCustomPortsInstallation(t *testing.T) {
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
 	dr := dryrunInstall(t,
+		&dryrun.Client{HelmClient: hcli},
 		"--local-artifact-mirror-port", "50001",
 		"--admin-console-port", "30002",
 	)
+
+	// --- validate addons --- //
+
+	// openebs
+	assert.Equal(t, "Install", hcli.Calls[0].Method)
+	openebsOpts := hcli.Calls[0].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "openebs", openebsOpts.ReleaseName)
+
+	// embedded cluster operator
+	assert.Equal(t, "Install", hcli.Calls[1].Method)
+	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
+
+	// velero
+	assert.Equal(t, "Install", hcli.Calls[2].Method)
+	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "velero", veleroOpts.ReleaseName)
+
+	// admin console
+	assert.Equal(t, "Install", hcli.Calls[3].Method)
+	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
+	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
+		"kurlProxy.nodePort": int(30002),
+	})
 
 	// --- validate host preflight spec --- //
 	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {
@@ -239,13 +335,6 @@ func TestCustomPortsInstallation(t *testing.T) {
 	assert.Equal(t, 30002, in.Spec.RuntimeConfig.AdminConsole.Port)
 	assert.Equal(t, 50001, in.Spec.RuntimeConfig.LocalArtifactMirror.Port)
 
-	// --- validate k0s cluster config --- //
-	k0sConfig := readK0sConfig(t)
-
-	assertHelmValues(t, k0sConfig, "admin-console", map[string]interface{}{
-		"kurlProxy.nodePort": float64(30002),
-	})
-
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -261,8 +350,17 @@ func valuesFile(t *testing.T) string {
 }
 
 func TestConfigValuesInstallation(t *testing.T) {
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
 	vf := valuesFile(t)
 	dr := dryrunInstall(t,
+		&dryrun.Client{HelmClient: hcli},
 		"--config-values", vf,
 	)
 

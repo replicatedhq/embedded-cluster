@@ -7,7 +7,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v2"
 )
 
 type Velero struct {
@@ -44,4 +44,16 @@ func init() {
 
 func (v *Velero) Name() string {
 	return "Velero"
+}
+
+func (v *Velero) Version() string {
+	return Metadata.Version
+}
+
+func (v *Velero) ReleaseName() string {
+	return releaseName
+}
+
+func (v *Velero) Namespace() string {
+	return namespace
 }

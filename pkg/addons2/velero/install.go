@@ -5,41 +5,32 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (v *Velero) Install(ctx context.Context, kcli client.Client, writer *spinner.MessageWriter) error {
-	if err := v.prepare(); err != nil {
-		return errors.Wrap(err, "prepare velero")
-	}
-
+func (v *Velero) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
 	if err := v.createPreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	hcli, err := helm.NewHelm(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
-	})
+	values, err := v.GenerateHelmValues(ctx, kcli, overrides)
 	if err != nil {
-		return errors.Wrap(err, "create helm client")
+		return errors.Wrap(err, "generate helm values")
 	}
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,
-		Values:       helmValues,
+		Values:       values,
 		Namespace:    namespace,
 	})
 	if err != nil {
-		return errors.Wrap(err, "install velero")
+		return errors.Wrap(err, "install")
 	}
 
 	return nil
@@ -81,7 +72,7 @@ func createCredentialsSecret(ctx context.Context, kcli client.Client) error {
 		},
 		Type: "Opaque",
 	}
-	if err := kcli.Create(ctx, &credentialsSecret); err != nil {
+	if err := kcli.Create(ctx, &credentialsSecret); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "create credentials secret")
 	}
 

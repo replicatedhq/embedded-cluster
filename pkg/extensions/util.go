@@ -2,6 +2,9 @@ package extensions
 
 import (
 	"context"
+	"fmt"
+	"reflect"
+	"sort"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
@@ -12,7 +15,7 @@ import (
 	helmrepo "helm.sh/helm/v3/pkg/repo"
 )
 
-func addRepos(hcli *helm.Helm, repos []k0sv1beta1.Repository) error {
+func addRepos(hcli helm.Client, repos []k0sv1beta1.Repository) error {
 	for _, r := range repos {
 		logrus.Debugf("Adding helm repository %s", r.Name)
 
@@ -36,7 +39,7 @@ func addRepos(hcli *helm.Helm, repos []k0sv1beta1.Repository) error {
 	return nil
 }
 
-func install(ctx context.Context, hcli *helm.Helm, ext ecv1beta1.Chart) error {
+func install(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 	var values map[string]interface{}
 	if err := yaml.Unmarshal([]byte(ext.Values), &values); err != nil {
 		return errors.Wrap(err, "unmarshal values")
@@ -57,20 +60,25 @@ func install(ctx context.Context, hcli *helm.Helm, ext ecv1beta1.Chart) error {
 	return nil
 }
 
-func upgrade(ctx context.Context, hcli *helm.Helm, ext ecv1beta1.Chart) error {
+func upgrade(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 	var values map[string]interface{}
 	if err := yaml.Unmarshal([]byte(ext.Values), &values); err != nil {
 		return errors.Wrap(err, "unmarshal values")
 	}
 
-	_, err := hcli.Upgrade(ctx, helm.UpgradeOptions{
+	opts := helm.UpgradeOptions{
 		ReleaseName:  ext.Name,
 		ChartPath:    ext.ChartName,
 		ChartVersion: ext.Version,
 		Values:       values,
 		Namespace:    ext.TargetNS,
 		Timeout:      ext.Timeout.Duration,
-	})
+		Force:        true, // this was the default in k0s
+	}
+	if ext.ForceUpgrade != nil {
+		opts.Force = *ext.ForceUpgrade
+	}
+	_, err := hcli.Upgrade(ctx, opts)
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")
 	}
@@ -78,7 +86,7 @@ func upgrade(ctx context.Context, hcli *helm.Helm, ext ecv1beta1.Chart) error {
 	return nil
 }
 
-func uninstall(ctx context.Context, hcli *helm.Helm, ext ecv1beta1.Chart) error {
+func uninstall(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 	err := hcli.Uninstall(ctx, helm.UninstallOptions{
 		ReleaseName: ext.Name,
 		Namespace:   ext.TargetNS,
@@ -89,4 +97,65 @@ func uninstall(ctx context.Context, hcli *helm.Helm, ext ecv1beta1.Chart) error 
 	}
 
 	return nil
+}
+
+type diffResult struct {
+	Action helmAction
+	Ext    ecv1beta1.Chart
+}
+
+func diffExtensions(oldExts, newExts ecv1beta1.Extensions) []diffResult {
+	oldCharts := make(map[string]ecv1beta1.Chart)
+	newCharts := make(map[string]ecv1beta1.Chart)
+
+	if oldExts.Helm != nil {
+		for _, chart := range oldExts.Helm.Charts {
+			oldCharts[chart.Name] = chart
+		}
+	}
+	if newExts.Helm != nil {
+		for _, chart := range newExts.Helm.Charts {
+			newCharts[chart.Name] = chart
+		}
+	}
+
+	var results []diffResult
+
+	for name, newChart := range newCharts {
+		r := diffResult{
+			Ext: newChart,
+		}
+		oldChart, ok := oldCharts[name]
+		if !ok {
+			// chart was added.
+			r.Action = actionInstall
+		} else if !reflect.DeepEqual(oldChart, newChart) {
+			r.Action = actionUpgrade
+		} else {
+			r.Action = actionNoChange
+		}
+		results = append(results, r)
+	}
+
+	for name, oldChart := range oldCharts {
+		_, ok := newCharts[name]
+		if !ok {
+			// chart was removed.
+			results = append(results, diffResult{
+				Action: actionUninstall,
+				Ext:    oldChart,
+			})
+		}
+	}
+
+	// sort next extensions by order
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Ext.Order < results[j].Ext.Order
+	})
+
+	return results
+}
+
+func conditionName(ext ecv1beta1.Chart) string {
+	return fmt.Sprintf("%s-%s", ext.TargetNS, ext.Name)
 }

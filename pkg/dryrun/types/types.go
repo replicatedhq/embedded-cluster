@@ -12,6 +12,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8scheme "k8s.io/client-go/kubernetes/scheme"
@@ -193,6 +194,9 @@ func (d *DryRun) KubeClient() (client.Client, error) {
 		if err := k8scheme.AddToScheme(scheme); err != nil {
 			return nil, fmt.Errorf("add k8s scheme: %w", err)
 		}
+		if err := apiextensionsv1.AddToScheme(scheme); err != nil {
+			return nil, fmt.Errorf("add apiextensions v1 scheme: %w", err)
+		}
 		if err := ecv1beta1.AddToScheme(scheme); err != nil {
 			return nil, fmt.Errorf("add ec v1beta1 scheme: %w", err)
 		}
@@ -207,6 +211,7 @@ func (d *DryRun) KubeClient() (client.Client, error) {
 		d.kcli = fake.NewClientBuilder().
 			WithScheme(scheme).
 			WithObjects(clientObjs...).
+			WithStatusSubresource(&ecv1beta1.Installation{}).
 			Build()
 	}
 	return d.kcli, nil

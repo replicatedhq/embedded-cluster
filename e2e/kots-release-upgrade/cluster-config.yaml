@@ -29,11 +29,13 @@ spec:
         values: |
           labels:
             release-custom-label: release-clustom-value
+            second-custom-label: second-clustom-value
       - name: embedded-cluster-operator
         values: |
           global:
             labels:
               release-custom-label: release-clustom-value
+              second-custom-label: second-clustom-value
     k0s: |
       config:
         metadata:

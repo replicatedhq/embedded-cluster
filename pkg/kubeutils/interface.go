@@ -36,7 +36,7 @@ type KubeUtilsInterface interface {
 	IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error)
 	IsJobComplete(ctx context.Context, cli client.Client, ns, name string, completions int32) (bool, error)
 	WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error
-	WaitAndMarkInstallation(ctx context.Context, cli client.Client, name string, state string) error
+	WaitForCRDToBeReady(ctx context.Context, cli client.Client, name string) error
 	KubeClient() (client.Client, error)
 }
 
@@ -119,8 +119,8 @@ func WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error {
 	return kb.WaitForKubernetes(ctx, cli)
 }
 
-func WaitAndMarkInstallation(ctx context.Context, cli client.Client, name string, state string) error {
-	return kb.WaitAndMarkInstallation(ctx, cli, name, state)
+func WaitForCRDToBeReady(ctx context.Context, cli client.Client, name string) error {
+	return kb.WaitForCRDToBeReady(ctx, cli, name)
 }
 
 func KubeClient() (client.Client, error) {

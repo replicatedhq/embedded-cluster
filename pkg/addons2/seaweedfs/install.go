@@ -8,9 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,32 +16,26 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, writer *spinner.MessageWriter) error {
-	if err := s.prepare(); err != nil {
-		return errors.Wrap(err, "prepare seaweedfs")
-	}
-
+func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
 	if err := s.createPreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	hcli, err := helm.NewHelm(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
-	})
+	values, err := s.GenerateHelmValues(ctx, kcli, overrides)
 	if err != nil {
-		return errors.Wrap(err, "create helm client")
+		return errors.Wrap(err, "generate helm values")
 	}
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,
-		Values:       helmValues,
+		Values:       values,
 		Namespace:    namespace,
+		Labels:       getBackupLabels(),
 	})
 	if err != nil {
-		return errors.Wrap(err, "install seaweedfs")
+		return errors.Wrap(err, "install")
 	}
 
 	return nil

@@ -8,8 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	v12 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -33,12 +32,12 @@ func Test_canEnableHA(t *testing.T) {
 			args: args{
 				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 					&v1beta1.Installation{
-						ObjectMeta: v1.ObjectMeta{Name: "test-installation"},
+						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
 						Spec:       v1beta1.InstallationSpec{HighAvailability: false},
 					},
-					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
-					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
-					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node3", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3", Labels: controllerLabels}},
 				).Build(),
 			},
 			want: true,
@@ -48,12 +47,12 @@ func Test_canEnableHA(t *testing.T) {
 			args: args{
 				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 					&v1beta1.Installation{
-						ObjectMeta: v1.ObjectMeta{Name: "test-installation"},
+						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
 						Spec:       v1beta1.InstallationSpec{HighAvailability: false},
 					},
-					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
-					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
-					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node3"}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3"}},
 				).Build(),
 			},
 			want: false,
@@ -63,12 +62,12 @@ func Test_canEnableHA(t *testing.T) {
 			args: args{
 				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 					&v1beta1.Installation{
-						ObjectMeta: v1.ObjectMeta{Name: "test-installation"},
+						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
 						Spec:       v1beta1.InstallationSpec{HighAvailability: true},
 					},
-					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
-					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
-					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node3", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3", Labels: controllerLabels}},
 				).Build(),
 			},
 			want: false,
@@ -78,15 +77,15 @@ func Test_canEnableHA(t *testing.T) {
 			args: args{
 				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 					&v1beta1.Installation{
-						ObjectMeta: v1.ObjectMeta{Name: "test-installation"},
+						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
 						Spec:       v1beta1.InstallationSpec{HighAvailability: false},
 					},
-					&v12.ConfigMap{
-						ObjectMeta: v1.ObjectMeta{Name: constants.EcRestoreStateCMName, Namespace: "embedded-cluster"},
+					&corev1.ConfigMap{
+						ObjectMeta: metav1.ObjectMeta{Name: constants.EcRestoreStateCMName, Namespace: "embedded-cluster"},
 					},
-					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
-					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
-					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node3", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3", Labels: controllerLabels}},
 				).Build(),
 			},
 			want: false,
@@ -123,30 +122,30 @@ func Test_enableHA(t *testing.T) {
 			args: args{
 				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 					&v1beta1.Installation{
-						ObjectMeta: v1.ObjectMeta{Name: "test-installation"},
+						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
 						Spec: v1beta1.InstallationSpec{
 							HighAvailability: false,
 							AirGap:           true,
 							Network:          &v1beta1.NetworkSpec{ServiceCIDR: "10.123.0.0/16"},
 						},
 						Status: v1beta1.InstallationStatus{
-							Conditions: []v1.Condition{
+							Conditions: []metav1.Condition{
 								{
 									Type:   "HighAvailability",
-									Status: v1.ConditionTrue,
+									Status: metav1.ConditionTrue,
 								},
 							},
 							State: v1beta1.InstallationStateInstalled,
 						},
 					},
 					&corev1.Namespace{
-						ObjectMeta: v1.ObjectMeta{Name: "seaweedfs"},
+						ObjectMeta: metav1.ObjectMeta{Name: "seaweedfs"},
 						Status: corev1.NamespaceStatus{
 							Phase: corev1.NamespaceActive,
 						},
 					},
 					&corev1.Namespace{
-						ObjectMeta: v1.ObjectMeta{Name: "registry"},
+						ObjectMeta: metav1.ObjectMeta{Name: "registry"},
 						Status: corev1.NamespaceStatus{
 							Phase: corev1.NamespaceActive,
 						},
@@ -159,16 +158,16 @@ func Test_enableHA(t *testing.T) {
 			args: args{
 				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 					&v1beta1.Installation{
-						ObjectMeta: v1.ObjectMeta{Name: "test-installation"},
+						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
 						Spec: v1beta1.InstallationSpec{
 							HighAvailability: false,
 							AirGap:           false,
 						},
 						Status: v1beta1.InstallationStatus{
-							Conditions: []v1.Condition{
+							Conditions: []metav1.Condition{
 								{
 									Type:   "HighAvailability",
-									Status: v1.ConditionTrue,
+									Status: metav1.ConditionTrue,
 								},
 							},
 							State: v1beta1.InstallationStateInstalled,

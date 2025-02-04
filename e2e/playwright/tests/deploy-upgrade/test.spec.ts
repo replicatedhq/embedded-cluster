@@ -22,7 +22,8 @@ async function fillConfigForm(iframe: FrameLocator) {
   await expect(iframe.locator('h3')).toContainText('The First Config Group', { timeout: 60 * 1000 }); // can take time to download the kots binary
 
   const hostnameInput = iframe.locator('#hostname-group').locator('input[type="text"]');
-  await expect(hostnameInput).toHaveValue(process.env.APP_INITIAL_HOSTNAME ? process.env.APP_INITIAL_HOSTNAME : 'initial-hostname.com');
+  // the hostname can be either 'initial-hostname.com' or 'updated-hostname.com' if we have run the upgrade multiple times
+  await expect(hostnameInput).toHaveValue(process.env.APP_INITIAL_HOSTNAME ? process.env.APP_INITIAL_HOSTNAME : /(initial|updated)-hostname\.com/);
   await hostnameInput.click();
   await hostnameInput.fill('updated-hostname.com');
 
@@ -35,8 +36,7 @@ async function fillConfigForm(iframe: FrameLocator) {
 async function handlePreflightChecks(iframe: FrameLocator) {
   await expect(iframe.getByText('Preflight checks', { exact: true })).toBeVisible({ timeout: 10 * 1000 });
   await expect(iframe.getByRole('button', { name: 'Rerun' })).toBeVisible({ timeout: 10 * 1000 });
-  await expect(iframe.locator('#app')).toContainText('Embedded Cluster Installation CRD exists');
-  await expect(iframe.locator('#app')).toContainText('Embedded Cluster Config CRD exists');
+  await expect(iframe.locator('#app')).toContainText('The Volume Snapshots CRD exists');
   await expect(iframe.getByRole('button', { name: 'Back: Config' })).toBeVisible();
   await iframe.getByRole('button', { name: 'Next: Confirm and deploy' }).click();
 }

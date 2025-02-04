@@ -8,8 +8,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type OpenEBS struct {
-}
+type OpenEBS struct{}
 
 const (
 	releaseName = "openebs"
@@ -38,6 +37,18 @@ func init() {
 	helmValues = hv
 }
 
-func (a *OpenEBS) Name() string {
+func (o *OpenEBS) Name() string {
 	return "Storage"
+}
+
+func (o *OpenEBS) Version() string {
+	return Metadata.Version
+}
+
+func (o *OpenEBS) ReleaseName() string {
+	return releaseName
+}
+
+func (o *OpenEBS) Namespace() string {
+	return namespace
 }

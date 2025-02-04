@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -36,6 +37,12 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating admin console addon")
 
+		hcli, err := NewHelm()
+		if err != nil {
+			return fmt.Errorf("failed to create helm client: %w", err)
+		}
+		defer hcli.Close()
+
 		logrus.Infof("getting admin console latest tag")
 		latest, err := GetLatestGitHubTag(c.Context, "replicatedhq", "kots-helm")
 		if err != nil {
@@ -64,7 +71,7 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 
 		logrus.Infof("extracting images from chart")
 		withproto := fmt.Sprintf("oci://%s", upstream)
-		images, err := GetImagesFromOCIChart(withproto, "adminconsole", latest, values)
+		images, err := helm.ExtractImagesFromOCIChart(hcli, withproto, "adminconsole", latest, values)
 		if err != nil {
 			return fmt.Errorf("failed to get images from admin console chart: %w", err)
 		}

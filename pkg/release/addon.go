@@ -86,7 +86,7 @@ func RenderHelmValues(rawvalues []byte, meta AddonMetadata) (map[string]interfac
 }
 
 func GetValuesWithOriginalImages(addon string) (map[string]interface{}, error) {
-	tplpath := filepath.Join("pkg", "addons", addon, "static", "values.tpl.yaml")
+	tplpath := filepath.Join("pkg", "addons2", addon, "static", "values.tpl.yaml")
 	tpl, err := os.ReadFile(tplpath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read values template: %w", err)
@@ -111,7 +111,7 @@ func (a *AddonMetadata) Save(addon string) error {
 	if err := yaml.NewEncoder(buf).Encode(a); err != nil {
 		return fmt.Errorf("failed to encode addon metadata: %w", err)
 	}
-	fpath := filepath.Join("pkg", "addons", addon, "static", "metadata.yaml")
+	fpath := filepath.Join("pkg", "addons2", addon, "static", "metadata.yaml")
 	if err := os.WriteFile(fpath, buf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write addon metadata: %w", err)
 	}
