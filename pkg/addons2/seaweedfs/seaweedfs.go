@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v2"
 )
 
 type SeaweedFS struct {
@@ -54,4 +54,22 @@ func init() {
 
 func (s *SeaweedFS) Name() string {
 	return "SeaweedFS"
+}
+
+func (s *SeaweedFS) Version() string {
+	return Metadata.Version
+}
+
+func (s *SeaweedFS) ReleaseName() string {
+	return releaseName
+}
+
+func (s *SeaweedFS) Namespace() string {
+	return namespace
+}
+
+func getBackupLabels() map[string]string {
+	return map[string]string{
+		"app.kubernetes.io/name": "seaweedfs",
+	}
 }

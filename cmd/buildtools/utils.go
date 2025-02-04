@@ -521,12 +521,12 @@ func RunCommand(cmd *exec.Cmd) error {
 	return cmd.Run()
 }
 
-func NewHelm() (*helm.Helm, error) {
+func NewHelm() (helm.Client, error) {
 	sv, err := getK0sVersion()
 	if err != nil {
 		return nil, fmt.Errorf("get k0s version: %w", err)
 	}
-	return helm.NewHelm(helm.HelmOptions{
+	return helm.NewClient(helm.HelmOptions{
 		Writer:     logrus.New().Writer(),
 		K0sVersion: sv.Original(),
 	})

@@ -703,12 +703,16 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		testArgs = append(testArgs, os.Getenv(envVar))
 	}
 
-	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
-	err := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
+		}, func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
+		},
+	)
 
 	// Use an alternate data directory
 	withEnv := map[string]string{
@@ -721,6 +725,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		Image:                   "debian/12",
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
+		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
 	defer tc.Cleanup(withEnv)
 
@@ -937,6 +942,31 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	line = []string{"check-post-restore.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-update.sh"}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to run airgap update: %v", err)
+	}
+	// remove the airgap bundle after upgrade
+	line = []string{"rm", "/assets/upgrade/release.airgap"}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs = []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

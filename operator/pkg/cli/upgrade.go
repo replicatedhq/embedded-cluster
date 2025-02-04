@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -39,21 +40,21 @@ func UpgradeCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Upgrade job creation started")
+			slog.Info("Upgrade job creation started")
 
 			cli, err := k8sutil.KubeClient()
 			if err != nil {
 				return fmt.Errorf("failed to create kubernetes client: %w", err)
 			}
 
-			fmt.Printf("Preparing upgrade to installation %s (k0s version %s)\n", installation.Name, installation.Spec.Config.Version)
+			slog.Info("Preparing upgrade", "installation", installation.Name, "k0s_version", installation.Spec.Config.Version)
 
 			// create the installation object so that kotsadm can immediately find it and watch it for the upgrade process
 			err = upgrade.CreateInstallation(cmd.Context(), cli, installation)
 			if err != nil {
 				return fmt.Errorf("apply installation: %w", err)
 			}
-			previousInstallation, err := kubeutils.GetPreviousCRDInstallation(cmd.Context(), cli, installation)
+			previousInstallation, err := kubeutils.GetPreviousInstallation(cmd.Context(), cli, installation)
 			if err != nil {
 				return fmt.Errorf("get previous installation: %w", err)
 			}
@@ -66,7 +67,7 @@ func UpgradeCmd() *cobra.Command {
 				return fmt.Errorf("failed to upgrade: %w", err)
 			}
 
-			fmt.Println("Upgrade job created successfully")
+			slog.Info("Upgrade job created successfully")
 
 			return nil
 		},

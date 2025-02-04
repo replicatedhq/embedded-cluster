@@ -26,6 +26,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -53,16 +54,17 @@ import (
 type ecRestoreState string
 
 const (
-	ecRestoreStateNew                 ecRestoreState = "new"
-	ecRestoreStateConfirmBackup       ecRestoreState = "confirm-backup"
-	ecRestoreStateRestoreECInstall    ecRestoreState = "restore-ec-install"
-	ecRestoreStateRestoreAdminConsole ecRestoreState = "restore-admin-console"
-	ecRestoreStateWaitForNodes        ecRestoreState = "wait-for-nodes"
-	ecRestoreStateRestoreSeaweedFS    ecRestoreState = "restore-seaweedfs"
-	ecRestoreStateRestoreRegistry     ecRestoreState = "restore-registry"
-	ecRestoreStateRestoreECO          ecRestoreState = "restore-embedded-cluster-operator"
-	ecRestoreStateRestoreExtensions   ecRestoreState = "restore-extensions"
-	ecRestoreStateRestoreApp          ecRestoreState = "restore-app"
+	ecRestoreStateNew                  ecRestoreState = "new"
+	ecRestoreStateConfirmBackup        ecRestoreState = "confirm-backup"
+	ecRestoreStateRestoreECInstall     ecRestoreState = "restore-ec-install"
+	ecRestoreStateRestoreAdminConsole  ecRestoreState = "restore-admin-console"
+	ecRestoreStateWaitForNodes         ecRestoreState = "wait-for-nodes"
+	ecRestoreStateRestoreSeaweedFS     ecRestoreState = "restore-seaweedfs"
+	ecRestoreStateRestoreRegistry      ecRestoreState = "restore-registry"
+	ecRestoreStateAdminConsoleEnableHA ecRestoreState = "admin-console-enable-ha"
+	ecRestoreStateRestoreECO           ecRestoreState = "restore-embedded-cluster-operator"
+	ecRestoreStateRestoreExtensions    ecRestoreState = "restore-extensions"
+	ecRestoreStateRestoreApp           ecRestoreState = "restore-app"
 )
 
 var ecRestoreStates = []ecRestoreState{
@@ -73,6 +75,7 @@ var ecRestoreStates = []ecRestoreState{
 	ecRestoreStateWaitForNodes,
 	ecRestoreStateRestoreSeaweedFS,
 	ecRestoreStateRestoreRegistry,
+	ecRestoreStateAdminConsoleEnableHA,
 	ecRestoreStateRestoreECO,
 	ecRestoreStateRestoreExtensions,
 	ecRestoreStateRestoreApp,
@@ -89,7 +92,7 @@ func Restore2Cmd(ctx context.Context, name string) *cobra.Command {
 	var skipStoreValidation bool
 
 	cmd := &cobra.Command{
-		Use:   "restore2",
+		Use:   "restore",
 		Short: fmt.Sprintf("Restore a %s cluster", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall2(cmd, &flags); err != nil {
@@ -279,6 +282,20 @@ func runRestore2(ctx context.Context, name string, flags Install2CmdFlags, s3Sto
 
 		fallthrough
 
+	case ecRestoreStateAdminConsoleEnableHA:
+		logrus.Debugf("setting restore state to %q", ecRestoreStateAdminConsoleEnableHA)
+		err := setECRestoreState(ctx, ecRestoreStateAdminConsoleEnableHA, backupToRestore.GetName())
+		if err != nil {
+			return fmt.Errorf("unable to set restore state: %w", err)
+		}
+
+		err = runRestoreEnableAdminConsoleHA(ctx, flags, backupToRestore)
+		if err != nil {
+			return err
+		}
+
+		fallthrough
+
 	case ecRestoreStateRestoreECO:
 		logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECO)
 		err := setECRestoreState(ctx, ecRestoreStateRestoreECO, backupToRestore.GetName())
@@ -383,12 +400,11 @@ func runRestoreStepNew(ctx context.Context, name string, flags Install2CmdFlags,
 
 	logrus.Debugf("installing addons")
 	if err := addons2.Install(ctx, addons2.InstallOptions{
-		AirgapBundle:     flags.airgapBundle,
-		Proxy:            flags.proxy,
-		PrivateCAs:       flags.privateCAs,
-		ConfigValuesFile: flags.configValues,
-		ServiceCIDR:      flags.cidrCfg.ServiceCIDR,
-		IsRestore:        true,
+		IsAirgap:    flags.airgapBundle != "",
+		Proxy:       flags.proxy,
+		PrivateCAs:  flags.privateCAs,
+		ServiceCIDR: flags.cidrCfg.ServiceCIDR,
+		IsRestore:   true,
 	}); err != nil {
 		return err
 	}
@@ -467,11 +483,6 @@ func runRestoreAdminConsole(ctx context.Context, backupToRestore *disasterrecove
 		return err
 	}
 
-	logrus.Debugf("installing manager")
-	if err := installAndEnableManager(ctx); err != nil {
-		return fmt.Errorf("unable to install manager: %w", err)
-	}
-
 	return nil
 }
 
@@ -487,6 +498,53 @@ func runRestoreWaitForNodes(ctx context.Context, flags Install2CmdFlags, backupT
 	if err := waitForAdditionalNodes(ctx, highAvailability, flags.networkInterface); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func runRestoreEnableAdminConsoleHA(ctx context.Context, flags Install2CmdFlags, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
+	if err != nil {
+		return err
+	} else if !highAvailability {
+		return nil
+	}
+
+	loading := spinner.Start()
+	defer loading.Close()
+
+	loading.Infof("Enabling high availability for the Admin Console")
+
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+
+	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get latest installation: %w", err)
+	}
+
+	airgapChartsPath := ""
+	if flags.isAirgap {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
+
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
+	})
+	if err != nil {
+		return fmt.Errorf("create helm client: %w", err)
+	}
+
+	err = addons2.EnableAdminConsoleHA(ctx, kcli, hcli, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config)
+	if err != nil {
+		return err
+	}
+
+	loading.Infof("High availability enabled for the Admin Console!")
 
 	return nil
 }
@@ -550,6 +608,22 @@ func runRestoreExtensions(ctx context.Context, flags Install2CmdFlags) error {
 }
 
 func runRestoreApp(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+	logrus.Debugf("setting installation status to installed")
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("create kube client: %w", err)
+	}
+
+	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get latest installation: %w", err)
+	}
+
+	err = kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateInstalled, "Installed")
+	if err != nil {
+		return fmt.Errorf("update installation status: %w", err)
+	}
+
 	logrus.Debugf("restoring app from backup %q", backupToRestore.GetName())
 	if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentApp, true); err != nil {
 		return err
@@ -1496,16 +1570,15 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context) error {
 		in.Spec.RuntimeConfig = &ecv1beta1.RuntimeConfigSpec{}
 	}
 
-	// We allow the user to override the port with a flag to the restore command.
-	in.Spec.RuntimeConfig.LocalArtifactMirror.Port = runtimeconfig.LocalArtifactMirrorPort()
-
-	if err := kubeutils.UpdateInstallation(ctx, kcli, in); err != nil {
+	err = kubeutils.UpdateInstallation(ctx, kcli, in, func(in *ecv1beta1.Installation) {
+		in.Spec.RuntimeConfig.LocalArtifactMirror.Port = runtimeconfig.LocalArtifactMirrorPort()
+	})
+	if err != nil {
 		return fmt.Errorf("update installation: %w", err)
 	}
 
-	in.Status.State = ecv1beta1.InstallationStateKubernetesInstalled
-
-	if err := kubeutils.UpdateInstallationStatus(ctx, kcli, in); err != nil {
+	err = kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed")
+	if err != nil {
 		return fmt.Errorf("update installation status: %w", err)
 	}
 

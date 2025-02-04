@@ -78,7 +78,7 @@ func (k *KubeUtils) WaitForKubernetes(ctx context.Context, cli client.Client) <-
 	return errCh
 }
 
-func (k *KubeUtils) WaitAndMarkInstallation(ctx context.Context, cli client.Client, name string, state string) error {
+func (k *KubeUtils) WaitForCRDToBeReady(ctx context.Context, cli client.Client, name string) error {
 	return nil
 }
 

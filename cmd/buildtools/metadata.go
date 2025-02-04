@@ -43,10 +43,6 @@ var metadataExtractHelmChartImagesCommand = &cli.Command{
 
 		repos := metadata.Configs.Repositories
 		charts := metadata.Configs.Charts
-		for _, chart := range metadata.BuiltinConfigs {
-			repos = append(repos, chart.Repositories...)
-			charts = append(charts, chart.Charts...)
-		}
 
 		images, err := extractImagesFromHelmExtensions(repos, charts, metadata.Versions["Kubernetes"])
 		if err != nil {
@@ -77,7 +73,7 @@ func readMetadataFromFile(path string) (*types.ReleaseMetadata, error) {
 }
 
 func extractImagesFromHelmExtensions(repos []k0sv1beta1.Repository, charts []embeddedclusterv1beta1.Chart, k8sVersion string) ([]string, error) {
-	hcli, err := helm.NewHelm(helm.HelmOptions{
+	hcli, err := helm.NewClient(helm.HelmOptions{
 		K0sVersion: k8sVersion,
 	})
 	if err != nil {
@@ -120,7 +116,7 @@ func extractImagesFromHelmExtensions(repos []k0sv1beta1.Repository, charts []emb
 	return images, nil
 }
 
-func extractImagesFromChart(hcli *helm.Helm, chart embeddedclusterv1beta1.Chart) ([]string, error) {
+func extractImagesFromChart(hcli helm.Client, chart embeddedclusterv1beta1.Chart) ([]string, error) {
 	values := map[string]interface{}{}
 	if chart.Values != "" {
 		err := yaml.Unmarshal([]byte(chart.Values), &values)

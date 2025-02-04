@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 	"time"
 
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
@@ -29,7 +28,6 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/charts"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
@@ -516,13 +514,11 @@ func constructHostPreflightResultsJob(in *v1beta1.Installation, nodeName string)
 
 // Reconcile reconcile the installation object.
 func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	isV2Enabled := false
-
 	// we start by fetching all installation objects and coalescing them. we
 	// are going to operate only on the newest one (sorting by installation
 	// name).
 	log := ctrl.LoggerFrom(ctx)
-	installs, err := kubeutils.ListCRDInstallations(ctx, r.Client)
+	installs, err := kubeutils.ListInstallations(ctx, r.Client)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to list installations: %w", err)
 	}
@@ -543,12 +539,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// set the runtime config from the installation spec
 	runtimeconfig.Set(in.Spec.RuntimeConfig)
 
-	// if the embedded cluster version has changed we should not reconcile with the old version
-	versionChanged, err := r.needsUpgrade(ctx, in)
-	if versionChanged {
-		return ctrl.Result{}, err
-	}
-
 	// if this cluster has no id we bail out immediately.
 	if in.Spec.ClusterID == "" {
 		log.Info("No cluster ID found, reconciliation ended")
@@ -561,13 +551,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// parse the config otherwise we risk moving on with a reconcile
 	// using an erroneous config.
 	if err := r.ReadClusterConfigSpecFromSecret(ctx, in); err != nil {
-		if !isV2Enabled {
-			in.Status.SetState(v1beta1.InstallationStateFailed, err.Error(), nil)
-			if err := r.Status().Update(ctx, in); err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
-			}
-			r.DisableOldInstallations(ctx, items)
-		}
 		return ctrl.Result{}, fmt.Errorf("failed to read cluster config from secret: %w", err)
 	}
 
@@ -587,40 +570,12 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile openebs: %w", err)
 	}
 
-	if !isV2Enabled {
-		// reconcile helm chart dependencies including secrets.
-		if err := r.ReconcileRegistry(ctx, in); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to pre-reconcile helm charts: %w", err)
-		}
-
-		// reconcile the add-ons (k0s helm extensions).
-		log.Info("Reconciling helm charts")
-		ev, err := charts.ReconcileHelmCharts(ctx, r.Client, in)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to reconcile helm charts: %w", err)
-		}
-		if ev != nil {
-			r.Recorder.Event(in, corev1.EventTypeNormal, ev.Reason, ev.Message)
-		}
-
-		if err := r.ReconcileHAStatus(ctx, in); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to reconcile HA status: %w", err)
-		}
-	}
-
 	// save the installation status. nothing more to do with it.
-	if err := r.Status().Update(ctx, in.DeepCopy()); err != nil {
+	if err := r.Status().Update(ctx, in); err != nil {
 		if k8serrors.IsConflict(err) {
 			return ctrl.Result{}, fmt.Errorf("failed to update status: conflict")
 		}
 		return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
-	}
-
-	if !isV2Enabled {
-		// now that the status has been updated we can flag all older installation
-		// objects as obsolete. these are not necessary anymore and are kept only
-		// for historic reasons.
-		r.DisableOldInstallations(ctx, items)
 	}
 
 	// if we are not in an airgap environment this is the time to call back to
@@ -631,19 +586,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	log.Info("Installation reconciliation ended")
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
-}
-
-func (r *InstallationReconciler) needsUpgrade(ctx context.Context, in *v1beta1.Installation) (bool, error) {
-	if in.Spec.Config == nil || in.Spec.Config.Version == "" {
-		return false, nil
-	}
-	curstr := strings.TrimPrefix(os.Getenv("EMBEDDEDCLUSTER_VERSION"), "v")
-	desstr := strings.TrimPrefix(in.Spec.Config.Version, "v")
-	var err error
-	if curstr != desstr {
-		err = fmt.Errorf("current version (%s) is different from the desired version (%s)", curstr, desstr)
-	}
-	return curstr != desstr, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
