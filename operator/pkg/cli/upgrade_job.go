@@ -81,7 +81,7 @@ func UpgradeJobCmd() *cobra.Command {
 				if err := maybeMarkAsFailed(cmd.Context(), kcli, in, upgradeErr); err != nil {
 					slog.Error("Failed to mark installation as failed", "error", err)
 				}
-				return err
+				return upgradeErr
 			}
 
 			slog.Info("Upgrade completed successfully")
