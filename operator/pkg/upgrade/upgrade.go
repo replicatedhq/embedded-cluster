@@ -252,7 +252,7 @@ func upgradeExtensions(ctx context.Context, cli client.Client, in *ecv1beta1.Ins
 		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
 	}
 
-	hcli, err := helm.NewHelm(helm.HelmOptions{
+	hcli, err := helm.NewClient(helm.HelmOptions{
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
