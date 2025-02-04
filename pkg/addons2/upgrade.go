@@ -125,13 +125,18 @@ func upgradeAddOn(ctx context.Context, hcli helm.Client, kcli client.Client, in 
 	// TODO (@salah): add support for end user overrides
 	overrides := addOnOverrides(addon, in.Spec.Config, nil)
 
-	upgradeErr := addon.Upgrade(ctx, kcli, hcli, overrides)
-	if err := setFinalCondition(ctx, kcli, in, addon, upgradeErr); err != nil {
-		return errors.Wrap(err, "set final condition")
+	err = addon.Upgrade(ctx, kcli, hcli, overrides)
+	if err != nil {
+		message := helpers.CleanErrorMessage(err)
+		if err := setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionFalse, "UpgradeFailed", message); err != nil {
+			return errors.Wrap(err, "set condition upgrade failed")
+		}
+		return errors.Wrap(err, "upgrade addon")
 	}
 
-	if upgradeErr != nil {
-		return errors.Wrap(upgradeErr, "upgrade addon")
+	err = setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionTrue, "Upgraded", "")
+	if err != nil {
+		return errors.Wrap(err, "set condition upgrade succeeded")
 	}
 
 	slog.Info(addon.Name() + " is ready!")
@@ -149,23 +154,4 @@ func setCondition(ctx context.Context, kcli client.Client, in *ecv1beta1.Install
 		Reason:  reason,
 		Message: message,
 	})
-}
-
-func setFinalCondition(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, addon types.AddOn, finalErr error) error {
-	status := metav1.ConditionTrue
-	reason := "Upgraded"
-	message := ""
-
-	if finalErr != nil {
-		status = metav1.ConditionFalse
-		reason = "UpgradeFailed"
-		message = helpers.CleanErrorMessage(finalErr)
-	}
-
-	err := setCondition(ctx, kcli, in, conditionName(addon), status, reason, message)
-	if err != nil {
-		return errors.Wrap(err, "set condition")
-	}
-
-	return nil
 }

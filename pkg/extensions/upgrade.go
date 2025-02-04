@@ -144,15 +144,17 @@ func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Inst
 		}
 	}
 
-	finalErr := processFn()
-
-	err = markExtensionProcessed(ctx, kcli, in, ext, action, finalErr)
+	err = processFn()
 	if err != nil {
-		return errors.Wrap(err, "mark extension as processed")
+		if err := markExtensionAsFailed(ctx, kcli, in, ext, action, err); err != nil {
+			return errors.Wrap(err, "mark extension processed failed")
+		}
+		return errors.Wrap(err, "process extension")
 	}
 
-	if finalErr != nil {
-		return errors.Wrap(err, "process extension")
+	err = markExtensionAsProcessed(ctx, kcli, in, ext, action)
+	if err != nil {
+		return errors.Wrap(err, "mark extension as processed")
 	}
 
 	slog.Info("Extension is ready!", slogArgs...)
@@ -176,23 +178,20 @@ func markExtensionAsProcessing(ctx context.Context, kcli client.Client, in *ecv1
 	return nil
 }
 
-func markExtensionProcessed(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, action helmAction, finalErr error) error {
+func markExtensionAsProcessed(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, action helmAction) error {
 	_, actionEd := formatAction(action)
-
-	status := metav1.ConditionTrue
-	reason := actionEd
-	message := ""
-
-	if finalErr != nil {
-		status = metav1.ConditionFalse
-		reason = string(action) + "Failed"
-		message = helpers.CleanErrorMessage(finalErr)
-	}
-
-	if err := setCondition(ctx, kcli, in, conditionName(ext), status, reason, message); err != nil {
+	if err := setCondition(ctx, kcli, in, conditionName(ext), metav1.ConditionTrue, actionEd, ""); err != nil {
 		return errors.Wrap(err, "failed to set condition status")
 	}
+	return nil
+}
 
+func markExtensionAsFailed(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, action helmAction, finalErr error) error {
+	reason := string(action) + "Failed"
+	message := helpers.CleanErrorMessage(finalErr)
+	if err := setCondition(ctx, kcli, in, conditionName(ext), metav1.ConditionFalse, reason, message); err != nil {
+		return errors.Wrap(err, "failed to set condition status")
+	}
 	return nil
 }
 
