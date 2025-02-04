@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"runtime/debug"
-	"time"
 
 	"github.com/google/uuid"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -104,26 +103,7 @@ func UpgradeJobCmd() *cobra.Command {
 	return cmd
 }
 
-func performUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation) error {
-	i := 0
-	sleepDuration := time.Second * 5
-	for {
-		if err := attemptUpgrade(ctx, kcli, hcli, in); err != nil {
-			if i >= 10 {
-				return fmt.Errorf("failed to upgrade after %s: %w", (sleepDuration * time.Duration(i)).String(), err)
-			}
-
-			slog.Error("Upgrade failed, retrying", "error", err)
-			time.Sleep(sleepDuration)
-			i++
-			continue
-		}
-		break
-	}
-	return nil
-}
-
-func attemptUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation) (finalErr error) {
+func performUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("upgrade recovered from panic: %v: %s", r, string(debug.Stack()))
