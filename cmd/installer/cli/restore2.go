@@ -530,7 +530,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags Install2CmdFlags,
 		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
 	}
 
-	hcli, err := helm.NewHelm(helm.HelmOptions{
+	hcli, err := helm.NewClient(helm.HelmOptions{
 		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
