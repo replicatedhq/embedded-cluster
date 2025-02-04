@@ -36,7 +36,7 @@ type reducedContainer struct {
 	Image string `yaml:"image"`
 }
 
-func ExtractImagesFromOCIChart(hcli *HelmClient, url, name, version string, values map[string]interface{}) ([]string, error) {
+func ExtractImagesFromOCIChart(hcli Client, url, name, version string, values map[string]interface{}) ([]string, error) {
 	chartPath, err := hcli.PullOCI(url, version)
 	if err != nil {
 		return nil, fmt.Errorf("pull oci: %w", err)
@@ -46,7 +46,7 @@ func ExtractImagesFromOCIChart(hcli *HelmClient, url, name, version string, valu
 	return ExtractImagesFromLocalChart(hcli, name, chartPath, values)
 }
 
-func ExtractImagesFromChart(hcli *HelmClient, repo, name, version string, values map[string]interface{}) ([]string, error) {
+func ExtractImagesFromChart(hcli Client, repo, name, version string, values map[string]interface{}) ([]string, error) {
 	chartPath, err := hcli.Pull(repo, name, version)
 	if err != nil {
 		return nil, fmt.Errorf("pull: %w", err)
@@ -56,7 +56,7 @@ func ExtractImagesFromChart(hcli *HelmClient, repo, name, version string, values
 	return ExtractImagesFromLocalChart(hcli, name, chartPath, values)
 }
 
-func ExtractImagesFromLocalChart(hcli *HelmClient, name, path string, values map[string]interface{}) ([]string, error) {
+func ExtractImagesFromLocalChart(hcli Client, name, path string, values map[string]interface{}) ([]string, error) {
 	manifests, err := hcli.Render(name, path, values, "default", nil)
 	if err != nil {
 		return nil, fmt.Errorf("render: %w", err)
@@ -77,7 +77,7 @@ func ExtractImagesFromLocalChart(hcli *HelmClient, name, path string, values map
 	return images, nil
 }
 
-func GetOCIChartMetadata(hcli *HelmClient, url, name, version string) (*chart.Metadata, error) {
+func GetOCIChartMetadata(hcli Client, url, name, version string) (*chart.Metadata, error) {
 	chartPath, err := hcli.PullOCI(url, version)
 	if err != nil {
 		return nil, fmt.Errorf("pull oci: %w", err)
@@ -87,7 +87,7 @@ func GetOCIChartMetadata(hcli *HelmClient, url, name, version string) (*chart.Me
 	return hcli.GetChartMetadata(chartPath)
 }
 
-func GetChartMetadata(hcli *HelmClient, repo, name, version string) (*chart.Metadata, error) {
+func GetChartMetadata(hcli Client, repo, name, version string) (*chart.Metadata, error) {
 	chartPath, err := hcli.Pull(repo, name, version)
 	if err != nil {
 		return nil, fmt.Errorf("pull oci: %w", err)
