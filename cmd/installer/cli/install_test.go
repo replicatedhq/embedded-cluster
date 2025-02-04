@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strconv"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -66,7 +65,7 @@ func Test_validateAdminConsolePassword(t *testing.T) {
 	}
 }
 
-func Test_maybeAskAdminConsolePassword(t *testing.T) {
+func Test_ensureAdminConsolePassword(t *testing.T) {
 
 	tests := []struct {
 		name         string
@@ -109,17 +108,17 @@ func Test_maybeAskAdminConsolePassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			cmd := InstallCmd(context.Background(), "testing")
+			flags := &Install2CmdFlags{
+				assumeYes:            tt.noPrompt,
+				adminConsolePassword: tt.userPassword,
+			}
 
-			flags := cmd.Flags()
-			flags.Set("no-prompt", strconv.FormatBool(tt.noPrompt))
-			flags.Set("admin-console-password", tt.userPassword)
-
-			passwordSet, err := maybeAskAdminConsolePassword(cmd, true)
+			err := ensureAdminConsolePassword(flags)
 			if tt.wantError {
 				req.Error(err)
 			} else {
-				req.Equal(tt.wantPassword, passwordSet)
+				req.NoError(err)
+				req.Equal(tt.wantPassword, flags.adminConsolePassword+"1")
 			}
 		})
 	}

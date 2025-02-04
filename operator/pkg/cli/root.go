@@ -115,7 +115,6 @@ func setupCLILog(cmd *cobra.Command, level logrus.Level) error {
 
 func addSubcommands(cmd *cobra.Command) {
 	cmd.AddCommand(
-		MigrateCmd(),
 		UpgradeCmd(),
 		UpgradeJobCmd(),
 		MigrateV2Cmd(),

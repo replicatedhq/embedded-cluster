@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/spf13/cobra"
