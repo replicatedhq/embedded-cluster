@@ -66,7 +66,7 @@ func upgrade(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 		return errors.Wrap(err, "unmarshal values")
 	}
 
-	_, err := hcli.Upgrade(ctx, helm.UpgradeOptions{
+	opts := helm.UpgradeOptions{
 		ReleaseName:  ext.Name,
 		ChartPath:    ext.ChartName,
 		ChartVersion: ext.Version,
@@ -74,7 +74,11 @@ func upgrade(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 		Namespace:    ext.TargetNS,
 		Timeout:      ext.Timeout.Duration,
 		Force:        true, // this was the default in k0s
-	})
+	}
+	if ext.ForceUpgrade != nil {
+		opts.Force = *ext.ForceUpgrade
+	}
+	_, err := hcli.Upgrade(ctx, opts)
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")
 	}
@@ -95,13 +99,13 @@ func uninstall(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error
 	return nil
 }
 
-type DiffResult struct {
-	Added    []ecv1beta1.Chart
-	Removed  []ecv1beta1.Chart
-	Modified []ecv1beta1.Chart
+type diffResult struct {
+	Action       helmAction
+	Ext          ecv1beta1.Chart
+	NeedsUpgrade bool
 }
 
-func diffExtensions(oldExts, newExts ecv1beta1.Extensions) DiffResult {
+func diffExtensions(oldExts, newExts ecv1beta1.Extensions) []diffResult {
 	oldCharts := make(map[string]ecv1beta1.Chart)
 	newCharts := make(map[string]ecv1beta1.Chart)
 
@@ -116,44 +120,40 @@ func diffExtensions(oldExts, newExts ecv1beta1.Extensions) DiffResult {
 		}
 	}
 
-	var added, removed, modified []ecv1beta1.Chart
+	var results []diffResult
 
-	// find removed and modified charts.
-	for name, oldChart := range oldCharts {
-		newChart, exists := newCharts[name]
-		if !exists {
-			// chart was removed.
-			removed = append(removed, oldChart)
-		} else if !reflect.DeepEqual(oldChart, newChart) {
-			// chart was modified.
-			modified = append(modified, newChart)
-		}
-	}
-
-	// find added charts.
 	for name, newChart := range newCharts {
-		if _, exists := oldCharts[name]; !exists {
+		r := diffResult{
+			Ext: newChart,
+		}
+		oldChart, ok := oldCharts[name]
+		if !ok {
 			// chart was added.
-			added = append(added, newChart)
+			r.Action = actionInstall
+		} else {
+			r.Action = actionUpgrade
+			r.NeedsUpgrade = !reflect.DeepEqual(oldChart, newChart)
+		}
+		results = append(results, r)
+	}
+
+	for name, oldChart := range oldCharts {
+		_, ok := newCharts[name]
+		if !ok {
+			// chart was removed.
+			results = append(results, diffResult{
+				Action: actionUninstall,
+				Ext:    oldChart,
+			})
 		}
 	}
 
-	// sort by order
-	sort.Slice(added, func(i, j int) bool {
-		return added[i].Order < added[j].Order
-	})
-	sort.Slice(removed, func(i, j int) bool {
-		return removed[i].Order > removed[j].Order
-	})
-	sort.Slice(modified, func(i, j int) bool {
-		return modified[i].Order < modified[j].Order
+	// sort next extensions by order
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Ext.Order < results[j].Ext.Order
 	})
 
-	return DiffResult{
-		Added:    added,
-		Removed:  removed,
-		Modified: modified,
-	}
+	return results
 }
 
 func conditionName(ext ecv1beta1.Chart) string {
