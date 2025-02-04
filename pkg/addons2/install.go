@@ -13,9 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
@@ -33,24 +31,10 @@ type InstallOptions struct {
 	IsRestore               bool
 }
 
-func Install(ctx context.Context, opts InstallOptions) error {
+func Install(ctx context.Context, hcli helm.Client, opts InstallOptions) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return errors.Wrap(err, "create kube client")
-	}
-
-	airgapChartsPath := ""
-	if opts.IsAirgap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
-	}
-
-	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
-	})
-	if err != nil {
-		return errors.Wrap(err, "create helm client")
 	}
 
 	addons := getAddOnsForInstall(opts)

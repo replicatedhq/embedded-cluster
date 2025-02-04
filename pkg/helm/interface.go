@@ -9,12 +9,8 @@ import (
 )
 
 var (
-	_hc Client
+	_clientFactory ClientFactory
 )
-
-func SetClient(hc Client) {
-	_hc = hc
-}
 
 type Client interface {
 	Close() error
@@ -32,11 +28,15 @@ type Client interface {
 	Render(releaseName string, chartPath string, values map[string]interface{}, namespace string, labels map[string]string) ([][]byte, error)
 }
 
-// Convenience functions
+type ClientFactory func(opts HelmOptions) (Client, error)
+
+func SetClientFactory(fn ClientFactory) {
+	_clientFactory = fn
+}
 
 func NewClient(opts HelmOptions) (Client, error) {
-	if _hc != nil {
-		return _hc, nil
+	if _clientFactory != nil {
+		return _clientFactory(opts)
 	}
 	return newClient(opts)
 }

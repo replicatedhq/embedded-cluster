@@ -21,12 +21,13 @@ import (
 
 func TestDefaultInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
-	hcli.On("Install", mock.Anything, mock.Anything).Return(nil, nil)
+
+	mock.InOrder(
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
 
 	dr := dryrunInstall(t, &dryrun.Client{HelmClient: hcli})
-
-	// --- validate addons --- //
-	require.Len(t, hcli.Calls, 4) // 4 addons
 
 	// openebs
 	assert.Equal(t, "Install", hcli.Calls[0].Method)
@@ -154,15 +155,16 @@ func TestDefaultInstallation(t *testing.T) {
 
 func TestCustomDataDir(t *testing.T) {
 	hcli := &helm.MockClient{}
-	hcli.On("Install", mock.Anything, mock.Anything).Return(nil, nil)
+
+	mock.InOrder(
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
 
 	dr := dryrunInstall(t,
 		&dryrun.Client{HelmClient: hcli},
 		"--data-dir", "/custom/data/dir",
 	)
-
-	// --- validate addons --- //
-	require.Len(t, hcli.Calls, 4) // 4 addons
 
 	// openebs
 	assert.Equal(t, "Install", hcli.Calls[0].Method)
@@ -235,16 +237,17 @@ func TestCustomDataDir(t *testing.T) {
 
 func TestCustomPortsInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
-	hcli.On("Install", mock.Anything, mock.Anything).Return(nil, nil)
+
+	mock.InOrder(
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
 
 	dr := dryrunInstall(t,
 		&dryrun.Client{HelmClient: hcli},
 		"--local-artifact-mirror-port", "50001",
 		"--admin-console-port", "30002",
 	)
-
-	// --- validate addons --- //
-	require.Len(t, hcli.Calls, 4) // 4 addons
 
 	// openebs
 	assert.Equal(t, "Install", hcli.Calls[0].Method)
@@ -339,7 +342,11 @@ func valuesFile(t *testing.T) string {
 
 func TestConfigValuesInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
-	hcli.On("Install", mock.Anything, mock.Anything).Return(nil, nil)
+
+	mock.InOrder(
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
 
 	vf := valuesFile(t)
 	dr := dryrunInstall(t,

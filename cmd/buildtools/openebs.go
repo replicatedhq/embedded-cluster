@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -47,12 +48,18 @@ var updateOpenEBSAddonCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating openebs addon")
 
+		hcli, err := NewHelm()
+		if err != nil {
+			return fmt.Errorf("failed to create helm client: %w", err)
+		}
+		defer hcli.Close()
+
 		nextChartVersion := os.Getenv("INPUT_OPENEBS_CHART_VERSION")
 		if nextChartVersion != "" {
 			logrus.Infof("using input override from INPUT_OPENEBS_CHART_VERSION: %s", nextChartVersion)
 		} else {
 			logrus.Infof("fetching the latest openebs chart version")
-			latest, err := LatestChartVersion(openebsRepo, "openebs")
+			latest, err := LatestChartVersion(hcli, openebsRepo, "openebs")
 			if err != nil {
 				return fmt.Errorf("failed to get the latest openebs chart version: %v", err)
 			}
@@ -68,7 +75,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("mirroring openebs chart version %s", nextChartVersion)
-		if err := MirrorChart(openebsRepo, "openebs", nextChartVersion); err != nil {
+		if err := MirrorChart(hcli, openebsRepo, "openebs", nextChartVersion); err != nil {
 			return fmt.Errorf("failed to mirror openebs chart: %v", err)
 		}
 
@@ -77,7 +84,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 
 		logrus.Infof("updating openebs images")
 
-		err := updateOpenEBSAddonImages(c.Context, withproto, nextChartVersion, nextChartVersion)
+		err = updateOpenEBSAddonImages(c.Context, hcli, withproto, nextChartVersion, nextChartVersion)
 		if err != nil {
 			return fmt.Errorf("failed to update openebs images: %w", err)
 		}
@@ -95,9 +102,15 @@ var updateOpenEBSImagesCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating openebs images")
 
+		hcli, err := NewHelm()
+		if err != nil {
+			return fmt.Errorf("failed to create helm client: %w", err)
+		}
+		defer hcli.Close()
+
 		current := openebs.Metadata
 
-		err := updateOpenEBSAddonImages(c.Context, current.Location, current.Version, current.Version)
+		err = updateOpenEBSAddonImages(c.Context, hcli, current.Location, current.Version, current.Version)
 		if err != nil {
 			return fmt.Errorf("failed to update openebs images: %w", err)
 		}
@@ -108,7 +121,7 @@ var updateOpenEBSImagesCommand = &cli.Command{
 	},
 }
 
-func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion string, linuxUtilsVersion string) error {
+func updateOpenEBSAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string, linuxUtilsVersion string) error {
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
@@ -121,7 +134,7 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	images, err := GetImagesFromOCIChart(chartURL, "openebs", chartVersion, values)
+	images, err := helm.ExtractImagesFromOCIChart(hcli, chartURL, "openebs", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from openebs chart: %w", err)
 	}

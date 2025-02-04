@@ -133,13 +133,15 @@ type HelmClient struct {
 	regcli        *registry.Client
 	repocfg       string
 	repos         []*repo.Entry
+	reposChanged  bool
 	logFn         action.DebugLog
 	getterFactory RESTClientGetterFactory
 	airgapPath    string
 }
 
 func (h *HelmClient) prepare() error {
-	if h.repocfg != "" {
+	// NOTE: this is a hack and should be refactored
+	if !h.reposChanged {
 		return nil
 	}
 
@@ -167,6 +169,7 @@ func (h *HelmClient) prepare() error {
 		}
 	}
 	h.repocfg = repocfg
+	h.reposChanged = false
 	return nil
 }
 
@@ -176,6 +179,7 @@ func (h *HelmClient) Close() error {
 
 func (h *HelmClient) AddRepo(repo *repo.Entry) error {
 	h.repos = append(h.repos, repo)
+	h.reposChanged = true
 	return nil
 }
 

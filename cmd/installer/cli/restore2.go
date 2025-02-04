@@ -393,13 +393,28 @@ func runRestoreStepNew(ctx context.Context, name string, flags Install2CmdFlags,
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
+	airgapChartsPath := ""
+	if flags.isAirgap {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
+
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create helm client: %w", err)
+	}
+	defer hcli.Close()
+
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
 	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("installing addons")
-	if err := addons2.Install(ctx, addons2.InstallOptions{
+	if err := addons2.Install(ctx, hcli, addons2.InstallOptions{
 		IsAirgap:    flags.airgapBundle != "",
 		Proxy:       flags.proxy,
 		PrivateCAs:  flags.privateCAs,
@@ -538,6 +553,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags Install2CmdFlags,
 	if err != nil {
 		return fmt.Errorf("create helm client: %w", err)
 	}
+	defer hcli.Close()
 
 	err = addons2.EnableAdminConsoleHA(ctx, kcli, hcli, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config)
 	if err != nil {
@@ -599,8 +615,23 @@ func runRestoreECO(ctx context.Context, backupToRestore *disasterrecovery.Replic
 }
 
 func runRestoreExtensions(ctx context.Context, flags Install2CmdFlags) error {
+	airgapChartsPath := ""
+	if flags.isAirgap {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
+
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create helm client: %w", err)
+	}
+	defer hcli.Close()
+
 	logrus.Debugf("installing extensions")
-	if err := extensions.Install(ctx, flags.isAirgap); err != nil {
+	if err := extensions.Install(ctx, hcli); err != nil {
 		return fmt.Errorf("unable to install extensions: %w", err)
 	}
 

@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
@@ -170,6 +171,21 @@ func runJoin2(ctx context.Context, name string, flags Join2CmdFlags, jcmd *kotsa
 		return fmt.Errorf("unable to get kube client: %w", err)
 	}
 
+	airgapChartsPath := ""
+	if flags.isAirgap {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
+
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create helm client: %w", err)
+	}
+	defer hcli.Close()
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		return fmt.Errorf("unable to get hostname: %w", err)
@@ -180,7 +196,7 @@ func runJoin2(ctx context.Context, name string, flags Join2CmdFlags, jcmd *kotsa
 	}
 
 	if flags.enableHighAvailability {
-		if err := maybeEnableHA(ctx, kcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config); err != nil {
+		if err := maybeEnableHA(ctx, kcli, hcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config); err != nil {
 			return fmt.Errorf("unable to enable high availability: %w", err)
 		}
 	}
@@ -444,7 +460,7 @@ func waitForNode(ctx context.Context, kcli client.Client, hostname string) error
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
 	canEnableHA, err := addons2.CanEnableHA(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
@@ -460,5 +476,5 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, isAirgap bool, servi
 		return nil
 	}
 	logrus.Info("")
-	return addons2.EnableHA(ctx, kcli, isAirgap, serviceCIDR, proxy, cfgspec)
+	return addons2.EnableHA(ctx, kcli, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
 }

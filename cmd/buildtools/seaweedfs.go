@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -35,12 +36,18 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating seaweedfs addon")
 
+		hcli, err := NewHelm()
+		if err != nil {
+			return fmt.Errorf("failed to create helm client: %w", err)
+		}
+		defer hcli.Close()
+
 		nextChartVersion := os.Getenv("INPUT_SEAWEEDFS_CHART_VERSION")
 		if nextChartVersion != "" {
 			logrus.Infof("using input override from INPUT_SEAWEEDFS_CHART_VERSION: %s", nextChartVersion)
 		} else {
 			logrus.Infof("fetching the latest seaweedfs chart version")
-			latest, err := LatestChartVersion(seaweedfsRepo, "seaweedfs")
+			latest, err := LatestChartVersion(hcli, seaweedfsRepo, "seaweedfs")
 			if err != nil {
 				return fmt.Errorf("failed to get the latest seaweedfs chart version: %v", err)
 			}
@@ -56,7 +63,7 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("mirroring seaweedfs chart version %s", nextChartVersion)
-		if err := MirrorChart(seaweedfsRepo, "seaweedfs", nextChartVersion); err != nil {
+		if err := MirrorChart(hcli, seaweedfsRepo, "seaweedfs", nextChartVersion); err != nil {
 			return fmt.Errorf("failed to mirror seaweedfs chart: %v", err)
 		}
 
@@ -65,7 +72,7 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 
 		logrus.Infof("updating seaweedfs images")
 
-		err := updateSeaweedFSAddonImages(c.Context, withproto, nextChartVersion)
+		err = updateSeaweedFSAddonImages(c.Context, hcli, withproto, nextChartVersion)
 		if err != nil {
 			return fmt.Errorf("failed to update seaweedfs images: %w", err)
 		}
@@ -83,9 +90,15 @@ var updateSeaweedFSImagesCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating seaweedfs images")
 
+		hcli, err := NewHelm()
+		if err != nil {
+			return fmt.Errorf("failed to create helm client: %w", err)
+		}
+		defer hcli.Close()
+
 		current := seaweedfs.Metadata
 
-		err := updateSeaweedFSAddonImages(c.Context, current.Location, current.Version)
+		err = updateSeaweedFSAddonImages(c.Context, hcli, current.Location, current.Version)
 		if err != nil {
 			return fmt.Errorf("failed to update seaweedfs images: %w", err)
 		}
@@ -96,7 +109,7 @@ var updateSeaweedFSImagesCommand = &cli.Command{
 	},
 }
 
-func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersion string) error {
+func updateSeaweedFSAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string) error {
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
@@ -109,7 +122,7 @@ func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersi
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	images, err := GetImagesFromOCIChart(chartURL, "seaweedfs", chartVersion, values)
+	images, err := helm.ExtractImagesFromOCIChart(hcli, chartURL, "seaweedfs", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from seaweedfs chart: %w", err)
 	}
