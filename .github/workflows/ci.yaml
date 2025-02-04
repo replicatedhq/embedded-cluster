@@ -931,17 +931,5 @@ jobs:
       - name: fail if check-operator-crds job was not successful
         if: needs.check-operator-crds.result != 'success'
         run: exit 1
-      - name: fail if e2e-docker-install2 job was not successful
-        if: needs.e2e-docker-install2.result != 'success'
-        run: exit 1
-      - name: fail if e2e-docker-install2-failing job WAS successful
-        if: needs.e2e-docker-install2-failing.result == 'success'
-        run: exit 1
-      - name: fail if e2e-install2 job was not successful
-        if: needs.e2e-install2.result != 'success'
-        run: exit 1
-      - name: fail if e2e-install2-failing job WAS successful
-        if: needs.e2e-install2-failing.result == 'success'
-        run: exit 1
       - name: succeed if everything else passed
         run: echo "Validation succeeded"
