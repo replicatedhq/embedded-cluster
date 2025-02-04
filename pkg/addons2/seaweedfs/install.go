@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
+func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
 	if err := s.createPreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}

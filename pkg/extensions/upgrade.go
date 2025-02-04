@@ -29,7 +29,7 @@ func Upgrade(ctx context.Context, kcli client.Client, prev *ecv1beta1.Installati
 		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
 	}
 
-	hcli, err := helm.NewHelm(helm.HelmOptions{
+	hcli, err := helm.NewClient(helm.HelmOptions{
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
@@ -71,7 +71,7 @@ func Upgrade(ctx context.Context, kcli client.Client, prev *ecv1beta1.Installati
 	return nil
 }
 
-func handleExtension(ctx context.Context, hcli *helm.Helm, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, action string) (finalErr error) {
+func handleExtension(ctx context.Context, hcli helm.Client, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, action string) (finalErr error) {
 	// check if we already processed this extension
 	conditionStatus, err := k8sutil.GetConditionStatus(ctx, kcli, in.Name, conditionName(ext))
 	if err != nil {

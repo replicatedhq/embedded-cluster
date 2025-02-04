@@ -37,7 +37,7 @@ func Upgrade(ctx context.Context, in *ecv1beta1.Installation, meta *ectypes.Rele
 		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
 	}
 
-	hcli, err := helm.NewHelm(helm.HelmOptions{
+	hcli, err := helm.NewClient(helm.HelmOptions{
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
@@ -120,7 +120,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	return addOns, nil
 }
 
-func upgradeAddOn(ctx context.Context, hcli *helm.Helm, kcli client.Client, in *ecv1beta1.Installation, addon types.AddOn) (finalErr error) {
+func upgradeAddOn(ctx context.Context, hcli helm.Client, kcli client.Client, in *ecv1beta1.Installation, addon types.AddOn) (finalErr error) {
 	// check if we already processed this addon
 	conditionStatus, err := k8sutil.GetConditionStatus(ctx, kcli, in.Name, conditionName(addon))
 	if err != nil {

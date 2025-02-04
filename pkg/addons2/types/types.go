@@ -20,8 +20,8 @@ type AddOn interface {
 	ReleaseName() string
 	Namespace() string
 	GenerateHelmValues(ctx context.Context, kcli client.Client, overrides []string) (map[string]interface{}, error)
-	Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error
-	Upgrade(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string) error
+	Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error
+	Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string) error
 }
 
 var _ AddOn = (*adminconsole.AdminConsole)(nil)

@@ -53,7 +53,7 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
 	}
 
-	hcli, err := helm.NewHelm(helm.HelmOptions{
+	hcli, err := helm.NewClient(helm.HelmOptions{
 		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
@@ -115,7 +115,7 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 }
 
 // EnableAdminConsoleHA enables high availability for the admin console.
-func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli *helm.Helm, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
+func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
 	// TODO (@salah): add support for end user overrides
 	ac := &adminconsole.AdminConsole{
 		IsAirgap:    isAirgap,

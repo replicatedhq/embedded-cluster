@@ -30,6 +30,8 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
+type RESTClientGetterFactory func(namespace string) genericclioptions.RESTClientGetter
+
 var (
 	// getters is a list of known getters for both http and
 	// oci schemes.
@@ -53,28 +55,9 @@ var (
 	}
 )
 
-var (
-	_ Client = (*Helm)(nil)
-)
+var _ Client = (*HelmClient)(nil)
 
-type Client interface {
-	Close() error
-	AddRepo(repo *repo.Entry) error
-	Latest(reponame, chart string) (string, error)
-	PullOCI(url string, version string) (string, error)
-	Pull(repo string, chart string, version string) (string, error)
-	RegistryAuth(server, user, pass string) error
-	Push(path, dst string) error
-	GetChartMetadata(chartPath string) (*chart.Metadata, error)
-	Install(ctx context.Context, opts InstallOptions) (*release.Release, error)
-	Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error)
-	Uninstall(ctx context.Context, opts UninstallOptions) error
-	Render(releaseName string, chartPath string, values map[string]interface{}, namespace string, labels map[string]string) ([][]byte, error)
-}
-
-type RESTClientGetterFactory func(namespace string) genericclioptions.RESTClientGetter
-
-func NewHelm(opts HelmOptions) (*Helm, error) {
+func newClient(opts HelmOptions) (*HelmClient, error) {
 	tmpdir, err := os.MkdirTemp(os.TempDir(), "helm-cache-*")
 	if err != nil {
 		return nil, err
@@ -95,7 +78,7 @@ func NewHelm(opts HelmOptions) (*Helm, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create registry client: %w", err)
 	}
-	return &Helm{
+	return &HelmClient{
 		tmpdir:        tmpdir,
 		kubeconfig:    opts.KubeConfig,
 		kversion:      kversion,
@@ -143,7 +126,7 @@ type UninstallOptions struct {
 	IgnoreNotFound bool
 }
 
-type Helm struct {
+type HelmClient struct {
 	tmpdir        string
 	kversion      *semver.Version
 	kubeconfig    string
@@ -155,7 +138,7 @@ type Helm struct {
 	airgapPath    string
 }
 
-func (h *Helm) prepare() error {
+func (h *HelmClient) prepare() error {
 	if h.repocfg != "" {
 		return nil
 	}
@@ -187,16 +170,16 @@ func (h *Helm) prepare() error {
 	return nil
 }
 
-func (h *Helm) Close() error {
+func (h *HelmClient) Close() error {
 	return os.RemoveAll(h.tmpdir)
 }
 
-func (h *Helm) AddRepo(repo *repo.Entry) error {
+func (h *HelmClient) AddRepo(repo *repo.Entry) error {
 	h.repos = append(h.repos, repo)
 	return nil
 }
 
-func (h *Helm) Latest(reponame, chart string) (string, error) {
+func (h *HelmClient) Latest(reponame, chart string) (string, error) {
 	for _, repository := range h.repos {
 		if repository.Name != reponame {
 			continue
@@ -231,7 +214,7 @@ func (h *Helm) Latest(reponame, chart string) (string, error) {
 	return "", fmt.Errorf("repository %s not found", reponame)
 }
 
-func (h *Helm) PullOCI(url string, version string) (string, error) {
+func (h *HelmClient) PullOCI(url string, version string) (string, error) {
 	if err := h.prepare(); err != nil {
 		return "", fmt.Errorf("prepare: %w", err)
 	}
@@ -252,7 +235,7 @@ func (h *Helm) PullOCI(url string, version string) (string, error) {
 	return path, nil
 }
 
-func (h *Helm) Pull(repo string, chart string, version string) (string, error) {
+func (h *HelmClient) Pull(repo string, chart string, version string) (string, error) {
 	if err := h.prepare(); err != nil {
 		return "", fmt.Errorf("prepare: %w", err)
 	}
@@ -274,11 +257,11 @@ func (h *Helm) Pull(repo string, chart string, version string) (string, error) {
 	return dst, nil
 }
 
-func (h *Helm) RegistryAuth(server, user, pass string) error {
+func (h *HelmClient) RegistryAuth(server, user, pass string) error {
 	return h.regcli.Login(server, registry.LoginOptBasicAuth(user, pass))
 }
 
-func (h *Helm) Push(path, dst string) error {
+func (h *HelmClient) Push(path, dst string) error {
 	up := uploader.ChartUploader{
 		Out:     os.Stdout,
 		Pushers: pushers,
@@ -288,7 +271,7 @@ func (h *Helm) Push(path, dst string) error {
 	return up.UploadTo(path, dst)
 }
 
-func (h *Helm) GetChartMetadata(chartPath string) (*chart.Metadata, error) {
+func (h *HelmClient) GetChartMetadata(chartPath string) (*chart.Metadata, error) {
 	chartRequested, err := loader.Load(chartPath)
 	if err != nil {
 		return nil, fmt.Errorf("load chart: %w", err)
@@ -298,7 +281,7 @@ func (h *Helm) GetChartMetadata(chartPath string) (*chart.Metadata, error) {
 }
 
 // reference: https://github.com/helm/helm/blob/0d66425d9a745d8a289b1a5ebb6ccc744436da95/cmd/helm/upgrade.go#L122-L125
-func (h *Helm) ReleaseExists(ctx context.Context, namespace string, releaseName string) (bool, error) {
+func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releaseName string) (bool, error) {
 	cfg, err := h.getActionCfg(namespace)
 	if err != nil {
 		return false, fmt.Errorf("get action configuration: %w", err)
@@ -322,7 +305,7 @@ func isReleaseUninstalled(versions []*release.Release) bool {
 	return len(versions) > 0 && versions[len(versions)-1].Info.Status == release.StatusUninstalled
 }
 
-func (h *Helm) Install(ctx context.Context, opts InstallOptions) (*release.Release, error) {
+func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release.Release, error) {
 	cfg, err := h.getActionCfg(opts.Namespace)
 	if err != nil {
 		return nil, fmt.Errorf("get action configuration: %w", err)
@@ -378,7 +361,7 @@ func (h *Helm) Install(ctx context.Context, opts InstallOptions) (*release.Relea
 	return release, nil
 }
 
-func (h *Helm) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error) {
+func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error) {
 	cfg, err := h.getActionCfg(opts.Namespace)
 	if err != nil {
 		return nil, fmt.Errorf("get action configuration: %w", err)
@@ -432,7 +415,7 @@ func (h *Helm) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Relea
 	return release, nil
 }
 
-func (h *Helm) Uninstall(ctx context.Context, opts UninstallOptions) error {
+func (h *HelmClient) Uninstall(ctx context.Context, opts UninstallOptions) error {
 	cfg, err := h.getActionCfg(opts.Namespace)
 	if err != nil {
 		return fmt.Errorf("get action configuration: %w", err)
@@ -453,7 +436,7 @@ func (h *Helm) Uninstall(ctx context.Context, opts UninstallOptions) error {
 	return nil
 }
 
-func (h *Helm) Render(releaseName string, chartPath string, values map[string]interface{}, namespace string, labels map[string]string) ([][]byte, error) {
+func (h *HelmClient) Render(releaseName string, chartPath string, values map[string]interface{}, namespace string, labels map[string]string) ([][]byte, error) {
 	cfg := &action.Configuration{}
 
 	client := action.NewInstall(cfg)
@@ -508,7 +491,7 @@ func (h *Helm) Render(releaseName string, chartPath string, values map[string]in
 	return resources, nil
 }
 
-func (h *Helm) getActionCfg(namespace string) (*action.Configuration, error) {
+func (h *HelmClient) getActionCfg(namespace string) (*action.Configuration, error) {
 	getter := h.getRESTClientGetter(namespace)
 
 	cfg := &action.Configuration{}
@@ -524,7 +507,7 @@ func (h *Helm) getActionCfg(namespace string) (*action.Configuration, error) {
 	return cfg, nil
 }
 
-func (h *Helm) getRESTClientGetter(namespace string) genericclioptions.RESTClientGetter {
+func (h *HelmClient) getRESTClientGetter(namespace string) genericclioptions.RESTClientGetter {
 	if h.getterFactory != nil {
 		return h.getterFactory(namespace)
 	}

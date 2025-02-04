@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *Registry) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
+func (r *Registry) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
 	registryIP, err := GetRegistryClusterIP(r.ServiceCIDR)
 	if err != nil {
 		return errors.Wrap(err, "get registry cluster IP")
