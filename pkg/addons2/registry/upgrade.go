@@ -19,7 +19,7 @@ const (
 	s3SecretName = "seaweedfs-s3-rw"
 )
 
-func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string) error {
+func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string) error {
 	exists, err := hcli.ReleaseExists(ctx, namespace, releaseName)
 	if err != nil {
 		return errors.Wrap(err, "check if release exists")

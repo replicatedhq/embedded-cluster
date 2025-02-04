@@ -15,6 +15,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -660,6 +661,26 @@ func (k *KubeUtils) WaitForKubernetes(ctx context.Context, cli client.Client) <-
 	}
 
 	return errch
+}
+
+func (k *KubeUtils) WaitForCRDToBeReady(ctx context.Context, cli client.Client, name string) error {
+	backoff := wait.Backoff{Steps: 600, Duration: 100 * time.Millisecond, Factor: 1.0, Jitter: 0.1}
+	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		newCrd := apiextensionsv1.CustomResourceDefinition{}
+		err := cli.Get(ctx, client.ObjectKey{Name: name}, &newCrd)
+		if err != nil {
+			return false, nil // not ready yet
+		}
+		for _, cond := range newCrd.Status.Conditions {
+			if cond.Type == apiextensionsv1.Established && cond.Status == apiextensionsv1.ConditionTrue {
+				return true, nil
+			}
+		}
+		return false, nil
+	}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func NumOfControlPlaneNodes(ctx context.Context, cli client.Client) (int, error) {

@@ -58,6 +58,11 @@ func (m *MockClient) GetChartMetadata(chartPath string) (*chart.Metadata, error)
 	return args.Get(0).(*chart.Metadata), args.Error(1)
 }
 
+func (m *MockClient) ReleaseExists(ctx context.Context, namespace string, releaseName string) (bool, error) {
+	args := m.Called(ctx, namespace, releaseName)
+	return args.Bool(0), args.Error(1)
+}
+
 func (m *MockClient) Install(ctx context.Context, opts InstallOptions) (*release.Release, error) {
 	args := m.Called(ctx, opts)
 	if args.Get(0) == nil {

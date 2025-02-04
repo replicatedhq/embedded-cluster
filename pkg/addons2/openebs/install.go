@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (o *OpenEBS) Install(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string, writer *spinner.MessageWriter) error {
+func (o *OpenEBS) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
 	values, err := o.GenerateHelmValues(ctx, kcli, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")

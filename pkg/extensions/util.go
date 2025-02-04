@@ -15,7 +15,7 @@ import (
 	helmrepo "helm.sh/helm/v3/pkg/repo"
 )
 
-func addRepos(hcli *helm.Helm, repos []k0sv1beta1.Repository) error {
+func addRepos(hcli helm.Client, repos []k0sv1beta1.Repository) error {
 	for _, r := range repos {
 		logrus.Debugf("Adding helm repository %s", r.Name)
 
@@ -39,7 +39,7 @@ func addRepos(hcli *helm.Helm, repos []k0sv1beta1.Repository) error {
 	return nil
 }
 
-func install(ctx context.Context, hcli *helm.Helm, ext ecv1beta1.Chart) error {
+func install(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 	var values map[string]interface{}
 	if err := yaml.Unmarshal([]byte(ext.Values), &values); err != nil {
 		return errors.Wrap(err, "unmarshal values")
@@ -60,7 +60,7 @@ func install(ctx context.Context, hcli *helm.Helm, ext ecv1beta1.Chart) error {
 	return nil
 }
 
-func upgrade(ctx context.Context, hcli *helm.Helm, ext ecv1beta1.Chart) error {
+func upgrade(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 	var values map[string]interface{}
 	if err := yaml.Unmarshal([]byte(ext.Values), &values); err != nil {
 		return errors.Wrap(err, "unmarshal values")
@@ -82,7 +82,7 @@ func upgrade(ctx context.Context, hcli *helm.Helm, ext ecv1beta1.Chart) error {
 	return nil
 }
 
-func uninstall(ctx context.Context, hcli *helm.Helm, ext ecv1beta1.Chart) error {
+func uninstall(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 	err := hcli.Uninstall(ctx, helm.UninstallOptions{
 		ReleaseName: ext.Name,
 		Namespace:   ext.TargetNS,

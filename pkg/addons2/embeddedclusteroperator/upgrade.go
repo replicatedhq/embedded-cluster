@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (e *EmbeddedClusterOperator) Upgrade(ctx context.Context, kcli client.Client, hcli *helm.Helm, overrides []string) error {
+func (e *EmbeddedClusterOperator) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string) error {
 	exists, err := hcli.ReleaseExists(ctx, namespace, releaseName)
 	if err != nil {
 		return errors.Wrap(err, "check if release exists")

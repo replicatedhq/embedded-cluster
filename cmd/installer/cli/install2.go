@@ -45,7 +45,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
@@ -716,20 +715,7 @@ func createInstallationCRD(ctx context.Context, kcli client.Client) error {
 		}
 
 		// wait for the CRD to be ready
-		backoff := wait.Backoff{Steps: 600, Duration: 100 * time.Millisecond, Factor: 1.0, Jitter: 0.1}
-		if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
-			newCrd := apiextensionsv1.CustomResourceDefinition{}
-			err := kcli.Get(ctx, client.ObjectKey{Name: crd.Name}, &newCrd)
-			if err != nil {
-				return false, nil // not ready yet
-			}
-			for _, cond := range newCrd.Status.Conditions {
-				if cond.Type == apiextensionsv1.Established && cond.Status == apiextensionsv1.ConditionTrue {
-					return true, nil
-				}
-			}
-			return false, nil
-		}); err != nil {
+		if err := kubeutils.WaitForCRDToBeReady(ctx, kcli, crd.Name); err != nil {
 			return fmt.Errorf("wait for installation CRD to be ready: %w", err)
 		}
 	}

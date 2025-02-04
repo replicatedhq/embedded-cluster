@@ -26,7 +26,7 @@ func Install(ctx context.Context, isAirgap bool) error {
 		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
 	}
 
-	hcli, err := helm.NewHelm(helm.HelmOptions{
+	hcli, err := helm.NewClient(helm.HelmOptions{
 		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
