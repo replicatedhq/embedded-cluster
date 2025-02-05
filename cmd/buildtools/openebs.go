@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons2/openebs"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"

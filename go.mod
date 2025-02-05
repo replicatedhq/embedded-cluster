@@ -7,10 +7,10 @@ require (
 	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/aws/aws-sdk-go v1.55.6
 	github.com/aws/aws-sdk-go-v2 v1.36.0
-	github.com/aws/aws-sdk-go-v2/config v1.29.4
-	github.com/aws/aws-sdk-go-v2/credentials v1.17.57
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.57
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.75.2
+	github.com/aws/aws-sdk-go-v2/config v1.29.5
+	github.com/aws/aws-sdk-go-v2/credentials v1.17.58
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.58
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.75.3
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/canonical/lxd v0.0.0-20241030172432-dee0d04b56ee
 	github.com/containers/image/v5 v5.34.0
@@ -41,8 +41,8 @@ require (
 	github.com/vmware-tanzu/velero v1.15.2
 	go.uber.org/multierr v1.11.0
 	golang.org/x/crypto v0.32.0
-	golang.org/x/sync v0.10.0
-	golang.org/x/term v0.28.0
+	golang.org/x/sync v0.11.0
+	golang.org/x/term v0.29.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools v2.2.0+incompatible
@@ -100,7 +100,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.18.12 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.24.14 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.13 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.33.12 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.33.13 // indirect
 	github.com/aws/smithy-go v1.22.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
@@ -338,7 +338,7 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/oauth2 v0.25.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
 	google.golang.org/protobuf v1.36.2 // indirect

@@ -108,7 +108,7 @@ func Test_ensureAdminConsolePassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			flags := &Install2CmdFlags{
+			flags := &InstallCmdFlags{
 				assumeYes:            tt.noPrompt,
 				adminConsolePassword: tt.userPassword,
 			}

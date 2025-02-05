@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -30,7 +30,7 @@ func VersionCmd(ctx context.Context, name string) *cobra.Command {
 			writer.AppendRow(table.Row{"Kubernetes", versions.K0sVersion})
 
 			versionsMap := map[string]string{}
-			for k, v := range addons2.Versions() {
+			for k, v := range addons.Versions() {
 				versionsMap[k] = v
 			}
 			for k, v := range extensions.Versions() {

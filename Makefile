@@ -17,7 +17,7 @@ PREVIOUS_K0S_GO_VERSION ?= v1.28.14+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.112.1
 
-KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons2/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
 # scripts/ci-upload-binaries.sh may find the version in the cache and not upload the overridden binary.
 KOTS_BINARY_URL_OVERRIDE =
@@ -50,13 +50,13 @@ LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sBinaryURLOverride=$(METADATA_K0S_BINARY_URL_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.KOTSBinaryURLOverride=$(METADATA_KOTS_BINARY_URL_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.OperatorBinaryURLOverride=$(METADATA_OPERATOR_BINARY_URL_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole.KotsVersion=$(KOTS_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole.AdminConsoleChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole.AdminConsoleImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole.AdminConsoleMigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole.AdminConsoleKurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE)
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleMigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleKurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE)
 DISABLE_FIO_BUILD ?= 0
 
 export PATH := $(shell pwd)/bin:$(PATH)
