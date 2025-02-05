@@ -119,9 +119,11 @@ func getK0sVersion() (*semver.Version, error) {
 }
 
 func getCalicoVersion(opts addonComponentOptions) string {
-	// k0s < 1.32 is not compatible with calico 3.29+
+	// k0s < 1.32 does not work with calico 3.29+ images due to missing rbac
+	// permissions in the manifests that k0s uses to deploy calico.
 	if opts.k0sVersion.LessThan(semver.MustParse("1.32")) {
 		return "3.28"
 	}
-	return latestPatchVersion(opts.upstreamVersion)
+	// latest minor version that wolfi supports
+	return latestMinorVersion(opts.upstreamVersion)
 }
