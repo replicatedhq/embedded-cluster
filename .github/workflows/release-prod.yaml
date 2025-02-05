@@ -560,7 +560,6 @@ jobs:
           - TestSingleNodeAirgapUpgrade
           - TestSingleNodeAirgapUpgradeConfigValues
           - TestSingleNodeAirgapUpgradeCustomCIDR
-          - TestSingleNodeAirgapUpgradeUmask
           - TestSingleNodeDisasterRecoveryWithProxy
           - TestProxiedEnvironment
           - TestProxiedCustomCIDR
