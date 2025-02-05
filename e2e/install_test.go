@@ -1026,6 +1026,113 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+func TestSingleNodeAirgapUpgradeUmask(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
+
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
+	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		}, func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		},
+	)
+
+	tc := lxd.NewCluster(&lxd.ClusterInput{
+		T:                       t,
+		Nodes:                   1,
+		Image:                   "debian/12",
+		WithProxy:               true,
+		AirgapInstallBundlePath: airgapInstallBundlePath,
+		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
+	})
+	defer tc.Cleanup()
+
+	// delete airgap bundles once they've been copied to the nodes
+	if err := os.Remove(airgapInstallBundlePath); err != nil {
+		t.Logf("failed to remove airgap install bundle: %v", err)
+	}
+	if err := os.Remove(airgapUpgradeBundlePath); err != nil {
+		t.Logf("failed to remove airgap upgrade bundle: %v", err)
+	}
+
+	// install "curl" dependency on node 0 for app version checks.
+	tc.InstallTestDependenciesDebian(t, 0, true)
+
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"echo", "'umask 0077'", ">>", "/etc/profile"})
+	if err != nil {
+		t.Fatalf("failed to set umask on node 0: %v", err)
+	}
+	t.Logf("set umask stdout: %s", stdout)
+	t.Logf("stderr: %s", stderr)
+
+	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"umask"})
+	if err != nil {
+		t.Fatalf("failed to check umask on node 0: %v", err)
+	}
+	t.Logf("check umask stdout: %s", stdout)
+	t.Logf("stderr: %s", stderr)
+
+	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
+	line := []string{"airgap-prepare.sh"}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-airgap-install.sh", initialVersion, "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+	// remove the airgap bundle after installation
+	line = []string{"rm", "/assets/release.airgap"}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-update.sh"}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to run airgap update: %v", err)
+	}
+	// remove the airgap bundle after upgrade
+	line = []string{"rm", "/assets/upgrade/release.airgap"}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
 func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	t.Parallel()
 
