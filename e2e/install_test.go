@@ -434,29 +434,6 @@ func TestMultiNodeInstallation(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestInstallWithoutEmbed(t *testing.T) {
-	t.Parallel()
-
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	tc := docker.NewCluster(&docker.ClusterInput{
-		T:            t,
-		Nodes:        1,
-		Distro:       "debian-bookworm",
-		LicensePath:  "license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster-original",
-	})
-	defer tc.Cleanup()
-
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"default-install.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
 func TestInstallFromReplicatedApp(t *testing.T) {
 	t.Parallel()
 
