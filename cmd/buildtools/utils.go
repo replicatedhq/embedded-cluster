@@ -148,7 +148,7 @@ func ResolveApkoPackageVersion(componentName, packageName, packageVersion string
 	cmd := exec.Command("make", args...)
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("run command: %w", err)
+		return "", fmt.Errorf("run command: %w: %s", err, string(out))
 	}
 	return strings.TrimSpace(string(out)), nil
 }
