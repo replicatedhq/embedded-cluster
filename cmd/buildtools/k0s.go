@@ -24,17 +24,26 @@ var k0sImageComponents = map[string]addonComponent{
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "calico-node"
 		},
+		getWolfiPackageVersion: func(opts addonComponentOptions) string {
+			return getCalicoVersion(opts)
+		},
 	},
 	"quay.io/k0sproject/calico-cni": {
 		name: "calico-cni",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "calico-cni"
 		},
+		getWolfiPackageVersion: func(opts addonComponentOptions) string {
+			return getCalicoVersion(opts)
+		},
 	},
 	"quay.io/k0sproject/calico-kube-controllers": {
 		name: "calico-kube-controllers",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "calico-kube-controllers"
+		},
+		getWolfiPackageVersion: func(opts addonComponentOptions) string {
+			return getCalicoVersion(opts)
 		},
 	},
 	"registry.k8s.io/metrics-server/metrics-server": {
@@ -107,4 +116,12 @@ func getK0sVersion() (*semver.Version, error) {
 		return nil, fmt.Errorf("failed to get k0s version: %w", err)
 	}
 	return semver.MustParse(v), nil
+}
+
+func getCalicoVersion(opts addonComponentOptions) string {
+	// k0s < 1.32 is not compatible with calico 3.29+
+	if opts.k0sVersion.LessThan(semver.MustParse("1.32")) {
+		return "3.28"
+	}
+	return latestPatchVersion(opts.upstreamVersion)
 }
