@@ -189,3 +189,7 @@ func (c *addonComponent) getPackageNameAndVersion(ctx context.Context, upstreamV
 func latestPatchVersion(s *semver.Version) string {
 	return fmt.Sprintf("%d.%d", s.Major(), s.Minor())
 }
+
+func latestMinorVersion(s *semver.Version) string {
+	return fmt.Sprintf("%d", s.Major())
+}
