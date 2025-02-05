@@ -23,7 +23,7 @@ var msgs = map[v1beta2.PlanStateType]string{
 	core.PlanApplyFailed:         "Upgrade apply has failed",
 }
 
-// Reason for state returns a descriptive string for the given plan state.
+// ReasonForState returns a descriptive string for the given plan state.
 func ReasonForState(plan v1beta2.Plan) string {
 	state := plan.Status.State
 	if _, ok := msgs[state]; !ok {

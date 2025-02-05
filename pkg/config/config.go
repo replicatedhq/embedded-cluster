@@ -3,11 +3,9 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"gopkg.in/yaml.v2"
@@ -21,19 +19,6 @@ const (
 	DefaultServiceNodePortRange = "80-32767"
 	DefaultVendorChartOrder     = 10
 )
-
-// ReadConfigFile reads the cluster configuration from the provided file.
-func ReadConfigFile(cfgPath string) (dig.Mapping, error) {
-	data, err := os.ReadFile(cfgPath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read current config: %w", err)
-	}
-	cfg := dig.Mapping{}
-	if err := k8syaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal current config: %w", err)
-	}
-	return cfg, nil
-}
 
 // RenderK0sConfig renders a k0s cluster configuration.
 func RenderK0sConfig() *k0sconfig.ClusterConfig {
@@ -67,22 +52,6 @@ func extractK0sConfigPatch(raw string) (string, error) {
 		return "", fmt.Errorf("unable to marshal patch body: %w", err)
 	}
 	return string(data), nil
-}
-
-// ApplyBuiltIndExtensionsOverrides applies the cluster config built in extensions overrides on top
-// of the provided cluster configuration. Returns the changed configuration.
-func ApplyBuiltInExtensionsOverrides(cfg *k0sconfig.ClusterConfig, releaseConfig *embeddedclusterv1beta1.Config) (*k0sconfig.ClusterConfig, error) {
-	if cfg.Spec == nil || cfg.Spec.Extensions == nil || cfg.Spec.Extensions.Helm == nil {
-		return cfg, nil
-	}
-	for i, chart := range cfg.Spec.Extensions.Helm.Charts {
-		values, err := releaseConfig.Spec.ApplyEndUserAddOnOverrides(chart.Name, chart.Values)
-		if err != nil {
-			return nil, fmt.Errorf("unable to apply end user overrides for %s: %w", chart.Name, err)
-		}
-		cfg.Spec.Extensions.Helm.Charts[i].Values = values
-	}
-	return cfg, nil
 }
 
 // PatchK0sConfig patches a K0s config with the provided patch. Returns the patched config,
@@ -152,21 +121,21 @@ func AdditionalInstallFlagsController() []string {
 	}
 }
 
-func ControllerLabels() map[string]string {
-	lmap := additionalControllerLabels()
-	lmap["kots.io/embedded-cluster-role-0"] = getControllerRoleName()
-	lmap["kots.io/embedded-cluster-role"] = "total-1"
-	return lmap
-}
-
 // nodeLabels return a slice of string with labels (key=value format) for the node where we
 // are installing the k0s.
 func nodeLabels() []string {
 	labels := []string{}
-	for k, v := range ControllerLabels() {
+	for k, v := range controllerLabels() {
 		labels = append(labels, fmt.Sprintf("%s=%s", k, v))
 	}
 	return labels
+}
+
+func controllerLabels() map[string]string {
+	lmap := additionalControllerLabels()
+	lmap["kots.io/embedded-cluster-role-0"] = getControllerRoleName()
+	lmap["kots.io/embedded-cluster-role"] = "total-1"
+	return lmap
 }
 
 func getControllerRoleName() string {

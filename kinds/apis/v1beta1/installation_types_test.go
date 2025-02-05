@@ -1,6 +1,10 @@
 package v1beta1
 
 import (
+	"embed"
+	_ "embed"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,7 +12,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	k8syaml "sigs.k8s.io/yaml"
 )
+
+//go:embed testdata/*
+var testData embed.FS
 
 func TestParseConfigSpecFromSecret(t *testing.T) {
 	type test struct {
@@ -126,4 +134,26 @@ spec:
 			assert.Equal(t, tt.want, got.Spec)
 		})
 	}
+}
+
+func parseTestsYAML[T any](t *testing.T, prefix string) map[string]T {
+	entries, err := testData.ReadDir("testdata")
+	require.NoError(t, err)
+	tests := make(map[string]T, 0)
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), prefix) {
+			continue
+		}
+
+		fpath := filepath.Join("testdata", entry.Name())
+		data, err := testData.ReadFile(fpath)
+		require.NoError(t, err)
+
+		var onetest T
+		err = k8syaml.Unmarshal(data, &onetest)
+		require.NoError(t, err)
+
+		tests[fpath] = onetest
+	}
+	return tests
 }

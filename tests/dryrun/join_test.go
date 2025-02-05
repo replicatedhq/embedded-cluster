@@ -10,7 +10,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
-	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 )
@@ -70,26 +69,26 @@ func TestJoinTCPConnectionsRequired(t *testing.T) {
 				return hc.TCPConnect != nil && strings.HasPrefix(hc.TCPConnect.CollectorName, "tcp-connect-0")
 			},
 			validate: func(hc *troubleshootv1beta2.HostAnalyze) {
-				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
-					Fail: &v1beta2.SingleOutcome{
+				assert.Contains(t, hc.TCPConnect.Outcomes, &troubleshootv1beta2.Outcome{
+					Fail: &troubleshootv1beta2.SingleOutcome{
 						When:    "connection-refused",
 						Message: "A TCP connection to 10.0.0.1:6443 is required, but the connection was refused. This can occur, for example, if IP routing is not possible between this host and 10.0.0.1:6443, or if your firewall doesn’t allow traffic between this host and 10.0.0.1:6443.",
 					},
 				})
-				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
-					Fail: &v1beta2.SingleOutcome{
+				assert.Contains(t, hc.TCPConnect.Outcomes, &troubleshootv1beta2.Outcome{
+					Fail: &troubleshootv1beta2.SingleOutcome{
 						When:    "connection-timeout",
 						Message: "A TCP connection to 10.0.0.1:6443 is required, but the connection timed out. This can occur, for example, if IP routing is not possible between this host and 10.0.0.1:6443, or if your firewall doesn’t allow traffic between this host and 10.0.0.1:6443.",
 					},
 				})
-				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
-					Fail: &v1beta2.SingleOutcome{
+				assert.Contains(t, hc.TCPConnect.Outcomes, &troubleshootv1beta2.Outcome{
+					Fail: &troubleshootv1beta2.SingleOutcome{
 						When:    "error",
 						Message: "A TCP connection to 10.0.0.1:6443 is required, but an unexpected error occurred. This can occur, for example, if IP routing is not possible between this host and 10.0.0.1:6443, or if your firewall doesn’t allow traffic between this host and 10.0.0.1:6443.",
 					},
 				})
-				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
-					Pass: &v1beta2.SingleOutcome{
+				assert.Contains(t, hc.TCPConnect.Outcomes, &troubleshootv1beta2.Outcome{
+					Pass: &troubleshootv1beta2.SingleOutcome{
 						When:    "connected",
 						Message: "Successful TCP connection to 10.0.0.1:6443.",
 					},
@@ -101,26 +100,26 @@ func TestJoinTCPConnectionsRequired(t *testing.T) {
 				return hc.TCPConnect != nil && strings.HasPrefix(hc.TCPConnect.CollectorName, "tcp-connect-1")
 			},
 			validate: func(hc *troubleshootv1beta2.HostAnalyze) {
-				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
-					Fail: &v1beta2.SingleOutcome{
+				assert.Contains(t, hc.TCPConnect.Outcomes, &troubleshootv1beta2.Outcome{
+					Fail: &troubleshootv1beta2.SingleOutcome{
 						When:    "connection-refused",
 						Message: "A TCP connection to 10.0.0.1:9443 is required, but the connection was refused. This can occur, for example, if IP routing is not possible between this host and 10.0.0.1:9443, or if your firewall doesn’t allow traffic between this host and 10.0.0.1:9443.",
 					},
 				})
-				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
-					Fail: &v1beta2.SingleOutcome{
+				assert.Contains(t, hc.TCPConnect.Outcomes, &troubleshootv1beta2.Outcome{
+					Fail: &troubleshootv1beta2.SingleOutcome{
 						When:    "connection-timeout",
 						Message: "A TCP connection to 10.0.0.1:9443 is required, but the connection timed out. This can occur, for example, if IP routing is not possible between this host and 10.0.0.1:9443, or if your firewall doesn’t allow traffic between this host and 10.0.0.1:9443.",
 					},
 				})
-				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
-					Fail: &v1beta2.SingleOutcome{
+				assert.Contains(t, hc.TCPConnect.Outcomes, &troubleshootv1beta2.Outcome{
+					Fail: &troubleshootv1beta2.SingleOutcome{
 						When:    "error",
 						Message: "A TCP connection to 10.0.0.1:9443 is required, but an unexpected error occurred. This can occur, for example, if IP routing is not possible between this host and 10.0.0.1:9443, or if your firewall doesn’t allow traffic between this host and 10.0.0.1:9443.",
 					},
 				})
-				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
-					Pass: &v1beta2.SingleOutcome{
+				assert.Contains(t, hc.TCPConnect.Outcomes, &troubleshootv1beta2.Outcome{
+					Pass: &troubleshootv1beta2.SingleOutcome{
 						When:    "connected",
 						Message: "Successful TCP connection to 10.0.0.1:9443.",
 					},
