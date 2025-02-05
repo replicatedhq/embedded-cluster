@@ -41,7 +41,7 @@ spec:
             image:
               repository: proxy.replicated.com/anonymous/bloomberg/goldpinger
           version: 6.1.2
-        - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
+        - chartname: oci://proxy.replicated.com/anonymous/bitnamicharts/memcached
           name: memcached
           namespace: memcached
           order: 4
