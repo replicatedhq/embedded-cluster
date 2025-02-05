@@ -11,7 +11,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
-	velerov1api "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -302,7 +301,7 @@ func groupBackupsByName(backups []velerov1.Backup) []ReplicatedBackup {
 }
 
 func listBackups(ctx context.Context, cli client.Client, veleroNamespace string) ([]velerov1.Backup, error) {
-	backups := &velerov1api.BackupList{}
+	backups := &velerov1.BackupList{}
 	err := cli.List(ctx, backups, client.InNamespace(veleroNamespace))
 	if err != nil {
 		return nil, fmt.Errorf("unable to list backups: %w", err)
@@ -313,7 +312,7 @@ func listBackups(ctx context.Context, cli client.Client, veleroNamespace string)
 
 func getBackupsFromName(ctx context.Context, cli client.Client, veleroNamespace string, backupName string) ([]velerov1.Backup, error) {
 	// first try to get the backup from the backup-name label
-	backups := &velerov1api.BackupList{}
+	backups := &velerov1.BackupList{}
 	err := cli.List(ctx, backups, client.InNamespace(veleroNamespace), &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{InstanceBackupNameLabel: backupName}),
 	})
@@ -323,7 +322,7 @@ func getBackupsFromName(ctx context.Context, cli client.Client, veleroNamespace 
 	if len(backups.Items) > 0 {
 		return backups.Items, nil
 	}
-	backup := &velerov1api.Backup{}
+	backup := &velerov1.Backup{}
 	err = cli.Get(ctx, types.NamespacedName{Name: backupName, Namespace: veleroNamespace}, backup)
 	if k8serrors.IsNotFound(err) {
 		return nil, ErrBackupNotFound

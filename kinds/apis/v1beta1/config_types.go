@@ -18,13 +18,10 @@ package v1beta1
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
-	jsonpatch "github.com/evanphx/json-patch"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8syaml "sigs.k8s.io/yaml"
 )
 
 // UnsupportedOverrides holds the config overrides used to configure
@@ -148,32 +145,6 @@ type Extensions struct {
 	Helm *Helm `json:"helm,omitempty"`
 }
 
-func ConvertTo(e Helm, t *k0sv1beta1.HelmExtensions) (*k0sv1beta1.HelmExtensions, error) {
-	j, err := json.Marshal(e)
-	if err != nil {
-		return t, fmt.Errorf("unable to convert extensions: %w", err)
-	}
-
-	if err = json.Unmarshal(j, t); err != nil {
-		return t, fmt.Errorf("unable to unmarshal to new type: %w", err)
-	}
-
-	return t, nil
-}
-
-func ConvertFrom(e k0sv1beta1.HelmExtensions, t *Helm) (*Helm, error) {
-	j, err := json.Marshal(e)
-	if err != nil {
-		return t, fmt.Errorf("unable to convert extensions: %w", err)
-	}
-
-	if err = json.Unmarshal(j, t); err != nil {
-		return t, fmt.Errorf("unable to unmarshal to new type: %w", err)
-	}
-
-	return t, nil
-}
-
 // ConfigSpec defines the desired state of Config
 type ConfigSpec struct {
 	Version string `json:"version,omitempty"`
@@ -199,35 +170,6 @@ func (c ConfigSpec) OverrideForBuiltIn(bi string) string {
 		return ext.Values
 	}
 	return ""
-}
-
-// ApplyEndUserAddOnOverrides applies the end-user provided addon config on top
-// of the provided addon configuration (cfg).
-func (c *ConfigSpec) ApplyEndUserAddOnOverrides(name, cfg string) (string, error) {
-	patch := c.OverrideForBuiltIn(name)
-	if len(cfg) == 0 || len(patch) == 0 {
-		if len(cfg) == 0 {
-			return patch, nil
-		}
-		return cfg, nil
-	}
-	originalJSON, err := k8syaml.YAMLToJSON([]byte(cfg))
-	if err != nil {
-		return "", fmt.Errorf("unable to convert source yaml to json: %w", err)
-	}
-	patchJSON, err := k8syaml.YAMLToJSON([]byte(patch))
-	if err != nil {
-		return "", fmt.Errorf("unable to convert patch yaml to json: %w", err)
-	}
-	result, err := jsonpatch.MergePatch(originalJSON, patchJSON)
-	if err != nil {
-		return "", fmt.Errorf("unable to patch configuration: %w", err)
-	}
-	resultYAML, err := k8syaml.JSONToYAML(result)
-	if err != nil {
-		return "", fmt.Errorf("unable to convert result json to yaml: %w", err)
-	}
-	return string(resultYAML), nil
 }
 
 // ConfigStatus defines the observed state of Config

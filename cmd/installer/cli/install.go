@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
@@ -69,9 +68,7 @@ type InstallCmdFlags struct {
 	ignoreHostPreflights    bool
 	configValues            string
 
-	networkInterface               string
-	isAutoSelectedNetworkInterface bool
-	autoSelectNetworkInterfaceErr  error
+	networkInterface string
 
 	license *kotsv1beta1.License
 	proxy   *ecv1beta1.ProxySpec
@@ -194,10 +191,7 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	// if a network interface flag was not provided, attempt to discover it
 	if flags.networkInterface == "" {
 		autoInterface, err := determineBestNetworkInterface()
-		if err != nil {
-			flags.autoSelectNetworkInterfaceErr = err
-		} else {
-			flags.isAutoSelectedNetworkInterface = true
+		if err == nil {
 			flags.networkInterface = autoInterface
 		}
 	}
@@ -1121,7 +1115,7 @@ func gatherVersionMetadata(withChannelRelease bool) (*types.ReleaseMetadata, err
 	}
 
 	additionalCharts := []ecv1beta1.Chart{}
-	additionalRepos := []k0sconfig.Repository{}
+	additionalRepos := []k0sv1beta1.Repository{}
 	if withChannelRelease {
 		additionalCharts = config.AdditionalCharts()
 		additionalRepos = config.AdditionalRepositories()

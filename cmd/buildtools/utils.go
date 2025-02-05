@@ -172,15 +172,6 @@ func FamiliarImageName(imageName string) string {
 	return reference.FamiliarName(ref)
 }
 
-func GetLatestGitHubRelease(ctx context.Context, owner, repo string) (string, error) {
-	client := github.NewClient(nil)
-	release, _, err := client.Repositories.GetLatestRelease(ctx, owner, repo)
-	if err != nil {
-		return "", err
-	}
-	return release.GetName(), nil
-}
-
 func latestPatchConstraint(s *semver.Version) string {
 	return fmt.Sprintf(">=%d.%d,<%d.%d", s.Major(), s.Minor(), s.Major(), s.Minor()+1)
 }
