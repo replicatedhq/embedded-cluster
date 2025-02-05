@@ -103,35 +103,7 @@ spec:
       name: podlogs/seaweedfs
       namespace: seaweedfs
       selector:
-      - app.kubernetes.io/component=objectstorage-provisioner
-      limits:
-        maxAge: 720h
-  - logs:
-      name: podlogs/seaweedfs
-      namespace: seaweedfs
-      selector:
-      - app.kubernetes.io/component=filer
-      limits:
-        maxAge: 720h
-  - logs:
-      name: podlogs/seaweedfs
-      namespace: seaweedfs
-      selector:
-      - app.kubernetes.io/component=master
-      limits:
-        maxAge: 720h
-  - logs:
-      name: podlogs/seaweedfs
-      namespace: seaweedfs
-      selector:
-      - app.kubernetes.io/component=s3
-      limits:
-        maxAge: 720h
-  - logs:
-      name: podlogs/seaweedfs
-      namespace: seaweedfs
-      selector:
-      - app.kubernetes.io/component=volume
+      - app.kubernetes.io/instance=seaweedfs
       limits:
         maxAge: 720h
   analyzers:
