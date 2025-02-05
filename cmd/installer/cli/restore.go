@@ -786,7 +786,7 @@ func ensureK0sConfigForRestore(cmd *cobra.Command, applier *addons.Applier) (*k0
 		return nil, fmt.Errorf("configuration file already exists")
 	}
 
-	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
+	if err := helpers.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 

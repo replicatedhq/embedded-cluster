@@ -357,7 +357,7 @@ func installAndJoinCluster(cmd *cobra.Command, jcmd *kotsadm.JoinCommandResponse
 
 // saveTokenToDisk saves the provided token in "/etc/k0s/join-token".
 func saveTokenToDisk(token string) error {
-	if err := os.MkdirAll("/etc/k0s", 0755); err != nil {
+	if err := helpers.MkdirAll("/etc/k0s", 0755); err != nil {
 		return err
 	}
 	data := []byte(token)

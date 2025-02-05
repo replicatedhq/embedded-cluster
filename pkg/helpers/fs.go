@@ -97,8 +97,8 @@ func RemoveAll(path string) error {
 	return me.ErrorOrNil()
 }
 
-// MkDirAll creates a directory if it does not exist and make sure it has the right permissions
-func MkDirAll(dir string, perm os.FileMode) error {
+// MkdirAll creates a directory if it does not exist and make sure it has the right permissions
+func MkdirAll(dir string, perm os.FileMode) error {
 	if err := os.MkdirAll(dir, perm); err != nil {
 		return err
 	}

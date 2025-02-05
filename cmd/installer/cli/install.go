@@ -652,7 +652,7 @@ func ensureK0sConfig(cmd *cobra.Command, applier *addons.Applier) (*k0sconfig.Cl
 	if _, err := os.Stat(cfgpath); err == nil {
 		return nil, fmt.Errorf("configuration file already exists")
 	}
-	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
+	if err := helpers.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
@@ -790,7 +790,7 @@ func systemdUnitFileName() string {
 // systemd directory (/etc/systemd/system/k0scontroller.service.d/).
 func ensureProxyConfig(servicePath string, httpProxy string, httpsProxy string, noProxy string) error {
 	// create the directory
-	if err := os.MkdirAll(servicePath, 0755); err != nil {
+	if err := helpers.MkdirAll(servicePath, 0755); err != nil {
 		return fmt.Errorf("unable to create directory: %w", err)
 	}
 
