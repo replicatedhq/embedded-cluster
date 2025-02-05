@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/testutils"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,6 +15,10 @@ import (
 )
 
 func TestCleanupStatefulPods(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, ecv1beta1.SchemeBuilder.AddToScheme(scheme))
+
 	tests := []struct {
 		name            string
 		initRuntimeObjs []runtime.Object
@@ -157,7 +161,7 @@ func TestCleanupStatefulPods(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cli := fake.NewClientBuilder().
-				WithScheme(testutils.Scheme(t)).
+				WithScheme(scheme).
 				WithRuntimeObjects(tt.initRuntimeObjs...).
 				Build()
 

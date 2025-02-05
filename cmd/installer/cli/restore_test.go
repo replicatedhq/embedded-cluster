@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"embed"
-	_ "embed"
 	"io"
 	"io/fs"
 	"testing"
