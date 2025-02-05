@@ -216,14 +216,21 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		flags.license = l
 	}
 
+	if flags.configValues != "" {
+		err := configutils.ValidateKotsConfigValues(flags.configValues)
+		if err != nil {
+			return fmt.Errorf("config values file is not valid: %w", err)
+		}
+	}
+
+	flags.isAirgap = flags.airgapBundle != ""
+
 	runtimeconfig.ApplyFlags(cmd.Flags())
 	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
 	if err := runtimeconfig.WriteToDisk(); err != nil {
 		return fmt.Errorf("unable to write runtime config to disk: %w", err)
 	}
-
-	flags.isAirgap = flags.airgapBundle != ""
 
 	return nil
 }
