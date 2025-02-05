@@ -20,8 +20,10 @@ type addonComponent struct {
 }
 
 type addonComponentOptions struct {
-	ctx             context.Context
-	upstreamVersion *semver.Version
+	ctx              context.Context
+	k0sVersion       *semver.Version
+	upstreamVersion  *semver.Version
+	latestK8sVersion *semver.Version
 }
 
 func (c *addonComponent) buildImage(ctx context.Context, image string, archs string) (string, error) {
@@ -80,9 +82,19 @@ func (c *addonComponent) resolveUpstreamImageRepoAndTag(ctx context.Context, ima
 func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, image string, arch string) (string, string, error) {
 	upstreamVersion := c.getUpstreamVersion(image)
 
+	k0sVersion, err := getK0sVersion()
+	if err != nil {
+		return "", "", fmt.Errorf("get k0s version: %w", err)
+	}
+	latestK8sVersion, err := GetLatestKubernetesVersion()
+	if err != nil {
+		return "", "", fmt.Errorf("get latest k8s version: %w", err)
+	}
 	customImage, err := c.getCustomImageName(addonComponentOptions{
-		ctx:             ctx,
-		upstreamVersion: semver.MustParse(upstreamVersion),
+		ctx:              ctx,
+		k0sVersion:       k0sVersion,
+		upstreamVersion:  semver.MustParse(upstreamVersion),
+		latestK8sVersion: latestK8sVersion,
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image name for %s: %w", c.name, err)
@@ -142,18 +154,32 @@ func (c *addonComponent) getPackageNameAndVersion(ctx context.Context, upstreamV
 		return packageName, strings.TrimPrefix(upstreamVersion, "v"), nil
 	}
 
+	k0sVersion, err := getK0sVersion()
+	if err != nil {
+		return "", "", fmt.Errorf("get k0s version: %w", err)
+	}
+
+	latestK8sVersion, err := GetLatestKubernetesVersion()
+	if err != nil {
+		return "", "", fmt.Errorf("get latest k8s version: %w", err)
+	}
+
 	if c.getWolfiPackageName != nil {
 		packageName = c.getWolfiPackageName(addonComponentOptions{
-			ctx:             ctx,
-			upstreamVersion: semver.MustParse(upstreamVersion),
+			ctx:              ctx,
+			k0sVersion:       k0sVersion,
+			upstreamVersion:  semver.MustParse(upstreamVersion),
+			latestK8sVersion: latestK8sVersion,
 		})
 	}
 
 	packageVersion := latestPatchVersion(semver.MustParse(upstreamVersion))
 	if c.getWolfiPackageVersion != nil {
 		packageVersion = c.getWolfiPackageVersion(addonComponentOptions{
-			ctx:             ctx,
-			upstreamVersion: semver.MustParse(upstreamVersion),
+			ctx:              ctx,
+			k0sVersion:       k0sVersion,
+			upstreamVersion:  semver.MustParse(upstreamVersion),
+			latestK8sVersion: latestK8sVersion,
 		})
 	}
 
