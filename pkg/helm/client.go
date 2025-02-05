@@ -323,7 +323,6 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 	client.CreateNamespace = true
 	client.WaitForJobs = true
 	client.Wait = true
-	client.Atomic = true
 
 	if opts.Timeout != 0 {
 		client.Timeout = opts.Timeout
