@@ -31,7 +31,7 @@ spec:
   # keep this around for previous versions where the upgrade job was in the embedded-cluster namespace
   - logs:
       name: podlogs/embedded-cluster-upgrade
-      namespace: kotsadm
+      namespace: embedded-cluster
       selector:
         - app.kubernetes.io/name=embedded-cluster-upgrade
       limits:

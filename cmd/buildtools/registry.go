@@ -8,7 +8,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"helm.sh/helm/v3/pkg/repo"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons2/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )

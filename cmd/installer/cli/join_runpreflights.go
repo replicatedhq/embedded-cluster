@@ -14,14 +14,14 @@ import (
 )
 
 func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
-	var flags Join2CmdFlags
+	var flags JoinCmdFlags
 
 	cmd := &cobra.Command{
 		Use:   "run-preflights",
 		Short: fmt.Sprintf("Run join host preflights for %s", name),
 		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunJoin2(&flags); err != nil {
+			if err := preRunJoin(&flags); err != nil {
 				return err
 			}
 
@@ -51,7 +51,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runJoinRunPreflights(ctx context.Context, name string, flags Join2CmdFlags, jcmd *kotsadm.JoinCommandResponse) error {
+func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm.JoinCommandResponse) error {
 	if err := runJoinVerifyAndPrompt(name, flags, jcmd); err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func runJoinRunPreflights(ctx context.Context, name string, flags Join2CmdFlags,
 	return nil
 }
 
-func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, flags Join2CmdFlags, cidrCfg *CIDRConfig, metricsReported preflights.MetricsReporter) error {
+func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, flags JoinCmdFlags, cidrCfg *CIDRConfig, metricsReported preflights.MetricsReporter) error {
 	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
 		ReplicatedAPIURL:       jcmd.InstallationSpec.MetricsBaseURL, // MetricsBaseURL is the replicated.app endpoint url
 		ProxyRegistryURL:       fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress),
