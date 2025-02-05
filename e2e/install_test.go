@@ -1071,7 +1071,7 @@ func TestSingleNodeAirgapUpgradeUmask(t *testing.T) {
 	t.Logf("set umask stdout: %s", stdout)
 	t.Logf("stderr: %s", stderr)
 
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"umask"})
+	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"bash", "-c", "umask"})
 	if err != nil {
 		t.Fatalf("failed to check umask on node 0: %v", err)
 	}
