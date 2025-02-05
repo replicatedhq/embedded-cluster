@@ -577,7 +577,7 @@ func materializeFiles(airgapBundle string) error {
 	}
 
 	if airgapBundle != "" {
-		mat.Infof("Materializing airgap installation files")
+		mat.Infof("Materializing air gap installation files")
 
 		// read file from path
 		rawfile, err := os.Open(airgapBundle)
