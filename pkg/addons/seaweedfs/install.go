@@ -101,18 +101,13 @@ func ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) 
 	obj.ObjectMeta.Labels = ApplyLabels(obj.ObjectMeta.Labels, "s3")
 
 	var existingObj corev1.Service
-	if err := kcli.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: obj.Namespace}, &existingObj); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return errors.Wrap(err, "get s3 service")
+	if err := kcli.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: obj.Namespace}, &existingObj); err != nil && !k8serrors.IsNotFound(err) {
+		return errors.Wrap(err, "get s3 service")
+	} else if err == nil {
+		err := kcli.Delete(ctx, &existingObj)
+		if err != nil {
+			return errors.Wrap(err, "delete existing s3 service")
 		}
-	} else {
-		if existingObj.Spec.ClusterIP != clusterIP {
-			existingObj.Spec.ClusterIP = clusterIP
-			if err := kcli.Update(ctx, &existingObj); err != nil {
-				return errors.Wrap(err, "update s3 service")
-			}
-		}
-		return nil
 	}
 
 	if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
