@@ -83,15 +83,15 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(Install2Cmd(ctx, name))
-	cmd.AddCommand(Join2Cmd(ctx, name))
+	cmd.AddCommand(InstallCmd(ctx, name))
+	cmd.AddCommand(JoinCmd(ctx, name))
 	cmd.AddCommand(ShellCmd(ctx, name))
 	cmd.AddCommand(NodeCmd(ctx, name))
 	cmd.AddCommand(VersionCmd(ctx, name))
 	cmd.AddCommand(ResetCmd(ctx, name))
 	cmd.AddCommand(MaterializeCmd(ctx, name))
 	cmd.AddCommand(UpdateCmd(ctx, name))
-	cmd.AddCommand(Restore2Cmd(ctx, name))
+	cmd.AddCommand(RestoreCmd(ctx, name))
 	cmd.AddCommand(AdminConsoleCmd(ctx, name))
 	cmd.AddCommand(SupportBundleCmd(ctx, name))
 

@@ -15,7 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -74,7 +74,7 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1b
 
 	err = support.CreateHostSupportBundle()
 	if err != nil {
-		logrus.Warnf("upgrade host support bundle: %v", err)
+		slog.Error("Failed to upgrade host support bundle", "error", err)
 	}
 
 	err = k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateInstalled, "Installed")
@@ -222,7 +222,7 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, in 
 		return fmt.Errorf("no images available")
 	}
 
-	if err := addons2.Upgrade(ctx, hcli, in, meta); err != nil {
+	if err := addons.Upgrade(ctx, hcli, in, meta); err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 

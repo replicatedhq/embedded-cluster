@@ -33,7 +33,7 @@ func Install(ctx context.Context, hcli helm.Client) error {
 		loading.Infof("Installing %s", ext.Name)
 
 		if err := install(ctx, hcli, ext); err != nil {
-			return errors.Wrap(err, "install extension")
+			return errors.Wrapf(err, "install extension %s", ext.Name)
 		}
 	}
 

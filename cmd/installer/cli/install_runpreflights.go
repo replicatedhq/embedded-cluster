@@ -13,13 +13,13 @@ import (
 )
 
 func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
-	var flags Install2CmdFlags
+	var flags InstallCmdFlags
 
 	cmd := &cobra.Command{
 		Use:   "run-preflights",
 		Short: "Run install host preflights",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall2(cmd, &flags); err != nil {
+			if err := preRunInstall(cmd, &flags); err != nil {
 				return err
 			}
 
@@ -47,7 +47,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runInstallRunPreflights(ctx context.Context, name string, flags Install2CmdFlags) error {
+func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdFlags) error {
 	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func runInstallRunPreflights(ctx context.Context, name string, flags Install2Cmd
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, flags Install2CmdFlags, metricsReported preflights.MetricsReporter) error {
+func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsReported preflights.MetricsReporter) error {
 	var replicatedAPIURL, proxyRegistryURL string
 	if flags.license != nil {
 		replicatedAPIURL = flags.license.Spec.Endpoint

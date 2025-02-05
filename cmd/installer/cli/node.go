@@ -17,7 +17,7 @@ func NodeCmd(ctx context.Context, name string) *cobra.Command {
 	}
 
 	// here for legacy reasons
-	joinCmd := Join2Cmd(ctx, name)
+	joinCmd := JoinCmd(ctx, name)
 	joinCmd.Hidden = true
 	cmd.AddCommand(joinCmd)
 
