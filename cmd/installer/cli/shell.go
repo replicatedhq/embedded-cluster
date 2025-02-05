@@ -29,10 +29,8 @@ const welcome = `
 
 func ShellCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:           "shell",
-		Short:         "Start a shell with access to the cluster",
-		SilenceErrors: true,
-		SilenceUsage:  true,
+		Use:   "shell",
+		Short: "Start a shell with access to the cluster",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("shell command must be run as root")

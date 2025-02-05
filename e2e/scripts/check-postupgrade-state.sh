@@ -11,6 +11,13 @@ function check_nginx_version {
     return 0
 }
 
+function check_nginx_annotation {
+    if ! kubectl describe service -n ingress-nginx ingress-nginx-controller | grep -q "test-upgrade-value"; then
+        return 1
+    fi
+    return 0
+}
+
 main() {
     local k8s_version="$1"
     local ec_version="$2"
@@ -47,33 +54,31 @@ main() {
         exit 1
     fi
 
-    # ensure that nginx-ingress has been updated
-    kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
-    # ensure new values are present
-    if ! kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "test-upgrade-value"; then
-        echo "test-upgrade-value not found in ingress-nginx chart"
-        exit 1
-    fi
-    # ensure new version is present
-    if ! kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "4.12.0-beta.0"; then
-        echo "4.12.0-beta.0 not found in ingress-nginx chart"
-        exit 1
-    fi
     # ensure the new version made it into the pod
     if ! retry 5 check_nginx_version ; then
         echo "4.12.0-beta.0 not found in ingress-nginx pod"
         kubectl describe pod -n ingress-nginx
         exit 1
     fi
+    # ensure that the new annotation made it into the service
+    if ! retry 5 check_nginx_annotation ; then
+        echo "test-upgrade-value not found in ingress-nginx-controller service"
+        kubectl describe service -n ingress-nginx-controller
+        exit 1
+    fi
+
+    # ensure that the overrides were applied as part of the upgrade
+    if ! ensure_release_builtin_overrides_postupgrade ; then
+        echo "Failed to validate that overrides were applied as part of the upgrade"
+        exit 1
+    fi
 
     # ensure that the embedded-cluster-operator has been updated
-    kubectl describe chart -n kube-system k0s-addon-chart-embedded-cluster-operator
-    kubectl describe chart -n kube-system k0s-addon-chart-embedded-cluster-operator | grep "embeddedClusterVersion:" | grep -q -e "$ec_version"
     kubectl describe pod -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator
     # ensure the new value made it into the pod
     if ! kubectl describe pod -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator | grep "EMBEDDEDCLUSTER_VERSION" | grep -q -e "$ec_version" ; then
         echo "Upgrade version not present in embedded-cluster-operator environment variable"
-        kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
+        kubectl logs -n kotsadm -l app.kubernetes.io/name=embedded-cluster-upgrade
         exit 1
     fi
 
@@ -95,13 +100,6 @@ main() {
     if kubectl get statefulset -n kotsadm kotsadm-minio; then
         echo "kotsadm-minio statefulset found"
         kubectl get statefulset -n kotsadm kotsadm-minio
-        exit 1
-    fi
-
-    echo "ensure that the default chart order remained 110"
-    if ! kubectl describe clusterconfig -n kube-system k0s | grep -q -e 'Order:\W*110' ; then
-        kubectl describe clusterconfig -n kube-system k0s
-        echo "no charts had an order of '110'"
         exit 1
     fi
 

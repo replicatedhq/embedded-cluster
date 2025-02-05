@@ -23,7 +23,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
-	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/repo"
 )
 
@@ -317,14 +316,9 @@ func SetMakefileVariable(name, value string) error {
 	return nil
 }
 
-func LatestChartVersion(repo *repo.Entry, name string) (string, error) {
-	hcli, err := NewHelm()
-	if err != nil {
-		return "", fmt.Errorf("create helm client: %w", err)
-	}
-	defer hcli.Close()
+func LatestChartVersion(hcli helm.Client, repo *repo.Entry, name string) (string, error) {
 	logrus.Infof("adding helm repo %s", repo.Name)
-	err = hcli.AddRepo(repo)
+	err := hcli.AddRepo(repo)
 	if err != nil {
 		return "", fmt.Errorf("add helm repo: %w", err)
 	}
@@ -433,35 +427,9 @@ func RemoveTagFromImage(image string) string {
 	return location
 }
 
-func GetImagesFromOCIChart(url, name, version string, values map[string]interface{}) ([]string, error) {
-	hcli, err := NewHelm()
-	if err != nil {
-		return nil, fmt.Errorf("create helm client: %w", err)
-	}
-	defer hcli.Close()
-
-	return helm.ExtractImagesFromOCIChart(hcli, url, name, version, values)
-}
-
-func GetOCIChartMetadata(url, name, version string) (*chart.Metadata, error) {
-	hcli, err := NewHelm()
-	if err != nil {
-		return nil, fmt.Errorf("create helm client: %w", err)
-	}
-	defer hcli.Close()
-
-	return helm.GetOCIChartMetadata(hcli, url, name, version)
-}
-
-func MirrorChart(repo *repo.Entry, name, ver string) error {
-	hcli, err := NewHelm()
-	if err != nil {
-		return fmt.Errorf("create helm client: %w", err)
-	}
-	defer hcli.Close()
-
+func MirrorChart(hcli helm.Client, repo *repo.Entry, name, ver string) error {
 	logrus.Infof("adding helm repo %s", repo.Name)
-	err = hcli.AddRepo(repo)
+	err := hcli.AddRepo(repo)
 	if err != nil {
 		return fmt.Errorf("add helm repo: %w", err)
 	}
@@ -493,7 +461,7 @@ func MirrorChart(repo *repo.Entry, name, ver string) error {
 	dst := fmt.Sprintf("oci://%s", os.Getenv("CHARTS_DESTINATION"))
 	chartURL := fmt.Sprintf("%s/%s", dst, name)
 	logrus.Infof("verifying if destination tag already exists")
-	dstMeta, err := GetOCIChartMetadata(chartURL, name, ver)
+	dstMeta, err := helm.GetOCIChartMetadata(hcli, chartURL, name, ver)
 	if err != nil && !strings.HasSuffix(err.Error(), "not found") {
 		return fmt.Errorf("verify tag exists: %w", err)
 	} else if err == nil {
@@ -521,12 +489,12 @@ func RunCommand(cmd *exec.Cmd) error {
 	return cmd.Run()
 }
 
-func NewHelm() (*helm.Helm, error) {
+func NewHelm() (helm.Client, error) {
 	sv, err := getK0sVersion()
 	if err != nil {
 		return nil, fmt.Errorf("get k0s version: %w", err)
 	}
-	return helm.NewHelm(helm.HelmOptions{
+	return helm.NewClient(helm.HelmOptions{
 		Writer:     logrus.New().Writer(),
 		K0sVersion: sv.Original(),
 	})

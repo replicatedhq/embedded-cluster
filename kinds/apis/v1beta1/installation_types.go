@@ -45,13 +45,11 @@ const (
 
 // Valid installation source types
 const (
-	InstallationSourceTypeCRD       string = "CRD"
-	InstallationSourceTypeConfigMap string = "ConfigMap"
+	InstallationSourceTypeCRD string = "CRD"
 )
 
 const (
 	ConditionTypeV2MigrationInProgress = "V2MigrationInProgress"
-	ConditionTypeDisableReconcile      = "DisableReconcile"
 )
 
 // ConfigSecretEntryName holds the entry name we are looking for in the secret

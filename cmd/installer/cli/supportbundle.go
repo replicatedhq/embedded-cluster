@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,16 +14,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:           "support-bundle",
-		Short:         "Generate a support bundle for the embedded-cluster",
-		SilenceErrors: true,
-		SilenceUsage:  true,
+		Use:   "support-bundle",
+		Short: "Generate a support bundle for the embedded-cluster",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("support-bundle command must be run as root")
@@ -39,8 +37,7 @@ func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			supportBundle := runtimeconfig.PathToEmbeddedClusterBinary("kubectl-support_bundle")
 			if _, err := os.Stat(supportBundle); err != nil {
-				logrus.Errorf("support-bundle command can only be run after an install attempt")
-				return ErrNothingElseToAdd
+				return errors.New("support-bundle command can only be run after an install attempt")
 			}
 
 			hostSupportBundle := runtimeconfig.PathToEmbeddedClusterSupportFile("host-support-bundle.yaml")
@@ -88,7 +85,7 @@ func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 				spin.CloseWithError()
 				io.Copy(os.Stdout, stdout)
 				io.Copy(os.Stderr, stderr)
-				return ErrNothingElseToAdd
+				return NewErrorNothingElseToAdd(errors.New("failed to generate support bundle"))
 			}
 
 			spin.Infof("Support bundle saved at %s", destination)

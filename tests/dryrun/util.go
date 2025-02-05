@@ -56,13 +56,13 @@ func dryrunJoin(t *testing.T, args ...string) dryruntypes.DryRun {
 	return *dr
 }
 
-func dryrunInstall(t *testing.T, args ...string) dryruntypes.DryRun {
+func dryrunInstall(t *testing.T, c *dryrun.Client, args ...string) dryruntypes.DryRun {
 	if err := embedReleaseData(); err != nil {
 		t.Fatalf("fail to embed release data: %v", err)
 	}
 
 	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
-	dryrun.Init(drFile, nil)
+	dryrun.Init(drFile, c)
 
 	licenseFile := filepath.Join(t.TempDir(), "license.yaml")
 	require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
@@ -239,20 +239,7 @@ func assertSecretExists(t *testing.T, kcli client.Client, name string, namespace
 	assert.NoError(t, err, "failed to get secret %s in namespace %s", name, namespace)
 }
 
-func assertHelmValues(
-	t *testing.T,
-	k0sConfig k0sv1beta1.ClusterConfig,
-	chartName string,
-	expectedValues map[string]interface{},
-) {
-	actualValues := map[string]interface{}{}
-	for _, ext := range k0sConfig.Spec.Extensions.Helm.Charts {
-		if ext.Name == chartName {
-			if err := yaml.Unmarshal([]byte(ext.Values), &actualValues); err != nil {
-				t.Fatalf("fail to unmarshal %s helm values: %v", chartName, err)
-			}
-		}
-	}
+func assertHelmValues(t *testing.T, actualValues map[string]interface{}, expectedValues map[string]interface{}) {
 	for expectedKey, expectedValue := range expectedValues {
 		actualValue, err := helm.GetValue(actualValues, expectedKey)
 		assert.NoError(t, err)

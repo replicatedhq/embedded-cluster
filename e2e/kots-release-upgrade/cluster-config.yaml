@@ -4,6 +4,7 @@ metadata:
   name: "testconfig"
 spec:
   version: "__version_string__"
+  v2Enabled: __v2_enabled__
   binaryOverrideUrl: "__release_url__"
   metadataOverrideUrl: "__metadata_url__"
   roles:
@@ -28,11 +29,13 @@ spec:
         values: |
           labels:
             release-custom-label: release-clustom-value
+            second-custom-label: second-clustom-value
       - name: embedded-cluster-operator
         values: |
           global:
             labels:
               release-custom-label: release-clustom-value
+              second-custom-label: second-clustom-value
     k0s: |
       config:
         metadata:

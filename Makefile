@@ -10,8 +10,8 @@ ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
-K0S_VERSION = v1.30.6+k0s.0
-K0S_GO_VERSION = v1.30.6+k0s.0
+K0S_VERSION = v1.30.9+k0s.0
+K0S_GO_VERSION = v1.30.9+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.29.9+k0s.0-ec.0
 PREVIOUS_K0S_GO_VERSION ?= v1.29.9+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
@@ -28,7 +28,6 @@ LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedde
 # These are used to override the binary urls in dev and e2e tests
 METADATA_K0S_BINARY_URL_OVERRIDE =
 METADATA_KOTS_BINARY_URL_OVERRIDE =
-METADATA_MANAGER_BINARY_URL_OVERRIDE =
 METADATA_OPERATOR_BINARY_URL_OVERRIDE =
 
 ifeq ($(K0S_VERSION),v1.30.5+k0s.0-ec.1)
@@ -50,7 +49,6 @@ LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.LocalArtifactMirrorImage=$(LOCAL_ARTIFACT_MIRROR_IMAGE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sBinaryURLOverride=$(METADATA_K0S_BINARY_URL_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.KOTSBinaryURLOverride=$(METADATA_KOTS_BINARY_URL_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/versions.ManagerBinaryURLOverride=$(METADATA_MANAGER_BINARY_URL_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.OperatorBinaryURLOverride=$(METADATA_OPERATOR_BINARY_URL_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
@@ -69,10 +67,10 @@ default: build-ttl.sh
 split-hyphen = $(word $2,$(subst -, ,$1))
 random-string = $(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)
 
-.PHONY: pkg/goods/bins/k0s
-pkg/goods/bins/k0s:
+.PHONY: cmd/installer/goods/bins/k0s
+cmd/installer/goods/bins/k0s:
 	$(MAKE) output/bins/k0s-$(K0S_VERSION)-$(ARCH)
-	mkdir -p pkg/goods/bins
+	mkdir -p cmd/installer/goods/bins
 	cp output/bins/k0s-$(K0S_VERSION)-$(ARCH) $@
 
 output/bins/k0s-%:
@@ -85,10 +83,10 @@ output/bins/k0s-%:
 	chmod +x $@
 	touch $@
 
-.PHONY: pkg/goods/bins/kubectl-support_bundle
-pkg/goods/bins/kubectl-support_bundle:
+.PHONY: cmd/installer/goods/bins/kubectl-support_bundle
+cmd/installer/goods/bins/kubectl-support_bundle:
 	$(MAKE) output/bins/kubectl-support_bundle-$(TROUBLESHOOT_VERSION)-$(ARCH)
-	mkdir -p pkg/goods/bins
+	mkdir -p cmd/installer/goods/bins
 	cp output/bins/kubectl-support_bundle-$(TROUBLESHOOT_VERSION)-$(ARCH) $@
 
 output/bins/kubectl-support_bundle-%:
@@ -100,10 +98,10 @@ output/bins/kubectl-support_bundle-%:
 	rm -rf output/tmp
 	touch $@
 
-.PHONY: pkg/goods/bins/kubectl-preflight
-pkg/goods/bins/kubectl-preflight:
+.PHONY: cmd/installer/goods/bins/kubectl-preflight
+cmd/installer/goods/bins/kubectl-preflight:
 	$(MAKE) output/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-$(ARCH)
-	mkdir -p pkg/goods/bins
+	mkdir -p cmd/installer/goods/bins
 	cp output/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-$(ARCH) $@
 
 output/bins/kubectl-preflight-%:
@@ -115,9 +113,9 @@ output/bins/kubectl-preflight-%:
 	rm -rf output/tmp
 	touch $@
 
-.PHONY: pkg/goods/bins/local-artifact-mirror
-pkg/goods/bins/local-artifact-mirror:
-	mkdir -p pkg/goods/bins
+.PHONY: cmd/installer/goods/bins/local-artifact-mirror
+cmd/installer/goods/bins/local-artifact-mirror:
+	mkdir -p cmd/installer/goods/bins
 	$(MAKE) -C local-artifact-mirror build OS=$(OS) ARCH=$(ARCH)
 	cp local-artifact-mirror/bin/local-artifact-mirror-$(OS)-$(ARCH) $@
 	touch $@
@@ -134,24 +132,17 @@ output/bins/fio-%:
 	docker rm -f fio
 	touch $@
 
-.PHONY: pkg/goods/bins/fio
-pkg/goods/bins/fio:
+.PHONY: cmd/installer/goods/bins/fio
+cmd/installer/goods/bins/fio:
 ifneq ($(DISABLE_FIO_BUILD),1)
 	$(MAKE) output/bins/fio-$(FIO_VERSION)-$(ARCH)
-	mkdir -p pkg/goods/bins
+	mkdir -p cmd/installer/goods/bins
 	cp output/bins/fio-$(FIO_VERSION)-$(ARCH) $@
 endif
 
-.PHONY: pkg/goods/bins/manager
-pkg/goods/bins/manager:
-	mkdir -p pkg/goods/bins
-	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build -o output/bins/manager ./cmd/manager
-	cp output/bins/manager $@
-	touch $@
-
-.PHONY: pkg/goods/internal/bins/kubectl-kots
-pkg/goods/internal/bins/kubectl-kots:
-	mkdir -p pkg/goods/internal/bins
+.PHONY: cmd/installer/goods/internal/bins/kubectl-kots
+cmd/installer/goods/internal/bins/kubectl-kots:
+	mkdir -p cmd/installer/goods/internal/bins
 	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
 		$(MAKE) output/bins/kubectl-kots-override ; \
 		cp output/bins/kubectl-kots-override $@ ; \
@@ -189,6 +180,7 @@ output/bin/embedded-cluster-release-builder:
 initial-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 initial-release: export APP_VERSION = appver-dev-$(call random-string)
 initial-release: export RELEASE_YAML_DIR = e2e/kots-release-install
+initial-release: export V2_ENABLED = 0
 initial-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=0 \
 		./scripts/build-and-release.sh
@@ -205,6 +197,7 @@ rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 upgrade-release: RANDOM_STRING = $(call random-string)
 upgrade-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade-$(RANDOM_STRING)
 upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade-$(RANDOM_STRING)
+upgrade-release: export V2_ENABLED = 0
 upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=1 \
 	RELEASE_YAML_DIR=e2e/kots-release-upgrade \
@@ -216,24 +209,22 @@ go.mod: Makefile
 	go mod tidy
 
 .PHONY: static
-static: pkg/goods/bins/k0s \
-	pkg/goods/bins/kubectl-preflight \
-	pkg/goods/bins/kubectl-support_bundle \
-	pkg/goods/bins/local-artifact-mirror \
-	pkg/goods/bins/fio \
-	pkg/goods/bins/manager \
-	pkg/goods/internal/bins/kubectl-kots
+static: cmd/installer/goods/bins/k0s \
+	cmd/installer/goods/bins/kubectl-preflight \
+	cmd/installer/goods/bins/kubectl-support_bundle \
+	cmd/installer/goods/bins/local-artifact-mirror \
+	cmd/installer/goods/bins/fio \
+	cmd/installer/goods/internal/bins/kubectl-kots
 
 .PHONY: static-dryrun
 static-dryrun:
-	@mkdir -p pkg/goods/bins pkg/goods/internal/bins
-	@touch pkg/goods/bins/k0s \
-		pkg/goods/bins/kubectl-preflight \
-		pkg/goods/bins/kubectl-support_bundle \
-		pkg/goods/bins/local-artifact-mirror \
-		pkg/goods/bins/fio \
-		pkg/goods/bins/manager \
-		pkg/goods/internal/bins/kubectl-kots
+	@mkdir -p cmd/installer/goods/bins cmd/installer/goods/internal/bins
+	@touch cmd/installer/goods/bins/k0s \
+		cmd/installer/goods/bins/kubectl-preflight \
+		cmd/installer/goods/bins/kubectl-support_bundle \
+		cmd/installer/goods/bins/local-artifact-mirror \
+		cmd/installer/goods/bins/fio \
+		cmd/installer/goods/internal/bins/kubectl-kots
 
 .PHONY: embedded-cluster-linux-amd64
 embedded-cluster-linux-amd64: export OS = linux
@@ -270,8 +261,8 @@ envtest:
 
 .PHONY: unit-tests
 unit-tests: envtest
-	mkdir -p pkg/goods/bins pkg/goods/internal/bins
-	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
+	mkdir -p cmd/installer/goods/bins cmd/installer/goods/internal/bins
+	touch cmd/installer/goods/bins/BUILD cmd/installer/goods/internal/bins/BUILD # compilation will fail if no files are present
 	KUBEBUILDER_ASSETS="$(shell ./operator/bin/setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/operator/bin -p path)" \
 		go test -tags exclude_graphdriver_btrfs -v ./pkg/... ./cmd/...
 	$(MAKE) -C operator test
@@ -303,8 +294,8 @@ build-ttl.sh:
 .PHONY: clean
 clean:
 	rm -rf output
-	rm -rf pkg/goods/bins/*
-	rm -rf pkg/goods/internal/bins/*
+	rm -rf cmd/installer/goods/bins/*
+	rm -rf cmd/installer/goods/internal/bins/*
 	rm -rf build
 	rm -rf bin
 
@@ -327,8 +318,8 @@ scan:
 
 .PHONY: buildtools
 buildtools:
-	mkdir -p pkg/goods/bins pkg/goods/internal/bins
-	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
+	mkdir -p cmd/installer/goods/bins cmd/installer/goods/internal/bins
+	touch cmd/installer/goods/bins/BUILD cmd/installer/goods/internal/bins/BUILD # compilation will fail if no files are present
 	go build -tags exclude_graphdriver_btrfs -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: list-distros
@@ -371,17 +362,13 @@ delete-node%:
 	@dev/scripts/down.sh $*
 
 .PHONY: test-lam-e2e
-test-lam-e2e: pkg/goods/bins/local-artifact-mirror
+test-lam-e2e: cmd/installer/goods/bins/local-artifact-mirror
 	sudo go test ./cmd/local-artifact-mirror/e2e/... -v
 
 .PHONY: bin/installer
 bin/installer:
 	@mkdir -p bin
 	go build -o bin/installer ./cmd/installer
-
-.PHONY: bin/manager
-bin/manager:
-	go build -o bin/manager ./cmd/manager
 
 # make test-embed channel=<channelid> app=<appslug>
 .PHONY: test-embed

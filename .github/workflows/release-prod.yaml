@@ -69,7 +69,7 @@ jobs:
 
       - name: Install dagger
         run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | DAGGER_VERSION=v0.14.0 sh
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Build and push operator image
@@ -114,7 +114,7 @@ jobs:
 
       - name: Install dagger
         run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | DAGGER_VERSION=v0.14.0 sh
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Build and push local-artifact-mirror image
@@ -171,7 +171,6 @@ jobs:
             VERSION=${{ needs.get-tag.outputs.tag-name }} \
             LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-images.outputs.local-artifact-mirror }}
           tar -C output/bin -czvf build/embedded-cluster-linux-amd64.tgz embedded-cluster
-          tar -C output/bins -czvf build/manager-linux-amd64.tgz manager
 
       - name: Output Metadata
         run: |
@@ -305,6 +304,24 @@ jobs:
           export APP_VERSION="appver-${{ github.ref_name }}"
           export RELEASE_YAML_DIR=e2e/kots-release-install	
           ./scripts/ci-release-app.sh
+          
+          # then install a version with alternate unsupported overrides
+          export EC_VERSION="${{ github.ref_name }}"
+          export APP_VERSION="appver-${{ github.ref_name }}-unsupported-overrides"
+          export RELEASE_YAML_DIR=e2e/kots-release-unsupported-overrides
+          ./scripts/ci-release-app.sh
+          
+          # then install a version with additional failing host preflights
+          export EC_VERSION="${{ github.ref_name }}"
+          export APP_VERSION="appver-${{ github.ref_name }}-failing-preflights"
+          export RELEASE_YAML_DIR=e2e/kots-release-install-failing-preflights
+          ./scripts/ci-release-app.sh
+          
+          # then install a version with additional warning host preflights
+          export EC_VERSION="${{ github.ref_name }}"
+          export APP_VERSION="appver-${{ github.ref_name }}-warning-preflights"
+          export RELEASE_YAML_DIR=e2e/kots-release-install-warning-preflights
+          ./scripts/ci-release-app.sh
 
           # then a noop upgrade
           export EC_VERSION="${{ github.ref_name }}"
@@ -312,10 +329,10 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
-          # and finally an app upgrade	
+          # and finally an app upgrade
           export EC_VERSION="${{ github.ref_name }}"
           export APP_VERSION="appver-${{ github.ref_name }}-upgrade"
-          export RELEASE_YAML_DIR=e2e/kots-release-upgrade	
+          export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
       - name: Create airgap releases
@@ -344,7 +361,13 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
-          # and finally an app upgrade	
+          # then a noop upgrade
+          export EC_VERSION="${{ github.ref_name }}"
+          export APP_VERSION="appver-${{ github.ref_name }}-noop"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
+          # and finally an app upgrade
           export EC_VERSION="${{ github.ref_name }}"
           export APP_VERSION="appver-${{ github.ref_name }}-upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
@@ -451,10 +474,9 @@ jobs:
           - TestSingleNodeUpgradePreviousStable
           - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedApp
-          - TestInstallWithoutEmbed
 #          - TestUpgradeEC18FromReplicatedApp
           - TestResetAndReinstall
-          - TestOldVersionUpgrade
+#          - TestOldVersionUpgrade
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeInstallation
           - TestMultiNodeHAInstallation

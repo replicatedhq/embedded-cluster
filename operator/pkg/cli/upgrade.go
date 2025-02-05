@@ -3,13 +3,13 @@ package cli
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/manager"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,9 +22,6 @@ func UpgradeCmd() *cobra.Command {
 	var installationFile, localArtifactMirrorImage string
 
 	var installation *ecv1beta1.Installation
-
-	var migrateV2 bool
-	var migrateV2Secret, migrateV2AppSlug, migrateV2AppVersionLabel string
 
 	cmd := &cobra.Command{
 		Use:          "upgrade",
@@ -40,38 +37,24 @@ func UpgradeCmd() *cobra.Command {
 			// set the runtime config from the installation spec
 			runtimeconfig.Set(installation.Spec.RuntimeConfig)
 
-			if migrateV2 {
-				if migrateV2Secret == "" {
-					return fmt.Errorf("--migrate-v2 is set to true but --migrate-v2-secret is not set")
-				}
-				if migrateV2AppSlug == "" {
-					return fmt.Errorf("--migrate-v2 is set to true but --app-slug is not set")
-				}
-				if migrateV2AppVersionLabel == "" {
-					return fmt.Errorf("--migrate-v2 is set to true but --app-version-label is not set")
-				}
-
-				manager.SetServiceName(migrateV2AppSlug)
-			}
-
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Upgrade job creation started")
+			slog.Info("Upgrade job creation started")
 
 			cli, err := k8sutil.KubeClient()
 			if err != nil {
 				return fmt.Errorf("failed to create kubernetes client: %w", err)
 			}
 
-			fmt.Printf("Preparing upgrade to installation %s (k0s version %s)\n", installation.Name, installation.Spec.Config.Version)
+			slog.Info("Preparing upgrade", "installation", installation.Name, "k0s_version", installation.Spec.Config.Version)
 
 			// create the installation object so that kotsadm can immediately find it and watch it for the upgrade process
 			err = upgrade.CreateInstallation(cmd.Context(), cli, installation)
 			if err != nil {
 				return fmt.Errorf("apply installation: %w", err)
 			}
-			previousInstallation, err := kubeutils.GetPreviousCRDInstallation(cmd.Context(), cli, installation)
+			previousInstallation, err := kubeutils.GetPreviousInstallation(cmd.Context(), cli, installation)
 			if err != nil {
 				return fmt.Errorf("get previous installation: %w", err)
 			}
@@ -79,13 +62,12 @@ func UpgradeCmd() *cobra.Command {
 			err = upgrade.CreateUpgradeJob(
 				cmd.Context(), cli,
 				installation, localArtifactMirrorImage, previousInstallation.Spec.Config.Version,
-				migrateV2, migrateV2Secret, migrateV2AppSlug, migrateV2AppVersionLabel,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
 			}
 
-			fmt.Println("Upgrade job created successfully")
+			slog.Info("Upgrade job created successfully")
 
 			return nil
 		},
@@ -99,11 +81,6 @@ func UpgradeCmd() *cobra.Command {
 	if err != nil {
 		panic(err)
 	}
-
-	cmd.Flags().BoolVar(&migrateV2, "migrate-v2", false, "Set to true to run the v2 migration")
-	cmd.Flags().StringVar(&migrateV2Secret, "migrate-v2-secret", "", "The secret name from which to read the license (required if --migrate-v2 is set to true)")
-	cmd.Flags().StringVar(&migrateV2AppSlug, "app-slug", "", "The application slug (required if --migrate-v2 is set to true)")
-	cmd.Flags().StringVar(&migrateV2AppVersionLabel, "app-version-label", "", "The application version label (required if --migrate-v2 is set to true)")
 
 	return cmd
 }

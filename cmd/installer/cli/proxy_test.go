@@ -3,7 +3,6 @@ package cli
 import (
 	"testing"
 
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -11,9 +10,6 @@ import (
 )
 
 func Test_getProxySpecFromFlags(t *testing.T) {
-	type args struct {
-		cfg *k0sconfig.ClusterConfig
-	}
 	tests := []struct {
 		name string
 		init func(t *testing.T, flagSet *pflag.FlagSet)

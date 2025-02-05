@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
 )
@@ -17,10 +17,8 @@ func MaterializeCmd(ctx context.Context, name string) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:           "materialize",
-		Short:         "Materialize embedded assets into the data directory",
-		SilenceErrors: true,
-		SilenceUsage:  true,
+		Use:   "materialize",
+		Short: "Materialize embedded assets into the data directory",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("materialize command must be run as root")
