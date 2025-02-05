@@ -104,9 +104,10 @@ func ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) 
 	if err := kcli.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: obj.Namespace}, &existingObj); err != nil && !k8serrors.IsNotFound(err) {
 		return errors.Wrap(err, "get s3 service")
 	} else if err == nil {
+		// if the service already exists and has the correct cluster IP, do not recreate it
 		if existingObj.Spec.ClusterIP == clusterIP {
 			return nil
-		fi
+		}
 		err := kcli.Delete(ctx, &existingObj)
 		if err != nil {
 			return errors.Wrap(err, "delete existing s3 service")
