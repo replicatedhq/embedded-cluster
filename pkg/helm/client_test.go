@@ -1,8 +1,9 @@
 package helm
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_cleanUpGenericMap(t *testing.T) {
@@ -78,6 +79,68 @@ func Test_cleanUpGenericMap(t *testing.T) {
 					"bool":   true,
 					"array": []interface{}{
 						"element",
+					},
+				},
+			},
+		},
+		{
+			name: "nested map, generic map array keys",
+			in: map[string]interface{}{
+				"nest": map[interface{}]interface{}{
+					"abc":    "xyz",
+					"number": 5,
+					"float":  1.5,
+					"bool":   true,
+					"array": []map[string]interface{}{
+						{
+							"name":  "example",
+							"value": "true",
+						},
+					},
+				},
+			},
+			want: map[string]interface{}{
+				"nest": map[string]interface{}{
+					"abc":    "xyz",
+					"number": 5,
+					"float":  1.5,
+					"bool":   true,
+					"array": []map[string]interface{}{
+						{
+							"name":  "example",
+							"value": "true",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "nested map, interface map array keys",
+			in: map[string]interface{}{
+				"nest": map[interface{}]interface{}{
+					"abc":    "xyz",
+					"number": 5,
+					"float":  1.5,
+					"bool":   true,
+					"array": []map[interface{}]interface{}{
+						{
+							"name":  "example",
+							"value": "true",
+						},
+					},
+				},
+			},
+			want: map[string]interface{}{
+				"nest": map[string]interface{}{
+					"abc":    "xyz",
+					"number": 5,
+					"float":  1.5,
+					"bool":   true,
+					"array": []map[string]interface{}{
+						{
+							"name":  "example",
+							"value": "true",
+						},
 					},
 				},
 			},

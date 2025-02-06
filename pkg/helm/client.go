@@ -545,6 +545,10 @@ func cleanUpMapValue(v interface{}) interface{} {
 	switch v := v.(type) {
 	case []interface{}:
 		return cleanUpInterfaceArray(v)
+	case []map[string]interface{}:
+		return cleanUpGenericMapArray(v)
+	case []map[interface{}]interface{}:
+		return cleanUpInterfaceMapArray(v)
 	case map[string]interface{}:
 		return cleanUpGenericMap(v)
 	case map[interface{}]interface{}:
@@ -567,6 +571,24 @@ func cleanUpInterfaceArray(in []interface{}) []interface{} {
 	result := make([]interface{}, len(in))
 	for i, v := range in {
 		result[i] = cleanUpMapValue(v)
+	}
+	return result
+}
+
+// Cleans up a slice of map to interface into slice of actual values
+func cleanUpGenericMapArray(in []map[string]interface{}) []map[string]interface{} {
+	result := make([]map[string]interface{}, len(in))
+	for i, v := range in {
+		result[i] = cleanUpGenericMap(v)
+	}
+	return result
+}
+
+// Cleans up a slice of map to interface into slice of actual values
+func cleanUpInterfaceMapArray(in []map[interface{}]interface{}) []map[string]interface{} {
+	result := make([]map[string]interface{}, len(in))
+	for i, v := range in {
+		result[i] = cleanUpInterfaceMap(v)
 	}
 	return result
 }
