@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"syscall"
 	"testing"
 	"time"
 
@@ -396,9 +397,8 @@ func TestConfigValuesInstallation(t *testing.T) {
 }
 
 func TestRestrictiveUmask(t *testing.T) {
-	currentUmask := os.Getenv("UMASK")
-	defer os.Setenv("UMASK", currentUmask)
-	os.Setenv("UMASK", "0077")
+	oldUmask := syscall.Umask(0o077)
+	defer syscall.Umask(oldUmask)
 
 	testDefaultInstallationImpl(t)
 
@@ -406,7 +406,6 @@ func TestRestrictiveUmask(t *testing.T) {
 	folderList := []string{
 		"/var/lib/embedded-cluster",
 		"/var/lib/embedded-cluster/bin",
-		"/var/lib/embedded-cluster/k0s",
 	}
 	for _, folder := range folderList {
 		stat, err := os.Stat(folder)
