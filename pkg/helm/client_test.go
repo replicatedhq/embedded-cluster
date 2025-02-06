@@ -25,7 +25,7 @@ func Test_cleanUpGenericMap(t *testing.T) {
 			},
 			want: map[string]interface{}{
 				"abc":    "xyz",
-				"number": 5,
+				"number": float64(5),
 				"float":  1.5,
 				"bool":   true,
 				"array": []interface{}{
@@ -49,7 +49,7 @@ func Test_cleanUpGenericMap(t *testing.T) {
 			want: map[string]interface{}{
 				"nest": map[string]interface{}{
 					"abc":    "xyz",
-					"number": 5,
+					"number": float64(5),
 					"float":  1.5,
 					"bool":   true,
 					"array": []interface{}{
@@ -74,7 +74,7 @@ func Test_cleanUpGenericMap(t *testing.T) {
 			want: map[string]interface{}{
 				"nest": map[string]interface{}{
 					"abc":    "xyz",
-					"number": 5,
+					"number": float64(5),
 					"float":  1.5,
 					"bool":   true,
 					"array": []interface{}{
@@ -102,11 +102,11 @@ func Test_cleanUpGenericMap(t *testing.T) {
 			want: map[string]interface{}{
 				"nest": map[string]interface{}{
 					"abc":    "xyz",
-					"number": 5,
+					"number": float64(5),
 					"float":  1.5,
 					"bool":   true,
-					"array": []map[string]interface{}{
-						{
+					"array": []interface{}{
+						map[string]interface{}{
 							"name":  "example",
 							"value": "true",
 						},
@@ -133,11 +133,11 @@ func Test_cleanUpGenericMap(t *testing.T) {
 			want: map[string]interface{}{
 				"nest": map[string]interface{}{
 					"abc":    "xyz",
-					"number": 5,
+					"number": float64(5),
 					"float":  1.5,
 					"bool":   true,
-					"array": []map[string]interface{}{
-						{
+					"array": []interface{}{
+						map[string]interface{}{
 							"name":  "example",
 							"value": "true",
 						},
@@ -149,7 +149,9 @@ func Test_cleanUpGenericMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
-			req.Equal(tt.want, cleanUpGenericMap(tt.in))
+			out, err := cleanUpGenericMap(tt.in)
+			req.NoError(err)
+			req.Equal(tt.want, out)
 		})
 	}
 }

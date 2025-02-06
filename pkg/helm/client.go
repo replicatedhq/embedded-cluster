@@ -28,6 +28,7 @@ import (
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"helm.sh/helm/v3/pkg/uploader"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	k8syaml "sigs.k8s.io/yaml"
 )
 
 type RESTClientGetterFactory func(namespace string) genericclioptions.RESTClientGetter
@@ -356,7 +357,10 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 		}
 	}
 
-	cleanVals := cleanUpGenericMap(opts.Values)
+	cleanVals, err := cleanUpGenericMap(opts.Values)
+	if err != nil {
+		return nil, fmt.Errorf("clean up generic map: %w", err)
+	}
 
 	release, err := client.RunWithContext(ctx, chartRequested, cleanVals)
 	if err != nil {
@@ -410,7 +414,10 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release
 		}
 	}
 
-	cleanVals := cleanUpGenericMap(opts.Values)
+	cleanVals, err := cleanUpGenericMap(opts.Values)
+	if err != nil {
+		return nil, fmt.Errorf("clean up generic map: %w", err)
+	}
 
 	release, err := client.RunWithContext(ctx, opts.ReleaseName, chartRequested, cleanVals)
 	if err != nil {
@@ -473,7 +480,10 @@ func (h *HelmClient) Render(releaseName string, chartPath string, values map[str
 		}
 	}
 
-	cleanVals := cleanUpGenericMap(values)
+	cleanVals, err := cleanUpGenericMap(values)
+	if err != nil {
+		return nil, fmt.Errorf("clean up generic map: %w", err)
+	}
 
 	release, err := client.Run(chartRequested, cleanVals)
 	if err != nil {
@@ -526,80 +536,17 @@ func (h *HelmClient) getRESTClientGetter(namespace string) genericclioptions.RES
 	return cfgFlags
 }
 
-// cleanUpGenericMap is a helper to "cleanup" generic yaml parsing where nested maps
-// are unmarshalled with type map[interface{}]interface{}
-func cleanUpGenericMap(in map[string]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
-	for k, v := range in {
-		result[fmt.Sprintf("%v", k)] = cleanUpMapValue(v)
+func cleanUpGenericMap(m map[string]interface{}) (map[string]interface{}, error) {
+	b, err := yaml.Marshal(m)
+	if err != nil {
+		return nil, fmt.Errorf("yaml marshal: %w", err)
 	}
-	return result
-}
-
-// Cleans up the value in the map, recurses in case of arrays and maps
-func cleanUpMapValue(v interface{}) interface{} {
-	// Keep null values as nil to avoid type mismatches
-	if v == nil {
-		return nil
+	next := map[string]interface{}{}
+	err = k8syaml.Unmarshal(b, &next)
+	if err != nil {
+		return nil, fmt.Errorf("yaml unmarshal: %w", err)
 	}
-	switch v := v.(type) {
-	case []interface{}:
-		return cleanUpInterfaceArray(v)
-	case []map[string]interface{}:
-		return cleanUpGenericMapArray(v)
-	case []map[interface{}]interface{}:
-		return cleanUpInterfaceMapArray(v)
-	case map[string]interface{}:
-		return cleanUpGenericMap(v)
-	case map[interface{}]interface{}:
-		return cleanUpInterfaceMap(v)
-	case string:
-		return v
-	case int:
-		return v
-	case bool:
-		return v
-	case float64:
-		return v
-	default:
-		return fmt.Sprintf("%v", v)
-	}
-}
-
-// Cleans up a slice of interfaces into slice of actual values
-func cleanUpInterfaceArray(in []interface{}) []interface{} {
-	result := make([]interface{}, len(in))
-	for i, v := range in {
-		result[i] = cleanUpMapValue(v)
-	}
-	return result
-}
-
-// Cleans up a slice of map to interface into slice of actual values
-func cleanUpGenericMapArray(in []map[string]interface{}) []map[string]interface{} {
-	result := make([]map[string]interface{}, len(in))
-	for i, v := range in {
-		result[i] = cleanUpGenericMap(v)
-	}
-	return result
-}
-
-// Cleans up a slice of map to interface into slice of actual values
-func cleanUpInterfaceMapArray(in []map[interface{}]interface{}) []map[string]interface{} {
-	result := make([]map[string]interface{}, len(in))
-	for i, v := range in {
-		result[i] = cleanUpInterfaceMap(v)
-	}
-	return result
-}
-
-// Cleans up the map keys to be strings
-func cleanUpInterfaceMap(in map[interface{}]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
-	for k, v := range in {
-		result[fmt.Sprintf("%v", k)] = cleanUpMapValue(v)
-	}
-	return result
+	return next, nil
 }
 
 func _logFn(format string, args ...interface{}) {
