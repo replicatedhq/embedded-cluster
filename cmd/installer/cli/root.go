@@ -34,6 +34,7 @@ func InitAndExecute(ctx context.Context, name string) {
 	err := cmd.Execute()
 	if err != nil {
 		if !errors.As(err, &ErrorNothingElseToAdd{}) {
+			// Logrus Fatal level logs to stderr and gets sent to the log file.
 			logrus.Fatal(err)
 		}
 		os.Exit(1)
