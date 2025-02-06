@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -46,6 +47,8 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 	loading := spinner.Start()
 	defer loading.Close()
 
+	logrus.Debugf("Enabling high availability")
+
 	if isAirgap {
 		loading.Infof("Enabling high availability")
 
@@ -58,9 +61,13 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 			return errors.Wrap(err, "check if seaweedfs release exists")
 		}
 		if !exists {
+			logrus.Debugf("Installing seaweedfs")
 			if err := sw.Install(ctx, kcli, hcli, addOnOverrides(sw, cfgspec, nil), nil); err != nil {
 				return errors.Wrap(err, "install seaweedfs")
 			}
+			logrus.Debugf("Seaweedfs installed!")
+		} else {
+			logrus.Debugf("Seaweedfs already installed")
 		}
 
 		// TODO (@salah): add support for end user overrides
@@ -68,20 +75,26 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 			ServiceCIDR: serviceCIDR,
 			IsHA:        true,
 		}
+		logrus.Debugf("Migrating registry data")
 		if err := reg.Migrate(ctx, kcli, loading); err != nil {
 			return errors.Wrap(err, "migrate registry data")
 		}
+		logrus.Debugf("Registry migration complete!")
+		logrus.Debugf("Upgrading registry")
 		if err := reg.Upgrade(ctx, kcli, hcli, addOnOverrides(reg, cfgspec, nil)); err != nil {
 			return errors.Wrap(err, "upgrade registry")
 		}
+		logrus.Debugf("Registry upgraded!")
 	}
 
 	loading.Infof("Updating the Admin Console for high availability")
 
+	logrus.Debugf("Enabling admin console high availability")
 	err := EnableAdminConsoleHA(ctx, kcli, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
 	if err != nil {
 		return errors.Wrap(err, "enable admin console high availability")
 	}
+	logrus.Debugf("Admin console high availability enabled!")
 
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
@@ -93,6 +106,8 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 	}); err != nil {
 		return errors.Wrap(err, "update installation")
 	}
+
+	logrus.Debugf("High availability enabled!")
 
 	loading.Infof("High availability enabled!")
 	return nil
