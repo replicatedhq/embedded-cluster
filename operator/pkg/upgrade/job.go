@@ -12,9 +12,9 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -373,7 +373,7 @@ func autopilotEnsureAirgapArtifactsPlan(ctx context.Context, cli client.Client, 
 		return fmt.Errorf("get autopilot airgap artifacts plan: %w", err)
 	}
 
-	err = k8sutil.EnsureObject(ctx, cli, plan, func(opts *k8sutil.EnsureObjectOptions) {
+	err = kubeutils.EnsureObject(ctx, cli, plan, func(opts *kubeutils.EnsureObjectOptions) {
 		opts.ShouldDelete = func(obj client.Object) bool {
 			return obj.GetAnnotations()[artifacts.InstallationNameAnnotation] != in.Name
 		}

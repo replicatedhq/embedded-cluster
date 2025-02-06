@@ -10,9 +10,9 @@ import (
 
 	autopilotv1beta2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -181,7 +181,7 @@ func ensureArtifactsJobForNode(ctx context.Context, cli client.Client, in *clust
 		return nil, fmt.Errorf("get job for node: %w", err)
 	}
 
-	err = k8sutil.EnsureObject(ctx, cli, job, func(opts *k8sutil.EnsureObjectOptions) {
+	err = kubeutils.EnsureObject(ctx, cli, job, func(opts *kubeutils.EnsureObjectOptions) {
 		opts.DeleteOptions = append(opts.DeleteOptions, client.PropagationPolicy(metav1.DeletePropagationForeground))
 		opts.ShouldDelete = func(obj client.Object) bool {
 			// we need to check if the job is for the given installation otherwise we delete

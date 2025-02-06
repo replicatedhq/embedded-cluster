@@ -1,7 +1,4 @@
-// Package logging manages setup of common logging interfaces and settings. We set the log
-// level to all levels but we only show on stdout the info, error, and fatal levels. All
-// other error levels are written only to a log file.
-package logging
+package cli
 
 import (
 	"fmt"
@@ -13,6 +10,9 @@ import (
 	"github.com/fatih/color"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 // MaxLogFiles is the maximum number of log files we keep.
@@ -111,11 +111,22 @@ func SetupLogging() {
 	logpath := runtimeconfig.PathToLog(fname)
 	logfile, err := os.OpenFile(logpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0400)
 	if err != nil {
-		logrus.Warnf("unable to setup logging: %v", err)
+		logrus.Warnf("Unable to setup logging: %v", err)
 		return
 	}
 	logrus.SetOutput(logfile)
 	logrus.AddHook(&StdoutLogger{})
 	logrus.Debugf("command line: %v", os.Args)
+
+	setupCtrlLogging(logfile)
+
 	trimLogDir()
+}
+
+// setupCtrlLogging sets up the logging for the controller-runtime package to the writer specified.
+func setupCtrlLogging(w io.Writer) {
+	k8slogger := ctrlzap.New(func(o *zap.Options) {
+		o.DestWriter = w
+	})
+	ctrllog.SetLogger(k8slogger)
 }

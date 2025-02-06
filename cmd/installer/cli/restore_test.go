@@ -11,12 +11,12 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	clitesting "github.com/replicatedhq/embedded-cluster/cmd/installer/cli/testing"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -193,8 +193,7 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 }
 
 func Test_waitForBackups(t *testing.T) {
-	scheme := scheme.Scheme
-	velerov1.AddToScheme(scheme)
+	scheme := kubeutils.Scheme
 
 	appendCommonAnnotations := func(annotations map[string]string) map[string]string {
 		annotations["kots.io/embedded-cluster-version"] = "v0.0.0"
