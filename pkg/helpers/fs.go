@@ -104,6 +104,5 @@ func MkdirAll(dir string, perm os.FileMode) error {
 	}
 	// explicitly set the desired permissions
 	// regardless of the host umask
-	//return os.Chmod(dir, perm)
-	return nil
+	return os.Chmod(dir, perm)
 }
