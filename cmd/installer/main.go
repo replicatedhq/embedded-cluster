@@ -6,16 +6,14 @@ import (
 	"path"
 
 	"github.com/mattn/go-isatty"
-
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/cli"
-	"github.com/replicatedhq/embedded-cluster/pkg/logging"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
 
 func main() {
 	ctx := context.Background()
 
-	logging.SetupLogging()
+	cli.SetupLogging()
 
 	prompts.SetTerminal(isatty.IsTerminal(os.Stdout.Fd()))
 

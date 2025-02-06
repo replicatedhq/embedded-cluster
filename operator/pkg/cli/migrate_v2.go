@@ -5,7 +5,7 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
 )
@@ -36,7 +36,7 @@ func MigrateV2Cmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			cli, err := k8sutil.KubeClient()
+			cli, err := kubeutils.KubeClient()
 			if err != nil {
 				return fmt.Errorf("failed to create kubernetes client: %w", err)
 			}

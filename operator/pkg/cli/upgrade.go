@@ -7,7 +7,6 @@ import (
 	"os"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -42,7 +41,7 @@ func UpgradeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			slog.Info("Upgrade job creation started")
 
-			cli, err := k8sutil.KubeClient()
+			cli, err := kubeutils.KubeClient()
 			if err != nil {
 				return fmt.Errorf("failed to create kubernetes client: %w", err)
 			}

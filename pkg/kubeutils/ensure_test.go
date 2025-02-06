@@ -1,4 +1,4 @@
-package k8sutil
+package kubeutils
 
 import (
 	"context"
@@ -177,7 +177,7 @@ func TestEnsureObject(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { _ = testEnv.Stop() })
 
-			cli, err := client.New(cfg, client.Options{Scheme: Scheme()})
+			cli, err := client.New(cfg, client.Options{Scheme: Scheme})
 			require.NoError(t, err)
 
 			for _, obj := range tt.initRuntimeObjs {
