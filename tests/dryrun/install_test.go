@@ -22,6 +22,10 @@ import (
 func TestDefaultInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
+	testDefaultInstallationImpl(t, hcli)
+}
+
+func testDefaultInstallationImpl(t *testing.T, hcli *helm.MockClient) {
 	mock.InOrder(
 		// 4 addons
 		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
@@ -390,4 +394,13 @@ func TestConfigValuesInstallation(t *testing.T) {
 	)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestRestrictiveUmask(t *testing.T) {
+	currentUmask := os.Getenv("UMASK")
+	defer os.Setenv("UMASK", currentUmask)
+	os.Setenv("UMASK", "0077")
+
+	hcli := &helm.MockClient{}
+	testDefaultInstallationImpl(t, hcli)
 }
