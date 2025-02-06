@@ -42,9 +42,11 @@ func (r *Registry) Migrate(ctx context.Context, kcli client.Client, progressWrit
 		return errors.Wrap(err, "get s3 client")
 	}
 
+	logrus.Debug("Ensuring registry bucket")
 	if err := ensureRegistryBucket(ctx, s3Client); err != nil {
 		return errors.Wrap(err, "ensure registry bucket")
 	}
+	logrus.Debug("Registry bucket ensured!")
 
 	pipeReader, pipeWriter := io.Pipe()
 	g, ctx := errgroup.WithContext(ctx)
@@ -58,9 +60,11 @@ func (r *Registry) Migrate(ctx context.Context, kcli client.Client, progressWrit
 		return writeRegistryData(ctx, pipeReader, s3manager.NewUploader(s3Client), progressWriter)
 	})
 
+	logrus.Debug("Copying registry data")
 	if err := g.Wait(); err != nil {
 		return err
 	}
+	logrus.Debug("Registry data copied!")
 
 	return nil
 }
@@ -95,7 +99,6 @@ func getS3Client(ctx context.Context, kcli client.Client, serviceCIDR string) (*
 }
 
 func ensureRegistryBucket(ctx context.Context, s3Client *s3.Client) error {
-	logrus.Debug("Ensuring registry bucket")
 	_, err := s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
 		Bucket: &s3Bucket,
 	})
@@ -103,9 +106,7 @@ func ensureRegistryBucket(ctx context.Context, s3Client *s3.Client) error {
 		if !strings.Contains(err.Error(), "BucketAlreadyExists") {
 			return errors.Wrap(err, "create bucket")
 		}
-		logrus.Debug("Registry bucket already exists")
 	}
-	logrus.Debug("Registry bucket created")
 	return nil
 }
 
