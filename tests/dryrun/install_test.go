@@ -410,14 +410,21 @@ func TestRestrictiveUmask(t *testing.T) {
 		runtimeconfig.EmbeddedClusterChartsSubDir(),
 		runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
 	}
+	gotFailure := false
 	for _, folder := range folderList {
 		stat, err := os.Stat(folder)
 		if err != nil {
-			t.Fatalf("failed to stat %s: %v", folder, err)
+			t.Logf("failed to stat %s: %v", folder, err)
+			gotFailure = true
+			continue
 		}
 		if stat.Mode().Perm() != 0755 {
-			t.Fatalf("expected folder %s to have mode 0755, got %O", folder, stat.Mode().Perm())
+			t.Logf("expected folder %s to have mode 0755, got %O", folder, stat.Mode().Perm())
+			gotFailure = true
 		}
+	}
+	if gotFailure {
+		t.Fatalf("at least one folder had incorrect permissions")
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
