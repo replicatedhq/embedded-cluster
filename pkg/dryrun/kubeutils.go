@@ -40,10 +40,6 @@ func (k *KubeUtils) WaitForInstallation(ctx context.Context, cli client.Client, 
 	return nil
 }
 
-func (k *KubeUtils) WaitForHAInstallation(ctx context.Context, cli client.Client) error {
-	return nil
-}
-
 func (k *KubeUtils) WaitForNodes(ctx context.Context, cli client.Client) error {
 	return nil
 }
