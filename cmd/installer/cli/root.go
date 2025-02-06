@@ -8,6 +8,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -33,7 +34,8 @@ func InitAndExecute(ctx context.Context, name string) {
 	err := cmd.Execute()
 	if err != nil {
 		if !errors.As(err, &ErrorNothingElseToAdd{}) {
-			fmt.Fprintln(os.Stderr, err)
+			// Logrus Fatal level logs to stderr and gets sent to the log file.
+			logrus.Fatal(err)
 		}
 		os.Exit(1)
 	}
