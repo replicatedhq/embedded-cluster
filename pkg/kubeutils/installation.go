@@ -292,25 +292,6 @@ func MaybeOverrideInstallationDataDirs(in ecv1beta1.Installation, previous *ecv1
 	return in, false, nil
 }
 
-func (k *KubeUtils) WaitForHAInstallation(ctx context.Context, cli client.Client) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("context cancelled")
-		default:
-			lastInstall, err := GetLatestInstallation(ctx, cli)
-			if err != nil {
-				return fmt.Errorf("unable to get latest installation: %v", err)
-			}
-			haStatus := CheckInstallationConditionStatus(lastInstall.Status, "HighAvailability")
-			if haStatus == metav1.ConditionTrue {
-				return nil
-			}
-			time.Sleep(5 * time.Second)
-		}
-	}
-}
-
 func SetInstallationConditionStatus(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, condition metav1.Condition) error {
 	return UpdateInstallationStatus(ctx, cli, in, func(status *ecv1beta1.InstallationStatus) {
 		status.SetCondition(condition)
