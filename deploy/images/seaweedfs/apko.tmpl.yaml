@@ -6,10 +6,9 @@ contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
-    - wolfi-base
+    - busybox-full # busybox wget needed for seaweedfs-bucket-hook, wget from package repos does not work
     - seaweedfs~${PACKAGE_VERSION}
     - fuse3 # for weed mount
-    - wget # for seaweedfs-bucket-hook
 
 accounts:
   groups:
