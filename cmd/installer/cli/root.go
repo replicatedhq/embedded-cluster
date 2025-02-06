@@ -34,7 +34,7 @@ func InitAndExecute(ctx context.Context, name string) {
 	err := cmd.Execute()
 	if err != nil {
 		if !errors.As(err, &ErrorNothingElseToAdd{}) {
-			logrus.Error(err)
+			logrus.Fatal(err)
 		}
 		os.Exit(1)
 	}
