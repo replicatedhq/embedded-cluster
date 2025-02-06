@@ -21,6 +21,7 @@ import (
 
 func TestDefaultInstallation(t *testing.T) {
 	testDefaultInstallationImpl(t)
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
 func testDefaultInstallationImpl(t *testing.T) {
@@ -156,8 +157,6 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "10.244.0.0/17", k0sConfig.Spec.Network.PodCIDR)
 	assert.Equal(t, "10.244.128.0/17", k0sConfig.Spec.Network.ServiceCIDR)
 	assert.Contains(t, k0sConfig.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
 func TestCustomDataDir(t *testing.T) {
@@ -402,4 +401,22 @@ func TestRestrictiveUmask(t *testing.T) {
 	os.Setenv("UMASK", "0077")
 
 	testDefaultInstallationImpl(t)
+
+	// check that folders created in this test have the right permissions
+	folderList := []string{
+		"/var/lib/embedded-cluster",
+		"/var/lib/embedded-cluster/bin",
+		"/var/lib/embedded-cluster/k0s",
+	}
+	for _, folder := range folderList {
+		stat, err := os.Stat(folder)
+		if err != nil {
+			t.Fatalf("failed to stat %s: %v", folder, err)
+		}
+		if stat.Mode().Perm() != 0755 {
+			t.Fatalf("expected folder %s to have mode 0755, got 0x%x", folder, stat.Mode())
+		}
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
