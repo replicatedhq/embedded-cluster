@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -94,6 +95,7 @@ func getS3Client(ctx context.Context, kcli client.Client, serviceCIDR string) (*
 }
 
 func ensureRegistryBucket(ctx context.Context, s3Client *s3.Client) error {
+	logrus.Debug("Ensuring registry bucket")
 	_, err := s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
 		Bucket: &s3Bucket,
 	})
@@ -101,7 +103,9 @@ func ensureRegistryBucket(ctx context.Context, s3Client *s3.Client) error {
 		if !strings.Contains(err.Error(), "BucketAlreadyExists") {
 			return errors.Wrap(err, "create bucket")
 		}
+		logrus.Debug("Registry bucket already exists")
 	}
+	logrus.Debug("Registry bucket created")
 	return nil
 }
 
