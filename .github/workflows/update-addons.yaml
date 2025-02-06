@@ -14,7 +14,7 @@ on:
       seaweedfs_chart_version:
         description: 'SeaweedFS chart version for updating the chart and images'
         required: false
-        default: "4.0.380"
+        default: "4.0.790"
 jobs:
   build:
     name: Build

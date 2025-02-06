@@ -23,7 +23,7 @@ on:
       seaweedfs_version:
         description: 'SeaweedFS version for discovering image versions'
         required: false
-        default: "3.80"
+        default: "3.79"
 
 jobs:
   compile-buildtools:
