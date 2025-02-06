@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -404,8 +405,10 @@ func TestRestrictiveUmask(t *testing.T) {
 
 	// check that folders created in this test have the right permissions
 	folderList := []string{
-		"/var/lib/embedded-cluster",
-		"/var/lib/embedded-cluster/bin",
+		runtimeconfig.EmbeddedClusterHomeDirectory(),
+		runtimeconfig.EmbeddedClusterBinsSubDir(),
+		runtimeconfig.EmbeddedClusterChartsSubDir(),
+		runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
 	}
 	for _, folder := range folderList {
 		stat, err := os.Stat(folder)
@@ -413,7 +416,7 @@ func TestRestrictiveUmask(t *testing.T) {
 			t.Fatalf("failed to stat %s: %v", folder, err)
 		}
 		if stat.Mode().Perm() != 0755 {
-			t.Fatalf("expected folder %s to have mode 0755, got 0x%x", folder, stat.Mode())
+			t.Fatalf("expected folder %s to have mode 0755, got %O", folder, stat.Mode().Perm())
 		}
 	}
 
