@@ -13,7 +13,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -146,7 +146,7 @@ func (h *HelmClient) prepare() error {
 		return nil
 	}
 
-	data, err := yaml.Marshal(repo.File{Repositories: h.repos})
+	data, err := k8syaml.Marshal(repo.File{Repositories: h.repos})
 	if err != nil {
 		return fmt.Errorf("marshal repositories: %w", err)
 	}

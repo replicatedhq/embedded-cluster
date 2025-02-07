@@ -6,15 +6,18 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ohler55/ojg/jp"
+<<<<<<< HEAD
 	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/strvals"
+=======
+>>>>>>> 78f65313 (f)
 	k8syaml "sigs.k8s.io/yaml"
 )
 
 // UnmarshalValues unmarshals the given JSON compatible YAML string into a map[string]interface{}.
 func UnmarshalValues(valuesYaml string) (map[string]interface{}, error) {
 	newValuesMap := map[string]interface{}{}
-	if err := yaml.Unmarshal([]byte(valuesYaml), &newValuesMap); err != nil {
+	if err := k8syaml.Unmarshal([]byte(valuesYaml), &newValuesMap); err != nil {
 		return nil, fmt.Errorf("yaml unmarshal: %w", err)
 	}
 	return newValuesMap, nil
@@ -22,7 +25,7 @@ func UnmarshalValues(valuesYaml string) (map[string]interface{}, error) {
 
 // MarshalValues marshals the given map[string]interface{} into a JSON compatible YAML string.
 func MarshalValues(values map[string]interface{}) (string, error) {
-	newValuesYaml, err := yaml.Marshal(values)
+	newValuesYaml, err := k8syaml.Marshal(values)
 	if err != nil {
 		return "", fmt.Errorf("yaml marshal: %w", err)
 	}
