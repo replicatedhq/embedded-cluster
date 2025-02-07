@@ -67,7 +67,7 @@ jobs:
           CHARTS_DESTINATION: registry.replicated.com/ec-charts
           INPUT_OPENEBS_CHART_VERSION: ${{ github.event.inputs.openebs_chart_version }}
           INPUT_VELERO_CHART_VERSION: ${{ github.event.inputs.velero_chart_version }}
-          INPUT_SEAWEEDFS_CHART_VERSION: ${{ github.event.inputs.seaweedfs_chart_version }}
+          INPUT_SEAWEEDFS_CHART_VERSION: ${{ github.event.inputs.seaweedfs_chart_version || '4.0.379' }}
           ARCHS: "amd64,arm64"
         run: |
           chmod 755 ./output/bin/buildtools
