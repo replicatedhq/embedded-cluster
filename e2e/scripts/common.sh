@@ -376,7 +376,7 @@ install_kots_cli() {
     echo "installing kots cli"
     local ec_version=
     ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}' | cut -d'-' -f1)
-    curl --retry 5 --retry-all-errors -fL -o /tmp/kotsinstall.sh "https://kots.io/install/$ec_version"
+    curl --retry 5 -fL -o /tmp/kotsinstall.sh "https://kots.io/install/$ec_version"
     chmod +x /tmp/kotsinstall.sh
     /tmp/kotsinstall.sh
 }
