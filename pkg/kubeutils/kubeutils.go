@@ -445,25 +445,6 @@ func writeStatusMessage(writer *spinner.MessageWriter, install *ecv1beta1.Instal
 	}
 }
 
-func (k *KubeUtils) WaitForHAInstallation(ctx context.Context, cli client.Client) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("context cancelled")
-		default:
-			lastInstall, err := GetLatestInstallation(ctx, cli)
-			if err != nil {
-				return fmt.Errorf("unable to get latest installation: %v", err)
-			}
-			haStatus := CheckConditionStatus(lastInstall.Status, "HighAvailability")
-			if haStatus == metav1.ConditionTrue {
-				return nil
-			}
-			time.Sleep(5 * time.Second)
-		}
-	}
-}
-
 func CheckConditionStatus(inStat ecv1beta1.InstallationStatus, conditionName string) metav1.ConditionStatus {
 	for _, cond := range inStat.Conditions {
 		if cond.Type == conditionName {

@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,9 +42,11 @@ func (r *Registry) Migrate(ctx context.Context, kcli client.Client, progressWrit
 		return errors.Wrap(err, "get s3 client")
 	}
 
+	logrus.Debug("Ensuring registry bucket")
 	if err := ensureRegistryBucket(ctx, s3Client); err != nil {
 		return errors.Wrap(err, "ensure registry bucket")
 	}
+	logrus.Debug("Registry bucket ensured!")
 
 	pipeReader, pipeWriter := io.Pipe()
 	g, ctx := errgroup.WithContext(ctx)
@@ -57,9 +60,11 @@ func (r *Registry) Migrate(ctx context.Context, kcli client.Client, progressWrit
 		return writeRegistryData(ctx, pipeReader, s3manager.NewUploader(s3Client), progressWriter)
 	})
 
+	logrus.Debug("Copying registry data")
 	if err := g.Wait(); err != nil {
 		return err
 	}
+	logrus.Debug("Registry data copied!")
 
 	return nil
 }

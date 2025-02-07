@@ -220,6 +220,7 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	flags.isAirgap = flags.airgapBundle != ""
 
 	runtimeconfig.ApplyFlags(cmd.Flags())
+	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig()) // this is needed for restore as well since it shares this function
 	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
 	if err := runtimeconfig.WriteToDisk(); err != nil {
@@ -615,9 +616,6 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 	if err := waitForK0s(); err != nil {
 		return nil, fmt.Errorf("wait for node: %w", err)
 	}
-
-	// init the kubeconfig
-	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
 
 	loading.Infof("Node installation finished!")
 	return cfg, nil
