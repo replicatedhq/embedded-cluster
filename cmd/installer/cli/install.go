@@ -898,10 +898,6 @@ func waitForK0s() error {
 }
 
 func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, disasterRecoveryEnabled bool) (*ecv1beta1.Installation, error) {
-	loading := spinner.Start()
-	defer loading.Close()
-	loading.Infof("Creating types")
-
 	// ensure that the embedded-cluster namespace exists
 	if err := createECNamespace(ctx, kcli); err != nil {
 		return nil, fmt.Errorf("create embedded-cluster namespace: %w", err)
@@ -965,7 +961,6 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCm
 		return nil, fmt.Errorf("set installation state to KubernetesInstalled: %w", err)
 	}
 
-	loading.Infof("Types created!")
 	return installation, nil
 }
 
