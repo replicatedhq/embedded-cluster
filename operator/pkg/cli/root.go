@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/operator/controllers"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -44,7 +44,7 @@ func RootCmd() *cobra.Command {
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-				Scheme: k8sutil.Scheme(),
+				Scheme: kubeutils.Scheme,
 				Metrics: metricsserver.Options{
 					BindAddress: metricsAddr,
 				},

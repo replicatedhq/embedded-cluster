@@ -17,8 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// DetermineUpgradeTargets makes sure that we are listing all the nodes in the autopilot plan.
-func DetermineUpgradeTargets(ctx context.Context, cli client.Client) (apv1b2.PlanCommandTargets, error) {
+// determineUpgradeTargets makes sure that we are listing all the nodes in the autopilot plan.
+func determineUpgradeTargets(ctx context.Context, cli client.Client) (apv1b2.PlanCommandTargets, error) {
 	var nodes corev1.NodeList
 	if err := cli.List(ctx, &nodes); err != nil {
 		return apv1b2.PlanCommandTargets{}, fmt.Errorf("failed to list nodes: %w", err)
@@ -46,9 +46,9 @@ func DetermineUpgradeTargets(ctx context.Context, cli client.Client) (apv1b2.Pla
 	}, nil
 }
 
-// StartAutopilotUpgrade creates an autopilot plan to upgrade to version specified in spec.config.version.
-func StartAutopilotUpgrade(ctx context.Context, cli client.Client, in *v1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
-	targets, err := DetermineUpgradeTargets(ctx, cli)
+// startAutopilotUpgrade creates an autopilot plan to upgrade to version specified in spec.config.version.
+func startAutopilotUpgrade(ctx context.Context, cli client.Client, in *v1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
+	targets, err := determineUpgradeTargets(ctx, cli)
 	if err != nil {
 		return fmt.Errorf("failed to determine upgrade targets: %w", err)
 	}

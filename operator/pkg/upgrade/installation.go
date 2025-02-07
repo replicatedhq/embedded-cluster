@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -27,7 +26,7 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *ecv1be
 		return fmt.Errorf("create installation: %w", err)
 	}
 
-	err = k8sutil.SetInstallationState(ctx, cli, in.Name, ecv1beta1.InstallationStateInstalling, "Upgrading Kubernetes", "")
+	err = kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateInstalling, "Upgrading Kubernetes", "")
 	if err != nil {
 		return fmt.Errorf("update installation status: %w", err)
 	}

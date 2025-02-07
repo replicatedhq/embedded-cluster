@@ -9,7 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"
@@ -233,7 +233,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { _ = testEnv.Stop() })
 
-			cli, err := client.New(cfg, client.Options{Scheme: k8sutil.Scheme()})
+			cli, err := client.New(cfg, client.Options{Scheme: kubeutils.Scheme})
 			require.NoError(t, err)
 
 			for _, obj := range tt.initRuntimeObjs {
@@ -397,7 +397,7 @@ func TestListArtifactsJobForNodes(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { _ = testEnv.Stop() })
 
-			cli, err := client.New(cfg, client.Options{Scheme: k8sutil.Scheme()})
+			cli, err := client.New(cfg, client.Options{Scheme: kubeutils.Scheme})
 			require.NoError(t, err)
 
 			for _, obj := range tt.initRuntimeObjs {
