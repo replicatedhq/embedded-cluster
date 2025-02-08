@@ -9,7 +9,7 @@ import (
 )
 
 func pullArtifact(ctx context.Context, from string) (string, error) {
-	tmpdir, err := os.MkdirTemp("", "embedded-cluster-metadata-*")
+	tmpdir, err := os.MkdirTemp("", "lam-artifact-*")
 	if err != nil {
 		return "", fmt.Errorf("create temp dir: %w", err)
 	}
