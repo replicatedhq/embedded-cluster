@@ -6,11 +6,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ohler55/ojg/jp"
-<<<<<<< HEAD
-	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/strvals"
-=======
->>>>>>> 78f65313 (f)
 	k8syaml "sigs.k8s.io/yaml"
 )
 
