@@ -347,7 +347,6 @@ check_pod_install_order() {
     local ingress_install_time=
     ingress_install_time=$(kubectl get pods --no-headers=true -n ingress-nginx -o jsonpath='{.items[*].metadata.creationTimestamp}' | sort | head -n 1)
 
-
     local openebs_install_time=
     openebs_install_time=$(kubectl get pods --no-headers=true -n openebs -o jsonpath='{.items[*].metadata.creationTimestamp}' | sort | head -n 1)
 
@@ -377,7 +376,9 @@ install_kots_cli() {
     echo "installing kots cli"
     local ec_version=
     ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}' | cut -d'-' -f1)
-    curl "https://kots.io/install/$ec_version" | bash
+    curl --retry 5 -fL -o /tmp/kotsinstall.sh "https://kots.io/install/$ec_version"
+    chmod +x /tmp/kotsinstall.sh
+    /tmp/kotsinstall.sh
 }
 
 maybe_install_curl() {
