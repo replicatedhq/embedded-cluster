@@ -537,6 +537,8 @@ func (h *HelmClient) getRESTClientGetter(namespace string) genericclioptions.RES
 }
 
 func cleanUpGenericMap(m map[string]interface{}) (map[string]interface{}, error) {
+	// we must first use yaml marshal to convert the map[interface{}]interface{} to a []byte
+	// otherwise we will get an error "unsupported type: map[interface {}]interface {}"
 	b, err := yaml.Marshal(m)
 	if err != nil {
 		return nil, fmt.Errorf("yaml marshal: %w", err)
