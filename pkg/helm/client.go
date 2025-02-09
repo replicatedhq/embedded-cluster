@@ -219,6 +219,24 @@ func (h *HelmClient) Latest(reponame, chart string) (string, error) {
 	return "", fmt.Errorf("repository %s not found", reponame)
 }
 
+func (h *HelmClient) PullByRefWithRetries(ctx context.Context, ref string, version string, tries int) (string, error) {
+	for i := 0; ; i++ {
+		localPath, err := h.PullByRef(ref, version)
+		if err == nil {
+			return localPath, nil
+		}
+		logrus.Debugf("Failed to pull %s:%v (%d/%d): %v", ref, version, i+1, tries, err)
+		if i == tries-1 {
+			return "", err
+		}
+		select {
+		case <-time.After(5 * time.Second):
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
+}
+
 func (h *HelmClient) Pull(reponame, chart string, version string) (string, error) {
 	ref := fmt.Sprintf("%s/%s", reponame, chart)
 	return h.PullByRef(ref, version)
@@ -321,7 +339,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 	var localPath string
 	if h.airgapPath == "" {
 		// online, pull chart from remote
-		localPath, err = h.PullByRef(opts.ChartPath, opts.ChartVersion)
+		localPath, err = h.PullByRefWithRetries(ctx, opts.ChartPath, opts.ChartVersion, 3)
 		if err != nil {
 			return nil, fmt.Errorf("pull: %w", err)
 		}
@@ -378,7 +396,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release
 	var localPath string
 	if h.airgapPath == "" {
 		// online, pull chart from remote
-		localPath, err = h.PullByRef(opts.ChartPath, opts.ChartVersion)
+		localPath, err = h.PullByRefWithRetries(ctx, opts.ChartPath, opts.ChartVersion, 3)
 		if err != nil {
 			return nil, fmt.Errorf("pull: %w", err)
 		}
