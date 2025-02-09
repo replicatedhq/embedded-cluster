@@ -40,7 +40,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/vmware-tanzu/velero v1.15.2
 	go.uber.org/multierr v1.11.0
-	golang.org/x/crypto v0.32.0
+	golang.org/x/crypto v0.33.0
 	golang.org/x/sync v0.11.0
 	golang.org/x/term v0.29.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -339,7 +339,7 @@ require (
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/oauth2 v0.25.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
 	google.golang.org/protobuf v1.36.2 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
