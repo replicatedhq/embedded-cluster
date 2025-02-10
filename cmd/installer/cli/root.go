@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"syscall"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -67,6 +68,10 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 			if os.Getenv("DISABLE_TELEMETRY") != "" {
 				metrics.DisableMetrics()
 			}
+
+			// set umask to 0022 so that files created by embedded-cluster are world-readable but not executable by default
+			oldUmask := syscall.Umask(0o022)
+			defer syscall.Umask(oldUmask)
 
 			return nil
 		},
