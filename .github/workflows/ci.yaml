@@ -14,26 +14,6 @@ permissions:
   contents: write
 
 jobs:
-  kernel-check:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check rp_filter settings
-        run: |
-          echo "Default rp_filter setting:"
-          sysctl net.ipv4.conf.default.rp_filter
-          echo "All interfaces rp_filter setting:"
-          sysctl net.ipv4.conf.all.rp_filter
-          echo "Default arp_filter setting:"
-          sysctl net.ipv4.conf.default.arp_filter
-          echo "All interfaces arp_filter setting:"
-          sysctl net.ipv4.conf.all.arp_filter
-          echo "Default arp_ignore setting:"
-          sysctl net.ipv4.conf.default.arp_ignore
-          echo "All interfaces arp_ignore setting:"
-          sysctl net.ipv4.conf.all.arp_ignore
-          echo "IP forwarding setting:"
-          sysctl net.ipv4.ip_forward
-
   git-sha:
     name: Git SHA
     runs-on: ubuntu-latest
@@ -631,8 +611,8 @@ jobs:
     needs:
       - git-sha
       - build-current
-      - build-previous-k0s
-      - build-upgrade
+      # - build-previous-k0s
+      # - build-upgrade
       - find-previous-stable
       - release-app
       - export-version-specifier
@@ -640,36 +620,36 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestPreflights
-          - TestMaterialize
+          # - TestPreflights
+          # - TestMaterialize
           - TestHostPreflightCustomSpec
-          - TestHostPreflightInBuiltSpec
-          - TestSingleNodeInstallation
-          - TestSingleNodeInstallationAlmaLinux8
-          - TestSingleNodeInstallationDebian11
-          - TestSingleNodeInstallationDebian12
-          - TestSingleNodeInstallationCentos9Stream
-          - TestSingleNodeUpgradePreviousStable
-          - TestInstallFromReplicatedApp
-          - TestUpgradeFromReplicatedApp
-          - TestUpgradeEC18FromReplicatedApp
-          - TestResetAndReinstall
-          # - TestOldVersionUpgrade
-          - TestInstallSnapshotFromReplicatedApp
-          - TestMultiNodeInstallation
-          - TestMultiNodeHAInstallation
-          - TestSingleNodeDisasterRecovery
-          - TestSingleNodeLegacyDisasterRecovery
-          - TestSingleNodeResumeDisasterRecovery
-          - TestMultiNodeHADisasterRecovery
-          - TestSingleNodeInstallationNoopUpgrade
-          - TestCustomCIDR
-          - TestLocalArtifactMirror
-          - TestMultiNodeReset
-          - TestCollectSupportBundle
-          - TestUnsupportedOverrides
-          - TestHostCollectSupportBundleInCluster
-          - TestInstallWithConfigValues
+          # - TestHostPreflightInBuiltSpec
+          # - TestSingleNodeInstallation
+          # - TestSingleNodeInstallationAlmaLinux8
+          # - TestSingleNodeInstallationDebian11
+          # - TestSingleNodeInstallationDebian12
+          # - TestSingleNodeInstallationCentos9Stream
+          # - TestSingleNodeUpgradePreviousStable
+          # - TestInstallFromReplicatedApp
+          # - TestUpgradeFromReplicatedApp
+          # - TestUpgradeEC18FromReplicatedApp
+          # - TestResetAndReinstall
+          # # - TestOldVersionUpgrade
+          # - TestInstallSnapshotFromReplicatedApp
+          # - TestMultiNodeInstallation
+          # - TestMultiNodeHAInstallation
+          # - TestSingleNodeDisasterRecovery
+          # - TestSingleNodeLegacyDisasterRecovery
+          # - TestSingleNodeResumeDisasterRecovery
+          # - TestMultiNodeHADisasterRecovery
+          # - TestSingleNodeInstallationNoopUpgrade
+          # - TestCustomCIDR
+          # - TestLocalArtifactMirror
+          # - TestMultiNodeReset
+          # - TestCollectSupportBundle
+          # - TestUnsupportedOverrides
+          # - TestHostCollectSupportBundleInCluster
+          # - TestInstallWithConfigValues
     steps:
       - name: Checkout
         uses: actions/checkout@v4

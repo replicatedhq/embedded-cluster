@@ -28,12 +28,12 @@ func ConfigureSysctl() error {
 	}
 
 	if err := sysctlConfig(sysctlConfigPath); err != nil {
-		logrus.Debugf("unable to materialize sysctl config: %v", err)
+		logrus.Infof("unable to materialize sysctl config: %v", err)
 		return nil
 	}
 
 	if _, err := helpers.RunCommand("sysctl", "--system"); err != nil {
-		logrus.Debugf("unable to configure sysctl: %v", err)
+		logrus.Infof("unable to configure sysctl: %v", err)
 	}
 	return nil
 }
