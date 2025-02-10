@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
@@ -22,7 +21,7 @@ func AddInsecureRegistry(registry string) error {
 	parentDir := runtimeconfig.PathToK0sContainerdConfig()
 	contents := fmt.Sprintf(registryConfigTemplate, registry)
 
-	if err := helpers.MkdirAll(parentDir, 0755); err != nil {
+	if err := os.MkdirAll(parentDir, 0755); err != nil {
 		return fmt.Errorf("failed to ensure containerd directory exists: %w", err)
 	}
 

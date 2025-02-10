@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"sigs.k8s.io/yaml"
@@ -46,7 +45,7 @@ func EmbeddedClusterHomeDirectory() string {
 func EmbeddedClusterTmpSubDir() string {
 	path := filepath.Join(EmbeddedClusterHomeDirectory(), "tmp")
 
-	if err := helpers.MkdirAll(path, 0755); err != nil {
+	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster tmp dir: %s", err)
 	}
 	return path
@@ -57,7 +56,7 @@ func EmbeddedClusterTmpSubDir() string {
 func EmbeddedClusterBinsSubDir() string {
 	path := filepath.Join(EmbeddedClusterHomeDirectory(), "bin")
 
-	if err := helpers.MkdirAll(path, 0755); err != nil {
+	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster bin dir: %s", err)
 	}
 	return path
@@ -68,7 +67,7 @@ func EmbeddedClusterBinsSubDir() string {
 func EmbeddedClusterChartsSubDir() string {
 	path := filepath.Join(EmbeddedClusterHomeDirectory(), "charts")
 
-	if err := helpers.MkdirAll(path, 0755); err != nil {
+	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster charts dir: %s", err)
 	}
 	return path
@@ -83,7 +82,7 @@ func EmbeddedClusterChartsSubDirNoCreate() string {
 // EmbeddedClusterImagesSubDir returns the path to the directory where docker images are stored.
 func EmbeddedClusterImagesSubDir() string {
 	path := filepath.Join(EmbeddedClusterHomeDirectory(), "images")
-	if err := helpers.MkdirAll(path, 0755); err != nil {
+	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster images dir: %s", err)
 	}
 	return path
@@ -127,7 +126,7 @@ func PathToKubeConfig() string {
 // a running cluster should be stored into this directory.
 func EmbeddedClusterSupportSubDir() string {
 	path := filepath.Join(EmbeddedClusterHomeDirectory(), "support")
-	if err := helpers.MkdirAll(path, 0700); err != nil {
+	if err := os.MkdirAll(path, 0700); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster support dir: %s", err)
 	}
 	return path
@@ -142,7 +141,7 @@ func PathToEmbeddedClusterSupportFile(name string) string {
 func WriteToDisk() error {
 	location := PathToECConfig()
 
-	err := helpers.MkdirAll(filepath.Dir(location), 0755)
+	err := os.MkdirAll(filepath.Dir(location), 0755)
 	if err != nil {
 		return fmt.Errorf("unable to create runtime config directory: %w", err)
 	}

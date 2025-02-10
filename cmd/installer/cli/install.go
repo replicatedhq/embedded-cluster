@@ -802,7 +802,7 @@ func systemdUnitFileName() string {
 // systemd directory (/etc/systemd/system/k0scontroller.service.d/).
 func ensureProxyConfig(servicePath string, httpProxy string, httpsProxy string, noProxy string) error {
 	// create the directory
-	if err := helpers.MkdirAll(servicePath, 0755); err != nil {
+	if err := os.MkdirAll(servicePath, 0755); err != nil {
 		return fmt.Errorf("unable to create directory: %w", err)
 	}
 
