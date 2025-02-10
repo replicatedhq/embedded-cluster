@@ -611,8 +611,8 @@ jobs:
     needs:
       - git-sha
       - build-current
-      # - build-previous-k0s
-      # - build-upgrade
+      - build-previous-k0s
+      - build-upgrade
       - find-previous-stable
       - release-app
       - export-version-specifier
