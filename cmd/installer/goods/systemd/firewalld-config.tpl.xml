@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<zone target="ACCEPT">
-  <short>embedded-cluster</short>
+<zone target="default">
+  <short>Embedded Cluster</short>
   <description>Zone for Embedded Cluster communication</description>
   <source address="{{ .PodCIDR }}"/>
   <source address="{{ .ServiceCIDR }}"/>
+  <port port="6443" protocol="tcp"/>
+  <port port="8132" protocol="tcp"/>
+  <port port="10250" protocol="tcp"/>
+  <port port="179" protocol="tcp"/>
+  <port port="179" protocol="udp"/>
+  <port port="80" protocol="tcp"/>
+  <masquerade/>
 </zone>

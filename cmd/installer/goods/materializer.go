@@ -250,7 +250,7 @@ func (m *Materializer) FirewalldConfig(podCIDR, svcCIDR string) error {
 		return fmt.Errorf("unable to parse firewalld config file: %w", err)
 	}
 
-	dst := "/usr/lib/firewalld/zones/embedded-cluster.xml"
+	dst := "/etc/firewalld/zones/embedded-cluster.xml"
 	fp, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to open firewalld config file: %w", err)
