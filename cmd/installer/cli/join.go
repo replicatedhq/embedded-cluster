@@ -26,6 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 )
@@ -40,9 +41,7 @@ type JoinCmdFlags struct {
 	ignoreHostPreflights   bool
 }
 
-// This is the upcoming version of join without the operator and where
-// join does all of the work. This is a hidden command until it's tested
-// and ready.
+// JoinCmd returns a cobra command for joining a node to the cluster.
 func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	var flags JoinCmdFlags
 
@@ -171,21 +170,6 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		return fmt.Errorf("unable to get kube client: %w", err)
 	}
 
-	airgapChartsPath := ""
-	if flags.isAirgap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
-	}
-
-	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to create helm client: %w", err)
-	}
-	defer hcli.Close()
-
 	hostname, err := os.Hostname()
 	if err != nil {
 		return fmt.Errorf("unable to get hostname: %w", err)
@@ -196,7 +180,27 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	}
 
 	if flags.enableHighAvailability {
-		if err := maybeEnableHA(ctx, kcli, hcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config); err != nil {
+		kclient, err := kubeutils.GetClientset()
+		if err != nil {
+			return fmt.Errorf("unable to create kubernetes client: %w", err)
+		}
+
+		airgapChartsPath := ""
+		if flags.isAirgap {
+			airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+		}
+
+		hcli, err := helm.NewClient(helm.HelmOptions{
+			KubeConfig: runtimeconfig.PathToKubeConfig(),
+			K0sVersion: versions.K0sVersion,
+			AirgapPath: airgapChartsPath,
+		})
+		if err != nil {
+			return fmt.Errorf("unable to create helm client: %w", err)
+		}
+		defer hcli.Close()
+
+		if err := maybeEnableHA(ctx, kcli, kclient, hcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config); err != nil {
 			return fmt.Errorf("unable to enable high availability: %w", err)
 		}
 	}
@@ -460,8 +464,8 @@ func waitForNode(ctx context.Context, kcli client.Client, hostname string) error
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
-	canEnableHA, err := addons.CanEnableHA(ctx, kcli)
+func maybeEnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interface, hcli helm.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
+	canEnableHA, _, err := addons.CanEnableHA(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
 	}
@@ -476,5 +480,5 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, is
 		return nil
 	}
 	logrus.Info("")
-	return addons.EnableHA(ctx, kcli, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
+	return addons.EnableHA(ctx, kcli, kclient, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
 }

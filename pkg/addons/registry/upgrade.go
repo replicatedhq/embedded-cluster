@@ -2,11 +2,11 @@ package registry
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,7 +26,7 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Cl
 		return errors.Wrap(err, "check if release exists")
 	}
 	if !exists {
-		slog.Info("Release not found, installing", "release", releaseName, "namespace", namespace)
+		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, namespace)
 		if err := r.Install(ctx, kcli, hcli, overrides, nil); err != nil {
 			return errors.Wrap(err, "install")
 		}
@@ -60,7 +60,7 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Cl
 
 func (r *Registry) createUpgradePreRequisites(ctx context.Context, kcli client.Client) error {
 	if r.IsHA {
-		if err := createS3Secret(ctx, kcli); err != nil {
+		if err := ensureS3Secret(ctx, kcli); err != nil {
 			return errors.Wrap(err, "create s3 secret")
 		}
 	}
@@ -68,7 +68,7 @@ func (r *Registry) createUpgradePreRequisites(ctx context.Context, kcli client.C
 	return nil
 }
 
-func createS3Secret(ctx context.Context, kcli client.Client) error {
+func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 	accessKey, secretKey, err := seaweedfs.GetS3RWCreds(ctx, kcli)
 	if err != nil {
 		return errors.Wrap(err, "get seaweedfs s3 rw creds")

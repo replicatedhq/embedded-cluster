@@ -17,32 +17,11 @@ import (
 )
 
 func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
-	if err := s.createPreRequisites(ctx, kcli); err != nil {
-		return errors.Wrap(err, "create prerequisites")
-	}
-
-	values, err := s.GenerateHelmValues(ctx, kcli, overrides)
-	if err != nil {
-		return errors.Wrap(err, "generate helm values")
-	}
-
-	_, err = hcli.Install(ctx, helm.InstallOptions{
-		ReleaseName:  releaseName,
-		ChartPath:    Metadata.Location,
-		ChartVersion: Metadata.Version,
-		Values:       values,
-		Namespace:    namespace,
-		Labels:       getBackupLabels(),
-	})
-	if err != nil {
-		return errors.Wrap(err, "helm install")
-	}
-
-	return nil
+	return s.Upgrade(ctx, kcli, hcli, overrides)
 }
 
-func (s *SeaweedFS) createPreRequisites(ctx context.Context, kcli client.Client) error {
-	if err := createNamespace(ctx, kcli, namespace); err != nil {
+func (s *SeaweedFS) ensurePreRequisites(ctx context.Context, kcli client.Client) error {
+	if err := ensureNamespace(ctx, kcli, namespace); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
 
@@ -50,14 +29,14 @@ func (s *SeaweedFS) createPreRequisites(ctx context.Context, kcli client.Client)
 		return errors.Wrap(err, "create s3 service")
 	}
 
-	if err := createS3Secret(ctx, kcli); err != nil {
+	if err := ensureS3Secret(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create s3 secret")
 	}
 
 	return nil
 }
 
-func createNamespace(ctx context.Context, kcli client.Client, namespace string) error {
+func ensureNamespace(ctx context.Context, kcli client.Client, namespace string) error {
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
@@ -121,7 +100,7 @@ func ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) 
 	return nil
 }
 
-func createS3Secret(ctx context.Context, kcli client.Client) error {
+func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 	var config seaweedfsConfig
 	config.Identities = append(config.Identities, seaweedfsIdentity{
 		Name: "anvAdmin",

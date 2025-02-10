@@ -33,7 +33,6 @@ type KubeUtilsInterface interface {
 	IsDeploymentReady(ctx context.Context, cli client.Client, ns, name string) (bool, error)
 	IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error)
 	IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error)
-	IsJobComplete(ctx context.Context, cli client.Client, ns, name string, completions int32) (bool, error)
 	WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error
 	WaitForCRDToBeReady(ctx context.Context, cli client.Client, name string) error
 	KubeClient() (client.Client, error)
@@ -104,10 +103,6 @@ func IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string)
 
 func IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
 	return kb.IsDaemonsetReady(ctx, cli, ns, name)
-}
-
-func IsJobComplete(ctx context.Context, cli client.Client, ns, name string, completions int32) (bool, error) {
-	return kb.IsJobComplete(ctx, cli, ns, name, completions)
 }
 
 func WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,10 +23,11 @@ func Test_canEnableHA(t *testing.T) {
 		kcli client.Client
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    bool
-		wantErr bool
+		name       string
+		args       args
+		want       bool
+		wantReason string
+		wantErr    bool
 	}{
 		{
 			name: "high availability is not enabled and there is three or more controller nodes",
@@ -55,7 +57,8 @@ func Test_canEnableHA(t *testing.T) {
 					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node3"}},
 				).Build(),
 			},
-			want: false,
+			want:       false,
+			wantReason: "number of control plane nodes is less than 3",
 		},
 		{
 			name: "high availability is already enabled",
@@ -70,7 +73,8 @@ func Test_canEnableHA(t *testing.T) {
 					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node3", Labels: controllerLabels}},
 				).Build(),
 			},
-			want: false,
+			want:       false,
+			wantReason: "already enabled",
 		},
 		{
 			name: "high availability is not enabled and there is three or more controller nodes but a restore is in progress",
@@ -88,20 +92,23 @@ func Test_canEnableHA(t *testing.T) {
 					&v12.Node{ObjectMeta: v1.ObjectMeta{Name: "node3", Labels: controllerLabels}},
 				).Build(),
 			},
-			want: false,
+			want:       false,
+			wantReason: "a restore is in progress",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
+			assert := assert.New(t)
 			ctx := context.Background()
-			got, err := CanEnableHA(ctx, tt.args.kcli)
+			got, reason, err := CanEnableHA(ctx, tt.args.kcli)
 			if tt.wantErr {
 				req.Error(err)
 				return
 			}
 			req.NoError(err)
-			req.Equal(tt.want, got)
+			assert.Equal(tt.want, got)
+			assert.Equal(tt.wantReason, reason)
 		})
 	}
 }

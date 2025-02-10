@@ -64,10 +64,6 @@ func (k *KubeUtils) IsDaemonsetReady(ctx context.Context, cli client.Client, ns,
 	return true, nil
 }
 
-func (k *KubeUtils) IsJobComplete(ctx context.Context, cli client.Client, ns, name string, completions int32) (bool, error) {
-	return true, nil
-}
-
 func (k *KubeUtils) WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error {
 	errCh := make(chan error)
 	close(errCh)
