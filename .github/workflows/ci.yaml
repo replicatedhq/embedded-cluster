@@ -14,6 +14,26 @@ permissions:
   contents: write
 
 jobs:
+  kernel-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check rp_filter settings
+        run: |
+          echo "Default rp_filter setting:"
+          sysctl net.ipv4.conf.default.rp_filter
+          echo "All interfaces rp_filter setting:"
+          sysctl net.ipv4.conf.all.rp_filter
+          echo "Default arp_filter setting:"
+          sysctl net.ipv4.conf.default.arp_filter
+          echo "All interfaces arp_filter setting:"
+          sysctl net.ipv4.conf.all.arp_filter
+          echo "Default arp_ignore setting:"
+          sysctl net.ipv4.conf.default.arp_ignore
+          echo "All interfaces arp_ignore setting:"
+          sysctl net.ipv4.conf.all.arp_ignore
+          echo "IP forwarding setting:"
+          sysctl net.ipv4.ip_forward
+
   git-sha:
     name: Git SHA
     runs-on: ubuntu-latest
