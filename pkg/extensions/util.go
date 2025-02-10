@@ -11,7 +11,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 	helmrepo "helm.sh/helm/v3/pkg/repo"
 )
 
@@ -40,12 +39,12 @@ func addRepos(hcli helm.Client, repos []k0sv1beta1.Repository) error {
 }
 
 func install(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
-	var values map[string]interface{}
-	if err := yaml.Unmarshal([]byte(ext.Values), &values); err != nil {
+	values, err := helm.UnmarshalValues(ext.Values)
+	if err != nil {
 		return errors.Wrap(err, "unmarshal values")
 	}
 
-	_, err := hcli.Install(ctx, helm.InstallOptions{
+	_, err = hcli.Install(ctx, helm.InstallOptions{
 		ReleaseName:  ext.Name,
 		ChartPath:    ext.ChartName,
 		ChartVersion: ext.Version,
@@ -61,8 +60,8 @@ func install(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 }
 
 func upgrade(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
-	var values map[string]interface{}
-	if err := yaml.Unmarshal([]byte(ext.Values), &values); err != nil {
+	values, err := helm.UnmarshalValues(ext.Values)
+	if err != nil {
 		return errors.Wrap(err, "unmarshal values")
 	}
 
@@ -78,7 +77,7 @@ func upgrade(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 	if ext.ForceUpgrade != nil {
 		opts.Force = *ext.ForceUpgrade
 	}
-	_, err := hcli.Upgrade(ctx, opts)
+	_, err = hcli.Upgrade(ctx, opts)
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")
 	}

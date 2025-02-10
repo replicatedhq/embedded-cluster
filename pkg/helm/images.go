@@ -8,8 +8,8 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/chart"
+	k8syaml "sigs.k8s.io/yaml"
 )
 
 type reducedResource struct {
@@ -101,7 +101,7 @@ func extractImagesFromK8sManifest(resource []byte) ([]string, error) {
 	images := []string{}
 
 	r := reducedResource{}
-	if err := yaml.Unmarshal([]byte(resource), &r); err != nil {
+	if err := k8syaml.Unmarshal([]byte(resource), &r); err != nil {
 		// Not a k8s resource, ignore
 		return nil, nil
 	}
