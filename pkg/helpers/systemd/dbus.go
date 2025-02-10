@@ -207,12 +207,19 @@ func (d *DBus) UnitExists(ctx context.Context, unit string) (bool, error) {
 
 	unit = normalizeUnitName(unit)
 
-	status, err := conn.ListUnitsByNamesContext(ctx, []string{unit})
+	// ListUnitsByNames added in v230+ which is too new for Amazon Linux 2
+	// https://github.com/systemd/systemd/pull/3182
+	statuses, err := conn.ListUnitsContext(ctx)
 	if err != nil {
 		return false, fmt.Errorf("list units: %w", err)
 	}
+	for _, status := range statuses {
+		if status.Name == unit {
+			return true, nil
+		}
+	}
 
-	return len(status) > 0, nil
+	return false, nil
 }
 
 // Reload instructs systemd to reload the unit files.
