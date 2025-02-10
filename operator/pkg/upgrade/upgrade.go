@@ -9,11 +9,9 @@ import (
 
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
@@ -77,7 +75,7 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1b
 		slog.Error("Failed to upgrade host support bundle", "error", err)
 	}
 
-	err = k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateInstalled, "Installed")
+	err = kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateInstalled, "Installed")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -105,9 +103,9 @@ func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installati
 
 	// check if the k0s version is the same as the current version
 	// if it is, we can skip the upgrade
-	desiredVersion := k8sutil.K0sVersionFromMetadata(meta)
+	desiredVersion := k0sVersionFromMetadata(meta)
 
-	match, err := k8sutil.ClusterNodesMatchVersion(ctx, cli, desiredVersion)
+	match, err := clusterNodesMatchVersion(ctx, cli, desiredVersion)
 	if err != nil {
 		return fmt.Errorf("check cluster nodes match version: %w", err)
 	}
@@ -117,7 +115,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installati
 
 	slog.Info("Upgrading k0s", "version", desiredVersion)
 
-	if err := k8sutil.SetInstallationState(ctx, cli, in.Name, ecv1beta1.InstallationStateInstalling, "Upgrading Kubernetes", ""); err != nil {
+	if err := kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateInstalling, "Upgrading Kubernetes", ""); err != nil {
 		return fmt.Errorf("update installation status: %w", err)
 	}
 
@@ -155,7 +153,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installati
 		return upgradeK0s(ctx, cli, in)
 	}
 
-	match, err = k8sutil.ClusterNodesMatchVersion(ctx, cli, desiredVersion)
+	match, err = clusterNodesMatchVersion(ctx, cli, desiredVersion)
 	if err != nil {
 		return fmt.Errorf("check cluster nodes match version after plan completion: %w", err)
 	}
@@ -169,7 +167,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installati
 		return fmt.Errorf("delete successful upgrade plan: %w", err)
 	}
 
-	err = k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateKubernetesInstalled, "Kubernetes upgraded")
+	err = kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes upgraded")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -209,7 +207,7 @@ func updateClusterConfig(ctx context.Context, cli client.Client) error {
 }
 
 func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1beta1.Installation) error {
-	err := k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalling, "Upgrading addons")
+	err := kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateAddonsInstalling, "Upgrading addons")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -226,7 +224,7 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, in 
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 
-	err = k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalled, "Addons upgraded")
+	err = kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateAddonsInstalled, "Addons upgraded")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -235,7 +233,7 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, in 
 }
 
 func upgradeExtensions(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1beta1.Installation) error {
-	err := k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalling, "Upgrading extensions")
+	err := kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateAddonsInstalling, "Upgrading extensions")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -249,7 +247,7 @@ func upgradeExtensions(ctx context.Context, cli client.Client, hcli helm.Client,
 		return fmt.Errorf("upgrade extensions: %w", err)
 	}
 
-	err = k8sutil.SetInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateAddonsInstalled, "Extensions upgraded")
+	err = kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateAddonsInstalled, "Extensions upgraded")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -269,7 +267,7 @@ func createAutopilotPlan(ctx context.Context, cli client.Client, desiredVersion 
 		// there is no autopilot plan in the cluster so we are free to
 		// start our own plan. here we link the plan to the installation
 		// by its name.
-		if err := StartAutopilotUpgrade(ctx, cli, in, meta); err != nil {
+		if err := startAutopilotUpgrade(ctx, cli, in, meta); err != nil {
 			return fmt.Errorf("start upgrade: %w", err)
 		}
 	}

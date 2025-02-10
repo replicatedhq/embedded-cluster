@@ -6,9 +6,9 @@ import (
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -127,10 +127,7 @@ func handleExtensionUninstall(ctx context.Context, kcli client.Client, hcli helm
 func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, action helmAction, processFn func() error) error {
 	slogArgs := slogArgs(ext, action)
 
-	processed, err := extensionAlreadyProcessed(ctx, kcli, in, ext)
-	if err != nil {
-		return errors.Wrap(err, "check if extension is already processed")
-	} else if processed {
+	if extensionAlreadyProcessed(in, ext) {
 		slog.Info("Extension already processed!", slogArgs...)
 		return nil
 	}
@@ -138,13 +135,13 @@ func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Inst
 	slog.Info("Extension processing", slogArgs...)
 
 	if action != actionNoChange {
-		err = markExtensionAsProcessing(ctx, kcli, in, ext, action)
+		err := markExtensionAsProcessing(ctx, kcli, in, ext, action)
 		if err != nil {
 			return errors.Wrap(err, "mark extension as processing")
 		}
 	}
 
-	err = processFn()
+	err := processFn()
 	if err != nil {
 		if err := markExtensionAsFailed(ctx, kcli, in, ext, action, err); err != nil {
 			slog.Error("Failed to mark extension as failed", append(slogArgs, "error", err)...)
@@ -162,12 +159,9 @@ func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Inst
 	return nil
 }
 
-func extensionAlreadyProcessed(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) (bool, error) {
-	conditionStatus, err := k8sutil.GetConditionStatus(ctx, kcli, in.Name, conditionName(ext))
-	if err != nil {
-		return false, errors.Wrap(err, "get condition status")
-	}
-	return conditionStatus == metav1.ConditionTrue, nil
+func extensionAlreadyProcessed(in *ecv1beta1.Installation, ext ecv1beta1.Chart) bool {
+	conditionStatus := kubeutils.CheckInstallationConditionStatus(in.Status, conditionName(ext))
+	return conditionStatus == metav1.ConditionTrue
 }
 
 func markExtensionAsProcessing(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, action helmAction) error {
@@ -207,7 +201,7 @@ func formatAction(action helmAction) (ing, ed string) {
 }
 
 func setCondition(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, conditionType string, status metav1.ConditionStatus, reason, message string) error {
-	return k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
+	return kubeutils.SetInstallationConditionStatus(ctx, kcli, in, metav1.Condition{
 		Type:    conditionType,
 		Status:  status,
 		Reason:  reason,

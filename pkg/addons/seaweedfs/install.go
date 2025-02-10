@@ -46,7 +46,7 @@ func (s *SeaweedFS) createPreRequisites(ctx context.Context, kcli client.Client)
 		return errors.Wrap(err, "create namespace")
 	}
 
-	if err := createService(ctx, kcli, s.ServiceCIDR); err != nil {
+	if err := ensureService(ctx, kcli, s.ServiceCIDR); err != nil {
 		return errors.Wrap(err, "create s3 service")
 	}
 
@@ -69,7 +69,7 @@ func createNamespace(ctx context.Context, kcli client.Client, namespace string) 
 	return nil
 }
 
-func createService(ctx context.Context, kcli client.Client, serviceCIDR string) error {
+func ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) error {
 	if serviceCIDR == "" {
 		return errors.New("service CIDR not present")
 	}
@@ -99,6 +99,20 @@ func createService(ctx context.Context, kcli client.Client, serviceCIDR string) 
 	}
 
 	obj.ObjectMeta.Labels = ApplyLabels(obj.ObjectMeta.Labels, "s3")
+
+	var existingObj corev1.Service
+	if err := kcli.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: obj.Namespace}, &existingObj); err != nil && !k8serrors.IsNotFound(err) {
+		return errors.Wrap(err, "get s3 service")
+	} else if err == nil {
+		// if the service already exists and has the correct cluster IP, do not recreate it
+		if existingObj.Spec.ClusterIP == clusterIP {
+			return nil
+		}
+		err := kcli.Delete(ctx, &existingObj)
+		if err != nil {
+			return errors.Wrap(err, "delete existing s3 service")
+		}
+	}
 
 	if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "create s3 service")

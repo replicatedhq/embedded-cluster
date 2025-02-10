@@ -148,7 +148,7 @@ func ResolveApkoPackageVersion(componentName, packageName, packageVersion string
 	cmd := exec.Command("make", args...)
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("run command: %w", err)
+		return "", fmt.Errorf("run command: %w: %s", err, string(out))
 	}
 	return strings.TrimSpace(string(out)), nil
 }
@@ -170,15 +170,6 @@ func FamiliarImageName(imageName string) string {
 		panic(fmt.Errorf("parse image name %s: %w", imageName, err))
 	}
 	return reference.FamiliarName(ref)
-}
-
-func GetLatestGitHubRelease(ctx context.Context, owner, repo string) (string, error) {
-	client := github.NewClient(nil)
-	release, _, err := client.Repositories.GetLatestRelease(ctx, owner, repo)
-	if err != nil {
-		return "", err
-	}
-	return release.GetName(), nil
 }
 
 func latestPatchConstraint(s *semver.Version) string {

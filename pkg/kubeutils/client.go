@@ -1,17 +1,13 @@
-package k8sutil
+package kubeutils
 
 import (
 	"fmt"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
 	autopilotv1beta2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
-	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
+	k0shelmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime"
+	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -19,35 +15,30 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-var (
-	newScheme = runtime.NewScheme()
-)
+var Scheme = scheme.Scheme
+var Codecs = scheme.Codecs
+var ParameterCodec = scheme.ParameterCodec
 
 func init() {
-	utilruntime.Must(scheme.AddToScheme(newScheme))
-
-	utilruntime.Must(embeddedclusterv1beta1.AddToScheme(newScheme))
-	utilruntime.Must(autopilotv1beta2.AddToScheme(newScheme))
-	utilruntime.Must(k0sv1beta1.AddToScheme(newScheme))
-	utilruntime.Must(k0shelm.AddToScheme(newScheme))
-}
-
-func Scheme() *runtime.Scheme {
-	return newScheme
+	utilruntime.Must(embeddedclusterv1beta1.AddToScheme(Scheme))
+	utilruntime.Must(autopilotv1beta2.AddToScheme(Scheme))
+	utilruntime.Must(k0sv1beta1.AddToScheme(Scheme))
+	utilruntime.Must(k0shelmv1beta1.AddToScheme(Scheme))
+	utilruntime.Must(velerov1.AddToScheme(Scheme))
 }
 
 // KubeClient returns a new kubernetes client.
-func KubeClient() (client.Client, error) {
+func (k *KubeUtils) KubeClient() (client.Client, error) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to process kubernetes config: %w", err)
 	}
-	return client.New(cfg, client.Options{Scheme: newScheme})
+	return client.New(cfg, client.Options{})
 }
 
 // RESTClientGetterFactory is a factory function that can be used to create namespaced
 // genericclioptions.RESTClientGetters.
-func RESTClientGetterFactory(namespace string) genericclioptions.RESTClientGetter {
+func (k *KubeUtils) RESTClientGetterFactory(namespace string) genericclioptions.RESTClientGetter {
 	cfgFlags := genericclioptions.NewConfigFlags(false)
 	if namespace != "" {
 		cfgFlags.Namespace = &namespace

@@ -20,7 +20,7 @@ func (o *OpenEBS) GenerateHelmValues(ctx context.Context, kcli client.Client, ov
 		return nil, errors.Wrap(err, "unmarshal helm values")
 	}
 
-	copiedValues, err = helm.SetValue(copiedValues, `["localpv-provisioner"].localpv.basePath`, runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir())
+	err = helm.SetValue(copiedValues, "localpv-provisioner.localpv.basePath", runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir())
 	if err != nil {
 		return nil, errors.Wrap(err, "set localpv-provisioner.localpv.basePath")
 	}

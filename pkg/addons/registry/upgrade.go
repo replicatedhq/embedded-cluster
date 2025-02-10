@@ -19,6 +19,7 @@ const (
 	s3SecretName = "seaweedfs-s3-rw"
 )
 
+// Upgrade upgrades the registry chart to the latest version.
 func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string) error {
 	exists, err := hcli.ReleaseExists(ctx, namespace, releaseName)
 	if err != nil {

@@ -65,7 +65,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
-		"kurlProxy.nodePort": int(30000),
+		"kurlProxy.nodePort": float64(30000),
 	})
 
 	// --- validate os env --- //
@@ -283,7 +283,7 @@ func TestCustomPortsInstallation(t *testing.T) {
 	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
-		"kurlProxy.nodePort": int(30002),
+		"kurlProxy.nodePort": float64(30002),
 	})
 
 	// --- validate host preflight spec --- //

@@ -22,13 +22,13 @@ func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, kcli client.Client, 
 	}
 
 	dataPath := filepath.Join(runtimeconfig.EmbeddedClusterSeaweedfsSubDir(), "ssd")
-	copiedValues, err = helm.SetValue(copiedValues, "master.data.hostPathPrefix", dataPath)
+	err = helm.SetValue(copiedValues, "master.data.hostPathPrefix", dataPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm values global.data.hostPathPrefix")
 	}
 
 	logsPath := filepath.Join(runtimeconfig.EmbeddedClusterSeaweedfsSubDir(), "storage")
-	copiedValues, err = helm.SetValue(copiedValues, "master.logs.hostPathPrefix", logsPath)
+	err = helm.SetValue(copiedValues, "master.logs.hostPathPrefix", logsPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm values global.logs.hostPathPrefix")
 	}

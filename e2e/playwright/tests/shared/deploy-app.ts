@@ -1,4 +1,5 @@
 import { Page, Expect } from '@playwright/test';
+import { vaidateAppAndClusterReady } from '.';
 
 export const deployApp = async (page: Page, expect: Expect) => {
   await expect(page.getByText('Optionally add nodes to the cluster'),).toBeVisible();
@@ -16,7 +17,5 @@ export const deployApp = async (page: Page, expect: Expect) => {
   await expect(page.getByRole('button', { name: 'Rerun' })).toBeVisible({ timeout: 10 * 1000 });
   await expect(page.locator('#app')).toContainText('The Volume Snapshots CRD exists');
   await page.getByRole('button', { name: 'Deploy' }).click();
-  await expect(page.locator('#app')).toContainText('Currently deployed version', { timeout: 90000 });
-  await expect(page.locator('#app')).toContainText('Ready', { timeout: 45000 });
-  await expect(page.locator('#app')).toContainText('Up to date');
+  await vaidateAppAndClusterReady(page, expect, 90000);
 };

@@ -78,7 +78,7 @@ jobs:
         INPUT_VELERO_VERSION: ${{ github.event.inputs.velero_version }}
         INPUT_VELERO_AWS_PLUGIN_VERSION: ${{ github.event.inputs.velero_aws_plugin_version }}
         INPUT_KUBECTL_VERSION: ${{ github.event.inputs.kubectl_version }}
-        INPUT_SEAWEEDFS_VERSION: ${{ github.event.inputs.seaweedfs_version }}
+        INPUT_SEAWEEDFS_VERSION: ${{ github.event.inputs.seaweedfs_version || '3.79' }}
         ARCHS: "amd64,arm64"
       run: |
         chmod +x ./output/bin/buildtools

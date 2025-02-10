@@ -39,7 +39,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
-	velerov1api "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1138,7 +1137,7 @@ func waitForVeleroRestoreCompleted(ctx context.Context, restoreName string) (*ve
 	}
 
 	for {
-		restore := velerov1api.Restore{}
+		restore := velerov1.Restore{}
 		err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: runtimeconfig.VeleroNamespace}, &restore)
 		if err != nil {
 			return nil, fmt.Errorf("unable to get restore: %w", err)
@@ -1412,7 +1411,7 @@ func restoreAppFromBackup(ctx context.Context, backup *velerov1.Backup, restore 
 	restoreName := fmt.Sprintf("%s.restore", backup.Name)
 
 	// check if a restore object already exists
-	rest := velerov1api.Restore{}
+	rest := velerov1.Restore{}
 	err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: runtimeconfig.VeleroNamespace}, &rest)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return fmt.Errorf("unable to get restore: %w", err)
@@ -1454,7 +1453,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 	restoreName := fmt.Sprintf("%s.%s", backup.Name, string(drComponent))
 
 	// check if a restore object already exists
-	rest := velerov1api.Restore{}
+	rest := velerov1.Restore{}
 	err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: runtimeconfig.VeleroNamespace}, &rest)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return fmt.Errorf("unable to get restore: %w", err)

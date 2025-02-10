@@ -1,50 +1,49 @@
 package helm
 
 import (
+	"encoding/json"
 	"fmt"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/k0sproject/dig"
 	"github.com/ohler55/ojg/jp"
-	"gopkg.in/yaml.v3"
+	"helm.sh/helm/v3/pkg/strvals"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
+// UnmarshalValues unmarshals the given JSON compatible YAML string into a map[string]interface{}.
 func UnmarshalValues(valuesYaml string) (map[string]interface{}, error) {
 	newValuesMap := map[string]interface{}{}
-	if err := yaml.Unmarshal([]byte(valuesYaml), &newValuesMap); err != nil {
+	if err := k8syaml.Unmarshal([]byte(valuesYaml), &newValuesMap); err != nil {
 		return nil, fmt.Errorf("yaml unmarshal: %w", err)
 	}
 	return newValuesMap, nil
 }
 
+// MarshalValues marshals the given map[string]interface{} into a JSON compatible YAML string.
 func MarshalValues(values map[string]interface{}) (string, error) {
-	newValuesYaml, err := yaml.Marshal(values)
+	newValuesYaml, err := k8syaml.Marshal(values)
 	if err != nil {
 		return "", fmt.Errorf("yaml marshal: %w", err)
 	}
 	return string(newValuesYaml), nil
 }
 
-// SetValue sets the value at the given path in the values map.
-// NOTE: this function does not support creating new maps. It only supports setting values in
-// existing ones.
-func SetValue(values map[string]interface{}, path string, newValue interface{}) (map[string]interface{}, error) {
-	newValuesMap := dig.Mapping(values)
-
-	x, err := jp.ParseString(path)
+// SetValue sets the value at the given path in the values map. It uses the notation defined by
+// helm "--set-json" flag.
+func SetValue(values map[string]interface{}, path string, newValue interface{}) error {
+	val, err := json.Marshal(newValue)
 	if err != nil {
-		return nil, fmt.Errorf("parse json path %q: %w", path, err)
+		return fmt.Errorf("parse value: %w", err)
 	}
-
-	err = x.Set(newValuesMap, newValue)
+	s := fmt.Sprintf("%s=%s", path, val)
+	err = strvals.ParseJSON(s, values)
 	if err != nil {
-		return nil, fmt.Errorf("set json path %q to %q: %w", path, newValue, err)
+		return fmt.Errorf("helm set json: %w", err)
 	}
-
-	return newValuesMap, nil
+	return nil
 }
 
+// GetValue gets the value at the given JSON path in the values map.
 func GetValue(values map[string]interface{}, path string) (interface{}, error) {
 	x, err := jp.ParseString(path)
 	if err != nil {
@@ -57,6 +56,7 @@ func GetValue(values map[string]interface{}, path string) (interface{}, error) {
 	return v[0], nil
 }
 
+// PatchValues patches the values map with the given RFC6902 JSON patch.
 func PatchValues(values map[string]interface{}, patchYAML string) (map[string]interface{}, error) {
 	if len(patchYAML) == 0 {
 		return values, nil
