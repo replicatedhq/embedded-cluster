@@ -48,20 +48,10 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - configmaps
-  - pods
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-  - update
-  - patch
-- apiGroups:
-  - ""
-  resources:
   - secrets
   - services
+  - configmaps
+  - pods
   verbs:
   - create
   - delete

@@ -3,6 +3,8 @@ package helm
 import (
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSetValue(t *testing.T) {
@@ -65,17 +67,173 @@ func TestSetValue(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "test create new map",
+			args: args{
+				values: map[string]interface{}{
+					"foo": map[string]interface{}{
+						"bar": "new value",
+					},
+				},
+				path:     "foo.baz",
+				newValue: map[string]interface{}{"buzz": "fizz"},
+			},
+			want: map[string]interface{}{
+				"foo": map[string]interface{}{
+					"bar": "new value",
+					"baz": map[string]interface{}{
+						"buzz": "fizz",
+					},
+				},
+			},
+		},
+		{
+			name: `can set adminconsole "kurlProxy.nodePort"`,
+			args: args{
+				values: map[string]interface{}{
+					"kurlProxy": map[string]interface{}{
+						"enabled":  true,
+						"nodePort": 30000,
+					},
+				},
+				path:     "kurlProxy.nodePort",
+				newValue: 30001,
+			},
+			want: map[string]interface{}{
+				"kurlProxy": map[string]interface{}{
+					"enabled":  true,
+					"nodePort": float64(30001),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: `can set openebs "localpv-provisioner.localpv.basePath"`,
+			args: args{
+				values: map[string]interface{}{
+					"localpv-provisioner": map[string]interface{}{
+						"analytics": map[string]interface{}{
+							"enabled": false,
+						},
+						"localpv": map[string]interface{}{
+							"image": map[string]interface{}{
+								"registry": "proxy.replicated.com/anonymous/",
+							},
+							"basePath": "/var/lib/embedded-cluster/openebs-local",
+						},
+					},
+				},
+				path:     "localpv-provisioner.localpv.basePath",
+				newValue: "/var/ec/openebs-local",
+			},
+			want: map[string]interface{}{
+				"localpv-provisioner": map[string]interface{}{
+					"analytics": map[string]interface{}{
+						"enabled": false,
+					},
+					"localpv": map[string]interface{}{
+						"image": map[string]interface{}{
+							"registry": "proxy.replicated.com/anonymous/",
+						},
+						"basePath": "/var/ec/openebs-local",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: `can set seaweedfs "master.data.hostPathPrefix"`,
+			args: args{
+				values: map[string]interface{}{
+					"master": map[string]interface{}{
+						"replicas":     1,
+						"nodeSelector": nil,
+						"data": map[string]interface{}{
+							"hostPathPrefix": "/var/lib/embedded-cluster/seaweedfs/ssd",
+						},
+						"logs": map[string]interface{}{
+							"hostPathPrefix": "/var/lib/embedded-cluster/seaweedfs/storage",
+						},
+					},
+				},
+				path:     "master.data.hostPathPrefix",
+				newValue: "/var/ec/seaweedfs/ssd",
+			},
+			want: map[string]interface{}{
+				"master": map[string]interface{}{
+					"replicas":     1,
+					"nodeSelector": nil,
+					"data": map[string]interface{}{
+						"hostPathPrefix": "/var/ec/seaweedfs/ssd",
+					},
+					"logs": map[string]interface{}{
+						"hostPathPrefix": "/var/lib/embedded-cluster/seaweedfs/storage",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: `can set seaweedfs "master.logs.hostPathPrefix"`,
+			args: args{
+				values: map[string]interface{}{
+					"master": map[string]interface{}{
+						"replicas":     1,
+						"nodeSelector": nil,
+						"data": map[string]interface{}{
+							"hostPathPrefix": "/var/lib/embedded-cluster/seaweedfs/ssd",
+						},
+						"logs": map[string]interface{}{
+							"hostPathPrefix": "/var/lib/embedded-cluster/seaweedfs/storage",
+						},
+					},
+				},
+				path:     "master.logs.hostPathPrefix",
+				newValue: "/var/ec/seaweedfs/storage",
+			},
+			want: map[string]interface{}{
+				"master": map[string]interface{}{
+					"replicas":     1,
+					"nodeSelector": nil,
+					"data": map[string]interface{}{
+						"hostPathPrefix": "/var/lib/embedded-cluster/seaweedfs/ssd",
+					},
+					"logs": map[string]interface{}{
+						"hostPathPrefix": "/var/ec/seaweedfs/storage",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: `can set velero "nodeAgent.podVolumePath"`,
+			args: args{
+				values: map[string]interface{}{
+					"nodeAgent": map[string]interface{}{
+						"podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
+					},
+					"snapshotsEnabled": false,
+				},
+				path:     "nodeAgent.podVolumePath",
+				newValue: "/var/ec/k0s/kubelet/pods",
+			},
+			want: map[string]interface{}{
+				"nodeAgent": map[string]interface{}{
+					"podVolumePath": "/var/ec/k0s/kubelet/pods",
+				},
+				"snapshotsEnabled": false,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := SetValue(tt.args.values, tt.args.path, tt.args.newValue)
+			err := SetValue(tt.args.values, tt.args.path, tt.args.newValue)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SetValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SetValue() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, tt.args.values)
 		})
 	}
 }

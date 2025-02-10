@@ -1,17 +1,18 @@
-package k8sutil
+package upgrade
 
 import (
 	"context"
+	"testing"
+
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
 )
 
-func TestK0sVersionFromMetadata(t *testing.T) {
+func Test_k0sVersionFromMetadata(t *testing.T) {
 	tests := []struct {
 		name string
 		meta *types.ReleaseMetadata
@@ -51,13 +52,13 @@ func TestK0sVersionFromMetadata(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
-			ver := K0sVersionFromMetadata(tt.meta)
+			ver := k0sVersionFromMetadata(tt.meta)
 			req.Equal(tt.want, ver)
 		})
 	}
 }
 
-func TestClusterNodesMatchVersion(t *testing.T) {
+func Test_clusterNodesMatchVersion(t *testing.T) {
 	tests := []struct {
 		name    string
 		want    bool
@@ -164,7 +165,7 @@ func TestClusterNodesMatchVersion(t *testing.T) {
 			req := require.New(t)
 			cli := fake.NewFakeClient(tt.objects...)
 
-			got, err := ClusterNodesMatchVersion(context.Background(), cli, tt.version)
+			got, err := clusterNodesMatchVersion(context.Background(), cli, tt.version)
 			req.NoError(err)
 			req.Equal(tt.want, got)
 		})

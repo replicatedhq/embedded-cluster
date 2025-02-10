@@ -428,14 +428,14 @@ jobs:
           LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
         run: |
           export APP_VERSION="appver-${{ github.ref_name }}"
-          curl -L "https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/ci/${APP_VERSION}" -H "Authorization: $LICENSE_ID" -o embedded-cluster-smoke-test-staging-app-ci.tgz
+          curl --retry 5 --retry-all-errors -fL -o embedded-cluster-smoke-test-staging-app-ci.tgz "https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/ci/${APP_VERSION}" -H "Authorization: $LICENSE_ID"
           tar -xzf embedded-cluster-smoke-test-staging-app-ci.tgz
           mv embedded-cluster-smoke-test-staging-app embedded-cluster
           mkdir -p output/bin
           mv embedded-cluster output/bin
           
           # download the embedded-cluster binary from the github release
-          curl -L "https://github.com/replicatedhq/embedded-cluster/releases/download/${{ github.ref_name }}/embedded-cluster-linux-amd64.tgz" -o embedded-cluster-github.tgz
+          curl --retry 5 --retry-all-errors -fL -o embedded-cluster-github.tgz "https://github.com/replicatedhq/embedded-cluster/releases/download/${{ github.ref_name }}/embedded-cluster-linux-amd64.tgz"
           tar -xzf embedded-cluster-github.tgz
           mv embedded-cluster output/bin/embedded-cluster-original
 

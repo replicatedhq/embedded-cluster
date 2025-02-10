@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
@@ -106,11 +105,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 
 func upgradeAddOn(ctx context.Context, hcli helm.Client, kcli client.Client, in *ecv1beta1.Installation, addon types.AddOn) error {
 	// check if we already processed this addon
-	conditionStatus, err := k8sutil.GetConditionStatus(ctx, kcli, in.Name, conditionName(addon))
-	if err != nil {
-		return errors.Wrap(err, "get condition status")
-	}
-	if conditionStatus == metav1.ConditionTrue {
+	if kubeutils.CheckInstallationConditionStatus(in.Status, conditionName(addon)) == metav1.ConditionTrue {
 		slog.Info(addon.Name() + " is ready!")
 		return nil
 	}
@@ -125,7 +120,7 @@ func upgradeAddOn(ctx context.Context, hcli helm.Client, kcli client.Client, in 
 	// TODO (@salah): add support for end user overrides
 	overrides := addOnOverrides(addon, in.Spec.Config, nil)
 
-	err = addon.Upgrade(ctx, kcli, hcli, overrides)
+	err := addon.Upgrade(ctx, kcli, hcli, overrides)
 	if err != nil {
 		message := helpers.CleanErrorMessage(err)
 		if err := setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionFalse, "UpgradeFailed", message); err != nil {
@@ -148,7 +143,7 @@ func conditionName(addon types.AddOn) string {
 }
 
 func setCondition(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, conditionType string, status metav1.ConditionStatus, reason, message string) error {
-	return k8sutil.SetConditionStatus(ctx, kcli, in, metav1.Condition{
+	return kubeutils.SetInstallationConditionStatus(ctx, kcli, in, metav1.Condition{
 		Type:    conditionType,
 		Status:  status,
 		Reason:  reason,

@@ -91,6 +91,14 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
+	}
+
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
@@ -190,6 +198,14 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -279,6 +295,14 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -348,6 +372,20 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -459,6 +497,14 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	line = []string{"check-post-restore.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
 	}
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
@@ -669,6 +715,14 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	line = []string{"check-post-restore.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
@@ -945,6 +999,14 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	line = []string{"check-post-restore.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
+	if err := tc.SetupPlaywright(withEnv); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
 	}
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
