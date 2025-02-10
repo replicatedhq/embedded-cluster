@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<zone target="ACCEPT">
+  <short>embedded-cluster</short>
+  <description>Zone for Embedded Cluster communication</description>
+  <source address="{{ .PodCIDR }}"/>
+  <source address="{{ .ServiceCIDR }}"/>
+</zone>
