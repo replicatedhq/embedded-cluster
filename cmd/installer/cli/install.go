@@ -67,6 +67,7 @@ type InstallCmdFlags struct {
 	skipHostPreflights      bool
 	ignoreHostPreflights    bool
 	configValues            string
+	configureFirewalld      bool
 
 	networkInterface string
 
@@ -126,6 +127,7 @@ func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	cmd.Flags().IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
 	cmd.Flags().BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
+	cmd.Flags().BoolVar(&flags.configureFirewalld, "configure-firewalld", false, "Configure the necessary firewalld zone")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	cmd.Flags().StringVar(&flags.overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
@@ -258,6 +260,13 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	logrus.Debugf("configuring network manager")
 	if err := configureNetworkManager(ctx); err != nil {
 		return fmt.Errorf("unable to configure network manager: %w", err)
+	}
+
+	if flags.configureFirewalld {
+		logrus.Debugf("configuring firewalld")
+		if err := configureFirewalld(ctx, flags.cidrCfg); err != nil {
+			return fmt.Errorf("unable to configure firewalld: %w", err)
+		}
 	}
 
 	logrus.Debugf("running install preflights")
@@ -647,6 +656,36 @@ func configureNetworkManager(ctx context.Context) error {
 	logrus.Debugf("network manager config created, restarting the service")
 	if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
 		return fmt.Errorf("unable to restart network manager: %w", err)
+	}
+	return nil
+}
+
+// configureFirewalld creates a zo in the firewalld zones directory and reloads
+// firewalld configuration (firewall-cmd --reload). This function is a no-op if
+// firewalld isn't installed or is inactive.
+func configureFirewalld(ctx context.Context, cidrCfg *CIDRConfig) error {
+	if active, err := helpers.IsSystemdServiceActive(ctx, "firewalld"); err != nil {
+		return fmt.Errorf("unable to check if firewalld is active: %w", err)
+	} else if !active {
+		logrus.Debugf("firewalld is not active, skipping configuration")
+		return nil
+	}
+
+	dir := "/usr/lib/firewalld/zones/"
+	if _, err := os.Stat(dir); err != nil {
+		logrus.Debugf("skiping firewalld config (%s): %v", dir, err)
+		return nil
+	}
+
+	logrus.Debugf("creating firewalld config file")
+	materializer := goods.NewMaterializer()
+	if err := materializer.FirewalldConfig(cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
+		return fmt.Errorf("unable to materialize firewalld configuration: %w", err)
+	}
+
+	logrus.Debugf("firewalld config created, reloading")
+	if _, err := helpers.RunCommand("firewall-cmd", "--reload"); err != nil {
+		return fmt.Errorf("unable to reload firewalld: %w", err)
 	}
 	return nil
 }
