@@ -897,7 +897,7 @@ spec:
         outcomes:
           - fail:
               when: 'net.ipv4.conf.default.rp_filter == 1'
-              message: "Reverse path filtering must be set to either loose mode (2) or disabled (0) for newly created interfaces on the host. To change it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.default.rp_filter=2', and run 'sudo sysctl -p'."
+              message: "Reverse path filtering must be set to either loose mode (2 - preferred) or disabled (0) for newly created interfaces on the host. To change it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.default.rp_filter=2', and run 'sudo sysctl -p'."
           - pass:
               when: 'net.ipv4.conf.default.rp_filter == 2'
               message: "Reverse path filtering is set to loose mode for newly created interfaces on the host."
@@ -909,7 +909,7 @@ spec:
         outcomes:
           - fail:
               when: 'net.ipv4.conf.all.rp_filter == 1'
-              message: "Reverse path filtering must be set to either loose mode (2) or disabled (0) for all interfaces on the host. To change it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.all.rp_filter=2', and run 'sudo sysctl -p'."
+              message: "Reverse path filtering must be set to either loose mode (2 - preferred) or disabled (0) for all interfaces on the host. To change it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.all.rp_filter=2', and run 'sudo sysctl -p'."
           - pass:
               when: 'net.ipv4.conf.all.rp_filter == 2'
               message: "Reverse path filtering is set to loose mode for all interfaces on the host."
