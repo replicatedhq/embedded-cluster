@@ -34,8 +34,6 @@ func Cleanup() {
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
 // store all the embedded-cluster related files.
 func EmbeddedClusterHomeDirectory() string {
-	fmt.Printf("checking embedded cluster home dir\n")
-
 	if runtimeConfig.DataDir != "" {
 		return runtimeConfig.DataDir
 	}
@@ -57,7 +55,6 @@ func EmbeddedClusterTmpSubDir() string {
 // are stored.
 func EmbeddedClusterBinsSubDir() string {
 	path := filepath.Join(EmbeddedClusterHomeDirectory(), "bin")
-	fmt.Printf("checking embedded cluster bins subdir\n")
 
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster bin dir: %s", err)
