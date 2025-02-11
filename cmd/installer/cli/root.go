@@ -76,6 +76,10 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 			fmt.Printf("old umask was %O\n", oldUmask)
 			defer syscall.Umask(oldUmask)
 
+			secondUmask := syscall.Umask(0o022)
+			fmt.Printf("umask was %O after being set to 0022\n", secondUmask)
+			defer syscall.Umask(secondUmask)
+
 			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
