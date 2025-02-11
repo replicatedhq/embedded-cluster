@@ -896,22 +896,26 @@ spec:
         checkName: "Reverse Path Filtering default value for newly created interfaces"
         outcomes:
           - fail:
-              when: 'net.ipv4.conf.default.rp_filter > 0'
-              message: "Reverse path filtering must be disabled by default for newly created interfaces on the host. To disable it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.default.rp_filter=0', and run 'sudo sysctl -p'."
+              when: 'net.ipv4.conf.default.rp_filter == 1'
+              message: "Reverse path filtering must be set to either loose mode (2 - preferred) or disabled (0) for newly created interfaces on the host. To change it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.default.rp_filter=2', and run 'sudo sysctl -p'."
+          - pass:
+              when: 'net.ipv4.conf.default.rp_filter == 2'
+              message: "Reverse path filtering is set to loose mode for newly created interfaces on the host."
           - pass:
               when: 'net.ipv4.conf.default.rp_filter == 0'
-              message: "Reverse path filtering is disabled by default for newly created interfaces on the host."
-
+              message: "Reverse path filtering is disabled for newly created interfaces on the host."
     - sysctl:
         checkName: "Reverse Path Filtering value for all interfaces"
         outcomes:
           - fail:
-              when: 'net.ipv4.conf.all.rp_filter > 0'
-              message: "Reverse path filtering must be disabled for all interfaces on the host. To disable it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.all.rp_filter=0', and run 'sudo sysctl -p'."
+              when: 'net.ipv4.conf.all.rp_filter == 1'
+              message: "Reverse path filtering must be set to either loose mode (2 - preferred) or disabled (0) for all interfaces on the host. To change it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.all.rp_filter=2', and run 'sudo sysctl -p'."
+          - pass:
+              when: 'net.ipv4.conf.all.rp_filter == 2'
+              message: "Reverse path filtering is set to loose mode for all interfaces on the host."
           - pass:
               when: 'net.ipv4.conf.all.rp_filter == 0'
               message: "Reverse path filtering is disabled for all interfaces on the host."
-
     - sysctl:
         checkName: "IP forwarding"
         outcomes:
