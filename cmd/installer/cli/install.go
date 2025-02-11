@@ -67,7 +67,6 @@ type InstallCmdFlags struct {
 	skipHostPreflights      bool
 	ignoreHostPreflights    bool
 	configValues            string
-	configureFirewalld      bool
 
 	networkInterface string
 
@@ -127,7 +126,6 @@ func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	cmd.Flags().IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
 	cmd.Flags().BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
-	cmd.Flags().BoolVar(&flags.configureFirewalld, "configure-firewalld", false, "Configure the necessary firewalld zone")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	cmd.Flags().StringVar(&flags.overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
@@ -262,11 +260,9 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
-	if flags.configureFirewalld {
-		logrus.Debugf("configuring firewalld")
-		if err := configureFirewalld(ctx, flags.cidrCfg, flags.networkInterface); err != nil {
-			return fmt.Errorf("unable to configure firewalld: %w", err)
-		}
+	logrus.Debugf("configuring firewalld")
+	if err := configureFirewalld(ctx, flags.cidrCfg, flags.networkInterface); err != nil {
+		return fmt.Errorf("unable to configure firewalld: %w", err)
 	}
 
 	logrus.Debugf("running install preflights")
@@ -671,7 +667,7 @@ func configureFirewalld(ctx context.Context, cidrCfg *CIDRConfig, networkInterfa
 		return nil
 	}
 
-	dir := "/usr/lib/firewalld/zones/"
+	dir := "/etc/firewalld/zones/"
 	if _, err := os.Stat(dir); err != nil {
 		logrus.Debugf("skiping firewalld config (%s): %v", dir, err)
 		return nil
