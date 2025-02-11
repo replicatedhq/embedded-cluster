@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<zone target="default">
+<zone target="ACCEPT">
   <short>Embedded Cluster</short>
   <description>Zone for Embedded Cluster communication</description>
   <interface name="{{ .NetworkInterface }}"/>
