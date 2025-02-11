@@ -137,7 +137,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store
 
 	logrus.Debugf("configuring sysctl")
 	if err := configutils.ConfigureSysctl(); err != nil {
-		return fmt.Errorf("unable to configure sysctl: %w", err)
+		logrus.Debugf("unable to configure sysctl: %v", err)
 	}
 
 	logrus.Debugf("getting restore state")

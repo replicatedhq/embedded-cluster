@@ -252,7 +252,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 
 	logrus.Debugf("configuring sysctl")
 	if err := configutils.ConfigureSysctl(); err != nil {
-		return fmt.Errorf("unable to configure sysctl: %w", err)
+		logrus.Debugf("unable to configure sysctl: %v", err)
 	}
 
 	logrus.Debugf("configuring network manager")
