@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euox pipefail
+set -euxo pipefail
 
 DIR=/usr/local/bin
 . $DIR/common.sh

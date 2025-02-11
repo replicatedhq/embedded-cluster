@@ -42,10 +42,21 @@ func TestProxiedEnvironment(t *testing.T) {
 	// install "curl" dependency on node 0 for app version checks.
 	tc.InstallTestDependenciesDebian(t, 0, true)
 
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"single-node-install-setup.sh", "ui", os.Getenv("SHORT_SHA")}
+	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: reconfiguring squid to only allow whitelist access", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnProxyNode(t, []string{"/usr/local/bin/reconfigure-squid.sh"}); err != nil {
+		t.Fatalf("failed to reconfigure squid: %v: %s: %s", err, stdout, stderr)
+	}
+
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
+	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	line = append(line, "--http-proxy", lxd.HTTPProxy)
 	line = append(line, "--https-proxy", lxd.HTTPProxy)
 	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
