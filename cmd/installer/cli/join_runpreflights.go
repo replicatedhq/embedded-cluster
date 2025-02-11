@@ -63,7 +63,7 @@ func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, 
 
 	logrus.Debugf("configuring sysctl")
 	if err := configutils.ConfigureSysctl(); err != nil {
-		return fmt.Errorf("unable to configure sysctl: %w", err)
+		logrus.Debugf("unable to configure sysctl: %v", err)
 	}
 
 	cidrCfg, err := getJoinCIDRConfig(jcmd)

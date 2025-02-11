@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/sirupsen/logrus"
 )
 
 // sysctlConfigPath is the path to the sysctl config file that is used to configure
@@ -28,18 +28,20 @@ func ConfigureSysctl() error {
 	}
 
 	if err := sysctlConfig(sysctlConfigPath); err != nil {
-		logrus.Debugf("unable to materialize sysctl config: %v", err)
-		return nil
+		return fmt.Errorf("unable to materialize sysctl config: %w", err)
 	}
 
 	if _, err := helpers.RunCommand("sysctl", "--system"); err != nil {
-		logrus.Debugf("unable to configure sysctl: %v", err)
+		return fmt.Errorf("unable to configure sysctl: %w", err)
 	}
 	return nil
 }
 
 // SysctlConfig writes the embedded sysctl config to the /etc/sysctl.d directory.
 func sysctlConfig(dstpath string) error {
+	if err := os.MkdirAll(filepath.Dir(dstpath), 0755); err != nil {
+		return fmt.Errorf("unable to create directory: %w", err)
+	}
 	if err := os.WriteFile(dstpath, embeddedClusterConf, 0644); err != nil {
 		return fmt.Errorf("unable to write file: %w", err)
 	}
