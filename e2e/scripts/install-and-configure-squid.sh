@@ -9,7 +9,7 @@ acl step1 at_step SslBump1
 ssl_bump peek step1
 ssl_bump bump all
 acl whitelist dstdomain proxy.replicated.com ec-e2e-replicated-app.testcluster.net
-http_access allow whitelist
+http_access allow localnet
 "
 
 COUNTRY=US
