@@ -49,8 +49,8 @@ func TestProxiedEnvironment(t *testing.T) {
 	}
 
 	t.Logf("%s: reconfiguring squid to only allow whitelist access", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnProxyNode(t, []string{"/usr/local/bin/reconfigure-squid.sh"}); err != nil {
-		t.Fatalf("failed to reconfigure squid: %v: %s: %s", err, stdout, stderr)
+	if _, _, err := tc.RunCommandOnProxyNode(t, []string{"/usr/local/bin/reconfigure-squid.sh"}); err != nil {
+		t.Fatalf("failed to reconfigure squid: %v", err)
 	}
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
