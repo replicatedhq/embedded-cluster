@@ -248,6 +248,9 @@ func NewCluster(in *ClusterInput) *Cluster {
 		in.T.Logf("Installing deps on node %s", node)
 		RunCommand(in, []string{"install-deps.sh"}, node, env)
 	}
+	if in.WithProxy {
+		ReconfigureProxy(in)
+	}
 	return out
 }
 
@@ -375,6 +378,11 @@ func ConfigureProxy(in *ClusterInput) {
 			RunCommand(in, cmd, name)
 		}
 	}
+}
+
+func ReconfigureProxy(in *ClusterInput) {
+	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
+	RunCommand(in, []string{"/usr/local/bin/reconfigure-squid.sh"}, proxyName)
 }
 
 // RunCommand runs the provided command on the provided node (name). Implements a
