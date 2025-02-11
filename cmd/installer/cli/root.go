@@ -69,16 +69,8 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 				metrics.DisableMetrics()
 			}
 
-			fmt.Println("setting umask to 0022")
-
-			// set umask to 0022 so that files created by embedded-cluster are world-readable but not executable by default
-			oldUmask := syscall.Umask(0o022)
-			fmt.Printf("old umask was %O\n", oldUmask)
-			defer syscall.Umask(oldUmask)
-
-			secondUmask := syscall.Umask(0o022)
-			fmt.Printf("umask was %O after being set to 0022\n", secondUmask)
-			defer syscall.Umask(secondUmask)
+			// set the umask to 022 so that we can create files/directories with 755 permissions
+			_ = syscall.Umask(0o022)
 
 			return nil
 		},
