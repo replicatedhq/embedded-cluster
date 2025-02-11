@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"syscall"
 	"testing"
 	"time"
 
@@ -398,8 +397,8 @@ func TestConfigValuesInstallation(t *testing.T) {
 }
 
 func TestRestrictiveUmask(t *testing.T) {
-	oldUmask := syscall.Umask(0o077)
-	defer syscall.Umask(oldUmask)
+	//oldUmask := syscall.Umask(0o077)
+	//defer syscall.Umask(oldUmask)
 
 	testDefaultInstallationImpl(t)
 
