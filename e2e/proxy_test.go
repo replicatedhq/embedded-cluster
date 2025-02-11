@@ -45,7 +45,7 @@ func TestProxiedEnvironment(t *testing.T) {
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install-setup.sh", "ui", os.Getenv("SHORT_SHA")}
 	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+		t.Fatalf("fail to setup node %s: %v", tc.Nodes[0], err)
 	}
 
 	t.Logf("%s: reconfiguring squid to only allow whitelist access", time.Now().Format(time.RFC3339))
