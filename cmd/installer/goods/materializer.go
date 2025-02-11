@@ -239,7 +239,7 @@ func (m *Materializer) Ourselves() error {
 // FirewalldConfig materializes the firewalld config file. This file creates a
 // zone for the embedded cluster pod and service CIDRs. The zone configuration
 // is read from an embedded template file (systemd/firewalld-config.tpl.xml).
-func (m *Materializer) FirewalldConfig(podCIDR, svcCIDR string) error {
+func (m *Materializer) FirewalldConfig(podCIDR, svcCIDR, networkInterface string) error {
 	content, err := systemdfs.ReadFile("systemd/firewalld-config.tpl.xml")
 	if err != nil {
 		return fmt.Errorf("unable to open firewalld template file: %w", err)
@@ -257,7 +257,7 @@ func (m *Materializer) FirewalldConfig(podCIDR, svcCIDR string) error {
 	}
 	defer fp.Close()
 
-	data := map[string]string{"PodCIDR": podCIDR, "ServiceCIDR": svcCIDR}
+	data := map[string]string{"PodCIDR": podCIDR, "ServiceCIDR": svcCIDR, "NetworkInterface": networkInterface}
 	if err := tpl.Execute(fp, data); err != nil {
 		return fmt.Errorf("unable to execute firewalld config template: %w", err)
 	}

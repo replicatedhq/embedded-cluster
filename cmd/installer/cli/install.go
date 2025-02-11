@@ -264,7 +264,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 
 	if flags.configureFirewalld {
 		logrus.Debugf("configuring firewalld")
-		if err := configureFirewalld(ctx, flags.cidrCfg); err != nil {
+		if err := configureFirewalld(ctx, flags.cidrCfg, flags.networkInterface); err != nil {
 			return fmt.Errorf("unable to configure firewalld: %w", err)
 		}
 	}
@@ -663,7 +663,7 @@ func configureNetworkManager(ctx context.Context) error {
 // configureFirewalld creates a zo in the firewalld zones directory and reloads
 // firewalld configuration (firewall-cmd --reload). This function is a no-op if
 // firewalld isn't installed or is inactive.
-func configureFirewalld(ctx context.Context, cidrCfg *CIDRConfig) error {
+func configureFirewalld(ctx context.Context, cidrCfg *CIDRConfig, networkInterface string) error {
 	if active, err := helpers.IsSystemdServiceActive(ctx, "firewalld"); err != nil {
 		return fmt.Errorf("unable to check if firewalld is active: %w", err)
 	} else if !active {
@@ -679,7 +679,7 @@ func configureFirewalld(ctx context.Context, cidrCfg *CIDRConfig) error {
 
 	logrus.Debugf("creating firewalld config file")
 	materializer := goods.NewMaterializer()
-	if err := materializer.FirewalldConfig(cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
+	if err := materializer.FirewalldConfig(cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, networkInterface); err != nil {
 		return fmt.Errorf("unable to materialize firewalld configuration: %w", err)
 	}
 

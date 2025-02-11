@@ -2,8 +2,12 @@
 <zone target="default">
   <short>Embedded Cluster</short>
   <description>Zone for Embedded Cluster communication</description>
+  <interface name="{{ .NetworkInterface }}"/>
   <source address="{{ .PodCIDR }}"/>
   <source address="{{ .ServiceCIDR }}"/>
+  <service name="ssh"/>
+  <service name="cockpit"/>
+  <service name="dhcpv6-client"/>
   <port port="6443" protocol="tcp"/>
   <port port="8132" protocol="tcp"/>
   <port port="10250" protocol="tcp"/>
