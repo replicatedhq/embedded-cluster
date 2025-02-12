@@ -219,26 +219,11 @@ func (h *HelmClient) Latest(reponame, chart string) (string, error) {
 	return "", fmt.Errorf("repository %s not found", reponame)
 }
 
-func (h *HelmClient) PullOCI(url string, version string) (string, error) {
-	dl := downloader.ChartDownloader{
-		Out:              io.Discard,
-		Options:          []getter.Option{},
-		RepositoryConfig: h.repocfg,
-		RepositoryCache:  h.tmpdir,
-		Getters:          getters,
-	}
-
-	path, _, err := dl.DownloadTo(url, version, h.tmpdir)
-	if err != nil {
-		return "", fmt.Errorf("download chart %s: %w", url, err)
-	}
-
-	return path, nil
-}
-
-func (h *HelmClient) Pull(reponame string, chart string, version string) (string, error) {
-	if err := h.prepare(); err != nil {
-		return "", fmt.Errorf("prepare: %w", err)
+func (h *HelmClient) Pull(ref string, version string) (string, error) {
+	if !isOCIChart(ref) {
+		if err := h.prepare(); err != nil {
+			return "", fmt.Errorf("prepare: %w", err)
+		}
 	}
 
 	dl := downloader.ChartDownloader{
@@ -249,7 +234,6 @@ func (h *HelmClient) Pull(reponame string, chart string, version string) (string
 		Getters:          getters,
 	}
 
-	ref := fmt.Sprintf("%s/%s", reponame, chart)
 	dst, _, err := dl.DownloadTo(ref, version, os.TempDir())
 	if err != nil {
 		return "", fmt.Errorf("download chart %s: %w", ref, err)
@@ -332,7 +316,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 	var localPath string
 	if h.airgapPath == "" {
 		// online, pull chart from remote
-		localPath, err = h.PullOCI(opts.ChartPath, opts.ChartVersion)
+		localPath, err = h.Pull(opts.ChartPath, opts.ChartVersion)
 		if err != nil {
 			return nil, fmt.Errorf("pull oci: %w", err)
 		}
@@ -389,7 +373,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release
 	var localPath string
 	if h.airgapPath == "" {
 		// online, pull chart from remote
-		localPath, err = h.PullOCI(opts.ChartPath, opts.ChartVersion)
+		localPath, err = h.Pull(opts.ChartPath, opts.ChartVersion)
 		if err != nil {
 			return nil, fmt.Errorf("pull oci: %w", err)
 		}
@@ -545,6 +529,10 @@ func cleanUpGenericMap(m map[string]interface{}) (map[string]interface{}, error)
 		return nil, fmt.Errorf("yaml unmarshal: %w", err)
 	}
 	return next, nil
+}
+
+func isOCIChart(chartPath string) bool {
+	return strings.HasPrefix(chartPath, "oci://")
 }
 
 func _logFn(format string, args ...interface{}) {

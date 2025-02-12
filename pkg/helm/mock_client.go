@@ -30,13 +30,8 @@ func (m *MockClient) Latest(reponame, chart string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockClient) PullOCI(url string, version string) (string, error) {
-	args := m.Called(url, version)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockClient) Pull(repo string, chart string, version string) (string, error) {
-	args := m.Called(repo, chart, version)
+func (m *MockClient) Pull(ref string, version string) (string, error) {
+	args := m.Called(ref, version)
 	return args.String(0), args.Error(1)
 }
 

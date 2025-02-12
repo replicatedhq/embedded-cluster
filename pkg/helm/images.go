@@ -5,6 +5,7 @@ import (
 	"os"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/distribution/reference"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -36,22 +37,15 @@ type reducedContainer struct {
 	Image string `yaml:"image"`
 }
 
-func ExtractImagesFromOCIChart(hcli Client, url, name, version string, values map[string]interface{}) ([]string, error) {
-	chartPath, err := hcli.PullOCI(url, version)
-	if err != nil {
-		return nil, fmt.Errorf("pull oci: %w", err)
-	}
-	defer os.RemoveAll(chartPath)
-
-	return ExtractImagesFromLocalChart(hcli, name, chartPath, values)
-}
-
-func ExtractImagesFromChart(hcli Client, repo, name, version string, values map[string]interface{}) ([]string, error) {
-	chartPath, err := hcli.Pull(repo, name, version)
+func ExtractImagesFromChart(hcli Client, ref string, version string, values map[string]interface{}) ([]string, error) {
+	chartPath, err := hcli.Pull(ref, version)
 	if err != nil {
 		return nil, fmt.Errorf("pull: %w", err)
 	}
 	defer os.RemoveAll(chartPath)
+
+	parts := strings.Split(ref, "/")
+	name := parts[len(parts)-1]
 
 	return ExtractImagesFromLocalChart(hcli, name, chartPath, values)
 }
@@ -77,18 +71,8 @@ func ExtractImagesFromLocalChart(hcli Client, name, path string, values map[stri
 	return images, nil
 }
 
-func GetOCIChartMetadata(hcli Client, url, name, version string) (*chart.Metadata, error) {
-	chartPath, err := hcli.PullOCI(url, version)
-	if err != nil {
-		return nil, fmt.Errorf("pull oci: %w", err)
-	}
-	defer os.RemoveAll(chartPath)
-
-	return hcli.GetChartMetadata(chartPath)
-}
-
-func GetChartMetadata(hcli Client, repo, name, version string) (*chart.Metadata, error) {
-	chartPath, err := hcli.Pull(repo, name, version)
+func GetChartMetadata(hcli Client, ref string, version string) (*chart.Metadata, error) {
+	chartPath, err := hcli.Pull(ref, version)
 	if err != nil {
 		return nil, fmt.Errorf("pull oci: %w", err)
 	}
