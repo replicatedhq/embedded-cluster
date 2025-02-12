@@ -92,7 +92,7 @@ func ensureKernelModulesLoaded() (finalErr error) {
 	scanner := bufio.NewScanner(bytes.NewReader(embeddedClusterModulesConf))
 	for scanner.Scan() {
 		module := strings.TrimSpace(scanner.Text())
-		if module != "" {
+		if module != "" && !strings.HasPrefix(module, "#") {
 			if err := modprobe(module); err != nil {
 				err = fmt.Errorf("modprobe %s: %w", module, err)
 				finalErr = multierr.Append(finalErr, err)
