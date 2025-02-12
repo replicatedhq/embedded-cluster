@@ -242,6 +242,11 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 
 	tc.InstallTestDependenciesDebian(t, 0, true)
 
+	t.Logf("%s: reconfiguring squid to only allow whitelist access", time.Now().Format(time.RFC3339))
+	if _, _, err := tc.RunCommandOnProxyNode(t, []string{"enable-squid-whitelist.sh"}); err != nil {
+		t.Fatalf("failed to reconfigure squid: %v", err)
+	}
+
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	line = append(line, "--http-proxy", lxd.HTTPProxy)
