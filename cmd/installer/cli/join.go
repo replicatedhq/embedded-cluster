@@ -138,6 +138,11 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		logrus.Debugf("unable to configure sysctl: %v", err)
 	}
 
+	logrus.Debugf("configuring kernel modules")
+	if err := configutils.ConfigureKernelModules(); err != nil {
+		logrus.Debugf("unable to configure kernel modules: %v", err)
+	}
+
 	logrus.Debugf("configuring network manager")
 	if err := configureNetworkManager(ctx); err != nil {
 		return fmt.Errorf("unable to configure network manager: %w", err)

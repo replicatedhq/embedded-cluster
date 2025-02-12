@@ -66,6 +66,11 @@ func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, 
 		logrus.Debugf("unable to configure sysctl: %v", err)
 	}
 
+	logrus.Debugf("configuring kernel modules")
+	if err := configutils.ConfigureKernelModules(); err != nil {
+		logrus.Debugf("unable to configure kernel modules: %v", err)
+	}
+
 	cidrCfg, err := getJoinCIDRConfig(jcmd)
 	if err != nil {
 		return fmt.Errorf("unable to get join CIDR config: %w", err)
