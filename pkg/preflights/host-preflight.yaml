@@ -159,6 +159,9 @@ spec:
         address: '{{ $element }}'
         timeout: 30s
 {{- end}}
+    - run:
+        collectorName: 'check-selinux'
+        command: 'getenforce'
   analyzers:
     - cpu:
         checkName: CPU
@@ -950,3 +953,14 @@ spec:
               when: "connected"
               message: "Successful TCP connection to {{ $element }}."
 {{- end}}
+    - textAnalyze:
+        checkName: SELinux Status
+        fileName: host-collectors/run-host/check-selinux.txt
+        regex: 'Enforcing'
+        outcomes:
+          - fail:
+              when: 'true'
+              message: SELinux must be disabled or run in permissive mode.
+          - pass:
+              when: 'false'
+              message: SELinux is not in enforcing mode.
