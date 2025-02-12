@@ -44,6 +44,8 @@ function main() {
     maybe_install kmod modprobe
     echo "Installing chronyd"
     maybe_install chrony chronyd
+    echo "Installing curl"
+    maybe_install curl curl
 }
 
 main
