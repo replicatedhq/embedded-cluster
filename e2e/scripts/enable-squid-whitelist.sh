@@ -76,7 +76,7 @@ function main() {
     maybe_install curl curl
 
     # update the squid config to disable allow all
-    sed -i 's/http_access allow all/# http_access allow all/' /etc/squid/conf.d/ec.conf
+    sed -i 's/http_access allow localnet/# http_access allow localnet/' /etc/squid/conf.d/ec.conf
 
     # restart the squid service
     squid -k reconfigure
