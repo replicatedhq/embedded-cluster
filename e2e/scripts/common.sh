@@ -371,8 +371,6 @@ install_kots_cli() {
         return
     fi
 
-    maybe_install_curl
-
     # install kots CLI
     echo "installing kots cli"
     local ec_version=
@@ -380,13 +378,6 @@ install_kots_cli() {
     curl --retry 5 -fL -o /tmp/kotsinstall.sh "https://kots.io/install/$ec_version"
     chmod +x /tmp/kotsinstall.sh
     /tmp/kotsinstall.sh
-}
-
-maybe_install_curl() {
-    if ! command -v curl; then
-        apt-get update
-        apt-get install -y curl
-    fi
 }
 
 validate_data_dirs() {
