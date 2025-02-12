@@ -135,16 +135,6 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store
 		}
 	}
 
-	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
-		logrus.Debugf("unable to configure sysctl: %v", err)
-	}
-
-	logrus.Debugf("configuring kernel modules")
-	if err := configutils.ConfigureKernelModules(); err != nil {
-		logrus.Debugf("unable to configure kernel modules: %v", err)
-	}
-
 	logrus.Debugf("getting restore state")
 	state := getECRestoreState(ctx)
 	logrus.Debugf("restore state is: %q", state)
@@ -367,6 +357,16 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		if err := validateS3BackupStore(s3Store); err != nil {
 			return fmt.Errorf("unable to validate backup store: %w", err)
 		}
+	}
+
+	logrus.Debugf("configuring sysctl")
+	if err := configutils.ConfigureSysctl(); err != nil {
+		logrus.Debugf("unable to configure sysctl: %v", err)
+	}
+
+	logrus.Debugf("configuring kernel modules")
+	if err := configutils.ConfigureKernelModules(); err != nil {
+		logrus.Debugf("unable to configure kernel modules: %v", err)
 	}
 
 	logrus.Debugf("configuring network manager")
