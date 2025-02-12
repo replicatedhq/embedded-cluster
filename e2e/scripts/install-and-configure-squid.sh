@@ -8,8 +8,17 @@ sslcrtd_program /usr/lib/squid/security_file_certgen -s /opt/ssl.db -M 4MB
 acl step1 at_step SslBump1
 ssl_bump peek step1
 ssl_bump bump all
-acl whitelist dstdomain proxy.replicated.com ec-e2e-replicated-app.testcluster.net staging.replicated.app
+acl whitelist dstdomain \"/etc/squid/sites.whitelist.txt\"
 http_access allow localnet
+"
+
+whitelist_txt="
+proxy.replicated.com
+ec-e2e-replicated-app.testcluster.net
+staging.replicated.app
+
+# ingress-nginx extension
+kubernetes.github.io
 "
 
 COUNTRY=US
@@ -85,6 +94,7 @@ main() {
         create_ca
         create_squid_ssl
         echo "$squid_config" > /etc/squid/conf.d/ec.conf
+        echo "$whitelist_txt" > /etc/squid/sites.whitelist.txt
         systemctl restart squid
 }
 
