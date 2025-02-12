@@ -55,15 +55,14 @@ function retry() {
 
 function validate_whitelist() {
     # validate that we can access ec-e2e-replicated-app.testcluster.net
-    status_code=$(curl -s -o /dev/null -w "%{http_code}" -x http://10.0.0.254:3128 https://ec-e2e-replicated-app.testcluster.net/market/v1/echo/ip)
-    if [ "$status_code" -ne 200 ]; then
-        echo "Error: ec-e2e-replicated-app.testcluster.net expected status code 200, got $status_code"
+    status_code=$(curl -s -o /dev/null -w "%{http_connect}" -x http://10.0.0.254:3128 https://ec-e2e-replicated-app.testcluster.net/market/v1/echo/ip)
+    if [ "$status_code" -ne 000 ]; then
+        echo "Error: ec-e2e-replicated-app.testcluster.net expected status code 000, got $status_code"
         return 1
     fi
 
     # validate that we cannot access google.com (should be blocked)
-    curl -i -x http://10.0.0.254:3128 https://google.com || true
-    status_code=$(curl -s -o /dev/null -w "%{http_code}" -x http://10.0.0.254:3128 https://google.com)
+    status_code=$(curl -s -o /dev/null -w "%{http_connect}" -x http://10.0.0.254:3128 https://google.com)
     if [ "$status_code" -ne 403 ] && [ "$status_code" -ne 407 ]; then
         echo "Error: google.com expected status code 403 or 407 (blocked), got $status_code"
         return 1
