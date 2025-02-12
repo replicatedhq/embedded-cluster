@@ -159,6 +159,10 @@ spec:
         address: '{{ $element }}'
         timeout: 30s
 {{- end}}
+    - run:
+        collectorName: 'selinux-mode'
+        command: 'sh'
+        args: ['-c', 'getenforce || echo "Missing"']
   analyzers:
     - cpu:
         checkName: CPU
@@ -950,3 +954,20 @@ spec:
               when: "connected"
               message: "Successful TCP connection to {{ $element }}."
 {{- end}}
+    - textAnalyze:
+        checkName: SELinux Mode
+        fileName: host-collectors/run-host/selinux-mode.txt
+        regexGroups: '(?P<Mode>Enforcing|Permissive|Disabled|Missing)'
+        outcomes:
+          - fail:
+              when: "Mode == Enforcing"
+              message: SELinux must be disabled or run in permissive mode.
+          - pass:
+              when: "Mode == Permissive"
+              message: SELinux is running in permissive mode.
+          - pass:
+              when: "Mode == Disabled"
+              message: SELinux is disabled.
+          - pass:
+              when: "Mode == Missing"
+              message: SELinux is not installed.
