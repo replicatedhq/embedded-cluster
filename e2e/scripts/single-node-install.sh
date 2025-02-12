@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euox pipefail
+set -euxo pipefail
 
 DIR=/usr/local/bin
 . $DIR/common.sh
@@ -97,10 +97,6 @@ main() {
     fi
     if ! ensure_binary_copy; then
         echo "Failed to ensure the embedded binary has been copied to ${EMBEDDED_CLUSTER_BASE_DIR}/bin"
-        exit 1
-    fi
-    if ! install_kots_cli; then
-        echo "Failed to install kots cli"
         exit 1
     fi
     if ! wait_for_healthy_node; then
