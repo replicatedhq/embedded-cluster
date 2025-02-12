@@ -161,7 +161,8 @@ spec:
 {{- end}}
     - run:
         collectorName: 'check-selinux'
-        command: 'getenforce'
+        command: 'sh'
+        args: ['-c', 'getenforce || echo "Not installed"']
   analyzers:
     - cpu:
         checkName: CPU
