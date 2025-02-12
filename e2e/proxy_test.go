@@ -43,7 +43,7 @@ func TestProxiedEnvironment(t *testing.T) {
 	tc.InstallTestDependenciesDebian(t, 0, true)
 
 	t.Logf("%s: reconfiguring squid to only allow whitelist access", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunCommandOnProxyNode(t, []string{"/usr/local/bin/reconfigure-squid.sh"}); err != nil {
+	if _, _, err := tc.RunCommandOnProxyNode(t, []string{"/usr/local/bin/enable-squid-whitelist.sh"}); err != nil {
 		t.Fatalf("failed to reconfigure squid: %v", err)
 	}
 
