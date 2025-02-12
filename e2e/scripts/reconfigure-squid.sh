@@ -37,7 +37,7 @@ function yum_install() {
 
 function main() {
     # install curl if it's not already installed
-    maybe_install curl
+    maybe_install curl curl
 
     # update the squid config to allow the whitelist
     sed -i 's/http_access allow localnet/http_access allow whitelist/' /etc/squid/conf.d/ec.conf
