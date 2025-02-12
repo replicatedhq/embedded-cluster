@@ -35,6 +35,42 @@ function yum_install() {
     yum install -y "$package"
 }
 
+function retry() {
+    local retries=$1
+    shift
+
+    local count=0
+    until "$@"; do
+        exit=$?
+        wait=$((2 ** count))
+        count=$((count + 1))
+        if [ $count -lt "$retries" ]; then
+            sleep $wait
+        else
+            return $exit
+        fi
+    done
+    return 0
+}
+
+function validate_whitelist() {
+    # validate that we can access ec-e2e-replicated-app.testcluster.net
+    status_code=$(curl -s -o /dev/null -w "%{http_code}" -x http://10.0.0.254:3128 https://ec-e2e-replicated-app.testcluster.net/market/v1/echo/ip)
+    if [ "$status_code" -ne 200 ]; then
+        echo "Error: ec-e2e-replicated-app.testcluster.net expected status code 200, got $status_code"
+        return 1
+    fi
+
+    # validate that we cannot access google.com (should be blocked)
+    status_code=$(curl -s -o /dev/null -w "%{http_code}" -x http://10.0.0.254:3128 https://google.com)
+    if [ "$status_code" -ne 403 ] && [ "$status_code" -ne 407 ]; then
+        echo "Error: google.com expected status code 403 or 407 (blocked), got $status_code"
+        return 1
+    fi
+
+    return 0
+}
+
 function main() {
     # install curl if it's not already installed
     maybe_install curl curl
@@ -45,20 +81,7 @@ function main() {
     # restart the squid service
     squid -k reconfigure
 
-    # validate that the whitelist is working
-    # validate that we can access ec-e2e-replicated-app.testcluster.net
-    status_code=$(curl -s -o /dev/null -w "%{http_code}" -x http://10.0.0.254:3128 https://ec-e2e-replicated-app.testcluster.net/market/v1/echo/ip)
-    if [ "$status_code" -ne 200 ]; then
-        echo "Error: Expected status code 200, got $status_code"
-        exit 1
-    fi
-
-    # validate that we cannot access google.com (should be blocked)
-    status_code=$(curl -s -o /dev/null -w "%{http_code}" -x http://10.0.0.254:3128 https://google.com)
-    if [ "$status_code" -ne 403 ] && [ "$status_code" -ne 407 ]; then
-        echo "Error: Expected status code 403 or 407 (blocked), got $status_code"
-        exit 1
-    fi
+    retry 5 validate_whitelist
 }
 
 main "$@"
