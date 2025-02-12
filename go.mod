@@ -125,7 +125,7 @@ require (
 	github.com/containers/storage v1.57.1 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.3.6 // indirect
-	github.com/distribution/distribution/v3 v3.0.0-rc.2 // indirect
+	github.com/distribution/distribution/v3 v3.0.0-rc.3 // indirect
 	github.com/docker/cli v27.5.1+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
 	github.com/docker/docker v27.5.1+incompatible // indirect
