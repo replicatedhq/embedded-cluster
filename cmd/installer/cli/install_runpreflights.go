@@ -62,6 +62,11 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 		logrus.Debugf("unable to configure sysctl: %v", err)
 	}
 
+	logrus.Debugf("configuring kernel modules")
+	if err := configutils.ConfigureKernelModules(); err != nil {
+		logrus.Debugf("unable to configure kernel modules: %v", err)
+	}
+
 	logrus.Debugf("running install preflights")
 	if err := runInstallPreflights(ctx, flags, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
