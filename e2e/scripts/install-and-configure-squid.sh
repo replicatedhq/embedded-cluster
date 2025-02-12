@@ -13,7 +13,7 @@ http_access allow localnet
 http_access allow all
 
 acl whitelist dstdomain \"/etc/squid/sites.whitelist.txt\"
-# http_access allow whitelist
+http_access allow whitelist
 "
 
 whitelist_txt="
