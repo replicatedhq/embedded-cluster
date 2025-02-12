@@ -22,6 +22,8 @@ staging.replicated.app
 
 # ingress-nginx extension
 kubernetes.github.io
+# goldpinger extension
+okgolove.github.io
 
 # install_kots_cli
 kots.io
