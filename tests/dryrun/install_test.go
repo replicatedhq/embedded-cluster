@@ -408,6 +408,7 @@ func TestRestrictiveUmask(t *testing.T) {
 		runtimeconfig.EmbeddedClusterHomeDirectory(),
 		runtimeconfig.EmbeddedClusterBinsSubDir(),
 		runtimeconfig.EmbeddedClusterChartsSubDir(),
+		runtimeconfig.PathToEmbeddedClusterBinary("kubectl-preflight"),
 	}
 	gotFailure := false
 	for _, folder := range folderList {
