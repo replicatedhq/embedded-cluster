@@ -27,10 +27,11 @@ var embeddedClusterSysctlConf []byte
 //go:embed static/modules-load.d/99-embedded-cluster.conf
 var embeddedClusterModulesConf []byte
 
-// ConfigureSysctl writes the sysctl config file for the embedded cluster and
-// reloads the sysctl configuration. This function has a distinct behavior: if
-// the sysctl binary does not exist it returns an error but if it fails to lay
-// down the sysctl config on disk it simply returns nil.
+// ConfigureSysctl writes the sysctl config file for the embedded cluster and reloads the sysctl
+// configuration. This function has a distinct behavior: if the sysctl binary does not exist it
+// returns an error but if it fails to lay down the sysctl config on disk it simply returns nil.
+// NOTE: do not run this after the cluster has already been installed as it may revert sysctl
+// settings set by k0s and its extensions.
 func ConfigureSysctl() error {
 	if _, err := exec.LookPath("sysctl"); err != nil {
 		return fmt.Errorf("find sysctl binary: %w", err)
