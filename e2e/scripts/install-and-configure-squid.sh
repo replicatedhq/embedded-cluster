@@ -19,6 +19,9 @@ staging.replicated.app
 
 # ingress-nginx extension
 kubernetes.github.io
+
+# install_kots_cli
+kots.io
 "
 
 COUNTRY=US
