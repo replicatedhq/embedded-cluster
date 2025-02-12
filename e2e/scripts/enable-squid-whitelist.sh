@@ -76,8 +76,9 @@ function main() {
     # install curl if it's not already installed
     maybe_install curl curl
 
-    # update the squid config to disable allow all
+    # update the squid config to enable the whitelist
     sed -i 's/http_access allow all/# http_access allow all/' /etc/squid/conf.d/ec.conf
+    sed -i 's/# http_access allow whitelist/http_access allow whitelist/' /etc/squid/conf.d/ec.conf
 
     # restart the squid service
     squid -k reconfigure

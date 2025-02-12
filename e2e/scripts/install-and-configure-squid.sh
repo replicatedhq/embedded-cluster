@@ -9,16 +9,11 @@ acl step1 at_step SslBump1
 ssl_bump peek step1
 ssl_bump bump all
 
-acl localnet src 10.0.0.0/8
 http_access allow localnet
-
-acl whitelist dstdomain \"/etc/squid/sites.whitelist.txt\"
-http_access allow whitelist
-
-acl all src 0.0.0.0/0
 http_access allow all
 
-http_access deny all
+acl whitelist dstdomain \"/etc/squid/sites.whitelist.txt\"
+# http_access allow whitelist
 "
 
 whitelist_txt="
