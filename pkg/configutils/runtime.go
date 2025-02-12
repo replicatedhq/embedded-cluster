@@ -14,9 +14,9 @@ import (
 	"go.uber.org/multierr"
 )
 
-// sysctlConfigPath is the path to the sysctl config file that is used to configure
-// the embedded cluster. This could have been a constant but we want to be able to
-// override it for testing purposes.
+// sysctlConfigPath is the path to the sysctl config file that is used to configure the embedded
+// cluster. This could have been a constant but we want to be able to override it for testing
+// purposes.
 var sysctlConfigPath = "/etc/sysctl.d/99-embedded-cluster.conf"
 
 var modulesLoadConfigPath = "/etc/modules-load.d/99-embedded-cluster.conf"
@@ -58,8 +58,8 @@ func sysctlConfig() error {
 	return nil
 }
 
-// ConfigureKernelModules writes the kernel modules config file and ensures the
-// kernel modules are loaded that are listed in the file.
+// ConfigureKernelModules writes the kernel modules config file and ensures the kernel modules are
+// loaded that are listed in the file.
 func ConfigureKernelModules() error {
 	if _, err := exec.LookPath("modprobe"); err != nil {
 		return fmt.Errorf("find modprobe binary: %w", err)
@@ -75,8 +75,8 @@ func ConfigureKernelModules() error {
 	return nil
 }
 
-// kernelModulesConfig writes the embedded kernel modules config to the
-// /etc/modules-load.d directory.
+// kernelModulesConfig writes the embedded kernel modules config to the /etc/modules-load.d
+// directory.
 func kernelModulesConfig() error {
 	if err := os.MkdirAll(filepath.Dir(modulesLoadConfigPath), 0755); err != nil {
 		return fmt.Errorf("create directory: %w", err)
@@ -87,8 +87,8 @@ func kernelModulesConfig() error {
 	return nil
 }
 
-// ensureKernelModulesLoaded ensures the kernel modules are loaded by iterating
-// over the modules in the config file and calling modprobe for each one.
+// ensureKernelModulesLoaded ensures the kernel modules are loaded by iterating over the modules in
+// the config file and calling modprobe for each one.
 func ensureKernelModulesLoaded() (finalErr error) {
 	scanner := bufio.NewScanner(bytes.NewReader(embeddedClusterModulesConf))
 	for scanner.Scan() {
