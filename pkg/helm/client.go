@@ -140,7 +140,7 @@ type HelmClient struct {
 	airgapPath    string
 }
 
-func (h *HelmClient) prepare(chartRepo string) error {
+func (h *HelmClient) prepare(reponame string) error {
 	// NOTE: this is a hack and should be refactored
 	if !h.reposChanged {
 		return nil
@@ -157,7 +157,7 @@ func (h *HelmClient) prepare(chartRepo string) error {
 	}
 
 	for _, repository := range h.repos {
-		if repository.Name != chartRepo {
+		if repository.Name != reponame {
 			continue
 		}
 		chrepo, err := repo.NewChartRepository(
@@ -239,8 +239,8 @@ func (h *HelmClient) PullOCI(url string, version string) (string, error) {
 	return path, nil
 }
 
-func (h *HelmClient) Pull(chartRepo string, chart string, version string) (string, error) {
-	if err := h.prepare(chartRepo); err != nil {
+func (h *HelmClient) Pull(reponame string, chart string, version string) (string, error) {
+	if err := h.prepare(reponame); err != nil {
 		return "", fmt.Errorf("prepare: %w", err)
 	}
 
@@ -252,7 +252,7 @@ func (h *HelmClient) Pull(chartRepo string, chart string, version string) (strin
 		Getters:          getters,
 	}
 
-	ref := fmt.Sprintf("%s/%s", chartRepo, chart)
+	ref := fmt.Sprintf("%s/%s", reponame, chart)
 	dst, _, err := dl.DownloadTo(ref, version, os.TempDir())
 	if err != nil {
 		return "", fmt.Errorf("download chart %s: %w", ref, err)
