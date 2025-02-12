@@ -8,12 +8,17 @@ sslcrtd_program /usr/lib/squid/security_file_certgen -s /opt/ssl.db -M 4MB
 acl step1 at_step SslBump1
 ssl_bump peek step1
 ssl_bump bump all
+
 acl localnet src 10.0.0.0/8
 http_access allow localnet
-# this is not enabled in the squid config, but can be enabled later using the enabe-squid-whitelist.sh script
+
 acl whitelist dstdomain \"/etc/squid/sites.whitelist.txt\"
-# http_access allow whitelist
-# http_access deny all
+http_access allow whitelist
+
+acl all src 0.0.0.0/0
+http_access allow all
+
+http_access deny all
 "
 
 whitelist_txt="
