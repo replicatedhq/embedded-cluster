@@ -140,7 +140,7 @@ type HelmClient struct {
 	airgapPath    string
 }
 
-func (h *HelmClient) prepare(reponame string) error {
+func (h *HelmClient) prepare() error {
 	// NOTE: this is a hack and should be refactored
 	if !h.reposChanged {
 		return nil
@@ -157,9 +157,6 @@ func (h *HelmClient) prepare(reponame string) error {
 	}
 
 	for _, repository := range h.repos {
-		if repository.Name != reponame {
-			continue
-		}
 		chrepo, err := repo.NewChartRepository(
 			repository, getters,
 		)
@@ -240,7 +237,7 @@ func (h *HelmClient) PullOCI(url string, version string) (string, error) {
 }
 
 func (h *HelmClient) Pull(reponame string, chart string, version string) (string, error) {
-	if err := h.prepare(reponame); err != nil {
+	if err := h.prepare(); err != nil {
 		return "", fmt.Errorf("prepare: %w", err)
 	}
 
