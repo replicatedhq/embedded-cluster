@@ -89,6 +89,7 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.AddCommand(JoinCmd(ctx, name))
 	cmd.AddCommand(ShellCmd(ctx, name))
 	cmd.AddCommand(NodeCmd(ctx, name))
+	cmd.AddCommand(EnableHACmd(ctx, name))
 	cmd.AddCommand(VersionCmd(ctx, name))
 	cmd.AddCommand(ResetCmd(ctx, name))
 	cmd.AddCommand(MaterializeCmd(ctx, name))

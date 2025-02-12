@@ -10,6 +10,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -117,19 +118,39 @@ func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name 
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
-			ready, err := k.IsJobComplete(ctx, cli, ns, name, completions)
-			if err != nil {
-				lasterr = fmt.Errorf("unable to get job status: %w", err)
+			var job batchv1.Job
+			err := cli.Get(ctx, client.ObjectKey{Namespace: ns, Name: name}, &job)
+			if k8serrors.IsNotFound(err) {
+				// exit
+				lasterr = fmt.Errorf("job not found")
+				return false, lasterr
+			} else if err != nil {
+				lasterr = fmt.Errorf("unable to get job: %w", err)
 				return false, nil
 			}
-			return ready, nil
+
+			failed := k.isJobFailed(job)
+			if failed {
+				// exit
+				lasterr = fmt.Errorf("job failed")
+				return false, lasterr
+			}
+
+			completed := k.isJobCompleted(job, completions)
+			if completed {
+				return true, nil
+			}
+
+			// TODO: need to handle the case where the pod get stuck in pending
+			// This can happen if nodes are not schedulable or if a volume is not found
+
+			return false, nil
 		},
 	); err != nil {
 		if lasterr != nil {
-			return fmt.Errorf("timed out waiting for job %s: %w", name, lasterr)
-		} else {
-			return fmt.Errorf("timed out waiting for job %s", name)
+			return lasterr
 		}
+		return fmt.Errorf("timed out waiting for job %s", name)
 	}
 	return nil
 }
@@ -275,17 +296,20 @@ func (k *KubeUtils) IsDaemonsetReady(ctx context.Context, cli client.Client, ns,
 	return false, nil
 }
 
-// IsJobComplete returns true if the job has been completed successfully.
-func (k *KubeUtils) IsJobComplete(ctx context.Context, cli client.Client, ns, name string, completions int32) (bool, error) {
-	var job batchv1.Job
-	nsn := types.NamespacedName{Namespace: ns, Name: name}
-	if err := cli.Get(ctx, nsn, &job); err != nil {
-		return false, err
+// isJobCompleted returns true if the job has been completed successfully.
+func (k *KubeUtils) isJobCompleted(job batchv1.Job, completions int32) bool {
+	isSucceeded := job.Status.Succeeded >= completions
+	return isSucceeded
+}
+
+// isJobFailed if the job has exceeded the backoff limit.
+func (k *KubeUtils) isJobFailed(job batchv1.Job) bool {
+	backoffLimit := int32(6) // default
+	if job.Spec.BackoffLimit != nil {
+		backoffLimit = *job.Spec.BackoffLimit
 	}
-	if job.Status.Succeeded >= completions {
-		return true, nil
-	}
-	return false, nil
+	exceedsBackoffLimit := job.Status.Failed > backoffLimit
+	return exceedsBackoffLimit
 }
 
 // IsPodComplete returns true if the pod has completed.

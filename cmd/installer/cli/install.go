@@ -76,9 +76,6 @@ type InstallCmdFlags struct {
 }
 
 // InstallCmd returns a cobra command for installing the embedded cluster.
-// This is the upcoming version of install without the operator and where
-// install does all of the work. This is a hidden command until it's tested
-// and ready.
 func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	var flags InstallCmdFlags
 

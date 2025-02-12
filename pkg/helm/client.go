@@ -240,6 +240,24 @@ func (h *HelmClient) PullOCI(url string, version string) (string, error) {
 	return path, nil
 }
 
+func (h *HelmClient) PullOCIWithRetries(ctx context.Context, chartPath, chartVersion string, tries int) (string, error) {
+	for i := 0; ; i++ {
+		localPath, err := h.PullOCI(chartPath, chartVersion)
+		if err == nil {
+			return localPath, nil
+		}
+		logrus.Debugf("Failed to pull %s:%v (%d/%d): %v", chartPath, chartVersion, i+1, tries, err)
+		if i == tries-1 {
+			return "", err
+		}
+		select {
+		case <-time.After(5 * time.Second):
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
+}
+
 func (h *HelmClient) Pull(repo string, chart string, version string) (string, error) {
 	if err := h.prepare(); err != nil {
 		return "", fmt.Errorf("prepare: %w", err)
@@ -336,7 +354,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 	var localPath string
 	if h.airgapPath == "" {
 		// online, pull chart from remote
-		localPath, err = h.PullOCI(opts.ChartPath, opts.ChartVersion)
+		localPath, err = h.PullOCIWithRetries(ctx, opts.ChartPath, opts.ChartVersion, 3)
 		if err != nil {
 			return nil, fmt.Errorf("pull oci: %w", err)
 		}
@@ -393,7 +411,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release
 	var localPath string
 	if h.airgapPath == "" {
 		// online, pull chart from remote
-		localPath, err = h.PullOCI(opts.ChartPath, opts.ChartVersion)
+		localPath, err = h.PullOCIWithRetries(ctx, opts.ChartPath, opts.ChartVersion, 3)
 		if err != nil {
 			return nil, fmt.Errorf("pull oci: %w", err)
 		}

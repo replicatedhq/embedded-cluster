@@ -10,6 +10,7 @@ import (
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -44,4 +45,13 @@ func (k *KubeUtils) RESTClientGetterFactory(namespace string) genericclioptions.
 		cfgFlags.Namespace = &namespace
 	}
 	return cfgFlags
+}
+
+func GetClientset() (*kubernetes.Clientset, error) {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("get kubernetes client config: %w", err)
+	}
+
+	return kubernetes.NewForConfig(cfg)
 }
