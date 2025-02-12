@@ -8,7 +8,7 @@ sslcrtd_program /usr/lib/squid/security_file_certgen -s /opt/ssl.db -M 4MB
 acl step1 at_step SslBump1
 ssl_bump peek step1
 ssl_bump bump all
-acl whitelist dstdomain proxy.replicated.com ec-e2e-replicated-app.testcluster.net
+acl whitelist dstdomain proxy.replicated.com ec-e2e-replicated-app.testcluster.net staging.replicated.app
 http_access allow localnet
 "
 
