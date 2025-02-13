@@ -153,7 +153,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 		return fmt.Errorf("unable to update the application: %w", err)
 	}
 
-	loading.Closef("Finished")
+	loading.Closef("Update complete. Go to the Admin Console to deploy it.")
 	return nil
 }
 
@@ -235,7 +235,7 @@ func MaskKotsOutputForAirgap() spinner.MaskFn {
 			current = message
 		case strings.Contains(message, "Waiting for the Admin Console"):
 			current = "Finalizing Admin Console"
-		case strings.Contains(message, "Finished"):
+		case strings.Contains(message, "Update complete. Go to the Admin Console to deploy it."):
 			current = message
 		}
 		return current

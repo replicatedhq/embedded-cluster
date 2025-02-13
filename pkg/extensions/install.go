@@ -32,7 +32,7 @@ func Install(ctx context.Context, hcli helm.Client) error {
 	numExtensions := len(sorted)
 
 	for i, ext := range sorted {
-		loading.Infof("Installing additional components (%d/%d)", i, numExtensions)
+		loading.Infof("Installing additional components (%d/%d)", i+1, numExtensions)
 
 		if err := install(ctx, hcli, ext); err != nil {
 			return errors.Wrapf(err, "install extension %s", ext.Name)
