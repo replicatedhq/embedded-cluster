@@ -7,6 +7,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
@@ -90,12 +91,18 @@ func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, 
 }
 
 func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, flags JoinCmdFlags, cidrCfg *CIDRConfig, metricsReported preflights.MetricsReporter) error {
+	nodeIP, err := netutils.FirstValidAddress(flags.networkInterface)
+	if err != nil {
+		return fmt.Errorf("unable to find first valid address: %w", err)
+	}
+
 	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
 		ReplicatedAPIURL:       jcmd.InstallationSpec.MetricsBaseURL, // MetricsBaseURL is the replicated.app endpoint url
 		ProxyRegistryURL:       fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress),
 		Proxy:                  jcmd.InstallationSpec.Proxy,
 		PodCIDR:                cidrCfg.PodCIDR,
 		ServiceCIDR:            cidrCfg.ServiceCIDR,
+		NodeIP:                 nodeIP,
 		IsAirgap:               flags.isAirgap,
 		SkipHostPreflights:     flags.skipHostPreflights,
 		IgnoreHostPreflights:   flags.ignoreHostPreflights,
