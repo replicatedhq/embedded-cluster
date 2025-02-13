@@ -74,7 +74,7 @@ func ExtractImagesFromLocalChart(hcli Client, name, path string, values map[stri
 func GetChartMetadata(hcli Client, ref string, version string) (*chart.Metadata, error) {
 	chartPath, err := hcli.Pull(ref, version)
 	if err != nil {
-		return nil, fmt.Errorf("pull oci: %w", err)
+		return nil, fmt.Errorf("pull: %w", err)
 	}
 	defer os.RemoveAll(chartPath)
 

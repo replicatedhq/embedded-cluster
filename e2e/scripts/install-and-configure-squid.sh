@@ -20,8 +20,9 @@ proxy.replicated.com
 ec-e2e-replicated-app.testcluster.net
 staging.replicated.app
 
-# ingress-nginx extension
+# ingress-nginx extension redirects to github.com releases/download
 kubernetes.github.io
+github.com
 # goldpinger extension
 okgolove.github.io
 

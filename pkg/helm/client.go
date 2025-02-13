@@ -318,7 +318,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 		// online, pull chart from remote
 		localPath, err = h.Pull(opts.ChartPath, opts.ChartVersion)
 		if err != nil {
-			return nil, fmt.Errorf("pull oci: %w", err)
+			return nil, fmt.Errorf("pull: %w", err)
 		}
 		defer os.RemoveAll(localPath)
 	} else {
@@ -375,7 +375,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release
 		// online, pull chart from remote
 		localPath, err = h.Pull(opts.ChartPath, opts.ChartVersion)
 		if err != nil {
-			return nil, fmt.Errorf("pull oci: %w", err)
+			return nil, fmt.Errorf("pull: %w", err)
 		}
 		defer os.RemoveAll(localPath)
 	} else {
