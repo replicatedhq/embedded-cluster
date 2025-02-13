@@ -1,7 +1,9 @@
 package kotscli
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -12,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -75,13 +78,22 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 	defer msg.SetMask(nil)
 	defer msg.SetLineBreaker(nil)
 
+	stdout := bytes.NewBuffer(nil)
+	stderr := bytes.NewBuffer(nil)
+
 	runCommandOptions := helpers.RunCommandOptions{
-		Stdout: msg,
+		Stdout: io.MultiWriter(msg, stdout),
+		Stderr: stderr,
 		Env: map[string]string{
 			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
 		},
 	}
-	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, installArgs...); err != nil {
+	err = helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, installArgs...)
+	logrus.Debugf("kotscli stdout: %s", stdout.String())
+	if out := strings.TrimSpace(stderr.String()); out != "" {
+		logrus.Debugf("kotscli stderr: %s", out)
+	}
+	if err != nil {
 		return fmt.Errorf("unable to install the application: %w", err)
 	}
 
