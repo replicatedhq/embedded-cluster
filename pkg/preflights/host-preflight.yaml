@@ -927,8 +927,35 @@ spec:
               when: 'net.ipv4.ip_forward == 0'
               message: "IP forwarding must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv4.ip_forward=1', and run 'sudo sysctl -p'."
           - pass:
-              when: 'net.ipv4.ip_forward > 0'
+              when: 'net.ipv4.ip_forward == 1'
               message: "IP forwarding is enabled."
+    - sysctl:
+        checkName: "IP forwarding for all interfaces"
+        outcomes:
+          - fail:
+              when: 'net.ipv4.conf.all.forwarding == 0'
+              message: "IP forwarding must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv4.conf.all.forwarding=1', and run 'sudo sysctl -p'."
+          - pass:
+              when: 'net.ipv4.conf.all.forwarding == 1'
+              message: "IP forwarding is enabled."
+    - sysctl:
+        checkName: "IP forwarding for the default interface"
+        outcomes:
+          - fail:
+              when: 'net.ipv4.conf.default.forwarding == 0'
+              message: "IP forwarding must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv4.conf.default.forwarding=1', and run 'sudo sysctl -p'."
+          - pass:
+              when: 'net.ipv4.conf.default.forwarding == 1'
+              message: "IP forwarding is enabled."
+    - sysctl:
+        checkName: "Bridge netfilter call iptables"
+        outcomes:
+          - fail:
+              when: 'net.bridge.bridge-nf-call-iptables == 0'
+              message: "Bridge netfilter call iptables must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.bridge.bridge-nf-call-iptables=1', and run 'sudo sysctl -p'."
+          - pass:
+              when: 'net.bridge.bridge-nf-call-iptables == 1'
+              message: "Bridge netfilter call iptables is enabled."
     - networkNamespaceConnectivity:
         collectorName: check-network-namespace-connectivity
         outcomes:
