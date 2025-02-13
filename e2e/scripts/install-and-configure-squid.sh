@@ -29,6 +29,9 @@ okgolove.github.io
 
 # install_kots_cli
 kots.io
+
+# dr
+s3.amazonaws.com
 "
 
 COUNTRY=US
