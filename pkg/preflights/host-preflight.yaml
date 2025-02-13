@@ -957,7 +957,6 @@ spec:
           - pass:
               when: 'net.bridge.bridge-nf-call-iptables == 1'
               message: "Bridge netfilter call iptables is enabled."
-              overlay
     - kernelModules:
         checkName: "Overlay kernel module"
         outcomes:
