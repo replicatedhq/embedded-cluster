@@ -68,11 +68,13 @@ spec:
                 annotations:
                   test-upgrade-annotation: test-upgrade-value
               image:
+                registry: proxy.replicated.com/anonymous/registry.k8s.io
                 digest: ""
                 digestChroot: ""
               admissionWebhooks:
                 patch:
                   image:
+                    registry: proxy.replicated.com/anonymous/registry.k8s.io
                     digest: ""
         - chartname: okgolove/goldpinger
           name: goldpinger
