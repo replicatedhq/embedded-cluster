@@ -24,6 +24,7 @@ func GetClusterHostPreflights(ctx context.Context, data types.TemplateData) ([]v
 		RawSpecs: []string{
 			spec,
 		},
+		Strict: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("load host preflight specs: %w", err)
