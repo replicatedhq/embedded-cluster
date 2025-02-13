@@ -23,6 +23,7 @@ staging.replicated.app
 # ingress-nginx extension redirects to github.com releases/download
 kubernetes.github.io
 github.com
+objects.githubusercontent.com
 # goldpinger extension
 okgolove.github.io
 
