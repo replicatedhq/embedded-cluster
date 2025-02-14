@@ -828,7 +828,7 @@ Environment="NO_PROXY=%s"`, httpProxy, httpsProxy, noProxy)
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
 // service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
-func installAndEnableLocalArtifactMirror() error {
+func installAndEnableLocalArtifactMirror(ctx context.Context) error {
 	materializer := goods.NewMaterializer()
 	if err := materializer.LocalArtifactMirrorUnitFile(); err != nil {
 		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
@@ -839,13 +839,33 @@ func installAndEnableLocalArtifactMirror() error {
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
+	if _, err := helpers.RunCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
+		return fmt.Errorf("unable to enable the local artifact mirror service: %w", err)
+	}
 	if _, err := helpers.RunCommand("systemctl", "start", "local-artifact-mirror"); err != nil {
 		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
 	}
-	if _, err := helpers.RunCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
-		return fmt.Errorf("unable to start the local artifact mirror service: %w", err)
+	if err := waitForLocalArtifactMirror(ctx); err != nil {
+		return fmt.Errorf("unable to wait for the local artifact mirror: %w", err)
 	}
 	return nil
+}
+
+func waitForLocalArtifactMirror(ctx context.Context) error {
+	for i := 0; i < 30; i++ {
+		if out, err := helpers.RunCommand("systemctl", "status", "local-artifact-mirror"); err == nil {
+			return nil
+		} else if i == 30 {
+			logrus.Debugf("Local artifact mirror status: %s", out)
+			return fmt.Errorf("local artifact mirror failed to start: %s", err)
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timeout waiting for the local artifact mirror")
+		case <-time.After(2 * time.Second):
+		}
+	}
+	return fmt.Errorf("timeout waiting for the local artifact mirror")
 }
 
 const (
