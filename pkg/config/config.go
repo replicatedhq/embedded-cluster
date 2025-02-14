@@ -109,7 +109,9 @@ func InstallFlags(nodeIP string) []string {
 
 func AdditionalInstallFlags(nodeIP string) []string {
 	return []string{
-		"--kubelet-extra-args", fmt.Sprintf(`"--node-ip=%s"`, nodeIP),
+		// NOTE: quotes are not supported in older systemd
+		// kardianos/service will escape spaces with "\x20"
+		"--kubelet-extra-args", fmt.Sprintf("--node-ip=%s", nodeIP),
 		"--data-dir", runtimeconfig.EmbeddedClusterK0sSubDir(),
 	}
 }

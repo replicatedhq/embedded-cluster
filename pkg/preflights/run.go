@@ -28,6 +28,7 @@ type PrepareAndRunOptions struct {
 	PodCIDR                string
 	ServiceCIDR            string
 	GlobalCIDR             *string
+	NodeIP                 string
 	PrivateCAs             []string
 	IsAirgap               bool
 	SkipHostPreflights     bool
@@ -66,6 +67,7 @@ func PrepareAndRun(ctx context.Context, opts PrepareAndRunOptions) error {
 		FromCIDR:                opts.PodCIDR,
 		ToCIDR:                  opts.ServiceCIDR,
 		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
+		NodeIP:                  opts.NodeIP,
 	}.WithCIDRData(opts.PodCIDR, opts.ServiceCIDR, opts.GlobalCIDR)
 
 	if err != nil {
