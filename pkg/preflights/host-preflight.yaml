@@ -14,6 +14,7 @@ spec:
     - cpu: {}
     - time: {}
     - ipv4Interfaces: {}
+    - kernelModules: {}
     - run:
         collectorName: 'ip-route-table'
         command: 'ip'
@@ -159,6 +160,10 @@ spec:
         address: '{{ $element }}'
         timeout: 30s
 {{- end}}
+    - run:
+        collectorName: 'selinux-mode'
+        command: 'sh'
+        args: ['-c', 'getenforce || echo "Missing"']
   analyzers:
     - cpu:
         checkName: CPU
@@ -856,6 +861,42 @@ spec:
           - pass:
               when: "a-subnet-is-available"
               message: Specified CIDR is available.
+    - subnetContainsIP:
+        checkName: Node IP in Pod CIDR Check
+        cidr: '{{ .PodCIDR.CIDR }}'
+        ip: '{{ .NodeIP }}'
+        exclude: '{{ eq .PodCIDR.CIDR "" }}'
+        outcomes:
+          - fail:
+              when: "true"
+              message: The node IP {{ .NodeIP }} must not be within the Pod CIDR range {{ .PodCIDR.CIDR }}. Choose a different Pod CIDR or network interface.
+          - pass:
+              when: "false" 
+              message: The node IP {{ .NodeIP }} is not within the Pod CIDR range {{ .PodCIDR.CIDR }}.
+    - subnetContainsIP:
+        checkName: Node IP in Service CIDR Check
+        cidr: '{{ .ServiceCIDR.CIDR }}'
+        ip: '{{ .NodeIP }}'
+        exclude: '{{ eq .ServiceCIDR.CIDR "" }}'
+        outcomes:
+          - fail:
+              when: "true"
+              message: The node IP {{ .NodeIP }} must not be within the Service CIDR range {{ .ServiceCIDR.CIDR }}. Choose a different Service CIDR or network interface.
+          - pass:
+              when: "false"
+              message: The node IP {{ .NodeIP }} is not within the Service CIDR range {{ .ServiceCIDR.CIDR }}.
+    - subnetContainsIP:
+        checkName: Node IP in Global CIDR Check
+        cidr: '{{ .GlobalCIDR.CIDR }}'
+        ip: '{{ .NodeIP }}'
+        exclude: '{{ eq .GlobalCIDR.CIDR "" }}'
+        outcomes:
+          - fail:
+              when: "true"
+              message: The node IP {{ .NodeIP }} must not be within the Global CIDR range {{ .GlobalCIDR.CIDR }}. Choose a different CIDR or network interface.
+          - pass:
+              when: "false"
+              message: The node IP {{ .NodeIP }} is not within the Global CIDR range {{ .GlobalCIDR.CIDR }}.
     - sysctl:
         checkName: "ARP Filter default value for newly created interfaces"
         outcomes:
@@ -923,8 +964,71 @@ spec:
               when: 'net.ipv4.ip_forward == 0'
               message: "IP forwarding must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv4.ip_forward=1', and run 'sudo sysctl -p'."
           - pass:
-              when: 'net.ipv4.ip_forward > 0'
+              when: 'net.ipv4.ip_forward == 1'
               message: "IP forwarding is enabled."
+    - sysctl:
+        checkName: "IP forwarding for all interfaces"
+        outcomes:
+          - fail:
+              when: 'net.ipv4.conf.all.forwarding == 0'
+              message: "IP forwarding must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv4.conf.all.forwarding=1', and run 'sudo sysctl -p'."
+          - pass:
+              when: 'net.ipv4.conf.all.forwarding == 1'
+              message: "IP forwarding is enabled."
+    - sysctl:
+        checkName: "IP forwarding for the default interface"
+        outcomes:
+          - fail:
+              when: 'net.ipv4.conf.default.forwarding == 0'
+              message: "IP forwarding must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv4.conf.default.forwarding=1', and run 'sudo sysctl -p'."
+          - pass:
+              when: 'net.ipv4.conf.default.forwarding == 1'
+              message: "IP forwarding is enabled."
+    - sysctl:
+        checkName: "Bridge netfilter call iptables"
+        outcomes:
+          - fail:
+              when: 'net.bridge.bridge-nf-call-iptables == 0'
+              message: "Bridge netfilter call iptables must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.bridge.bridge-nf-call-iptables=1', and run 'sudo sysctl -p'."
+          - pass:
+              when: 'net.bridge.bridge-nf-call-iptables == 1'
+              message: "Bridge netfilter call iptables is enabled."
+    - kernelModules:
+        checkName: "Overlay kernel module"
+        outcomes:
+          - fail:
+              when: "overlay != loaded,loadable"
+              message: The 'overlay' kernel module is not loaded or loadable
+          - pass:
+              when: "overlay == loaded,loadable"
+              message: The 'overlay' kernel module is loaded or loadable
+    - kernelModules:
+        checkName: "IP tables kernel module"
+        outcomes:
+          - fail:
+              when: "ip_tables != loaded,loadable"
+              message: The 'ip_tables' kernel module is not loaded or loadable
+          - pass:
+              when: "ip_tables == loaded,loadable"
+              message: The 'ip_tables' kernel module is loaded or loadable
+    - kernelModules:
+        checkName: "BR Netfilter kernel module"
+        outcomes:
+          - fail:
+              when: "br_netfilter != loaded,loadable"
+              message: The 'br_netfilter' kernel module is not loaded or loadable
+          - pass:
+              when: "br_netfilter == loaded,loadable"
+              message: The 'br_netfilter' kernel module is loaded or loadable
+    - kernelModules:
+        checkName: "NF Conntrack kernel module"
+        outcomes:
+          - fail:
+              when: "nf_conntrack != loaded,loadable"
+              message: The 'nf_conntrack' kernel module is not loaded or loadable
+          - pass:
+              when: "nf_conntrack == loaded,loadable"
+              message: The 'nf_conntrack' kernel module is loaded or loadable
     - networkNamespaceConnectivity:
         collectorName: check-network-namespace-connectivity
         outcomes:
@@ -950,3 +1054,20 @@ spec:
               when: "connected"
               message: "Successful TCP connection to {{ $element }}."
 {{- end}}
+    - textAnalyze:
+        checkName: SELinux Mode
+        fileName: host-collectors/run-host/selinux-mode.txt
+        regexGroups: '(?P<Mode>Enforcing|Permissive|Disabled|Missing)'
+        outcomes:
+          - fail:
+              when: "Mode == Enforcing"
+              message: SELinux must be disabled or run in permissive mode.
+          - pass:
+              when: "Mode == Permissive"
+              message: SELinux is running in permissive mode.
+          - pass:
+              when: "Mode == Disabled"
+              message: SELinux is disabled.
+          - pass:
+              when: "Mode == Missing"
+              message: SELinux is not installed.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
@@ -62,6 +63,11 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 		logrus.Debugf("unable to configure sysctl: %v", err)
 	}
 
+	logrus.Debugf("configuring kernel modules")
+	if err := configutils.ConfigureKernelModules(); err != nil {
+		logrus.Debugf("unable to configure kernel modules: %v", err)
+	}
+
 	logrus.Debugf("running install preflights")
 	if err := runInstallPreflights(ctx, flags, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
@@ -82,6 +88,11 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsRep
 		proxyRegistryURL = fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
 	}
 
+	nodeIP, err := netutils.FirstValidAddress(flags.networkInterface)
+	if err != nil {
+		return fmt.Errorf("unable to find first valid address: %w", err)
+	}
+
 	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
 		ReplicatedAPIURL:     replicatedAPIURL,
 		ProxyRegistryURL:     proxyRegistryURL,
@@ -89,6 +100,7 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsRep
 		PodCIDR:              flags.cidrCfg.PodCIDR,
 		ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
 		GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
+		NodeIP:               nodeIP,
 		PrivateCAs:           flags.privateCAs,
 		IsAirgap:             flags.isAirgap,
 		SkipHostPreflights:   flags.skipHostPreflights,
