@@ -71,7 +71,7 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 
 		logrus.Infof("extracting images from chart")
 		withproto := fmt.Sprintf("oci://%s", upstream)
-		images, err := helm.ExtractImagesFromOCIChart(hcli, withproto, "adminconsole", latest, values)
+		images, err := helm.ExtractImagesFromChart(hcli, withproto, latest, values)
 		if err != nil {
 			return fmt.Errorf("failed to get images from admin console chart: %w", err)
 		}

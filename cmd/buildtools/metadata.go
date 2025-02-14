@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"sort"
-	"strings"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -125,9 +124,5 @@ func extractImagesFromChart(hcli helm.Client, chart embeddedclusterv1beta1.Chart
 		}
 	}
 
-	if strings.HasPrefix(chart.ChartName, "oci://") {
-		return helm.ExtractImagesFromOCIChart(hcli, chart.ChartName, chart.Name, chart.Version, values)
-	}
-	parts := strings.SplitN(chart.ChartName, "/", 2)
-	return helm.ExtractImagesFromChart(hcli, parts[0], parts[1], chart.Version, values)
+	return helm.ExtractImagesFromChart(hcli, chart.ChartName, chart.Version, values)
 }

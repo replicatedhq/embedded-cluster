@@ -16,6 +16,11 @@ for var in "${required_env_vars[@]}"; do
   fi
 done
 
+if ! command -v helm >/dev/null 2>&1 ; then
+  echo "Error: helm is not installed"
+  exit 1
+fi
+
 export CHART_VERSION
 export IMAGE_NAME
 export IMAGE_TAG

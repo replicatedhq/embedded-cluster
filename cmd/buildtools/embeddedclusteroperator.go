@@ -125,7 +125,7 @@ func updateOperatorAddonImages(ctx context.Context, hcli helm.Client, chartURL s
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	images, err := helm.ExtractImagesFromOCIChart(hcli, chartURL, "embeddedclusteroperator", chartVersion, values)
+	images, err := helm.ExtractImagesFromChart(hcli, chartURL, chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from embedded cluster operator chart: %w", err)
 	}

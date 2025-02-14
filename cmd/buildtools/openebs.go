@@ -134,7 +134,7 @@ func updateOpenEBSAddonImages(ctx context.Context, hcli helm.Client, chartURL st
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	images, err := helm.ExtractImagesFromOCIChart(hcli, chartURL, "openebs", chartVersion, values)
+	images, err := helm.ExtractImagesFromChart(hcli, chartURL, chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from openebs chart: %w", err)
 	}

@@ -42,6 +42,11 @@ func TestProxiedEnvironment(t *testing.T) {
 	// install "curl" dependency on node 0 for app version checks.
 	tc.InstallTestDependenciesDebian(t, 0, true)
 
+	t.Logf("%s: reconfiguring squid to only allow whitelist access", time.Now().Format(time.RFC3339))
+	if _, _, err := tc.RunCommandOnProxyNode(t, []string{"enable-squid-whitelist.sh"}); err != nil {
+		t.Fatalf("failed to reconfigure squid: %v", err)
+	}
+
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
@@ -154,6 +159,11 @@ func TestProxiedCustomCIDR(t *testing.T) {
 
 	// install "curl" dependency on node 0 for app version checks.
 	tc.InstallTestDependenciesDebian(t, 0, true)
+
+	t.Logf("%s: reconfiguring squid to only allow whitelist access", time.Now().Format(time.RFC3339))
+	if _, _, err := tc.RunCommandOnProxyNode(t, []string{"enable-squid-whitelist.sh"}); err != nil {
+		t.Fatalf("failed to reconfigure squid: %v", err)
+	}
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
@@ -275,6 +285,11 @@ func TestInstallWithMITMProxy(t *testing.T) {
 
 	// install "curl" dependency on node 0 for app version checks.
 	tc.InstallTestDependenciesDebian(t, 0, true)
+
+	t.Logf("%s: reconfiguring squid to only allow whitelist access", time.Now().Format(time.RFC3339))
+	if _, _, err := tc.RunCommandOnProxyNode(t, []string{"enable-squid-whitelist.sh"}); err != nil {
+		t.Fatalf("failed to reconfigure squid: %v", err)
+	}
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
