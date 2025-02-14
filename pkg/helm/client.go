@@ -219,7 +219,12 @@ func (h *HelmClient) Latest(reponame, chart string) (string, error) {
 	return "", fmt.Errorf("repository %s not found", reponame)
 }
 
-func (h *HelmClient) Pull(ref string, version string) (string, error) {
+func (h *HelmClient) Pull(reponame, chart string, version string) (string, error) {
+	ref := fmt.Sprintf("%s/%s", reponame, chart)
+	return h.PullByRef(ref, version)
+}
+
+func (h *HelmClient) PullByRef(ref string, version string) (string, error) {
 	if !isOCIChart(ref) {
 		if err := h.prepare(); err != nil {
 			return "", fmt.Errorf("prepare: %w", err)
@@ -316,7 +321,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 	var localPath string
 	if h.airgapPath == "" {
 		// online, pull chart from remote
-		localPath, err = h.Pull(opts.ChartPath, opts.ChartVersion)
+		localPath, err = h.PullByRef(opts.ChartPath, opts.ChartVersion)
 		if err != nil {
 			return nil, fmt.Errorf("pull: %w", err)
 		}
@@ -373,7 +378,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release
 	var localPath string
 	if h.airgapPath == "" {
 		// online, pull chart from remote
-		localPath, err = h.Pull(opts.ChartPath, opts.ChartVersion)
+		localPath, err = h.PullByRef(opts.ChartPath, opts.ChartVersion)
 		if err != nil {
 			return nil, fmt.Errorf("pull: %w", err)
 		}

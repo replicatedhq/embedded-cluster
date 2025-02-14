@@ -38,7 +38,7 @@ type reducedContainer struct {
 }
 
 func ExtractImagesFromChart(hcli Client, ref string, version string, values map[string]interface{}) ([]string, error) {
-	chartPath, err := hcli.Pull(ref, version)
+	chartPath, err := hcli.PullByRef(ref, version)
 	if err != nil {
 		return nil, fmt.Errorf("pull: %w", err)
 	}
@@ -72,7 +72,7 @@ func ExtractImagesFromLocalChart(hcli Client, name, path string, values map[stri
 }
 
 func GetChartMetadata(hcli Client, ref string, version string) (*chart.Metadata, error) {
-	chartPath, err := hcli.Pull(ref, version)
+	chartPath, err := hcli.PullByRef(ref, version)
 	if err != nil {
 		return nil, fmt.Errorf("pull: %w", err)
 	}

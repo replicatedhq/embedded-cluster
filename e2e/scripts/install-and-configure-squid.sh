@@ -31,7 +31,7 @@ okgolove.github.io
 kots.io
 
 # dr
-amazonaws.com
+.amazonaws.com
 "
 
 COUNTRY=US

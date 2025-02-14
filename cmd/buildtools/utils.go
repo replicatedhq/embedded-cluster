@@ -426,8 +426,7 @@ func MirrorChart(hcli helm.Client, repo *repo.Entry, name, ver string) error {
 	}
 
 	logrus.Infof("pulling %s chart version %s", name, ver)
-	ref := fmt.Sprintf("%s/%s", repo.Name, name)
-	chpath, err := hcli.Pull(ref, ver)
+	chpath, err := hcli.Pull(repo.Name, name, ver)
 	if err != nil {
 		return fmt.Errorf("pull chart %s: %w", name, err)
 	}

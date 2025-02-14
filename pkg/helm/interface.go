@@ -16,7 +16,8 @@ type Client interface {
 	Close() error
 	AddRepo(repo *repo.Entry) error
 	Latest(reponame, chart string) (string, error)
-	Pull(ref string, version string) (string, error)
+	Pull(reponame, chart string, version string) (string, error)
+	PullByRef(ref string, version string) (string, error)
 	RegistryAuth(server, user, pass string) error
 	Push(path, dst string) error
 	GetChartMetadata(chartPath string) (*chart.Metadata, error)
