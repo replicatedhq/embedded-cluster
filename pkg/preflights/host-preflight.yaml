@@ -893,7 +893,7 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: The node IP {{ .NodeIP }} cannot be within the CIDR range {{ .GlobalCIDR.CIDR }}. Use --cidr to specify a different CIDR block, or use --network-interface to specify a different network interface.
+              message: The node IP {{ .NodeIP }} cannot be within the CIDR range {{ .GlobalCIDR.CIDR }}. Use --cidr to specify a different CIDR block of available private IP addresses (/16 or larger), or use --network-interface to specify a different network interface.
           - pass:
               when: "false"
               message: The node IP {{ .NodeIP }} is not within the Global CIDR range {{ .GlobalCIDR.CIDR }}.
