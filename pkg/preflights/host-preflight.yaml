@@ -869,7 +869,7 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: The node IP {{ .NodeIP }} must not be within the Pod CIDR range {{ .PodCIDR.CIDR }}. Choose a different Pod CIDR or network interface.
+              message: The node IP {{ .NodeIP }} cannot be within the Pod CIDR range {{ .PodCIDR.CIDR }}. Use --pod-cidr to specify a different Pod CIDR, or use --network-interface to specify a different network interface.
           - pass:
               when: "false" 
               message: The node IP {{ .NodeIP }} is not within the Pod CIDR range {{ .PodCIDR.CIDR }}.
@@ -881,7 +881,7 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: The node IP {{ .NodeIP }} must not be within the Service CIDR range {{ .ServiceCIDR.CIDR }}. Choose a different Service CIDR or network interface.
+              message: The node IP {{ .NodeIP }} cannot be within the Service CIDR range {{ .ServiceCIDR.CIDR }}. Use --service-cidr to specify a different Service CIDR, or use --network-interface to specify a different network interface.
           - pass:
               when: "false"
               message: The node IP {{ .NodeIP }} is not within the Service CIDR range {{ .ServiceCIDR.CIDR }}.
@@ -893,7 +893,7 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: The node IP {{ .NodeIP }} must not be within the Global CIDR range {{ .GlobalCIDR.CIDR }}. Choose a different CIDR or network interface.
+              message: The node IP {{ .NodeIP }} cannot be within the CIDR range {{ .GlobalCIDR.CIDR }}. Use --cidr to specify a different CIDR, or use --network-interface to specify a different network interface.
           - pass:
               when: "false"
               message: The node IP {{ .NodeIP }} is not within the Global CIDR range {{ .GlobalCIDR.CIDR }}.
@@ -902,61 +902,61 @@ spec:
         outcomes:
           - fail:
               when: 'net.ipv4.conf.default.arp_filter > 0'
-              message: "ARP filtering must be disabled by default for newly created interfaces on the host. To disable it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.default.arp_filter=0', and run 'sudo sysctl -p'."
+              message: "ARP filtering must be disabled by default for newly created interfaces. To disable it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.default.arp_filter=0', and run 'sudo sysctl -p'."
           - pass:
               when: 'net.ipv4.conf.default.arp_filter == 0'
-              message: "ARP filtering is disabled by default for newly created interfaces on the host."
+              message: "ARP filtering is disabled by default for newly created interfaces."
     - sysctl:
         checkName: "ARP Filter value for all interfaces"
         outcomes:
           - fail:
               when: 'net.ipv4.conf.all.arp_filter > 0'
-              message: "ARP filtering must be disabled for all interfaces on the host. To disable it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.all.arp_filter=0', and run 'sudo sysctl -p'."
+              message: "ARP filtering must be disabled for all interfaces. To disable it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.all.arp_filter=0', and run 'sudo sysctl -p'."
           - pass:
               when: 'net.ipv4.conf.all.arp_filter == 0'
-              message: "ARP filtering is disabled for all interfaces on the host."
+              message: "ARP filtering is disabled for all interfaces."
     - sysctl:
         checkName: "ARP Ignore default value for newly created interfaces"
         outcomes:
           - fail:
               when: 'net.ipv4.conf.default.arp_ignore > 0'
-              message: "ARP ignore must be disabled by default for newly created interfaces on the host. To disable it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.default.arp_ignore=0', and run 'sudo sysctl -p'."
+              message: "ARP ignore must be disabled by default for newly created interfaces. To disable it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.default.arp_ignore=0', and run 'sudo sysctl -p'."
           - pass:
               when: 'net.ipv4.conf.default.arp_ignore == 0'
-              message: "ARP ignore is disabled by default for newly created interfaces on the host."
+              message: "ARP ignore is disabled by default for newly created interfaces."
     - sysctl:
         checkName: "ARP Ignore value for all interfaces"
         outcomes:
           - fail:
               when: 'net.ipv4.conf.all.arp_ignore > 0'
-              message: "ARP ignore must be disabled for all interfaces on the host. To disable it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.all.arp_ignore=0', and run 'sudo sysctl -p'."
+              message: "ARP ignore must be disabled for all interfaces. To disable it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.all.arp_ignore=0', and run 'sudo sysctl -p'."
           - pass:
               when: 'net.ipv4.conf.all.arp_ignore == 0'
-              message: "ARP ignore is disabled for all interfaces on the host."
+              message: "ARP ignore is disabled for all interfaces."
     - sysctl:
         checkName: "Reverse Path Filtering default value for newly created interfaces"
         outcomes:
           - fail:
               when: 'net.ipv4.conf.default.rp_filter == 1'
-              message: "Reverse path filtering must be set to either loose mode (2 - preferred) or disabled (0) for newly created interfaces on the host. To change it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.default.rp_filter=2', and run 'sudo sysctl -p'."
+              message: "Reverse path filtering must be set to either loose mode (2 - preferred) or disabled (0) for newly created interfaces. To change it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.default.rp_filter=2', and run 'sudo sysctl -p'."
           - pass:
               when: 'net.ipv4.conf.default.rp_filter == 2'
-              message: "Reverse path filtering is set to loose mode for newly created interfaces on the host."
+              message: "Reverse path filtering is set to loose mode for newly created interfaces."
           - pass:
               when: 'net.ipv4.conf.default.rp_filter == 0'
-              message: "Reverse path filtering is disabled for newly created interfaces on the host."
+              message: "Reverse path filtering is disabled for newly created interfaces."
     - sysctl:
         checkName: "Reverse Path Filtering value for all interfaces"
         outcomes:
           - fail:
               when: 'net.ipv4.conf.all.rp_filter == 1'
-              message: "Reverse path filtering must be set to either loose mode (2 - preferred) or disabled (0) for all interfaces on the host. To change it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.all.rp_filter=2', and run 'sudo sysctl -p'."
+              message: "Reverse path filtering must be set to either loose mode (2 - preferred) or disabled (0) for all interfaces. To change it, edit /etc/sysctl.conf, add the line 'net.ipv4.conf.all.rp_filter=2', and run 'sudo sysctl -p'."
           - pass:
               when: 'net.ipv4.conf.all.rp_filter == 2'
-              message: "Reverse path filtering is set to loose mode for all interfaces on the host."
+              message: "Reverse path filtering is set to loose mode for all interfaces."
           - pass:
               when: 'net.ipv4.conf.all.rp_filter == 0'
-              message: "Reverse path filtering is disabled for all interfaces on the host."
+              message: "Reverse path filtering is disabled for all interfaces."
     - sysctl:
         checkName: "IP forwarding"
         outcomes:
@@ -971,19 +971,19 @@ spec:
         outcomes:
           - fail:
               when: 'net.ipv4.conf.all.forwarding == 0'
-              message: "IP forwarding must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv4.conf.all.forwarding=1', and run 'sudo sysctl -p'."
+              message: "IP forwarding must be enabled for all interfaces. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv4.conf.all.forwarding=1', and run 'sudo sysctl -p'."
           - pass:
               when: 'net.ipv4.conf.all.forwarding == 1'
-              message: "IP forwarding is enabled."
+              message: "IP forwarding is enabled for all interfaces."
     - sysctl:
-        checkName: "IP forwarding for the default interface"
+        checkName: "IP forwarding default value for newly created interfaces"
         outcomes:
           - fail:
               when: 'net.ipv4.conf.default.forwarding == 0'
-              message: "IP forwarding must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv4.conf.default.forwarding=1', and run 'sudo sysctl -p'."
+              message: "IP forwarding must be enabled for newly created interfaces. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv4.conf.default.forwarding=1', and run 'sudo sysctl -p'."
           - pass:
               when: 'net.ipv4.conf.default.forwarding == 1'
-              message: "IP forwarding is enabled."
+              message: "IP forwarding is enabled for newly created interfaces."
     - sysctl:
         checkName: "Bridge netfilter call iptables"
         outcomes:
@@ -1061,7 +1061,7 @@ spec:
         outcomes:
           - fail:
               when: "Mode == Enforcing"
-              message: SELinux must be disabled or run in permissive mode.
+              message: SELinux must be disabled or run in permissive mode. To run SELinux in permissive mode, edit /etc/selinux/config, change the line 'SELINUX=enforcing' to 'SELINUX=permissive', save the file, and reboot. You can run getenforce to verify the change."
           - pass:
               when: "Mode == Permissive"
               message: SELinux is running in permissive mode.
