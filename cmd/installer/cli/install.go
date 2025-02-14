@@ -842,12 +842,14 @@ func installAndEnableLocalArtifactMirror(ctx context.Context) error {
 	if _, err := helpers.RunCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
 		return fmt.Errorf("unable to enable the local artifact mirror service: %w", err)
 	}
+	logrus.Debugf("Starting local artifact mirror")
 	if _, err := helpers.RunCommand("systemctl", "start", "local-artifact-mirror"); err != nil {
 		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
 	}
 	if err := waitForLocalArtifactMirror(ctx); err != nil {
 		return fmt.Errorf("unable to wait for the local artifact mirror: %w", err)
 	}
+	logrus.Debugf("Local artifact mirror started!")
 	return nil
 }
 
