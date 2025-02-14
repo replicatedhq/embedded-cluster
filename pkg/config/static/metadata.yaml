@@ -24,13 +24,13 @@ images:
     coredns:
         repo: proxy.replicated.com/anonymous/replicated/ec-coredns
         tag:
-            amd64: 1.12.0-r5-amd64@sha256:c6bc45c491f9dc6ad3b48b1e8692f48569b5f540af1177508dae042c0d5a7dd2
-            arm64: 1.12.0-r5-arm64@sha256:8850805e14f2cbddabc3ae52d732e314067daedff2fd0b39b4d94b07e6c1fb17
+            amd64: 1.12.0-r6-amd64@sha256:3088e2ae82a0aa6b80eaba3542a6be506a690fd2bbaf37c94feb01f04fc35d99
+            arm64: 1.12.0-r6-arm64@sha256:4c8d505126d472559fb04ae3bd44968da8ee01f5326da9253072909554f9c562
     kube-proxy:
         repo: proxy.replicated.com/anonymous/registry.k8s.io/kube-proxy
         tag:
-            amd64: v1.30.9-amd64@sha256:33ed60b5deec65f44e346bc60a5d798462270e43145aa268b04d14a32ebe236c
-            arm64: v1.30.9-arm64@sha256:e5ebd7acab438f79d63cb1110778178a046da033092be49cbace82af15d394a3
+            amd64: v1.30.10-amd64@sha256:ec31c93328d612076abf19b198bee65c1291965d022444e50c04899e008a53e7
+            arm64: v1.30.10-arm64@sha256:6805ab139ea9045cce2aa58ac66d5867e7b39b7af4622528aa14f3e2593d3bc0
     metrics-server:
         repo: proxy.replicated.com/anonymous/replicated/ec-metrics-server
         tag:
