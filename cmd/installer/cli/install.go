@@ -854,20 +854,33 @@ func installAndEnableLocalArtifactMirror(ctx context.Context) error {
 }
 
 func waitForLocalArtifactMirror(ctx context.Context) error {
-	for i := 0; i < 30; i++ {
-		if out, err := helpers.RunCommand("systemctl", "status", "local-artifact-mirror"); err == nil {
-			return nil
-		} else if i == 30 {
-			logrus.Debugf("Local artifact mirror status: %s", out)
-			return fmt.Errorf("local artifact mirror failed to start: %s", err)
+	consecutiveSuccesses := 0
+	requiredSuccesses := 3
+	maxAttempts := 30
+	checkInterval := 2 * time.Second
+
+	var lastErr error
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		_, err := helpers.RunCommand("systemctl", "status", "local-artifact-mirror")
+		if err == nil {
+			consecutiveSuccesses++
+			if consecutiveSuccesses >= requiredSuccesses {
+				return nil
+			}
+		} else {
+			consecutiveSuccesses = 0
+			lastErr = err
 		}
+
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("timeout waiting for the local artifact mirror")
-		case <-time.After(2 * time.Second):
+			return ctx.Err()
+		case <-time.After(checkInterval):
+			continue
 		}
 	}
-	return fmt.Errorf("timeout waiting for the local artifact mirror")
+
+	return lastErr
 }
 
 const (
