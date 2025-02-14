@@ -17,10 +17,10 @@ PREVIOUS_K0S_GO_VERSION ?= v1.29.9+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.112.1
 
-KOTS_VERSION = v1.0.0-ethan-20250213-2
+KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
 # scripts/ci-upload-binaries.sh may find the version in the cache and not upload the overridden binary.
-KOTS_BINARY_URL_OVERRIDE = https://repldev-ethan-test.s3.us-east-1.amazonaws.com/kots-amd64.tar.gz
+KOTS_BINARY_URL_OVERRIDE =
 # For dev env, build the kots binary in the kots repo with "make kots-linux-arm64" and set this to "../kots/bin/kots"
 KOTS_BINARY_FILE_OVERRIDE =
 # TODO: move this to a manifest file
