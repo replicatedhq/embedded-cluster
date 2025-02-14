@@ -608,7 +608,7 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(false, proxy); err != nil {
+	if err := createSystemdUnitFiles(ctx, false, proxy); err != nil {
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
@@ -769,7 +769,7 @@ func validateAdminConsolePassword(password, passwordCheck string) bool {
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(isWorker bool, proxy *ecv1beta1.ProxySpec) error {
+func createSystemdUnitFiles(ctx context.Context, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
 	dst := systemdUnitFileName()
 	if _, err := os.Lstat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
@@ -793,7 +793,7 @@ func createSystemdUnitFiles(isWorker bool, proxy *ecv1beta1.ProxySpec) error {
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
-	if err := installAndEnableLocalArtifactMirror(); err != nil {
+	if err := installAndEnableLocalArtifactMirror(ctx); err != nil {
 		return fmt.Errorf("unable to install and enable local artifact mirror: %w", err)
 	}
 	return nil
