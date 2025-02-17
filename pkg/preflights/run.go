@@ -36,6 +36,7 @@ type PrepareAndRunOptions struct {
 	AssumeYes              bool
 	TCPConnectionsRequired []string
 	MetricsReporter        MetricsReporter
+	IsJoin                 bool
 }
 
 type MetricsReporter interface {
@@ -68,6 +69,7 @@ func PrepareAndRun(ctx context.Context, opts PrepareAndRunOptions) error {
 		ToCIDR:                  opts.ServiceCIDR,
 		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
 		NodeIP:                  opts.NodeIP,
+		IsJoin:                  opts.IsJoin,
 	}.WithCIDRData(opts.PodCIDR, opts.ServiceCIDR, opts.GlobalCIDR)
 
 	if err != nil {
