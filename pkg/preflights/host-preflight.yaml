@@ -869,7 +869,12 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: The node IP {{ .NodeIP }} cannot be within the Pod CIDR range {{ .PodCIDR.CIDR }}. Use --pod-cidr to specify a different Pod CIDR, or use --network-interface to specify a different network interface.
+              message: |
+                {{ if .IsJoin -}}
+                The node IP {{ .NodeIP }} cannot be within the Pod CIDR range {{ .PodCIDR.CIDR }}. Use --network-interface to specify a different network interface.
+                {{- else -}}
+                The node IP {{ .NodeIP }} cannot be within the Pod CIDR range {{ .PodCIDR.CIDR }}. Use --pod-cidr to specify a different Pod CIDR, or use --network-interface to specify a different network interface.
+                {{- end }}
           - pass:
               when: "false" 
               message: The node IP {{ .NodeIP }} is not within the Pod CIDR range {{ .PodCIDR.CIDR }}.
@@ -881,7 +886,12 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: The node IP {{ .NodeIP }} cannot be within the Service CIDR range {{ .ServiceCIDR.CIDR }}. Use --service-cidr to specify a different Service CIDR, or use --network-interface to specify a different network interface.
+              message: |
+                {{ if .IsJoin -}}
+                The node IP {{ .NodeIP }} cannot be within the Service CIDR range {{ .ServiceCIDR.CIDR }}. Use --network-interface to specify a different network interface.
+                {{- else -}}
+                The node IP {{ .NodeIP }} cannot be within the Service CIDR range {{ .ServiceCIDR.CIDR }}. Use --service-cidr to specify a different Service CIDR, or use --network-interface to specify a different network interface.
+                {{- end }}
           - pass:
               when: "false"
               message: The node IP {{ .NodeIP }} is not within the Service CIDR range {{ .ServiceCIDR.CIDR }}.
@@ -893,7 +903,12 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: The node IP {{ .NodeIP }} cannot be within the CIDR range {{ .GlobalCIDR.CIDR }}. Use --cidr to specify a different CIDR block of available private IP addresses (/16 or larger), or use --network-interface to specify a different network interface.
+              message: |
+                {{ if .IsJoin -}}
+                The node IP {{ .NodeIP }} cannot be within the CIDR range {{ .GlobalCIDR.CIDR }}. Use --network-interface to specify a different network interface.
+                {{- else -}}
+                The node IP {{ .NodeIP }} cannot be within the CIDR range {{ .GlobalCIDR.CIDR }}. Use --cidr to specify a different CIDR block of available private IP addresses (/16 or larger), or use --network-interface to specify a different network interface.
+                {{- end }}
           - pass:
               when: "false"
               message: The node IP {{ .NodeIP }} is not within the Global CIDR range {{ .GlobalCIDR.CIDR }}.
@@ -1055,13 +1070,13 @@ spec:
         outcomes:
           - fail:
               when: "connection-refused"
-              message: "A TCP connection to {{ $element }} is required, but the connection was refused. This can occur, for example, if IP routing is not possible between this host and {{ $element }}, or if your firewall doesn’t allow traffic between this host and {{ $element }}."
+              message: "A TCP connection to {{ $element }} is required, but the connection was refused. This can occur, for example, if IP routing is not possible between this host and {{ $element }}, or if your firewall doesn't allow traffic between this host and {{ $element }}."
           - fail:
               when: "connection-timeout"
-              message: "A TCP connection to {{ $element }} is required, but the connection timed out. This can occur, for example, if IP routing is not possible between this host and {{ $element }}, or if your firewall doesn’t allow traffic between this host and {{ $element }}."
+              message: "A TCP connection to {{ $element }} is required, but the connection timed out. This can occur, for example, if IP routing is not possible between this host and {{ $element }}, or if your firewall doesn't allow traffic between this host and {{ $element }}."
           - fail:
               when: "error"
-              message: "A TCP connection to {{ $element }} is required, but an unexpected error occurred. This can occur, for example, if IP routing is not possible between this host and {{ $element }}, or if your firewall doesn’t allow traffic between this host and {{ $element }}."
+              message: "A TCP connection to {{ $element }} is required, but an unexpected error occurred. This can occur, for example, if IP routing is not possible between this host and {{ $element }}, or if your firewall doesn't allow traffic between this host and {{ $element }}."
           - pass:
               when: "connected"
               message: "Successful TCP connection to {{ $element }}."
