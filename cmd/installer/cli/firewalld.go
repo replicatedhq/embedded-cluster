@@ -29,7 +29,7 @@ func configureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) 
 		return fmt.Errorf("check if firewall-cmd exists: %w", err)
 	}
 	if !cmdExists {
-		logrus.Warn("firewall-cmd not found but firewalld is active, skipping firewalld configuration")
+		logrus.Debugf("firewall-cmd not found but firewalld is active, skipping firewalld configuration")
 		return nil
 	}
 
@@ -166,7 +166,6 @@ func resetFirewalldDefaultZone(ctx context.Context) (finalErr error) {
 		firewalld.IsPermanent(),
 	}
 
-	// Allow other nodes to connect to k0s core components
 	ports := []string{"6443/tcp", "10250/tcp", "9443/tcp", "2380/tcp", "4789/udp"}
 	for _, port := range ports {
 		err := firewalld.RemovePortFromZone(ctx, port, opts...)
