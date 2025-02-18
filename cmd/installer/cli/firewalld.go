@@ -53,7 +53,15 @@ func configureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) 
 
 // resetFirewalld removes all firewalld configuration added by the installer.
 func resetFirewalld(ctx context.Context) (finalErr error) {
-	err := resetFirewalldECNetZone(ctx)
+	cmdExists, err := firewalld.FirewallCmdExists(ctx)
+	if err != nil {
+		return fmt.Errorf("check if firewall-cmd exists: %w", err)
+	}
+	if !cmdExists {
+		return nil
+	}
+
+	err = resetFirewalldECNetZone(ctx)
 	if err != nil {
 		finalErr = multierr.Append(finalErr, fmt.Errorf("reset ec-net zone: %w", err))
 	}
