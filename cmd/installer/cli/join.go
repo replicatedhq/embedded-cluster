@@ -158,6 +158,11 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		return fmt.Errorf("unable to get join CIDR config: %w", err)
 	}
 
+	logrus.Debugf("configuring firewalld")
+	if err := configureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
+		return fmt.Errorf("unable to configure firewalld: %w", err)
+	}
+
 	logrus.Debugf("running join preflights")
 	if err := runJoinPreflights(ctx, jcmd, flags, cidrCfg, metricsReporter); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {

@@ -27,6 +27,8 @@ type HelpersInterface interface {
 }
 
 type RunCommandOptions struct {
+	// Context is the context for the command.
+	Context context.Context
 	// Stdout is an additional io.Stdout to write the stdout of the command to.
 	Stdout io.Writer
 	// Stderr is an additional io.Stderr to write the stderr of the command to.
