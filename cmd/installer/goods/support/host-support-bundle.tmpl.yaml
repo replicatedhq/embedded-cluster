@@ -432,6 +432,9 @@ spec:
             when: 'ntp == unsynchronized+active'
             message: NTP is enabled but the system clock is not synchronized. Synchronize the system clock to continue.
         - pass:
+            when: 'ntp == synchronized+inactive' # don't fail as the system clock might be managed by other protocols (e.g. PTP)
+            message: NTP is inactive but the system clock is synchronized
+        - pass:
             when: 'ntp == synchronized+active'
             message: NTP is enabled and the system clock is synchronized
         - fail:
