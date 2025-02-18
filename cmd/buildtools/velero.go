@@ -171,7 +171,7 @@ func findVeleroVersionFromChart(ctx context.Context, hcli helm.Client, chartURL 
 	if err != nil {
 		return "", fmt.Errorf("failed to get velero values: %v", err)
 	}
-	images, err := helm.ExtractImagesFromOCIChart(hcli, chartURL, "velero", chartVersion, values)
+	images, err := helm.ExtractImagesFromChart(hcli, chartURL, chartVersion, values)
 	if err != nil {
 		return "", fmt.Errorf("failed to get images from velero chart: %w", err)
 	}
@@ -216,7 +216,7 @@ func updateVeleroAddonImages(ctx context.Context, hcli helm.Client, chartURL str
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	images, err := helm.ExtractImagesFromOCIChart(hcli, chartURL, "velero", chartVersion, values)
+	images, err := helm.ExtractImagesFromChart(hcli, chartURL, chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from velero chart: %w", err)
 	}

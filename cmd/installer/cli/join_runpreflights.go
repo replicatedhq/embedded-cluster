@@ -108,6 +108,7 @@ func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, f
 		IgnoreHostPreflights:   flags.ignoreHostPreflights,
 		AssumeYes:              flags.assumeYes,
 		TCPConnectionsRequired: jcmd.TCPConnectionsRequired,
+		IsJoin:                 true,
 	}); err != nil {
 		return err
 	}

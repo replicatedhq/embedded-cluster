@@ -76,12 +76,14 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 	defer msg.SetLineBreaker(nil)
 
 	runCommandOptions := helpers.RunCommandOptions{
-		Stdout: msg,
+		Stdout:       msg,
+		LogOnSuccess: true,
 		Env: map[string]string{
 			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
 		},
 	}
-	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, installArgs...); err != nil {
+	err = helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, installArgs...)
+	if err != nil {
 		return fmt.Errorf("unable to install the application: %w", err)
 	}
 

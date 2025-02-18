@@ -34,6 +34,7 @@ type TemplateData struct {
 	ToCIDR                  string
 	TCPConnectionsRequired  []string
 	NodeIP                  string
+	IsJoin                  bool
 }
 
 // WithCIDRData sets the respective CIDR properties in the TemplateData struct based on the provided CIDR strings
