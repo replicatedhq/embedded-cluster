@@ -20,7 +20,6 @@ RUN dnf install -y \
   systemd-timesyncd \
   expect \
   vim \
-  firewalld \
   --allowerasing
 
 # Entrypoint for runtime configurations

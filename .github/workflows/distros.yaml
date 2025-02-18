@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   list-distros:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       distros: ${{ steps.list-distros.outputs.distros }}
     steps:
@@ -29,7 +29,7 @@ jobs:
           echo "distros=$distros" >> $GITHUB_OUTPUT
 
   build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: list-distros
     strategy:
       fail-fast: false
