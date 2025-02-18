@@ -2,6 +2,7 @@ package firewalld
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 
@@ -60,7 +61,9 @@ func (u *Util) IsFirewalldActive(ctx context.Context) (bool, error) {
 // FirewallCmdExists checks if firewall-cmd binary exists.
 func (u *Util) FirewallCmdExists(ctx context.Context) (bool, error) {
 	_, err := exec.LookPath("firewall-cmd")
-	if err != nil {
+	if errors.Is(err, exec.ErrNotFound) {
+		return false, nil
+	} else if err != nil {
 		return false, fmt.Errorf("lookpath: %w", err)
 	}
 	return true, nil
