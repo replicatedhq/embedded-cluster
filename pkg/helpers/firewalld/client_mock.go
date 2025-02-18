@@ -24,6 +24,11 @@ func (m *MockClient) NewZone(ctx context.Context, zone string, opts ...Option) e
 	return args.Error(0)
 }
 
+func (m *MockClient) DeleteZone(ctx context.Context, zone string, opts ...Option) error {
+	args := m.Called(ctx, zone, opts)
+	return args.Error(0)
+}
+
 func (m *MockClient) SetZoneTarget(ctx context.Context, target string, opts ...Option) error {
 	args := m.Called(ctx, target, opts)
 	return args.Error(0)
@@ -40,6 +45,11 @@ func (m *MockClient) AddInterfaceToZone(ctx context.Context, iface string, opts 
 }
 
 func (m *MockClient) AddPortToZone(ctx context.Context, port string, opts ...Option) error {
+	args := m.Called(ctx, port, opts)
+	return args.Error(0)
+}
+
+func (m *MockClient) RemovePortFromZone(ctx context.Context, port string, opts ...Option) error {
 	args := m.Called(ctx, port, opts)
 	return args.Error(0)
 }

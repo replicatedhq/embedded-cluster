@@ -68,6 +68,13 @@ func (c *Client) NewZone(ctx context.Context, zone string, opts ...Option) error
 	return helpers.RunCommandWithOptions(commandOptions(ctx), firewallCmd, args...)
 }
 
+// DeleteZone deletes a zone.
+func (c *Client) DeleteZone(ctx context.Context, zone string, opts ...Option) error {
+	args := []string{"--delete-zone", zone}
+	args = append(args, buildContext(opts...).Args()...)
+	return helpers.RunCommandWithOptions(commandOptions(ctx), firewallCmd, args...)
+}
+
 // SetZoneTarget sets the target for a zone.
 func (c *Client) SetZoneTarget(ctx context.Context, target string, opts ...Option) error {
 	args := []string{"--set-target", target}
@@ -92,6 +99,13 @@ func (c *Client) AddInterfaceToZone(ctx context.Context, iface string, opts ...O
 // AddPortToZone adds a port to a zone.
 func (c *Client) AddPortToZone(ctx context.Context, port string, opts ...Option) error {
 	args := []string{"--add-port", port}
+	args = append(args, buildContext(opts...).Args()...)
+	return helpers.RunCommandWithOptions(commandOptions(ctx), firewallCmd, args...)
+}
+
+// RemovePortFromZone removes a port from a zone.
+func (c *Client) RemovePortFromZone(ctx context.Context, port string, opts ...Option) error {
+	args := []string{"--remove-port", port}
 	args = append(args, buildContext(opts...).Args()...)
 	return helpers.RunCommandWithOptions(commandOptions(ctx), firewallCmd, args...)
 }

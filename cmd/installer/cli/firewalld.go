@@ -6,8 +6,12 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers/firewalld"
 	"github.com/sirupsen/logrus"
+	"go.uber.org/multierr"
 )
 
+// configureFirewalld configures firewalld for the cluster. It adds the ec-net zone for pod and
+// service communication with default target ACCEPT, and opens the necessary ports in the default
+// zone for k0s and k8s components on the host network.
 func configureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) error {
 	isActive, err := firewalld.IsFirewalldActive(ctx)
 	if err != nil {
@@ -45,6 +49,21 @@ func configureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) 
 	}
 
 	return nil
+}
+
+// resetFirewalld removes all firewalld configuration added by the installer.
+func resetFirewalld(ctx context.Context) (finalErr error) {
+	err := resetFirewalldECNetZone(ctx)
+	if err != nil {
+		finalErr = multierr.Append(finalErr, fmt.Errorf("reset ec-net zone: %w", err))
+	}
+
+	err = resetFirewalldDefaultZone(ctx)
+	if err != nil {
+		finalErr = multierr.Append(finalErr, fmt.Errorf("reset default zone: %w", err))
+	}
+
+	return
 }
 
 func ensureFirewalldECNetZone(ctx context.Context, podNetwork, serviceNetwork string) error {
@@ -92,6 +111,26 @@ func ensureFirewalldECNetZone(ctx context.Context, podNetwork, serviceNetwork st
 	return nil
 }
 
+func resetFirewalldECNetZone(ctx context.Context) (finalErr error) {
+	opts := []firewalld.Option{
+		firewalld.IsPermanent(),
+	}
+
+	exists, err := firewalld.ZoneExists(ctx, "ec-net")
+	if err != nil {
+		return fmt.Errorf("check if ec-net zone exists: %w", err)
+	} else if !exists {
+		return nil
+	}
+
+	err = firewalld.DeleteZone(ctx, "ec-net", opts...)
+	if err != nil {
+		return fmt.Errorf("delete ec-net zone: %w", err)
+	}
+
+	return
+}
+
 func ensureFirewalldDefaultZone(ctx context.Context) error {
 	opts := []firewalld.Option{
 		firewalld.IsPermanent(),
@@ -107,4 +146,21 @@ func ensureFirewalldDefaultZone(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func resetFirewalldDefaultZone(ctx context.Context) (finalErr error) {
+	opts := []firewalld.Option{
+		firewalld.IsPermanent(),
+	}
+
+	// Allow other nodes to connect to k0s core components
+	ports := []string{"6443/tcp", "10250/tcp", "9443/tcp", "2380/tcp", "4789/udp"}
+	for _, port := range ports {
+		err := firewalld.RemovePortFromZone(ctx, port, opts...)
+		if err != nil {
+			finalErr = multierr.Append(finalErr, fmt.Errorf("remove %s port: %w", port, err))
+		}
+	}
+
+	return
 }

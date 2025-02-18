@@ -376,7 +376,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 
 	logrus.Debugf("configuring firewalld")
 	if err := configureFirewalld(ctx, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR); err != nil {
-		return fmt.Errorf("unable to configure firewalld: %w", err)
+		logrus.Debugf("unable to configure firewalld: %v", err)
 	}
 
 	logrus.Debugf("materializing binaries")

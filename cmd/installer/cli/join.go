@@ -160,7 +160,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 
 	logrus.Debugf("configuring firewalld")
 	if err := configureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
-		return fmt.Errorf("unable to configure firewalld: %w", err)
+		logrus.Debugf("unable to configure firewalld: %v", err)
 	}
 
 	logrus.Debugf("running join preflights")
