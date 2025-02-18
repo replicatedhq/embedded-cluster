@@ -117,6 +117,12 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	t.Logf("%s: validating firewalld", time.Now().Format(time.RFC3339))
+	line = []string{"firewalld-validate.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to validate firewalld: %v: %s: %s", err, stdout, stderr)
+	}
+
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
 
@@ -132,7 +138,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	}
 
 	t.Logf("%s: resetting firewalld", time.Now().Format(time.RFC3339))
-	line = []string{"embedded-cluster", "reset", "firewalld"}
+	line = []string{"firewalld-reset.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to reset firewalld: %v: %s: %s", err, stdout, stderr)
 	}
