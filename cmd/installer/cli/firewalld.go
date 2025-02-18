@@ -71,6 +71,11 @@ func resetFirewalld(ctx context.Context) (finalErr error) {
 		finalErr = multierr.Append(finalErr, fmt.Errorf("reset default zone: %w", err))
 	}
 
+	err = firewalld.Reload(ctx)
+	if err != nil {
+		return fmt.Errorf("reload firewalld: %w", err)
+	}
+
 	return
 }
 
