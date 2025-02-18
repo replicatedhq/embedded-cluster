@@ -85,7 +85,7 @@ expect {
 }
 
 expect {
-    -timeout 210 "Velero is ready!" {}
+    -timeout 210 "Velero is ready" {}
     timeout {
       puts "\n\nFailed to wait for Velero to be ready."
       exit 1
@@ -93,7 +93,7 @@ expect {
 }
 
 expect {
-    -timeout 30 "Backup storage location configured!" {}
+    -timeout 30 "Backup storage location configured" {}
     timeout {
       puts "\n\nFailed to configure backup storage location."
       exit 1
@@ -101,7 +101,7 @@ expect {
 }
 
 expect {
-    -timeout 30 "Found 1 restorable backup!" {}
+    -timeout 30 "Found 1 restorable backup" {}
     timeout {
       puts "\n\nFailed to find a restorable backup."
       exit 1
@@ -147,7 +147,7 @@ expect {
 }
 
 expect {
-    -timeout 30 "Found 1 restorable backup!" {}
+    -timeout 30 "Found 1 restorable backup" {}
     timeout {
       puts "\n\nFailed to find a restorable backup."
       exit 1
@@ -203,7 +203,7 @@ expect {
 }
 
 expect {
-    -timeout 150 "Cluster state restored!" {}
+    -timeout 150 "Cluster state restored" {}
     timeout {
       puts "\n\nFailed to restore cluster state."
       exit 1
@@ -248,7 +248,7 @@ expect {
 }
 
 expect {
-    -timeout 150 "Admin Console restored!" {}
+    -timeout 150 "Admin Console restored" {}
     timeout {
       puts "\n\nFailed to restore admin console."
       exit 1
@@ -323,7 +323,7 @@ expect {
 }
 
 expect {
-    -timeout 30 "All nodes are ready!" {}
+    -timeout 30 "All nodes are ready" {}
     timeout {
       puts "\n\nFailed to wait for nodes."
       exit 1
@@ -368,7 +368,7 @@ expect {
 }
 
 expect {
-    -timeout 240 "Embedded cluster operator restored!" {}
+    -timeout 240 "Embedded cluster operator restored" {}
     timeout {
       puts "\n\nFailed to restore embedded cluster operator."
       exit 1
@@ -376,7 +376,7 @@ expect {
 }
 
 expect {
-    -timeout 240 "Extensions installed!" {}
+    -timeout 240 "Extensions installed" {}
     timeout {
       puts "\n\nFailed to find 'extensions installed' spinner."
       exit 1
@@ -421,7 +421,7 @@ expect {
 }
 
 expect {
-    -timeout 60 "Application restored!" {
+    -timeout 60 "Application restored" {
       exit 0
     }
     timeout {

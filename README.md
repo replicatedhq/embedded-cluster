@@ -115,8 +115,8 @@ $ output/bin/embedded-cluster shell
     __4___
  _  \ \ \ \   Welcome to embedded-cluster-smoke-test-staging-app debug shell.
 <'\ /_/_/_/   This terminal is now configured to access your cluster.
- ((____!___/) Type 'exit' (or CTRL+d) to exit.
-  \0\0\0\0\/  Happy hacking.
+ ((____!___/) Type 'exit' (or Ctrl+D) to exit.
+  \0\0\0\0\/
  ~~~~~~~~~~~
 $ export KUBECONFIG="/var/lib/embedded-cluster/k0s/pki/admin.conf"
 $ export PATH="$PATH:/var/lib/embedded-cluster/bin"

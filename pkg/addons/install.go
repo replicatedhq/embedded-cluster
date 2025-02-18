@@ -53,7 +53,7 @@ func Install(ctx context.Context, hcli helm.Client, opts InstallOptions) error {
 			return errors.Wrapf(err, "install %s", addon.Name())
 		}
 
-		loading.Closef("%s is ready!", addon.Name())
+		loading.Closef("%s is ready", addon.Name())
 	}
 
 	return nil

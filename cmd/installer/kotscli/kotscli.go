@@ -153,7 +153,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 		return fmt.Errorf("unable to update the application: %w", err)
 	}
 
-	loading.Closef("Finished!")
+	loading.Closef("Finished")
 	return nil
 }
 
@@ -204,13 +204,13 @@ func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
 		return fmt.Errorf("unable to configure s3: %w", err)
 	}
 
-	loading.Closef("Backup storage location configured!")
+	loading.Closef("Backup storage location configured")
 	return nil
 }
 
 // MaskKotsOutputForOnline masks the kots cli output during online installations. For
 // online installations we only want to print "Finalizing Admin Console" until it is done
-// and then print "Finished!".
+// and then print "Finished".
 func MaskKotsOutputForOnline() spinner.MaskFn {
 	return func(message string) string {
 		if strings.Contains(message, "Finished") {
@@ -235,7 +235,7 @@ func MaskKotsOutputForAirgap() spinner.MaskFn {
 			current = message
 		case strings.Contains(message, "Waiting for the Admin Console"):
 			current = "Finalizing Admin Console"
-		case strings.Contains(message, "Finished!"):
+		case strings.Contains(message, "Finished"):
 			current = message
 		}
 		return current
@@ -290,14 +290,14 @@ func KotsOutputLineBreaker() spinner.LineBreakerFn {
 		// if we are printing a message about pushing the embedded cluster artifacts
 		// it means that we have finished with the images and we want to break the line.
 		if strings.Contains(current, "Pushing embedded cluster artifacts") {
-			return true, "Application images are ready!"
+			return true, "Application images are ready"
 		}
 
 		// if we are printing a message about the finalization of the installation it
 		// means that the embedded cluster artifacts are ready and we want to break the
 		// line.
 		if strings.Contains(current, "Finalizing") {
-			return true, "Embedded cluster artifacts are ready!"
+			return true, "Embedded cluster artifacts are ready"
 		}
 		return false, ""
 	}

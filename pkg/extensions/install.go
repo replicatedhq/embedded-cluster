@@ -29,15 +29,17 @@ func Install(ctx context.Context, hcli helm.Client) error {
 		return sorted[i].Order < sorted[j].Order
 	})
 
-	for _, ext := range sorted {
-		loading.Infof("Installing %s", ext.Name)
+	numExtensions := len(sorted)
+
+	for i, ext := range sorted {
+		loading.Infof("Installing additional components (%d/%d)", i, numExtensions)
 
 		if err := install(ctx, hcli, ext); err != nil {
 			return errors.Wrapf(err, "install extension %s", ext.Name)
 		}
 	}
 
-	loading.Infof("Extensions installed!")
+	loading.Infof("Additional components installed")
 
 	return nil
 }
