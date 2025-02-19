@@ -1018,17 +1018,17 @@ spec:
         outcomes:
           - fail:
               when: "fs.inotify.max_user_instances < 1024"
-              message: "The system limit for inotify instances per user is too low. To increase it to the required minimum of 1024, edit /etc/sysctl.conf, add or update the line 'fs.inotify.max_user_instances=1024', and run 'sudo sysctl -p'."
+              message: "The system limit for inotify instances per user must be at least 1024. To increase it, edit /etc/sysctl.conf, add or edit the line 'fs.inotify.max_user_instances=1024', and run 'sudo sysctl -p'."
           - pass:
-              message: "The system allows a sufficient number of inotify instances per user."
+              message: "The system allows at least 1024 inotify instances per user."
     - sysctl:
         checkName: "Maximum number of inotify watches per user"
         outcomes:
           - fail:
               when: "fs.inotify.max_user_watches < 65536"
-              message: "The system limit for inotify watches per user is too low. To increase it to the required minimum of 65536, edit /etc/sysctl.conf, add or update the line 'fs.inotify.max_user_watches=65536', and run 'sudo sysctl -p'."
+              message: "The system limit for inotify watches per user must be at least 65536. To increase it, edit /etc/sysctl.conf, add or edit the line 'fs.inotify.max_user_watches=65536', and run 'sudo sysctl -p'."
           - pass:
-              message: "The system allows a sufficient number of inotify watches per user."
+              message: "The system allows at least 65536 inotify watches per user."
     - kernelModules:
         checkName: "Overlay kernel module"
         outcomes:
