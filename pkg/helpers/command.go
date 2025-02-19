@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os/exec"
@@ -14,9 +15,14 @@ func (h *Helpers) RunCommandWithOptions(opts RunCommandOptions, bin string, args
 	fullcmd := append([]string{bin}, args...)
 	logrus.Debugf("running command: %v", fullcmd)
 
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	stderr := bytes.NewBuffer(nil)
 	stdout := bytes.NewBuffer(nil)
-	cmd := exec.Command(bin, args...)
+	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Stdout = stdout
 	if opts.Stdout != nil {
 		cmd.Stdout = io.MultiWriter(opts.Stdout, stdout)

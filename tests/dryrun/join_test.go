@@ -30,6 +30,10 @@ func TestJoinTCPConnectionsRequired(t *testing.T) {
 			Config: &ecv1beta1.ConfigSpec{
 				UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{},
 			},
+			Network: &ecv1beta1.NetworkSpec{
+				PodCIDR:     "10.2.0.0/17",
+				ServiceCIDR: "10.2.128.0/17",
+			},
 		},
 		TCPConnectionsRequired: []string{"10.0.0.1:6443", "10.0.0.1:9443"},
 	}
@@ -127,6 +131,23 @@ func TestJoinTCPConnectionsRequired(t *testing.T) {
 			},
 		},
 	})
+
+	// --- validate commands --- //
+	assertCommands(t, dr.Commands,
+		[]interface{}{
+			"firewall-cmd --info-zone ec-net",
+			"firewall-cmd --add-source 10.2.0.0/17 --permanent --zone ec-net",
+			"firewall-cmd --add-source 10.2.128.0/17 --permanent --zone ec-net",
+			"firewall-cmd --reload",
+		},
+		false,
+	)
+
+	// --- validate k0s cluster config --- //
+	k0sConfig := readK0sConfig(t)
+
+	assert.Equal(t, "10.2.0.0/17", k0sConfig.Spec.Network.PodCIDR)
+	assert.Equal(t, "10.2.128.0/17", k0sConfig.Spec.Network.ServiceCIDR)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

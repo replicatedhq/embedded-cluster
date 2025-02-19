@@ -429,3 +429,37 @@ func TestRestrictiveUmask(t *testing.T) {
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
+
+func TestCustomCidrInstallation(t *testing.T) {
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dr := dryrunInstall(t,
+		&dryrun.Client{HelmClient: hcli},
+		"--cidr", "10.2.0.0/16",
+	)
+
+	// --- validate commands --- //
+	assertCommands(t, dr.Commands,
+		[]interface{}{
+			"firewall-cmd --info-zone ec-net",
+			"firewall-cmd --add-source 10.2.0.0/17 --permanent --zone ec-net",
+			"firewall-cmd --add-source 10.2.128.0/17 --permanent --zone ec-net",
+			"firewall-cmd --reload",
+		},
+		false,
+	)
+
+	// --- validate k0s cluster config --- //
+	k0sConfig := readK0sConfig(t)
+
+	assert.Equal(t, "10.2.0.0/17", k0sConfig.Spec.Network.PodCIDR)
+	assert.Equal(t, "10.2.128.0/17", k0sConfig.Spec.Network.ServiceCIDR)
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
