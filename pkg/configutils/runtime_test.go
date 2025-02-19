@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfigureSysctl(t *testing.T) {
@@ -80,5 +81,96 @@ func Test_ensureKernelModulesLoaded(t *testing.T) {
 		if mock.Commands[i] != cmd {
 			t.Errorf("Expected command %q, got %q", cmd, mock.Commands[i])
 		}
+	}
+}
+
+func TestDynamicSysctlConfig(t *testing.T) {
+	// Create a temporary config file.
+	configPath := filepath.Join(t.TempDir(), "99-dynamic-embedded-cluster.conf")
+
+	tests := []struct {
+		name            string
+		mockValues      map[string]int64
+		expectedLines   []string
+		unexpectedLines []string
+	}{
+		{
+			name: "inotify max_user values below minimum thresholds are updated",
+			mockValues: map[string]int64{
+				"fs.inotify.max_user_instances": 512,   // Below min
+				"fs.inotify.max_user_watches":   65536, // Below min
+			},
+			expectedLines: []string{
+				"fs.inotify.max_user_instances = 1024",
+				"fs.inotify.max_user_watches = 1048576",
+			},
+		},
+		{
+			name: "only below minimum values of inotify max_user are updated",
+			mockValues: map[string]int64{
+				"fs.inotify.max_user_instances": 512,     // Below min
+				"fs.inotify.max_user_watches":   2097152, // Above min
+			},
+			expectedLines: []string{
+				"fs.inotify.max_user_instances = 1024",
+			},
+			unexpectedLines: []string{
+				"fs.inotify.max_user_watches",
+			},
+		},
+		{
+			name: "inotify max_user values above minimum thresholds are not updated",
+			mockValues: map[string]int64{
+				"fs.inotify.max_user_instances": 2048,    // Above min
+				"fs.inotify.max_user_watches":   2097152, // Above min
+			},
+			expectedLines: []string{}, // No updates needed
+			unexpectedLines: []string{
+				"fs.inotify.max_user_instances",
+				"fs.inotify.max_user_watches",
+			},
+		},
+		{
+			name: "inotify max_user values equal to minimum thresholds are not updated",
+			mockValues: map[string]int64{
+				"fs.inotify.max_user_instances": 1024,    // Equal to min
+				"fs.inotify.max_user_watches":   1048576, // Equal to min
+			},
+			expectedLines: []string{}, // No updates needed
+			unexpectedLines: []string{
+				"fs.inotify.max_user_instances",
+				"fs.inotify.max_user_watches",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create mock getter
+			mockGetter := func(key string) (int64, error) {
+				value, exists := tt.mockValues[key]
+				if !exists {
+					t.Fatalf("unexpected key requested: %s", key)
+				}
+				return value, nil
+			}
+
+			err := generateDynamicSysctlConfig(mockGetter, configPath)
+			require.NoError(t, err)
+
+			// Read generated file
+			content, err := os.ReadFile(configPath)
+			require.NoError(t, err)
+
+			// Check for expected lines
+			for _, expectedLine := range tt.expectedLines {
+				assert.Contains(t, string(content), expectedLine)
+			}
+
+			// Check for unexpected lines
+			for _, unexpectedLine := range tt.unexpectedLines {
+				assert.NotContains(t, string(content), unexpectedLine)
+			}
+		})
 	}
 }
