@@ -142,6 +142,12 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
+			logrus.Debugf("Resetting firewalld...")
+			err = resetFirewalld(ctx)
+			if !checkErrPrompt(assumeYes, force, err) {
+				return fmt.Errorf("failed to reset firewalld: %w", err)
+			}
+
 			if err := helpers.RemoveAll(runtimeconfig.PathToK0sConfig()); err != nil {
 				return fmt.Errorf("failed to remove k0s config: %w", err)
 			}
@@ -213,6 +219,8 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().BoolVar(&force, "force", false, "Ignore errors encountered when resetting the node (implies ---yes)")
 	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
+
+	cmd.AddCommand(ResetFirewalldCmd(ctx, name))
 
 	return cmd
 }

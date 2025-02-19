@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gosimple/slug"
@@ -171,6 +172,10 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		return fmt.Errorf("install command must be run as root")
 	}
 
+	// set the umask to 022 so that we can create files/directories with 755 permissions
+	// this does not return an error - it returns the previous umask
+	_ = syscall.Umask(0o022)
+
 	p, err := parseProxyFlags(cmd)
 	if err != nil {
 		return err
@@ -263,6 +268,11 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	logrus.Debugf("configuring network manager")
 	if err := configureNetworkManager(ctx); err != nil {
 		return fmt.Errorf("unable to configure network manager: %w", err)
+	}
+
+	logrus.Debugf("configuring firewalld")
+	if err := configureFirewalld(ctx, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR); err != nil {
+		logrus.Debugf("unable to configure firewalld: %v", err)
 	}
 
 	logrus.Debugf("running install preflights")
