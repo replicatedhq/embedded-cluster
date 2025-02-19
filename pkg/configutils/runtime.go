@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -19,7 +20,13 @@ import (
 // purposes.
 var sysctlConfigPath = "/etc/sysctl.d/99-embedded-cluster.conf"
 
-var modulesLoadConfigPath = "/etc/modules-load.d/99-embedded-cluster.conf"
+// dynamicSysctlConfigPath is the path to the dynamic sysctl config file that is used to configure
+// the embedded cluster.
+const dynamicSysctlConfigPath = "/etc/sysctl.d/99-dynamic-embedded-cluster.conf"
+
+// modulesLoadConfigPath is the path to the kernel modules config file that is used to configure
+// the embedded cluster.
+const modulesLoadConfigPath = "/etc/modules-load.d/99-embedded-cluster.conf"
 
 //go:embed static/sysctl.d/99-embedded-cluster.conf
 var embeddedClusterSysctlConf []byte
@@ -27,9 +34,31 @@ var embeddedClusterSysctlConf []byte
 //go:embed static/modules-load.d/99-embedded-cluster.conf
 var embeddedClusterModulesConf []byte
 
-// ConfigureSysctl writes the sysctl config file for the embedded cluster and reloads the sysctl
-// configuration. This function has a distinct behavior: if the sysctl binary does not exist it
-// returns an error but if it fails to lay down the sysctl config on disk it simply returns nil.
+// dynamicSysctlConstraints are the constraints that are used to generate the dynamic sysctl
+// config file.
+var dynamicSysctlConstraints = []sysctlConstraint{
+	// Increase inotify limits only if they are currently lower,
+	// ensuring proper operation of applications that monitor filesystem events.
+	{key: "fs.inotify.max_user_instances", value: 1024, operator: sysctlOperatorMin},
+	{key: "fs.inotify.max_user_watches", value: 65536, operator: sysctlOperatorMin},
+}
+
+type sysctlOperator string
+
+const (
+	sysctlOperatorMin sysctlOperator = "min"
+	sysctlOperatorMax sysctlOperator = "max"
+)
+
+type sysctlConstraint struct {
+	key      string
+	value    int64
+	operator sysctlOperator
+}
+
+type sysctlValueGetter func(key string) (int64, error)
+
+// ConfigureSysctl writes the sysctl config files for the embedded cluster and reloads the sysctl configuration.
 // NOTE: do not run this after the cluster has already been installed as it may revert sysctl
 // settings set by k0s and its extensions.
 func ConfigureSysctl() error {
@@ -39,6 +68,10 @@ func ConfigureSysctl() error {
 
 	if err := sysctlConfig(); err != nil {
 		return fmt.Errorf("materialize sysctl config: %w", err)
+	}
+
+	if err := dynamicSysctlConfig(); err != nil {
+		return fmt.Errorf("materialize dynamic sysctl config: %w", err)
 	}
 
 	if _, err := helpers.RunCommand("sysctl", "--system"); err != nil {
@@ -56,6 +89,63 @@ func sysctlConfig() error {
 		return fmt.Errorf("write file: %w", err)
 	}
 	return nil
+}
+
+// dynamicSysctlConfig generates a dynamic sysctl config file based on current system values
+// and our constraints.
+func dynamicSysctlConfig() error {
+	return generateDynamicSysctlConfig(getCurrentSysctlValue, dynamicSysctlConfigPath)
+}
+
+// generateDynamicSysctlConfig is the testable version of dynamicSysctlConfig that accepts
+// a custom sysctl value getter and config path.
+func generateDynamicSysctlConfig(getter sysctlValueGetter, configPath string) error {
+	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+		return fmt.Errorf("create directory: %w", err)
+	}
+
+	var config strings.Builder
+	config.WriteString("# Dynamic sysctl configuration for embedded-cluster\n")
+	config.WriteString("# This file is generated based on system values\n\n")
+
+	for _, constraint := range dynamicSysctlConstraints {
+		currentValue, err := getter(constraint.key)
+		if err != nil {
+			return fmt.Errorf("check current value for %s: %w", constraint.key, err)
+		}
+
+		needsUpdate := false
+		switch constraint.operator {
+		case sysctlOperatorMin:
+			needsUpdate = currentValue < constraint.value
+		case sysctlOperatorMax:
+			needsUpdate = currentValue > constraint.value
+		}
+
+		if needsUpdate {
+			config.WriteString(fmt.Sprintf("%s = %d\n", constraint.key, constraint.value))
+		}
+	}
+
+	if err := os.WriteFile(configPath, []byte(config.String()), 0644); err != nil {
+		return fmt.Errorf("write dynamic config file: %w", err)
+	}
+	return nil
+}
+
+// getCurrentSysctlValue reads the current value of a sysctl parameter
+func getCurrentSysctlValue(key string) (int64, error) {
+	out, err := helpers.RunCommand("sysctl", "-n", key)
+	if err != nil {
+		return 0, fmt.Errorf("get sysctl value: %w", err)
+	}
+
+	value, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parse sysctl value: %w", err)
+	}
+
+	return value, nil
 }
 
 // ConfigureKernelModules writes the kernel modules config file and ensures the kernel modules are
