@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -108,6 +109,10 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsRep
 		AssumeYes:            flags.assumeYes,
 		MetricsReporter:      metricsReported,
 	}); err != nil {
+		if errors.Is(err, os.ErrPermission) {
+			logrus.Errorf("Please make sure that the filesystem at %s is executable.", runtimeconfig.EmbeddedClusterHomeDirectory())
+			return NewErrorNothingElseToAdd(err)
+		}
 		return err
 	}
 

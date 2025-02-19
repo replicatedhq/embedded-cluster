@@ -46,15 +46,19 @@ func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy
 	defer os.Remove(fpath)
 
 	binpath := runtimeconfig.PathToEmbeddedClusterBinary("kubectl-preflight")
-	stdout := bytes.NewBuffer(nil)
-	stderr := bytes.NewBuffer(nil)
 	cmd := exec.Command(binpath, "--interactive=false", "--format=json", fpath)
+
 	cmdEnv := cmd.Environ()
 	cmdEnv = proxyEnv(cmdEnv, proxy)
 	cmdEnv = pathEnv(cmdEnv)
 	cmd.Env = cmdEnv
+
+	stdout := bytes.NewBuffer(nil)
+	stderr := bytes.NewBuffer(nil)
 	cmd.Stdout, cmd.Stderr = stdout, stderr
-	if err = cmd.Run(); err == nil {
+
+	err = cmd.Run()
+	if err == nil {
 		out, err := types.OutputFromReader(stdout)
 		return out, stderr.String(), err
 	}
@@ -63,6 +67,7 @@ func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy
 	if !errors.As(err, &exit) || exit.ExitCode() < 2 {
 		return nil, stderr.String(), fmt.Errorf("error running host preflight: %w, stderr=%q", err, stderr.String())
 	}
+
 	out, err := types.OutputFromReader(stdout)
 	return out, stderr.String(), err
 }
