@@ -5,14 +5,14 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 8.3.0
+version: 8.4.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero
 images:
     kubectl:
         repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
         tag:
-            amd64: 1.32.1-r3-amd64@sha256:6e53f43c9fae84996dd175b6a92eab9b908cc6ea9e947f3d672efb0e679126cd
-            arm64: 1.32.1-r3-arm64@sha256:b64561c028e446c1dace22d3c3f073c2b0f9e5cf519eeafc8f62344b4f86de31
+            amd64: 1.32.2-r0-amd64@sha256:5baf1c2b9b976c5685bb94d6e56eccff85dcd4f2dcdf0384ec99f3401393f577
+            arm64: 1.32.2-r0-arm64@sha256:5b666becd4e6e948a0c610c5ff9fccbe2b77be650cdfe36a91ce84218cab7e17
     velero:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero
         tag:
