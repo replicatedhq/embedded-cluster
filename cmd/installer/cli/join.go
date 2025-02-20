@@ -206,7 +206,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		return fmt.Errorf("unable to get hostname: %w", err)
 	}
 
-	if err := waitForNode(ctx, kcli, hostname); err != nil {
+	if err := waitForNodeToJoin(ctx, kcli, hostname); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
@@ -465,7 +465,7 @@ func runK0sInstallCommand(networkInterface string, fullcmd string) error {
 	return nil
 }
 
-func waitForNode(ctx context.Context, kcli client.Client, hostname string) error {
+func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string) error {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Waiting for node to join the cluster")
