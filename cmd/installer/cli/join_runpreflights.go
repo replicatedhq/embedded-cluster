@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
@@ -110,6 +111,10 @@ func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, f
 		TCPConnectionsRequired: jcmd.TCPConnectionsRequired,
 		IsJoin:                 true,
 	}); err != nil {
+		if errors.Is(err, os.ErrPermission) {
+			logrus.Errorf("Please make sure that the filesystem at %s is executable.", runtimeconfig.EmbeddedClusterHomeDirectory())
+			return NewErrorNothingElseToAdd(err)
+		}
 		return err
 	}
 
