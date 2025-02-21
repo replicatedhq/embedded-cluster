@@ -35,6 +35,11 @@ func InitAndExecute(ctx context.Context, name string) {
 	err := cmd.Execute()
 	if err != nil {
 		if !errors.As(err, &ErrorNothingElseToAdd{}) {
+			if isErrPermissionForkExec(err) {
+				logrus.Errorf("Execution is not permitted. Please ensure that the executable bit (x) is set,\n" +
+					"the filesystem is not mounted with the 'noexec' option, and that security policies\n" +
+					"such as SELinux or AppArmor are not blocking execution.")
+			}
 			// Logrus Fatal level logs to stderr and gets sent to the log file.
 			logrus.Fatal(err)
 		}
@@ -103,4 +108,12 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.AddCommand(SupportBundleCmd(ctx, name))
 
 	return cmd
+}
+
+func isErrPermissionForkExec(err error) bool {
+	if !errors.Is(err, os.ErrPermission) {
+		return false
+	}
+	var pathErr *os.PathError
+	return errors.As(err, &pathErr) && pathErr.Op == "fork/exec"
 }
