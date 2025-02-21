@@ -206,7 +206,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		return fmt.Errorf("unable to get hostname: %w", err)
 	}
 
-	if err := waitForNode(ctx, kcli, hostname); err != nil {
+	if err := waitForNodeToJoin(ctx, kcli, hostname); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
@@ -245,6 +245,12 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *kotsadm.JoinC
 
 	if err := runtimeconfig.WriteToDisk(); err != nil {
 		return fmt.Errorf("unable to write runtime config: %w", err)
+	}
+
+	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
+		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
+		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
 	}
 
 	// check to make sure the version returned by the join token is the same as the one we are running
@@ -465,7 +471,7 @@ func runK0sInstallCommand(networkInterface string, fullcmd string) error {
 	return nil
 }
 
-func waitForNode(ctx context.Context, kcli client.Client, hostname string) error {
+func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string) error {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Waiting for node to join the cluster")

@@ -232,6 +232,12 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		return fmt.Errorf("unable to write runtime config to disk: %w", err)
 	}
 
+	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
+		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
+		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
+	}
+
 	return nil
 }
 
@@ -626,9 +632,16 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 	if err := k0s.Install(networkInterface); err != nil {
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
+
 	loading.Infof("Waiting for %s node to be ready", runtimeconfig.BinaryName())
+
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
+		return nil, fmt.Errorf("wait for k0s: %w", err)
+	}
+
+	logrus.Debugf("waiting for node to be ready")
+	if err := waitForNode(ctx); err != nil {
 		return nil, fmt.Errorf("wait for node: %w", err)
 	}
 
@@ -945,6 +958,21 @@ func waitForK0s() error {
 		}
 		time.Sleep(2 * time.Second)
 	}
+}
+
+func waitForNode(ctx context.Context) error {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("create kube client: %w", err)
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("get hostname: %w", err)
+	}
+	if err := kubeutils.WaitForControllerNode(ctx, kcli, hostname); err != nil {
+		return fmt.Errorf("wait for node: %w", err)
+	}
+	return nil
 }
 
 func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, disasterRecoveryEnabled bool) (*ecv1beta1.Installation, error) {
