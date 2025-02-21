@@ -36,12 +36,13 @@ func InitAndExecute(ctx context.Context, name string) {
 	if err != nil {
 		if !errors.As(err, &ErrorNothingElseToAdd{}) {
 			if isErrPermissionForkExec(err) {
-				logrus.Errorf("Execution is not permitted. Please ensure that the executable bit (x) is set,\n" +
-					"the filesystem is not mounted with the 'noexec' option, and that security policies\n" +
-					"such as SELinux or AppArmor are not blocking execution.")
+				logrus.Errorf("\n" +
+					"Execution is not permitted. Please ensure that the executable bit (x) is " +
+					"set, the filesystem is not mounted with the 'noexec' option, and that " +
+					"security policies such as SELinux or AppArmor are not blocking execution.\n")
 			}
 			// Logrus Fatal level logs to stderr and gets sent to the log file.
-			logrus.Fatal(err)
+			logrus.Fatal("ERROR: ", err)
 		}
 		os.Exit(1)
 	}
