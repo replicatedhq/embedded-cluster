@@ -165,13 +165,14 @@ spec:
         command: 'sh'
         args: ['-c', 'getenforce || echo "Missing"']
     - run:
-        collectorName: 'check-k0s-dir-permissions'
+        # check execute permissions on the data directory, its parents, and root.
+        # this is necessary for executing binaries in the data directory by other users (e.g. etcd).
+        collectorName: 'check-data-dir-permissions'
         command: 'sh'
         args:
           - -c
           - |
-            # check the directory, its parents, and root
-            dir="{{ .K0sDataDir }}"
+            dir="{{ .DataDir }}"
             while [ "$dir" != "/" ]; do find "$dir" -maxdepth 0 ! -perm -111; dir=$(dirname "$dir"); done
             find "/" -maxdepth 0 ! -perm -111
   analyzers:
@@ -1130,13 +1131,13 @@ spec:
               when: "Mode == Missing"
               message: SELinux is not installed.
     - textAnalyze:
-        checkName: K0s Data Directory Execute Permissions
-        fileName: host-collectors/run-host/check-k0s-dir-permissions.txt
+        checkName: Data Directory Permissions
+        fileName: host-collectors/run-host/check-data-dir-permissions.txt
         regexGroups: '(?ms)(?P<Dirs>.*)'
         outcomes:
           - pass:
               when: "Dirs == ''"
-              message: "The k0s data directory ({{ .K0sDataDir }}) and all its parent directories have execute permissions"
+              message: "The data directory ({{ .DataDir }}) and all its parent directories have execute permissions"
           - fail:
               message: >-
                 The following directories lack execute permissions: {{ `{{ .Dirs | trim | splitList "\n" | join ", " }}` }}.
