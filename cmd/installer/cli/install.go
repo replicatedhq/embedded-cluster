@@ -232,6 +232,12 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		return fmt.Errorf("unable to write runtime config to disk: %w", err)
 	}
 
+	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
+		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
+		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
+	}
+
 	return nil
 }
 

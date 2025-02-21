@@ -34,16 +34,10 @@ func Cleanup() {
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
 // store all the embedded-cluster related files.
 func EmbeddedClusterHomeDirectory() string {
-	dir := ecv1beta1.DefaultDataDir
 	if runtimeConfig.DataDir != "" {
-		dir = runtimeConfig.DataDir
+		return runtimeConfig.DataDir
 	}
-	if err := os.Chmod(dir, 0755); err != nil && !os.IsNotExist(err) {
-		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
-		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
-		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
-	}
-	return dir
+	return ecv1beta1.DefaultDataDir
 }
 
 // EmbeddedClusterTmpSubDir returns the path to the tmp directory where embedded-cluster

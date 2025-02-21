@@ -20,7 +20,17 @@ func TestPreflights(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	_, stderr, err := tc.RunCommandOnNode(0, []string{"apt-get update && apt-get install -y apt-utils netcat-traditional"})
+	// set up incorrect permissions on data dir and parent dir
+	_, stderr, err := tc.RunCommandOnNode(0, []string{
+		"mkdir -p /var/lib/embedded-cluster && " +
+			"chmod 744 /var/lib/embedded-cluster && " + // remove execute from data dir
+			"chmod 744 /var/lib", // remove execute from parent dir
+	})
+	if err != nil {
+		t.Fatalf("failed to adjust dir permissions: err=%v, stderr=%s", err, stderr)
+	}
+
+	_, stderr, err = tc.RunCommandOnNode(0, []string{"apt-get update && apt-get install -y apt-utils netcat-traditional"})
 	if err != nil {
 		t.Fatalf("failed to install deps: err=%v, stderr=%s", err, stderr)
 	}
@@ -95,6 +105,7 @@ func TestPreflights(t *testing.T) {
 					"Kubelet Port Availability":               true,
 					"Calico Communication Port Availability":  true,
 					"Local Artifact Mirror Port Availability": true,
+					"Data Directory Permissions":              true,
 					// as long as fio ran successfully, we're good
 					"Filesystem Write Latency": true,
 				}
@@ -140,6 +151,33 @@ func TestPreflights(t *testing.T) {
 						t.Errorf("expected port failure not found: %q", title)
 					}
 				}
+			},
+		},
+		{
+			name: "Should verify data directory permissions failures",
+			assert: func(t *testing.T, results *types.Output) {
+				for _, res := range results.Fail {
+					if res.Title == "Data Directory Permissions" {
+						// should not contain data dir as we automatically fix it
+						if strings.Contains(res.Message, "/var/lib/embedded-cluster") {
+							t.Errorf("failure message should not contain /var/lib/embedded-cluster directory: %s", res.Message)
+						}
+						// should contain parent dir as we don't automatically fix it
+						if !strings.Contains(res.Message, "/var/lib.") {
+							t.Errorf("failure message should contain /var/lib directory: %s", res.Message)
+						}
+						t.Logf("directory permissions check failed as expected: %s", res.Message)
+						return
+					}
+				}
+				// If we get here, check if it incorrectly passed
+				for _, res := range results.Pass {
+					if res.Title == "Data Directory Permissions" {
+						t.Errorf("directory permissions check passed unexpectedly: %s", res.Message)
+						return
+					}
+				}
+				t.Errorf("directory permissions check not found in results")
 			},
 		},
 	}
