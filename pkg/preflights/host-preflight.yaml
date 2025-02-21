@@ -164,6 +164,16 @@ spec:
         collectorName: 'selinux-mode'
         command: 'sh'
         args: ['-c', 'getenforce || echo "Missing"']
+    - run:
+        collectorName: 'check-k0s-dir-permissions'
+        command: 'sh'
+        args:
+          - -c
+          - |
+            # check the directory, its parents, and root
+            dir="{{ .K0sDataDir }}"
+            while [ "$dir" != "/" ]; do find "$dir" -maxdepth 0 ! -perm -111; dir=$(dirname "$dir"); done
+            find "/" -maxdepth 0 ! -perm -111
   analyzers:
     - cpu:
         checkName: CPU
@@ -1119,3 +1129,14 @@ spec:
           - pass:
               when: "Mode == Missing"
               message: SELinux is not installed.
+    - textAnalyze:
+        checkName: K0s Data Directory Execute Permissions
+        fileName: host-collectors/run-host/check-k0s-dir-permissions.txt
+        regexGroups: '(?ms)(?P<Dirs>.*)'
+        outcomes:
+          - pass:
+              when: "Dirs == ''"
+              message: "The k0s data directory ({{ .K0sDataDir }}) and all its parent directories have execute permissions"
+          - fail:
+              message: >-
+                The following directories lack execute permissions: {{ `{{ .Dirs | trim | splitList "\n" | join ", " }}` }}.
