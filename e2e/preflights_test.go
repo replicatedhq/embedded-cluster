@@ -154,7 +154,7 @@ func TestPreflights(t *testing.T) {
 			},
 		},
 		{
-			name: "Should verify data directory permissions failures",
+			name: "Should contain data directory permissions failures",
 			assert: func(t *testing.T, results *types.Output) {
 				for _, res := range results.Fail {
 					if res.Title == "Data Directory Permissions" {
