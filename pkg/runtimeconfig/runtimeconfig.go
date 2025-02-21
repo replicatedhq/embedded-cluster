@@ -38,7 +38,7 @@ func EmbeddedClusterHomeDirectory() string {
 	if runtimeConfig.DataDir != "" {
 		dir = runtimeConfig.DataDir
 	}
-	if err := os.Chmod(dir, 0755); err != nil {
+	if err := os.Chmod(dir, 0755); err != nil && !os.IsNotExist(err) {
 		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
 		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
 		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
