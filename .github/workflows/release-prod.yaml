@@ -463,6 +463,7 @@ jobs:
       matrix:
         test:
           - TestPreflights
+          - TestPreflightsNoexec
           - TestMaterialize
           - TestHostPreflightCustomSpec
           - TestHostPreflightInBuiltSpec
