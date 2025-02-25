@@ -40,7 +40,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/vmware-tanzu/velero v1.15.2
 	go.uber.org/multierr v1.11.0
-	golang.org/x/crypto v0.33.0
+	golang.org/x/crypto v0.34.0
 	golang.org/x/sync v0.11.0
 	golang.org/x/term v0.29.0
 	gopkg.in/yaml.v2 v2.4.0
