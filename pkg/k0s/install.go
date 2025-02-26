@@ -30,7 +30,11 @@ func Install(networkInterface string) error {
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
-	if _, err := helpers.RunCommand(hstbin, config.InstallFlags(nodeIP)...); err != nil {
+	flags, err := config.InstallFlags(nodeIP)
+	if err != nil {
+		return fmt.Errorf("unable to get install flags: %w", err)
+	}
+	if _, err := helpers.RunCommand(hstbin, flags...); err != nil {
 		return fmt.Errorf("unable to install: %w", err)
 	}
 	if _, err := helpers.RunCommand(hstbin, "start"); err != nil {
