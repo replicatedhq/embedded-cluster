@@ -93,7 +93,7 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags(nodeIP string) []string {
+func InstallFlags(nodeIP string) ([]string, error) {
 	flags := []string{
 		"install",
 		"controller",
@@ -102,9 +102,14 @@ func InstallFlags(nodeIP string) []string {
 		"--no-taints",
 		"-c", runtimeconfig.PathToK0sConfig(),
 	}
+	profile, err := ProfileInstallFlag()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get profile install flag: %w", err)
+	}
+	flags = append(flags, profile)
 	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
-	return flags
+	return flags, nil
 }
 
 func AdditionalInstallFlags(nodeIP string) []string {
@@ -121,6 +126,31 @@ func AdditionalInstallFlagsController() []string {
 		"--disable-components", "konnectivity-server",
 		"--enable-dynamic-config",
 	}
+}
+
+func ProfileInstallFlag() (string, error) {
+	cfg, err := release.GetEmbeddedClusterConfig()
+	if err != nil {
+		return "", err
+	}
+
+	k0spatch, err := extractK0sConfigPatch(cfg.Spec.UnsupportedOverrides.K0s)
+	if err != nil {
+		return "", err
+	}
+
+	newK0scfg := RenderK0sConfig()
+
+	k0scfg, err := PatchK0sConfig(newK0scfg, k0spatch)
+	if err != nil {
+		return "", err
+	}
+
+	if len(k0scfg.Spec.WorkerProfiles) > 0 {
+		return "--profile=" + k0scfg.Spec.WorkerProfiles[len(k0scfg.Spec.WorkerProfiles)-1].Name, nil
+	}
+
+	return "", nil
 }
 
 // nodeLabels return a slice of string with labels (key=value format) for the node where we
