@@ -11,7 +11,6 @@ import (
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
