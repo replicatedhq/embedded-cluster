@@ -102,13 +102,13 @@ func InstallFlags(nodeIP string) ([]string, error) {
 		"--no-taints",
 		"-c", runtimeconfig.PathToK0sConfig(),
 	}
-	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
-	flags = append(flags, AdditionalInstallFlagsController()...)
 	profile, err := ProfileInstallFlag()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get profile install flag: %w", err)
 	}
 	flags = append(flags, profile)
+	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
+	flags = append(flags, AdditionalInstallFlagsController()...)
 	return flags, nil
 }
 
@@ -139,14 +139,15 @@ func ProfileInstallFlag() (string, error) {
 		return "", err
 	}
 
-	k0scfg, err := k0sconfig.ConfigFromString(k0spatch)
+	newK0scfg := RenderK0sConfig()
+
+	k0scfg, err := PatchK0sConfig(newK0scfg, k0spatch)
 	if err != nil {
 		return "", err
 	}
 
-	profiles := k0scfg.Spec.WorkerProfiles
-	if len(profiles) > 0 {
-		return "--profile=" + profiles[len(profiles)-1].Name, nil
+	if len(k0scfg.Spec.WorkerProfiles) > 0 {
+		return "--profile=" + k0scfg.Spec.WorkerProfiles[len(k0scfg.Spec.WorkerProfiles)-1].Name, nil
 	}
 
 	return "", nil
