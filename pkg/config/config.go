@@ -133,11 +133,13 @@ func ProfileInstallFlag() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	k0scfg, err := k0sconfig.ConfigFromString(cfg.Spec.UnsupportedOverrides.K0s, nil)
-	if err != nil {
-		return "", err
+
+	k0sconfig := k0sconfig.ClusterConfig{}
+	if err := k8syaml.Unmarshal([]byte(cfg.Spec.UnsupportedOverrides.K0s), &k0sconfig); err != nil {
+		return "", fmt.Errorf("unable to unmarshal k0s config: %w", err)
 	}
-	profiles := k0scfg.Spec.WorkerProfiles
+
+	profiles := k0sconfig.Spec.WorkerProfiles
 	if len(profiles) > 0 {
 		return "--profile=" + profiles[len(profiles)-1].Name, nil
 	}
