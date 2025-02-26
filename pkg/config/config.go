@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
@@ -134,15 +135,21 @@ func ProfileInstallFlag() (string, error) {
 		return "", err
 	}
 
-	k0scfg := k0sconfig.ClusterConfig{}
-	if err := k8syaml.Unmarshal([]byte(cfg.Spec.UnsupportedOverrides.K0s), &k0scfg); err != nil {
-		return "", fmt.Errorf("unable to unmarshal k0s config: %w", err)
+	k0spatch, err := extractK0sConfigPatch(cfg.Spec.UnsupportedOverrides.K0s)
+	if err != nil {
+		return "", err
+	}
+
+	k0scfg, err := k0sconfig.ConfigFromString(k0spatch)
+	if err != nil {
+		return "", err
 	}
 
 	profiles := k0scfg.Spec.WorkerProfiles
 	if len(profiles) > 0 {
 		return "--profile=" + profiles[len(profiles)-1].Name, nil
 	}
+
 	return "", nil
 }
 
