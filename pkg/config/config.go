@@ -104,6 +104,7 @@ func InstallFlags(nodeIP string) []string {
 	}
 	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
+	flags = append(flags, ProfileInstallFlag())
 	return flags
 }
 
@@ -121,6 +122,22 @@ func AdditionalInstallFlagsController() []string {
 		"--disable-components", "konnectivity-server",
 		"--enable-dynamic-config",
 	}
+}
+
+func ProfileInstallFlag() string {
+	cfg, err := release.GetEmbeddedClusterConfig()
+	if err != nil {
+		return ""
+	}
+	k0scfg, err := k0sconfig.ConfigFromString(cfg.Spec.UnsupportedOverrides.K0s, nil)
+	if err != nil {
+		return ""
+	}
+	profiles := k0scfg.Spec.WorkerProfiles
+	if len(profiles) > 0 {
+		return "--profile=" + profiles[len(profiles)-1].Name
+	}
+	return ""
 }
 
 // nodeLabels return a slice of string with labels (key=value format) for the node where we
