@@ -131,20 +131,22 @@ func AdditionalInstallFlagsController() []string {
 func ProfileInstallFlag() (string, error) {
 	cfg, err := release.GetEmbeddedClusterConfig()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get embedded cluster config: %w", err)
 	}
+	fmt.Printf("K0s override patch: %s\n", cfg.Spec.UnsupportedOverrides.K0s)
 
 	k0spatch, err := extractK0sConfigPatch(cfg.Spec.UnsupportedOverrides.K0s)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to extract k0s patch: %w", err)
 	}
+	fmt.Printf("Extracted k0s patch: %s\n", k0spatch)
 
 	newK0scfg := RenderK0sConfig()
-
 	k0scfg, err := PatchK0sConfig(newK0scfg, k0spatch)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to patch k0s config: %w", err)
 	}
+	fmt.Printf("Worker profiles after patch: %+v\n", k0scfg.Spec.WorkerProfiles)
 
 	if len(k0scfg.Spec.WorkerProfiles) > 0 {
 		return "--profile=" + k0scfg.Spec.WorkerProfiles[len(k0scfg.Spec.WorkerProfiles)-1].Name, nil
