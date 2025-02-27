@@ -252,10 +252,17 @@ func NewCluster(in *ClusterInput) *Cluster {
 		env["http_proxy"] = HTTPProxy
 		env["https_proxy"] = HTTPProxy
 	}
+
+	wg.Add(len(out.Nodes))
 	for _, node := range out.Nodes {
-		in.T.Logf("Installing deps on node %s", node)
-		RunCommand(in, []string{"install-deps.sh"}, node, env)
+		go func(node string) {
+			defer wg.Done()
+			in.T.Logf("Installing deps on node %s", node)
+			RunCommand(in, []string{"install-deps.sh"}, node, env)
+		}(node)
 	}
+	wg.Wait()
+
 	return out
 }
 
