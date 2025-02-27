@@ -579,17 +579,17 @@ func CopyFileFromNode(node, source, dest string) error {
 // CreateNodes creats the nodes for the cluster. The amount of nodes is
 // specified in the input.
 func CreateNodes(in *ClusterInput) ([]string, []string) {
-	nodes := []string{}
-	IPs := []string{}
-	for i := 0; i < in.Nodes; i++ {
+	nodes := make([]string, in.Nodes)
+	IPs := make([]string, in.Nodes)
+	for i := range nodes {
 		node, ip := CreateNode(in, i)
 		if !in.WithProxy {
 			NodeHasInternet(in, node)
 		} else {
 			NodeHasNoInternet(in, node)
 		}
-		nodes = append(nodes, node)
-		IPs = append(IPs, ip)
+		nodes[i] = node
+		IPs[i] = ip
 	}
 	return nodes, IPs
 }
