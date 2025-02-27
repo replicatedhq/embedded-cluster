@@ -125,9 +125,9 @@ func applyWorkerProfiles(cfg *k0sv1beta1.ClusterConfig, overrides string) (*k0sv
 		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
 	}
 
-	if embcfg != nil && len(embcfg.Spec.WorkerProfiles) > 0 {
+	if embcfg != nil && len(embcfg.Spec.UnsupportedOverrides.WorkerProfiles) > 0 {
 		// Apply vendor WorkerProfiles
-		cfg.Spec.WorkerProfiles = embcfg.Spec.WorkerProfiles
+		cfg.Spec.WorkerProfiles = embcfg.Spec.UnsupportedOverrides.WorkerProfiles
 	}
 
 	eucfg, err := helpers.ParseEndUserConfig(overrides)
@@ -135,9 +135,9 @@ func applyWorkerProfiles(cfg *k0sv1beta1.ClusterConfig, overrides string) (*k0sv
 		return nil, fmt.Errorf("unable to process overrides file: %w", err)
 	}
 
-	if eucfg != nil && len(eucfg.Spec.WorkerProfiles) > 0 {
+	if eucfg != nil && len(eucfg.Spec.UnsupportedOverrides.WorkerProfiles) > 0 {
 		// Apply end user WorkerProfiles (these take priority over vendor profiles)
-		cfg.Spec.WorkerProfiles = eucfg.Spec.WorkerProfiles
+		cfg.Spec.WorkerProfiles = eucfg.Spec.UnsupportedOverrides.WorkerProfiles
 	}
 
 	return cfg, nil

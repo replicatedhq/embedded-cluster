@@ -35,6 +35,9 @@ type UnsupportedOverrides struct {
 	// BuiltInExtensions holds overrides for the default add-ons we ship
 	// with Embedded Cluster.
 	BuiltInExtensions []BuiltInExtension `json:"builtInExtensions,omitempty"`
+	// WorkerProfiles holds the worker profiles used to configure the cluster.
+	// The profile named "default" will be applied by default.
+	WorkerProfiles []k0sv1beta1.WorkerProfile `json:"workerProfiles,omitempty"`
 }
 
 // BuiltInExtension holds the override for a built-in extension (add-on).
@@ -153,13 +156,12 @@ type ConfigSpec struct {
 	// in addition to using the new v2 install method, v1 installations will be migrated to v2 on
 	// upgrade. This property will be removed once the new installer is fully implemented and the
 	// old installer is removed.
-	V2Enabled            bool                       `json:"v2Enabled,omitempty"`
-	BinaryOverrideURL    string                     `json:"binaryOverrideUrl,omitempty"`
-	MetadataOverrideURL  string                     `json:"metadataOverrideUrl,omitempty"`
-	Roles                Roles                      `json:"roles,omitempty"`
-	WorkerProfiles       []k0sv1beta1.WorkerProfile `json:"workerProfiles,omitempty"`
-	UnsupportedOverrides UnsupportedOverrides       `json:"unsupportedOverrides,omitempty"`
-	Extensions           Extensions                 `json:"extensions,omitempty"`
+	V2Enabled            bool                 `json:"v2Enabled,omitempty"`
+	BinaryOverrideURL    string               `json:"binaryOverrideUrl,omitempty"`
+	MetadataOverrideURL  string               `json:"metadataOverrideUrl,omitempty"`
+	Roles                Roles                `json:"roles,omitempty"`
+	UnsupportedOverrides UnsupportedOverrides `json:"unsupportedOverrides,omitempty"`
+	Extensions           Extensions           `json:"extensions,omitempty"`
 }
 
 // OverrideForBuiltIn returns the override for the built-in extension with the

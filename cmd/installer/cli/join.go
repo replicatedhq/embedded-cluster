@@ -425,7 +425,7 @@ func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinComm
 
 func applyWorkerProfiles(jcmd *kotsadm.JoinCommandResponse) error {
 	if jcmd.InstallationSpec.Config != nil {
-		cfgProfiles := jcmd.InstallationSpec.Config.WorkerProfiles
+		cfgProfiles := jcmd.InstallationSpec.Config.UnsupportedOverrides.WorkerProfiles
 		if len(cfgProfiles) > 0 {
 			cfg := k0sv1beta1.ClusterConfig{}
 			cfg.Spec.WorkerProfiles = cfgProfiles
