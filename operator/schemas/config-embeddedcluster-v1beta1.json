@@ -50,9 +50,9 @@
                         "type": "integer"
                       },
                       "timeout": {
-                        "description": "Timeout specifies the timeout for how long to wait for the chart installation to finish.",
-                        "type": "integer",
-                        "format": "int64"
+                        "description": "Timeout specifies the timeout for how long to wait for the chart installation to finish.\nA duration string is a sequence of decimal numbers, each with optional fraction and a unit suffix, such as \"300ms\" or \"2h45m\". Valid time units are \"ns\", \"us\" (or \"µs\"), \"ms\", \"s\", \"m\", \"h\".",
+                        "type": "string",
+                        "x-kubernetes-int-or-string": true
                       },
                       "values": {
                         "type": "string"
@@ -69,30 +69,39 @@
                 "repositories": {
                   "type": "array",
                   "items": {
+                    "description": "Repository describes single repository entry. Fields map to the CLI flags for the \"helm add\" command",
                     "type": "object",
                     "properties": {
                       "caFile": {
+                        "description": "CA bundle file to use when verifying HTTPS-enabled servers.",
                         "type": "string"
                       },
                       "certFile": {
+                        "description": "The TLS certificate file to use for HTTPS client authentication.",
                         "type": "string"
                       },
                       "insecure": {
+                        "description": "Whether to skip TLS certificate checks when connecting to the repository.",
                         "type": "boolean"
                       },
                       "keyfile": {
+                        "description": "The TLS key file to use for HTTPS client authentication.",
                         "type": "string"
                       },
                       "name": {
+                        "description": "The repository name.",
                         "type": "string"
                       },
                       "password": {
+                        "description": "Password for Basic HTTP authentication.",
                         "type": "string"
                       },
                       "url": {
+                        "description": "The repository URL.",
                         "type": "string"
                       },
                       "username": {
+                        "description": "Username for Basic HTTP authentication.",
                         "type": "string"
                       }
                     }
@@ -151,6 +160,9 @@
                       }
                     }
                   }
+                },
+                "workerProfile": {
+                  "type": "string"
                 }
               }
             },
@@ -198,6 +210,9 @@
                         }
                       }
                     }
+                  },
+                  "workerProfile": {
+                    "type": "string"
                   }
                 }
               }
@@ -236,8 +251,30 @@
             }
           }
         },
+        "v2Enabled": {
+          "description": "V2Enabled is a temporary property that can be used to opt-in to the new installer. If set,\nin addition to using the new v2 install method, v1 installations will be migrated to v2 on\nupgrade. This property will be removed once the new installer is fully implemented and the\nold installer is removed.",
+          "type": "boolean"
+        },
         "version": {
           "type": "string"
+        },
+        "workerProfiles": {
+          "type": "array",
+          "items": {
+            "description": "WorkerProfile worker profile",
+            "type": "object",
+            "properties": {
+              "name": {
+                "description": "String; name to use as profile selector for the worker process",
+                "type": "string"
+              },
+              "values": {
+                "description": "Worker Mapping object",
+                "type": "object",
+                "x-kubernetes-preserve-unknown-fields": true
+              }
+            }
+          }
         }
       }
     },

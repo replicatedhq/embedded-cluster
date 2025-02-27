@@ -192,6 +192,13 @@ func (in *ConfigSecret) DeepCopy() *ConfigSecret {
 func (in *ConfigSpec) DeepCopyInto(out *ConfigSpec) {
 	*out = *in
 	in.Roles.DeepCopyInto(&out.Roles)
+	if in.WorkerProfiles != nil {
+		in, out := &in.WorkerProfiles, &out.WorkerProfiles
+		*out = make([]k0sv1beta1.WorkerProfile, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	in.UnsupportedOverrides.DeepCopyInto(&out.UnsupportedOverrides)
 	in.Extensions.DeepCopyInto(&out.Extensions)
 }
