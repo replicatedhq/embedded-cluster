@@ -595,9 +595,7 @@ func CopyFileFromNode(node, source, dest string) error {
 // specified in the input.
 func CreateNodes(in *ClusterInput) ([]string, []string) {
 	ipChan := make(chan string, in.Nodes)
-	defer close(ipChan)
 	nodesChan := make(chan string, in.Nodes)
-	defer close(nodesChan)
 
 	wg := sync.WaitGroup{}
 	wg.Add(in.Nodes)
@@ -616,6 +614,9 @@ func CreateNodes(in *ClusterInput) ([]string, []string) {
 		}(i)
 	}
 	wg.Wait()
+
+	close(ipChan)
+	close(nodesChan)
 
 	ips := []string{}
 	for ip := range ipChan {

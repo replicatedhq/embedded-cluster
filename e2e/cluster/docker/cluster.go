@@ -30,7 +30,6 @@ func NewCluster(in *ClusterInput) *Cluster {
 	c := &Cluster{t: in.T}
 
 	nodesChan := make(chan *Container, in.Nodes)
-	defer close(nodesChan)
 
 	wg := sync.WaitGroup{}
 	wg.Add(in.Nodes)
@@ -46,6 +45,8 @@ func NewCluster(in *ClusterInput) *Cluster {
 		}(i)
 	}
 	wg.Wait()
+
+	close(nodesChan)
 
 	for node := range nodesChan {
 		c.Nodes = append(c.Nodes, node)
