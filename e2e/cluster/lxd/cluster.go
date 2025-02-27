@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"archive/tar"
 	"bytes"
 	"context"
 	"fmt"
@@ -498,28 +499,121 @@ func CopyDirsToNode(in *ClusterInput, node string) {
 	}
 }
 
-// CopyDirToNode copies a single directory to a node.
+// CopyDirToNode copies a single directory to a node by creating a tar archive and streaming it
 func CopyDirToNode(in *ClusterInput, node string, dir Dir) {
+	// Create a temporary tar file
+	tmpFile, err := os.CreateTemp("", "dir-*.tar")
+	if err != nil {
+		in.T.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	// Create tar writer
+	tw := tar.NewWriter(tmpFile)
+
+	// Walk through the directory and add files to tar
 	if err := filepath.Walk(dir.SourcePath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to access path %s: %v", path, err)
 		}
-		if info.IsDir() {
-			return nil
-		}
+
+		// Get relative path for tar header
 		relPath, err := filepath.Rel(dir.SourcePath, path)
 		if err != nil {
 			return fmt.Errorf("failed to get relative path: %v", err)
 		}
-		file := File{
-			SourcePath: path,
-			DestPath:   filepath.Join(dir.DestPath, relPath),
-			Mode:       int(info.Mode()),
+
+		// Skip if this is the root directory
+		if relPath == "." {
+			return nil
 		}
-		CopyFileToNode(in, node, file)
+
+		// Create tar header
+		header, err := tar.FileInfoHeader(info, "")
+		if err != nil {
+			return fmt.Errorf("failed to create tar header: %v", err)
+		}
+
+		// Update name to use relative path
+		header.Name = filepath.Join(filepath.Base(dir.DestPath), relPath)
+
+		// Write header
+		if err := tw.WriteHeader(header); err != nil {
+			return fmt.Errorf("failed to write tar header: %v", err)
+		}
+
+		// If this is a regular file, write the contents
+		if !info.IsDir() {
+			file, err := os.Open(path)
+			if err != nil {
+				return fmt.Errorf("failed to open file %s: %v", path, err)
+			}
+			defer file.Close()
+
+			if _, err := io.Copy(tw, file); err != nil {
+				return fmt.Errorf("failed to write file contents to tar: %v", err)
+			}
+		}
+
 		return nil
 	}); err != nil {
-		in.T.Fatalf("Failed to walk directory %s: %v", dir.SourcePath, err)
+		in.T.Fatalf("Failed to create tar archive: %v", err)
+	}
+
+	if err := tw.Close(); err != nil {
+		in.T.Fatalf("Failed to close tar writer: %v", err)
+	}
+
+	// Rewind the temp file for reading
+	if _, err := tmpFile.Seek(0, 0); err != nil {
+		in.T.Fatalf("Failed to rewind temp file: %v", err)
+	}
+
+	// Ensure parent directory exists on the node
+	RunCommand(in, []string{"mkdir", "-p", filepath.Dir(dir.DestPath)}, node)
+
+	// Stream and extract the tar file on the node
+	in.T.Logf("Copying directory `%s` to `%s` on node %s", dir.SourcePath, dir.DestPath, node)
+
+	stdout := bytes.NewBuffer(nil)
+	stderr := bytes.NewBuffer(nil)
+	cmd := Command{
+		Node:   node,
+		Line:   []string{"tar", "-xf", "-", "-C", filepath.Dir(dir.DestPath)},
+		Stdout: &NoopCloser{stdout},
+		Stderr: &NoopCloser{stderr},
+	}
+
+	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
+	if err != nil {
+		in.T.Fatalf("Failed to connect to LXD: %v", err)
+	}
+
+	req := api.InstanceExecPost{
+		Command:     cmd.Line,
+		WaitForWS:   true,
+		Interactive: false,
+		Environment: map[string]string{},
+	}
+
+	args := lxd.InstanceExecArgs{
+		Stdin:    tmpFile,
+		Stdout:   cmd.Stdout,
+		Stderr:   cmd.Stderr,
+		DataDone: make(chan bool),
+	}
+
+	op, err := client.ExecInstance(node, req, &args)
+	if err != nil {
+		in.T.Fatalf("Failed to execute tar extract: %v", err)
+	}
+
+	err = op.Wait()
+	<-args.DataDone
+
+	if err != nil {
+		in.T.Fatalf("Failed to wait for tar extract: %v\nStderr: %s", err, stderr.String())
 	}
 }
 
