@@ -578,12 +578,6 @@ func CopyDirToNode(in *ClusterInput, node string, dir Dir) {
 
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
-	cmd := Command{
-		Node:   node,
-		Line:   []string{"tar", "-xf", "-", "-C", filepath.Dir(dir.DestPath)},
-		Stdout: &NoopCloser{stdout},
-		Stderr: &NoopCloser{stderr},
-	}
 
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
@@ -591,7 +585,7 @@ func CopyDirToNode(in *ClusterInput, node string, dir Dir) {
 	}
 
 	req := api.InstanceExecPost{
-		Command:     cmd.Line,
+		Command:     []string{"tar", "-xf", "-", "-C", filepath.Dir(dir.DestPath)},
 		WaitForWS:   true,
 		Interactive: false,
 		Environment: map[string]string{},
@@ -599,8 +593,8 @@ func CopyDirToNode(in *ClusterInput, node string, dir Dir) {
 
 	args := lxd.InstanceExecArgs{
 		Stdin:    tmpFile,
-		Stdout:   cmd.Stdout,
-		Stderr:   cmd.Stderr,
+		Stdout:   &NoopCloser{stdout},
+		Stderr:   &NoopCloser{stderr},
 		DataDone: make(chan bool),
 	}
 
