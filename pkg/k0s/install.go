@@ -118,7 +118,14 @@ func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, overrides string) 
 	if err != nil {
 		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
 	}
+
 	if embcfg != nil {
+		// Apply vendor WorkerProfiles
+		if len(embcfg.Spec.WorkerProfiles) > 0 {
+			cfg.Spec.WorkerProfiles = embcfg.Spec.WorkerProfiles
+		}
+
+		// Apply vendor k0s overrides
 		overrides := embcfg.Spec.UnsupportedOverrides.K0s
 		cfg, err = config.PatchK0sConfig(cfg, overrides)
 		if err != nil {
@@ -130,7 +137,14 @@ func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, overrides string) 
 	if err != nil {
 		return nil, fmt.Errorf("unable to process overrides file: %w", err)
 	}
+
 	if eucfg != nil {
+		// Apply end user WorkerProfiles (these take priority over vendor profiles)
+		if len(eucfg.Spec.WorkerProfiles) > 0 {
+			cfg.Spec.WorkerProfiles = eucfg.Spec.WorkerProfiles
+		}
+
+		// Apply end user k0s overrides
 		overrides := eucfg.Spec.UnsupportedOverrides.K0s
 		cfg, err = config.PatchK0sConfig(cfg, overrides)
 		if err != nil {
