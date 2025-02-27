@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -93,7 +94,7 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags(nodeIP string, overrides string) ([]string, error) {
+func InstallFlags(nodeIP string) ([]string, error) {
 	flags := []string{
 		"install",
 		"controller",
@@ -102,7 +103,7 @@ func InstallFlags(nodeIP string, overrides string) ([]string, error) {
 		"--no-taints",
 		"-c", runtimeconfig.PathToK0sConfig(),
 	}
-	profile, err := ProfileInstallFlag(overrides)
+	profile, err := ProfileInstallFlag()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get profile install flag: %w", err)
 	}
@@ -128,47 +129,20 @@ func AdditionalInstallFlagsController() []string {
 	}
 }
 
-func ProfileInstallFlag(overrides string) (string, error) {
-	cfg, err := release.GetEmbeddedClusterConfig()
+func ProfileInstallFlag() (string, error) {
+	// Read k0s config from disk
+	configBytes, err := os.ReadFile(runtimeconfig.PathToK0sConfig())
 	if err != nil {
-		return "", fmt.Errorf("failed to get embedded cluster config: %w", err)
+		return "", fmt.Errorf("failed to read k0s config: %w", err)
 	}
-	fmt.Printf("K0s override patch: %s\n", cfg.Spec.UnsupportedOverrides.K0s)
 
-	k0spatch, err := extractK0sConfigPatch(cfg.Spec.UnsupportedOverrides.K0s)
-	if err != nil {
-		return "", fmt.Errorf("failed to extract k0s patch: %w", err)
+	var k0scfg k0sconfig.ClusterConfig
+	if err := yaml.Unmarshal(configBytes, &k0scfg); err != nil {
+		return "", fmt.Errorf("failed to unmarshal k0s config: %w", err)
 	}
-	fmt.Printf("Extracted k0s patch: %s\n", k0spatch)
 
-	newK0scfg := RenderK0sConfig()
-	k0scfg, err := PatchK0sConfig(newK0scfg, k0spatch)
-	if err != nil {
-		return "", fmt.Errorf("failed to patch k0s config: %w", err)
-	}
-	fmt.Printf("Worker profiles after patch: %+v\n", k0scfg.Spec.WorkerProfiles)
-
-	euOveridescfg := &embeddedclusterv1beta1.Config{}
-	err = yaml.Unmarshal([]byte(overrides), euOveridescfg)
-	if err != nil {
-		return "", fmt.Errorf("failed to unmarshal overrides: %w", err)
-	}
-	fmt.Printf("EU overrides: %+v\n", euOveridescfg)
-
-	euk0spatch, err := extractK0sConfigPatch(euOveridescfg.Spec.UnsupportedOverrides.K0s)
-	if err != nil {
-		return "", fmt.Errorf("failed to extract k0s patch: %w", err)
-	}
-	fmt.Printf("Extracted k0s patch: %s\n", euk0spatch)
-
-	finalK0scfg, err := PatchK0sConfig(k0scfg, euk0spatch)
-	if err != nil {
-		return "", fmt.Errorf("failed to patch k0s config: %w", err)
-	}
-	fmt.Printf("Final k0s config: %+v\n", finalK0scfg)
-
-	if len(finalK0scfg.Spec.WorkerProfiles) > 0 {
-		return "--profile=" + finalK0scfg.Spec.WorkerProfiles[len(finalK0scfg.Spec.WorkerProfiles)-1].Name, nil
+	if len(k0scfg.Spec.WorkerProfiles) > 0 {
+		return "--profile=" + k0scfg.Spec.WorkerProfiles[len(k0scfg.Spec.WorkerProfiles)-1].Name, nil
 	}
 
 	return "", nil
