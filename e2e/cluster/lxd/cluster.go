@@ -594,8 +594,8 @@ func CopyFileFromNode(node, source, dest string) error {
 // CreateNodes creats the nodes for the cluster. The amount of nodes is
 // specified in the input.
 func CreateNodes(in *ClusterInput) ([]string, []string) {
-	ipChan := make(chan string, in.Nodes)
-	nodesChan := make(chan string, in.Nodes)
+	ips := make([]string, in.Nodes)
+	nodes := make([]string, in.Nodes)
 
 	wg := sync.WaitGroup{}
 	wg.Add(in.Nodes)
@@ -609,23 +609,12 @@ func CreateNodes(in *ClusterInput) ([]string, []string) {
 			} else {
 				NodeHasNoInternet(in, node)
 			}
-			ipChan <- ip
-			nodesChan <- node
+			ips[i] = ip
+			nodes[i] = node
 		}(i)
 	}
 	wg.Wait()
 
-	close(ipChan)
-	close(nodesChan)
-
-	ips := []string{}
-	for ip := range ipChan {
-		ips = append(ips, ip)
-	}
-	nodes := []string{}
-	for node := range nodesChan {
-		nodes = append(nodes, node)
-	}
 	return nodes, ips
 }
 
