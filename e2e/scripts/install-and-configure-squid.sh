@@ -18,7 +18,6 @@ http_access allow whitelist
 whitelist_txt="
 proxy.replicated.com
 ec-e2e-replicated-app.testcluster.net
-staging.replicated.app
 
 # ingress-nginx extension chart redirects to github.com releases/download
 kubernetes.github.io

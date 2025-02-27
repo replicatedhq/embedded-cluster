@@ -364,11 +364,12 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		EndUserConfigSpec:       euCfgSpec,
 		KotsInstaller: func(msg *spinner.MessageWriter) error {
 			opts := kotscli.InstallOptions{
-				AppSlug:          flags.license.Spec.AppSlug,
-				LicenseFile:      flags.licenseFile,
-				Namespace:        runtimeconfig.KotsadmNamespace,
-				AirgapBundle:     flags.airgapBundle,
-				ConfigValuesFile: flags.configValues,
+				AppSlug:               flags.license.Spec.AppSlug,
+				LicenseFile:           flags.licenseFile,
+				Namespace:             runtimeconfig.KotsadmNamespace,
+				AirgapBundle:          flags.airgapBundle,
+				ConfigValuesFile:      flags.configValues,
+				ReplicatedAPIEndpoint: flags.license.Spec.Endpoint,
 			}
 			return kotscli.Install(opts, msg)
 		},

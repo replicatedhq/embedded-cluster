@@ -29,9 +29,7 @@ type SenderInterface interface {
 // Convenience functions
 
 // Send is a helper function that sends an event to the metrics endpoint.
-// Metrics endpoint can be overwritten by the license.spec.endpoint field
-// or by the EMBEDDED_CLUSTER_METRICS_BASEURL environment variable, the latter has
-// precedence over the former.
+// Metrics endpoint can be overwritten by the license.spec.endpoint field.
 func Send(ctx context.Context, baseURL string, ev types.Event) {
 	if metricsDisabled {
 		logrus.Debugf("metrics are disabled, not sending event %s", ev.Title())

@@ -429,6 +429,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		PrivateCAs:  flags.privateCAs,
 		ServiceCIDR: flags.cidrCfg.ServiceCIDR,
 		IsRestore:   true,
+		// TODO: pass in custom domain
 	}); err != nil {
 		return err
 	}

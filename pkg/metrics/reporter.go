@@ -41,9 +41,6 @@ func (e ErrorNoFail) Error() string {
 
 // BaseURL determines the base url to be used when sending metrics over.
 func BaseURL(license *kotsv1beta1.License) string {
-	if os.Getenv("EMBEDDED_CLUSTER_METRICS_BASEURL") != "" {
-		return os.Getenv("EMBEDDED_CLUSTER_METRICS_BASEURL")
-	}
 	if license != nil && license.Spec.Endpoint != "" {
 		return license.Spec.Endpoint
 	}
