@@ -146,6 +146,8 @@ spec:
                               type: integer
                             type: array
                         type: object
+                      workerProfile:
+                        type: string
                     type: object
                   custom:
                     items:
@@ -180,6 +182,8 @@ spec:
                                 type: integer
                               type: array
                           type: object
+                        workerProfile:
+                          type: string
                       type: object
                     type: array
                 type: object
@@ -443,6 +447,8 @@ spec:
                                   type: integer
                                 type: array
                             type: object
+                          workerProfile:
+                            type: string
                         type: object
                       custom:
                         items:
@@ -477,6 +483,8 @@ spec:
                                     type: integer
                                   type: array
                               type: object
+                            workerProfile:
+                              type: string
                           type: object
                         type: array
                     type: object
