@@ -28,11 +28,26 @@ type ClusterInput struct {
 
 func NewCluster(in *ClusterInput) *Cluster {
 	c := &Cluster{t: in.T}
-	for i := 0; i < in.Nodes; i++ {
-		node := NewNode(in, fmt.Sprintf("node%d", i))
-		if i == 0 {
-			node = node.WithPort("30003:30003")
-		}
+
+	nodesChan := make(chan *Container, in.Nodes)
+	defer close(nodesChan)
+
+	wg := sync.WaitGroup{}
+	wg.Add(in.Nodes)
+
+	for i := range in.Nodes {
+		go func(i int) {
+			defer wg.Done()
+			node := NewNode(in, fmt.Sprintf("node%d", i))
+			if i == 0 {
+				node = node.WithPort("30003:30003")
+			}
+			nodesChan <- node
+		}(i)
+	}
+	wg.Wait()
+
+	for node := range nodesChan {
 		c.Nodes = append(c.Nodes, node)
 	}
 	c.Run()

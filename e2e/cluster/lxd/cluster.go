@@ -579,19 +579,38 @@ func CopyFileFromNode(node, source, dest string) error {
 // CreateNodes creats the nodes for the cluster. The amount of nodes is
 // specified in the input.
 func CreateNodes(in *ClusterInput) ([]string, []string) {
-	nodes := []string{}
-	IPs := []string{}
-	for i := 0; i < in.Nodes; i++ {
-		node, ip := CreateNode(in, i)
-		if !in.WithProxy {
-			NodeHasInternet(in, node)
-		} else {
-			NodeHasNoInternet(in, node)
-		}
-		nodes = append(nodes, node)
-		IPs = append(IPs, ip)
+	ipChan := make(chan string, in.Nodes)
+	defer close(ipChan)
+	nodesChan := make(chan string, in.Nodes)
+	defer close(nodesChan)
+
+	wg := sync.WaitGroup{}
+	wg.Add(in.Nodes)
+
+	for i := range in.Nodes {
+		go func(i int) {
+			defer wg.Done()
+			node, ip := CreateNode(in, i)
+			if !in.WithProxy {
+				NodeHasInternet(in, node)
+			} else {
+				NodeHasNoInternet(in, node)
+			}
+			ipChan <- ip
+			nodesChan <- node
+		}(i)
 	}
-	return nodes, IPs
+	wg.Wait()
+
+	ips := []string{}
+	for ip := range ipChan {
+		ips = append(ips, ip)
+	}
+	nodes := []string{}
+	for node := range nodesChan {
+		nodes = append(nodes, node)
+	}
+	return nodes, ips
 }
 
 // NodeHasInternet checks if the node has internet access. It does this by
