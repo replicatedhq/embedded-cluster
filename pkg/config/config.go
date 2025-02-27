@@ -141,6 +141,8 @@ func ProfileInstallFlag() (string, error) {
 		return "", fmt.Errorf("failed to unmarshal k0s config: %w", err)
 	}
 
+	fmt.Printf("Found worker profiles in k0s config: %+v\n", k0scfg.Spec.WorkerProfiles)
+
 	if len(k0scfg.Spec.WorkerProfiles) > 0 {
 		return "--profile=" + k0scfg.Spec.WorkerProfiles[len(k0scfg.Spec.WorkerProfiles)-1].Name, nil
 	}
