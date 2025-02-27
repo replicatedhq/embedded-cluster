@@ -629,7 +629,7 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 	}
 
 	logrus.Debugf("installing k0s")
-	if err := k0s.Install(networkInterface); err != nil {
+	if err := k0s.Install(networkInterface, cfg); err != nil {
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
 

@@ -93,7 +93,7 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags(nodeIP string) ([]string, error) {
+func InstallFlags(nodeIP string, cfg *k0sconfig.ClusterConfig) []string {
 	flags := []string{
 		"install",
 		"controller",
@@ -102,14 +102,11 @@ func InstallFlags(nodeIP string) ([]string, error) {
 		"--no-taints",
 		"-c", runtimeconfig.PathToK0sConfig(),
 	}
-	profile, err := ProfileInstallFlag()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get profile install flag: %w", err)
-	}
+	profile := ProfileInstallFlag(cfg)
 	flags = append(flags, profile)
 	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
-	return flags, nil
+	return flags
 }
 
 func AdditionalInstallFlags(nodeIP string) []string {
@@ -128,31 +125,12 @@ func AdditionalInstallFlagsController() []string {
 	}
 }
 
-func ProfileInstallFlag() (string, error) {
-	cfg, err := release.GetEmbeddedClusterConfig()
-	if err != nil {
-		return "", fmt.Errorf("failed to get embedded cluster config: %w", err)
-	}
-	fmt.Printf("K0s override patch: %s\n", cfg.Spec.UnsupportedOverrides.K0s)
-
-	k0spatch, err := extractK0sConfigPatch(cfg.Spec.UnsupportedOverrides.K0s)
-	if err != nil {
-		return "", fmt.Errorf("failed to extract k0s patch: %w", err)
-	}
-	fmt.Printf("Extracted k0s patch: %s\n", k0spatch)
-
-	newK0scfg := RenderK0sConfig()
-	k0scfg, err := PatchK0sConfig(newK0scfg, k0spatch)
-	if err != nil {
-		return "", fmt.Errorf("failed to patch k0s config: %w", err)
-	}
-	fmt.Printf("Worker profiles after patch: %+v\n", k0scfg.Spec.WorkerProfiles)
-
-	if len(k0scfg.Spec.WorkerProfiles) > 0 {
-		return "--profile=" + k0scfg.Spec.WorkerProfiles[len(k0scfg.Spec.WorkerProfiles)-1].Name, nil
+func ProfileInstallFlag(cfg *k0sconfig.ClusterConfig) string {
+	if len(cfg.Spec.WorkerProfiles) > 0 {
+		return "--profile=" + cfg.Spec.WorkerProfiles[len(cfg.Spec.WorkerProfiles)-1].Name
 	}
 
-	return "", nil
+	return ""
 }
 
 // nodeLabels return a slice of string with labels (key=value format) for the node where we

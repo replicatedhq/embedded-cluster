@@ -19,7 +19,7 @@ import (
 
 // Install runs the k0s install command and waits for it to finish. If no configuration
 // is found one is generated.
-func Install(networkInterface string) error {
+func Install(networkInterface string, cfg *k0sv1beta1.ClusterConfig) error {
 	ourbin := runtimeconfig.PathToEmbeddedClusterBinary("k0s")
 	hstbin := runtimeconfig.K0sBinaryPath()
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
@@ -30,10 +30,7 @@ func Install(networkInterface string) error {
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
-	flags, err := config.InstallFlags(nodeIP)
-	if err != nil {
-		return fmt.Errorf("unable to get install flags: %w", err)
-	}
+	flags := config.InstallFlags(nodeIP, cfg)
 	if _, err := helpers.RunCommand(hstbin, flags...); err != nil {
 		return fmt.Errorf("unable to install: %w", err)
 	}
