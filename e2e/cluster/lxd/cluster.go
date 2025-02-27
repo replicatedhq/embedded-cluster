@@ -221,13 +221,21 @@ func NewCluster(in *ClusterInput) *Cluster {
 	CreateProfile(in)
 	CreateNetworks(in)
 	out.Nodes, out.IPs = CreateNodes(in)
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(out.Nodes))
 	for _, node := range out.Nodes {
-		CopyFilesToNode(in, node)
-		CopyDirsToNode(in, node)
-		if in.CreateRegularUser {
-			CreateRegularUser(in, node)
-		}
+		go func(node string) {
+			defer wg.Done()
+			CopyFilesToNode(in, node)
+			CopyDirsToNode(in, node)
+			if in.CreateRegularUser {
+				CreateRegularUser(in, node)
+			}
+		}(node)
 	}
+	wg.Wait()
+
 	// We create a proxy node for all installations to run playwright tests.
 	out.Proxy = CreateProxy(in)
 	CopyDirsToNode(in, out.Proxy)
