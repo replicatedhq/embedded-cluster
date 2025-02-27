@@ -2,7 +2,6 @@
 
 export EMBEDDED_CLUSTER_BIN="${EMBEDDED_CLUSTER_BIN:-embedded-cluster}"
 export EMBEDDED_CLUSTER_BASE_DIR="${EMBEDDED_CLUSTER_BASE_DIR:-/var/lib/embedded-cluster}"
-export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export PATH="$PATH:${EMBEDDED_CLUSTER_BASE_DIR}/bin"
 export K0SCONFIG=/etc/k0s/k0s.yaml
 export APP_NAMESPACE="${APP_NAMESPACE:-kotsadm}"
