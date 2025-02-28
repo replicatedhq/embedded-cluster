@@ -14,8 +14,8 @@ images:
     calico-kube-controllers:
         repo: proxy.replicated.com/anonymous/replicated/ec-calico-kube-controllers
         tag:
-            amd64: 3.28.2-r1-amd64@sha256:1709ec8f51495abc0775425c09d38bb9d5bc19819a603aab23eefde3f87a3971
-            arm64: 3.28.2-r1-arm64@sha256:414bfc5bade3cb2d820ff53507035f1c9e14787370652f38314a3880aff9849c
+            amd64: 3.28.2-r1-amd64@sha256:3bbd3c5cbcdc219d7235662ba1d5e396cba1a5b0e1ff9ee69c0b660d92896d9a
+            arm64: 3.28.2-r1-arm64@sha256:f28c2068727c9138ccb54b8e42376d81f717a1d03f9d6c7d5ffc940f512d967b
     calico-node:
         repo: proxy.replicated.com/anonymous/replicated/ec-calico-node
         tag:
