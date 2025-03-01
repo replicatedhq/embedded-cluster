@@ -29,7 +29,7 @@ type ClusterInput struct {
 func NewCluster(in *ClusterInput) *Cluster {
 	c := &Cluster{t: in.T}
 
-	nodes := make([]*Container, in.Nodes)
+	c.Nodes = make([]*Container, in.Nodes)
 
 	wg := sync.WaitGroup{}
 	wg.Add(in.Nodes)
@@ -41,7 +41,7 @@ func NewCluster(in *ClusterInput) *Cluster {
 			if i == 0 {
 				node = node.WithPort("30003:30003")
 			}
-			nodes[i] = node
+			c.Nodes[i] = node
 		}(i)
 	}
 	wg.Wait()
