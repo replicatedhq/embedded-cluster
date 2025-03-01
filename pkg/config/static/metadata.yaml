@@ -34,8 +34,8 @@ images:
     metrics-server:
         repo: proxy.replicated.com/anonymous/replicated/ec-metrics-server
         tag:
-            amd64: 0.7.2-r6-amd64@sha256:ad6fe31f10529bfc7c8432384350b5d188afdebc9252a08c7b8d922935ea24dc
-            arm64: 0.7.2-r6-arm64@sha256:4a007be2f7d6dae6d73180561f79b1a397240bcd8646f513cf8b762dab2866a0
+            amd64: 0.7.2-r7-amd64@sha256:8db24a01f94ac53251017b1b58e7dbbd85945e135f8881550ce6b3ca587c2150
+            arm64: 0.7.2-r7-arm64@sha256:d95e0d83e5da2bbf0a6201d64466e7950f8ff2c355761e4431ed3a2c106b25e0
     pause:
         repo: proxy.replicated.com/anonymous/registry.k8s.io/pause
         tag:
