@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1053,7 +1054,7 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 	line := []string{"playwright.sh", testName}
 	line = append(line, args...)
 	env := map[string]string{
-		"BASE_URL": fmt.Sprintf("http://%s:30003", c.IPs[0]),
+		"BASE_URL": fmt.Sprintf("http://%s", net.JoinHostPort(c.IPs[0], "30003")),
 	}
 	stdout, stderr, err := c.RunCommandOnProxyNode(c.T, line, env)
 	if err != nil {
