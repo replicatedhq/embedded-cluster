@@ -90,7 +90,6 @@ type Cluster struct {
 	IPs     []string
 	network string
 	id      string
-	node0IP string
 	T       *testing.T
 	Proxy   string
 }
@@ -222,7 +221,6 @@ func NewCluster(in *ClusterInput) *Cluster {
 	CreateProfile(in)
 	CreateNetworks(in)
 	out.Nodes, out.IPs = CreateNodes(in)
-	out.node0IP = out.IPs[0]
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(out.Nodes))
@@ -1055,7 +1053,7 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 	line := []string{"playwright.sh", testName}
 	line = append(line, args...)
 	env := map[string]string{
-		"BASE_URL": fmt.Sprintf("http://%s:30003", c.node0IP),
+		"BASE_URL": fmt.Sprintf("http://%s:30003", c.IPs[0]),
 	}
 	stdout, stderr, err := c.RunCommandOnProxyNode(c.T, line, env)
 	if err != nil {
