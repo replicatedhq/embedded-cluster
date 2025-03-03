@@ -36,7 +36,7 @@ func NewCluster(in *ClusterInput) *Cluster {
 		if i == 0 {
 			node = node.WithPort("30003:30003")
 		}
-		c.Nodes[i] = Node
+		c.Nodes[i] = node
 	}
 
 	c.Run()
