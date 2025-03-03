@@ -31,20 +31,13 @@ func NewCluster(in *ClusterInput) *Cluster {
 
 	c.Nodes = make([]*Container, in.Nodes)
 
-	wg := sync.WaitGroup{}
-	wg.Add(in.Nodes)
-
 	for i := range in.Nodes {
-		go func(i int) {
-			defer wg.Done()
-			node := NewNode(in, fmt.Sprintf("node%d", i))
-			if i == 0 {
-				node = node.WithPort("30003:30003")
-			}
-			c.Nodes[i] = node
-		}(i)
+		node := NewNode(in, fmt.Sprintf("node%d", i))
+		if i == 0 {
+			node = node.WithPort("30003:30003")
+		}
+		c.Nodes[i] = Node
 	}
-	wg.Wait()
 
 	c.Run()
 	return c
@@ -78,9 +71,17 @@ func NewNode(in *ClusterInput, name string) *Container {
 }
 
 func (c *Cluster) Run() {
+	wg := sync.WaitGroup{}
+	wg.Add(len(c.Nodes))
+
 	for _, node := range c.Nodes {
-		node.Run()
+		go func(node *Container) {
+			defer wg.Done()
+			node.Run()
+		}(node)
 	}
+	wg.Wait()
+
 	c.WaitForReady()
 }
 
