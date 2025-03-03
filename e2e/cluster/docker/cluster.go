@@ -28,13 +28,17 @@ type ClusterInput struct {
 
 func NewCluster(in *ClusterInput) *Cluster {
 	c := &Cluster{t: in.T}
-	for i := 0; i < in.Nodes; i++ {
+
+	c.Nodes = make([]*Container, in.Nodes)
+
+	for i := range in.Nodes {
 		node := NewNode(in, fmt.Sprintf("node%d", i))
 		if i == 0 {
 			node = node.WithPort("30003:30003")
 		}
-		c.Nodes = append(c.Nodes, node)
+		c.Nodes[i] = Node
 	}
+
 	c.Run()
 	return c
 }
@@ -67,9 +71,17 @@ func NewNode(in *ClusterInput, name string) *Container {
 }
 
 func (c *Cluster) Run() {
+	wg := sync.WaitGroup{}
+	wg.Add(len(c.Nodes))
+
 	for _, node := range c.Nodes {
-		node.Run()
+		go func(node *Container) {
+			defer wg.Done()
+			node.Run()
+		}(node)
 	}
+	wg.Wait()
+
 	c.WaitForReady()
 }
 
