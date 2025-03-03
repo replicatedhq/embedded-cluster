@@ -71,16 +71,9 @@ func NewNode(in *ClusterInput, name string) *Container {
 }
 
 func (c *Cluster) Run() {
-	wg := sync.WaitGroup{}
-	wg.Add(len(c.Nodes))
-
 	for _, node := range c.Nodes {
-		go func(node *Container) {
-			defer wg.Done()
-			node.Run()
-		}(node)
+		node.Run()
 	}
-	wg.Wait()
 
 	c.WaitForReady()
 }
