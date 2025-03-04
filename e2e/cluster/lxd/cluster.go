@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -222,13 +223,21 @@ func NewCluster(in *ClusterInput) *Cluster {
 	CreateProfile(in)
 	CreateNetworks(in)
 	out.Nodes, out.IPs = CreateNodes(in)
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(out.Nodes))
 	for _, node := range out.Nodes {
-		CopyFilesToNode(in, node)
-		CopyDirsToNode(in, node)
-		if in.CreateRegularUser {
-			CreateRegularUser(in, node)
-		}
+		go func(node string) {
+			defer wg.Done()
+			CopyFilesToNode(in, node)
+			CopyDirsToNode(in, node)
+			if in.CreateRegularUser {
+				CreateRegularUser(in, node)
+			}
+		}(node)
 	}
+	wg.Wait()
+
 	// We create a proxy node for all installations to run playwright tests.
 	out.Proxy = CreateProxy(in)
 	CopyDirsToNode(in, out.Proxy)
@@ -245,10 +254,17 @@ func NewCluster(in *ClusterInput) *Cluster {
 		env["http_proxy"] = HTTPProxy
 		env["https_proxy"] = HTTPProxy
 	}
+
+	wg.Add(len(out.Nodes))
 	for _, node := range out.Nodes {
-		in.T.Logf("Installing deps on node %s", node)
-		RunCommand(in, []string{"install-deps.sh"}, node, env)
+		go func(node string) {
+			defer wg.Done()
+			in.T.Logf("Installing deps on node %s", node)
+			RunCommand(in, []string{"install-deps.sh"}, node, env)
+		}(node)
 	}
+	wg.Wait()
+
 	return out
 }
 
@@ -667,19 +683,28 @@ func CopyFileFromNode(node, source, dest string) error {
 // CreateNodes creats the nodes for the cluster. The amount of nodes is
 // specified in the input.
 func CreateNodes(in *ClusterInput) ([]string, []string) {
-	nodes := []string{}
-	IPs := []string{}
-	for i := 0; i < in.Nodes; i++ {
-		node, ip := CreateNode(in, i)
-		if !in.WithProxy {
-			NodeHasInternet(in, node)
-		} else {
-			NodeHasNoInternet(in, node)
-		}
-		nodes = append(nodes, node)
-		IPs = append(IPs, ip)
+	ips := make([]string, in.Nodes)
+	nodes := make([]string, in.Nodes)
+
+	wg := sync.WaitGroup{}
+	wg.Add(in.Nodes)
+
+	for i := range in.Nodes {
+		go func(i int) {
+			defer wg.Done()
+			node, ip := CreateNode(in, i)
+			if !in.WithProxy {
+				NodeHasInternet(in, node)
+			} else {
+				NodeHasNoInternet(in, node)
+			}
+			ips[i] = ip
+			nodes[i] = node
+		}(i)
 	}
-	return nodes, IPs
+	wg.Wait()
+
+	return nodes, ips
 }
 
 // NodeHasInternet checks if the node has internet access. It does this by
@@ -1116,7 +1141,10 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 	c.T.Logf("%s: running playwright test %s on proxy node", time.Now().Format(time.RFC3339), testName)
 	line := []string{"playwright.sh", testName}
 	line = append(line, args...)
-	stdout, stderr, err := c.RunCommandOnProxyNode(c.T, line)
+	env := map[string]string{
+		"BASE_URL": fmt.Sprintf("http://%s", net.JoinHostPort(c.IPs[0], "30003")),
+	}
+	stdout, stderr, err := c.RunCommandOnProxyNode(c.T, line, env)
 	if err != nil {
 		return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, c.Proxy, err)
 	}
