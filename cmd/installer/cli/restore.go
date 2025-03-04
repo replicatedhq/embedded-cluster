@@ -429,7 +429,9 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		PrivateCAs:  flags.privateCAs,
 		ServiceCIDR: flags.cidrCfg.ServiceCIDR,
 		IsRestore:   true,
-		// TODO: pass in custom domain
+		// TODO(customdomains): pass in custom domain
+		// This requires us to either embed the license in the binary or require a license be
+		// provided to the restore command.
 	}); err != nil {
 		return err
 	}

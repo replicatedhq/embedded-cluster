@@ -32,7 +32,10 @@ type SenderInterface interface {
 // Metrics endpoint can be overwritten by the license.spec.endpoint field.
 func Send(ctx context.Context, baseURL string, ev types.Event) {
 	if metricsDisabled {
-		logrus.Debugf("metrics are disabled, not sending event %s", ev.Title())
+		logrus.Debugf("Metrics are disabled, not sending event %s", ev.Title())
+		return
+	} else if baseURL == "" {
+		logrus.Debugf("Metrics base URL empty, not sending event %s", ev.Title())
 		return
 	}
 	s.Send(ctx, baseURL, ev)

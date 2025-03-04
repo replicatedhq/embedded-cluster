@@ -7,11 +7,8 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
-
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
 	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
@@ -19,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/sirupsen/logrus"
 )
 
 var clusterIDMut sync.Mutex
@@ -37,14 +35,6 @@ func NewErrorNoFail(err error) ErrorNoFail {
 
 func (e ErrorNoFail) Error() string {
 	return e.Err.Error()
-}
-
-// BaseURL determines the base url to be used when sending metrics over.
-func BaseURL(license *kotsv1beta1.License) string {
-	if license != nil && license.Spec.Endpoint != "" {
-		return license.Spec.Endpoint
-	}
-	return "https://replicated.app"
 }
 
 // LicenseID returns the license id. If the license is nil, it returns an empty string.
@@ -80,7 +70,7 @@ func SetClusterID(id uuid.UUID) {
 }
 
 // ReportInstallationStarted reports that the installation has started.
-func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License, clusterID uuid.UUID) {
+func ReportInstallationStarted(ctx context.Context, baseURL string, licenseID string, clusterID uuid.UUID) {
 	rel, _ := release.GetChannelRelease()
 	appChannel, appVersion := "", ""
 	if rel != nil {
@@ -88,29 +78,29 @@ func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License
 		appVersion = rel.VersionLabel
 	}
 
-	Send(ctx, BaseURL(license), types.InstallationStarted{
+	Send(ctx, baseURL, types.InstallationStarted{
 		ClusterID:    clusterID,
 		Version:      versions.Version,
 		Flags:        strings.Join(redactFlags(os.Args[1:]), " "),
 		BinaryName:   runtimeconfig.BinaryName(),
 		Type:         "centralized",
-		LicenseID:    LicenseID(license),
+		LicenseID:    licenseID,
 		AppChannelID: appChannel,
 		AppVersion:   appVersion,
 	})
 }
 
 // ReportInstallationSucceeded reports that the installation has succeeded.
-func ReportInstallationSucceeded(ctx context.Context, license *kotsv1beta1.License, clusterID uuid.UUID) {
-	Send(ctx, BaseURL(license), types.InstallationSucceeded{ClusterID: clusterID, Version: versions.Version})
+func ReportInstallationSucceeded(ctx context.Context, baseURL string, clusterID uuid.UUID) {
+	Send(ctx, baseURL, types.InstallationSucceeded{ClusterID: clusterID, Version: versions.Version})
 }
 
 // ReportInstallationFailed reports that the installation has failed.
-func ReportInstallationFailed(ctx context.Context, license *kotsv1beta1.License, clusterID uuid.UUID, err error) {
+func ReportInstallationFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, err error) {
 	if errors.As(err, &ErrorNoFail{}) {
 		return
 	}
-	Send(ctx, BaseURL(license), types.InstallationFailed{
+	Send(ctx, baseURL, types.InstallationFailed{
 		ClusterID: clusterID,
 		Version:   versions.Version,
 		Reason:    err.Error(),
@@ -160,28 +150,6 @@ func ReportJoinFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, 
 		NodeName:  hostname,
 		Reason:    err.Error(),
 	})
-}
-
-// ReportApplyStarted reports an InstallationStarted event.
-func ReportApplyStarted(ctx context.Context, licenseFlag string) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	ReportInstallationStarted(ctx, License(licenseFlag), ClusterID())
-}
-
-// ReportApplyFinished reports an InstallationSucceeded or an InstallationFailed.
-func ReportApplyFinished(ctx context.Context, licenseFlag string, license *kotsv1beta1.License, err error) {
-	if license == nil && licenseFlag != "" {
-		license = License(licenseFlag)
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if err != nil {
-		ReportInstallationFailed(ctx, license, ClusterID(), err)
-		return
-	}
-	ReportInstallationSucceeded(ctx, license, ClusterID())
 }
 
 // ReportPreflightsFailed reports that the preflights failed but were bypassed.
