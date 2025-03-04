@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,19 +46,12 @@ func TestReportInstallationStarted(t *testing.T) {
 				),
 			)
 			defer server.Close()
-			license := &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					LicenseID: "license-id",
-					AppSlug:   "app-slug",
-					Endpoint:  server.URL,
-				},
-			}
 			// Report call relies on os.Args to get the command and flags used so we nee to mock it
 			originalArgs := os.Args
 			defer func() { os.Args = originalArgs }()
 			os.Args = append([]string{os.Args[0]}, test.OSArgs...)
 
-			ReportInstallationStarted(context.Background(), license, ClusterID())
+			ReportInstallationStarted(context.Background(), server.URL, "license-id", ClusterID())
 		})
 	}
 }
