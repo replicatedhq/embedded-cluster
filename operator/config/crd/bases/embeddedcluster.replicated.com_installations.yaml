@@ -213,6 +213,8 @@ spec:
                                   type: integer
                                 type: array
                             type: object
+                          workerProfile:
+                            type: string
                         type: object
                       custom:
                         items:
@@ -249,6 +251,8 @@ spec:
                                     type: integer
                                   type: array
                               type: object
+                            workerProfile:
+                              type: string
                           type: object
                         type: array
                     type: object
@@ -298,6 +302,20 @@ spec:
                     type: boolean
                   version:
                     type: string
+                  workerProfiles:
+                    items:
+                      description: WorkerProfile worker profile
+                      properties:
+                        name:
+                          description: String; name to use as profile selector for
+                            the worker process
+                          type: string
+                        values:
+                          description: Worker Mapping object
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                      type: object
+                    type: array
                 type: object
               configSecret:
                 description: |-

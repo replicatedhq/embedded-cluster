@@ -35,6 +35,9 @@ type UnsupportedOverrides struct {
 	// BuiltInExtensions holds overrides for the default add-ons we ship
 	// with Embedded Cluster.
 	BuiltInExtensions []BuiltInExtension `json:"builtInExtensions,omitempty"`
+	// WorkerProfiles holds the worker profiles used to configure the cluster.
+	// The profile named "default" will be applied by default.
+	WorkerProfiles []k0sv1beta1.WorkerProfile `json:"workerProfiles,omitempty"`
 }
 
 // BuiltInExtension holds the override for a built-in extension (add-on).
@@ -67,10 +70,11 @@ type NodeCount struct {
 
 // NodeRole is the role of a node in the cluster.
 type NodeRole struct {
-	Name        string            `json:"name,omitempty"`
-	Description string            `json:"description,omitempty"`
-	NodeCount   *NodeCount        `json:"nodeCount,omitempty"`
-	Labels      map[string]string `json:"labels,omitempty"`
+	Name          string            `json:"name,omitempty"`
+	Description   string            `json:"description,omitempty"`
+	NodeCount     *NodeCount        `json:"nodeCount,omitempty"`
+	Labels        map[string]string `json:"labels,omitempty"`
+	WorkerProfile string            `json:"workerProfile,omitempty"`
 }
 
 // Roles is the various roles in the cluster.
