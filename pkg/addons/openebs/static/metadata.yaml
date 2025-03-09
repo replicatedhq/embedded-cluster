@@ -11,15 +11,15 @@ images:
     kubectl:
         repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
         tag:
-            amd64: 1.32.2-r1-amd64@sha256:c000f5ce24c71bdb3e17e4e00d6409609b85e6c5b65760fd80ec50596192d557
-            arm64: 1.32.2-r1-arm64@sha256:b183ec48f9d570bf8bb9921a3ea89dce6e5610b3f995742f6e0768f8d8e49d7b
+            amd64: 1.32.2-r1-amd64@sha256:c7476fb72fa59c5787e7c74e19d1c6cbc64124ad2fa126e044b9d32ae3276074
+            arm64: 1.32.2-r1-arm64@sha256:d1b8e1f4f986565496d63e7a771e2172ca7dea125d64b5603f42836aa40f28fa
     openebs-linux-utils:
         repo: proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils
         tag:
-            amd64: 4.2.0-amd64@sha256:9076232b2c2123162a25d67e5627baecf1ea8748a72b30b3a1bd1ed2c591e6cf
-            arm64: 4.2.0-arm64@sha256:41e07d48b8be0da17138f8f4955fe5c8f60daffe7d34ac0bb3ebb22aa85e720d
+            amd64: 4.2.0-amd64@sha256:9370e6d93f2cb263f98c953344fabebbb7a2c4a68fd7d97a84e14a570db60ae9
+            arm64: 4.2.0-arm64@sha256:ed37ec2b28fc79738097643a9f86b13e337238c83ca8e0e1034c645579eab148
     openebs-provisioner-localpv:
         repo: proxy.replicated.com/anonymous/replicated/ec-openebs-provisioner-localpv
         tag:
-            amd64: 4.2.0-r1-amd64@sha256:3fc017c97c0bafcdf813a8920f23c71f3b22698031f22c32688b25a3ad448e7b
-            arm64: 4.2.0-r1-arm64@sha256:510b396548d3d03746fb8b3ee99ebc90d25182a17c9a4ac6d0783e3780d7ad1f
+            amd64: 4.2.0-r2-amd64@sha256:0cfc31283700475db20c428c8cdc4e0e8df4057a378b60950ed62798ede1e851
+            arm64: 4.2.0-r2-arm64@sha256:9ca70dfe3a124cf17035e87a6336e62c79adb2567d4d0c2b0d609012a7951733
