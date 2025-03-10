@@ -11,7 +11,6 @@ import (
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/utils/pkg/embed"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	"gopkg.in/yaml.v2"
@@ -231,18 +230,14 @@ func (r *ReleaseData) GetChannelRelease() (*ChannelRelease, error) {
 	return &release, nil
 }
 
-func GetCustomDomains(license *kotsv1beta1.License) (*embeddedclusterv1beta1.Domains, error) {
+func GetCustomDomains() (*embeddedclusterv1beta1.Domains, error) {
 	if err := parseReleaseDataFromBinary(); err != nil {
 		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
 	}
-	return releaseData.GetCustomDomains(license)
+	return releaseData.GetCustomDomains()
 }
 
-func (r *ReleaseData) GetCustomDomains(license *kotsv1beta1.License) (*embeddedclusterv1beta1.Domains, error) {
-	// the priority is the contents of the embedded cluster config
-	// if that is not set, then we fall back to the value in the license
-	// if the license is not set, then we assume replicated production
-
+func (r *ReleaseData) GetCustomDomains() (*embeddedclusterv1beta1.Domains, error) {
 	cfg, err := r.GetEmbeddedClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get embedded cluster config: %w", err)
@@ -253,19 +248,7 @@ func (r *ReleaseData) GetCustomDomains(license *kotsv1beta1.License) (*embeddedc
 		return &cfg.Spec.Domains, nil
 	}
 
-	// the license contains the replicated.app endpoint (which might be staging, production, or a custom domain)
-	// it does not contain the proxy registry domain
-	if license != nil {
-		return &embeddedclusterv1beta1.Domains{
-			ReplicatedAppDomain: license.Spec.Endpoint,
-			ProxyRegistryDomain: DEFAULT_PROXY_REGISTRY_DOMAIN,
-		}, nil
-	}
-
-	return &embeddedclusterv1beta1.Domains{
-		ReplicatedAppDomain: DEFAULT_REPLICATED_APP_DOMAIN,
-		ProxyRegistryDomain: DEFAULT_PROXY_REGISTRY_DOMAIN,
-	}, nil
+	return &embeddedclusterv1beta1.Domains{}, nil
 }
 
 // parse turns splits data property into the different parts of the release.

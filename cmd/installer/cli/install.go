@@ -98,8 +98,9 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clusterID := metrics.ClusterID()
+
 			metricsReporter := NewInstallReporter(
-				flags.license.Spec.Endpoint, flags.license.Spec.LicenseID, clusterID, cmd.CalledAs(),
+				runtimeconfig.ReplicatedAppDomain(flags.license), flags.license.Spec.LicenseID, clusterID, cmd.CalledAs(),
 			)
 			metricsReporter.ReportInstallationStarted(ctx)
 			if err := runInstall(cmd.Context(), name, flags, metricsReporter); err != nil {
@@ -371,7 +372,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 				Namespace:             runtimeconfig.KotsadmNamespace,
 				AirgapBundle:          flags.airgapBundle,
 				ConfigValuesFile:      flags.configValues,
-				ReplicatedAPIEndpoint: flags.license.Spec.Endpoint,
+				ReplicatedAPIEndpoint: runtimeconfig.ReplicatedAppDomain(flags.license),
 			}
 			return kotscli.Install(opts, msg)
 		},
@@ -751,7 +752,7 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 	}
 	logrus.Debugf("Current app release is out-of-date")
 
-	apiURL := license.Spec.Endpoint
+	apiURL := runtimeconfig.ReplicatedAppDomain(license)
 	releaseURL := fmt.Sprintf("%s/embedded/%s/%s", apiURL, channelRelease.AppSlug, channelRelease.ChannelSlug)
 	logrus.Warnf("A newer version %s is available.", currentRelease.VersionLabel)
 	logrus.Infof(
@@ -1019,7 +1020,7 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCm
 		},
 		Spec: ecv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),
-			MetricsBaseURL:            flags.license.Spec.Endpoint,
+			MetricsBaseURL:            runtimeconfig.ReplicatedAppDomain(flags.license),
 			AirGap:                    flags.isAirgap,
 			Proxy:                     flags.proxy,
 			Network:                   networkSpecFromK0sConfig(k0sCfg),

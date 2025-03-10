@@ -5,13 +5,16 @@ import (
 	"path/filepath"
 
 	"github.com/gosimple/slug"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
 
 // Holds the default no proxy values.
 var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".cluster.local", ".svc"}
 
-const ProxyRegistryAddress = "proxy.replicated.com"
+const proxyRegistryAddress = "proxy.replicated.com"
+const replicatedAppDomain = "replicated.app"
 const KotsadmNamespace = "kotsadm"
 const KotsadmServiceAccount = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"
@@ -74,4 +77,38 @@ func PathToK0sContainerdConfig() string {
 // This file is used to specify the embedded cluster data directory.
 func PathToECConfig() string {
 	return "/etc/embedded-cluster/ec.yaml"
+}
+
+// ReplicatedAppDomain returns the replicated app domain. The first priority is the domain configured within the embedded cluster config.
+// The second priority is the domain configured within the license. If neither is configured, the default domain is returned.
+func ReplicatedAppDomain(license *kotsv1beta1.License) string {
+	// get the configured domains from the embedded cluster config
+	domains, err := release.GetCustomDomains()
+	if err != nil {
+		return replicatedAppDomain
+	}
+
+	if domains.ReplicatedAppDomain != "" {
+		return domains.ReplicatedAppDomain
+	}
+
+	if license != nil {
+		return license.Spec.Endpoint
+	}
+	return replicatedAppDomain
+}
+
+// ProxyRegistryAddress returns the proxy registry address. The first priority is the address configured within the embedded cluster config.
+// If that is not configured, the default address is returned.
+func ProxyRegistryAddress() string {
+	domains, err := release.GetCustomDomains()
+	if err != nil {
+		return proxyRegistryAddress
+	}
+
+	if domains.ProxyRegistryDomain != "" {
+		return domains.ProxyRegistryDomain
+	}
+
+	return proxyRegistryAddress
 }

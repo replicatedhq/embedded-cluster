@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
@@ -32,7 +33,7 @@ func getCurrentAppChannelRelease(ctx context.Context, license *kotsv1beta1.Licen
 	query.Set("channelSequence", "") // sending an empty string will return the latest channel release
 	query.Set("isSemverSupported", "true")
 
-	apiURL := license.Spec.Endpoint
+	apiURL := runtimeconfig.ReplicatedAppDomain(license)
 	url := fmt.Sprintf("%s/release/%s/pending?%s", apiURL, license.Spec.AppSlug, query.Encode())
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

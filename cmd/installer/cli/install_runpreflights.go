@@ -82,14 +82,8 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 }
 
 func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsReported preflights.MetricsReporter) error {
-	var replicatedAPIURL, proxyRegistryURL string
-	if flags.license != nil {
-		// TODO(customdomains): this is used by restore
-		// This requires us to either embed the license in the binary or require a license be
-		// provided to the restore command.
-		replicatedAPIURL = flags.license.Spec.Endpoint
-		proxyRegistryURL = fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
-	}
+	replicatedAPIURL := runtimeconfig.ReplicatedAppDomain(flags.license)
+	proxyRegistryURL := runtimeconfig.ProxyRegistryAddress()
 
 	nodeIP, err := netutils.FirstValidAddress(flags.networkInterface)
 	if err != nil {
