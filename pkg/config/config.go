@@ -190,8 +190,8 @@ func controllerWorkerProfile() string {
 	clusterConfig, err := release.GetEmbeddedClusterConfig()
 	if err == nil {
 		if clusterConfig != nil {
-			if clusterConfig.Spec.Roles.Controller.WorkerProfile != "" {
-				return clusterConfig.Spec.Roles.Controller.WorkerProfile
+			if len(clusterConfig.Spec.UnsupportedOverrides.WorkerProfiles) > 0 {
+				return clusterConfig.Spec.UnsupportedOverrides.WorkerProfiles[0].Name
 			}
 		}
 	}

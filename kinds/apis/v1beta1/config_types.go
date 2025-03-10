@@ -70,11 +70,10 @@ type NodeCount struct {
 
 // NodeRole is the role of a node in the cluster.
 type NodeRole struct {
-	Name          string            `json:"name,omitempty"`
-	Description   string            `json:"description,omitempty"`
-	NodeCount     *NodeCount        `json:"nodeCount,omitempty"`
-	Labels        map[string]string `json:"labels,omitempty"`
-	WorkerProfile string            `json:"workerProfile,omitempty"`
+	Name        string            `json:"name,omitempty"`
+	Description string            `json:"description,omitempty"`
+	NodeCount   *NodeCount        `json:"nodeCount,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
 }
 
 // Roles is the various roles in the cluster.
