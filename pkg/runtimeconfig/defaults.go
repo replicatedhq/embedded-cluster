@@ -13,8 +13,8 @@ import (
 // Holds the default no proxy values.
 var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".cluster.local", ".svc"}
 
-const proxyRegistryAddress = "proxy.replicated.com"
-const replicatedAppDomain = "replicated.app"
+const proxyRegistryAddress = "https://proxy.replicated.com"
+const replicatedAppDomain = "https://replicated.app"
 const KotsadmNamespace = "kotsadm"
 const KotsadmServiceAccount = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"

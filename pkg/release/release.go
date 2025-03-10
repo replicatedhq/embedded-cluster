@@ -35,9 +35,6 @@ type ReleaseData struct {
 	VeleroRestore         []byte
 }
 
-const DEFAULT_PROXY_REGISTRY_DOMAIN = "proxy.replicated.com"
-const DEFAULT_REPLICATED_APP_DOMAIN = "replicated.app"
-
 // NewReleaseDataFrom parses the provide slice of bytes and returns a ReleaseData
 // object. The slice of bytes is expected to be a tar.gz file.
 func NewReleaseDataFrom(data []byte) (*ReleaseData, error) {
