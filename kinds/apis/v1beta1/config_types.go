@@ -35,6 +35,9 @@ type UnsupportedOverrides struct {
 	// BuiltInExtensions holds overrides for the default add-ons we ship
 	// with Embedded Cluster.
 	BuiltInExtensions []BuiltInExtension `json:"builtInExtensions,omitempty"`
+	// WorkerProfiles holds the worker profiles used to configure the cluster.
+	// The profile named "default" will be applied by default.
+	WorkerProfiles []k0sv1beta1.WorkerProfile `json:"workerProfiles,omitempty"`
 }
 
 // BuiltInExtension holds the override for a built-in extension (add-on).

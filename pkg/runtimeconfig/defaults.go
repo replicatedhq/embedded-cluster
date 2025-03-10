@@ -49,7 +49,7 @@ func PathToLog(name string) string {
 }
 
 // K0sBinaryPath returns the path to the k0s binary when it is installed on the node. This
-// does not return the binary just after we materilized it but the path we want it to be
+// does not return the binary just after we materialized it but the path we want it to be
 // once it is installed.
 func K0sBinaryPath() string {
 	return "/usr/local/bin/k0s"

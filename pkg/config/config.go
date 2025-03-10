@@ -93,7 +93,7 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags(nodeIP string) []string {
+func InstallFlags(nodeIP string, cfg *k0sconfig.ClusterConfig) ([]string, error) {
 	flags := []string{
 		"install",
 		"controller",
@@ -102,9 +102,14 @@ func InstallFlags(nodeIP string) []string {
 		"--no-taints",
 		"-c", runtimeconfig.PathToK0sConfig(),
 	}
+	profile, err := ProfileInstallFlag(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get profile install flag: %w", err)
+	}
+	flags = append(flags, profile)
 	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
-	return flags
+	return flags, nil
 }
 
 func AdditionalInstallFlags(nodeIP string) []string {
@@ -121,6 +126,22 @@ func AdditionalInstallFlagsController() []string {
 		"--disable-components", "konnectivity-server",
 		"--enable-dynamic-config",
 	}
+}
+
+func ProfileInstallFlag(cfg *k0sconfig.ClusterConfig) (string, error) {
+	controllerProfile := controllerWorkerProfile()
+	if controllerProfile == "" {
+		return "", nil
+	}
+
+	// make sure that the controller profile role name exists in the worker profiles
+	for _, profile := range cfg.Spec.WorkerProfiles {
+		if profile.Name == controllerProfile {
+			return "--profile=" + controllerProfile, nil
+		}
+	}
+
+	return "", fmt.Errorf("controller profile %q not found in k0s worker profiles", controllerProfile)
 }
 
 // nodeLabels return a slice of string with labels (key=value format) for the node where we
@@ -163,6 +184,18 @@ func additionalControllerLabels() map[string]string {
 		}
 	}
 	return map[string]string{}
+}
+
+func controllerWorkerProfile() string {
+	clusterConfig, err := release.GetEmbeddedClusterConfig()
+	if err == nil {
+		if clusterConfig != nil {
+			if len(clusterConfig.Spec.UnsupportedOverrides.WorkerProfiles) > 0 {
+				return clusterConfig.Spec.UnsupportedOverrides.WorkerProfiles[0].Name
+			}
+		}
+	}
+	return ""
 }
 
 func AdditionalCharts() []embeddedclusterv1beta1.Chart {
