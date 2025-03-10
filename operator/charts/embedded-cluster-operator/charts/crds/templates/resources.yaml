@@ -146,8 +146,6 @@ spec:
                               type: integer
                             type: array
                         type: object
-                      workerProfile:
-                        type: string
                     type: object
                   custom:
                     items:
@@ -182,8 +180,6 @@ spec:
                                 type: integer
                               type: array
                           type: object
-                        workerProfile:
-                          type: string
                       type: object
                     type: array
                 type: object
@@ -221,6 +217,22 @@ spec:
                       layout inside this configuration is very dynamic we have chosen
                       to use a string here.
                     type: string
+                  workerProfiles:
+                    description: |-
+                      WorkerProfiles holds the worker profiles used to configure the cluster.
+                      The profile named "default" will be applied by default.
+                    items:
+                      description: WorkerProfile worker profile
+                      properties:
+                        name:
+                          description: String; name to use as profile selector for the worker process
+                          type: string
+                        values:
+                          description: Worker Mapping object
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                      type: object
+                    type: array
                 type: object
               v2Enabled:
                 description: |-
@@ -231,19 +243,6 @@ spec:
                 type: boolean
               version:
                 type: string
-              workerProfiles:
-                items:
-                  description: WorkerProfile worker profile
-                  properties:
-                    name:
-                      description: String; name to use as profile selector for the worker process
-                      type: string
-                    values:
-                      description: Worker Mapping object
-                      type: object
-                      x-kubernetes-preserve-unknown-fields: true
-                  type: object
-                type: array
             type: object
           status:
             description: ConfigStatus defines the observed state of Config
@@ -460,8 +459,6 @@ spec:
                                   type: integer
                                 type: array
                             type: object
-                          workerProfile:
-                            type: string
                         type: object
                       custom:
                         items:
@@ -496,8 +493,6 @@ spec:
                                     type: integer
                                   type: array
                               type: object
-                            workerProfile:
-                              type: string
                           type: object
                         type: array
                     type: object
@@ -535,6 +530,22 @@ spec:
                           layout inside this configuration is very dynamic we have chosen
                           to use a string here.
                         type: string
+                      workerProfiles:
+                        description: |-
+                          WorkerProfiles holds the worker profiles used to configure the cluster.
+                          The profile named "default" will be applied by default.
+                        items:
+                          description: WorkerProfile worker profile
+                          properties:
+                            name:
+                              description: String; name to use as profile selector for the worker process
+                              type: string
+                            values:
+                              description: Worker Mapping object
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
+                          type: object
+                        type: array
                     type: object
                   v2Enabled:
                     description: |-
@@ -545,19 +556,6 @@ spec:
                     type: boolean
                   version:
                     type: string
-                  workerProfiles:
-                    items:
-                      description: WorkerProfile worker profile
-                      properties:
-                        name:
-                          description: String; name to use as profile selector for the worker process
-                          type: string
-                        values:
-                          description: Worker Mapping object
-                          type: object
-                          x-kubernetes-preserve-unknown-fields: true
-                      type: object
-                    type: array
                 type: object
               configSecret:
                 description: |-
