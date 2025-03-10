@@ -32,7 +32,6 @@ expect {
 
 expect {
     -timeout 240 "Do you want to enable high availability?" {
-    "Do you want to enable high availability?" {
       send "Y\r"
     }
     timeout {
