@@ -24,14 +24,23 @@ expect {
       puts "\n\nFailed to find successful node join message."
       exit 1
     }
+    eof {
+      puts "Test failed: Binary exited without output."
+      exit 1
+    }
 }
 
 expect {
+    -timeout 240 "Do you want to enable high availability?" {
     "Do you want to enable high availability?" {
       send "Y\r"
     }
     timeout {
       puts "\n\nFailed to find high availability prompt."
+      exit 1
+    }
+    eof {
+      puts "Test failed: Binary exited without output."
       exit 1
     }
 }
@@ -40,6 +49,10 @@ expect {
     -timeout 360 "High availability enabled!" {}
     timeout {
       puts "\n\nFailed to find 'high availability enabled' message."
+      exit 1
+    }
+    eof {
+      puts "Test failed: Binary exited without output."
       exit 1
     }
 }
