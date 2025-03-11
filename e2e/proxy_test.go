@@ -137,14 +137,12 @@ func TestProxiedEnvironment(t *testing.T) {
 	}
 
 	// output TCP_DENIED logs
-	for i := 0; i < len(tc.Nodes); i++ {
-		stdout, _, err = tc.RunCommandOnNode(i, []string{"sh", "-c", "grep TCP_DENIED /var/log/squid/access.log || true"})
-		if err != nil {
-			t.Fatalf("fail to check access log: %v", err)
-		}
-		t.Logf("TCP_DENIED logs node %d:", i)
-		t.Log(stdout)
+	stdout, _, err = tc.RunCommandOnProxyNode(t, []string{"sh", "-c", "grep TCP_DENIED /var/log/squid/access.log || true"})
+	if err != nil {
+		t.Fatalf("fail to check squid access log: %v", err)
 	}
+	t.Logf("TCP_DENIED logs node:")
+	t.Log(stdout)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -276,14 +274,12 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	}
 
 	// output TCP_DENIED logs
-	for i := 0; i < len(tc.Nodes); i++ {
-		stdout, _, err = tc.RunCommandOnNode(i, []string{"sh", "-c", "grep TCP_DENIED /var/log/squid/access.log || true"})
-		if err != nil {
-			t.Fatalf("fail to check access log: %v", err)
-		}
-		t.Logf("TCP_DENIED logs node %d:", i)
-		t.Log(stdout)
+	stdout, _, err = tc.RunCommandOnProxyNode(t, []string{"sh", "-c", "grep TCP_DENIED /var/log/squid/access.log || true"})
+	if err != nil {
+		t.Fatalf("fail to check squid access log: %v", err)
 	}
+	t.Logf("TCP_DENIED logs node:")
+	t.Log(stdout)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -378,14 +374,12 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	require.NoError(t, err, "failed to check installation state")
 
 	// output TCP_DENIED logs
-	for i := 0; i < len(tc.Nodes); i++ {
-		stdout, _, err = tc.RunCommandOnNode(i, []string{"sh", "-c", "grep TCP_DENIED /var/log/squid/access.log || true"})
-		if err != nil {
-			t.Fatalf("fail to check access log: %v", err)
-		}
-		t.Logf("TCP_DENIED logs node %d:", i)
-		t.Log(stdout)
+	stdout, _, err = tc.RunCommandOnProxyNode(t, []string{"sh", "-c", "grep TCP_DENIED /var/log/squid/access.log || true"})
+	if err != nil {
+		t.Fatalf("fail to check squid access log: %v", err)
 	}
+	t.Logf("TCP_DENIED logs node:")
+	t.Log(stdout)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
