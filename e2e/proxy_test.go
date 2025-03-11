@@ -136,6 +136,14 @@ func TestProxiedEnvironment(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
+	// output TCP_DENIED logs
+	stdout, _, err = tc.RunCommandOnNode(0, []string{"sh", "-c", "cat /var/log/squid/access.log | grep TCP_DENIED"})
+	if err != nil {
+		t.Fatalf("fail to check access log: %v", err)
+	}
+	t.Logf("TCP_DENIED logs: %s", stdout)
+	t.Log(stdout)
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -265,6 +273,14 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
+	// output TCP_DENIED logs
+	stdout, _, err = tc.RunCommandOnNode(0, []string{"sh", "-c", "cat /var/log/squid/access.log | grep TCP_DENIED"})
+	if err != nil {
+		t.Fatalf("fail to check access log: %v", err)
+	}
+	t.Logf("TCP_DENIED logs: %s", stdout)
+	t.Log(stdout)
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -356,6 +372,14 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	_, _, err = tc.RunCommandOnNode(0, line)
 	require.NoError(t, err, "failed to check installation state")
+
+	// output TCP_DENIED logs
+	stdout, _, err = tc.RunCommandOnNode(0, []string{"sh", "-c", "cat /var/log/squid/access.log | grep TCP_DENIED"})
+	if err != nil {
+		t.Fatalf("fail to check access log: %v", err)
+	}
+	t.Logf("TCP_DENIED logs: %s", stdout)
+	t.Log(stdout)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
