@@ -3,6 +3,7 @@ package runtimeconfig
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gosimple/slug"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -85,17 +86,17 @@ func ReplicatedAppDomain(license *kotsv1beta1.License) string {
 	// get the configured domains from the embedded cluster config
 	domains, err := release.GetCustomDomains()
 	if err != nil {
-		return replicatedAppDomain
+		return addHTTPS(replicatedAppDomain)
 	}
 
 	if domains.ReplicatedAppDomain != "" {
-		return domains.ReplicatedAppDomain
+		return addHTTPS(domains.ReplicatedAppDomain)
 	}
 
 	if license != nil {
-		return license.Spec.Endpoint
+		return addHTTPS(license.Spec.Endpoint)
 	}
-	return replicatedAppDomain
+	return addHTTPS(replicatedAppDomain)
 }
 
 // ProxyRegistryDomain returns the proxy registry address. The first priority is the address configured within the embedded cluster config.
@@ -103,12 +104,19 @@ func ReplicatedAppDomain(license *kotsv1beta1.License) string {
 func ProxyRegistryDomain() string {
 	domains, err := release.GetCustomDomains()
 	if err != nil {
-		return proxyRegistryAddress
+		return addHTTPS(proxyRegistryAddress)
 	}
 
 	if domains.ProxyRegistryDomain != "" {
-		return domains.ProxyRegistryDomain
+		return addHTTPS(domains.ProxyRegistryDomain)
 	}
 
-	return proxyRegistryAddress
+	return addHTTPS(proxyRegistryAddress)
+}
+
+func addHTTPS(domain string) string {
+	if strings.HasPrefix(domain, "http") {
+		return domain
+	}
+	return "https://" + domain
 }

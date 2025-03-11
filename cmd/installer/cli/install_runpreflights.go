@@ -82,8 +82,8 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 }
 
 func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsReported preflights.MetricsReporter) error {
-	replicatedAPIURL := fmt.Sprintf("https://%s", runtimeconfig.ReplicatedAppDomain(flags.license))
-	proxyRegistryURL := fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryDomain())
+	replicatedAPIURL := runtimeconfig.ReplicatedAppDomain(flags.license)
+	proxyRegistryURL := runtimeconfig.ProxyRegistryDomain()
 
 	nodeIP, err := netutils.FirstValidAddress(flags.networkInterface)
 	if err != nil {
