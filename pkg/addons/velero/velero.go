@@ -2,6 +2,7 @@ package velero
 
 import (
 	_ "embed"
+	"strings"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -56,4 +57,9 @@ func (v *Velero) ReleaseName() string {
 
 func (v *Velero) Namespace() string {
 	return namespace
+}
+
+func (v *Velero) ChartLocation() string {
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
+	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", proxyRegistryDomain)
 }
