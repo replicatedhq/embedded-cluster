@@ -16,8 +16,9 @@ http_access allow whitelist
 "
 
 whitelist_txt="
-proxy.replicated.com
+proxy.replicated.com # this should be removed when we actually use the proxy registry
 ec-e2e-replicated-app.testcluster.net
+ec-e2e-proxy.testcluster.net
 
 # ingress-nginx extension chart redirects to github.com releases/download
 kubernetes.github.io
