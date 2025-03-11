@@ -8,8 +8,8 @@ spec:
   binaryOverrideUrl: "__release_url__"
   metadataOverrideUrl: "__metadata_url__"
   domains:
-    replicatedAppDomain: "staging.replicated.app"
-    proxyRegistryDomain: "proxy.staging.replicated.com"
+    replicatedAppDomain: "ec-e2e-replicated-app.testcluster.net"
+    proxyRegistryDomain: "ec-e2e-proxy.testcluster.net"
   roles:
     controller:
       labels:
