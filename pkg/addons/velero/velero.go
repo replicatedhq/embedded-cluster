@@ -12,7 +12,8 @@ import (
 )
 
 type Velero struct {
-	Proxy *ecv1beta1.ProxySpec
+	Proxy    *ecv1beta1.ProxySpec
+	IsAirgap bool
 }
 
 const (
@@ -60,6 +61,6 @@ func (v *Velero) Namespace() string {
 }
 
 func (v *Velero) ChartLocation() string {
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain(v.IsAirgap)
 	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", proxyRegistryDomain)
 }

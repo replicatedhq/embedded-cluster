@@ -5,7 +5,9 @@ import (
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"k8s.io/utils/ptr"
+	"strings"
 )
 
 func Version() map[string]string {
@@ -16,16 +18,18 @@ func Version() map[string]string {
 
 func GetImages() []string {
 	var images []string
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain(true)
 	for _, image := range Metadata.Images {
-		images = append(images, image.String())
+		images = append(images, strings.ReplaceAll(image.String(), "proxy.replicated.com", proxyRegistryDomain))
 	}
 	return images
 }
 
 func GetAdditionalImages() []string {
 	var images []string
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain(true)
 	if image, ok := Metadata.Images["utils"]; ok {
-		images = append(images, image.String())
+		images = append(images, strings.ReplaceAll(image.String(), "proxy.replicated.com", proxyRegistryDomain))
 	}
 	return images
 }

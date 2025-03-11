@@ -17,7 +17,7 @@ func (o *OpenEBS) GenerateHelmValues(ctx context.Context, kcli client.Client, ov
 		return nil, errors.Wrap(err, "marshal helm values")
 	}
 
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain(o.IsAirgap)
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
 	marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", proxyRegistryDomain)
 
