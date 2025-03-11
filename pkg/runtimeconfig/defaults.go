@@ -98,20 +98,28 @@ func ReplicatedAppURL(license *kotsv1beta1.License) string {
 	return ""
 }
 
-// ProxyRegistryURL returns the proxy registry address. The first priority is the address configured within the embedded cluster config.
+// ProxyRegistryDomain returns the proxy registry domain.
+// The first priority is the domain configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
-func ProxyRegistryURL() string {
+func ProxyRegistryDomain() string {
 	domains, err := release.GetCustomDomains()
 	if err != nil {
 		logrus.Debugf("unable to get custom domains: %v", err)
-		return maybeAddHTTPS(proxyRegistryAddress)
+		return proxyRegistryAddress
 	}
 
 	if domains.ProxyRegistryDomain != "" {
-		return maybeAddHTTPS(domains.ProxyRegistryDomain)
+		return domains.ProxyRegistryDomain
 	}
 
-	return maybeAddHTTPS(proxyRegistryAddress)
+	return proxyRegistryAddress
+}
+
+// ProxyRegistryURL returns the proxy registry address with a https or http prefix.
+// The first priority is the address configured within the embedded cluster config.
+// If that is not configured, the default address is returned.
+func ProxyRegistryURL() string {
+	return maybeAddHTTPS(ProxyRegistryDomain())
 }
 
 func maybeAddHTTPS(domain string) string {

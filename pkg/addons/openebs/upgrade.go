@@ -29,7 +29,7 @@ func (o *OpenEBS) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Cli
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    Metadata.Location,
+		ChartPath:    o.ChartLocation(),
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,

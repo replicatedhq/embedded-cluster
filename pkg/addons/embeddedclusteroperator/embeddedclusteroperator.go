@@ -2,10 +2,12 @@ package embeddedclusteroperator
 
 import (
 	_ "embed"
+	"strings"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"gopkg.in/yaml.v3"
 )
@@ -69,10 +71,11 @@ func (e *EmbeddedClusterOperator) Namespace() string {
 }
 
 func (e *EmbeddedClusterOperator) ChartLocation() string {
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
 	if e.ChartLocationOverride != "" {
-		return e.ChartLocationOverride
+		return strings.ReplaceAll(e.ChartLocationOverride, "proxy.replicated.com", proxyRegistryDomain)
 	}
-	return Metadata.Location
+	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", proxyRegistryDomain)
 }
 
 func (e *EmbeddedClusterOperator) ChartVersion() string {
