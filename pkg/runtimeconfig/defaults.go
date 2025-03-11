@@ -13,8 +13,8 @@ import (
 // Holds the default no proxy values.
 var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".cluster.local", ".svc"}
 
-const proxyRegistryAddress = "https://proxy.replicated.com"
-const replicatedAppDomain = "https://replicated.app"
+const proxyRegistryAddress = "proxy.replicated.com"
+const replicatedAppDomain = "replicated.app"
 const KotsadmNamespace = "kotsadm"
 const KotsadmServiceAccount = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"
@@ -98,9 +98,9 @@ func ReplicatedAppDomain(license *kotsv1beta1.License) string {
 	return replicatedAppDomain
 }
 
-// ProxyRegistryAddress returns the proxy registry address. The first priority is the address configured within the embedded cluster config.
+// ProxyRegistryDomain returns the proxy registry address. The first priority is the address configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
-func ProxyRegistryAddress() string {
+func ProxyRegistryDomain() string {
 	domains, err := release.GetCustomDomains()
 	if err != nil {
 		return proxyRegistryAddress

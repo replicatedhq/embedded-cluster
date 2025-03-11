@@ -33,7 +33,7 @@ func getCurrentAppChannelRelease(ctx context.Context, license *kotsv1beta1.Licen
 	query.Set("channelSequence", "") // sending an empty string will return the latest channel release
 	query.Set("isSemverSupported", "true")
 
-	apiURL := runtimeconfig.ReplicatedAppDomain(license)
+	apiURL := fmt.Sprintf("https://%s", runtimeconfig.ReplicatedAppDomain(license))
 	url := fmt.Sprintf("%s/release/%s/pending?%s", apiURL, license.Spec.AppSlug, query.Encode())
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
