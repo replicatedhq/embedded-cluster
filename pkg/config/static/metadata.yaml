@@ -19,8 +19,8 @@ images:
     calico-node:
         repo: proxy.replicated.com/anonymous/replicated/ec-calico-node
         tag:
-            amd64: 3.28.2-r1-amd64@sha256:db2f872c4c233fbff3dc521fc28f4c70b624ee684cffe76233d8055e9b6f1d52
-            arm64: 3.28.2-r1-arm64@sha256:15da3bd1db1682fe4c8713bd749a578709d93a67f4265c7e04fb0890f58c34cc
+            amd64: 3.28.2-r1-amd64@sha256:a52517c4667086f45a8dd544122e433e4441e9dccca25b11215bdca0dfbb52b5
+            arm64: 3.28.2-r1-arm64@sha256:e4091509eba1d8fa80d498d55de276c1c25b60cb3f94c6634c2e8c52fd2fdb94
     coredns:
         repo: proxy.replicated.com/anonymous/replicated/ec-coredns
         tag:
