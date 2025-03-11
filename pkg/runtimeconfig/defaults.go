@@ -15,7 +15,6 @@ import (
 var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".cluster.local", ".svc"}
 
 const proxyRegistryAddress = "proxy.replicated.com"
-const replicatedAppDomain = "replicated.app"
 const KotsadmNamespace = "kotsadm"
 const KotsadmServiceAccount = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"
@@ -81,22 +80,19 @@ func PathToECConfig() string {
 }
 
 // ReplicatedAppDomain returns the replicated app domain. The first priority is the domain configured within the embedded cluster config.
-// The second priority is the domain configured within the license. If neither is configured, the default domain is returned.
+// The second priority is the domain configured within the license. If neither is configured, no domain is returned.
+// (This should only happen when restoring a cluster without domains set)
 func ReplicatedAppDomain(license *kotsv1beta1.License) string {
 	// get the configured domains from the embedded cluster config
 	domains, err := release.GetCustomDomains()
-	if err != nil {
-		return addHTTPS(replicatedAppDomain)
-	}
-
-	if domains.ReplicatedAppDomain != "" {
+	if err == nil && domains.ReplicatedAppDomain != "" {
 		return addHTTPS(domains.ReplicatedAppDomain)
 	}
 
 	if license != nil {
 		return addHTTPS(license.Spec.Endpoint)
 	}
-	return addHTTPS(replicatedAppDomain)
+	return ""
 }
 
 // ProxyRegistryDomain returns the proxy registry address. The first priority is the address configured within the embedded cluster config.
