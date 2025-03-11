@@ -110,8 +110,8 @@ func ProxyRegistryDomain() string {
 	return addHTTPS(proxyRegistryAddress)
 }
 
-func addHTTPS(domain string) string {
-	if strings.HasPrefix(domain, "http") {
+func maybeAddHTTPS(domain string) string {
+	if strings.HasPrefix(domain, "http://") || strings.HasPrefix(domain, "https://") {
 		return domain
 	}
 	return "https://" + domain
