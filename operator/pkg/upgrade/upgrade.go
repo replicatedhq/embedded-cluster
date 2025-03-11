@@ -46,7 +46,7 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1b
 	// We must update the cluster config after we upgrade k0s as it is possible that the schema
 	// between versions has changed. One drawback of this is that the sandbox (pause) image does
 	// not get updated, and possibly others but I cannot confirm this.
-	err = updateClusterConfig(ctx, cli)
+	err = updateClusterConfig(ctx, cli, in.Spec.AirGap)
 	if err != nil {
 		return fmt.Errorf("cluster config update: %w", err)
 	}
@@ -176,14 +176,14 @@ func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installati
 }
 
 // updateClusterConfig updates the cluster config with the latest images.
-func updateClusterConfig(ctx context.Context, cli client.Client) error {
+func updateClusterConfig(ctx context.Context, cli client.Client, isAirgap bool) error {
 	var currentCfg k0sv1beta1.ClusterConfig
 	err := cli.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &currentCfg)
 	if err != nil {
 		return fmt.Errorf("get cluster config: %w", err)
 	}
 
-	cfg := config.RenderK0sConfig()
+	cfg := config.RenderK0sConfig(isAirgap)
 	if currentCfg.Spec.Images != nil {
 		if reflect.DeepEqual(*currentCfg.Spec.Images, *cfg.Spec.Images) {
 			return nil

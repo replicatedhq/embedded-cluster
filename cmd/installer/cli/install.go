@@ -1202,7 +1202,7 @@ func gatherVersionMetadata(withChannelRelease bool) (*types.ReleaseMetadata, err
 		Repositories:     append(repconfig, additionalRepos...),
 	}
 
-	k0sCfg := config.RenderK0sConfig()
+	k0sCfg := config.RenderK0sConfig(true)
 	meta.K0sImages = config.ListK0sImages(k0sCfg)
 	meta.K0sImages = append(meta.K0sImages, addons.GetAdditionalImages()...)
 	meta.K0sImages = helpers.UniqueStringSlice(meta.K0sImages)

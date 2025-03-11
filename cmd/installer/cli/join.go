@@ -366,7 +366,7 @@ func installK0sBinary() error {
 
 func applyNetworkConfiguration(networkInterface string, jcmd *kotsadm.JoinCommandResponse) error {
 	if jcmd.InstallationSpec.Network != nil {
-		clusterSpec := config.RenderK0sConfig()
+		clusterSpec := config.RenderK0sConfig(jcmd.InstallationSpec.AirGap)
 
 		address, err := netutils.FirstValidAddress(networkInterface)
 		if err != nil {
