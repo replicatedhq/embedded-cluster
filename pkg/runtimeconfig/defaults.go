@@ -79,35 +79,39 @@ func PathToECConfig() string {
 	return "/etc/embedded-cluster/ec.yaml"
 }
 
-// ReplicatedAppDomain returns the replicated app domain. The first priority is the domain configured within the embedded cluster config.
+// ReplicatedAppURL returns the replicated app domain. The first priority is the domain configured within the embedded cluster config.
 // The second priority is the domain configured within the license. If neither is configured, no domain is returned.
 // (This should only happen when restoring a cluster without domains set)
-func ReplicatedAppDomain(license *kotsv1beta1.License) string {
+func ReplicatedAppURL(license *kotsv1beta1.License) string {
 	// get the configured domains from the embedded cluster config
 	domains, err := release.GetCustomDomains()
+	if err != nil {
+		logrus.Debugf("unable to get custom domains: %v", err)
+	}
 	if err == nil && domains.ReplicatedAppDomain != "" {
-		return addHTTPS(domains.ReplicatedAppDomain)
+		return maybeAddHTTPS(domains.ReplicatedAppDomain)
 	}
 
 	if license != nil {
-		return addHTTPS(license.Spec.Endpoint)
+		return maybeAddHTTPS(license.Spec.Endpoint)
 	}
 	return ""
 }
 
-// ProxyRegistryDomain returns the proxy registry address. The first priority is the address configured within the embedded cluster config.
+// ProxyRegistryURL returns the proxy registry address. The first priority is the address configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
-func ProxyRegistryDomain() string {
+func ProxyRegistryURL() string {
 	domains, err := release.GetCustomDomains()
 	if err != nil {
-		return addHTTPS(proxyRegistryAddress)
+		logrus.Debugf("unable to get custom domains: %v", err)
+		return maybeAddHTTPS(proxyRegistryAddress)
 	}
 
 	if domains.ProxyRegistryDomain != "" {
-		return addHTTPS(domains.ProxyRegistryDomain)
+		return maybeAddHTTPS(domains.ProxyRegistryDomain)
 	}
 
-	return addHTTPS(proxyRegistryAddress)
+	return maybeAddHTTPS(proxyRegistryAddress)
 }
 
 func maybeAddHTTPS(domain string) string {

@@ -240,8 +240,8 @@ func (r *ReleaseData) GetCustomDomains() (*embeddedclusterv1beta1.Domains, error
 		return nil, fmt.Errorf("failed to get embedded cluster config: %w", err)
 	}
 
-	// if the embedded cluster config has a non-empty domains object, return that
-	if cfg != nil && cfg.Spec.Domains != (embeddedclusterv1beta1.Domains{}) {
+	// if the embedded cluster config exists, use the domains from there
+	if cfg != nil {
 		return &cfg.Spec.Domains, nil
 	}
 

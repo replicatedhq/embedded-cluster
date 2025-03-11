@@ -98,7 +98,7 @@ func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, f
 
 	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
 		ReplicatedAPIURL:       jcmd.InstallationSpec.MetricsBaseURL, // MetricsBaseURL is the replicated.app endpoint url
-		ProxyRegistryURL:       runtimeconfig.ProxyRegistryDomain(),
+		ProxyRegistryURL:       runtimeconfig.ProxyRegistryURL(),
 		Proxy:                  jcmd.InstallationSpec.Proxy,
 		PodCIDR:                cidrCfg.PodCIDR,
 		ServiceCIDR:            cidrCfg.ServiceCIDR,
