@@ -44,10 +44,7 @@ type MetricsReporter interface {
 }
 
 func PrepareAndRun(ctx context.Context, opts PrepareAndRunOptions) error {
-	hpf, err := release.GetHostPreflights()
-	if err != nil {
-		return fmt.Errorf("read host preflights: %w", err)
-	}
+	hpf := release.GetHostPreflights()
 
 	privateCA := ""
 	if len(opts.PrivateCAs) > 0 {
