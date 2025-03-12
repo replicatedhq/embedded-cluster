@@ -22,6 +22,8 @@ const RegistryNamespace = "registry"
 const VeleroNamespace = "velero"
 const EmbeddedClusterNamespace = "embedded-cluster"
 
+var forceDefaultProxy = false
+
 // BinaryName returns the binary name, this is useful for places where we
 // need to present the name of the binary to the user (the name may vary if
 // the binary is renamed). We make sure the name does not contain invalid
@@ -98,10 +100,20 @@ func ReplicatedAppURL(license *kotsv1beta1.License) string {
 	return ""
 }
 
+// SetProxyToDefault sets the proxy to the default address.
+// This is used for the version metadata output command.
+func SetProxyToDefault() {
+	forceDefaultProxy = true
+}
+
 // ProxyRegistryDomain returns the proxy registry domain.
 // The first priority is the domain configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
 func ProxyRegistryDomain() string {
+	if forceDefaultProxy {
+		return proxyRegistryAddress
+	}
+
 	domains, err := release.GetCustomDomains()
 	if err != nil {
 		logrus.Debugf("unable to get custom domains: %v", err)
