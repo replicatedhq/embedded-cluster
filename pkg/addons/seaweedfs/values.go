@@ -3,6 +3,7 @@ package seaweedfs
 import (
 	"context"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -16,6 +17,11 @@ func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, kcli client.Client, 
 	if err != nil {
 		return nil, errors.Wrap(err, "marshal helm values")
 	}
+
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
+	// replace proxy.replicated.com with the potentially customized proxy registry domain
+	marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", proxyRegistryDomain)
+
 	copiedValues, err := helm.UnmarshalValues(marshalled)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshal helm values")

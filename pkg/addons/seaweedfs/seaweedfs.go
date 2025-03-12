@@ -2,6 +2,7 @@ package seaweedfs
 
 import (
 	_ "embed"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -72,4 +73,9 @@ func getBackupLabels() map[string]string {
 	return map[string]string{
 		"app.kubernetes.io/name": "seaweedfs",
 	}
+}
+
+func (s *SeaweedFS) ChartLocation() string {
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
+	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", proxyRegistryDomain)
 }

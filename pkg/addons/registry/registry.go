@@ -2,6 +2,7 @@ package registry
 
 import (
 	_ "embed"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -91,4 +92,9 @@ func getBackupLabels() map[string]string {
 	return map[string]string{
 		"app": "docker-registry",
 	}
+}
+
+func (r *Registry) ChartLocation() string {
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
+	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", proxyRegistryDomain)
 }
