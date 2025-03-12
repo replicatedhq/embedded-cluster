@@ -1263,12 +1263,29 @@ func copyLicenseFileToDataDir(licenseFile, dataDir string) error {
 
 func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) error {
 	adminConsoleURL := getAdminConsoleURL(networkInterface, runtimeconfig.AdminConsolePort())
-
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
-	logrus.Infof("\nVisit the Admin Console to configure and install %s: %s%s%s",
-		license.Spec.AppSlug, successColor, adminConsoleURL, colorReset,
-	)
+
+	message := fmt.Sprintf("Visit the Admin Console to configure and install %s:\n\n%s%s%s",
+		license.Spec.AppSlug, successColor, adminConsoleURL, colorReset)
+
+	// Calculate the length of the longest line
+	lines := strings.Split(message, "\n")
+	maxLength := 0
+	for _, line := range lines {
+		// Strip ANSI color codes for length calculation
+		cleanLine := strings.ReplaceAll(strings.ReplaceAll(line, successColor, ""), colorReset, "")
+		if len(cleanLine) > maxLength {
+			maxLength = len(cleanLine)
+		}
+	}
+
+	// Create divider line
+	divider := strings.Repeat("-", maxLength)
+
+	boldStart := "\033[1m"
+	boldEnd := "\033[0m"
+	logrus.Infof("\n%s%s\n%s\n%s%s\n", boldStart, divider, message, divider, boldEnd)
 
 	return nil
 }

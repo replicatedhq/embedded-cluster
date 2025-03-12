@@ -153,7 +153,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 		return fmt.Errorf("unable to update the application: %w", err)
 	}
 
-	loading.Closef("Update complete. Go to the Admin Console to deploy it.")
+	loading.Closef("Update complete. Visit the Admin Console to deploy it.")
 	return nil
 }
 
@@ -230,12 +230,10 @@ func MaskKotsOutputForAirgap() spinner.MaskFn {
 		case strings.Contains(message, "Pushing application images"):
 			current = message
 		case strings.Contains(message, "Pushing embedded cluster artifacts"):
-			current = message
-		case strings.Contains(message, "Uploading airgap update"):
-			current = message
+			current = strings.ReplaceAll(message, "embedded cluster", "additional")
 		case strings.Contains(message, "Waiting for the Admin Console"):
 			current = "Finalizing Admin Console"
-		case strings.Contains(message, "Update complete. Go to the Admin Console to deploy it."):
+		case strings.Contains(message, "Update complete. Visit the Admin Console to deploy it."):
 			current = message
 		}
 		return current
