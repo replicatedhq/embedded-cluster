@@ -21,7 +21,7 @@ const (
 )
 
 // RenderK0sConfig renders a k0s cluster configuration.
-func RenderK0sConfig(isAirgap bool) *k0sconfig.ClusterConfig {
+func RenderK0sConfig() *k0sconfig.ClusterConfig {
 	cfg := k0sconfig.DefaultClusterConfig()
 	// Customize the default k0s configuration to our taste.
 	cfg.Name = runtimeconfig.BinaryName()
@@ -34,7 +34,7 @@ func RenderK0sConfig(isAirgap bool) *k0sconfig.ClusterConfig {
 	}
 	cfg.Spec.API.ExtraArgs["service-node-port-range"] = DefaultServiceNodePortRange
 	cfg.Spec.API.SANs = append(cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
-	overrideK0sImages(cfg, isAirgap)
+	overrideK0sImages(cfg)
 	return cfg
 }
 

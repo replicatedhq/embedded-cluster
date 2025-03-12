@@ -49,12 +49,12 @@ func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 	return images
 }
 
-func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig, isAirgap bool) {
+func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig) {
 	if cfg.Spec.Images == nil {
 		cfg.Spec.Images = &k0sv1beta1.ClusterImages{}
 	}
 
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain(isAirgap)
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
 
 	cfg.Spec.Images.CoreDNS.Image = strings.ReplaceAll(Metadata.Images["coredns"].Repo, "proxy.replicated.com", proxyRegistryDomain)
 	cfg.Spec.Images.CoreDNS.Version = Metadata.Images["coredns"].Tag[runtime.GOARCH]
