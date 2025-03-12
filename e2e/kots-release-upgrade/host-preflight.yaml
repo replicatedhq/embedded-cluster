@@ -1,0 +1,32 @@
+apiVersion: troubleshoot.sh/v1beta2
+kind: HostPreflight
+metadata:
+  name: ec-custom-preflight
+spec:
+  collectors:
+    - tcpPortStatus:
+        collectorName: ETCD Internal Port
+        port: 30880
+        interface: lo
+  analyzers:
+    - tcpPortStatus:
+        checkName: ETCD Internal Port Availability
+        collectorName: ETCD Internal Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 30880/TCP is required, but the connection to it was refused. Ensure port 30880/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 30880/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: Port 30880/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 30880/TCP.
+          - fail:
+              when: "error"
+              message: Port 30880/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 30880/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 30880/TCP is available.
+          - error:
+              message: Port 30880/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 30880/TCP is available.

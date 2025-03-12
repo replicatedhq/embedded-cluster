@@ -79,3 +79,13 @@ func TestGetEmbeddedClusterConfig(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, cfg)
 }
+
+func TestGetHostPreflights(t *testing.T) {
+	data, err := generateReleaseTGZ()
+	assert.NoError(t, err)
+	release, err := newReleaseDataFrom(data)
+	assert.NoError(t, err)
+	preflights := release.HostPreflights
+	assert.NoError(t, err)
+	assert.NotNil(t, preflights)
+}
