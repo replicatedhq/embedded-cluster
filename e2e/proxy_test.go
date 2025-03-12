@@ -47,6 +47,10 @@ func TestProxiedEnvironment(t *testing.T) {
 		t.Fatalf("failed to reconfigure squid: %v", err)
 	}
 
+	t.Cleanup(func() {
+		outputTCPDeniedLogs(t, tc)
+	})
+
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
@@ -136,14 +140,6 @@ func TestProxiedEnvironment(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
-	// output TCP_DENIED logs
-	stdout, _, err = tc.RunCommandOnProxyNode(t, []string{"sh", "-c", "grep TCP_DENIED /var/log/squid/access.log || true"})
-	if err != nil {
-		t.Fatalf("fail to check squid access log: %v", err)
-	}
-	t.Logf("TCP_DENIED logs node:")
-	t.Log(stdout)
-
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -172,6 +168,10 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	if _, _, err := tc.RunCommandOnProxyNode(t, []string{"enable-squid-whitelist.sh"}); err != nil {
 		t.Fatalf("failed to reconfigure squid: %v", err)
 	}
+
+	t.Cleanup(func() {
+		outputTCPDeniedLogs(t, tc)
+	})
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
@@ -278,7 +278,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fail to check squid access log: %v", err)
 	}
-	t.Logf("TCP_DENIED logs node:")
+	t.Logf("TCP_DENIED logs:")
 	t.Log(stdout)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -306,6 +306,10 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	if _, _, err := tc.RunCommandOnProxyNode(t, []string{"enable-squid-whitelist.sh"}); err != nil {
 		t.Fatalf("failed to reconfigure squid: %v", err)
 	}
+
+	t.Cleanup(func() {
+		outputTCPDeniedLogs(t, tc)
+	})
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
@@ -373,13 +377,14 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	_, _, err = tc.RunCommandOnNode(0, line)
 	require.NoError(t, err, "failed to check installation state")
 
-	// output TCP_DENIED logs
-	stdout, _, err = tc.RunCommandOnProxyNode(t, []string{"sh", "-c", "grep TCP_DENIED /var/log/squid/access.log || true"})
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func outputTCPDeniedLogs(t *testing.T, tc *lxd.Cluster) {
+	stdout, _, err := tc.RunCommandOnProxyNode(t, []string{"sh", "-c", "grep TCP_DENIED /var/log/squid/access.log || true"})
 	if err != nil {
 		t.Fatalf("fail to check squid access log: %v", err)
 	}
-	t.Logf("TCP_DENIED logs node:")
+	t.Logf("TCP_DENIED logs:")
 	t.Log(stdout)
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
