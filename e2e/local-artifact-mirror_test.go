@@ -34,6 +34,7 @@ func TestLocalArtifactMirror(t *testing.T) {
 		{"systemctl", "status", "local-artifact-mirror"},
 		{"systemctl", "stop", "local-artifact-mirror"},
 		{"systemctl", "start", "local-artifact-mirror"},
+		{"sleep", "10"},
 		{"systemctl", "status", "local-artifact-mirror"},
 		{"curl", "-o", "/tmp/kubectl-test", "127.0.0.1:50001/bin/kubectl"},
 		{"chmod", "755", "/tmp/kubectl-test"},
