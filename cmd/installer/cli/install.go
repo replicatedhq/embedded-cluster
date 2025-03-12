@@ -1136,8 +1136,6 @@ func createVersionMetadataConfigmap(ctx context.Context, kcli client.Client) err
 // components that are included in the release plus the default values used
 // when deploying them.
 func gatherVersionMetadata(withChannelRelease bool) (*types.ReleaseMetadata, error) {
-	runtimeconfig.SetProxyToDefault()
-
 	versionsMap := map[string]string{}
 	for name, version := range addons.Versions() {
 		versionsMap[name] = version
