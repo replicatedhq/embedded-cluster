@@ -273,14 +273,6 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
-	// output TCP_DENIED logs
-	stdout, _, err = tc.RunCommandOnProxyNode(t, []string{"sh", "-c", "grep TCP_DENIED /var/log/squid/access.log || true"})
-	if err != nil {
-		t.Fatalf("fail to check squid access log: %v", err)
-	}
-	t.Logf("TCP_DENIED logs:")
-	t.Log(stdout)
-
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
