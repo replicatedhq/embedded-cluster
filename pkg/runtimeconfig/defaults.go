@@ -99,8 +99,6 @@ func ReplicatedAppURL(license *kotsv1beta1.License) string {
 }
 
 // ProxyRegistryDomain returns the proxy registry domain.
-// For airgap installations, the default address is returned in order to match the images within the airgap bundle.
-// TODO: Remove this once airgap builder is updated to use custom domains for airgap bundle images.
 // The first priority is the domain configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
 func ProxyRegistryDomain(isAirgap bool) string {
