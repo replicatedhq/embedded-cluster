@@ -16,7 +16,7 @@ func Version() map[string]string {
 }
 
 func GetImages() []string {
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain(true)
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
 	var images []string
 	for _, image := range Metadata.Images {
 		images = append(images, strings.ReplaceAll(image.String(), "proxy.replicated.com", proxyRegistryDomain))
@@ -25,7 +25,7 @@ func GetImages() []string {
 }
 
 func GetAdditionalImages() []string {
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain(true)
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
 	var images []string
 	if image, ok := Metadata.Images["openebs-linux-utils"]; ok {
 		images = append(images, strings.ReplaceAll(image.String(), "proxy.replicated.com", proxyRegistryDomain))

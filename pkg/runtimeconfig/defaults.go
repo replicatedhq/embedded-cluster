@@ -101,11 +101,7 @@ func ReplicatedAppURL(license *kotsv1beta1.License) string {
 // ProxyRegistryDomain returns the proxy registry domain.
 // The first priority is the domain configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
-func ProxyRegistryDomain(isAirgap bool) string {
-	if isAirgap {
-		return proxyRegistryAddress
-	}
-
+func ProxyRegistryDomain() string {
 	domains, err := release.GetCustomDomains()
 	if err != nil {
 		logrus.Debugf("unable to get custom domains: %v", err)
@@ -122,8 +118,8 @@ func ProxyRegistryDomain(isAirgap bool) string {
 // ProxyRegistryURL returns the proxy registry address with a https or http prefix.
 // The first priority is the address configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
-func ProxyRegistryURL(isAirgap bool) string {
-	return maybeAddHTTPS(ProxyRegistryDomain(isAirgap))
+func ProxyRegistryURL() string {
+	return maybeAddHTTPS(ProxyRegistryDomain())
 }
 
 func maybeAddHTTPS(domain string) string {

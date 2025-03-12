@@ -17,7 +17,7 @@ func Version() map[string]string {
 
 func GetImages() []string {
 	var images []string
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain(true)
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
 	for _, image := range Metadata.Images {
 		images = append(images, strings.ReplaceAll(image.String(), "proxy.replicated.com", proxyRegistryDomain))
 	}

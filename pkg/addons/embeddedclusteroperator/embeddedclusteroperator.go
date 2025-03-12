@@ -71,7 +71,7 @@ func (e *EmbeddedClusterOperator) Namespace() string {
 }
 
 func (e *EmbeddedClusterOperator) ChartLocation() string {
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain(e.IsAirgap)
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
 	if e.ChartLocationOverride != "" {
 		return strings.ReplaceAll(e.ChartLocationOverride, "proxy.replicated.com", proxyRegistryDomain)
 	}

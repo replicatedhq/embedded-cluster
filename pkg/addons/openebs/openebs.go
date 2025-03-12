@@ -10,9 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type OpenEBS struct {
-	IsAirgap bool
-}
+type OpenEBS struct{}
 
 const (
 	releaseName = "openebs"
@@ -58,6 +56,6 @@ func (o *OpenEBS) Namespace() string {
 }
 
 func (o *OpenEBS) ChartLocation() string {
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain(o.IsAirgap)
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
 	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", proxyRegistryDomain)
 }

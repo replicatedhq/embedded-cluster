@@ -61,9 +61,7 @@ func Install(ctx context.Context, hcli helm.Client, opts InstallOptions) error {
 
 func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{
-			IsAirgap: opts.IsAirgap,
-		},
+		&openebs.OpenEBS{},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
 			IsAirgap: opts.IsAirgap,
 			Proxy:    opts.Proxy,
@@ -78,8 +76,7 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			Proxy:    opts.Proxy,
-			IsAirgap: opts.IsAirgap,
+			Proxy: opts.Proxy,
 		})
 	}
 
@@ -97,12 +94,9 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 
 func getAddOnsForRestore(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{
-			IsAirgap: opts.IsAirgap,
-		},
+		&openebs.OpenEBS{},
 		&velero.Velero{
-			Proxy:    opts.Proxy,
-			IsAirgap: opts.IsAirgap,
+			Proxy: opts.Proxy,
 		},
 	}
 	return addOns

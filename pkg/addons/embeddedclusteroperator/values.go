@@ -18,7 +18,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, kcli c
 		return nil, errors.Wrap(err, "marshal helm values")
 	}
 
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain(e.IsAirgap)
+	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
 	marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", proxyRegistryDomain)
 
