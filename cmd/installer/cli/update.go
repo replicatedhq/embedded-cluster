@@ -46,10 +46,7 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 				}
 			}
 
-			rel, err := release.GetChannelRelease()
-			if err != nil {
-				return fmt.Errorf("unable to get channel release: %w", err)
-			}
+			rel := release.GetChannelRelease()
 			if rel == nil {
 				return fmt.Errorf("no channel release found")
 			}

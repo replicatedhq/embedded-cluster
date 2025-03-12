@@ -141,55 +141,47 @@ func controllerLabels() map[string]string {
 }
 
 func getControllerRoleName() string {
-	clusterConfig, err := release.GetEmbeddedClusterConfig()
+	clusterConfig := release.GetEmbeddedClusterConfig()
 	controllerRoleName := "controller"
-	if err == nil {
-		if clusterConfig != nil {
-			if clusterConfig.Spec.Roles.Controller.Name != "" {
-				controllerRoleName = clusterConfig.Spec.Roles.Controller.Name
-			}
+	if clusterConfig != nil {
+		if clusterConfig.Spec.Roles.Controller.Name != "" {
+			controllerRoleName = clusterConfig.Spec.Roles.Controller.Name
 		}
 	}
 	return controllerRoleName
 }
 
 func additionalControllerLabels() map[string]string {
-	clusterConfig, err := release.GetEmbeddedClusterConfig()
-	if err == nil {
-		if clusterConfig != nil {
-			if clusterConfig.Spec.Roles.Controller.Labels != nil {
-				return clusterConfig.Spec.Roles.Controller.Labels
-			}
+	clusterConfig := release.GetEmbeddedClusterConfig()
+	if clusterConfig != nil {
+		if clusterConfig.Spec.Roles.Controller.Labels != nil {
+			return clusterConfig.Spec.Roles.Controller.Labels
 		}
 	}
 	return map[string]string{}
 }
 
 func AdditionalCharts() []embeddedclusterv1beta1.Chart {
-	clusterConfig, err := release.GetEmbeddedClusterConfig()
-	if err == nil {
-		if clusterConfig != nil {
-			if clusterConfig.Spec.Extensions.Helm != nil {
-				for k := range clusterConfig.Spec.Extensions.Helm.Charts {
-					if clusterConfig.Spec.Extensions.Helm.Charts[k].Order == 0 {
-						clusterConfig.Spec.Extensions.Helm.Charts[k].Order = DefaultVendorChartOrder
-					}
+	clusterConfig := release.GetEmbeddedClusterConfig()
+	if clusterConfig != nil {
+		if clusterConfig.Spec.Extensions.Helm != nil {
+			for k := range clusterConfig.Spec.Extensions.Helm.Charts {
+				if clusterConfig.Spec.Extensions.Helm.Charts[k].Order == 0 {
+					clusterConfig.Spec.Extensions.Helm.Charts[k].Order = DefaultVendorChartOrder
 				}
-
-				return clusterConfig.Spec.Extensions.Helm.Charts
 			}
+
+			return clusterConfig.Spec.Extensions.Helm.Charts
 		}
 	}
 	return []embeddedclusterv1beta1.Chart{}
 }
 
 func AdditionalRepositories() []k0sconfig.Repository {
-	clusterConfig, err := release.GetEmbeddedClusterConfig()
-	if err == nil {
-		if clusterConfig != nil {
-			if clusterConfig.Spec.Extensions.Helm != nil {
-				return clusterConfig.Spec.Extensions.Helm.Repositories
-			}
+	clusterConfig := release.GetEmbeddedClusterConfig()
+	if clusterConfig != nil {
+		if clusterConfig.Spec.Extensions.Helm != nil {
+			return clusterConfig.Spec.Extensions.Helm.Repositories
 		}
 	}
 	return []k0sconfig.Repository{}

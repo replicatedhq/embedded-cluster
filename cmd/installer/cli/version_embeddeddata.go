@@ -15,17 +15,11 @@ func VersionEmbeddedDataCmd(ctx context.Context, name string) *cobra.Command {
 		Short: "Read the application data embedded in the cluster",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Application
-			app, err := release.GetApplication()
-			if err != nil {
-				return fmt.Errorf("failed to get embedded application: %w", err)
-			}
+			app := release.GetApplication()
 			fmt.Printf("Application:\n%s\n\n", string(app))
 
 			// Embedded Cluster Config
-			cfg, err := release.GetEmbeddedClusterConfig()
-			if err != nil {
-				return fmt.Errorf("failed to get embedded cluster config: %w", err)
-			}
+			cfg := release.GetEmbeddedClusterConfig()
 			if cfg != nil {
 				cfgJson, err := json.MarshalIndent(cfg, "", "  ")
 				if err != nil {
@@ -36,10 +30,7 @@ func VersionEmbeddedDataCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			// Channel Release
-			rel, err := release.GetChannelRelease()
-			if err != nil {
-				return fmt.Errorf("failed to get release: %w", err)
-			}
+			rel := release.GetChannelRelease()
 			if rel != nil {
 				relJson, err := json.MarshalIndent(rel, "", "  ")
 				if err != nil {
@@ -50,10 +41,7 @@ func VersionEmbeddedDataCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			// Host Preflights
-			pre, err := release.GetHostPreflights()
-			if err != nil {
-				return fmt.Errorf("failed to get host preflights: %w", err)
-			}
+			pre := release.GetHostPreflights()
 			if pre != nil {
 				preJson, err := json.MarshalIndent(pre, "", "  ")
 				if err != nil {
