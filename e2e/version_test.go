@@ -61,6 +61,10 @@ func TestVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fail to run metadata command on node %s: %v", tc.Nodes[0], err)
 	}
+
+	// replace 'proxy.replicated.com' with 'ec-e2e-proxy.testcluster.net' in the noembedMetadata to make them match
+	noembedMetadata = strings.ReplaceAll(noembedMetadata, "proxy.replicated.com", "ec-e2e-proxy.testcluster.net")
+
 	require.Equal(t, noembedMetadata, embedMetadata, "metadata should be the same")
 
 	t.Logf("%s: validating 'embedded-cluster version metadata' in node 0", time.Now().Format(time.RFC3339))
