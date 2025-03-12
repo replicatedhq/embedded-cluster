@@ -45,6 +45,9 @@ type MetricsReporter interface {
 
 func PrepareAndRun(ctx context.Context, opts PrepareAndRunOptions) error {
 	hpf := release.GetHostPreflights()
+	if hpf == nil {
+		hpf = &v1beta2.HostPreflightSpec{}
+	}
 
 	privateCA := ""
 	if len(opts.PrivateCAs) > 0 {
