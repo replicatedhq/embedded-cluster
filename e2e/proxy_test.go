@@ -47,6 +47,10 @@ func TestProxiedEnvironment(t *testing.T) {
 		t.Fatalf("failed to reconfigure squid: %v", err)
 	}
 
+	t.Cleanup(func() {
+		outputTCPDeniedLogs(t, tc)
+	})
+
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
@@ -164,6 +168,10 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	if _, _, err := tc.RunCommandOnProxyNode(t, []string{"enable-squid-whitelist.sh"}); err != nil {
 		t.Fatalf("failed to reconfigure squid: %v", err)
 	}
+
+	t.Cleanup(func() {
+		outputTCPDeniedLogs(t, tc)
+	})
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
@@ -291,6 +299,10 @@ func TestInstallWithMITMProxy(t *testing.T) {
 		t.Fatalf("failed to reconfigure squid: %v", err)
 	}
 
+	t.Cleanup(func() {
+		outputTCPDeniedLogs(t, tc)
+	})
+
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
@@ -358,4 +370,13 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	require.NoError(t, err, "failed to check installation state")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func outputTCPDeniedLogs(t *testing.T, tc *lxd.Cluster) {
+	stdout, _, err := tc.RunCommandOnProxyNode(t, []string{"sh", "-c", "grep TCP_DENIED /var/log/squid/access.log || true"})
+	if err != nil {
+		t.Fatalf("fail to check squid access log: %v", err)
+	}
+	t.Logf("TCP_DENIED logs:")
+	t.Log(stdout)
 }
