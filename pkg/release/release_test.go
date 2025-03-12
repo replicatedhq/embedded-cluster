@@ -51,11 +51,11 @@ func generateReleaseTGZ() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func TestNewReleaseDataFrom(t *testing.T) {
-	release, err := NewReleaseDataFrom([]byte{})
+func Test_newReleaseDataFrom(t *testing.T) {
+	release, err := newReleaseDataFrom([]byte{})
 	assert.NoError(t, err)
 	assert.NotNil(t, release)
-	cfg, err := release.GetEmbeddedClusterConfig()
+	cfg := release.EmbeddedClusterConfig
 	assert.NoError(t, err)
 	assert.Nil(t, cfg)
 }
@@ -63,9 +63,9 @@ func TestNewReleaseDataFrom(t *testing.T) {
 func TestGetApplication(t *testing.T) {
 	data, err := generateReleaseTGZ()
 	assert.NoError(t, err)
-	release, err := NewReleaseDataFrom(data)
+	release, err := newReleaseDataFrom(data)
 	assert.NoError(t, err)
-	app, err := release.GetApplication()
+	app := release.Application
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 }
@@ -73,9 +73,9 @@ func TestGetApplication(t *testing.T) {
 func TestGetEmbeddedClusterConfig(t *testing.T) {
 	data, err := generateReleaseTGZ()
 	assert.NoError(t, err)
-	release, err := NewReleaseDataFrom(data)
+	release, err := newReleaseDataFrom(data)
 	assert.NoError(t, err)
-	app, err := release.GetEmbeddedClusterConfig()
+	cfg := release.EmbeddedClusterConfig
 	assert.NoError(t, err)
-	assert.NotNil(t, app)
+	assert.NotNil(t, cfg)
 }

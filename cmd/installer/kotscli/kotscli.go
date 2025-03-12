@@ -37,9 +37,7 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 
 	var appVersionLabel string
 	var channelSlug string
-	if channelRelease, err := release.GetChannelRelease(); err != nil {
-		return fmt.Errorf("unable to get channel release: %w", err)
-	} else if channelRelease != nil {
+	if channelRelease := release.GetChannelRelease(); channelRelease != nil {
 		appVersionLabel = channelRelease.VersionLabel
 		channelSlug = channelRelease.ChannelSlug
 	}

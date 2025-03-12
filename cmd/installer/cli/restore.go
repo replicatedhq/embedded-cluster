@@ -844,10 +844,7 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*disasterrec
 		return nil, err
 	}
 
-	rel, err := release.GetChannelRelease()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get release from binary: %w", err)
-	}
+	rel := release.GetChannelRelease()
 
 	if rel == nil {
 		return nil, fmt.Errorf("no release found in binary")
@@ -932,10 +929,7 @@ func isReplicatedBackupRestorable(backup disasterrecovery.ReplicatedBackup, rel 
 		return false, fmt.Sprintf("has a different number of backups (%d) than the expected number (%d)", len(backup), backup.GetExpectedBackupCount())
 	}
 
-	improvedDR, err := usesImprovedDR()
-	if err != nil {
-		return false, fmt.Sprintf("failed to check if improved dr is enabled: %v", err)
-	}
+	improvedDR := usesImprovedDR()
 
 	appBackup := backup.GetAppBackup()
 	if appBackup == nil {
@@ -1052,10 +1046,7 @@ func waitForBackups(ctx context.Context, out io.Writer, kcli client.Client, k0sC
 	defer loading.Close()
 	loading.Infof("Waiting for backups to become available")
 
-	rel, err := release.GetChannelRelease()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get release from binary: %w", err)
-	}
+	rel := release.GetChannelRelease()
 
 	if rel == nil {
 		return nil, fmt.Errorf("no release found in binary")
@@ -1374,10 +1365,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 // restoreFromReplicatedBackup restores a disaster recovery component from a backup.
 func restoreFromReplicatedBackup(ctx context.Context, backup disasterrecovery.ReplicatedBackup, drComponent disasterRecoveryComponent, isV2 bool) error {
 	if drComponent == disasterRecoveryComponentApp {
-		isImprovedDR, err := usesImprovedDR()
-		if err != nil {
-			return fmt.Errorf("failed to check if improved dr is enabled: %w", err)
-		}
+		isImprovedDR := usesImprovedDR()
 		// If the app is using improved dr, we need to restore the app using the spec provided by
 		// the vendor. Otherwise, we use the "replicated.com/disaster-recovery" label to discover
 		// the application resources in the cluster.
@@ -1408,16 +1396,10 @@ func restoreFromReplicatedBackup(ctx context.Context, backup disasterrecovery.Re
 	return nil
 }
 
-func usesImprovedDR() (bool, error) {
-	backup, err := release.GetVeleroBackup()
-	if err != nil {
-		return false, fmt.Errorf("failed to get velero backup: %w", err)
-	}
-	restore, err := release.GetVeleroRestore()
-	if err != nil {
-		return false, fmt.Errorf("failed to get velero restore: %w", err)
-	}
-	return backup != nil && restore != nil, nil
+func usesImprovedDR() bool {
+	backup := release.GetVeleroBackup()
+	restore := release.GetVeleroRestore()
+	return backup != nil && restore != nil
 }
 
 // restoreAppFromBackup will either restore using the spec provided by the vendor as part of the
