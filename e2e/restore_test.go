@@ -247,6 +247,10 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("failed to reconfigure squid: %v", err)
 	}
 
+	t.Cleanup(func() {
+		outputTCPDeniedLogs(t, tc)
+	})
+
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	line = append(line, "--http-proxy", lxd.HTTPProxy)
