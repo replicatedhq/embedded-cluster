@@ -41,3 +41,26 @@ config.yaml: |-
           spec:
             telemetry:
               enabled: false
+host-preflights.yaml: |-
+  apiVersion: troubleshoot.sh/v1beta2
+  kind: HostPreflight
+  metadata:
+    name: ec-cluster-preflight
+  spec:
+    collectors:
+      - diskUsage:
+          collectorName: root-disk-usage
+          path: /
+    analyzers:
+    - diskUsage:
+        checkName: Embedded Cluster Disk Space
+        collectorName: embedded-cluster-path-usage
+        outcomes:
+          - fail:
+              when: 'total < 40Gi'
+              message: The filesystem at {{ .DataDir }} has less than 40 Gi of total space. Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+          - fail:
+              when: 'used/total > 80%'
+              message: The filesystem at {{ .DataDir }} is more than 80% full. Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+          - pass:
+              message: The filesystem at {{ .DataDir }} has sufficient space

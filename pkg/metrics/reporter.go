@@ -71,7 +71,7 @@ func SetClusterID(id uuid.UUID) {
 
 // ReportInstallationStarted reports that the installation has started.
 func ReportInstallationStarted(ctx context.Context, baseURL string, licenseID string, clusterID uuid.UUID) {
-	rel, _ := release.GetChannelRelease()
+	rel := release.GetChannelRelease()
 	appChannel, appVersion := "", ""
 	if rel != nil {
 		appChannel = rel.ChannelID

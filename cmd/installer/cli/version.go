@@ -22,8 +22,8 @@ func VersionCmd(ctx context.Context, name string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			writer := table.NewWriter()
 			writer.AppendHeader(table.Row{"component", "version"})
-			channelRelease, err := release.GetChannelRelease()
-			if err == nil && channelRelease != nil {
+			channelRelease := release.GetChannelRelease()
+			if channelRelease != nil {
 				writer.AppendRow(table.Row{runtimeconfig.BinaryName(), channelRelease.VersionLabel})
 			}
 			writer.AppendRow(table.Row{"Installer", versions.Version})

@@ -110,12 +110,10 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 // applyUnsupportedOverrides applies overrides to the k0s configuration. Applies first the
 // overrides embedded into the binary and after the ones provided by the user (--overrides).
 func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, overrides string) (*k0sv1beta1.ClusterConfig, error) {
-	embcfg, err := release.GetEmbeddedClusterConfig()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
-	}
+	embcfg := release.GetEmbeddedClusterConfig()
 	if embcfg != nil {
 		overrides := embcfg.Spec.UnsupportedOverrides.K0s
+		var err error
 		cfg, err = config.PatchK0sConfig(cfg, overrides)
 		if err != nil {
 			return nil, fmt.Errorf("unable to patch k0s config: %w", err)
@@ -128,6 +126,7 @@ func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, overrides string) 
 	}
 	if eucfg != nil {
 		overrides := eucfg.Spec.UnsupportedOverrides.K0s
+		var err error
 		cfg, err = config.PatchK0sConfig(cfg, overrides)
 		if err != nil {
 			return nil, fmt.Errorf("unable to apply overrides: %w", err)
