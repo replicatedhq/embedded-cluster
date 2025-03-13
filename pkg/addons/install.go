@@ -109,10 +109,18 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 }
 
 func getAddOnsForRestore(opts InstallOptions) []types.AddOn {
+	var proxyRegistryDomain string
+	if opts.EmbeddedConfigSpec != nil {
+		proxyRegistryDomain = opts.EmbeddedConfigSpec.Domains.ProxyRegistryDomain
+	}
+
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
+		&openebs.OpenEBS{
+			ProxyRegistryDomain: proxyRegistryDomain,
+		},
 		&velero.Velero{
-			Proxy: opts.Proxy,
+			Proxy:               opts.Proxy,
+			ProxyRegistryDomain: proxyRegistryDomain,
 		},
 	}
 	return addOns
