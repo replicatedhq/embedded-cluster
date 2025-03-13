@@ -4,9 +4,6 @@ metadata:
   name: "testconfig"
 spec:
   version: "__version_string__"
-  domains:
-    replicatedAppDomain: "ec-e2e-replicated-app.testcluster.net"
-    proxyRegistryDomain: "ec-e2e-proxy.testcluster.net"
   roles:
     controller:
       labels:
