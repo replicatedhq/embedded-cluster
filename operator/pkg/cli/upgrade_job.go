@@ -44,6 +44,7 @@ func UpgradeJobCmd() *cobra.Command {
 			runtimeconfig.Set(in.Spec.RuntimeConfig)
 
 			// TODO: REMOVE THIS BEFORE RELEASE (once kots is updated)
+			fmt.Printf("WARNING: this is a temporary workaround for kots not setting the proxy registry domain in the embedded cluster config\n")
 			in.Spec.Config.Domains.ProxyRegistryDomain = "ec-e2e-proxy.testcluster.net"
 
 			// initialize the cluster ID
