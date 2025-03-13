@@ -60,38 +60,48 @@ func Install(ctx context.Context, hcli helm.Client, opts InstallOptions) error {
 }
 
 func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
+	var replicatedAppDomain, proxyRegistryDomain, replicatedRegistryDomain string
+	if opts.EmbeddedConfigSpec != nil {
+		replicatedAppDomain = opts.EmbeddedConfigSpec.Domains.ReplicatedAppDomain
+		proxyRegistryDomain = opts.EmbeddedConfigSpec.Domains.ProxyRegistryDomain
+		replicatedRegistryDomain = opts.EmbeddedConfigSpec.Domains.ReplicatedRegistryDomain
+	}
+
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
+		&openebs.OpenEBS{
+			ProxyRegistryDomain: proxyRegistryDomain,
+		},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
-			IsAirgap: opts.IsAirgap,
-			Proxy:    opts.Proxy,
+			ProxyRegistryDomain: proxyRegistryDomain,
+			IsAirgap:            opts.IsAirgap,
+			Proxy:               opts.Proxy,
 		},
 	}
 
 	if opts.IsAirgap {
 		addOns = append(addOns, &registry.Registry{
-			ServiceCIDR: opts.ServiceCIDR,
+			ProxyRegistryDomain: proxyRegistryDomain,
+			ServiceCIDR:         opts.ServiceCIDR,
 		})
 	}
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			Proxy: opts.Proxy,
+			ProxyRegistryDomain: proxyRegistryDomain,
+			Proxy:               opts.Proxy,
 		})
 	}
 
 	adminConsoleAddOn := &adminconsole.AdminConsole{
-		IsAirgap:      opts.IsAirgap,
-		Proxy:         opts.Proxy,
-		ServiceCIDR:   opts.ServiceCIDR,
-		Password:      opts.AdminConsolePwd,
-		PrivateCAs:    opts.PrivateCAs,
-		KotsInstaller: opts.KotsInstaller,
-	}
-	if opts.EmbeddedConfigSpec != nil {
-		adminConsoleAddOn.ReplicatedAppDomain = opts.EmbeddedConfigSpec.Domains.ReplicatedAppDomain
-		adminConsoleAddOn.ProxyRegistryDomain = opts.EmbeddedConfigSpec.Domains.ProxyRegistryDomain
-		adminConsoleAddOn.ReplicatedRegistryDomain = opts.EmbeddedConfigSpec.Domains.ReplicatedRegistryDomain
+		IsAirgap:                 opts.IsAirgap,
+		Proxy:                    opts.Proxy,
+		ServiceCIDR:              opts.ServiceCIDR,
+		Password:                 opts.AdminConsolePwd,
+		PrivateCAs:               opts.PrivateCAs,
+		KotsInstaller:            opts.KotsInstaller,
+		ReplicatedAppDomain:      replicatedAppDomain,
+		ProxyRegistryDomain:      proxyRegistryDomain,
+		ReplicatedRegistryDomain: replicatedRegistryDomain,
 	}
 	addOns = append(addOns, adminConsoleAddOn)
 

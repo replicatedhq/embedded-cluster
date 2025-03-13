@@ -6,11 +6,12 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"gopkg.in/yaml.v3"
 )
 
-type OpenEBS struct{}
+type OpenEBS struct {
+	ProxyRegistryDomain string
+}
 
 const (
 	releaseName = "openebs"
@@ -56,6 +57,8 @@ func (o *OpenEBS) Namespace() string {
 }
 
 func (o *OpenEBS) ChartLocation() string {
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
-	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", proxyRegistryDomain)
+	if o.ProxyRegistryDomain == "" {
+		return Metadata.Location
+	}
+	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", o.ProxyRegistryDomain)
 }

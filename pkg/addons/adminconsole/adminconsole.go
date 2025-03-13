@@ -104,7 +104,8 @@ func (a *AdminConsole) ChartLocation() string {
 		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", AdminConsoleChartRepoOverride)
 	}
 
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
-	chartName = strings.ReplaceAll(chartName, "proxy.replicated.com", proxyRegistryDomain)
+	if a.ProxyRegistryDomain != "" {
+		chartName = strings.ReplaceAll(chartName, "proxy.replicated.com", a.ProxyRegistryDomain)
+	}
 	return chartName
 }

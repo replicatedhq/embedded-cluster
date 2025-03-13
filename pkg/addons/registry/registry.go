@@ -12,8 +12,9 @@ import (
 )
 
 type Registry struct {
-	ServiceCIDR string
-	IsHA        bool
+	ServiceCIDR         string
+	IsHA                bool
+	ProxyRegistryDomain string
 }
 
 const (
@@ -95,6 +96,8 @@ func getBackupLabels() map[string]string {
 }
 
 func (r *Registry) ChartLocation() string {
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
-	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", proxyRegistryDomain)
+	if r.ProxyRegistryDomain == "" {
+		return Metadata.Location
+	}
+	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", r.ProxyRegistryDomain)
 }

@@ -3,7 +3,6 @@ package addons
 import (
 	"testing"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/require"
 )
 
@@ -123,12 +122,8 @@ func Test_operatorImages(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
-			if tt.proxyRegistry != "" {
-				runtimeconfig.SetProxyOverride(tt.proxyRegistry)
-				defer runtimeconfig.SetProxyToDefault()
-			}
 
-			gotRepo, gotTag, gotUtilsImage, err := operatorImages(tt.images)
+			gotRepo, gotTag, gotUtilsImage, err := operatorImages(tt.images, tt.proxyRegistry)
 			if tt.wantErr != "" {
 				req.Error(err)
 				req.EqualError(err, tt.wantErr)

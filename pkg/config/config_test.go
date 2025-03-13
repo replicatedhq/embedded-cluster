@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
@@ -94,7 +95,7 @@ func Test_extractK0sConfigPatch(t *testing.T) {
 }
 
 func TestRenderK0sConfig(t *testing.T) {
-	cfg := RenderK0sConfig()
+	cfg := RenderK0sConfig(runtimeconfig.DefaultProxyRegistryDomain)
 
 	assert.Equal(t, "calico", cfg.Spec.Network.Provider)
 	assert.Equal(t, DefaultServiceNodePortRange, cfg.Spec.API.ExtraArgs["service-node-port-range"])

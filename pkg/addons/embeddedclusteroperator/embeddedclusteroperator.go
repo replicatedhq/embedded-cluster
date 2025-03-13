@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"gopkg.in/yaml.v3"
 )
@@ -21,6 +20,7 @@ type EmbeddedClusterOperator struct {
 	ImageRepoOverride     string
 	ImageTagOverride      string
 	UtilsImageOverride    string
+	ProxyRegistryDomain   string
 }
 
 const (
@@ -71,11 +71,14 @@ func (e *EmbeddedClusterOperator) Namespace() string {
 }
 
 func (e *EmbeddedClusterOperator) ChartLocation() string {
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
+	location := Metadata.Location
 	if e.ChartLocationOverride != "" {
-		return strings.ReplaceAll(e.ChartLocationOverride, "proxy.replicated.com", proxyRegistryDomain)
+		location = e.ChartLocationOverride
 	}
-	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", proxyRegistryDomain)
+	if e.ProxyRegistryDomain != "" {
+		return location
+	}
+	return strings.ReplaceAll(location, "proxy.replicated.com", e.ProxyRegistryDomain)
 }
 
 func (e *EmbeddedClusterOperator) ChartVersion() string {

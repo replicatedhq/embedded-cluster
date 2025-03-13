@@ -10,7 +10,6 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/constant"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"gopkg.in/yaml.v2"
 )
 
@@ -49,12 +48,10 @@ func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 	return images
 }
 
-func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig) {
+func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig, proxyRegistryDomain string) {
 	if cfg.Spec.Images == nil {
 		cfg.Spec.Images = &k0sv1beta1.ClusterImages{}
 	}
-
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
 
 	cfg.Spec.Images.CoreDNS.Image = strings.ReplaceAll(Metadata.Images["coredns"].Repo, "proxy.replicated.com", proxyRegistryDomain)
 	cfg.Spec.Images.CoreDNS.Version = Metadata.Images["coredns"].Tag[runtime.GOARCH]

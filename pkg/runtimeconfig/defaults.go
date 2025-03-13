@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/gosimple/slug"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -15,16 +14,13 @@ import (
 // Holds the default no proxy values.
 var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".cluster.local", ".svc"}
 
-const proxyRegistryAddress = "proxy.replicated.com"
+const DefaultProxyRegistryDomain = "proxy.replicated.com"
 const KotsadmNamespace = "kotsadm"
 const KotsadmServiceAccount = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"
 const RegistryNamespace = "registry"
 const VeleroNamespace = "velero"
 const EmbeddedClusterNamespace = "embedded-cluster"
-
-var proxyOverrideMut sync.Mutex
-var proxyOverride = ""
 
 // BinaryName returns the binary name, this is useful for places where we
 // need to present the name of the binary to the user (the name may vary if
@@ -88,12 +84,12 @@ func PathToECConfig() string {
 // (This should only happen when restoring a cluster without domains set)
 func ReplicatedAppURL(license *kotsv1beta1.License) string {
 	// get the configured domains from the embedded cluster config
-	domains, err := release.GetCustomDomains()
+	cfg, err := release.GetEmbeddedClusterConfig()
 	if err != nil {
-		logrus.Debugf("unable to get custom domains: %v", err)
+		logrus.Debugf("unable to get embedded cluster config for replicated app domain: %v", err)
 	}
-	if err == nil && domains.ReplicatedAppDomain != "" {
-		return maybeAddHTTPS(domains.ReplicatedAppDomain)
+	if err == nil && cfg != nil && cfg.Spec.Domains.ReplicatedAppDomain != "" {
+		return maybeAddHTTPS(cfg.Spec.Domains.ReplicatedAppDomain)
 	}
 
 	if license != nil {
@@ -102,43 +98,21 @@ func ReplicatedAppURL(license *kotsv1beta1.License) string {
 	return ""
 }
 
-// SetProxyToDefault sets the proxy to the default address.
-// This is used for the version metadata output command.
-func SetProxyToDefault() {
-	proxyOverrideMut.Lock()
-	defer proxyOverrideMut.Unlock()
-	proxyOverride = proxyRegistryAddress
-}
-
-// SetProxyOverride sets the proxy to the given address.
-// this is used by the operator upgrade process.
-func SetProxyOverride(override string) {
-	proxyOverrideMut.Lock()
-	defer proxyOverrideMut.Unlock()
-	proxyOverride = override
-}
-
 // ProxyRegistryDomain returns the proxy registry domain.
 // The first priority is the domain configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
 func ProxyRegistryDomain() string {
-	proxyOverrideMut.Lock()
-	defer proxyOverrideMut.Unlock()
-	if proxyOverride != "" {
-		return proxyOverride
-	}
-
-	domains, err := release.GetCustomDomains()
+	cfg, err := release.GetEmbeddedClusterConfig()
 	if err != nil {
-		logrus.Debugf("unable to get custom domains: %v", err)
-		return proxyRegistryAddress
+		logrus.Debugf("unable to get embedded cluster config for proxy registry domain: %v", err)
+		return DefaultProxyRegistryDomain
 	}
 
-	if domains.ProxyRegistryDomain != "" {
-		return domains.ProxyRegistryDomain
+	if cfg != nil && cfg.Spec.Domains.ProxyRegistryDomain != "" {
+		return cfg.Spec.Domains.ProxyRegistryDomain
 	}
 
-	return proxyRegistryAddress
+	return DefaultProxyRegistryDomain
 }
 
 // ProxyRegistryURL returns the proxy registry address with a https or http prefix.

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
 )
 
@@ -18,7 +17,6 @@ func VersionMetadataCmd(ctx context.Context, name string) *cobra.Command {
 		Use:   "metadata",
 		Short: "Print metadata about this release",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runtimeconfig.SetProxyToDefault()
 			metadata, err := gatherVersionMetadata(!omitReleaseMetadata)
 			if err != nil {
 				return fmt.Errorf("failed to gather version metadata: %w", err)

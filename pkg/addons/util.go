@@ -7,7 +7,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 func addOnOverrides(addon types.AddOn, embCfgSpec *ecv1beta1.ConfigSpec, euCfgSpec *ecv1beta1.ConfigSpec) []string {
@@ -31,7 +30,7 @@ func operatorChart(meta *ectypes.ReleaseMetadata) (string, string, error) {
 	return "", "", errors.New("no embedded-cluster-operator chart found in release metadata")
 }
 
-func operatorImages(images []string) (string, string, string, error) {
+func operatorImages(images []string, proxyRegistryDomain string) (string, string, string, error) {
 	// determine the images to use for the operator chart
 	ecOperatorImage := ""
 	ecUtilsImage := ""
@@ -53,9 +52,10 @@ func operatorImages(images []string) (string, string, string, error) {
 	}
 
 	// the override images for operator during upgrades also need to be updated to use a whitelabeled proxy registry
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
-	ecOperatorImage = strings.ReplaceAll(ecOperatorImage, "proxy.replicated.com", proxyRegistryDomain)
-	ecUtilsImage = strings.ReplaceAll(ecUtilsImage, "proxy.replicated.com", proxyRegistryDomain)
+	if proxyRegistryDomain != "" {
+		ecOperatorImage = strings.ReplaceAll(ecOperatorImage, "proxy.replicated.com", proxyRegistryDomain)
+		ecUtilsImage = strings.ReplaceAll(ecUtilsImage, "proxy.replicated.com", proxyRegistryDomain)
+	}
 
 	repo := strings.Split(ecOperatorImage, ":")[0]
 	tag := strings.Join(strings.Split(ecOperatorImage, ":")[1:], ":")

@@ -1,13 +1,10 @@
 package velero
 
 import (
-	"strings"
-
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"k8s.io/utils/ptr"
 )
 
@@ -17,21 +14,19 @@ func Version() map[string]string {
 
 func GetImages() []string {
 	var images []string
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
 	for _, image := range Metadata.Images {
-		images = append(images, strings.ReplaceAll(image.String(), "proxy.replicated.com", proxyRegistryDomain))
+		images = append(images, image.String())
 	}
 	return images
 }
 
 func GetAdditionalImages() []string {
 	var images []string
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
 	if image, ok := Metadata.Images["velero-restore-helper"]; ok {
-		images = append(images, strings.ReplaceAll(image.String(), "proxy.replicated.com", proxyRegistryDomain))
+		images = append(images, image.String())
 	}
 	if image, ok := Metadata.Images["kubectl"]; ok {
-		images = append(images, strings.ReplaceAll(image.String(), "proxy.replicated.com", proxyRegistryDomain))
+		images = append(images, image.String())
 	}
 	return images
 }

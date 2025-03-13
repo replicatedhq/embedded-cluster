@@ -11,7 +11,8 @@ import (
 )
 
 type SeaweedFS struct {
-	ServiceCIDR string
+	ServiceCIDR         string
+	ProxyRegistryDomain string
 }
 
 const (
@@ -76,6 +77,8 @@ func getBackupLabels() map[string]string {
 }
 
 func (s *SeaweedFS) ChartLocation() string {
-	proxyRegistryDomain := runtimeconfig.ProxyRegistryDomain()
-	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", proxyRegistryDomain)
+	if s.ProxyRegistryDomain == "" {
+		return Metadata.Location
+	}
+	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", s.ProxyRegistryDomain)
 }

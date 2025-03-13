@@ -42,14 +42,9 @@ func UpgradeJobCmd() *cobra.Command {
 
 			// set the runtime config from the installation spec
 			runtimeconfig.Set(in.Spec.RuntimeConfig)
-			// set the proxy override if the installation has a proxy registry domain
-			if in.Spec.Config != nil && in.Spec.Config.Domains.ProxyRegistryDomain != "" {
-				runtimeconfig.SetProxyOverride(in.Spec.Config.Domains.ProxyRegistryDomain)
-			} else {
-				// TODO: REMOVE THIS BEFORE RELEASE (once kots is updated)
-				runtimeconfig.SetProxyOverride("ec-e2e-proxy.testcluster.net")
-				fmt.Printf("WARNING: proxy registry not discovered! Setting ec-e2e-proxy.testcluster.net as the proxy domain override\n")
-			}
+
+			// TODO: REMOVE THIS BEFORE RELEASE (once kots is updated)
+			in.Spec.Config.Domains.ProxyRegistryDomain = "ec-e2e-proxy.testcluster.net"
 
 			// initialize the cluster ID
 			clusterUUID, err := uuid.Parse(in.Spec.ClusterID)
