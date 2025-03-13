@@ -51,7 +51,7 @@ expect {
 }
 
 expect {
-    -timeout 30 "All nodes are ready!" {}
+    -timeout 30 "All nodes are ready" {}
     timeout {
       puts "\n\nFailed to wait for nodes."
       exit 1
@@ -59,7 +59,7 @@ expect {
 }
 
 expect {
-    -timeout 240 "High availability enabled for the Admin Console!" {}
+    -timeout 240 "High availability enabled for the Admin Console" {}
     timeout {
       puts "\n\nFailed to enable high availability for the admin console."
       exit 1
@@ -67,7 +67,7 @@ expect {
 }
 
 expect {
-    -timeout 120 "Embedded cluster operator restored!" {}
+    -timeout 120 "Embedded cluster operator restored" {}
     timeout {
       puts "\n\nFailed to restore embedded cluster operator."
       exit 1
@@ -75,7 +75,7 @@ expect {
 }
 
 expect {
-    -timeout 60 "Application restored!" {
+    -timeout 60 "Application restored" {
       exit 0
     }
     timeout {
