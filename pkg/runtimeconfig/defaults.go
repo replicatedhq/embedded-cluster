@@ -22,7 +22,7 @@ const RegistryNamespace = "registry"
 const VeleroNamespace = "velero"
 const EmbeddedClusterNamespace = "embedded-cluster"
 
-var forceDefaultProxy = false
+var proxyOverride = ""
 
 // BinaryName returns the binary name, this is useful for places where we
 // need to present the name of the binary to the user (the name may vary if
@@ -103,15 +103,21 @@ func ReplicatedAppURL(license *kotsv1beta1.License) string {
 // SetProxyToDefault sets the proxy to the default address.
 // This is used for the version metadata output command.
 func SetProxyToDefault() {
-	forceDefaultProxy = true
+	proxyOverride = proxyRegistryAddress
+}
+
+// SetProxyOverride sets the proxy to the given address.
+// this is used by the operator upgrade process.
+func SetProxyOverride(override string) {
+	proxyOverride = override
 }
 
 // ProxyRegistryDomain returns the proxy registry domain.
 // The first priority is the domain configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
 func ProxyRegistryDomain() string {
-	if forceDefaultProxy {
-		return proxyRegistryAddress
+	if proxyOverride != "" {
+		return proxyOverride
 	}
 
 	domains, err := release.GetCustomDomains()

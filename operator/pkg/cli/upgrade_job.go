@@ -42,6 +42,10 @@ func UpgradeJobCmd() *cobra.Command {
 
 			// set the runtime config from the installation spec
 			runtimeconfig.Set(in.Spec.RuntimeConfig)
+			// set the proxy override if the installation has a proxy registry domain
+			if in.Spec.Config != nil && in.Spec.Config.Domains.ProxyRegistryDomain != "" {
+				runtimeconfig.SetProxyOverride(in.Spec.Config.Domains.ProxyRegistryDomain)
+			}
 
 			// initialize the cluster ID
 			clusterUUID, err := uuid.Parse(in.Spec.ClusterID)
