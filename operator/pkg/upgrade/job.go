@@ -247,10 +247,6 @@ func operatorImageName(ctx context.Context, cli client.Client, in *ecv1beta1.Ins
 		if strings.Contains(image, "embedded-cluster-operator-image") {
 			if in.Spec.Config != nil && in.Spec.Config.Domains.ProxyRegistryDomain != "" {
 				image = strings.Replace(image, "proxy.replicated.com", in.Spec.Config.Domains.ProxyRegistryDomain, 1)
-			} else {
-				// TODO: REMOVE THIS BEFORE RELEASE (once kots is updated)
-				image = strings.Replace(image, "proxy.replicated.com", "ec-e2e-proxy.testcluster.net", 1)
-				fmt.Printf("WARNING: proxy registry not discovered! Using ec-e2e-proxy.testcluster.net as the proxy registry domain\n")
 			}
 
 			return image, nil
