@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/gosimple/slug"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -22,6 +23,7 @@ const RegistryNamespace = "registry"
 const VeleroNamespace = "velero"
 const EmbeddedClusterNamespace = "embedded-cluster"
 
+var proxyOverrideMut sync.Mutex
 var proxyOverride = ""
 
 // BinaryName returns the binary name, this is useful for places where we
@@ -103,12 +105,16 @@ func ReplicatedAppURL(license *kotsv1beta1.License) string {
 // SetProxyToDefault sets the proxy to the default address.
 // This is used for the version metadata output command.
 func SetProxyToDefault() {
+	proxyOverrideMut.Lock()
+	defer proxyOverrideMut.Unlock()
 	proxyOverride = proxyRegistryAddress
 }
 
 // SetProxyOverride sets the proxy to the given address.
 // this is used by the operator upgrade process.
 func SetProxyOverride(override string) {
+	proxyOverrideMut.Lock()
+	defer proxyOverrideMut.Unlock()
 	proxyOverride = override
 }
 
@@ -116,6 +122,8 @@ func SetProxyOverride(override string) {
 // The first priority is the domain configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
 func ProxyRegistryDomain() string {
+	proxyOverrideMut.Lock()
+	defer proxyOverrideMut.Unlock()
 	if proxyOverride != "" {
 		return proxyOverride
 	}
