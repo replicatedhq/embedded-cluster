@@ -37,6 +37,16 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 		copiedValues["isAirgap"] = "false"
 	}
 
+	if a.ReplicatedAppDomain != "" {
+		copiedValues["replicatedAppEndpoint"] = a.ReplicatedAppDomain
+	}
+	if a.ReplicatedRegistryDomain != "" {
+		copiedValues["replicatedRegistryDomain"] = a.ReplicatedRegistryDomain
+	}
+	if a.ProxyRegistryDomain != "" {
+		copiedValues["proxyRegistryDomain"] = a.ProxyRegistryDomain
+	}
+
 	extraEnv := []map[string]interface{}{
 		{
 			"name":  "ENABLE_IMPROVED_DR",
