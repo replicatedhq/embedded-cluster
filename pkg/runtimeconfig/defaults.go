@@ -3,15 +3,18 @@ package runtimeconfig
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gosimple/slug"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
 
 // Holds the default no proxy values.
 var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".cluster.local", ".svc"}
 
-const ProxyRegistryAddress = "proxy.replicated.com"
+const proxyRegistryAddress = "proxy.replicated.com"
 const KotsadmNamespace = "kotsadm"
 const KotsadmServiceAccount = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"
@@ -74,4 +77,46 @@ func PathToK0sContainerdConfig() string {
 // This file is used to specify the embedded cluster data directory.
 func PathToECConfig() string {
 	return "/etc/embedded-cluster/ec.yaml"
+}
+
+// ReplicatedAppURL returns the replicated app domain. The first priority is the domain configured within the embedded cluster config.
+// The second priority is the domain configured within the license. If neither is configured, no domain is returned.
+// (This should only happen when restoring a cluster without domains set)
+func ReplicatedAppURL(license *kotsv1beta1.License) string {
+	// get the configured domains from the embedded cluster config
+	domains, err := release.GetCustomDomains()
+	if err != nil {
+		logrus.Debugf("unable to get custom domains: %v", err)
+	}
+	if err == nil && domains.ReplicatedAppDomain != "" {
+		return maybeAddHTTPS(domains.ReplicatedAppDomain)
+	}
+
+	if license != nil {
+		return maybeAddHTTPS(license.Spec.Endpoint)
+	}
+	return ""
+}
+
+// ProxyRegistryURL returns the proxy registry address. The first priority is the address configured within the embedded cluster config.
+// If that is not configured, the default address is returned.
+func ProxyRegistryURL() string {
+	domains, err := release.GetCustomDomains()
+	if err != nil {
+		logrus.Debugf("unable to get custom domains: %v", err)
+		return maybeAddHTTPS(proxyRegistryAddress)
+	}
+
+	if domains.ProxyRegistryDomain != "" {
+		return maybeAddHTTPS(domains.ProxyRegistryDomain)
+	}
+
+	return maybeAddHTTPS(proxyRegistryAddress)
+}
+
+func maybeAddHTTPS(domain string) string {
+	if strings.HasPrefix(domain, "http://") || strings.HasPrefix(domain, "https://") {
+		return domain
+	}
+	return "https://" + domain
 }
