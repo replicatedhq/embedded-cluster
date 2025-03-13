@@ -146,8 +146,9 @@ type Extensions struct {
 }
 
 type Domains struct {
-	ReplicatedAppDomain string `json:"replicatedAppDomain,omitempty"` // Replicated App Domain
-	ProxyRegistryDomain string `json:"proxyRegistryDomain,omitempty"` // Proxy Registry Domain
+	ReplicatedAppDomain      string `json:"replicatedAppDomain,omitempty"`
+	ProxyRegistryDomain      string `json:"proxyRegistryDomain,omitempty"`
+	ReplicatedRegistryDomain string `json:"replicatedRegistryDomain,omitempty"`
 }
 
 // ConfigSpec defines the desired state of Config

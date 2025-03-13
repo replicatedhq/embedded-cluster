@@ -107,6 +107,8 @@ spec:
                         type: string
                       replicatedAppDomain:
                         type: string
+                      replicatedRegistryDomain:
+                        type: string
                     type: object
                   extensions:
                     properties:

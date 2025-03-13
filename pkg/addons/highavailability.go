@@ -117,10 +117,13 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
 	// TODO (@salah): add support for end user overrides
 	ac := &adminconsole.AdminConsole{
-		IsAirgap:    isAirgap,
-		IsHA:        true,
-		Proxy:       proxy,
-		ServiceCIDR: serviceCIDR,
+		IsAirgap:                 isAirgap,
+		IsHA:                     true,
+		Proxy:                    proxy,
+		ServiceCIDR:              serviceCIDR,
+		ReplicatedAppDomain:      cfgspec.Domains.ReplicatedAppDomain,
+		ProxyRegistryDomain:      cfgspec.Domains.ProxyRegistryDomain,
+		ReplicatedRegistryDomain: cfgspec.Domains.ReplicatedRegistryDomain,
 	}
 	if err := ac.Upgrade(ctx, kcli, hcli, addOnOverrides(ac, cfgspec, nil)); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
