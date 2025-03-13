@@ -1285,7 +1285,7 @@ func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) 
 
 	boldStart := "\033[1m"
 	boldEnd := "\033[0m"
-	logrus.Infof("\n%s%s\n%s\n%s%s\n", boldStart, divider, message, divider, boldEnd)
+	logrus.Infof("\n%s%s\n%s\n%s%s", boldStart, divider, message, divider, boldEnd)
 
 	return nil
 }
