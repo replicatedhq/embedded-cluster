@@ -11,20 +11,20 @@ images:
     kubectl:
         repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
         tag:
-            amd64: 1.32.2-r2-amd64@sha256:c8394c68a604235ed0191095ada9a1d79b51e9bdff62fbf6189e464f0391ba19
-            arm64: 1.32.2-r2-arm64@sha256:9039a04579d3a4a3aaf52797af905007c284a6adde8a6f1c1c37ff2b4ce6652c
+            amd64: 1.32.3-r1-amd64@sha256:3acd5012b08fdcf14a3ec13e98b492ff426a6f5329787a8d0e37a51f5b7aa663
+            arm64: 1.32.3-r1-arm64@sha256:5f50defc0e50327141de195cb6aac706b4e3a11af56d6e78fdd7718e4f9be734
     velero:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero
         tag:
-            amd64: 1.15.2-r3-amd64@sha256:fa8b9ba4e1490afca65f80faaf5fd94c5aa08d8bcb6e4b09f0740ff788bb104d
-            arm64: 1.15.2-r3-arm64@sha256:67f18234f1cbc63984557c3b339b98e949a86f6599d28393aa11aba1d882d00b
+            amd64: 1.15.2-r4-amd64@sha256:ecd6f090f2a5240169e7bd9f4c5a9689bc8a23ecf548238a03ba743d06885c28
+            arm64: 1.15.2-r4-arm64@sha256:95a8478a934023b0182ac1a317ae4d0d471d2383a0b20f9f2f416d1b027c88b0
     velero-plugin-for-aws:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws
         tag:
-            amd64: 1.11.1-r30-amd64@sha256:b32c6cc0a994a68bb77404b18519f6cf367c7a510f5f61615c158452a2867475
-            arm64: 1.11.1-r30-arm64@sha256:80e53390a38242527ee11f675104040f05428fb16d0ed2617f3534c9ab2acb54
+            amd64: 1.11.1-r31-amd64@sha256:4adeb7182d0cac91a0a741ed48ee10605c815db63af487a49ec8db6126bdd17e
+            arm64: 1.11.1-r31-arm64@sha256:43a6ef5b73cd3e438dcc93c4eb2762f41b8e9216734ace398839003eb901a516
     velero-restore-helper:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper
         tag:
-            amd64: 1.15.2-r3-amd64@sha256:bb9169bd9b7f2281437c41252ba8db64406969fc6872ab65cd15bb7183f87e38
-            arm64: 1.15.2-r3-arm64@sha256:7aaba272e2ebbaf6597a7406c78f19e939961f16bd686cb8a5221d429693e151
+            amd64: 1.15.2-r4-amd64@sha256:761108b6431055833aa55fc8e668543ab206dc8f7456d759fdb8418c53de0ad0
+            arm64: 1.15.2-r4-arm64@sha256:50ab21f1ed90914a350434370fa4b3184bbc7820f2b88456ad8ff8fee2c47158
