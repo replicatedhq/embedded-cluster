@@ -20,7 +20,6 @@ import (
 func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
 	// some resources are not part of the helm chart and need to be created before the chart is installed
 	// TODO: move this to the helm chart
-
 	if err := a.createPreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
@@ -32,7 +31,7 @@ func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, hcli hel
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    Metadata.Location,
+		ChartPath:    a.ChartLocation(),
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,

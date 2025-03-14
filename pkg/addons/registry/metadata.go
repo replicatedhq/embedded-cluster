@@ -39,7 +39,7 @@ func GenerateChartConfig(isHA bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository,
 
 	chartConfig := ecv1beta1.Chart{
 		Name:         releaseName,
-		ChartName:    Metadata.Location,
+		ChartName:    (&Registry{}).ChartLocation(),
 		Version:      Metadata.Version,
 		Values:       string(values),
 		TargetNS:     namespace,

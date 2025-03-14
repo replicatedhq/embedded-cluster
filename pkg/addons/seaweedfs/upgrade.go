@@ -29,7 +29,7 @@ func (s *SeaweedFS) Upgrade(ctx context.Context, kcli client.Client, hcli helm.C
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    Metadata.Location,
+		ChartPath:    s.ChartLocation(),
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,

@@ -24,7 +24,7 @@ func (v *Velero) Install(ctx context.Context, kcli client.Client, hcli helm.Clie
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    Metadata.Location,
+		ChartPath:    v.ChartLocation(),
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,

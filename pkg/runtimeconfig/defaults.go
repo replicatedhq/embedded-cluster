@@ -14,7 +14,7 @@ import (
 // Holds the default no proxy values.
 var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".cluster.local", ".svc"}
 
-const proxyRegistryAddress = "proxy.replicated.com"
+const DefaultProxyRegistryDomain = "proxy.replicated.com"
 const KotsadmNamespace = "kotsadm"
 const KotsadmServiceAccount = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"
@@ -84,37 +84,45 @@ func PathToECConfig() string {
 // (This should only happen when restoring a cluster without domains set)
 func ReplicatedAppURL(license *kotsv1beta1.License) string {
 	// get the configured domains from the embedded cluster config
-	domains, err := release.GetCustomDomains()
+	cfg, err := release.GetEmbeddedClusterConfig()
 	if err != nil {
-		logrus.Debugf("unable to get custom domains: %v", err)
+		logrus.Debugf("unable to get embedded cluster config for replicated app domain: %v", err)
 	}
-	if err == nil && domains.ReplicatedAppDomain != "" {
-		return maybeAddHTTPS(domains.ReplicatedAppDomain)
+	if err == nil && cfg != nil && cfg.Spec.Domains.ReplicatedAppDomain != "" {
+		return MaybeAddHTTPS(cfg.Spec.Domains.ReplicatedAppDomain)
 	}
 
 	if license != nil {
-		return maybeAddHTTPS(license.Spec.Endpoint)
+		return MaybeAddHTTPS(license.Spec.Endpoint)
 	}
 	return ""
 }
 
-// ProxyRegistryURL returns the proxy registry address. The first priority is the address configured within the embedded cluster config.
+// ProxyRegistryDomain returns the proxy registry domain.
+// The first priority is the domain configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
-func ProxyRegistryURL() string {
-	domains, err := release.GetCustomDomains()
+func ProxyRegistryDomain() string {
+	cfg, err := release.GetEmbeddedClusterConfig()
 	if err != nil {
-		logrus.Debugf("unable to get custom domains: %v", err)
-		return maybeAddHTTPS(proxyRegistryAddress)
+		logrus.Debugf("unable to get embedded cluster config for proxy registry domain: %v", err)
+		return DefaultProxyRegistryDomain
 	}
 
-	if domains.ProxyRegistryDomain != "" {
-		return maybeAddHTTPS(domains.ProxyRegistryDomain)
+	if cfg != nil && cfg.Spec.Domains.ProxyRegistryDomain != "" {
+		return cfg.Spec.Domains.ProxyRegistryDomain
 	}
 
-	return maybeAddHTTPS(proxyRegistryAddress)
+	return DefaultProxyRegistryDomain
 }
 
-func maybeAddHTTPS(domain string) string {
+// ProxyRegistryURL returns the proxy registry address with a https or http prefix.
+// The first priority is the address configured within the embedded cluster config.
+// If that is not configured, the default address is returned.
+func ProxyRegistryURL() string {
+	return MaybeAddHTTPS(ProxyRegistryDomain())
+}
+
+func MaybeAddHTTPS(domain string) string {
 	if strings.HasPrefix(domain, "http://") || strings.HasPrefix(domain, "https://") {
 		return domain
 	}

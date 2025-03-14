@@ -38,12 +38,13 @@ func GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 
 	chartConfig := ecv1beta1.Chart{
 		Name:         releaseName,
-		ChartName:    Metadata.Location,
+		ChartName:    (&EmbeddedClusterOperator{}).ChartLocation(),
 		Version:      Metadata.Version,
 		Values:       string(values),
 		TargetNS:     namespace,
 		ForceUpgrade: ptr.To(false),
 		Order:        3,
 	}
+
 	return []ecv1beta1.Chart{chartConfig}, nil, nil
 }

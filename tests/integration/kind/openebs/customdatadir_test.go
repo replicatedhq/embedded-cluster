@@ -35,7 +35,9 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 	require.NoError(t, err)
 	defer hcli.Close()
 
-	addon := &openebs.OpenEBS{}
+	addon := &openebs.OpenEBS{
+		ProxyRegistryDomain: "proxy.replicated.com",
+	}
 	if err := addon.Install(context.Background(), nil, hcli, nil, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}

@@ -402,6 +402,15 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
+	embCfg, err := release.GetEmbeddedClusterConfig()
+	if err != nil {
+		return fmt.Errorf("unable to get release embedded cluster config: %w", err)
+	}
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
+
 	airgapChartsPath := ""
 	if flags.isAirgap {
 		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
@@ -424,14 +433,12 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 
 	logrus.Debugf("installing addons")
 	if err := addons.Install(ctx, hcli, addons.InstallOptions{
-		IsAirgap:    flags.airgapBundle != "",
-		Proxy:       flags.proxy,
-		PrivateCAs:  flags.privateCAs,
-		ServiceCIDR: flags.cidrCfg.ServiceCIDR,
-		IsRestore:   true,
-		// TODO(customdomains): pass in custom domain
-		// This requires us to either embed the license in the binary or require a license be
-		// provided to the restore command.
+		IsAirgap:           flags.airgapBundle != "",
+		Proxy:              flags.proxy,
+		PrivateCAs:         flags.privateCAs,
+		ServiceCIDR:        flags.cidrCfg.ServiceCIDR,
+		IsRestore:          true,
+		EmbeddedConfigSpec: embCfgSpec,
 	}); err != nil {
 		return err
 	}

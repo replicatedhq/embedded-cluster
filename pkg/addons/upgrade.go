@@ -18,6 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -42,8 +43,19 @@ func Upgrade(ctx context.Context, hcli helm.Client, in *ecv1beta1.Installation, 
 }
 
 func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
+	var replicatedAppDomain, proxyRegistryDomain, replicatedRegistryDomain string
+	if in.Spec.Config != nil {
+		replicatedAppDomain = runtimeconfig.MaybeAddHTTPS(in.Spec.Config.Domains.ReplicatedAppDomain)
+		proxyRegistryDomain = in.Spec.Config.Domains.ProxyRegistryDomain
+		replicatedRegistryDomain = in.Spec.Config.Domains.ReplicatedRegistryDomain
+	}
+
+	fmt.Printf("DEBUG: using proxy domain %s\n", proxyRegistryDomain)
+
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
+		&openebs.OpenEBS{
+			ProxyRegistryDomain: proxyRegistryDomain,
+		},
 	}
 
 	serviceCIDR := ""
@@ -59,7 +71,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator chart location")
 	}
-	ecoImageRepo, ecoImageTag, ecoUtilsImage, err := operatorImages(meta.Images)
+	ecoImageRepo, ecoImageTag, ecoUtilsImage, err := operatorImages(meta.Images, proxyRegistryDomain)
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator images")
 	}
@@ -72,39 +84,40 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		ImageRepoOverride:     ecoImageRepo,
 		ImageTagOverride:      ecoImageTag,
 		UtilsImageOverride:    ecoUtilsImage,
+		ProxyRegistryDomain:   proxyRegistryDomain,
 	})
 
 	if in.Spec.AirGap {
 		addOns = append(addOns, &registry.Registry{
-			ServiceCIDR: serviceCIDR,
-			IsHA:        in.Spec.HighAvailability,
+			ServiceCIDR:         serviceCIDR,
+			IsHA:                in.Spec.HighAvailability,
+			ProxyRegistryDomain: proxyRegistryDomain,
 		})
 
 		if in.Spec.HighAvailability {
 			addOns = append(addOns, &seaweedfs.SeaweedFS{
-				ServiceCIDR: serviceCIDR,
+				ServiceCIDR:         serviceCIDR,
+				ProxyRegistryDomain: proxyRegistryDomain,
 			})
 		}
 	}
 
 	if in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
 		addOns = append(addOns, &velero.Velero{
-			Proxy: in.Spec.Proxy,
+			Proxy:               in.Spec.Proxy,
+			ProxyRegistryDomain: proxyRegistryDomain,
 		})
 	}
 
-	adminConsoleAddOn := &adminconsole.AdminConsole{
-		IsAirgap:    in.Spec.AirGap,
-		IsHA:        in.Spec.HighAvailability,
-		Proxy:       in.Spec.Proxy,
-		ServiceCIDR: serviceCIDR,
-	}
-	if in.Spec.Config != nil {
-		adminConsoleAddOn.ReplicatedAppDomain = in.Spec.Config.Domains.ReplicatedAppDomain
-		adminConsoleAddOn.ProxyRegistryDomain = in.Spec.Config.Domains.ProxyRegistryDomain
-		adminConsoleAddOn.ReplicatedRegistryDomain = in.Spec.Config.Domains.ReplicatedRegistryDomain
-	}
-	addOns = append(addOns, adminConsoleAddOn)
+	addOns = append(addOns, &adminconsole.AdminConsole{
+		IsAirgap:                 in.Spec.AirGap,
+		IsHA:                     in.Spec.HighAvailability,
+		Proxy:                    in.Spec.Proxy,
+		ServiceCIDR:              serviceCIDR,
+		ReplicatedAppDomain:      replicatedAppDomain,
+		ProxyRegistryDomain:      proxyRegistryDomain,
+		ReplicatedRegistryDomain: replicatedRegistryDomain,
+	})
 
 	return addOns, nil
 }

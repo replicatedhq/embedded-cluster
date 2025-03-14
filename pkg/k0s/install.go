@@ -63,7 +63,7 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
-	cfg := config.RenderK0sConfig()
+	cfg := config.RenderK0sConfig(runtimeconfig.ProxyRegistryDomain())
 
 	address, err := netutils.FirstValidAddress(networkInterface)
 	if err != nil {
