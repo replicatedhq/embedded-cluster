@@ -55,7 +55,8 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 
 		// TODO (@salah): add support for end user overrides
 		sw := &seaweedfs.SeaweedFS{
-			ServiceCIDR: serviceCIDR,
+			ServiceCIDR:         serviceCIDR,
+			ProxyRegistryDomain: cfgspec.Domains.ProxyRegistryDomain,
 		}
 		exists, err := hcli.ReleaseExists(ctx, sw.Namespace(), sw.ReleaseName())
 		if err != nil {
@@ -73,8 +74,9 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 
 		// TODO (@salah): add support for end user overrides
 		reg := &registry.Registry{
-			ServiceCIDR: serviceCIDR,
-			IsHA:        true,
+			ServiceCIDR:         serviceCIDR,
+			ProxyRegistryDomain: cfgspec.Domains.ProxyRegistryDomain,
+			IsHA:                true,
 		}
 		logrus.Debugf("Migrating registry data")
 		if err := reg.Migrate(ctx, kcli, loading); err != nil {
