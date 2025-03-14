@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
@@ -62,7 +63,7 @@ func Install(ctx context.Context, hcli helm.Client, opts InstallOptions) error {
 func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	var replicatedAppDomain, proxyRegistryDomain, replicatedRegistryDomain string
 	if opts.EmbeddedConfigSpec != nil {
-		replicatedAppDomain = opts.EmbeddedConfigSpec.Domains.ReplicatedAppDomain
+		replicatedAppDomain = runtimeconfig.MaybeAddHTTPS(opts.EmbeddedConfigSpec.Domains.ReplicatedAppDomain)
 		proxyRegistryDomain = opts.EmbeddedConfigSpec.Domains.ProxyRegistryDomain
 		replicatedRegistryDomain = opts.EmbeddedConfigSpec.Domains.ReplicatedRegistryDomain
 	}

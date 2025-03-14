@@ -89,11 +89,11 @@ func ReplicatedAppURL(license *kotsv1beta1.License) string {
 		logrus.Debugf("unable to get embedded cluster config for replicated app domain: %v", err)
 	}
 	if err == nil && cfg != nil && cfg.Spec.Domains.ReplicatedAppDomain != "" {
-		return maybeAddHTTPS(cfg.Spec.Domains.ReplicatedAppDomain)
+		return MaybeAddHTTPS(cfg.Spec.Domains.ReplicatedAppDomain)
 	}
 
 	if license != nil {
-		return maybeAddHTTPS(license.Spec.Endpoint)
+		return MaybeAddHTTPS(license.Spec.Endpoint)
 	}
 	return ""
 }
@@ -119,10 +119,10 @@ func ProxyRegistryDomain() string {
 // The first priority is the address configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
 func ProxyRegistryURL() string {
-	return maybeAddHTTPS(ProxyRegistryDomain())
+	return MaybeAddHTTPS(ProxyRegistryDomain())
 }
 
-func maybeAddHTTPS(domain string) string {
+func MaybeAddHTTPS(domain string) string {
 	if strings.HasPrefix(domain, "http://") || strings.HasPrefix(domain, "https://") {
 		return domain
 	}
