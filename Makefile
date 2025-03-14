@@ -17,7 +17,8 @@ PREVIOUS_K0S_GO_VERSION ?= v1.29.9+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.117.0
 
-KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+#KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+KOTS_VERSION = v1.124.6-dev
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
 # scripts/ci-upload-binaries.sh may find the version in the cache and not upload the overridden binary.
 KOTS_BINARY_URL_OVERRIDE = https://repldev-ethan-test.s3.amazonaws.com/kots-amd64.tar.gz
