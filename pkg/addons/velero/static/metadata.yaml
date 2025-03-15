@@ -16,8 +16,8 @@ images:
     velero:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero
         tag:
-            amd64: 1.15.2-r4-amd64@sha256:ecd6f090f2a5240169e7bd9f4c5a9689bc8a23ecf548238a03ba743d06885c28
-            arm64: 1.15.2-r4-arm64@sha256:95a8478a934023b0182ac1a317ae4d0d471d2383a0b20f9f2f416d1b027c88b0
+            amd64: 1.15.2-r5-amd64@sha256:538774c8694ea5cbb0738f0ebdfb40e11c790a7824c758bee1351706c3d2b193
+            arm64: 1.15.2-r5-arm64@sha256:89835a544a4962bb2b565316c6119d4002d82ac82a49c59dbd9638e5b6eb94b3
     velero-plugin-for-aws:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws
         tag:
@@ -26,5 +26,5 @@ images:
     velero-restore-helper:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper
         tag:
-            amd64: 1.15.2-r4-amd64@sha256:761108b6431055833aa55fc8e668543ab206dc8f7456d759fdb8418c53de0ad0
-            arm64: 1.15.2-r4-arm64@sha256:50ab21f1ed90914a350434370fa4b3184bbc7820f2b88456ad8ff8fee2c47158
+            amd64: 1.15.2-r5-amd64@sha256:6bac17c741fe4c2ac688b1885443a5e188bfcf359f6f25c41faee6e1f84ea7f7
+            arm64: 1.15.2-r5-arm64@sha256:802a6fabff787668332218def3c5f607231b73112fcb2adacfa1c156637043a9
