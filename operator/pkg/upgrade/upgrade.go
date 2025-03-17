@@ -64,13 +64,6 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1b
 		return fmt.Errorf("upgrade extensions: %w", err)
 	}
 
-	slog.Info("Re-applying installation")
-	// re-apply the installation as the CRDs are up-to-date.
-	err = reApplyInstallation(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("unlock installation: %w", err)
-	}
-
 	err = support.CreateHostSupportBundle()
 	if err != nil {
 		slog.Error("Failed to upgrade host support bundle", "error", err)

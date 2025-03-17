@@ -19,7 +19,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
-	"github.com/replicatedhq/embedded-cluster/operator/charts"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
@@ -47,11 +46,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
 )
 
 type InstallCmdFlags struct {
@@ -986,7 +983,7 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCm
 	}
 
 	// ensure that the installation CRD exists
-	if err := createInstallationCRD(ctx, kcli); err != nil {
+	if err := kubeutils.CreateInstallationCRD(ctx, kcli); err != nil {
 		return nil, fmt.Errorf("create installation CRD: %w", err)
 	}
 
@@ -1055,41 +1052,6 @@ func createECNamespace(ctx context.Context, kcli client.Client) error {
 	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return err
 	}
-	return nil
-}
-
-func createInstallationCRD(ctx context.Context, kcli client.Client) error {
-	// decode the CRD file
-	crds := strings.Split(charts.InstallationCRDFile, "\n---\n")
-
-	for _, crdYaml := range crds {
-		var crd apiextensionsv1.CustomResourceDefinition
-		if err := yaml.Unmarshal([]byte(crdYaml), &crd); err != nil {
-			return fmt.Errorf("unmarshal installation CRD: %w", err)
-		}
-
-		// apply labels and annotations so that the CRD can be taken over by helm shortly
-		if crd.Labels == nil {
-			crd.Labels = map[string]string{}
-		}
-		crd.Labels["app.kubernetes.io/managed-by"] = "Helm"
-		if crd.Annotations == nil {
-			crd.Annotations = map[string]string{}
-		}
-		crd.Annotations["meta.helm.sh/release-name"] = "embedded-cluster-operator"
-		crd.Annotations["meta.helm.sh/release-namespace"] = "embedded-cluster"
-
-		// apply the CRD
-		if err := kcli.Create(ctx, &crd); err != nil {
-			return fmt.Errorf("apply installation CRD: %w", err)
-		}
-
-		// wait for the CRD to be ready
-		if err := kubeutils.WaitForCRDToBeReady(ctx, kcli, crd.Name); err != nil {
-			return fmt.Errorf("wait for installation CRD to be ready: %w", err)
-		}
-	}
-
 	return nil
 }
 

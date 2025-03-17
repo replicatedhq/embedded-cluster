@@ -19,9 +19,15 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *ecv1be
 		slog.Info("Installation already exists", "name", in.Name)
 		return nil
 	}
+
+	err := kubeutils.UpgradeInstallationCRD(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("upgrade installation CRD: %w", err)
+	}
+
 	slog.Info("Creating installation", "name", in.Name)
 
-	err := kubeutils.CreateInstallation(ctx, cli, in)
+	err = kubeutils.CreateInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("create installation: %w", err)
 	}
@@ -38,24 +44,6 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *ecv1be
 	}
 
 	slog.Info("Installation created", "name", in.Name)
-
-	return nil
-}
-
-// reApplyInstallation updates the installation spec to match what's in the configmap used by the upgrade job.
-// This is required because the installation CRD may have been updated as part of this upgrade, and additional fields may be present now.
-func reApplyInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
-	existingIn, err := kubeutils.GetInstallation(ctx, cli, in.Name)
-	if err != nil {
-		return fmt.Errorf("get installation: %w", err)
-	}
-
-	err = kubeutils.UpdateInstallation(ctx, cli, existingIn, func(ex *ecv1beta1.Installation) {
-		ex.Spec = *in.Spec.DeepCopy() // copy the spec in, in case there were fields added to the spec
-	})
-	if err != nil {
-		return fmt.Errorf("update installation: %w", err)
-	}
 
 	return nil
 }
