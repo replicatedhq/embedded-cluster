@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -20,7 +21,7 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *ecv1be
 		return nil
 	}
 
-	err := kubeutils.UpgradeInstallationCRD(ctx, cli)
+	err := util.UpgradeInstallationCRD(ctx, cli)
 	if err != nil {
 		return fmt.Errorf("upgrade installation CRD: %w", err)
 	}
