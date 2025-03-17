@@ -243,9 +243,9 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	tc.InstallTestDependenciesDebian(t, 0, true)
 
 	// install kots cli before configuring the proxy.
-	t.Logf("%s: re-installing kots cli on node 0", time.Now().Format(time.RFC3339))
+	t.Logf("%s: installing kots cli on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"install-kots-cli.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install kots cli on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
