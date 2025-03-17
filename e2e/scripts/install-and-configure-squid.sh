@@ -19,16 +19,6 @@ whitelist_txt="
 proxy.replicated.com
 ec-e2e-replicated-app.testcluster.net
 
-# ingress-nginx extension chart redirects to github.com releases/download
-kubernetes.github.io
-github.com
-objects.githubusercontent.com
-# goldpinger extension chart
-okgolove.github.io
-
-# install_kots_cli
-kots.io
-
 # dr
 .amazonaws.com
 "
