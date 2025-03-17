@@ -118,7 +118,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				HTTPProxy:       "http://other-proxy",
 				HTTPSProxy:      "https://other-proxy",
 				ProvidedNoProxy: "other-no-proxy-1,other-no-proxy-2",
-				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,other-no-proxy-1,other-no-proxy-2,10.0.0.0/16",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,other-no-proxy-1,other-no-proxy-2,10.0.0.0/17,10.0.128.0/17",
 			},
 		},
 	}
