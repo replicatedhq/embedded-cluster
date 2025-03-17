@@ -1,0 +1,45 @@
+{{- if .Values.client.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "test-app.fullname" . }}-client
+  labels:
+    {{- include "test-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: client
+spec:
+  replicas: {{ .Values.client.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "test-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: client
+  template:
+    metadata:
+      labels:
+        {{- include "test-app.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: client
+    spec:
+      containers:
+      - name: client
+        image: "{{ .Values.client.image.repository }}:{{ .Values.client.image.tag }}"
+        imagePullPolicy: {{ .Values.client.image.pullPolicy }}
+        env:
+        - name: SERVER_SERVICE_NAME
+          value: {{ include "test-app.fullname" . }}
+        - name: SERVER_SERVICE_PORT
+          value: "{{ .Values.server.service.port }}"
+        - name: INTERVAL_SECONDS
+          value: "{{ .Values.client.intervalSeconds }}"
+        command:
+          - "/bin/sh"
+          - "-c"
+          - |
+            while true; do
+              echo "$(date) - Making request to http://${SERVER_SERVICE_NAME}:${SERVER_SERVICE_PORT}/"
+              curl -s http://${SERVER_SERVICE_NAME}:${SERVER_SERVICE_PORT}/
+              echo ""
+              echo "Sleeping for ${INTERVAL_SECONDS} seconds..."
+              sleep ${INTERVAL_SECONDS}
+            done
+        resources:
+          {{- toYaml .Values.client.resources | nindent 10 }}
+{{- end }} 

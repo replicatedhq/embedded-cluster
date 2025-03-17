@@ -1,0 +1,26 @@
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: test-app
+spec:
+  chart:
+    name: test-app
+    chartVersion: 0.1.0
+  namespace: test-app
+  values:
+    server:
+      image:
+        repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "docker.io" }}/nginx
+      service:
+        type: ClusterIP
+        port: 80
+    client:
+      enabled: true
+      image:
+        repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "docker.io" }}/curlimages/curl
+      schedule: "*/5 * * * *"
+    replicated-sdk:
+      enabled: true
+      image:
+        registry: repl{{ HasLocalRegistry | ternary LocalRegistryHost "docker.io" }}
+        repository: "replicated/replicated-sdk"
