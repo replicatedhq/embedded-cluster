@@ -14,6 +14,8 @@ REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.co
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
 V2_ENABLED=${V2_ENABLED:-0}
+PROXY_REGISTRY_DOMAIN=${PROXY_REGISTRY_DOMAIN:-ec-e2e-proxy.testcluster.net}
+REPLICATED_APP_DOMAIN=${REPLICATED_APP_DOMAIN:-ec-e2e-replicated-app.testcluster.net}
 
 if [ "$USES_DEV_BUCKET" == "1" ]; then
     require S3_BUCKET "${S3_BUCKET:-}"
@@ -39,6 +41,12 @@ function init_vars() {
     require APP_VERSION "${APP_VERSION:-}"
     require APP_CHANNEL "${APP_CHANNEL:-}"
     require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
+    
+    # Install Helm if not already installed
+    if ! command -v helm &> /dev/null; then
+        echo "Installing Helm..."
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    fi
 }
 
 function ensure_app_channel() {
@@ -72,8 +80,28 @@ function create_release() {
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
 
-    # remove the backup file
-    rm output/tmp/release/cluster-config.yaml.bak
+    # Find and replace placeholders in all files for custom domains
+    find output/tmp/release -name "*.yaml" -type f -exec sed -i.bak "s|__proxy_registry_custom_domain__|${PROXY_REGISTRY_DOMAIN}|g" {} \;
+    find output/tmp/release -name "*.yaml" -type f -exec sed -i.bak "s|__replicated_app_custom_domain__|${REPLICATED_APP_DOMAIN}|g" {} \;
+    
+    # Clean up backup files
+    find output/tmp/release -name "*.bak" -type f -delete
+    
+    # Package the Helm chart
+    if [ -d "e2e/helm-charts/test-app" ]; then
+        echo "Packaging Helm chart..."
+        helm package -u e2e/helm-charts/test-app -d output/tmp/release
+        
+        # Get the packaged chart filename
+        CHART_FILENAME=$(find output/tmp/release -name "test-app-*.tgz" | head -1)
+        if [ -n "$CHART_FILENAME" ]; then
+            echo "Created Helm chart package: $CHART_FILENAME"
+        else
+            echo "Warning: Failed to create Helm chart package"
+        fi
+    else
+        echo "Helm chart directory not found at e2e/helm-charts/test-app"
+    fi
 
     export REPLICATED_APP REPLICATED_API_TOKEN REPLICATED_API_ORIGIN
     replicated release create --yaml-dir output/tmp/release --promote "${APP_CHANNEL}" --version "${APP_VERSION}"

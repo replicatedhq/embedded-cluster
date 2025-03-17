@@ -1,0 +1,25 @@
+apiVersion: kots.io/v1beta1
+kind: HelmChart
+metadata:
+  name: test-app-v1
+spec:
+  chart:
+    name: test-app
+    chartVersion: 0.1.0
+  namespace: test-app-v1
+  useHelmInstall: true
+  values:
+    server:
+      image:
+        repository: nginx
+      service:
+        type: ClusterIP
+        port: 80
+    client:
+      enabled: true
+      image:
+        repository: curlimages/curl
+    replicated-sdk:
+      enabled: true
+      image:
+        repository: "replicated/replicated-sdk"

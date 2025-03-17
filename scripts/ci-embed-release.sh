@@ -15,6 +15,8 @@ EC_BINARY=${EC_BINARY:-output/bin/embedded-cluster}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
 V2_ENABLED=${V2_ENABLED:-0}
+PROXY_REGISTRY_DOMAIN=${PROXY_REGISTRY_DOMAIN:-ec-e2e-proxy.testcluster.net}
+REPLICATED_APP_DOMAIN=${REPLICATED_APP_DOMAIN:-ec-e2e-replicated-app.testcluster.net}
 
 require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
 require EC_BINARY "${EC_BINARY:-}"
@@ -41,6 +43,12 @@ function init_vars() {
 
 function deps() {
     make output/bin/embedded-cluster-release-builder
+    
+    # Install Helm if not already installed
+    if ! command -v helm &> /dev/null; then
+        echo "Installing Helm..."
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    fi
 }
 
 function create_release_archive() {
@@ -71,9 +79,29 @@ function create_release_archive() {
     fi
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
+    
+    # Find and replace placeholders in all files for custom domains
+    find output/tmp/release -name "*.yaml" -type f -exec sed -i.bak "s|__proxy_registry_custom_domain__|${PROXY_REGISTRY_DOMAIN}|g" {} \;
+    find output/tmp/release -name "*.yaml" -type f -exec sed -i.bak "s|__replicated_app_custom_domain__|${REPLICATED_APP_DOMAIN}|g" {} \;
+    
+    # Clean up backup files
+    find output/tmp/release -name "*.bak" -type f -delete
 
-    # remove the backup file
-    rm output/tmp/release/cluster-config.yaml.bak
+    # Package the Helm chart
+    if [ -d "e2e/helm-charts/test-app" ]; then
+        echo "Packaging Helm chart..."
+        helm package -u e2e/helm-charts/test-app -d output/tmp/release
+        
+        # Get the packaged chart filename
+        CHART_FILENAME=$(ls output/tmp/release/test-app-*.tgz | head -1)
+        if [ -n "$CHART_FILENAME" ]; then
+            echo "Created Helm chart package: $CHART_FILENAME"
+        else
+            echo "Warning: Failed to create Helm chart package"
+        fi
+    else
+        echo "Helm chart directory not found at e2e/helm-charts/test-app"
+    fi
 
     tar -czf output/tmp/release.tar.gz -C output/tmp/release .
 

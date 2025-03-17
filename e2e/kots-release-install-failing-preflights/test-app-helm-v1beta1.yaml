@@ -1,12 +1,12 @@
 apiVersion: kots.io/v1beta1
 kind: HelmChart
 metadata:
-  name: test-app
+  name: test-app-v1
 spec:
   chart:
     name: test-app
     chartVersion: 0.1.0
-  namespace: test-app
+  namespace: test-app-v1
   useHelmInstall: true
   values:
     server:
@@ -19,7 +19,6 @@ spec:
       enabled: true
       image:
         repository: curlimages/curl
-      schedule: "*/5 * * * *"
     replicated-sdk:
       enabled: true
       image:

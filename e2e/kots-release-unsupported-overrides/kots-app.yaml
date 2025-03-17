@@ -7,8 +7,14 @@ spec:
   title: Embedded Cluster Smoke Test Staging App
   icon: https://raw.githubusercontent.com/cncf/artwork/master/projects/kubernetes/icon/color/kubernetes-icon-color.png
   allowRollback: true
+  additionalNamespaces:
+    - "*"
   statusInformers:
     - deployment/nginx
+    - deployment/test-app-v1/test-app-v1
+    - deployment/test-app-v1/test-app-v1-client
+    - deployment/test-app-v2/test-app-v2
+    - deployment/test-app-v2/test-app-v2-client
   ports:
     - serviceName: "nginx"
       servicePort: 80
