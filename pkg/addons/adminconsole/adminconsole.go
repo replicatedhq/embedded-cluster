@@ -105,7 +105,7 @@ func (a *AdminConsole) ChartLocation() string {
 	}
 
 	if a.ProxyRegistryDomain != "" {
-		chartName = strings.ReplaceAll(chartName, "proxy.replicated.com", a.ProxyRegistryDomain)
+		chartName = strings.Replace(chartName, "proxy.replicated.com", a.ProxyRegistryDomain, 1)
 	}
 	return chartName
 }
