@@ -78,7 +78,7 @@ func (e *EmbeddedClusterOperator) ChartLocation() string {
 	if e.ProxyRegistryDomain == "" {
 		return location
 	}
-	return strings.ReplaceAll(location, "proxy.replicated.com", e.ProxyRegistryDomain)
+	return strings.Replace(location, "proxy.replicated.com", e.ProxyRegistryDomain, 1)
 }
 
 func (e *EmbeddedClusterOperator) ChartVersion() string {

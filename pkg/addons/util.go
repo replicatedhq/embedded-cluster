@@ -53,8 +53,8 @@ func operatorImages(images []string, proxyRegistryDomain string) (string, string
 
 	// the override images for operator during upgrades also need to be updated to use a whitelabeled proxy registry
 	if proxyRegistryDomain != "" {
-		ecOperatorImage = strings.ReplaceAll(ecOperatorImage, "proxy.replicated.com", proxyRegistryDomain)
-		ecUtilsImage = strings.ReplaceAll(ecUtilsImage, "proxy.replicated.com", proxyRegistryDomain)
+		ecOperatorImage = strings.Replace(ecOperatorImage, "proxy.replicated.com", proxyRegistryDomain, 1)
+		ecUtilsImage = strings.Replace(ecUtilsImage, "proxy.replicated.com", proxyRegistryDomain, 1)
 	}
 
 	repo := strings.Split(ecOperatorImage, ":")[0]

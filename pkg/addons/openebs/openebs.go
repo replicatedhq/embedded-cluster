@@ -60,5 +60,5 @@ func (o *OpenEBS) ChartLocation() string {
 	if o.ProxyRegistryDomain == "" {
 		return Metadata.Location
 	}
-	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", o.ProxyRegistryDomain)
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", o.ProxyRegistryDomain, 1)
 }

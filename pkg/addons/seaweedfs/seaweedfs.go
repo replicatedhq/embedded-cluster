@@ -80,5 +80,5 @@ func (s *SeaweedFS) ChartLocation() string {
 	if s.ProxyRegistryDomain == "" {
 		return Metadata.Location
 	}
-	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", s.ProxyRegistryDomain)
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", s.ProxyRegistryDomain, 1)
 }

@@ -64,5 +64,5 @@ func (v *Velero) ChartLocation() string {
 	if v.ProxyRegistryDomain == "" {
 		return Metadata.Location
 	}
-	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", v.ProxyRegistryDomain)
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", v.ProxyRegistryDomain, 1)
 }

@@ -50,7 +50,6 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		replicatedRegistryDomain = in.Spec.Config.Domains.ReplicatedRegistryDomain
 	}
 
-	fmt.Printf("DEBUG: using proxy domain %s\n", proxyRegistryDomain)
 
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{

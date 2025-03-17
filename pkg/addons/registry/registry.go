@@ -99,5 +99,5 @@ func (r *Registry) ChartLocation() string {
 	if r.ProxyRegistryDomain == "" {
 		return Metadata.Location
 	}
-	return strings.ReplaceAll(Metadata.Location, "proxy.replicated.com", r.ProxyRegistryDomain)
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", r.ProxyRegistryDomain, 1)
 }
