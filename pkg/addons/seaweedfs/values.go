@@ -19,7 +19,9 @@ func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, kcli client.Client, 
 	}
 
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
-	marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", s.ProxyRegistryDomain)
+	if s.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", s.ProxyRegistryDomain)
+	}
 
 	copiedValues, err := helm.UnmarshalValues(marshalled)
 	if err != nil {

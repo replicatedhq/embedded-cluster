@@ -3,9 +3,9 @@ package runtimeconfig
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/gosimple/slug"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
@@ -89,11 +89,11 @@ func ReplicatedAppURL(license *kotsv1beta1.License) string {
 		logrus.Debugf("unable to get embedded cluster config for replicated app domain: %v", err)
 	}
 	if err == nil && cfg != nil && cfg.Spec.Domains.ReplicatedAppDomain != "" {
-		return MaybeAddHTTPS(cfg.Spec.Domains.ReplicatedAppDomain)
+		return netutil.MaybeAddHTTPS(cfg.Spec.Domains.ReplicatedAppDomain)
 	}
 
 	if license != nil {
-		return MaybeAddHTTPS(license.Spec.Endpoint)
+		return netutil.MaybeAddHTTPS(license.Spec.Endpoint)
 	}
 	return ""
 }
@@ -119,12 +119,5 @@ func ProxyRegistryDomain() string {
 // The first priority is the address configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
 func ProxyRegistryURL() string {
-	return MaybeAddHTTPS(ProxyRegistryDomain())
-}
-
-func MaybeAddHTTPS(domain string) string {
-	if strings.HasPrefix(domain, "http://") || strings.HasPrefix(domain, "https://") {
-		return domain
-	}
-	return "https://" + domain
+	return netutil.MaybeAddHTTPS(ProxyRegistryDomain())
 }

@@ -18,7 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -45,7 +45,7 @@ func Upgrade(ctx context.Context, hcli helm.Client, in *ecv1beta1.Installation, 
 func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
 	var replicatedAppDomain, proxyRegistryDomain, replicatedRegistryDomain string
 	if in.Spec.Config != nil {
-		replicatedAppDomain = runtimeconfig.MaybeAddHTTPS(in.Spec.Config.Domains.ReplicatedAppDomain)
+		replicatedAppDomain = netutil.MaybeAddHTTPS(in.Spec.Config.Domains.ReplicatedAppDomain)
 		proxyRegistryDomain = in.Spec.Config.Domains.ProxyRegistryDomain
 		replicatedRegistryDomain = in.Spec.Config.Domains.ReplicatedRegistryDomain
 	}

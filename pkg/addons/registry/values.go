@@ -28,7 +28,9 @@ func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, o
 	}
 
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
-	marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", r.ProxyRegistryDomain)
+	if r.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", r.ProxyRegistryDomain)
+	}
 
 	copiedValues, err := helm.UnmarshalValues(marshalled)
 	if err != nil {

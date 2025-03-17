@@ -19,7 +19,9 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 	}
 
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
-	marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", v.ProxyRegistryDomain)
+	if v.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", v.ProxyRegistryDomain)
+	}
 
 	copiedValues, err := helm.UnmarshalValues(marshalled)
 	if err != nil {

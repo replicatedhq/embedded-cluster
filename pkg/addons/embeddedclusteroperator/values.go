@@ -19,7 +19,9 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, kcli c
 	}
 
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
-	marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", e.ProxyRegistryDomain)
+	if e.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", e.ProxyRegistryDomain)
+	}
 
 	copiedValues, err := helm.UnmarshalValues(marshalled)
 	if err != nil {
