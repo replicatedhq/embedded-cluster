@@ -160,9 +160,6 @@
                       }
                     }
                   }
-                },
-                "workerProfile": {
-                  "type": "string"
                 }
               }
             },
@@ -210,9 +207,6 @@
                         }
                       }
                     }
-                  },
-                  "workerProfile": {
-                    "type": "string"
                   }
                 }
               }
@@ -248,6 +242,25 @@
             "k0s": {
               "description": "K0s holds the overrides used to configure k0s. These overrides\nare merged on top of the default k0s configuration. As the data\nlayout inside this configuration is very dynamic we have chosen\nto use a string here.",
               "type": "string"
+            },
+            "workerProfiles": {
+              "description": "WorkerProfiles holds the worker profiles used to configure the cluster.\nThe profile named \"default\" will be applied by default.",
+              "type": "array",
+              "items": {
+                "description": "WorkerProfile worker profile",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "description": "String; name to use as profile selector for the worker process",
+                    "type": "string"
+                  },
+                  "values": {
+                    "description": "Worker Mapping object",
+                    "type": "object",
+                    "x-kubernetes-preserve-unknown-fields": true
+                  }
+                }
+              }
             }
           }
         },
@@ -257,24 +270,6 @@
         },
         "version": {
           "type": "string"
-        },
-        "workerProfiles": {
-          "type": "array",
-          "items": {
-            "description": "WorkerProfile worker profile",
-            "type": "object",
-            "properties": {
-              "name": {
-                "description": "String; name to use as profile selector for the worker process",
-                "type": "string"
-              },
-              "values": {
-                "description": "Worker Mapping object",
-                "type": "object",
-                "x-kubernetes-preserve-unknown-fields": true
-              }
-            }
-          }
         }
       }
     },
