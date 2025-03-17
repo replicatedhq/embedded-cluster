@@ -102,14 +102,17 @@ CONTROLLER_TOOLS_VERSION ?= v0.14.0
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
+kustomize: KUSTOMIZE_INSTALL_SCRIPT = "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
+ifdef GH_TOKEN
+kustomize: export GITHUB_TOKEN = $(GH_TOKEN)
+endif
 $(KUSTOMIZE): $(LOCALBIN)
 	@if test -x $(LOCALBIN)/kustomize && ! $(LOCALBIN)/kustomize version | grep -q $(KUSTOMIZE_VERSION); then \
 		echo "$(LOCALBIN)/kustomize version is not expected $(KUSTOMIZE_VERSION). Removing it before installing."; \
 		rm -rf $(LOCALBIN)/kustomize; \
 	fi
 	test -s $(LOCALBIN)/kustomize || \
-		{ gh api -H 'Accept: application/vnd.github.v3.raw+json' /repos/kubernetes-sigs/kustomize/contents/hack/install_kustomize.sh | \
-			bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
+		{ curl -fsSL $(GH_AUTH_HEADER) $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.

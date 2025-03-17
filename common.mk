@@ -26,7 +26,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 ifdef GH_TOKEN
-GH_AUTH_HEADER ?= "Authorization: Bearer $(GH_TOKEN)"
+GH_AUTH_HEADER ?= "Authorization: token $(GH_TOKEN)"
 endif
 
 image-tag = $(shell echo "$1" | sed 's/+/-/')
