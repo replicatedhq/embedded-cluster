@@ -19,9 +19,6 @@ whitelist_txt="
 proxy.replicated.com
 ec-e2e-replicated-app.testcluster.net
 
-# install_kots_cli
-kots.io
-
 # dr
 .amazonaws.com
 "

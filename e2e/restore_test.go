@@ -242,8 +242,16 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 
 	tc.InstallTestDependenciesDebian(t, 0, true)
 
+	// install kots cli before configuring the proxy.
+	t.Logf("%s: re-installing kots cli on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"install-kots-cli.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to install kots cli on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+
 	t.Logf("%s: reconfiguring squid to only allow whitelist access", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunCommandOnProxyNode(t, []string{"enable-squid-whitelist.sh"}); err != nil {
+	line = []string{"enable-squid-whitelist.sh"}
+	if _, _, err := tc.RunCommandOnProxyNode(t, line); err != nil {
 		t.Fatalf("failed to reconfigure squid: %v", err)
 	}
 
@@ -252,7 +260,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	})
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
+	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	line = append(line, "--http-proxy", lxd.HTTPProxy)
 	line = append(line, "--https-proxy", lxd.HTTPProxy)
 	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
