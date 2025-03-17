@@ -107,7 +107,6 @@ $(KUSTOMIZE): $(LOCALBIN)
 		echo "$(LOCALBIN)/kustomize version is not expected $(KUSTOMIZE_VERSION). Removing it before installing."; \
 		rm -rf $(LOCALBIN)/kustomize; \
 	fi
-
 	test -s $(LOCALBIN)/kustomize || \
 		{ gh api -H 'Accept: application/vnd.github.v3.raw+json' /repos/kubernetes-sigs/kustomize/contents/hack/install_kustomize.sh | \
 			bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }

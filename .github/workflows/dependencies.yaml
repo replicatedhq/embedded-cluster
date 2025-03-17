@@ -22,7 +22,7 @@ jobs:
         sed -i "/^KUBECTL_VERSION/c\KUBECTL_VERSION = $VERSION" Makefile
     - name: K0s
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Remove the '-ec.X' suffix and only update if the prefix (upstream k0s release) has changed.
         export CURVERSION=$(make print-K0S_VERSION)
@@ -34,7 +34,7 @@ jobs:
         fi
     - name: Troubleshoot
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         export VERSION=$(gh release list --repo replicatedhq/troubleshoot --json name,isLatest | jq -r '.[] | select(.isLatest)|.name')
         sed -i "/^TROUBLESHOOT_VERSION/c\TROUBLESHOOT_VERSION = $VERSION" Makefile
