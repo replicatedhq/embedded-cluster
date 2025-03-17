@@ -13,13 +13,16 @@ import (
 )
 
 type AdminConsole struct {
-	IsAirgap      bool
-	IsHA          bool
-	Proxy         *ecv1beta1.ProxySpec
-	ServiceCIDR   string
-	Password      string
-	PrivateCAs    []string
-	KotsInstaller KotsInstaller
+	IsAirgap                 bool
+	IsHA                     bool
+	Proxy                    *ecv1beta1.ProxySpec
+	ServiceCIDR              string
+	Password                 string
+	PrivateCAs               []string
+	KotsInstaller            KotsInstaller
+	ReplicatedAppDomain      string
+	ProxyRegistryDomain      string
+	ReplicatedRegistryDomain string
 }
 
 type KotsInstaller func(msg *spinner.MessageWriter) error
@@ -60,13 +63,13 @@ func init() {
 	helmValues["embeddedClusterVersion"] = versions.Version
 
 	if AdminConsoleImageOverride != "" {
-		helmValues["images"].(map[string]interface{})["kotsadm"] = AdminConsoleImageOverride
+		helmValues["images"].(map[string]any)["kotsadm"] = AdminConsoleImageOverride
 	}
 	if AdminConsoleMigrationsImageOverride != "" {
-		helmValues["images"].(map[string]interface{})["migrations"] = AdminConsoleMigrationsImageOverride
+		helmValues["images"].(map[string]any)["migrations"] = AdminConsoleMigrationsImageOverride
 	}
 	if AdminConsoleKurlProxyImageOverride != "" {
-		helmValues["images"].(map[string]interface{})["kurlProxy"] = AdminConsoleKurlProxyImageOverride
+		helmValues["images"].(map[string]any)["kurlProxy"] = AdminConsoleKurlProxyImageOverride
 	}
 }
 

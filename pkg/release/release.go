@@ -227,6 +227,27 @@ func (r *ReleaseData) GetChannelRelease() (*ChannelRelease, error) {
 	return &release, nil
 }
 
+func GetCustomDomains() (*embeddedclusterv1beta1.Domains, error) {
+	if err := parseReleaseDataFromBinary(); err != nil {
+		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
+	}
+	return releaseData.GetCustomDomains()
+}
+
+func (r *ReleaseData) GetCustomDomains() (*embeddedclusterv1beta1.Domains, error) {
+	cfg, err := r.GetEmbeddedClusterConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get embedded cluster config: %w", err)
+	}
+
+	// if the embedded cluster config exists, use the domains from there
+	if cfg != nil {
+		return &cfg.Spec.Domains, nil
+	}
+
+	return &embeddedclusterv1beta1.Domains{}, nil
+}
+
 // parse turns splits data property into the different parts of the release.
 func (r *ReleaseData) parse() error {
 	gzr, err := gzip.NewReader(bytes.NewReader(r.data))

@@ -20,6 +20,20 @@
         "binaryOverrideUrl": {
           "type": "string"
         },
+        "domains": {
+          "type": "object",
+          "properties": {
+            "proxyRegistryDomain": {
+              "type": "string"
+            },
+            "replicatedAppDomain": {
+              "type": "string"
+            },
+            "replicatedRegistryDomain": {
+              "type": "string"
+            }
+          }
+        },
         "extensions": {
           "type": "object",
           "properties": {

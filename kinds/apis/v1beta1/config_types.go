@@ -148,19 +148,21 @@ type Extensions struct {
 	Helm *Helm `json:"helm,omitempty"`
 }
 
+type Domains struct {
+	ReplicatedAppDomain      string `json:"replicatedAppDomain,omitempty"`
+	ProxyRegistryDomain      string `json:"proxyRegistryDomain,omitempty"`
+	ReplicatedRegistryDomain string `json:"replicatedRegistryDomain,omitempty"`
+}
+
 // ConfigSpec defines the desired state of Config
 type ConfigSpec struct {
-	Version string `json:"version,omitempty"`
-	// V2Enabled is a temporary property that can be used to opt-in to the new installer. If set,
-	// in addition to using the new v2 install method, v1 installations will be migrated to v2 on
-	// upgrade. This property will be removed once the new installer is fully implemented and the
-	// old installer is removed.
-	V2Enabled            bool                 `json:"v2Enabled,omitempty"`
+	Version              string               `json:"version,omitempty"`
 	BinaryOverrideURL    string               `json:"binaryOverrideUrl,omitempty"`
 	MetadataOverrideURL  string               `json:"metadataOverrideUrl,omitempty"`
 	Roles                Roles                `json:"roles,omitempty"`
 	UnsupportedOverrides UnsupportedOverrides `json:"unsupportedOverrides,omitempty"`
 	Extensions           Extensions           `json:"extensions,omitempty"`
+	Domains              Domains              `json:"domains,omitempty"`
 }
 
 // OverrideForBuiltIn returns the override for the built-in extension with the

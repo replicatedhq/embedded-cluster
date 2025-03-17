@@ -80,14 +80,20 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		})
 	}
 
-	addOns = append(addOns, &adminconsole.AdminConsole{
+	adminConsoleAddOn := &adminconsole.AdminConsole{
 		IsAirgap:      opts.IsAirgap,
 		Proxy:         opts.Proxy,
 		ServiceCIDR:   opts.ServiceCIDR,
 		Password:      opts.AdminConsolePwd,
 		PrivateCAs:    opts.PrivateCAs,
 		KotsInstaller: opts.KotsInstaller,
-	})
+	}
+	if opts.EmbeddedConfigSpec != nil {
+		adminConsoleAddOn.ReplicatedAppDomain = opts.EmbeddedConfigSpec.Domains.ReplicatedAppDomain
+		adminConsoleAddOn.ProxyRegistryDomain = opts.EmbeddedConfigSpec.Domains.ProxyRegistryDomain
+		adminConsoleAddOn.ReplicatedRegistryDomain = opts.EmbeddedConfigSpec.Domains.ReplicatedRegistryDomain
+	}
+	addOns = append(addOns, adminConsoleAddOn)
 
 	return addOns
 }

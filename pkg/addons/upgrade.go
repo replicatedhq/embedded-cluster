@@ -93,12 +93,18 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		})
 	}
 
-	addOns = append(addOns, &adminconsole.AdminConsole{
+	adminConsoleAddOn := &adminconsole.AdminConsole{
 		IsAirgap:    in.Spec.AirGap,
 		IsHA:        in.Spec.HighAvailability,
 		Proxy:       in.Spec.Proxy,
 		ServiceCIDR: serviceCIDR,
-	})
+	}
+	if in.Spec.Config != nil {
+		adminConsoleAddOn.ReplicatedAppDomain = in.Spec.Config.Domains.ReplicatedAppDomain
+		adminConsoleAddOn.ProxyRegistryDomain = in.Spec.Config.Domains.ProxyRegistryDomain
+		adminConsoleAddOn.ReplicatedRegistryDomain = in.Spec.Config.Domains.ReplicatedRegistryDomain
+	}
+	addOns = append(addOns, adminConsoleAddOn)
 
 	return addOns, nil
 }
