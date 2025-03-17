@@ -8,6 +8,7 @@ import (
 	"strings"
 	"syscall"
 
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
@@ -325,6 +326,11 @@ func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandRespons
 		return fmt.Errorf("unable to apply network configuration: %w", err)
 	}
 
+	logrus.Debugf("applying worker profiles")
+	if err := applyWorkerProfiles(jcmd); err != nil {
+		return fmt.Errorf("unable to apply worker profiles: %w", err)
+	}
+
 	logrus.Debugf("applying configuration overrides")
 	if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 		return fmt.Errorf("unable to apply configuration overrides: %w", err)
@@ -414,6 +420,24 @@ func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinComm
 	}
 
 	loading.Infof("Node installation finished!")
+	return nil
+}
+
+func applyWorkerProfiles(jcmd *kotsadm.JoinCommandResponse) error {
+	if jcmd.InstallationSpec.Config != nil {
+		cfgProfiles := jcmd.InstallationSpec.Config.UnsupportedOverrides.WorkerProfiles
+		if len(cfgProfiles) > 0 {
+			cfg := k0sv1beta1.ClusterConfig{}
+			cfg.Spec.WorkerProfiles = cfgProfiles
+			data, err := k8syaml.Marshal(cfg)
+			if err != nil {
+				return fmt.Errorf("unable to marshal cluster config: %w", err)
+			}
+			if err := k0s.PatchK0sConfig(runtimeconfig.PathToK0sConfig(), string(data)); err != nil {
+				return fmt.Errorf("unable to patch config with embedded data: %w", err)
+			}
+		}
+	}
 	return nil
 }
 
