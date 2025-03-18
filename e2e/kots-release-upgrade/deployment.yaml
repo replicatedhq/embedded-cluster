@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: ec-e2e-proxy.testcluster.net/anonymous/nginx:1.25-alpine
+          image: nginx:1.25-alpine
           resources:
             limits:
               memory: '64Mi'

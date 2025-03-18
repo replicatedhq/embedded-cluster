@@ -29,7 +29,7 @@ spec:
                 topologyKey: "kubernetes.io/hostname"
       containers:
         - name: nginx
-          image: ec-e2e-proxy.testcluster.net/anonymous/nginx:1.25-alpine
+          image: nginx:1.25-alpine
           resources:
             limits:
               memory: '32Mi'
