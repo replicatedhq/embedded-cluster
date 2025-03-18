@@ -8,7 +8,8 @@ spec:
   icon: https://raw.githubusercontent.com/cncf/artwork/master/projects/kubernetes/icon/color/kubernetes-icon-color.png
   allowRollback: true
   additionalNamespaces:
-    - "*"
+    - "test-app-v1"
+    - "test-app-v2"
   statusInformers:
     - deployment/nginx
     - deployment/test-app-v1/test-app-v1
