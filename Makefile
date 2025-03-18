@@ -80,9 +80,7 @@ cmd/installer/goods/bins/k0s:
 	cp output/bins/k0s-$(K0S_VERSION)-$(ARCH) $@
 
 output/bins/k0s-%:
-	curl -fsSL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) "https://api.github.com/repos/k0sproject/k0s/releases/tags/$(call split-hyphen,$*,1)" | \
-		jq -r '.assets[] | select(.name == "k0s-$(call split-hyphen,$*,1)-$(call split-hyphen,$*,2)") | .browser_download_url'
-	curl -fsSL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) "https://api.github.com/repos/k0sproject/k0s/releases/tags/$(call split-hyphen,$*,1)" | \
+	curl -fsSL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) "https://api.github.com/repos/k0sproject/k0s/releases/tags/$(subst +,%2B,$(call split-hyphen,$*,1))" | \
 		jq -r '.assets[] | select(.name == "k0s-$(call split-hyphen,$*,1)-$(call split-hyphen,$*,2)") | .browser_download_url' | \
 		xargs -I {} curl -fL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) -o $@ "{}"
 	chmod +x $@
@@ -173,7 +171,7 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl -fsSL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) "https://api.github.com/repos/replicatedhq/kots/releases/tags/$(call split-hyphen,$*,1)" | \
+	curl -fsSL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) "https://api.github.com/repos/replicatedhq/kots/releases/tags/$(subst +,%2B,$(call split-hyphen,$*,1))" | \
 		jq -r '.assets[] | select(.name == "kots_$(OS)_$(call split-hyphen,$*,2).tar.gz") | .browser_download_url' | \
 		xargs -I {} curl -fL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) -o output/tmp/kots.tar.gz "{}"
 	tar -xzf output/tmp/kots.tar.gz -C output/tmp
