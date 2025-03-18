@@ -31,10 +31,6 @@ endif
 
 image-tag = $(shell echo "$1" | sed 's/+/-/')
 
-download-github-asset = curl -fsSL $(GH_AUTH_HEADER) "https://api.github.com/repos/$1/releases/tags/$2" | \
-	jq -r '.assets[] | select(.name == "$3") | .browser_download_url' | \
-	xargs curl -fL $(GH_AUTH_HEADER) -o $4
-
 .PHONY: print-%
 print-%:
 	@echo -n $($*)
