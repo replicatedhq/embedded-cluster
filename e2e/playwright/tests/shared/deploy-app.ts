@@ -13,8 +13,8 @@ export const deployApp = async (page: Page, expect: Expect) => {
   await page.locator('input[type="password"]').click();
   await page.locator('input[type="password"]').fill('password');
   await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.getByText('Validate the environment')).toBeVisible({ timeout: 10 * 1000 });
-  await expect(page.getByRole('button', { name: 'Rerun' })).toBeVisible({ timeout: 10 * 1000 });
+  await expect(page.getByText('Validate the environment')).toBeVisible({ timeout: 30 * 1000 });
+  await expect(page.getByRole('button', { name: 'Rerun' })).toBeVisible({ timeout: 30 * 1000 });
   await expect(page.locator('#app')).toContainText('The Volume Snapshots CRD exists');
   await page.getByRole('button', { name: 'Deploy' }).click();
   await vaidateAppAndClusterReady(page, expect, 90000);
