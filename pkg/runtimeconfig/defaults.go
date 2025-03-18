@@ -11,8 +11,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Holds the default no proxy values.
-var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".cluster.local", ".svc"}
+// DefaultNoProxy holds the default no proxy values.
+var DefaultNoProxy = []string{
+	// localhost
+	"localhost", "127.0.0.1",
+	// kubernetes
+	".cluster.local", ".svc",
+	// cloud metadata service
+	"169.254.169.254",
+}
 
 const DefaultProxyRegistryDomain = "proxy.replicated.com"
 const KotsadmNamespace = "kotsadm"
