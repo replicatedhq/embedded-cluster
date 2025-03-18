@@ -81,6 +81,8 @@ cmd/installer/goods/bins/k0s:
 
 output/bins/k0s-%:
 	curl -fsSL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) "https://api.github.com/repos/k0sproject/k0s/releases/tags/$(call split-hyphen,$*,1)" | \
+		jq -r '.assets[] | select(.name == "k0s-$(call split-hyphen,$*,1)-$(call split-hyphen,$*,2)") | .browser_download_url'
+	curl -fsSL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) "https://api.github.com/repos/k0sproject/k0s/releases/tags/$(call split-hyphen,$*,1)" | \
 		jq -r '.assets[] | select(.name == "k0s-$(call split-hyphen,$*,1)-$(call split-hyphen,$*,2)") | .browser_download_url' | \
 		xargs -I {} curl -fL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) -o $@ "{}"
 	chmod +x $@
