@@ -1,3 +1,4 @@
+# DEVELOPMENT USE ONLY! THIE FILE IS NOT USED FOR DEPLOYS!
 global:
   labels: {}
 
@@ -8,7 +9,7 @@ embeddedClusterID: 123456789
 isAirgap: false
 
 image:
-  repository: ttl.sh/diamonwiggins/embedded-cluster-operator-image
+  repository: replicated/embedded-cluster-operator-image-staging
   tag: 0.0.8
   pullPolicy: IfNotPresent
 
