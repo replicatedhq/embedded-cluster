@@ -79,10 +79,6 @@ function create_release() {
     fi
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
-
-    # Find and replace placeholders in all files for custom domains
-    find output/tmp/release -name "*.yaml" -type f -exec sed -i.bak "s|__proxy_registry_custom_domain__|${PROXY_REGISTRY_DOMAIN}|g" {} \;
-    find output/tmp/release -name "*.yaml" -type f -exec sed -i.bak "s|__replicated_app_custom_domain__|${REPLICATED_APP_DOMAIN}|g" {} \;
     
     # Clean up backup files
     find output/tmp/release -name "*.bak" -type f -delete

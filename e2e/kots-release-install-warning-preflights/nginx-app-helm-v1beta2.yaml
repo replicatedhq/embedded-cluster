@@ -10,7 +10,7 @@ spec:
   values:
     server:
       image:
-        repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "__proxy_registry_custom_domain__" }}/repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app" }}/nginx
+        repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "ec-e2e-proxy.testcluster.net" }}/repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app" }}/nginx
       service:
         type: ClusterIP
         port: 80
@@ -20,7 +20,7 @@ spec:
     client:
       enabled: true
       image:
-        repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "__proxy_registry_custom_domain__" }}/repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app/curlimages" }}/curl
+        repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "ec-e2e-proxy.testcluster.net" }}/repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app/curlimages" }}/curl
       replicaCount: 1
       intervalSeconds: 60
       imagePullSecrets:
@@ -28,7 +28,7 @@ spec:
     replicated:
       enabled: true
       image:
-        registry: repl{{ HasLocalRegistry | ternary LocalRegistryHost "__proxy_registry_custom_domain__" }}
+        registry: repl{{ HasLocalRegistry | ternary LocalRegistryHost "ec-e2e-proxy.testcluster.net" }}
         repository: repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app/replicated" }}/replicated-sdk
       imagePullSecrets:
         - name: '{{repl ImagePullSecretName }}'

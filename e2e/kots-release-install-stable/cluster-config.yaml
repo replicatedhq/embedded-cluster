@@ -5,8 +5,8 @@ metadata:
 spec:
   version: "__version_string__"
   domains:
-    proxyRegistryDomain: "__proxy_registry_custom_domain__"
-    replicatedAppDomain: "__replicated_app_custom_domain__"
+    proxyRegistryDomain: "ec-e2e-proxy.testcluster.net"
+    replicatedAppDomain: "ec-e2e-replicated-app.testcluster.net"
   roles:
     controller:
       labels:

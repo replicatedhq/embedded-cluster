@@ -8,8 +8,8 @@ spec:
   binaryOverrideUrl: "__release_url__"
   metadataOverrideUrl: "__metadata_url__"
   domains:
-    proxyRegistryDomain: "__proxy_registry_custom_domain__"
-    replicatedAppDomain: "__replicated_app_custom_domain__"
+    proxyRegistryDomain: "ec-e2e-proxy.testcluster.net"
+    replicatedAppDomain: "ec-e2e-replicated-app.testcluster.net"
   roles:
     controller:
       labels:
@@ -50,7 +50,7 @@ spec:
     helm:
       charts:
         - name: ingress-nginx
-          chartname: oci://__proxy_registry_custom_domain__/anonymous/public.ecr.aws/q7i7m9q2/embedded-cluster-charts/ingress-nginx
+          chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/public.ecr.aws/q7i7m9q2/embedded-cluster-charts/ingress-nginx
           namespace: ingress-nginx
           version: "4.12.0-beta.0"
           values: |
@@ -75,7 +75,7 @@ spec:
                     registry: ec-e2e-proxy.testcluster.net/anonymous/registry.k8s.io
                     digest: ""
         - name: goldpinger
-          chartname: oci://__proxy_registry_custom_domain__/anonymous/public.ecr.aws/q7i7m9q2/embedded-cluster-charts/goldpinger
+          chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/public.ecr.aws/q7i7m9q2/embedded-cluster-charts/goldpinger
           namespace: goldpinger
           version: 6.1.2
           order: 11

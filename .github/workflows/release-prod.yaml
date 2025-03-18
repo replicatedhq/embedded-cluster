@@ -6,9 +6,6 @@ on:
       - '[0-9]+\.[0-9]+\.[0-9]+\+k8s-[0-9]+\.[0-9]+-*'
 permissions:
   contents: write
-env:
-  PROXY_REGISTRY_DOMAIN: proxy.replicated.com
-  REPLICATED_APP_DOMAIN: replicated.app
 jobs:
 
   get-tag:
@@ -168,9 +165,6 @@ jobs:
           ./scripts/ci-update-operator-metadata.sh
 
       - name: Build linux-amd64
-        env:
-          PROXY_REGISTRY_DOMAIN: ${{ env.PROXY_REGISTRY_DOMAIN }}
-          REPLICATED_APP_DOMAIN: ${{ env.REPLICATED_APP_DOMAIN }}
         run: |
           mkdir -p build
           make embedded-cluster-linux-amd64 \
@@ -282,8 +276,6 @@ jobs:
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI
           USES_DEV_BUCKET: "0"
-          PROXY_REGISTRY_DOMAIN: ${{ env.PROXY_REGISTRY_DOMAIN }}
-          REPLICATED_APP_DOMAIN: ${{ env.REPLICATED_APP_DOMAIN }}
         run: |
           # re-promote a release containing an old version of embedded-cluster to test upgrades
           export APP_VERSION="appver-${{ github.ref_name }}-pre-minio-removal"
@@ -350,8 +342,6 @@ jobs:
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI-airgap
           USES_DEV_BUCKET: "0"
-          PROXY_REGISTRY_DOMAIN: ${{ env.PROXY_REGISTRY_DOMAIN }}
-          REPLICATED_APP_DOMAIN: ${{ env.REPLICATED_APP_DOMAIN }}
         run: |
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
           export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
@@ -390,8 +380,6 @@ jobs:
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: Stable
           USES_DEV_BUCKET: "0"
-          PROXY_REGISTRY_DOMAIN: ${{ env.PROXY_REGISTRY_DOMAIN }}
-          REPLICATED_APP_DOMAIN: ${{ env.REPLICATED_APP_DOMAIN }}
         run: |
           # create a release in the stable channel of our test app for use by CMX
           export EC_VERSION="${{ github.ref_name }}"

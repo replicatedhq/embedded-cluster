@@ -13,10 +13,6 @@ concurrency:
 permissions:
   contents: write
 
-env:
-  PROXY_REGISTRY_DOMAIN: ec-e2e-proxy.testcluster.net
-  REPLICATED_APP_DOMAIN: ec-e2e-replicated-app.testcluster.net
-
 jobs:
   git-sha:
     name: Git SHA
@@ -191,8 +187,6 @@ jobs:
           UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PROXY_REGISTRY_DOMAIN: ${{ env.PROXY_REGISTRY_DOMAIN }}
-          REPLICATED_APP_DOMAIN: ${{ env.REPLICATED_APP_DOMAIN }}
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
           export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')
@@ -264,8 +258,6 @@ jobs:
           SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PROXY_REGISTRY_DOMAIN: ${{ env.PROXY_REGISTRY_DOMAIN }}
-          REPLICATED_APP_DOMAIN: ${{ env.REPLICATED_APP_DOMAIN }}
         run: |
           export K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION)
           export K0S_GO_VERSION=$(make print-PREVIOUS_K0S_GO_VERSION)
@@ -371,8 +363,6 @@ jobs:
           SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PROXY_REGISTRY_DOMAIN: ${{ env.PROXY_REGISTRY_DOMAIN }}
-          REPLICATED_APP_DOMAIN: ${{ env.REPLICATED_APP_DOMAIN }}
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
           export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade
@@ -481,8 +471,6 @@ jobs:
           APP_CHANNEL: CI
           USES_DEV_BUCKET: "0"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PROXY_REGISTRY_DOMAIN: ${{ env.PROXY_REGISTRY_DOMAIN }}
-          REPLICATED_APP_DOMAIN: ${{ env.REPLICATED_APP_DOMAIN }}
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
 
@@ -556,8 +544,6 @@ jobs:
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI-airgap
           USES_DEV_BUCKET: "0"
-          PROXY_REGISTRY_DOMAIN: ${{ env.PROXY_REGISTRY_DOMAIN }}
-          REPLICATED_APP_DOMAIN: ${{ env.REPLICATED_APP_DOMAIN }}
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
 
