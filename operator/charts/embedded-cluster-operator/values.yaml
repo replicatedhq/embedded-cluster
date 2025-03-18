@@ -9,7 +9,7 @@ isAirgap: false
 
 image:
   repository: ttl.sh/diamonwiggins/embedded-cluster-operator-image
-  tag: 2.1.3-k8s-1.30-58-g53b8d-diamonwiggins
+  tag: 2.1.3-k8s-1.30-66-ge819a-diamonwiggins
   pullPolicy: IfNotPresent
 
 utilsImage: busybox:latest

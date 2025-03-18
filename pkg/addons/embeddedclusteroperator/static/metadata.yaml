@@ -5,13 +5,13 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 2.1.3+k8s-1.30-58-g53b8d-diamonwiggins
+version: 2.1.3+k8s-1.30-66-ge819a-diamonwiggins
 location: oci://proxy.replicated.com/anonymous/ttl.sh/diamonwiggins/embedded-cluster-operator
 images:
     embedded-cluster-operator:
         repo: proxy.replicated.com/anonymous/ttl.sh/diamonwiggins/embedded-cluster-operator-image
         tag:
-            amd64: 2.1.3-k8s-1.30-58-g53b8d-diamonwiggins-amd64@sha256:d3988e0d9c131c0a830c76882b3354b460c2d2a40004ff483b0321915f940fdc
+            amd64: 2.1.3-k8s-1.30-66-ge819a-diamonwiggins-amd64@sha256:03b47a3ad68b85869ef0b18f982b2b2c9a02c49225689dc61cffcc1a3007b10a
             arm64: v1.19.0-k8s-1.30
     utils:
         repo: proxy.replicated.com/anonymous/ttl.sh/replicated/ec-utils
