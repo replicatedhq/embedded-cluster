@@ -34,7 +34,7 @@ func (r *Registry) Install(ctx context.Context, kcli client.Client, hcli helm.Cl
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    Metadata.Location,
+		ChartPath:    r.ChartLocation(),
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,

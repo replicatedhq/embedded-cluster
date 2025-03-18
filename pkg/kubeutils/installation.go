@@ -133,6 +133,8 @@ func UpdateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.In
 	})
 }
 
+// UpdateInstallationStatus updates the status of an installation.
+// WARNING: this function updates the passed installation's _spec_ to match the spec in the cluster.
 func UpdateInstallationStatus(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, mutate func(status *ecv1beta1.InstallationStatus)) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := cli.Get(ctx, client.ObjectKey{Namespace: in.Namespace, Name: in.Name}, in)

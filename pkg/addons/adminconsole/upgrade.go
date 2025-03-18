@@ -25,7 +25,7 @@ func (a *AdminConsole) Upgrade(ctx context.Context, kcli client.Client, hcli hel
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    Metadata.Location,
+		ChartPath:    a.ChartLocation(),
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,

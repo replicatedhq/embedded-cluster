@@ -7,6 +7,9 @@ spec:
   v2Enabled: __v2_enabled__
   binaryOverrideUrl: "__release_url__"
   metadataOverrideUrl: "__metadata_url__"
+  domains:
+    replicatedAppDomain: "ec-e2e-replicated-app.testcluster.net"
+    proxyRegistryDomain: "ec-e2e-proxy.testcluster.net"
   roles:
     controller:
       labels:
@@ -53,7 +56,7 @@ spec:
           values: |
             global:
               image:
-                registry: proxy.replicated.com/anonymous/registry.k8s.io
+                registry: ec-e2e-proxy.testcluster.net/anonymous/registry.k8s.io
             controller:
               service:
                 type: NodePort
@@ -63,13 +66,13 @@ spec:
                 annotations:
                   test-upgrade-annotation: test-upgrade-value
               image:
-                registry: proxy.replicated.com/anonymous/registry.k8s.io
+                registry: ec-e2e-proxy.testcluster.net/anonymous/registry.k8s.io
                 digest: ""
                 digestChroot: ""
               admissionWebhooks:
                 patch:
                   image:
-                    registry: proxy.replicated.com/anonymous/registry.k8s.io
+                    registry: ec-e2e-proxy.testcluster.net/anonymous/registry.k8s.io
                     digest: ""
         - name: goldpinger
           chartname: oci://proxy.replicated.com/anonymous/public.ecr.aws/q7i7m9q2/embedded-cluster-charts/goldpinger
@@ -78,13 +81,13 @@ spec:
           order: 11
           values: |
             image:
-              repository: proxy.replicated.com/anonymous/bloomberg/goldpinger
-        - name: memcached
-          chartname: oci://proxy.replicated.com/anonymous/bitnamicharts/memcached
+              repository: ec-e2e-proxy.testcluster.net/anonymous/bloomberg/goldpinger
+        - chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/bitnamicharts/memcached
+          name: memcached
           namespace: memcached
           values: |
             global:
-              imageRegistry: proxy.replicated.com/anonymous
+              imageRegistry: ec-e2e-proxy.testcluster.net/anonymous
             volumePermissions:
              resources:
                requests:

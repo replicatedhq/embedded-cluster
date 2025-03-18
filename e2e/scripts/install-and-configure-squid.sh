@@ -16,8 +16,9 @@ http_access allow whitelist
 "
 
 whitelist_txt="
-proxy.replicated.com
+proxy.replicated.com # TODO: remove this once kots supports custom domains in embedded cluster
 ec-e2e-replicated-app.testcluster.net
+ec-e2e-proxy.testcluster.net
 
 # dr
 .amazonaws.com

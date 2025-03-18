@@ -2,6 +2,7 @@ package embeddedclusteroperator
 
 import (
 	_ "embed"
+	"strings"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -19,6 +20,7 @@ type EmbeddedClusterOperator struct {
 	ImageRepoOverride     string
 	ImageTagOverride      string
 	UtilsImageOverride    string
+	ProxyRegistryDomain   string
 }
 
 const (
@@ -69,10 +71,14 @@ func (e *EmbeddedClusterOperator) Namespace() string {
 }
 
 func (e *EmbeddedClusterOperator) ChartLocation() string {
+	location := Metadata.Location
 	if e.ChartLocationOverride != "" {
-		return e.ChartLocationOverride
+		location = e.ChartLocationOverride
 	}
-	return Metadata.Location
+	if e.ProxyRegistryDomain == "" {
+		return location
+	}
+	return strings.Replace(location, "proxy.replicated.com", e.ProxyRegistryDomain, 1)
 }
 
 func (e *EmbeddedClusterOperator) ChartVersion() string {

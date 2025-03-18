@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
@@ -60,38 +61,48 @@ func Install(ctx context.Context, hcli helm.Client, opts InstallOptions) error {
 }
 
 func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
+	var replicatedAppDomain, proxyRegistryDomain, replicatedRegistryDomain string
+	if opts.EmbeddedConfigSpec != nil {
+		replicatedAppDomain = netutil.MaybeAddHTTPS(opts.EmbeddedConfigSpec.Domains.ReplicatedAppDomain)
+		proxyRegistryDomain = opts.EmbeddedConfigSpec.Domains.ProxyRegistryDomain
+		replicatedRegistryDomain = opts.EmbeddedConfigSpec.Domains.ReplicatedRegistryDomain
+	}
+
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
+		&openebs.OpenEBS{
+			ProxyRegistryDomain: proxyRegistryDomain,
+		},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
-			IsAirgap: opts.IsAirgap,
-			Proxy:    opts.Proxy,
+			ProxyRegistryDomain: proxyRegistryDomain,
+			IsAirgap:            opts.IsAirgap,
+			Proxy:               opts.Proxy,
 		},
 	}
 
 	if opts.IsAirgap {
 		addOns = append(addOns, &registry.Registry{
-			ServiceCIDR: opts.ServiceCIDR,
+			ProxyRegistryDomain: proxyRegistryDomain,
+			ServiceCIDR:         opts.ServiceCIDR,
 		})
 	}
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			Proxy: opts.Proxy,
+			ProxyRegistryDomain: proxyRegistryDomain,
+			Proxy:               opts.Proxy,
 		})
 	}
 
 	adminConsoleAddOn := &adminconsole.AdminConsole{
-		IsAirgap:      opts.IsAirgap,
-		Proxy:         opts.Proxy,
-		ServiceCIDR:   opts.ServiceCIDR,
-		Password:      opts.AdminConsolePwd,
-		PrivateCAs:    opts.PrivateCAs,
-		KotsInstaller: opts.KotsInstaller,
-	}
-	if opts.EmbeddedConfigSpec != nil {
-		adminConsoleAddOn.ReplicatedAppDomain = opts.EmbeddedConfigSpec.Domains.ReplicatedAppDomain
-		adminConsoleAddOn.ProxyRegistryDomain = opts.EmbeddedConfigSpec.Domains.ProxyRegistryDomain
-		adminConsoleAddOn.ReplicatedRegistryDomain = opts.EmbeddedConfigSpec.Domains.ReplicatedRegistryDomain
+		IsAirgap:                 opts.IsAirgap,
+		Proxy:                    opts.Proxy,
+		ServiceCIDR:              opts.ServiceCIDR,
+		Password:                 opts.AdminConsolePwd,
+		PrivateCAs:               opts.PrivateCAs,
+		KotsInstaller:            opts.KotsInstaller,
+		ReplicatedAppDomain:      replicatedAppDomain,
+		ProxyRegistryDomain:      proxyRegistryDomain,
+		ReplicatedRegistryDomain: replicatedRegistryDomain,
 	}
 	addOns = append(addOns, adminConsoleAddOn)
 
@@ -99,10 +110,18 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 }
 
 func getAddOnsForRestore(opts InstallOptions) []types.AddOn {
+	var proxyRegistryDomain string
+	if opts.EmbeddedConfigSpec != nil {
+		proxyRegistryDomain = opts.EmbeddedConfigSpec.Domains.ProxyRegistryDomain
+	}
+
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
+		&openebs.OpenEBS{
+			ProxyRegistryDomain: proxyRegistryDomain,
+		},
 		&velero.Velero{
-			Proxy: opts.Proxy,
+			Proxy:               opts.Proxy,
+			ProxyRegistryDomain: proxyRegistryDomain,
 		},
 	}
 	return addOns
