@@ -34,6 +34,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -98,9 +99,8 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clusterID := metrics.ClusterID()
-
 			metricsReporter := NewInstallReporter(
-				runtimeconfig.ReplicatedAppURL(flags.license), flags.license.Spec.LicenseID, clusterID, cmd.CalledAs(),
+				replicatedAppURL(), flags.license.Spec.LicenseID, clusterID, cmd.CalledAs(),
 			)
 			metricsReporter.ReportInstallationStarted(ctx)
 			if err := runInstall(cmd.Context(), name, flags, metricsReporter); err != nil {
@@ -321,9 +321,8 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 
 	// TODO (@salah): update installation status to reflect what's happening
 
-	embCfg := release.GetEmbeddedClusterConfig()
 	var embCfgSpec *ecv1beta1.ConfigSpec
-	if embCfg != nil {
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
 		embCfgSpec = &embCfg.Spec
 	}
 
@@ -369,7 +368,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 				Namespace:             runtimeconfig.KotsadmNamespace,
 				AirgapBundle:          flags.airgapBundle,
 				ConfigValuesFile:      flags.configValues,
-				ReplicatedAPIEndpoint: runtimeconfig.ReplicatedAppURL(flags.license),
+				ReplicatedAppEndpoint: replicatedAppURL(),
 			}
 			return kotscli.Install(opts, msg)
 		},
@@ -738,7 +737,7 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 	}
 	logrus.Debugf("Current app release is out-of-date")
 
-	apiURL := runtimeconfig.ReplicatedAppURL(license)
+	apiURL := replicatedAppURL()
 	releaseURL := fmt.Sprintf("%s/embedded/%s/%s", apiURL, channelRelease.AppSlug, channelRelease.ChannelSlug)
 	logrus.Warnf("A newer version %s is available.", currentRelease.VersionLabel)
 	logrus.Infof(
@@ -778,6 +777,24 @@ func validateAdminConsolePassword(password, passwordCheck string) bool {
 		return false
 	}
 	return true
+}
+
+func replicatedAppURL() string {
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
+	domains := runtimeconfig.GetDomains(embCfgSpec)
+	return netutil.MaybeAddHTTPS(domains.ReplicatedAppDomain)
+}
+
+func proxyRegistryURL() string {
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
+	domains := runtimeconfig.GetDomains(embCfgSpec)
+	return netutil.MaybeAddHTTPS(domains.ProxyRegistryDomain)
 }
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
@@ -1003,7 +1020,7 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCm
 		},
 		Spec: ecv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),
-			MetricsBaseURL:            runtimeconfig.ReplicatedAppURL(flags.license),
+			MetricsBaseURL:            replicatedAppURL(),
 			AirGap:                    flags.isAirgap,
 			Proxy:                     flags.proxy,
 			Network:                   networkSpecFromK0sConfig(k0sCfg),

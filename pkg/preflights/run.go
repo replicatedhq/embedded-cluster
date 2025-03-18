@@ -22,7 +22,7 @@ import (
 var ErrPreflightsHaveFail = metrics.NewErrorNoFail(fmt.Errorf("host preflight failures detected"))
 
 type PrepareAndRunOptions struct {
-	ReplicatedAPIURL       string
+	ReplicatedAppURL       string
 	ProxyRegistryURL       string
 	Proxy                  *ecv1beta1.ProxySpec
 	PodCIDR                string
@@ -55,7 +55,7 @@ func PrepareAndRun(ctx context.Context, opts PrepareAndRunOptions) error {
 	}
 
 	data, err := types.TemplateData{
-		ReplicatedAPIURL:        opts.ReplicatedAPIURL,
+		ReplicatedAppURL:        opts.ReplicatedAppURL,
 		ProxyRegistryURL:        opts.ProxyRegistryURL,
 		IsAirgap:                opts.IsAirgap,
 		AdminConsolePort:        runtimeconfig.AdminConsolePort(),
