@@ -18,6 +18,15 @@ spec:
         {{- include "test-app.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: client
     spec:
+      {{- if .Values.client.imagePullSecrets }}
+      imagePullSecrets:
+        {{- if .Values.client.imagePullSecrets }}
+        {{- toYaml .Values.client.imagePullSecrets | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      serviceAccountName: {{ include "test-app.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
       - name: client
         image: "{{ .Values.client.image.repository }}:{{ .Values.client.image.tag }}"
@@ -42,4 +51,16 @@ spec:
             done
         resources:
           {{- toYaml .Values.client.resources | nindent 10 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 {{- end }} 

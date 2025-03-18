@@ -19,6 +19,8 @@ server:
     requests:
       cpu: 50m
       memory: 64Mi
+  imagePullSecrets: []
+    # - name: server-regcred
 
 # Client configuration
 client:
@@ -36,11 +38,15 @@ client:
     requests:
       cpu: 25m
       memory: 32Mi
+  imagePullSecrets: []
+    # - name: client-regcred
 
-# Common configuration
-imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+
+# Replicated configuration
+replicated:
+  enabled: false
 
 serviceAccount:
   # Specifies whether a service account should be created
