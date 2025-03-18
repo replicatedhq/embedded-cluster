@@ -1,0 +1,34 @@
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-app
+spec:
+  chart:
+    name: nginx-app
+    chartVersion: 0.1.0
+  namespace: nginx-app
+  values:
+    server:
+      image:
+        repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "__proxy_registry_custom_domain__" }}/repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app" }}/nginx
+      service:
+        type: ClusterIP
+        port: 80
+      replicaCount: 3
+      imagePullSecrets:
+        - name: '{{repl ImagePullSecretName }}'
+    client:
+      enabled: true
+      image:
+        repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "__proxy_registry_custom_domain__" }}/repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app/curlimages" }}/curl
+      replicaCount: 3
+      intervalSeconds: 60
+      imagePullSecrets:
+        - name: '{{repl ImagePullSecretName }}'
+    replicated:
+      enabled: true
+      image:
+        registry: repl{{ HasLocalRegistry | ternary LocalRegistryHost "__proxy_registry_custom_domain__" }}
+        repository: repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app/replicated" }}/replicated-sdk
+      imagePullSecrets:
+        - name: '{{repl ImagePullSecretName }}'

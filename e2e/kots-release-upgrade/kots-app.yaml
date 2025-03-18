@@ -6,6 +6,7 @@ metadata:
 spec:
   title: Embedded Cluster Smoke Test Staging App
   icon: https://raw.githubusercontent.com/cncf/artwork/master/projects/kubernetes/icon/color/kubernetes-icon-color.png
+  proxyPublicImages: true
   allowRollback: true
   additionalNamespaces:
     - "redis-app"
