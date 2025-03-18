@@ -53,24 +53,29 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig, proxyRegistryDomain string
 		cfg.Spec.Images = &k0sv1beta1.ClusterImages{}
 	}
 
-	cfg.Spec.Images.CoreDNS.Image = strings.Replace(Metadata.Images["coredns"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+	if proxyRegistryDomain == "" {
+		cfg.Spec.Images.CoreDNS.Image = Metadata.Images["coredns"].Repo
+		cfg.Spec.Images.Calico.Node.Image = Metadata.Images["calico-node"].Repo
+		cfg.Spec.Images.Calico.CNI.Image = Metadata.Images["calico-cni"].Repo
+		cfg.Spec.Images.Calico.KubeControllers.Image = Metadata.Images["calico-kube-controllers"].Repo
+		cfg.Spec.Images.MetricsServer.Image = Metadata.Images["metrics-server"].Repo
+		cfg.Spec.Images.KubeProxy.Image = Metadata.Images["kube-proxy"].Repo
+		cfg.Spec.Images.Pause.Image = Metadata.Images["pause"].Repo
+	} else {
+		cfg.Spec.Images.CoreDNS.Image = strings.Replace(Metadata.Images["coredns"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Images.Calico.Node.Image = strings.Replace(Metadata.Images["calico-node"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Images.Calico.CNI.Image = strings.Replace(Metadata.Images["calico-cni"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Images.Calico.KubeControllers.Image = strings.Replace(Metadata.Images["calico-kube-controllers"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Images.MetricsServer.Image = strings.Replace(Metadata.Images["metrics-server"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Images.KubeProxy.Image = strings.Replace(Metadata.Images["kube-proxy"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Images.Pause.Image = strings.Replace(Metadata.Images["pause"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+	}
+
 	cfg.Spec.Images.CoreDNS.Version = Metadata.Images["coredns"].Tag[runtime.GOARCH]
-
-	cfg.Spec.Images.Calico.Node.Image = strings.Replace(Metadata.Images["calico-node"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
 	cfg.Spec.Images.Calico.Node.Version = Metadata.Images["calico-node"].Tag[runtime.GOARCH]
-
-	cfg.Spec.Images.Calico.CNI.Image = strings.Replace(Metadata.Images["calico-cni"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
 	cfg.Spec.Images.Calico.CNI.Version = Metadata.Images["calico-cni"].Tag[runtime.GOARCH]
-
-	cfg.Spec.Images.Calico.KubeControllers.Image = strings.Replace(Metadata.Images["calico-kube-controllers"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
 	cfg.Spec.Images.Calico.KubeControllers.Version = Metadata.Images["calico-kube-controllers"].Tag[runtime.GOARCH]
-
-	cfg.Spec.Images.MetricsServer.Image = strings.Replace(Metadata.Images["metrics-server"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
 	cfg.Spec.Images.MetricsServer.Version = Metadata.Images["metrics-server"].Tag[runtime.GOARCH]
-
-	cfg.Spec.Images.KubeProxy.Image = strings.Replace(Metadata.Images["kube-proxy"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
 	cfg.Spec.Images.KubeProxy.Version = Metadata.Images["kube-proxy"].Tag[runtime.GOARCH]
-
-	cfg.Spec.Images.Pause.Image = strings.Replace(Metadata.Images["pause"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
 	cfg.Spec.Images.Pause.Version = Metadata.Images["pause"].Tag[runtime.GOARCH]
 }
