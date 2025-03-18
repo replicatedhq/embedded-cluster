@@ -32,3 +32,6 @@ spec:
         repository: repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app/replicated" }}/replicated-sdk
       imagePullSecrets:
         - name: '{{repl ImagePullSecretName }}'
+  builder:
+    replicated:
+      enabled: true
