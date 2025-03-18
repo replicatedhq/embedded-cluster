@@ -14,8 +14,6 @@ REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.co
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
 V2_ENABLED=${V2_ENABLED:-0}
-PROXY_REGISTRY_DOMAIN=${PROXY_REGISTRY_DOMAIN:-ec-e2e-proxy.testcluster.net}
-REPLICATED_APP_DOMAIN=${REPLICATED_APP_DOMAIN:-ec-e2e-replicated-app.testcluster.net}
 
 if [ "$USES_DEV_BUCKET" == "1" ]; then
     require S3_BUCKET "${S3_BUCKET:-}"

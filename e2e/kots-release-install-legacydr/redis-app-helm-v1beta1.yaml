@@ -25,7 +25,3 @@ spec:
         repository: redis
         tag: "7.2"
       intervalSeconds: 5
-    replicated-sdk:
-      enabled: true
-      image:
-        repository: "replicated/replicated-sdk"
