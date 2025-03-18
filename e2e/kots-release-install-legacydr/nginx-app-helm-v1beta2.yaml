@@ -8,6 +8,9 @@ spec:
     chartVersion: 0.1.0
   namespace: nginx-app
   values:
+    global:
+      labels:
+        replicated.com/disaster-recovery: app
     server:
       image:
         repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "__proxy_registry_custom_domain__" }}/repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app" }}/nginx

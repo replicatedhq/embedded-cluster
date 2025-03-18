@@ -9,6 +9,9 @@ spec:
   namespace: redis-app
   useHelmInstall: true
   values:
+    global:
+      labels:
+        replicated.com/disaster-recovery: app
     server:
       image:
         repository: redis
