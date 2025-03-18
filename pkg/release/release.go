@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/utils/pkg/embed"
@@ -20,24 +19,68 @@ import (
 )
 
 var (
-	mtx         sync.Mutex
-	releaseData *ReleaseData
+	_releaseData *ReleaseData
 )
 
 // ReleaseData holds the parsed data from a Kots Release.
 type ReleaseData struct {
 	data                  []byte
 	Application           []byte
-	HostPreflights        [][]byte
-	EmbeddedClusterConfig []byte
-	ChannelRelease        []byte
-	VeleroBackup          []byte
-	VeleroRestore         []byte
+	HostPreflights        *v1beta2.HostPreflightSpec
+	EmbeddedClusterConfig *embeddedclusterv1beta1.Config
+	ChannelRelease        *ChannelRelease
+	VeleroBackup          *velerov1.Backup
+	VeleroRestore         *velerov1.Restore
 }
 
-// NewReleaseDataFrom parses the provide slice of bytes and returns a ReleaseData
+// GetHostPreflights returns a list of HostPreflight specs that are found in the
+// binary. These are part of the embedded Kots Application Release.
+func GetHostPreflights() *v1beta2.HostPreflightSpec {
+	return _releaseData.HostPreflights
+}
+
+// GetApplication reads and returns the kots application embedded as part of the
+// release. If no application is found, returns nil and no error. This function does
+// not unmarshal the application yaml.
+func GetApplication() []byte {
+	return _releaseData.Application
+}
+
+// GetEmbeddedClusterConfig reads the embedded cluster config from the embedded Kots
+// Application Release.
+func GetEmbeddedClusterConfig() *embeddedclusterv1beta1.Config {
+	return _releaseData.EmbeddedClusterConfig
+}
+
+// GetVeleroBackup reads and returns the velero backup embedded as part of the release. If
+// no backup is found, returns nil and no error.
+func GetVeleroBackup() *velerov1.Backup {
+	return _releaseData.VeleroBackup
+}
+
+// GetVeleroRestore reads and returns the velero restore embedded as part of the release. If
+// no restore is found, returns nil and no error.
+func GetVeleroRestore() *velerov1.Restore {
+	return _releaseData.VeleroRestore
+}
+
+// GetChannelRelease reads the embedded channel release object. If no channel release
+// is found, returns nil and no error.
+func GetChannelRelease() *ChannelRelease {
+	return _releaseData.ChannelRelease
+}
+
+func init() {
+	rd, err := parseReleaseDataFromBinary()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to parse release data from binary: %v", err))
+	}
+	_releaseData = rd
+}
+
+// newReleaseDataFrom parses the provide slice of bytes and returns a ReleaseData
 // object. The slice of bytes is expected to be a tar.gz file.
-func NewReleaseDataFrom(data []byte) (*ReleaseData, error) {
+func newReleaseDataFrom(data []byte) (*ReleaseData, error) {
 	rd := &ReleaseData{data: data}
 	if len(data) == 0 {
 		return rd, nil
@@ -50,53 +93,27 @@ func NewReleaseDataFrom(data []byte) (*ReleaseData, error) {
 
 // parseReleaseDataFromBinary reads the embedded data from the binary and sets the global
 // releaseData variable only once.
-func parseReleaseDataFromBinary() error {
-	mtx.Lock()
-	defer mtx.Unlock()
-	if releaseData != nil {
-		return nil
-	}
+func parseReleaseDataFromBinary() (*ReleaseData, error) {
 	exe, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("unable to get executable path: %w", err)
+		return nil, fmt.Errorf("unable to get executable path: %w", err)
 	}
 	data, err := embed.ExtractReleaseDataFromBinary(exe)
 	if err != nil {
-		return fmt.Errorf("failed to extract data from binary: %w", err)
+		return nil, fmt.Errorf("failed to extract data from binary: %w", err)
 	}
-	release, err := NewReleaseDataFrom(data)
+	release, err := newReleaseDataFrom(data)
 	if err != nil {
-		return fmt.Errorf("failed to parse release data: %w", err)
+		return nil, fmt.Errorf("failed to parse release data: %w", err)
 	}
-	releaseData = release
-	return nil
+	return release, nil
 }
 
-// GetHostPreflights returns a list of HostPreflight specs that are found in the
-// binary. These are part of the embedded Kots Application Release.
-func GetHostPreflights() (*v1beta2.HostPreflightSpec, error) {
-	if err := parseReleaseDataFromBinary(); err != nil {
-		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
+func parseHostPreflights(data []byte) (*v1beta2.HostPreflightSpec, error) {
+	if len(data) == 0 {
+		return nil, nil
 	}
-	return releaseData.GetHostPreflights()
-}
-
-// GetHostPreflights returns a list of HostPreflight specs that are found in the binary.
-// These are part of the embedded Kots Application Release.
-func (r *ReleaseData) GetHostPreflights() (*v1beta2.HostPreflightSpec, error) {
-	if len(r.HostPreflights) == 0 {
-		return &v1beta2.HostPreflightSpec{}, nil
-	}
-	all := &v1beta2.HostPreflightSpec{}
-	for _, serialized := range r.HostPreflights {
-		spec, err := unserializeHostPreflightSpec(serialized)
-		if err != nil {
-			return nil, fmt.Errorf("unable to unserialize preflight spec: %w", err)
-		}
-		all.Collectors = append(all.Collectors, spec.Collectors...)
-		all.Analyzers = append(all.Analyzers, spec.Analyzers...)
-	}
-	return all, nil
+	return unserializeHostPreflightSpec(data)
 }
 
 // unserializeHostPreflightSpec unserializes a HostPreflightSpec from a raw slice of bytes.
@@ -113,84 +130,34 @@ func unserializeHostPreflightSpec(data []byte) (*v1beta2.HostPreflightSpec, erro
 	return &hpf.Spec, nil
 }
 
-// GetApplication reads and returns the kots application embedded as part of the
-// release. If no application is found, returns nil and no error. This function does
-// not unmarshal the application yaml.
-func GetApplication() ([]byte, error) {
-	if err := parseReleaseDataFromBinary(); err != nil {
-		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
-	}
-	return releaseData.GetApplication()
-}
-
-// GetApplication reads and returns the kots application embedded as part of the release. If
-// no application is found, returns nil and no error. This function does not unmarshal the
-// application yaml.
-func (r *ReleaseData) GetApplication() ([]byte, error) {
-	return r.Application, nil
-}
-
-// GetEmbeddedClusterConfig reads the embedded cluster config from the embedded Kots
-// Application Release.
-func GetEmbeddedClusterConfig() (*embeddedclusterv1beta1.Config, error) {
-	if err := parseReleaseDataFromBinary(); err != nil {
-		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
-	}
-	return releaseData.GetEmbeddedClusterConfig()
-}
-
-// GetEmbeddedClusterConfig reads the embedded cluster config from the embedded Kots Application
-// Release.
-func (r *ReleaseData) GetEmbeddedClusterConfig() (*embeddedclusterv1beta1.Config, error) {
-	if len(r.EmbeddedClusterConfig) == 0 {
+func parseEmbeddedClusterConfig(data []byte) (*embeddedclusterv1beta1.Config, error) {
+	if len(data) == 0 {
 		return nil, nil
 	}
 	var cfg embeddedclusterv1beta1.Config
-	if err := kyaml.Unmarshal(r.EmbeddedClusterConfig, &cfg); err != nil {
+	if err := kyaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal embedded cluster config: %w", err)
 	}
 	return &cfg, nil
 }
 
-// GetVeleroBackup reads and returns the velero backup embedded as part of the release. If
-// no backup is found, returns nil and no error.
-func GetVeleroBackup() (*velerov1.Backup, error) {
-	if err := parseReleaseDataFromBinary(); err != nil {
-		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
-	}
-	return releaseData.GetVeleroBackup()
-}
-
-// GetVeleroBackup reads and returns the velero backup embedded as part of the release. If
-// no backup is found, returns nil and no error.
-func (r *ReleaseData) GetVeleroBackup() (*velerov1.Backup, error) {
-	if len(r.VeleroBackup) == 0 {
+func parseVeleroBackup(data []byte) (*velerov1.Backup, error) {
+	if len(data) == 0 {
 		return nil, nil
 	}
 	var backup velerov1.Backup
-	if err := kyaml.Unmarshal(r.VeleroBackup, &backup); err != nil {
+	if err := kyaml.Unmarshal(data, &backup); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal velero backup: %w", err)
 	}
 	return &backup, nil
 }
 
-// GetVeleroRestore reads and returns the velero restore embedded as part of the release. If
-// no restore is found, returns nil and no error.
-func GetVeleroRestore() (*velerov1.Restore, error) {
-	if err := parseReleaseDataFromBinary(); err != nil {
-		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
-	}
-	return releaseData.GetVeleroRestore()
-}
-
-// GetVeleroRestore reads and returns the velero restore embedded as part of the release. If
-// no restore is found, returns nil and no error.
-func (r *ReleaseData) GetVeleroRestore() (*velerov1.Restore, error) {
-	if len(r.VeleroRestore) == 0 {
+func parseVeleroRestore(data []byte) (*velerov1.Restore, error) {
+	if len(data) == 0 {
 		return nil, nil
 	}
 	var restore velerov1.Restore
-	if err := kyaml.Unmarshal(r.VeleroRestore, &restore); err != nil {
+	if err := kyaml.Unmarshal(data, &restore); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal velero restore: %w", err)
 	}
 	return &restore, nil
@@ -205,23 +172,14 @@ type ChannelRelease struct {
 	Airgap       bool   `yaml:"airgap"`
 }
 
-// GetChannelRelease reads the embedded channel release object. If no channel release
-// is found, returns nil and no error.
-func GetChannelRelease() (*ChannelRelease, error) {
-	if err := parseReleaseDataFromBinary(); err != nil {
-		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
-	}
-	return releaseData.GetChannelRelease()
-}
-
 // GetChannelRelease reads the embedded channel release object. If no channel release is found,
 // returns nil and no error.
-func (r *ReleaseData) GetChannelRelease() (*ChannelRelease, error) {
-	if len(r.ChannelRelease) == 0 {
+func parseChannelRelease(data []byte) (*ChannelRelease, error) {
+	if len(data) == 0 {
 		return nil, nil
 	}
 	var release ChannelRelease
-	if err := yaml.Unmarshal(r.ChannelRelease, &release); err != nil {
+	if err := yaml.Unmarshal(data, &release); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal channel release: %w", err)
 	}
 	return &release, nil
@@ -243,7 +201,7 @@ func (r *ReleaseData) parse() error {
 		case err == io.EOF:
 			return nil
 		case err != nil:
-			return fmt.Errorf("unable to read file: %w", err)
+			return fmt.Errorf("failed to read file: %w", err)
 		case header == nil:
 			continue
 		}
@@ -253,7 +211,7 @@ func (r *ReleaseData) parse() error {
 
 		content := bytes.NewBuffer(nil)
 		if _, err := io.Copy(content, tr); err != nil {
-			return fmt.Errorf("unable to copy file out of tar: %w", err)
+			return fmt.Errorf("failed to copy file out of tar: %w", err)
 		}
 
 		switch {
@@ -269,32 +227,52 @@ func (r *ReleaseData) parse() error {
 			if bytes.Contains(content.Bytes(), []byte("cluster.kurl.sh/v1beta1")) {
 				break
 			}
-			r.HostPreflights = append(r.HostPreflights, content.Bytes())
+			hostPreflights, err := parseHostPreflights(content.Bytes())
+			if err != nil {
+				return fmt.Errorf("failed to parse host preflights: %w", err)
+			}
+			if hostPreflights != nil {
+				if r.HostPreflights == nil {
+					r.HostPreflights = &v1beta2.HostPreflightSpec{}
+				}
+				r.HostPreflights.Collectors = append(r.HostPreflights.Collectors, hostPreflights.Collectors...)
+				r.HostPreflights.Analyzers = append(r.HostPreflights.Analyzers, hostPreflights.Analyzers...)
+			}
 
 		case bytes.Contains(content.Bytes(), []byte("apiVersion: embeddedcluster.replicated.com/v1beta1")):
 			if !bytes.Contains(content.Bytes(), []byte("kind: Config")) {
 				break
 			}
-			r.EmbeddedClusterConfig = content.Bytes()
+
+			r.EmbeddedClusterConfig, err = parseEmbeddedClusterConfig(content.Bytes())
+			if err != nil {
+				return fmt.Errorf("failed to parse embedded cluster config: %w", err)
+			}
 
 		case bytes.Contains(content.Bytes(), []byte("apiVersion: velero.io/v1")):
 			if bytes.Contains(content.Bytes(), []byte("kind: Backup")) {
-				r.VeleroBackup = content.Bytes()
+				r.VeleroBackup, err = parseVeleroBackup(content.Bytes())
+				if err != nil {
+					return fmt.Errorf("failed to parse velero backup: %w", err)
+				}
 			} else if bytes.Contains(content.Bytes(), []byte("kind: Restore")) {
-				r.VeleroRestore = content.Bytes()
+				r.VeleroRestore, err = parseVeleroRestore(content.Bytes())
+				if err != nil {
+					return fmt.Errorf("failed to parse velero restore: %w", err)
+				}
 			}
 
 		case bytes.Contains(content.Bytes(), []byte("# channel release object")):
-			r.ChannelRelease = content.Bytes()
+			r.ChannelRelease, err = parseChannelRelease(content.Bytes())
+			if err != nil {
+				return fmt.Errorf("failed to parse channel release: %w", err)
+			}
 		}
 	}
 }
 
 // SetReleaseDataForTests should only be called from tests. It sets the release information based on the supplied data.
 func SetReleaseDataForTests(data map[string][]byte) error {
-	mtx.Lock()
-	defer mtx.Unlock()
-
 	buf := bytes.NewBuffer([]byte{})
 	gw := gzip.NewWriter(buf)
 	tw := tar.NewWriter(gw)
@@ -320,10 +298,10 @@ func SetReleaseDataForTests(data map[string][]byte) error {
 		return fmt.Errorf("unable to close gzip writer: %w", err)
 	}
 
-	rd, err := NewReleaseDataFrom(buf.Bytes())
+	rd, err := newReleaseDataFrom(buf.Bytes())
 	if err != nil {
 		return fmt.Errorf("unable to set release data for tests: %w", err)
 	}
-	releaseData = rd
+	_releaseData = rd
 	return nil
 }
