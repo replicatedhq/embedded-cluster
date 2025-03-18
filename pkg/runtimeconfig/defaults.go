@@ -91,11 +91,8 @@ func PathToECConfig() string {
 // (This should only happen when restoring a cluster without domains set)
 func ReplicatedAppURL(license *kotsv1beta1.License) string {
 	// get the configured domains from the embedded cluster config
-	cfg, err := release.GetEmbeddedClusterConfig()
-	if err != nil {
-		logrus.Debugf("unable to get embedded cluster config for replicated app domain: %v", err)
-	}
-	if err == nil && cfg != nil && cfg.Spec.Domains.ReplicatedAppDomain != "" {
+	cfg := release.GetEmbeddedClusterConfig()
+	if cfg != nil && cfg.Spec.Domains.ReplicatedAppDomain != "" {
 		return netutil.MaybeAddHTTPS(cfg.Spec.Domains.ReplicatedAppDomain)
 	}
 
@@ -109,12 +106,7 @@ func ReplicatedAppURL(license *kotsv1beta1.License) string {
 // The first priority is the domain configured within the embedded cluster config.
 // If that is not configured, the default address is returned.
 func ProxyRegistryDomain() string {
-	cfg, err := release.GetEmbeddedClusterConfig()
-	if err != nil {
-		logrus.Debugf("unable to get embedded cluster config for proxy registry domain: %v", err)
-		return DefaultProxyRegistryDomain
-	}
-
+	cfg := release.GetEmbeddedClusterConfig()
 	if cfg != nil && cfg.Spec.Domains.ProxyRegistryDomain != "" {
 		return cfg.Spec.Domains.ProxyRegistryDomain
 	}
