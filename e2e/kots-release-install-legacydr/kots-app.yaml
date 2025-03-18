@@ -8,14 +8,14 @@ spec:
   icon: https://raw.githubusercontent.com/cncf/artwork/master/projects/kubernetes/icon/color/kubernetes-icon-color.png
   allowRollback: true
   additionalNamespaces:
-    - "test-app-v1"
-    - "test-app-v2"
+    - "redis-app"
+    - "nginx-app"
   statusInformers:
     - deployment/nginx
-    - deployment/test-app-v1/test-app-v1
-    - deployment/test-app-v1/test-app-v1-client
-    - deployment/test-app-v2/test-app-v2
-    - deployment/test-app-v2/test-app-v2-client
+    - nginx-app/deployment/nginx-app
+    - nginx-app/deployment/nginx-app-client
+    - redis-app/deployment/redis-app
+    - redis-app/deployment/redis-app-client
   ports:
     - serviceName: "nginx"
       servicePort: 80

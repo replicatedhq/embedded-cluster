@@ -87,21 +87,23 @@ function create_release_archive() {
     # Clean up backup files
     find output/tmp/release -name "*.bak" -type f -delete
 
-    # Package the Helm chart
-    if [ -d "e2e/helm-charts/test-app" ]; then
-        echo "Packaging Helm chart..."
-        helm package -u e2e/helm-charts/test-app -d output/tmp/release
-        
-        # Get the packaged chart filename
-        CHART_FILENAME=$(ls output/tmp/release/test-app-*.tgz | head -1)
-        if [ -n "$CHART_FILENAME" ]; then
-            echo "Created Helm chart package: $CHART_FILENAME"
+    # Package the Helm charts
+    for CHART in nginx-app redis-app; do
+        if [ -d "e2e/helm-charts/$CHART" ]; then
+            echo "Packaging Helm chart: $CHART..."
+            helm package -u e2e/helm-charts/$CHART -d output/tmp/release
+            
+            # Get the packaged chart filename
+            CHART_FILENAME=$(ls output/tmp/release/$CHART-*.tgz | head -1)
+            if [ -n "$CHART_FILENAME" ]; then
+                echo "Created Helm chart package: $CHART_FILENAME"
+            else
+                echo "Warning: Failed to create Helm chart package for $CHART"
+            fi
         else
-            echo "Warning: Failed to create Helm chart package"
+            echo "Helm chart directory not found at e2e/helm-charts/$CHART"
         fi
-    else
-        echo "Helm chart directory not found at e2e/helm-charts/test-app"
-    fi
+    done
 
     tar -czf output/tmp/release.tar.gz -C output/tmp/release .
 
