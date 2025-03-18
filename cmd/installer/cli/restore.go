@@ -402,10 +402,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
-	embCfg, err := release.GetEmbeddedClusterConfig()
-	if err != nil {
-		return fmt.Errorf("unable to get release embedded cluster config: %w", err)
-	}
+	embCfg := release.GetEmbeddedClusterConfig()
 	var embCfgSpec *ecv1beta1.ConfigSpec
 	if embCfg != nil {
 		embCfgSpec = &embCfg.Spec
