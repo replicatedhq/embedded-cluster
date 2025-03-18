@@ -69,21 +69,20 @@ random-string = $(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)
 
 .PHONY: cmd/installer/goods/bins/k0s
 cmd/installer/goods/bins/k0s:
-	$(MAKE) output/bins/k0s-$(K0S_VERSION)-$(ARCH)
-	mkdir -p cmd/installer/goods/bins
-	cp output/bins/k0s-$(K0S_VERSION)-$(ARCH) $@
-
-output/bins/k0s-%:
 	mkdir -p output/bins
 	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
 		$(MAKE) output/bins/k0s-override ; \
 		cp output/bins/k0s-override $@ ; \
 	else \
-		gh release download -O $@ \
-			--repo k0sproject/k0s \
-			--pattern "k0s-$(call split-hyphen,$*,1)-$(call split-hyphen,$*,2)" \
-			"$(call split-hyphen,$*,1)" ; \
+		$(MAKE) output/bins/k0s-$(K0S_VERSION)-$(ARCH) ; \
 	fi
+	mkdir -p cmd/installer/goods/bins
+	cp output/bins/k0s-$(K0S_VERSION)-$(ARCH) $@
+
+output/bins/k0s-%:
+	curl -fsSL $(GH_AUTH_HEADER) "https://api.github.com/repos/k0sproject/k0s/releases/tags/$(call split-hyphen,$*,1)" | \
+		jq -r '.assets[] | select(.name == "k0s-$(call split-hyphen,$*,1)-$(call split-hyphen,$*,2)") | .browser_download_url' | \
+		xargs curl -fL $(GH_AUTH_HEADER) -o $@
 	chmod +x $@
 	touch $@
 
@@ -91,6 +90,7 @@ output/bins/k0s-%:
 output/bins/k0s-override:
 	mkdir -p output/bins
 	curl --retry 5 --retry-all-errors -fL -o $@ "$(K0S_BINARY_SOURCE_OVERRIDE)"
+	chmod +x $@
 	touch $@
 
 .PHONY: cmd/installer/goods/bins/kubectl-support_bundle
@@ -102,10 +102,9 @@ cmd/installer/goods/bins/kubectl-support_bundle:
 output/bins/kubectl-support_bundle-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	gh release download -O output/tmp/support-bundle.tar.gz \
-		--repo replicatedhq/troubleshoot \
-		--pattern "support-bundle_$(OS)_$(call split-hyphen,$*,2).tar.gz" \
-		"$(call split-hyphen,$*,1)"
+	curl -fsSL $(GH_AUTH_HEADER) "https://api.github.com/repos/replicatedhq/troubleshoot/releases/tags/$(call split-hyphen,$*,1)" | \
+		jq -r '.assets[] | select(.name == "support-bundle_$(OS)_$(call split-hyphen,$*,2).tar.gz") | .browser_download_url' | \
+		xargs curl -fL $(GH_AUTH_HEADER) -o output/tmp/support-bundle.tar.gz
 	tar -xzf output/tmp/support-bundle.tar.gz -C output/tmp
 	mv output/tmp/support-bundle $@
 	rm -rf output/tmp
@@ -120,10 +119,9 @@ cmd/installer/goods/bins/kubectl-preflight:
 output/bins/kubectl-preflight-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	gh release download -O output/tmp/preflight.tar.gz \
-		--repo replicatedhq/troubleshoot \
-		--pattern "preflight_$(OS)_$(call split-hyphen,$*,2).tar.gz" \
-		"$(call split-hyphen,$*,1)"
+	curl -fsSL $(GH_AUTH_HEADER) "https://api.github.com/repos/replicatedhq/troubleshoot/releases/tags/$(call split-hyphen,$*,1)" | \
+		jq -r '.assets[] | select(.name == "preflight_$(OS)_$(call split-hyphen,$*,2).tar.gz") | .browser_download_url' | \
+		xargs curl -fL $(GH_AUTH_HEADER) -o output/tmp/preflight.tar.gz
 	tar -xzf output/tmp/preflight.tar.gz -C output/tmp
 	mv output/tmp/preflight $@
 	rm -rf output/tmp
@@ -173,10 +171,9 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	gh release download -O output/tmp/kots.tar.gz \
-		--repo replicatedhq/kots \
-		--pattern "kots_$(OS)_$(call split-hyphen,$*,2).tar.gz" \
-		"$(call split-hyphen,$*,1)"
+	curl -fsSL $(GH_AUTH_HEADER) "https://api.github.com/repos/replicatedhq/kots/releases/tags/$(call split-hyphen,$*,1)" | \
+		jq -r '.assets[] | select(.name == "kots_$(OS)_$(call split-hyphen,$*,2).tar.gz") | .browser_download_url' | \
+		xargs curl -fL $(GH_AUTH_HEADER) -o output/tmp/kots.tar.gz
 	tar -xzf output/tmp/kots.tar.gz -C output/tmp
 	mv output/tmp/kots $@
 	touch $@
