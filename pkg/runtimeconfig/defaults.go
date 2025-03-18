@@ -5,9 +5,8 @@ import (
 	"path/filepath"
 
 	"github.com/gosimple/slug"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,7 +20,9 @@ var DefaultNoProxy = []string{
 	"169.254.169.254",
 }
 
+const DefaultReplicatedAppDomain = "replicated.app"
 const DefaultProxyRegistryDomain = "proxy.replicated.com"
+const DefaultReplicatedRegistryDomain = "registry.replicated.com"
 const KotsadmNamespace = "kotsadm"
 const KotsadmServiceAccount = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"
@@ -86,45 +87,43 @@ func PathToECConfig() string {
 	return "/etc/embedded-cluster/ec.yaml"
 }
 
-// ReplicatedAppURL returns the replicated app domain. The first priority is the domain configured within the embedded cluster config.
-// The second priority is the domain configured within the license. If neither is configured, no domain is returned.
-// (This should only happen when restoring a cluster without domains set)
-func ReplicatedAppURL(license *kotsv1beta1.License) string {
-	// get the configured domains from the embedded cluster config
-	cfg, err := release.GetEmbeddedClusterConfig()
-	if err != nil {
-		logrus.Debugf("unable to get embedded cluster config for replicated app domain: %v", err)
-	}
-	if err == nil && cfg != nil && cfg.Spec.Domains.ReplicatedAppDomain != "" {
-		return netutil.MaybeAddHTTPS(cfg.Spec.Domains.ReplicatedAppDomain)
-	}
+// GetDomains returns the domains for the embedded cluster. The first priority is the domains configured within the provided config spec.
+// The second priority is the domains configured within the channel release. If neither is configured, the default domains are returned.
+func GetDomains(cfgspec *ecv1beta1.ConfigSpec) ecv1beta1.Domains {
+	replicatedAppDomain := DefaultReplicatedAppDomain
+	proxyRegistryDomain := DefaultProxyRegistryDomain
+	replicatedRegistryDomain := DefaultReplicatedRegistryDomain
 
-	if license != nil {
-		return netutil.MaybeAddHTTPS(license.Spec.Endpoint)
-	}
-	return ""
-}
-
-// ProxyRegistryDomain returns the proxy registry domain.
-// The first priority is the domain configured within the embedded cluster config.
-// If that is not configured, the default address is returned.
-func ProxyRegistryDomain() string {
-	cfg, err := release.GetEmbeddedClusterConfig()
-	if err != nil {
-		logrus.Debugf("unable to get embedded cluster config for proxy registry domain: %v", err)
-		return DefaultProxyRegistryDomain
+	// get defaults from channel release if available
+	rel := release.GetChannelRelease()
+	if rel != nil {
+		if rel.DefaultDomains.ReplicatedAppDomain != "" {
+			replicatedAppDomain = rel.DefaultDomains.ReplicatedAppDomain
+		}
+		if rel.DefaultDomains.ProxyRegistryDomain != "" {
+			proxyRegistryDomain = rel.DefaultDomains.ProxyRegistryDomain
+		}
+		if rel.DefaultDomains.ReplicatedRegistryDomain != "" {
+			replicatedRegistryDomain = rel.DefaultDomains.ReplicatedRegistryDomain
+		}
 	}
 
-	if cfg != nil && cfg.Spec.Domains.ProxyRegistryDomain != "" {
-		return cfg.Spec.Domains.ProxyRegistryDomain
+	// get overrides from config spec if available
+	if cfgspec != nil {
+		if cfgspec.Domains.ReplicatedAppDomain != "" {
+			replicatedAppDomain = cfgspec.Domains.ReplicatedAppDomain
+		}
+		if cfgspec.Domains.ProxyRegistryDomain != "" {
+			proxyRegistryDomain = cfgspec.Domains.ProxyRegistryDomain
+		}
+		if cfgspec.Domains.ReplicatedRegistryDomain != "" {
+			replicatedRegistryDomain = cfgspec.Domains.ReplicatedRegistryDomain
+		}
 	}
 
-	return DefaultProxyRegistryDomain
-}
-
-// ProxyRegistryURL returns the proxy registry address with a https or http prefix.
-// The first priority is the address configured within the embedded cluster config.
-// If that is not configured, the default address is returned.
-func ProxyRegistryURL() string {
-	return netutil.MaybeAddHTTPS(ProxyRegistryDomain())
+	return ecv1beta1.Domains{
+		ReplicatedAppDomain:      replicatedAppDomain,
+		ProxyRegistryDomain:      proxyRegistryDomain,
+		ReplicatedRegistryDomain: replicatedRegistryDomain,
+	}
 }

@@ -5,7 +5,8 @@ metadata:
   labels:
     troubleshoot.io/kind: support-bundle
 spec:
-  uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster/main/operator/charts/embedded-cluster-operator/troubleshoot/cluster-support-bundle.yaml
+  # NOTE: This is commented out until we have a decision on how to handle this with custom domains.
+  # uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster/main/operator/charts/embedded-cluster-operator/troubleshoot/cluster-support-bundle.yaml
   collectors:
   - clusterInfo: {}
   - clusterResources:
