@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -54,7 +55,8 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 
 		// TODO (@salah): add support for end user overrides
 		sw := &seaweedfs.SeaweedFS{
-			ServiceCIDR: serviceCIDR,
+			ServiceCIDR:         serviceCIDR,
+			ProxyRegistryDomain: cfgspec.Domains.ProxyRegistryDomain,
 		}
 		exists, err := hcli.ReleaseExists(ctx, sw.Namespace(), sw.ReleaseName())
 		if err != nil {
@@ -72,8 +74,9 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 
 		// TODO (@salah): add support for end user overrides
 		reg := &registry.Registry{
-			ServiceCIDR: serviceCIDR,
-			IsHA:        true,
+			ServiceCIDR:         serviceCIDR,
+			ProxyRegistryDomain: cfgspec.Domains.ProxyRegistryDomain,
+			IsHA:                true,
 		}
 		logrus.Debugf("Migrating registry data")
 		if err := reg.Migrate(ctx, kcli, loading); err != nil {
@@ -121,7 +124,7 @@ func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Cli
 		IsHA:                     true,
 		Proxy:                    proxy,
 		ServiceCIDR:              serviceCIDR,
-		ReplicatedAppDomain:      cfgspec.Domains.ReplicatedAppDomain,
+		ReplicatedAppDomain:      netutil.MaybeAddHTTPS(cfgspec.Domains.ReplicatedAppDomain),
 		ProxyRegistryDomain:      cfgspec.Domains.ProxyRegistryDomain,
 		ReplicatedRegistryDomain: cfgspec.Domains.ReplicatedRegistryDomain,
 	}

@@ -84,7 +84,7 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 		},
 	}
 	if opts.ReplicatedAPIEndpoint != "" {
-		runCommandOptions.Env["REPLICATED_API_ENDPOINT"] = opts.ReplicatedAPIEndpoint
+		runCommandOptions.Env["REPLICATED_APP_ENDPOINT"] = opts.ReplicatedAPIEndpoint
 	}
 	err = helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, installArgs...)
 	if err != nil {

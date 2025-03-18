@@ -2,6 +2,8 @@ package adminconsole
 
 import (
 	_ "embed"
+	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -94,4 +96,16 @@ func getBackupLabels() map[string]string {
 		"replicated.com/disaster-recovery":       "infra",
 		"replicated.com/disaster-recovery-chart": "admin-console",
 	}
+}
+
+func (a *AdminConsole) ChartLocation() string {
+	chartName := Metadata.Location
+	if AdminConsoleChartRepoOverride != "" {
+		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", AdminConsoleChartRepoOverride)
+	}
+
+	if a.ProxyRegistryDomain != "" {
+		chartName = strings.Replace(chartName, "proxy.replicated.com", a.ProxyRegistryDomain, 1)
+	}
+	return chartName
 }

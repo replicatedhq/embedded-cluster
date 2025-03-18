@@ -19,6 +19,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -46,7 +47,7 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1b
 	// We must update the cluster config after we upgrade k0s as it is possible that the schema
 	// between versions has changed. One drawback of this is that the sandbox (pause) image does
 	// not get updated, and possibly others but I cannot confirm this.
-	err = updateClusterConfig(ctx, cli)
+	err = updateClusterConfig(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("cluster config update: %w", err)
 	}
@@ -61,13 +62,6 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1b
 	err = upgradeExtensions(ctx, cli, hcli, in)
 	if err != nil {
 		return fmt.Errorf("upgrade extensions: %w", err)
-	}
-
-	slog.Info("Re-applying installation")
-	// re-apply the installation as the CRDs are up-to-date.
-	err = reApplyInstallation(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("unlock installation: %w", err)
 	}
 
 	err = support.CreateHostSupportBundle()
@@ -176,14 +170,19 @@ func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installati
 }
 
 // updateClusterConfig updates the cluster config with the latest images.
-func updateClusterConfig(ctx context.Context, cli client.Client) error {
+func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
 	var currentCfg k0sv1beta1.ClusterConfig
 	err := cli.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &currentCfg)
 	if err != nil {
 		return fmt.Errorf("get cluster config: %w", err)
 	}
 
-	cfg := config.RenderK0sConfig()
+	proxyRegistryDomain := runtimeconfig.DefaultProxyRegistryDomain
+	if in != nil && in.Spec.Config != nil && in.Spec.Config.Domains.ProxyRegistryDomain != "" {
+		proxyRegistryDomain = in.Spec.Config.Domains.ProxyRegistryDomain
+	}
+
+	cfg := config.RenderK0sConfig(proxyRegistryDomain)
 	if currentCfg.Spec.Images != nil {
 		if reflect.DeepEqual(*currentCfg.Spec.Images, *cfg.Spec.Images) {
 			return nil

@@ -17,7 +17,7 @@ func (o *OpenEBS) Install(ctx context.Context, kcli client.Client, hcli helm.Cli
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    Metadata.Location,
+		ChartPath:    o.ChartLocation(),
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,

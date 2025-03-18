@@ -3,6 +3,7 @@ package adminconsole
 import (
 	"context"
 	_ "embed"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -17,6 +18,12 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	if err != nil {
 		return nil, errors.Wrap(err, "marshal helm values")
 	}
+
+	// replace proxy.replicated.com with the potentially customized proxy registry domain
+	if a.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", a.ProxyRegistryDomain)
+	}
+
 	copiedValues, err := helm.UnmarshalValues(marshalled)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshal helm values")
