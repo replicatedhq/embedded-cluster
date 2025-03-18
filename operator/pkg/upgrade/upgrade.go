@@ -177,12 +177,9 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 		return fmt.Errorf("get cluster config: %w", err)
 	}
 
-	proxyRegistryDomain := runtimeconfig.DefaultProxyRegistryDomain
-	if in != nil && in.Spec.Config != nil && in.Spec.Config.Domains.ProxyRegistryDomain != "" {
-		proxyRegistryDomain = in.Spec.Config.Domains.ProxyRegistryDomain
-	}
+	domains := runtimeconfig.GetDomains(in.Spec.Config)
 
-	cfg := config.RenderK0sConfig(proxyRegistryDomain)
+	cfg := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 	if currentCfg.Spec.Images != nil {
 		if reflect.DeepEqual(*currentCfg.Spec.Images, *cfg.Spec.Images) {
 			return nil

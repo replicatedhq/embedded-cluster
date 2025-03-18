@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -63,7 +64,14 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
-	cfg := config.RenderK0sConfig(runtimeconfig.ProxyRegistryDomain())
+
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
+
+	domains := runtimeconfig.GetDomains(embCfgSpec)
+	cfg := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 
 	address, err := netutils.FirstValidAddress(networkInterface)
 	if err != nil {

@@ -256,23 +256,26 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 					Spec: kotsv1beta1.LicenseSpec{
 						LicenseID: "license-id",
 						AppSlug:   "app-slug",
-						Endpoint:  ts.URL,
 					},
 				}
 
-				embedStr := "# channel release object\nchannelID: \"%s\"\nchannelSlug: \"%s\"\nappSlug: \"%s\"\nversionLabel: \"%s\""
+				embedStr := "# channel release object\nchannelID: %s\nchannelSlug: %s\nappSlug: %s\nversionLabel: %s\ndefaultDomains:\n  replicatedAppDomain: %s"
 				releaseDataMap["release.yaml"] = []byte(fmt.Sprintf(
 					embedStr,
 					tt.channelRelease.ChannelID,
 					tt.channelRelease.ChannelSlug,
 					tt.channelRelease.AppSlug,
 					tt.channelRelease.VersionLabel,
+					ts.URL,
 				))
-				err := release.SetReleaseDataForTests(releaseDataMap)
-				require.NoError(t, err)
 			}
+
 			err := release.SetReleaseDataForTests(releaseDataMap)
 			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				release.SetReleaseDataForTests(nil)
+			})
 
 			var in *bytes.Buffer
 			if tt.confirm {
@@ -505,6 +508,10 @@ versionLabel: testversion
 			}
 			err = release.SetReleaseDataForTests(dataMap)
 			req.NoError(err)
+
+			t.Cleanup(func() {
+				release.SetReleaseDataForTests(nil)
+			})
 
 			if tt.licenseContents != "" {
 				_, err = getLicenseFromFilepath(filepath.Join(tmpdir, "license.yaml"))

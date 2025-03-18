@@ -13,7 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
@@ -61,19 +61,14 @@ func Install(ctx context.Context, hcli helm.Client, opts InstallOptions) error {
 }
 
 func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
-	var replicatedAppDomain, proxyRegistryDomain, replicatedRegistryDomain string
-	if opts.EmbeddedConfigSpec != nil {
-		replicatedAppDomain = netutil.MaybeAddHTTPS(opts.EmbeddedConfigSpec.Domains.ReplicatedAppDomain)
-		proxyRegistryDomain = opts.EmbeddedConfigSpec.Domains.ProxyRegistryDomain
-		replicatedRegistryDomain = opts.EmbeddedConfigSpec.Domains.ReplicatedRegistryDomain
-	}
+	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
 
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{
-			ProxyRegistryDomain: proxyRegistryDomain,
+			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 		},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
-			ProxyRegistryDomain: proxyRegistryDomain,
+			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 			IsAirgap:            opts.IsAirgap,
 			Proxy:               opts.Proxy,
 		},
@@ -81,14 +76,14 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 
 	if opts.IsAirgap {
 		addOns = append(addOns, &registry.Registry{
-			ProxyRegistryDomain: proxyRegistryDomain,
+			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 			ServiceCIDR:         opts.ServiceCIDR,
 		})
 	}
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			ProxyRegistryDomain: proxyRegistryDomain,
+			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 			Proxy:               opts.Proxy,
 		})
 	}
@@ -100,9 +95,9 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		Password:                 opts.AdminConsolePwd,
 		PrivateCAs:               opts.PrivateCAs,
 		KotsInstaller:            opts.KotsInstaller,
-		ReplicatedAppDomain:      replicatedAppDomain,
-		ProxyRegistryDomain:      proxyRegistryDomain,
-		ReplicatedRegistryDomain: replicatedRegistryDomain,
+		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
+		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
+		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,
 	}
 	addOns = append(addOns, adminConsoleAddOn)
 
@@ -110,18 +105,15 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 }
 
 func getAddOnsForRestore(opts InstallOptions) []types.AddOn {
-	var proxyRegistryDomain string
-	if opts.EmbeddedConfigSpec != nil {
-		proxyRegistryDomain = opts.EmbeddedConfigSpec.Domains.ProxyRegistryDomain
-	}
+	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
 
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{
-			ProxyRegistryDomain: proxyRegistryDomain,
+			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 		},
 		&velero.Velero{
 			Proxy:               opts.Proxy,
-			ProxyRegistryDomain: proxyRegistryDomain,
+			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 		},
 	}
 	return addOns

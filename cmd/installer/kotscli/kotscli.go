@@ -24,7 +24,7 @@ type InstallOptions struct {
 	Namespace             string
 	AirgapBundle          string
 	ConfigValuesFile      string
-	ReplicatedAPIEndpoint string
+	ReplicatedAppEndpoint string
 }
 
 func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
@@ -81,8 +81,8 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
 		},
 	}
-	if opts.ReplicatedAPIEndpoint != "" {
-		runCommandOptions.Env["REPLICATED_APP_ENDPOINT"] = opts.ReplicatedAPIEndpoint
+	if opts.ReplicatedAppEndpoint != "" {
+		runCommandOptions.Env["REPLICATED_APP_ENDPOINT"] = opts.ReplicatedAppEndpoint
 	}
 	err = helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, installArgs...)
 	if err != nil {

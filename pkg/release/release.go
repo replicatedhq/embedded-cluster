@@ -165,11 +165,18 @@ func parseVeleroRestore(data []byte) (*velerov1.Restore, error) {
 
 // ChannelRelease contains information about a specific app release inside a channel.
 type ChannelRelease struct {
-	VersionLabel string `yaml:"versionLabel"`
-	ChannelID    string `yaml:"channelID"`
-	ChannelSlug  string `yaml:"channelSlug"`
-	AppSlug      string `yaml:"appSlug"`
-	Airgap       bool   `yaml:"airgap"`
+	VersionLabel   string  `yaml:"versionLabel"`
+	ChannelID      string  `yaml:"channelID"`
+	ChannelSlug    string  `yaml:"channelSlug"`
+	AppSlug        string  `yaml:"appSlug"`
+	Airgap         bool    `yaml:"airgap"`
+	DefaultDomains Domains `yaml:"defaultDomains"`
+}
+
+type Domains struct {
+	ReplicatedAppDomain      string `yaml:"replicatedAppDomain,omitempty"`
+	ProxyRegistryDomain      string `yaml:"proxyRegistryDomain,omitempty"`
+	ReplicatedRegistryDomain string `yaml:"replicatedRegistryDomain,omitempty"`
 }
 
 // GetChannelRelease reads the embedded channel release object. If no channel release is found,
