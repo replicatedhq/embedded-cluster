@@ -4,8 +4,9 @@ metadata:
   name: "testconfig"
 spec:
   version: "__version_string__"
-  proxyRegistryDomain: "__proxy_registry_custom_domain__"
-  replicatedAppDomain: "__replicated_app_custom_domain__"
+  domains:
+    proxyRegistryDomain: "__proxy_registry_custom_domain__"
+    replicatedAppDomain: "__replicated_app_custom_domain__"
   roles:
     controller:
       labels:
