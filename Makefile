@@ -80,16 +80,16 @@ cmd/installer/goods/bins/k0s:
 	cp output/bins/k0s-$(K0S_VERSION)-$(ARCH) $@
 
 output/bins/k0s-%:
-	curl -fsSL $(GH_AUTH_HEADER) "https://api.github.com/repos/k0sproject/k0s/releases/tags/$(call split-hyphen,$*,1)" | \
+	curl -fsSL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) "https://api.github.com/repos/k0sproject/k0s/releases/tags/$(call split-hyphen,$*,1)" | \
 		jq -r '.assets[] | select(.name == "k0s-$(call split-hyphen,$*,1)-$(call split-hyphen,$*,2)") | .browser_download_url' | \
-		xargs curl -fL $(GH_AUTH_HEADER) -o $@
+		xargs -I {} curl -fL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) -o $@ "{}"
 	chmod +x $@
 	touch $@
 
 .PHONY: output/bins/k0s-override
 output/bins/k0s-override:
 	mkdir -p output/bins
-	curl -fL -o $@ "$(K0S_BINARY_SOURCE_OVERRIDE)"
+	curl --retry 5 --retry-all-errors -fL -o $@ "$(K0S_BINARY_SOURCE_OVERRIDE)"
 	chmod +x $@
 	touch $@
 
@@ -102,9 +102,9 @@ cmd/installer/goods/bins/kubectl-support_bundle:
 output/bins/kubectl-support_bundle-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl -fsSL $(GH_AUTH_HEADER) "https://api.github.com/repos/replicatedhq/troubleshoot/releases/tags/$(call split-hyphen,$*,1)" | \
+	curl -fsSL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) "https://api.github.com/repos/replicatedhq/troubleshoot/releases/tags/$(call split-hyphen,$*,1)" | \
 		jq -r '.assets[] | select(.name == "support-bundle_$(OS)_$(call split-hyphen,$*,2).tar.gz") | .browser_download_url' | \
-		xargs curl -fL $(GH_AUTH_HEADER) -o output/tmp/support-bundle.tar.gz
+		xargs -I {} curl -fL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) -o output/tmp/support-bundle.tar.gz "{}"
 	tar -xzf output/tmp/support-bundle.tar.gz -C output/tmp
 	mv output/tmp/support-bundle $@
 	rm -rf output/tmp
@@ -119,9 +119,9 @@ cmd/installer/goods/bins/kubectl-preflight:
 output/bins/kubectl-preflight-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl -fsSL $(GH_AUTH_HEADER) "https://api.github.com/repos/replicatedhq/troubleshoot/releases/tags/$(call split-hyphen,$*,1)" | \
+	curl -fsSL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) "https://api.github.com/repos/replicatedhq/troubleshoot/releases/tags/$(call split-hyphen,$*,1)" | \
 		jq -r '.assets[] | select(.name == "preflight_$(OS)_$(call split-hyphen,$*,2).tar.gz") | .browser_download_url' | \
-		xargs curl -fL $(GH_AUTH_HEADER) -o output/tmp/preflight.tar.gz
+		xargs -I {} curl -fL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) -o output/tmp/preflight.tar.gz "{}"
 	tar -xzf output/tmp/preflight.tar.gz -C output/tmp
 	mv output/tmp/preflight $@
 	rm -rf output/tmp
@@ -135,7 +135,7 @@ cmd/installer/goods/bins/local-artifact-mirror:
 	touch $@
 
 ifndef FIO_VERSION
-FIO_VERSION = $(shell curl -fsSL $(GH_AUTH_HEADER) https://api.github.com/repos/axboe/fio/releases | jq -r '. | first | .tag_name' | cut -d- -f2)
+FIO_VERSION = $(shell curl -fsSL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) https://api.github.com/repos/axboe/fio/releases | jq -r '. | first | .tag_name' | cut -d- -f2)
 endif
 
 output/bins/fio-%:
@@ -171,9 +171,9 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl -fsSL $(GH_AUTH_HEADER) "https://api.github.com/repos/replicatedhq/kots/releases/tags/$(call split-hyphen,$*,1)" | \
+	curl -fsSL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) "https://api.github.com/repos/replicatedhq/kots/releases/tags/$(call split-hyphen,$*,1)" | \
 		jq -r '.assets[] | select(.name == "kots_$(OS)_$(call split-hyphen,$*,2).tar.gz") | .browser_download_url' | \
-		xargs curl -fL $(GH_AUTH_HEADER) -o output/tmp/kots.tar.gz
+		xargs -I {} curl -fL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) -o output/tmp/kots.tar.gz "{}"
 	tar -xzf output/tmp/kots.tar.gz -C output/tmp
 	mv output/tmp/kots $@
 	touch $@
@@ -182,7 +182,7 @@ output/bins/kubectl-kots-%:
 output/bins/kubectl-kots-override:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl -fL -o output/tmp/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)"
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)"
 	tar -xzf output/tmp/kots.tar.gz -C output/tmp
 	mv output/tmp/kots $@
 	touch $@
