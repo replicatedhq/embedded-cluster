@@ -2,10 +2,12 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,11 +76,18 @@ func Test_getCurrentAppChannelRelease(t *testing.T) {
 			ts := httptest.NewServer(handler)
 			t.Cleanup(ts.Close)
 
+			releaseStr := fmt.Sprintf("# channel release object\ndefaultDomains:\n  replicatedAppDomain: %s", ts.URL)
+			err := release.SetReleaseDataForTests(map[string][]byte{"release.yaml": []byte(releaseStr)})
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				release.SetReleaseDataForTests(nil)
+			})
+
 			license := &kotsv1beta1.License{
 				Spec: kotsv1beta1.LicenseSpec{
 					LicenseID: "license-id",
 					AppSlug:   "app-slug",
-					Endpoint:  ts.URL,
 				},
 			}
 
