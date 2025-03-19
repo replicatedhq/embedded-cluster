@@ -128,11 +128,7 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 // worker profiles embedded into the binary and then the ones provided by the user
 // (--overrides).
 func applyWorkerProfiles(cfg *k0sv1beta1.ClusterConfig, overrides string) (*k0sv1beta1.ClusterConfig, error) {
-	embcfg, err := release.GetEmbeddedClusterConfig()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
-	}
-
+	embcfg := release.GetEmbeddedClusterConfig()
 	if embcfg != nil && len(embcfg.Spec.UnsupportedOverrides.WorkerProfiles) > 0 {
 		// Apply vendor WorkerProfiles
 		cfg.Spec.WorkerProfiles = embcfg.Spec.UnsupportedOverrides.WorkerProfiles

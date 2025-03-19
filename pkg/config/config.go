@@ -183,12 +183,10 @@ func additionalControllerLabels() map[string]string {
 }
 
 func controllerWorkerProfile() string {
-	clusterConfig, err := release.GetEmbeddedClusterConfig()
-	if err == nil {
-		if clusterConfig != nil {
-			if len(clusterConfig.Spec.UnsupportedOverrides.WorkerProfiles) > 0 {
-				return clusterConfig.Spec.UnsupportedOverrides.WorkerProfiles[0].Name
-			}
+	clusterConfig := release.GetEmbeddedClusterConfig()
+	if clusterConfig != nil {
+		if len(clusterConfig.Spec.UnsupportedOverrides.WorkerProfiles) > 0 {
+			return clusterConfig.Spec.UnsupportedOverrides.WorkerProfiles[0].Name
 		}
 	}
 	return ""
