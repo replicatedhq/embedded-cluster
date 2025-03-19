@@ -337,7 +337,7 @@ func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandRespons
 	}
 
 	logrus.Debugf("joining node to cluster")
-	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand); err != nil {
+	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand, getFirstDefinedProfileFlag(jcmd)); err != nil {
 		return fmt.Errorf("unable to join node to cluster: %w", err)
 	}
 
@@ -472,11 +472,27 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 	return nil
 }
 
+// getFirstDefinedProfileFlag returns the name of the first defined worker profile
+// from the returned join command config
+func getFirstDefinedProfileFlag(jcmd *kotsadm.JoinCommandResponse) string {
+	if jcmd.InstallationSpec.Config != nil {
+		cfgProfiles := jcmd.InstallationSpec.Config.UnsupportedOverrides.WorkerProfiles
+		if len(cfgProfiles) > 0 {
+			return cfgProfiles[len(cfgProfiles)-1].Name
+		}
+	}
+	return ""
+}
+
 // runK0sInstallCommand runs the k0s install command as provided by the kots
 // adm api.
-func runK0sInstallCommand(networkInterface string, fullcmd string) error {
+func runK0sInstallCommand(networkInterface string, fullcmd string, profile string) error {
 	args := strings.Split(fullcmd, " ")
 	args = append(args, "--token-file", "/etc/k0s/join-token")
+
+	if profile != "" {
+		args = append(args, "--profile="+profile)
+	}
 
 	nodeIP, err := netutils.FirstValidAddress(networkInterface)
 	if err != nil {
