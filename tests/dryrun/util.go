@@ -31,12 +31,18 @@ var (
 	//go:embed assets/install-release.yaml
 	releaseData string
 
+	//go:embed assets/cluster-config.yaml
+	clusterConfigData string
+
+	//go:embed assets/cluster-config-nodomains.yaml
+	clusterConfigNoDomainsData string
+
 	//go:embed assets/install-license.yaml
 	licenseData string
 )
 
 func dryrunJoin(t *testing.T, args ...string) dryruntypes.DryRun {
-	if err := embedReleaseData(); err != nil {
+	if err := embedReleaseData(clusterConfigData); err != nil {
 		t.Fatalf("fail to embed release data: %v", err)
 	}
 
@@ -57,7 +63,11 @@ func dryrunJoin(t *testing.T, args ...string) dryruntypes.DryRun {
 }
 
 func dryrunInstall(t *testing.T, c *dryrun.Client, args ...string) dryruntypes.DryRun {
-	if err := embedReleaseData(); err != nil {
+	return dryrunInstallWithClusterConfig(t, c, clusterConfigData, args...)
+}
+
+func dryrunInstallWithClusterConfig(t *testing.T, c *dryrun.Client, clusterConfig string, args ...string) dryruntypes.DryRun {
+	if err := embedReleaseData(clusterConfig); err != nil {
 		t.Fatalf("fail to embed release data: %v", err)
 	}
 
@@ -85,7 +95,7 @@ func dryrunInstall(t *testing.T, c *dryrun.Client, args ...string) dryruntypes.D
 }
 
 func dryrunUpdate(t *testing.T, args ...string) dryruntypes.DryRun {
-	if err := embedReleaseData(); err != nil {
+	if err := embedReleaseData(clusterConfigData); err != nil {
 		t.Fatalf("fail to embed release data: %v", err)
 	}
 
@@ -104,9 +114,10 @@ func dryrunUpdate(t *testing.T, args ...string) dryruntypes.DryRun {
 	return *dr
 }
 
-func embedReleaseData() error {
+func embedReleaseData(clusterConfig string) error {
 	if err := release.SetReleaseDataForTests(map[string][]byte{
-		"release.yaml": []byte(releaseData),
+		"release.yaml":        []byte(releaseData),
+		"cluster-config.yaml": []byte(clusterConfig),
 	}); err != nil {
 		return fmt.Errorf("set release data: %v", err)
 	}
@@ -244,5 +255,27 @@ func assertHelmValues(t *testing.T, actualValues map[string]interface{}, expecte
 		actualValue, err := helm.GetValue(actualValues, expectedKey)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedValue, actualValue)
+	}
+}
+
+func assertHelmValuePrefixes(t *testing.T, actualValues map[string]interface{}, expectedPrefixes map[string]string) {
+	for expectedKey, expectedPrefix := range expectedPrefixes {
+		actualValue, err := helm.GetValue(actualValues, expectedKey)
+		assert.NoError(t, err)
+		if actualValue == nil {
+			t.Errorf("expected prefix %s for key %s, got nil", expectedPrefix, expectedKey)
+			return
+		}
+
+		actualValueStr, ok := actualValue.(string)
+		if !ok {
+			t.Errorf("expected prefix %s for key %s, got %v", expectedPrefix, expectedKey, actualValue)
+			return
+		}
+
+		if !strings.HasPrefix(actualValueStr, expectedPrefix) {
+			t.Errorf("expected prefix %s for key %s, got %s", expectedPrefix, expectedKey, actualValueStr)
+			return
+		}
 	}
 }

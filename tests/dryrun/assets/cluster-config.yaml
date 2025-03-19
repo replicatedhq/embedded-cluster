@@ -1,0 +1,9 @@
+apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+metadata:
+ name: "testconfig"
+spec:
+ version: "testversion"
+ domains:
+   replicatedAppDomain: "fake-endpoint.com"
+   proxyRegistryDomain: "fake-replicated-proxy.test.net"

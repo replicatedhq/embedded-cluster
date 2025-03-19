@@ -44,13 +44,19 @@ func testDefaultInstallationImpl(t *testing.T) {
 	openebsOpts := hcli.Calls[0].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "openebs", openebsOpts.ReleaseName)
 	assertHelmValues(t, openebsOpts.Values, map[string]interface{}{
-		"['localpv-provisioner'].localpv.basePath": "/var/lib/embedded-cluster/openebs-local",
+		"['localpv-provisioner'].localpv.basePath":         "/var/lib/embedded-cluster/openebs-local",
+		"['localpv-provisioner'].helperPod.image.registry": "fake-replicated-proxy.test.net/anonymous/",
+		"['localpv-provisioner'].localpv.image.registry":   "fake-replicated-proxy.test.net/anonymous/",
+		"['preUpgradeHook'].image.registry":                "fake-replicated-proxy.test.net/anonymous",
 	})
 
 	// embedded cluster operator
 	assert.Equal(t, "Install", hcli.Calls[1].Method)
 	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
+	assertHelmValues(t, operatorOpts.Values, map[string]interface{}{
+		"image.repository": "fake-replicated-proxy.test.net/anonymous/replicated/embedded-cluster-operator-image",
+	})
 
 	// velero
 	assert.Equal(t, "Install", hcli.Calls[2].Method)
@@ -58,6 +64,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "velero", veleroOpts.ReleaseName)
 	assertHelmValues(t, veleroOpts.Values, map[string]interface{}{
 		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
+		"image.repository":        "fake-replicated-proxy.test.net/anonymous/replicated/ec-velero",
 	})
 
 	// admin console
@@ -66,6 +73,12 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
 		"kurlProxy.nodePort": float64(30000),
+	})
+	assertHelmValuePrefixes(t, adminConsoleOpts.Values, map[string]string{
+		"images.kotsadm":    "fake-replicated-proxy.test.net/anonymous",
+		"images.kurlProxy":  "fake-replicated-proxy.test.net/anonymous",
+		"images.migrations": "fake-replicated-proxy.test.net/anonymous",
+		"images.rqlite":     "fake-replicated-proxy.test.net/anonymous",
 	})
 
 	// --- validate os env --- //
@@ -159,6 +172,14 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "10.244.0.0/17", k0sConfig.Spec.Network.PodCIDR)
 	assert.Equal(t, "10.244.128.0/17", k0sConfig.Spec.Network.ServiceCIDR)
 	assert.Contains(t, k0sConfig.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
+
+	assert.Contains(t, k0sConfig.Spec.Images.MetricsServer.Image, "fake-replicated-proxy.test.net/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.KubeProxy.Image, "fake-replicated-proxy.test.net/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.CoreDNS.Image, "fake-replicated-proxy.test.net/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.Pause.Image, "fake-replicated-proxy.test.net/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.CNI.Image, "fake-replicated-proxy.test.net/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.Node.Image, "fake-replicated-proxy.test.net/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.KubeControllers.Image, "fake-replicated-proxy.test.net/anonymous")
 }
 
 func TestCustomDataDir(t *testing.T) {
@@ -460,6 +481,93 @@ func TestCustomCidrInstallation(t *testing.T) {
 
 	assert.Equal(t, "10.2.0.0/17", k0sConfig.Spec.Network.PodCIDR)
 	assert.Equal(t, "10.2.128.0/17", k0sConfig.Spec.Network.ServiceCIDR)
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+// this test is to ensure that when no domains are provided in the cluster config that the domains from the embedded release file are used
+func TestNoDomains(t *testing.T) {
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dr := dryrunInstallWithClusterConfig(t,
+		&dryrun.Client{HelmClient: hcli},
+		clusterConfigNoDomainsData,
+	)
+
+	// --- validate addons --- //
+
+	// openebs
+	assert.Equal(t, "Install", hcli.Calls[0].Method)
+	openebsOpts := hcli.Calls[0].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "openebs", openebsOpts.ReleaseName)
+	assertHelmValues(t, openebsOpts.Values, map[string]interface{}{
+		"['localpv-provisioner'].localpv.basePath":         "/var/lib/embedded-cluster/openebs-local",
+		"['localpv-provisioner'].helperPod.image.registry": "proxy.staging.replicated.com/anonymous/",
+		"['localpv-provisioner'].localpv.image.registry":   "proxy.staging.replicated.com/anonymous/",
+		"['preUpgradeHook'].image.registry":                "proxy.staging.replicated.com/anonymous",
+	})
+
+	// embedded cluster operator
+	assert.Equal(t, "Install", hcli.Calls[1].Method)
+	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
+	assertHelmValues(t, operatorOpts.Values, map[string]interface{}{
+		"image.repository": "proxy.staging.replicated.com/anonymous/replicated/embedded-cluster-operator-image",
+	})
+
+	// velero
+	assert.Equal(t, "Install", hcli.Calls[2].Method)
+	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "velero", veleroOpts.ReleaseName)
+	assertHelmValues(t, veleroOpts.Values, map[string]interface{}{
+		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
+		"image.repository":        "proxy.staging.replicated.com/anonymous/replicated/ec-velero",
+	})
+
+	// admin console
+	assert.Equal(t, "Install", hcli.Calls[3].Method)
+	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
+	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
+		"kurlProxy.nodePort": float64(30000),
+	})
+	assertHelmValuePrefixes(t, adminConsoleOpts.Values, map[string]string{
+		"images.kotsadm":    "proxy.staging.replicated.com/anonymous",
+		"images.kurlProxy":  "proxy.staging.replicated.com/anonymous",
+		"images.migrations": "proxy.staging.replicated.com/anonymous",
+		"images.rqlite":     "proxy.staging.replicated.com/anonymous",
+	})
+
+	// --- validate installation object --- //
+	kcli, err := dr.KubeClient()
+	if err != nil {
+		t.Fatalf("failed to create kube client: %v", err)
+	}
+	in, err := kubeutils.GetLatestInstallation(context.TODO(), kcli)
+	if err != nil {
+		t.Fatalf("failed to get latest installation: %v", err)
+	}
+	// expected to be empty
+	assert.Equal(t, "", in.Spec.Config.Domains.ProxyRegistryDomain)
+	assert.Equal(t, "", in.Spec.Config.Domains.ReplicatedAppDomain)
+	assert.Equal(t, "", in.Spec.Config.Domains.ReplicatedRegistryDomain)
+
+	// --- validate k0s cluster config --- //
+	k0sConfig := readK0sConfig(t)
+
+	assert.Contains(t, k0sConfig.Spec.Images.MetricsServer.Image, "proxy.staging.replicated.com/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.KubeProxy.Image, "proxy.staging.replicated.com/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.CoreDNS.Image, "proxy.staging.replicated.com/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.Pause.Image, "proxy.staging.replicated.com/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.CNI.Image, "proxy.staging.replicated.com/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.Node.Image, "proxy.staging.replicated.com/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.KubeControllers.Image, "proxy.staging.replicated.com/anonymous")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
