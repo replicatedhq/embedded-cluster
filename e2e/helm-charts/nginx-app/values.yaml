@@ -10,7 +10,7 @@ server:
   image:
     repository: nginx
     pullPolicy: IfNotPresent
-    tag: "stable"
+    tag: "1.24-alpine"
   service:
     type: ClusterIP
     port: 80
@@ -31,7 +31,7 @@ client:
   image:
     repository: curlimages/curl
     pullPolicy: IfNotPresent
-    tag: "latest"
+    tag: "8.12.1"
   intervalSeconds: 30  # Make a request every 30 seconds
   resources:
     limits:

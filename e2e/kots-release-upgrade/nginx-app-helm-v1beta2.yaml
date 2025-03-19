@@ -10,7 +10,7 @@ spec:
   values:
     server:
       image:
-        repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "ec-e2e-proxy.testcluster.net" }}/repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app" }}/nginx
+        repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "ec-e2e-proxy.testcluster.net" }}/repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app/us-east4-docker.pkg.dev/replicated-qa/ec-smoke-test" }}/nginx
       service:
         type: ClusterIP
         port: 80
@@ -20,7 +20,7 @@ spec:
     client:
       enabled: true
       image:
-        repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "ec-e2e-proxy.testcluster.net" }}/repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app/curlimages" }}/curl
+        repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "ec-e2e-proxy.testcluster.net" }}/repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app/us-east4-docker.pkg.dev/replicated-qa/ec-smoke-test" }}/curl
       replicaCount: 3
       intervalSeconds: 60
       imagePullSecrets:
