@@ -1,9 +1,9 @@
+# DEVELOPMENT USE ONLY! THIE FILE IS NOT USED FOR DEPLOYS!
 apiVersion: v2
 name: embedded-cluster-operator
 description: Embedded Cluster Operator
 type: application
-version: 2.1.3+k8s-1.30-90-g3b96-diamonwiggins
+version: 0.0.0
 dependencies:
   - name: crds
     version: "0.0.0"
-    condition: crds.enabled
