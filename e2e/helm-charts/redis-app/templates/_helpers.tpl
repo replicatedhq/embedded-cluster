@@ -40,7 +40,7 @@ helm.sh/chart: {{ include "redis-app.chart" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- if and .Values.global (hasKey .Values.global "labels") }}
+{{- if and .Values.global .Values.global.labels (not (empty .Values.global.labels)) }}
 {{- toYaml .Values.global.labels | nindent 0 }}
 {{- end }}
 {{- end }}
