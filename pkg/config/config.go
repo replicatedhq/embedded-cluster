@@ -102,11 +102,7 @@ func InstallFlags(nodeIP string, cfg *k0sconfig.ClusterConfig) ([]string, error)
 		"--no-taints",
 		"-c", runtimeconfig.PathToK0sConfig(),
 	}
-	profile, err := ProfileInstallFlag(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get profile install flag: %w", err)
-	}
-	flags = append(flags, profile)
+	flags = append(flags, ProfileInstallFlag(cfg))
 	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
 	return flags, nil
@@ -128,20 +124,12 @@ func AdditionalInstallFlagsController() []string {
 	}
 }
 
-func ProfileInstallFlag(cfg *k0sconfig.ClusterConfig) (string, error) {
+func ProfileInstallFlag(cfg *k0sconfig.ClusterConfig) string {
 	controllerProfile := controllerWorkerProfile()
 	if controllerProfile == "" {
-		return "", nil
+		return ""
 	}
-
-	// make sure that the controller profile role name exists in the worker profiles
-	for _, profile := range cfg.Spec.WorkerProfiles {
-		if profile.Name == controllerProfile {
-			return "--profile=" + controllerProfile, nil
-		}
-	}
-
-	return "", fmt.Errorf("controller profile %q not found in k0s worker profiles", controllerProfile)
+	return "--profile=" + controllerProfile
 }
 
 // nodeLabels return a slice of string with labels (key=value format) for the node where we
