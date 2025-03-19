@@ -479,7 +479,7 @@ func getFirstDefinedProfileFlag(jcmd *kotsadm.JoinCommandResponse) string {
 	if jcmd.InstallationSpec.Config != nil {
 		cfgProfiles := jcmd.InstallationSpec.Config.UnsupportedOverrides.WorkerProfiles
 		if len(cfgProfiles) > 0 {
-			return cfgProfiles[len(cfgProfiles)-1].Name
+			return cfgProfiles[0].Name
 		}
 	}
 	return ""
