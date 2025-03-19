@@ -3,7 +3,7 @@ channelID: "fake-channel-id"
 channelSlug: "fake-channel-slug"
 appSlug: "fake-app-slug"
 versionLabel: "fake-version-label"
-domains:
- replicatedRegistryDomain: "registry.staging.replicated.com"
- replicatedProxyDomain: "proxy.staging.replicated.com"
- replicatedAppDomain: "staging.replicated.app"
+defaultDomains:
+  replicatedAppDomain: "staging.replicated.app"
+  proxyRegistryDomain: "proxy.staging.replicated.com"
+  replicatedRegistryDomain: "registry.staging.replicated.com"

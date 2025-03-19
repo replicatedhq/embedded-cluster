@@ -34,12 +34,15 @@ var (
 	//go:embed assets/cluster-config.yaml
 	clusterConfigData string
 
+	//go:embed assets/cluster-config-nodomains.yaml
+	clusterConfigNoDomainsData string
+
 	//go:embed assets/install-license.yaml
 	licenseData string
 )
 
 func dryrunJoin(t *testing.T, args ...string) dryruntypes.DryRun {
-	if err := embedReleaseData(); err != nil {
+	if err := embedReleaseData(clusterConfigData); err != nil {
 		t.Fatalf("fail to embed release data: %v", err)
 	}
 
@@ -60,7 +63,11 @@ func dryrunJoin(t *testing.T, args ...string) dryruntypes.DryRun {
 }
 
 func dryrunInstall(t *testing.T, c *dryrun.Client, args ...string) dryruntypes.DryRun {
-	if err := embedReleaseData(); err != nil {
+	return dryrunInstallWithClusterConfig(t, c, clusterConfigData, args...)
+}
+
+func dryrunInstallWithClusterConfig(t *testing.T, c *dryrun.Client, clusterConfig string, args ...string) dryruntypes.DryRun {
+	if err := embedReleaseData(clusterConfig); err != nil {
 		t.Fatalf("fail to embed release data: %v", err)
 	}
 
@@ -88,7 +95,7 @@ func dryrunInstall(t *testing.T, c *dryrun.Client, args ...string) dryruntypes.D
 }
 
 func dryrunUpdate(t *testing.T, args ...string) dryruntypes.DryRun {
-	if err := embedReleaseData(); err != nil {
+	if err := embedReleaseData(clusterConfigData); err != nil {
 		t.Fatalf("fail to embed release data: %v", err)
 	}
 
@@ -107,10 +114,10 @@ func dryrunUpdate(t *testing.T, args ...string) dryruntypes.DryRun {
 	return *dr
 }
 
-func embedReleaseData() error {
+func embedReleaseData(clusterConfig string) error {
 	if err := release.SetReleaseDataForTests(map[string][]byte{
 		"release.yaml":        []byte(releaseData),
-		"cluster-config.yaml": []byte(clusterConfigData),
+		"cluster-config.yaml": []byte(clusterConfig),
 	}); err != nil {
 		return fmt.Errorf("set release data: %v", err)
 	}
