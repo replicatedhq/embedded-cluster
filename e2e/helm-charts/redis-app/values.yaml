@@ -1,5 +1,6 @@
 # Default values for redis-app
-
+global:
+  labels: {}
 # Server (Redis) configuration
 server:
   replicaCount: 1
