@@ -8,6 +8,8 @@ spec:
   ttl: 36h0m0s
   includedNamespaces:
   - kotsadm
+  - redis-app
+  - nginx-app
   orLabelSelectors:
   - matchExpressions:
     - { key: kots.io/kotsadm, operator: NotIn, values: ["true"] }

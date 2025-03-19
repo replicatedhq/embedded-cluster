@@ -6,9 +6,17 @@ metadata:
 spec:
   title: Embedded Cluster Smoke Test Staging App
   icon: https://raw.githubusercontent.com/cncf/artwork/master/projects/kubernetes/icon/color/kubernetes-icon-color.png
+  proxyPublicImages: true
   allowRollback: true
+  additionalNamespaces:
+    - "redis-app"
+    - "nginx-app"
   statusInformers:
     - deployment/nginx
+    - nginx-app/deployment/nginx-app
+    - nginx-app/deployment/nginx-app-client
+    - redis-app/deployment/redis-app
+    - redis-app/deployment/redis-app-client
   ports:
     - serviceName: "nginx"
       servicePort: 80
