@@ -16,18 +16,9 @@ http_access allow whitelist
 "
 
 whitelist_txt="
-proxy.replicated.com
+proxy.replicated.com # TODO: remove this once kots supports custom domains in embedded cluster
 ec-e2e-replicated-app.testcluster.net
-
-# ingress-nginx extension chart redirects to github.com releases/download
-kubernetes.github.io
-github.com
-objects.githubusercontent.com
-# goldpinger extension chart
-okgolove.github.io
-
-# install_kots_cli
-kots.io
+ec-e2e-proxy.testcluster.net
 
 # dr
 .amazonaws.com

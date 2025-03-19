@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -52,9 +53,12 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 	if isAirgap {
 		loading.Infof("Enabling high availability")
 
+		domains := runtimeconfig.GetDomains(cfgspec)
+
 		// TODO (@salah): add support for end user overrides
 		sw := &seaweedfs.SeaweedFS{
-			ServiceCIDR: serviceCIDR,
+			ServiceCIDR:         serviceCIDR,
+			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 		}
 		exists, err := hcli.ReleaseExists(ctx, sw.Namespace(), sw.ReleaseName())
 		if err != nil {
@@ -72,8 +76,9 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 
 		// TODO (@salah): add support for end user overrides
 		reg := &registry.Registry{
-			ServiceCIDR: serviceCIDR,
-			IsHA:        true,
+			ServiceCIDR:         serviceCIDR,
+			ProxyRegistryDomain: domains.ProxyRegistryDomain,
+			IsHA:                true,
 		}
 		logrus.Debugf("Migrating registry data")
 		if err := reg.Migrate(ctx, kcli, loading); err != nil {
@@ -108,22 +113,23 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 	}
 
 	logrus.Debugf("High availability enabled!")
-
 	loading.Infof("High availability enabled!")
 	return nil
 }
 
 // EnableAdminConsoleHA enables high availability for the admin console.
 func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
+	domains := runtimeconfig.GetDomains(cfgspec)
+
 	// TODO (@salah): add support for end user overrides
 	ac := &adminconsole.AdminConsole{
 		IsAirgap:                 isAirgap,
 		IsHA:                     true,
 		Proxy:                    proxy,
 		ServiceCIDR:              serviceCIDR,
-		ReplicatedAppDomain:      cfgspec.Domains.ReplicatedAppDomain,
-		ProxyRegistryDomain:      cfgspec.Domains.ProxyRegistryDomain,
-		ReplicatedRegistryDomain: cfgspec.Domains.ReplicatedRegistryDomain,
+		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
+		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
+		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,
 	}
 	if err := ac.Upgrade(ctx, kcli, hcli, addOnOverrides(ac, cfgspec, nil)); err != nil {
 		return errors.Wrap(err, "upgrade admin console")

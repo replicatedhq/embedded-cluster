@@ -2,13 +2,16 @@ package openebs
 
 import (
 	_ "embed"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"gopkg.in/yaml.v3"
 )
 
-type OpenEBS struct{}
+type OpenEBS struct {
+	ProxyRegistryDomain string
+}
 
 const (
 	releaseName = "openebs"
@@ -51,4 +54,11 @@ func (o *OpenEBS) ReleaseName() string {
 
 func (o *OpenEBS) Namespace() string {
 	return namespace
+}
+
+func (o *OpenEBS) ChartLocation() string {
+	if o.ProxyRegistryDomain == "" {
+		return Metadata.Location
+	}
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", o.ProxyRegistryDomain, 1)
 }

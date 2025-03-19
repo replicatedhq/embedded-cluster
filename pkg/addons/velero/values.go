@@ -3,6 +3,7 @@ package velero
 import (
 	"context"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -16,6 +17,12 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 	if err != nil {
 		return nil, errors.Wrap(err, "marshal helm values")
 	}
+
+	// replace proxy.replicated.com with the potentially customized proxy registry domain
+	if v.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", v.ProxyRegistryDomain)
+	}
+
 	copiedValues, err := helm.UnmarshalValues(marshalled)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshal helm values")

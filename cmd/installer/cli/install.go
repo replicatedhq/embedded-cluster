@@ -34,6 +34,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -98,9 +99,8 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clusterID := metrics.ClusterID()
-
 			metricsReporter := NewInstallReporter(
-				runtimeconfig.ReplicatedAppURL(flags.license), flags.license.Spec.LicenseID, clusterID, cmd.CalledAs(),
+				replicatedAppURL(), flags.license.Spec.LicenseID, clusterID, cmd.CalledAs(),
 			)
 			metricsReporter.ReportInstallationStarted(ctx)
 			if err := runInstall(cmd.Context(), name, flags, metricsReporter); err != nil {
@@ -321,12 +321,8 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 
 	// TODO (@salah): update installation status to reflect what's happening
 
-	embCfg, err := release.GetEmbeddedClusterConfig()
-	if err != nil {
-		return fmt.Errorf("unable to get release embedded cluster config: %w", err)
-	}
 	var embCfgSpec *ecv1beta1.ConfigSpec
-	if embCfg != nil {
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
 		embCfgSpec = &embCfg.Spec
 	}
 
@@ -372,7 +368,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 				Namespace:             runtimeconfig.KotsadmNamespace,
 				AirgapBundle:          flags.airgapBundle,
 				ConfigValuesFile:      flags.configValues,
-				ReplicatedAPIEndpoint: runtimeconfig.ReplicatedAppURL(flags.license),
+				ReplicatedAppEndpoint: replicatedAppURL(),
 			}
 			return kotscli.Install(opts, msg)
 		},
@@ -471,10 +467,7 @@ func ensureAdminConsolePassword(flags *InstallCmdFlags) error {
 }
 
 func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
-	rel, err := release.GetChannelRelease()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
-	}
+	rel := release.GetChannelRelease()
 
 	// handle the three cases that do not require parsing the license file
 	// 1. no release and no license, which is OK
@@ -552,10 +545,7 @@ func checkChannelExistence(license *kotsv1beta1.License, rel *release.ChannelRel
 }
 
 func verifyChannelRelease(cmdName string, isAirgap bool, assumeYes bool) error {
-	channelRelease, err := release.GetChannelRelease()
-	if err != nil {
-		return fmt.Errorf("read channel release data: %w", err)
-	}
+	channelRelease := release.GetChannelRelease()
 
 	if channelRelease != nil && channelRelease.Airgap && !isAirgap && !assumeYes {
 		logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
@@ -684,10 +674,7 @@ func configureNetworkManager(ctx context.Context) error {
 }
 
 func checkAirgapMatches(airgapBundle string) error {
-	rel, err := release.GetChannelRelease()
-	if err != nil {
-		return fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
-	}
+	rel := release.GetChannelRelease()
 	if rel == nil {
 		return fmt.Errorf("airgap bundle provided but no release was found in binary, please rerun without the airgap-bundle flag")
 	}
@@ -725,10 +712,8 @@ func checkAirgapMatches(airgapBundle string) error {
 // channel. If stdout is a terminal, it will prompt the user to continue installing the out-of-date
 // release and return an error if the user chooses not to continue.
 func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license *kotsv1beta1.License, assumeYes bool) error {
-	channelRelease, err := release.GetChannelRelease()
-	if err != nil {
-		return fmt.Errorf("unable to get channel release: %w", err)
-	} else if channelRelease == nil {
+	channelRelease := release.GetChannelRelease()
+	if channelRelease == nil {
 		// It is possible to install without embedding the release data. In this case, we cannot
 		// check for app updates.
 		return nil
@@ -752,7 +737,7 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 	}
 	logrus.Debugf("Current app release is out-of-date")
 
-	apiURL := runtimeconfig.ReplicatedAppURL(license)
+	apiURL := replicatedAppURL()
 	releaseURL := fmt.Sprintf("%s/embedded/%s/%s", apiURL, channelRelease.AppSlug, channelRelease.ChannelSlug)
 	logrus.Warnf("A newer version %s is available.", currentRelease.VersionLabel)
 	logrus.Infof(
@@ -792,6 +777,24 @@ func validateAdminConsolePassword(password, passwordCheck string) bool {
 		return false
 	}
 	return true
+}
+
+func replicatedAppURL() string {
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
+	domains := runtimeconfig.GetDomains(embCfgSpec)
+	return netutil.MaybeAddHTTPS(domains.ReplicatedAppDomain)
+}
+
+func proxyRegistryURL() string {
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
+	domains := runtimeconfig.GetDomains(embCfgSpec)
+	return netutil.MaybeAddHTTPS(domains.ProxyRegistryDomain)
 }
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
@@ -990,10 +993,7 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCm
 		return nil, fmt.Errorf("create installation CRD: %w", err)
 	}
 
-	cfg, err := release.GetEmbeddedClusterConfig()
-	if err != nil {
-		return nil, err
-	}
+	cfg := release.GetEmbeddedClusterConfig()
 	var cfgspec *ecv1beta1.ConfigSpec
 	if cfg != nil {
 		cfgspec = &cfg.Spec
@@ -1020,7 +1020,7 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCm
 		},
 		Spec: ecv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),
-			MetricsBaseURL:            runtimeconfig.ReplicatedAppURL(flags.license),
+			MetricsBaseURL:            replicatedAppURL(),
 			AirGap:                    flags.isAirgap,
 			Proxy:                     flags.proxy,
 			Network:                   networkSpecFromK0sConfig(k0sCfg),
@@ -1038,7 +1038,7 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCm
 	}
 
 	// the kubernetes api does not allow us to set the state of an object when creating it
-	err = kubeutils.SetInstallationState(ctx, kcli, installation, ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed")
+	err := kubeutils.SetInstallationState(ctx, kcli, installation, ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed")
 	if err != nil {
 		return nil, fmt.Errorf("set installation state to KubernetesInstalled: %w", err)
 	}
@@ -1151,8 +1151,8 @@ func gatherVersionMetadata(withChannelRelease bool) (*types.ReleaseMetadata, err
 	versionsMap["Troubleshoot"] = versions.TroubleshootVersion
 
 	if withChannelRelease {
-		channelRelease, err := release.GetChannelRelease()
-		if err == nil && channelRelease != nil {
+		channelRelease := release.GetChannelRelease()
+		if channelRelease != nil {
 			versionsMap[runtimeconfig.BinaryName()] = channelRelease.VersionLabel
 		}
 	}
@@ -1202,7 +1202,7 @@ func gatherVersionMetadata(withChannelRelease bool) (*types.ReleaseMetadata, err
 		Repositories:     append(repconfig, additionalRepos...),
 	}
 
-	k0sCfg := config.RenderK0sConfig()
+	k0sCfg := config.RenderK0sConfig(runtimeconfig.DefaultProxyRegistryDomain)
 	meta.K0sImages = config.ListK0sImages(k0sCfg)
 	meta.K0sImages = append(meta.K0sImages, addons.GetAdditionalImages()...)
 	meta.K0sImages = helpers.UniqueStringSlice(meta.K0sImages)

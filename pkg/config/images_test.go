@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/k0sproject/k0s/pkg/airgap"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 func TestListK0sImages(t *testing.T) {
-	original := airgap.GetImageURIs(RenderK0sConfig().Spec, true)
+	original := airgap.GetImageURIs(RenderK0sConfig(runtimeconfig.DefaultProxyRegistryDomain).Spec, true)
 	if len(original) == 0 {
 		t.Errorf("airgap.GetImageURIs() = %v, want not empty", original)
 	}
@@ -40,7 +41,7 @@ func TestListK0sImages(t *testing.T) {
 		t.Errorf("airgap.GetImageURIs() = %v, want to contain envoy-distroless", original)
 	}
 
-	filtered := ListK0sImages(RenderK0sConfig())
+	filtered := ListK0sImages(RenderK0sConfig(runtimeconfig.DefaultProxyRegistryDomain))
 	if len(filtered) == 0 {
 		t.Errorf("ListK0sImages() = %v, want not empty", filtered)
 	}

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -67,7 +68,14 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
-	cfg := config.RenderK0sConfig()
+
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
+
+	domains := runtimeconfig.GetDomains(embCfgSpec)
+	cfg := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 
 	address, err := netutils.FirstValidAddress(networkInterface)
 	if err != nil {
@@ -146,14 +154,11 @@ func applyWorkerProfiles(cfg *k0sv1beta1.ClusterConfig, overrides string) (*k0sv
 // applyUnsupportedOverrides applies overrides to the k0s configuration. Applies the
 // overrides embedded into the binary and then the ones provided by the user (--overrides).
 func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, overrides string) (*k0sv1beta1.ClusterConfig, error) {
-	embcfg, err := release.GetEmbeddedClusterConfig()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
-	}
-
+	embcfg := release.GetEmbeddedClusterConfig()
 	if embcfg != nil {
 		// Apply vendor k0s overrides
 		overrides := embcfg.Spec.UnsupportedOverrides.K0s
+		var err error
 		cfg, err = config.PatchK0sConfig(cfg, overrides)
 		if err != nil {
 			return nil, fmt.Errorf("unable to patch k0s config: %w", err)
@@ -168,6 +173,7 @@ func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, overrides string) 
 	if eucfg != nil {
 		// Apply end user k0s overrides
 		overrides := eucfg.Spec.UnsupportedOverrides.K0s
+		var err error
 		cfg, err = config.PatchK0sConfig(cfg, overrides)
 		if err != nil {
 			return nil, fmt.Errorf("unable to apply overrides: %w", err)

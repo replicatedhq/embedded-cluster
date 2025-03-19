@@ -4,6 +4,9 @@ metadata:
   name: "testconfig"
 spec:
   version: "__version_string__"
+  domains:
+    replicatedAppDomain: "ec-e2e-replicated-app.testcluster.net"
+    proxyRegistryDomain: "ec-e2e-proxy.testcluster.net"
   roles:
     controller:
       labels:
@@ -50,7 +53,7 @@ spec:
           values: |
             global:
               image:
-                registry: proxy.replicated.com/anonymous/registry.k8s.io
+                registry: ec-e2e-proxy.testcluster.net/anonymous/registry.k8s.io
             controller:
               service:
                 type: NodePort
@@ -58,19 +61,19 @@ spec:
                   http: "80"
                   https: "443"
               image:
-                registry: proxy.replicated.com/anonymous/registry.k8s.io
+                registry: ec-e2e-proxy.testcluster.net/anonymous/registry.k8s.io
                 digest: ""
                 digestChroot: ""
               admissionWebhooks:
                 patch:
                   image:
-                    registry: proxy.replicated.com/anonymous/registry.k8s.io
+                    registry: ec-e2e-proxy.testcluster.net/anonymous/registry.k8s.io
                     digest: ""
-        - chartname: okgolove/goldpinger
-          name: goldpinger
+        - name: goldpinger
+          chartname: okgolove/goldpinger
           namespace: goldpinger
           version: 6.1.2
           order: 11
           values: |
             image:
-              repository: proxy.replicated.com/anonymous/bloomberg/goldpinger
+              repository: ec-e2e-proxy.testcluster.net/anonymous/bloomberg/goldpinger
