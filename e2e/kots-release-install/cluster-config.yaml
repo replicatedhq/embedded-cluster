@@ -14,7 +14,6 @@ spec:
       labels:
         controller-label: controller-label-value
       name: controller-test
-      workerProfile: ip-forward
     custom:
       - labels:
           abc-test-label: abc-test-label-value
@@ -23,12 +22,12 @@ spec:
       - labels:
           xyz-test-label: xyz-value
         name: xyz
-  workerProfiles:
-  - name: ip-forward
-    values:
-      allowedUnsafeSysctls:
-      - net.ipv4.ip_forward
   unsupportedOverrides:
+    workerProfiles:
+    - name: ip-forward
+      values:
+        allowedUnsafeSysctls:
+        - net.ipv4.ip_forward
     builtInExtensions:
       - name: admin-console
         values: |
