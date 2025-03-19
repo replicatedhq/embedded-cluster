@@ -44,13 +44,19 @@ func testDefaultInstallationImpl(t *testing.T) {
 	openebsOpts := hcli.Calls[0].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "openebs", openebsOpts.ReleaseName)
 	assertHelmValues(t, openebsOpts.Values, map[string]interface{}{
-		"['localpv-provisioner'].localpv.basePath": "/var/lib/embedded-cluster/openebs-local",
+		"['localpv-provisioner'].localpv.basePath":         "/var/lib/embedded-cluster/openebs-local",
+		"['localpv-provisioner'].helperPod.image.registry": "fake-replicated-proxy.test.net/anonymous/",
+		"['localpv-provisioner'].localpv.image.registry":   "fake-replicated-proxy.test.net/anonymous/",
+		"['preUpgradeHook'].image.registry":                "fake-replicated-proxy.test.net/anonymous",
 	})
 
 	// embedded cluster operator
 	assert.Equal(t, "Install", hcli.Calls[1].Method)
 	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
+	assertHelmValues(t, operatorOpts.Values, map[string]interface{}{
+		"image.repository": "fake-replicated-proxy.test.net/anonymous/replicated/embedded-cluster-operator-image",
+	})
 
 	// velero
 	assert.Equal(t, "Install", hcli.Calls[2].Method)
@@ -58,6 +64,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "velero", veleroOpts.ReleaseName)
 	assertHelmValues(t, veleroOpts.Values, map[string]interface{}{
 		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
+		"image.repository":        "fake-replicated-proxy.test.net/anonymous/replicated/ec-velero",
 	})
 
 	// admin console
@@ -66,6 +73,12 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
 		"kurlProxy.nodePort": float64(30000),
+	})
+	assertHelmValuePrefixes(t, adminConsoleOpts.Values, map[string]string{
+		"images.kotsadm":    "fake-replicated-proxy.test.net/anonymous",
+		"images.kurlProxy":  "fake-replicated-proxy.test.net/anonymous",
+		"images.migrations": "fake-replicated-proxy.test.net/anonymous",
+		"images.rqlite":     "fake-replicated-proxy.test.net/anonymous",
 	})
 
 	// --- validate os env --- //
