@@ -485,6 +485,7 @@ func TestCustomCidrInstallation(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+// this test is to ensure that when no domains are provided in the cluster config that the domains from the embedded release file are used
 func TestNoDomains(t *testing.T) {
 	hcli := &helm.MockClient{}
 
