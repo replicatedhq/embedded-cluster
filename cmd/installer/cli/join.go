@@ -422,6 +422,7 @@ func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinComm
 // applyJoinConfigurationOverrides applies both config overrides received from the kots api.
 // Applies first the EmbeddedOverrides and then the EndUserOverrides.
 func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
+	fmt.Println(jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s)
 	patch, err := jcmd.EmbeddedOverrides()
 	if err != nil {
 		return fmt.Errorf("unable to get embedded overrides: %w", err)
@@ -451,26 +452,47 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 }
 
 // getFirstDefinedProfileFlag returns the name of the first defined worker profile
-// from the k0s config file on disk
+// from the join command response
 func getFirstDefinedProfileFlag(jcmd *kotsadm.JoinCommandResponse) string {
-	data, err := os.ReadFile(runtimeconfig.PathToK0sConfig())
-	if err != nil {
-		logrus.Debugf("getFirstDefinedProfileFlag: unable to read k0s config file: %v", err)
+	if jcmd == nil {
+		logrus.Debugf("getFirstDefinedProfileFlag: no join command response")
 		return ""
 	}
+
+	patch, err := jcmd.EmbeddedOverrides()
+	if err != nil {
+		logrus.Debugf("getFirstDefinedProfileFlag: unable to get embedded overrides: %v", err)
+		return ""
+	}
+
+	if len(patch) == 0 {
+		logrus.Debugf("getFirstDefinedProfileFlag: no overrides found")
+		return ""
+	}
+
+	// Extract the k0s config from under the "config" key
+	configData, err := yaml.Marshal(patch["config"])
+	if err != nil {
+		logrus.Debugf("getFirstDefinedProfileFlag: unable to marshal config: %v", err)
+		return ""
+	}
+
 	var k0scfg k0sv1beta1.ClusterConfig
-	if err := yaml.Unmarshal(data, &k0scfg); err != nil {
+	if err := yaml.Unmarshal(configData, &k0scfg); err != nil {
 		logrus.Debugf("getFirstDefinedProfileFlag: unable to parse k0s config: %v", err)
 		return ""
 	}
+
 	if k0scfg.Spec == nil {
 		logrus.Debugf("getFirstDefinedProfileFlag: k0s config Spec is nil")
 		return ""
 	}
+
 	if len(k0scfg.Spec.WorkerProfiles) == 0 {
 		logrus.Debugf("getFirstDefinedProfileFlag: no worker profiles found")
 		return ""
 	}
+
 	logrus.Debugf("getFirstDefinedProfileFlag: found worker profile: %s", k0scfg.Spec.WorkerProfiles[0].Name)
 	return k0scfg.Spec.WorkerProfiles[0].Name
 }
