@@ -453,17 +453,21 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 // getFirstDefinedProfileFlag returns the name of the first defined worker profile
 // from the returned join command config
 func getFirstDefinedProfileFlag(jcmd *kotsadm.JoinCommandResponse) string {
-	if jcmd.InstallationSpec.Config != nil && jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s != "" {
-		var k0sConfig k0sv1beta1.ClusterConfig
-		if err := yaml.Unmarshal([]byte(jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s), &k0sConfig); err != nil {
-			logrus.Debugf("unable to parse k0s config: %v", err)
-			return ""
-		}
-		if len(k0sConfig.Spec.WorkerProfiles) > 0 {
-			return k0sConfig.Spec.WorkerProfiles[0].Name
-		}
+	if jcmd == nil || jcmd.InstallationSpec.Config == nil {
+		return ""
 	}
-	return ""
+	if jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s == "" {
+		return ""
+	}
+	var k0scfg k0sv1beta1.ClusterConfig
+	if err := yaml.Unmarshal([]byte(jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s), &k0scfg); err != nil {
+		logrus.Debugf("unable to parse k0s config: %v", err)
+		return ""
+	}
+	if k0scfg.Spec == nil || len(k0scfg.Spec.WorkerProfiles) == 0 {
+		return ""
+	}
+	return k0scfg.Spec.WorkerProfiles[0].Name
 }
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots
