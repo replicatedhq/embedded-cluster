@@ -464,6 +464,7 @@ func getFirstDefinedProfileFlag(jcmd *kotsadm.JoinCommandResponse) string {
 		logrus.Debugf("unable to parse k0s config: %v", err)
 		return ""
 	}
+	fmt.Printf("%+v\n", k0scfg)
 	if k0scfg.Spec == nil || len(k0scfg.Spec.WorkerProfiles) == 0 {
 		return ""
 	}
