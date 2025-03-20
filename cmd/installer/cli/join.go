@@ -470,7 +470,7 @@ func getFirstDefinedProfileFlag(jcmd *kotsadm.JoinCommandResponse) string {
 		logrus.Debugf("unable to parse k0s config: %v", err)
 		return ""
 	}
-	fmt.Printf("%+v\n", k0scfg)
+	fmt.Printf("%+v\n", k0scfg.Spec)
 	if k0scfg.Spec == nil || len(k0scfg.Spec.WorkerProfiles) == 0 {
 		return ""
 	}
@@ -484,7 +484,7 @@ func runK0sInstallCommand(networkInterface string, fullcmd string, profile strin
 	args = append(args, "--token-file", "/etc/k0s/join-token")
 
 	if profile != "" {
-		args = append(args, "--profile="+profile)
+		args = append(args, "--profile", profile)
 	}
 
 	nodeIP, err := netutils.FirstValidAddress(networkInterface)

@@ -31,7 +31,7 @@ func Install(networkInterface string, cfg *k0sv1beta1.ClusterConfig) error {
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
-	flags, err := config.InstallFlags(nodeIP, cfg)
+	flags := config.InstallFlags(nodeIP, cfg)
 	if err != nil {
 		return fmt.Errorf("unable to get install flags: %w", err)
 	}
