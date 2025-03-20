@@ -23,11 +23,6 @@ spec:
           xyz-test-label: xyz-value
         name: xyz
   unsupportedOverrides:
-    workerProfiles:
-    - name: ip-forward
-      values:
-        allowedUnsafeSysctls:
-        - net.ipv4.ip_forward
     builtInExtensions:
       - name: admin-console
         values: |
@@ -45,6 +40,11 @@ spec:
         spec:
           telemetry:
             enabled: false
+          workerProfiles:
+          - name: ip-forward
+            values:
+              allowedUnsafeSysctls:
+              - net.ipv4.ip_forward
   extensions:
     helm:
       charts:

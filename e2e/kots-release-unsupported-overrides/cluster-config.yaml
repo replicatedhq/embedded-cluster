@@ -10,11 +10,6 @@ spec:
     replicatedAppDomain: "ec-e2e-replicated-app.testcluster.net"
     proxyRegistryDomain: "ec-e2e-proxy.testcluster.net"
   unsupportedOverrides:
-    workerProfiles:
-    - name: ip-forward
-      values:
-        allowedUnsafeSysctls:
-        - net.ipv4.ip_forward
     builtInExtensions:
       - name: admin-console
         values: |
@@ -32,3 +27,8 @@ spec:
         spec:
           telemetry:
             enabled: true
+          workerProfiles:
+          - name: ip-forward
+            values:
+              allowedUnsafeSysctls:
+              - net.ipv4.ip_forward
