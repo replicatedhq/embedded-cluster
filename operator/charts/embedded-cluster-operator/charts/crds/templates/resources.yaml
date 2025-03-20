@@ -226,22 +226,6 @@ spec:
                       layout inside this configuration is very dynamic we have chosen
                       to use a string here.
                     type: string
-                  workerProfiles:
-                    description: |-
-                      WorkerProfiles holds the worker profiles used to configure the cluster.
-                      The profile named "default" will be applied by default.
-                    items:
-                      description: WorkerProfile worker profile
-                      properties:
-                        name:
-                          description: String; name to use as profile selector for the worker process
-                          type: string
-                        values:
-                          description: Worker Mapping object
-                          type: object
-                          x-kubernetes-preserve-unknown-fields: true
-                      type: object
-                    type: array
                 type: object
               version:
                 type: string
@@ -541,22 +525,6 @@ spec:
                           layout inside this configuration is very dynamic we have chosen
                           to use a string here.
                         type: string
-                      workerProfiles:
-                        description: |-
-                          WorkerProfiles holds the worker profiles used to configure the cluster.
-                          The profile named "default" will be applied by default.
-                        items:
-                          description: WorkerProfile worker profile
-                          properties:
-                            name:
-                              description: String; name to use as profile selector for the worker process
-                              type: string
-                            values:
-                              description: Worker Mapping object
-                              type: object
-                              x-kubernetes-preserve-unknown-fields: true
-                          type: object
-                        type: array
                     type: object
                   version:
                     type: string
