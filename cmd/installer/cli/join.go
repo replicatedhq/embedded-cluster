@@ -8,7 +8,6 @@ import (
 	"strings"
 	"syscall"
 
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
@@ -326,11 +325,6 @@ func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandRespons
 		return fmt.Errorf("unable to apply network configuration: %w", err)
 	}
 
-	logrus.Debugf("applying worker profiles")
-	if err := applyWorkerProfiles(jcmd); err != nil {
-		return fmt.Errorf("unable to apply worker profiles: %w", err)
-	}
-
 	logrus.Debugf("applying configuration overrides")
 	if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 		return fmt.Errorf("unable to apply configuration overrides: %w", err)
@@ -424,28 +418,6 @@ func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinComm
 	return nil
 }
 
-func applyWorkerProfiles(jcmd *kotsadm.JoinCommandResponse) error {
-	if jcmd.InstallationSpec.Config != nil && jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s != "" {
-		var k0sConfig k0sv1beta1.ClusterConfig
-		if err := yaml.Unmarshal([]byte(jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s), &k0sConfig); err != nil {
-			logrus.Debugf("unable to parse k0s config: %v", err)
-			return nil
-		}
-		if len(k0sConfig.Spec.WorkerProfiles) > 0 {
-			cfg := k0sv1beta1.ClusterConfig{}
-			cfg.Spec.WorkerProfiles = k0sConfig.Spec.WorkerProfiles
-			data, err := k8syaml.Marshal(cfg)
-			if err != nil {
-				return fmt.Errorf("unable to marshal cluster config: %w", err)
-			}
-			if err := k0s.PatchK0sConfig(runtimeconfig.PathToK0sConfig(), string(data)); err != nil {
-				return fmt.Errorf("unable to patch config with embedded data: %w", err)
-			}
-		}
-	}
-	return nil
-}
-
 // applyJoinConfigurationOverrides applies both config overrides received from the kots api.
 // Applies first the EmbeddedOverrides and then the EndUserOverrides.
 func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
@@ -480,14 +452,13 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 // getFirstDefinedProfileFlag returns the name of the first defined worker profile
 // from the returned join command config
 func getFirstDefinedProfileFlag(jcmd *kotsadm.JoinCommandResponse) string {
-	if jcmd.InstallationSpec.Config != nil && jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s != "" {
-		var k0sConfig k0sv1beta1.ClusterConfig
-		if err := yaml.Unmarshal([]byte(jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s), &k0sConfig); err != nil {
-			logrus.Debugf("unable to parse k0s config: %v", err)
-			return ""
-		}
-		if len(k0sConfig.Spec.WorkerProfiles) > 0 {
-			return k0sConfig.Spec.WorkerProfiles[0].Name
+	if jcmd.InstallationSpec.Config != nil {
+		fmt.Printf("%+v\n", jcmd.InstallationSpec.Config)
+		fmt.Printf("%+v\n", jcmd.InstallationSpec.Config.UnsupportedOverrides)
+		fmt.Printf("%+v\n", jcmd.InstallationSpec.Config.UnsupportedOverrides.WorkerProfiles)
+		cfgProfiles := jcmd.InstallationSpec.Config.UnsupportedOverrides.WorkerProfiles
+		if len(cfgProfiles) > 0 {
+			return cfgProfiles[0].Name
 		}
 	}
 	return ""
