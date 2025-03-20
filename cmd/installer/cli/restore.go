@@ -576,7 +576,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		return err
 	}
 
-	loading.Infof("High availability enabled for the Admin Console!")
+	loading.Infof("High availability enabled for the Admin Console")
 
 	return nil
 }
@@ -1077,9 +1077,9 @@ func waitForBackups(ctx context.Context, out io.Writer, kcli client.Client, k0sC
 
 	logrus.Debugf("Found %d restorable backup(s)", len(validBackups))
 	if len(validBackups) == 1 {
-		loading.Infof("Found 1 restorable backup!")
+		loading.Infof("Found 1 restorable backup")
 	} else {
-		loading.Infof("Found %d restorable backups!", len(validBackups))
+		loading.Infof("Found %d restorable backups", len(validBackups))
 	}
 	return validBackups, nil
 }
@@ -1343,17 +1343,17 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 
 	switch drComponent {
 	case disasterRecoveryComponentECInstall:
-		loading.Infof("Cluster state restored!")
+		loading.Infof("Cluster state restored")
 	case disasterRecoveryComponentAdminConsole:
-		loading.Infof("Admin Console restored!")
+		loading.Infof("Admin Console restored")
 	case disasterRecoveryComponentSeaweedFS:
-		loading.Infof("Registry data restored!")
+		loading.Infof("Registry data restored")
 	case disasterRecoveryComponentRegistry:
-		loading.Infof("Registry restored!")
+		loading.Infof("Registry restored")
 	case disasterRecoveryComponentECO:
-		loading.Infof("Embedded cluster operator restored!")
+		loading.Infof("Embedded cluster operator restored")
 	case disasterRecoveryComponentApp:
-		loading.Infof("Application restored!")
+		loading.Infof("Application restored")
 	}
 
 	return nil
@@ -1577,7 +1577,7 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkI
 		return fmt.Errorf("unable to wait for nodes: %w", err)
 	}
 
-	loading.Closef("All nodes are ready!")
+	loading.Closef("All nodes are ready")
 
 	return nil
 }

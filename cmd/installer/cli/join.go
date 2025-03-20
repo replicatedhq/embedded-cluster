@@ -134,29 +134,9 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		return err
 	}
 
-	logrus.Debugf("materializing %s binaries", name)
-	if err := materializeFiles(flags.airgapBundle); err != nil {
-		return err
-	}
-
-	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
-		logrus.Debugf("unable to configure sysctl: %v", err)
-	}
-
-	logrus.Debugf("configuring kernel modules")
-	if err := configutils.ConfigureKernelModules(); err != nil {
-		logrus.Debugf("unable to configure kernel modules: %v", err)
-	}
-
-	logrus.Debugf("configuring network manager")
-	if err := configureNetworkManager(ctx); err != nil {
-		return fmt.Errorf("unable to configure network manager: %w", err)
-	}
-
-	cidrCfg, err := getJoinCIDRConfig(jcmd)
+	cidrCfg, err := initializeJoin(ctx, name, flags, jcmd)
 	if err != nil {
-		return fmt.Errorf("unable to get join CIDR config: %w", err)
+		return err
 	}
 
 	logrus.Debugf("configuring firewalld")
@@ -264,6 +244,47 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *kotsadm.JoinC
 	}
 
 	return nil
+}
+
+func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm.JoinCommandResponse) (*CIDRConfig, error) {
+	spinner := spinner.Start()
+	spinner.Infof("Initializing")
+
+	logrus.Debugf("materializing %s binaries", name)
+	if err := materializeFiles(flags.airgapBundle); err != nil {
+		spinner.Errorf("Initialization failed")
+		spinner.CloseWithError()
+		return nil, err
+	}
+
+	logrus.Debugf("configuring sysctl")
+	if err := configutils.ConfigureSysctl(); err != nil {
+		logrus.Debugf("unable to configure sysctl: %v", err)
+	}
+
+	logrus.Debugf("configuring kernel modules")
+	if err := configutils.ConfigureKernelModules(); err != nil {
+		logrus.Debugf("unable to configure kernel modules: %v", err)
+	}
+
+	logrus.Debugf("configuring network manager")
+	if err := configureNetworkManager(ctx); err != nil {
+		spinner.Errorf("Initialization failed")
+		spinner.CloseWithError()
+		return nil, fmt.Errorf("unable to configure network manager: %w", err)
+	}
+
+	cidrCfg, err := getJoinCIDRConfig(jcmd)
+	if err != nil {
+		spinner.Errorf("Initialization failed")
+		spinner.CloseWithError()
+		return nil, fmt.Errorf("unable to get join CIDR config: %w", err)
+	}
+
+	spinner.Infof("Initialization complete")
+	spinner.Close()
+
+	return cidrCfg, nil
 }
 
 func getJoinCIDRConfig(jcmd *kotsadm.JoinCommandResponse) (*CIDRConfig, error) {
@@ -408,7 +429,7 @@ func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinComm
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
-	loading.Infof("Node installation finished!")
+	loading.Infof("Node installation finished")
 	return nil
 }
 
@@ -492,7 +513,7 @@ func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string,
 	if err := kubeutils.WaitForNode(ctx, kcli, hostname, isWorker); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
-	loading.Infof("Node has joined the cluster!")
+	loading.Infof("Node joined the cluster successfully")
 	return nil
 }
 
