@@ -451,29 +451,27 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 }
 
 // getFirstDefinedProfileFlag returns the name of the first defined worker profile
-// from the returned join command config
+// from the k0s config file on disk
 func getFirstDefinedProfileFlag(jcmd *kotsadm.JoinCommandResponse) string {
-	if jcmd == nil || jcmd.InstallationSpec.Config == nil {
-		return ""
-	}
-	if jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s == "" {
-		return ""
-	}
-
-	cfgString, err := config.ExtractK0sConfigPatch(jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s)
+	data, err := os.ReadFile(runtimeconfig.PathToK0sConfig())
 	if err != nil {
-		logrus.Debugf("unable to extract k0s config from installation object: %v", err)
+		logrus.Debugf("getFirstDefinedProfileFlag: unable to read k0s config file: %v", err)
 		return ""
 	}
 	var k0scfg k0sv1beta1.ClusterConfig
-	if err := yaml.Unmarshal([]byte(cfgString), &k0scfg); err != nil {
-		logrus.Debugf("unable to parse k0s config: %v", err)
+	if err := yaml.Unmarshal(data, &k0scfg); err != nil {
+		logrus.Debugf("getFirstDefinedProfileFlag: unable to parse k0s config: %v", err)
 		return ""
 	}
-	fmt.Printf("%+v\n", k0scfg.Spec)
-	if k0scfg.Spec == nil || len(k0scfg.Spec.WorkerProfiles) == 0 {
+	if k0scfg.Spec == nil {
+		logrus.Debugf("getFirstDefinedProfileFlag: k0s config Spec is nil")
 		return ""
 	}
+	if len(k0scfg.Spec.WorkerProfiles) == 0 {
+		logrus.Debugf("getFirstDefinedProfileFlag: no worker profiles found")
+		return ""
+	}
+	logrus.Debugf("getFirstDefinedProfileFlag: found worker profile: %s", k0scfg.Spec.WorkerProfiles[0].Name)
 	return k0scfg.Spec.WorkerProfiles[0].Name
 }
 
