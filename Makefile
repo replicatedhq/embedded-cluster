@@ -75,9 +75,8 @@ cmd/installer/goods/bins/k0s:
 		cp output/bins/k0s-override $@ ; \
 	else \
 		$(MAKE) output/bins/k0s-$(K0S_VERSION)-$(ARCH) ; \
+		cp output/bins/k0s-$(K0S_VERSION)-$(ARCH) $@ ; \
 	fi
-	mkdir -p cmd/installer/goods/bins
-	cp output/bins/k0s-$(K0S_VERSION)-$(ARCH) $@
 
 output/bins/k0s-%:
 	curl --retry 5 --retry-all-errors -fL -o $@ \
@@ -96,7 +95,6 @@ output/bins/k0s-override:
 .PHONY: cmd/installer/goods/bins/kubectl-support_bundle
 cmd/installer/goods/bins/kubectl-support_bundle:
 	$(MAKE) output/bins/kubectl-support_bundle-$(TROUBLESHOOT_VERSION)-$(ARCH)
-	mkdir -p cmd/installer/goods/bins
 	cp output/bins/kubectl-support_bundle-$(TROUBLESHOOT_VERSION)-$(ARCH) $@
 
 output/bins/kubectl-support_bundle-%:
@@ -112,7 +110,6 @@ output/bins/kubectl-support_bundle-%:
 .PHONY: cmd/installer/goods/bins/kubectl-preflight
 cmd/installer/goods/bins/kubectl-preflight:
 	$(MAKE) output/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-$(ARCH)
-	mkdir -p cmd/installer/goods/bins
 	cp output/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-$(ARCH) $@
 
 output/bins/kubectl-preflight-%:
@@ -127,7 +124,6 @@ output/bins/kubectl-preflight-%:
 
 .PHONY: cmd/installer/goods/bins/local-artifact-mirror
 cmd/installer/goods/bins/local-artifact-mirror:
-	mkdir -p cmd/installer/goods/bins
 	$(MAKE) -C local-artifact-mirror build OS=$(OS) ARCH=$(ARCH)
 	cp local-artifact-mirror/bin/local-artifact-mirror-$(OS)-$(ARCH) $@
 	touch $@
@@ -148,13 +144,11 @@ output/bins/fio-%:
 cmd/installer/goods/bins/fio:
 ifneq ($(DISABLE_FIO_BUILD),1)
 	$(MAKE) output/bins/fio-$(FIO_VERSION)-$(ARCH)
-	mkdir -p cmd/installer/goods/bins
 	cp output/bins/fio-$(FIO_VERSION)-$(ARCH) $@
 endif
 
 .PHONY: cmd/installer/goods/internal/bins/kubectl-kots
 cmd/installer/goods/internal/bins/kubectl-kots:
-	mkdir -p cmd/installer/goods/internal/bins
 	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
 		$(MAKE) output/bins/kubectl-kots-override ; \
 		cp output/bins/kubectl-kots-override $@ ; \
@@ -231,7 +225,6 @@ static: cmd/installer/goods/bins/k0s \
 
 .PHONY: static-dryrun
 static-dryrun:
-	@mkdir -p cmd/installer/goods/bins cmd/installer/goods/internal/bins
 	@touch cmd/installer/goods/bins/k0s \
 		cmd/installer/goods/bins/kubectl-preflight \
 		cmd/installer/goods/bins/kubectl-support_bundle \
