@@ -76,7 +76,7 @@ function main() {
     maybe_install curl curl
 
     # update the squid config to disable allow access from local networks
-    sed -i 's/^http_access allow localnet/http_access allow localnet whitelist/' /etc/squid/conf.d/ec.conf
+    sed -i 's/^http_access allow localnet$/http_access allow localnet whitelist/' /etc/squid/conf.d/ec.conf
 
     # restart the squid service
     squid -k reconfigure
