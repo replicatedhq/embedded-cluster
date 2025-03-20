@@ -476,8 +476,10 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 // getFirstDefinedProfileFlag returns the name of the first defined worker profile
 // from the returned join command config
 func getFirstDefinedProfileFlag(jcmd *kotsadm.JoinCommandResponse) string {
-	fmt.Printf("%+v\n", jcmd.InstallationSpec)
 	if jcmd.InstallationSpec.Config != nil {
+		fmt.Printf("%+v\n", jcmd.InstallationSpec.Config)
+		fmt.Printf("%+v\n", jcmd.InstallationSpec.Config.UnsupportedOverrides)
+		fmt.Printf("%+v\n", jcmd.InstallationSpec.Config.UnsupportedOverrides.WorkerProfiles)
 		cfgProfiles := jcmd.InstallationSpec.Config.UnsupportedOverrides.WorkerProfiles
 		if len(cfgProfiles) > 0 {
 			return cfgProfiles[0].Name
