@@ -62,6 +62,10 @@ function create_release_archive() {
         echo "channelSlug: \"${APP_CHANNEL_SLUG}\""
         echo "appSlug: \"${REPLICATED_APP}\""
         echo "versionLabel: \"${APP_VERSION}\""
+        echo "defaultDomains:"
+        echo "  replicatedAppDomain: \"staging.replicated.app\""
+        echo "  proxyRegistryDomain: \"proxy.staging.replicated.com\""
+        echo "  replicatedRegistryDomain: \"registry.staging.replicated.com\""
     } > output/tmp/release/release.yaml
 
     if [ "$USES_DEV_BUCKET" == "1" ]; then
