@@ -459,8 +459,14 @@ func getFirstDefinedProfileFlag(jcmd *kotsadm.JoinCommandResponse) string {
 	if jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s == "" {
 		return ""
 	}
+
+	cfgString, err := config.ExtractK0sConfigPatch(jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s)
+	if err != nil {
+		logrus.Debugf("unable to extract k0s config from installation object: %v", err)
+		return ""
+	}
 	var k0scfg k0sv1beta1.ClusterConfig
-	if err := yaml.Unmarshal([]byte(jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s), &k0scfg); err != nil {
+	if err := yaml.Unmarshal([]byte(cfgString), &k0scfg); err != nil {
 		logrus.Debugf("unable to parse k0s config: %v", err)
 		return ""
 	}
