@@ -11,7 +11,11 @@ ssl_bump bump all
 
 acl whitelist dstdomain \"/etc/squid/sites.whitelist.txt\"
 
+# this will allow all access to the internet from local IPs
 http_access allow localnet
+
+# to restrict access so only local IPs can access the internet and only sites on the whitelist, instead use
+# http_access allow localnet whitelist
 "
 
 whitelist_txt="
