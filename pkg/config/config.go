@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -171,11 +172,20 @@ func additionalControllerLabels() map[string]string {
 }
 
 func controllerWorkerProfile() string {
-	clusterConfig := release.GetEmbeddedClusterConfig()
-	if clusterConfig != nil {
-		if len(clusterConfig.Spec.UnsupportedOverrides.WorkerProfiles) > 0 {
-			return clusterConfig.Spec.UnsupportedOverrides.WorkerProfiles[0].Name
-		}
+	// Read the k0s config file
+	data, err := os.ReadFile(runtimeconfig.PathToK0sConfig())
+	if err != nil {
+		return ""
+	}
+
+	var cfg k0sconfig.ClusterConfig
+	if err := k8syaml.Unmarshal(data, &cfg); err != nil {
+		return ""
+	}
+
+	// Return the first worker profile name if any exist
+	if len(cfg.Spec.WorkerProfiles) > 0 {
+		return cfg.Spec.WorkerProfiles[0].Name
 	}
 	return ""
 }

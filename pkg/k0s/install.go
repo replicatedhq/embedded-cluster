@@ -93,11 +93,6 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 		}
 	}
 
-	cfg, err = applyWorkerProfiles(cfg, overrides)
-	if err != nil {
-		return nil, fmt.Errorf("unable to apply worker profiles: %w", err)
-	}
-
 	cfg, err = applyUnsupportedOverrides(cfg, overrides)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
@@ -121,29 +116,6 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 	if err := os.WriteFile(cfgpath, data, 0600); err != nil {
 		return nil, fmt.Errorf("unable to write config file: %w", err)
 	}
-	return cfg, nil
-}
-
-// applyWorkerProfiles applies worker profiles to the k0s configuration. Applies the
-// worker profiles embedded into the binary and then the ones provided by the user
-// (--overrides).
-func applyWorkerProfiles(cfg *k0sv1beta1.ClusterConfig, overrides string) (*k0sv1beta1.ClusterConfig, error) {
-	embcfg := release.GetEmbeddedClusterConfig()
-	if embcfg != nil && len(embcfg.Spec.UnsupportedOverrides.WorkerProfiles) > 0 {
-		// Apply vendor WorkerProfiles
-		cfg.Spec.WorkerProfiles = embcfg.Spec.UnsupportedOverrides.WorkerProfiles
-	}
-
-	eucfg, err := helpers.ParseEndUserConfig(overrides)
-	if err != nil {
-		return nil, fmt.Errorf("unable to process overrides file: %w", err)
-	}
-
-	if eucfg != nil && len(eucfg.Spec.UnsupportedOverrides.WorkerProfiles) > 0 {
-		// Apply end user WorkerProfiles (these take priority over vendor profiles)
-		cfg.Spec.WorkerProfiles = eucfg.Spec.UnsupportedOverrides.WorkerProfiles
-	}
-
 	return cfg, nil
 }
 

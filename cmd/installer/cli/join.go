@@ -425,11 +425,15 @@ func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinComm
 }
 
 func applyWorkerProfiles(jcmd *kotsadm.JoinCommandResponse) error {
-	if jcmd.InstallationSpec.Config != nil {
-		cfgProfiles := jcmd.InstallationSpec.Config.UnsupportedOverrides.WorkerProfiles
-		if len(cfgProfiles) > 0 {
+	if jcmd.InstallationSpec.Config != nil && jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s != "" {
+		var k0sConfig k0sv1beta1.ClusterConfig
+		if err := yaml.Unmarshal([]byte(jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s), &k0sConfig); err != nil {
+			logrus.Debugf("unable to parse k0s config: %v", err)
+			return nil
+		}
+		if len(k0sConfig.Spec.WorkerProfiles) > 0 {
 			cfg := k0sv1beta1.ClusterConfig{}
-			cfg.Spec.WorkerProfiles = cfgProfiles
+			cfg.Spec.WorkerProfiles = k0sConfig.Spec.WorkerProfiles
 			data, err := k8syaml.Marshal(cfg)
 			if err != nil {
 				return fmt.Errorf("unable to marshal cluster config: %w", err)
@@ -476,13 +480,14 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 // getFirstDefinedProfileFlag returns the name of the first defined worker profile
 // from the returned join command config
 func getFirstDefinedProfileFlag(jcmd *kotsadm.JoinCommandResponse) string {
-	if jcmd.InstallationSpec.Config != nil {
-		fmt.Printf("%+v\n", jcmd.InstallationSpec.Config)
-		fmt.Printf("%+v\n", jcmd.InstallationSpec.Config.UnsupportedOverrides)
-		fmt.Printf("%+v\n", jcmd.InstallationSpec.Config.UnsupportedOverrides.WorkerProfiles)
-		cfgProfiles := jcmd.InstallationSpec.Config.UnsupportedOverrides.WorkerProfiles
-		if len(cfgProfiles) > 0 {
-			return cfgProfiles[0].Name
+	if jcmd.InstallationSpec.Config != nil && jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s != "" {
+		var k0sConfig k0sv1beta1.ClusterConfig
+		if err := yaml.Unmarshal([]byte(jcmd.InstallationSpec.Config.UnsupportedOverrides.K0s), &k0sConfig); err != nil {
+			logrus.Debugf("unable to parse k0s config: %v", err)
+			return ""
+		}
+		if len(k0sConfig.Spec.WorkerProfiles) > 0 {
+			return k0sConfig.Spec.WorkerProfiles[0].Name
 		}
 	}
 	return ""
