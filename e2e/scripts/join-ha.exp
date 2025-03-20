@@ -18,7 +18,7 @@ expect {
 spawn {*}$join_command
 
 expect {
-    -timeout 240 "Node has joined the cluster!" {}
+    -timeout 240 "Node joined the cluster successfully" {}
     timeout {
       puts "\n\nFailed to find successful node join message."
       exit 1
@@ -44,7 +44,7 @@ expect {
 }
 
 expect {
-    -timeout 360 "High availability enabled!" {}
+    -timeout 360 "High availability enabled" {}
     timeout {
       puts "\n\nFailed to find 'high availability enabled' message."
       exit 1
