@@ -272,19 +272,14 @@ embedded-cluster:
 envtest:
 	$(MAKE) -C operator manifests envtest
 
-.PHONY: bins
-bins:
-	mkdir -p cmd/installer/goods/bins cmd/installer/goods/internal/bins
-	touch cmd/installer/goods/bins/BUILD cmd/installer/goods/internal/bins/BUILD # compilation will fail if no files are present
-
 .PHONY: unit-tests
-unit-tests: envtest bins
+unit-tests: envtest
 	KUBEBUILDER_ASSETS="$(shell ./operator/bin/setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/operator/bin -p path)" \
 		go test -tags exclude_graphdriver_btrfs -v ./pkg/... ./cmd/...
 	$(MAKE) -C operator test
 
 .PHONY: vet
-vet: bins
+vet:
 	go vet -tags exclude_graphdriver_btrfs ./...
 
 .PHONY: e2e-tests
@@ -333,7 +328,7 @@ scan:
 		./
 
 .PHONY: buildtools
-buildtools: bins
+buildtools:
 	go build -tags exclude_graphdriver_btrfs -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: list-distros
