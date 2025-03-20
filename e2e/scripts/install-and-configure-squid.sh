@@ -11,6 +11,7 @@ ssl_bump bump all
 
 acl whitelist dstdomain \"/etc/squid/sites.whitelist.txt\"
 http_access allow whitelist
+http_access deny all
 "
 
 whitelist_txt="
