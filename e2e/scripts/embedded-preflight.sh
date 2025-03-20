@@ -44,7 +44,7 @@ main() {
         echo "preflight_with_warning: Failed to install embedded-cluster"
         exit 1
     fi
-    if ! grep -q "Admin Console is ready!" /tmp/log; then
+    if ! grep -q "Admin Console is ready" /tmp/log; then
         echo "preflight_with_warning: Failed to validate that the Admin Console is ready"
         exit 1
     fi

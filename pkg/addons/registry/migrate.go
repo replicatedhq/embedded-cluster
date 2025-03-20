@@ -46,7 +46,7 @@ func (r *Registry) Migrate(ctx context.Context, kcli client.Client, progressWrit
 	if err := ensureRegistryBucket(ctx, s3Client); err != nil {
 		return errors.Wrap(err, "ensure registry bucket")
 	}
-	logrus.Debug("Registry bucket ensured!")
+	logrus.Debug("Registry bucket ensured")
 
 	pipeReader, pipeWriter := io.Pipe()
 	g, ctx := errgroup.WithContext(ctx)
@@ -64,7 +64,7 @@ func (r *Registry) Migrate(ctx context.Context, kcli client.Client, progressWrit
 	if err := g.Wait(); err != nil {
 		return err
 	}
-	logrus.Debug("Registry data copied!")
+	logrus.Debug("Registry data copied")
 
 	return nil
 }
