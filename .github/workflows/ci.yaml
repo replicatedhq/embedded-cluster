@@ -170,6 +170,8 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
+      - uses: oras-project/setup-oras@v1
+
       - name: Install dagger
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
@@ -239,6 +241,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
+      - uses: oras-project/setup-oras@v1
 
       - name: Install dagger
         run: |
@@ -344,6 +348,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
+      - uses: oras-project/setup-oras@v1
 
       - name: Install dagger
         run: |
