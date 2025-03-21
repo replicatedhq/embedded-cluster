@@ -332,7 +332,7 @@ func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandRespons
 	}
 
 	logrus.Debugf("joining node to cluster")
-	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand, getFirstDefinedProfileFlag(jcmd)); err != nil {
+	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand, getFirstDefinedProfileFlag()); err != nil {
 		return fmt.Errorf("unable to join node to cluster: %w", err)
 	}
 
@@ -422,7 +422,9 @@ func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinComm
 // applyJoinConfigurationOverrides applies both config overrides received from the kots api.
 // Applies first the EmbeddedOverrides and then the EndUserOverrides.
 func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
+	fmt.Println("applyJoinConfigurationOverrides")
 	patch, err := jcmd.EmbeddedOverrides()
+	fmt.Println("patch from embedded overrides")
 	fmt.Println(patch)
 	fmt.Println("--------------------------------")
 	if err != nil {
@@ -453,33 +455,16 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 }
 
 // getFirstDefinedProfileFlag returns the name of the first defined worker profile
-// from the join command response
-func getFirstDefinedProfileFlag(jcmd *kotsadm.JoinCommandResponse) string {
-	if jcmd == nil {
-		logrus.Debugf("getFirstDefinedProfileFlag: no join command response")
-		return ""
-	}
-
-	patch, err := jcmd.EmbeddedOverrides()
+// from the on-disk k0s config file
+func getFirstDefinedProfileFlag() string {
+	data, err := os.ReadFile(runtimeconfig.PathToK0sConfig())
 	if err != nil {
-		logrus.Debugf("getFirstDefinedProfileFlag: unable to get embedded overrides: %v", err)
-		return ""
-	}
-
-	if len(patch) == 0 {
-		logrus.Debugf("getFirstDefinedProfileFlag: no overrides found")
-		return ""
-	}
-
-	// Extract the k0s config from under the "config" key
-	configData, err := yaml.Marshal(patch["config"])
-	if err != nil {
-		logrus.Debugf("getFirstDefinedProfileFlag: unable to marshal config: %v", err)
+		logrus.Debugf("getFirstDefinedProfileFlag: unable to read k0s config file: %v", err)
 		return ""
 	}
 
 	var k0scfg k0sv1beta1.ClusterConfig
-	if err := yaml.Unmarshal(configData, &k0scfg); err != nil {
+	if err := yaml.Unmarshal(data, &k0scfg); err != nil {
 		logrus.Debugf("getFirstDefinedProfileFlag: unable to parse k0s config: %v", err)
 		return ""
 	}
