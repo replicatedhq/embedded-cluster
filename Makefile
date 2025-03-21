@@ -18,10 +18,17 @@ K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.117.0
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-# When KOTS_BINARY_URL_OVERRIDE or KOTS_BINARY_FILE_OVERRIDE is set, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
+# If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
 KOTS_BINARY_URL_OVERRIDE = ttl.sh/salah/kots.tar.gz:24h
+# If KOTS_BINARY_FILE_OVERRIDE is set, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
 # For dev env, build the kots binary in the kots repo with "make kots-linux-arm64" and set this to "../kots/bin/kots"
 KOTS_BINARY_FILE_OVERRIDE =
+
+ifeq ($(findstring ttl.sh,$(KOTS_BINARY_URL_OVERRIDE)),ttl.sh)
+KOTS_VERSION = kots-dev-$(shell oras manifest fetch $(KOTS_BINARY_URL_OVERRIDE) | jq .config.digest | cut -c9-15)
+else ifdef KOTS_BINARY_FILE_OVERRIDE 
+KOTS_VERSION = kots-dev-$(shell shasum -a 256 $(KOTS_BINARY_FILE_OVERRIDE) | cut -c1-8)
+endif
 
 # TODO: move this to a manifest file
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
@@ -148,10 +155,8 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
 		$(MAKE) output/bins/kubectl-kots-override ; \
 		cp output/bins/kubectl-kots-override $@ ; \
-		echo "$(eval KOTS_VERSION := kots-dev-$(shell shasum -a 256 $@ | cut -c1-8))" ; \
 	elif [ "$(KOTS_BINARY_FILE_OVERRIDE)" != "" ]; then \
 		cp $(KOTS_BINARY_FILE_OVERRIDE) $@ ; \
-		echo "$(eval KOTS_VERSION := kots-dev-$(shell shasum -a 256 $@ | cut -c1-8))" ; \
 	else \
 		$(MAKE) output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) ; \
 		cp output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) $@ ; \
@@ -171,7 +176,7 @@ output/bins/kubectl-kots-%:
 output/bins/kubectl-kots-override:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	if [[ "$(KOTS_BINARY_URL_OVERRIDE)" == ttl.sh/* ]]; then \
+	if [[ "$(KOTS_BINARY_URL_OVERRIDE)" == ttl.sh* ]]; then \
 		oras pull "$(KOTS_BINARY_URL_OVERRIDE)" --output output/tmp ; \
 	else \
 		curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
