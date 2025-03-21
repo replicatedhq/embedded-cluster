@@ -189,7 +189,7 @@ func (c *Cluster) Node(node int) *node {
 
 func (c *Cluster) runCommandOnNode(ctx context.Context, node *node, command []string, envs ...map[string]string) (string, string, error) {
 	args := []string{}
-	args = append(args, sshConnectionArgs(node)...)
+	args = append(args, sshConnectionArgs(node, false)...)
 	args = append(args, fmt.Sprintf("sh -c '%s'", strings.Join(command, " ")))
 	c.t.Logf("  -> Running ssh command on node %s: %q", node.ID, args)
 	cmd := exec.CommandContext(ctx, "ssh", args...)
@@ -260,9 +260,11 @@ func (c *Cluster) CopyFileToNode(ctx context.Context, node *node, src, dest stri
 		return fmt.Errorf("mkdir %s on node %s: %v", filepath.Dir(dest), node.ID, err)
 	}
 
-	args := []string{src}
-	args = append(args, sshConnectionArgs(node)...)
-	args[1] = fmt.Sprintf("%s:%s", args[1], dest)
+	args := []string{}
+	args = append(args, sshConnectionArgs(node, true)...)
+	args[len(args)-1] = fmt.Sprintf("%s:%s", args[len(args)-1], dest)
+	args = append(args[0:len(args)-2], src, args[len(args)-2])
+
 	c.t.Logf("  -> Running scp command on node %s: %q", node.ID, args)
 	scpCmd := exec.CommandContext(ctx, "scp", args...)
 	output, err := scpCmd.CombinedOutput()
@@ -285,9 +287,11 @@ func (c *Cluster) CopyDirToNode(ctx context.Context, node *node, src, dest strin
 		return fmt.Errorf("mkdir %s on node %s: %v", filepath.Dir(dest), node.ID, err)
 	}
 
-	args := []string{src}
-	args = append(args, sshConnectionArgs(node)...)
-	args[1] = fmt.Sprintf("%s:%s", args[1], dest)
+	args := []string{}
+	args = append(args, sshConnectionArgs(node, true)...)
+	args[len(args)-1] = fmt.Sprintf("%s:%s", args[len(args)-1], dest)
+	args = append(args[0:len(args)-2], "-rp", src, args[len(args)-2])
+
 	c.t.Logf("  -> Running scp command on node %s: %q", node.ID, args)
 	scpCmd := exec.CommandContext(ctx, "scp", args...)
 	output, err := scpCmd.CombinedOutput()
@@ -305,13 +309,20 @@ func (c *Cluster) mkdirOnNode(ctx context.Context, node *node, dir string) error
 	return nil
 }
 
-func sshConnectionArgs(node *node) []string {
+func sshConnectionArgs(node *node, isSCP bool) []string {
+	args := []string{"-o", "StrictHostKeyChecking=no"}
+
 	if sshUser := os.Getenv("REPLICATEDVM_SSH_USER"); sshUser != "" {
 		// If ssh user is provided, we can make a direct ssh connection
-		args := []string{fmt.Sprintf("%s@%s", sshUser, node.DirectSSHEndpoint), "-p", strconv.Itoa(node.DirectSSHPort), "-o", "StrictHostKeyChecking=no"}
 		if sshKey := os.Getenv("REPLICATEDVM_SSH_KEY"); sshKey != "" {
 			args = append(args, "-i", sshKey)
 		}
+		if isSCP {
+			args = append(args, "-P", strconv.Itoa(node.DirectSSHPort))
+		} else {
+			args = append(args, "-p", strconv.Itoa(node.DirectSSHPort))
+		}
+		args = append(args, fmt.Sprintf("%s@%s", sshUser, node.DirectSSHEndpoint))
 		return args
 	}
 
@@ -319,7 +330,8 @@ func sshConnectionArgs(node *node) []string {
 	if sshDomain == "" {
 		sshDomain = "replicatedcluster.com"
 	}
-	return []string{fmt.Sprintf("%s@%s", node.ID, sshDomain), "-o", "StrictHostKeyChecking=no"}
+	args = append(args, fmt.Sprintf("%s@%s", node.ID, sshDomain))
+	return args
 }
 
 // SetupPlaywright installs necessary dependencies for Playwright testing
