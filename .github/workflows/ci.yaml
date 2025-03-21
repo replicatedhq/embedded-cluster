@@ -766,8 +766,8 @@ jobs:
           k0s-version-previous: ${{ needs.build-previous-k0s.outputs.k0s_version }}
           k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
           version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
-          replicated-vm-ssh-user: ${{ secrets.REPLICATED_VM_SSH_USER }}
-          replicated-vm-ssh-key: ${{ secrets.REPLICATED_VM_SSH_KEY }}
+          replicatedvm-ssh-user: ${{ secrets.REPLICATEDVM_SSH_USER }}
+          replicatedvm-ssh-key: ${{ secrets.REPLICATEDVM_SSH_KEY }}
 
   e2e-main:
     name: E2E (on merge)

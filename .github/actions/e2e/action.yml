@@ -43,10 +43,10 @@ inputs:
   version-specifier:
     description: 'the git sha or tag used to generate application version strings'
     required: true
-  replicated-vm-ssh-user:
+  replicatedvm-ssh-user:
     description: 'the user to use for ssh to the replicated vm'
     required: false
-  replicated-vm-ssh-key:
+  replicatedvm-ssh-key:
     description: 'the ssh key to use for ssh to the replicated vm'
     required: false
   upgrade-target-ec-version:
@@ -99,12 +99,12 @@ runs:
       cache-dependency-path: "**/*.sum"
   - name: Output Replicated VM SSH Key
     shell: bash
-    if: ${{ inputs.replicated-vm-ssh-key != '' && inputs.replicated-vm-ssh-user != '' }}
+    if: ${{ inputs.replicatedvm-ssh-key != '' && inputs.replicatedvm-ssh-user != '' }}
     run: |
-      echo "${{ inputs.replicated-vm-ssh-key }}" | base64 --decode > /tmp/replicated-vm-ssh-key
-      chmod 600 /tmp/replicated-vm-ssh-key
-      echo "REPLICATEDVM_SSH_USER=${{ inputs.replicated-vm-ssh-user }}" >> $GITHUB_ENV
-      echo "REPLICATEDVM_SSH_KEY=/tmp/replicated-vm-ssh-key" >> $GITHUB_ENV
+      echo "${{ inputs.replicatedvm-ssh-key }}" | base64 --decode > /tmp/replicatedvm-ssh-key
+      chmod 600 /tmp/replicatedvm-ssh-key
+      echo "REPLICATEDVM_SSH_USER=${{ inputs.replicatedvm-ssh-user }}" >> $GITHUB_ENV
+      echo "REPLICATEDVM_SSH_KEY=/tmp/replicatedvm-ssh-key" >> $GITHUB_ENV
   - name: E2E
     shell: bash
     run: |
