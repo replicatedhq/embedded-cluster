@@ -627,7 +627,7 @@ func materializeFiles(airgapBundle string) error {
 func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
-	loading.Infof("Installing %s node", runtimeconfig.BinaryName())
+	loading.Infof("Installing node")
 	logrus.Debugf("creating k0s configuration file")
 
 	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides, mutate)
@@ -644,7 +644,7 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
 
-	loading.Infof("Waiting for %s node to be ready", runtimeconfig.BinaryName())
+	loading.Infof("Waiting for node")
 
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
@@ -656,7 +656,7 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 		return nil, fmt.Errorf("wait for node: %w", err)
 	}
 
-	loading.Infof("Node installation finished")
+	loading.Infof("Node is ready")
 	return cfg, nil
 }
 
@@ -1277,17 +1277,18 @@ func copyLicenseFileToDataDir(licenseFile, dataDir string) error {
 func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) error {
 	adminConsoleURL := getAdminConsoleURL(networkInterface, runtimeconfig.AdminConsolePort())
 	successColor := "\033[32m"
-	colorReset := "\033[0m"
+	resetColor := "\033[39m" // Reset color only, keep other formatting
+	resetFormatting := "\033[0m"
 
 	message := fmt.Sprintf("Visit the Admin Console to configure and install %s:\n\n%s%s%s",
-		license.Spec.AppSlug, successColor, adminConsoleURL, colorReset)
+		license.Spec.AppSlug, successColor, adminConsoleURL, resetColor)
 
 	// Calculate the length of the longest line
 	lines := strings.Split(message, "\n")
 	maxLength := 0
 	for _, line := range lines {
 		// Strip ANSI color codes for length calculation
-		cleanLine := strings.ReplaceAll(strings.ReplaceAll(line, successColor, ""), colorReset, "")
+		cleanLine := strings.ReplaceAll(strings.ReplaceAll(line, successColor, ""), resetColor, "")
 		if len(cleanLine) > maxLength {
 			maxLength = len(cleanLine)
 		}
@@ -1296,9 +1297,8 @@ func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) 
 	// Create divider line
 	divider := strings.Repeat("-", maxLength)
 
-	boldStart := "\033[1m"
-	boldEnd := "\033[0m"
-	logrus.Infof("\n%s%s\n%s\n%s%s", boldStart, divider, message, divider, boldEnd)
+	bold := "\033[1m"
+	logrus.Infof("\n%s%s\n%s\n%s%s%s", bold, divider, message, divider, resetFormatting)
 
 	return nil
 }

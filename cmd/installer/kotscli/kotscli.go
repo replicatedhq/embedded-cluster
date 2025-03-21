@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -47,7 +48,6 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 		upstreamURI = fmt.Sprintf("%s/%s", upstreamURI, channelSlug)
 	}
 
-	var lbreakfn spinner.LineBreakerFn
 	maskfn := MaskKotsOutputForOnline()
 	installArgs := []string{
 		"install",
@@ -63,16 +63,13 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 	if opts.AirgapBundle != "" {
 		installArgs = append(installArgs, "--airgap-bundle", opts.AirgapBundle)
 		maskfn = MaskKotsOutputForAirgap()
-		lbreakfn = KotsOutputLineBreaker()
 	}
 	if opts.ConfigValuesFile != "" {
 		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
 	}
 
-	msg.SetLineBreaker(lbreakfn)
 	msg.SetMask(maskfn)
 	defer msg.SetMask(nil)
-	defer msg.SetLineBreaker(nil)
 
 	runCommandOptions := helpers.RunCommandOptions{
 		Stdout:       msg,
@@ -128,7 +125,6 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 	defer os.Remove(kotsBinPath)
 
 	maskfn := MaskKotsOutputForAirgap()
-	lbreakfn := KotsOutputLineBreaker()
 
 	airgapUpdateArgs := []string{
 		"airgap-update",
@@ -139,7 +135,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 		opts.AirgapBundle,
 	}
 
-	loading := spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
+	loading := spinner.Start(spinner.WithMask(maskfn))
 	runCommandOptions := helpers.RunCommandOptions{
 		Stdout: loading,
 		Env: map[string]string{
@@ -151,7 +147,13 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 		return fmt.Errorf("unable to update the application: %w", err)
 	}
 
-	loading.Closef("Update complete. Visit the Admin Console to deploy it.")
+	loading.Closef("Update complete.")
+
+	logrus.Info("\n\033[1m" +
+		"----------------------------------------------\n" +
+		"Visit the Admin Console to deploy this update.\n" +
+		"----------------------------------------------" +
+		"\033[0m")
 	return nil
 }
 
@@ -231,70 +233,9 @@ func MaskKotsOutputForAirgap() spinner.MaskFn {
 			current = strings.ReplaceAll(message, "embedded cluster", "additional")
 		case strings.Contains(message, "Waiting for the Admin Console"):
 			current = "Finalizing Admin Console"
-		case strings.Contains(message, "Update complete. Visit the Admin Console to deploy it."):
+		case strings.Contains(message, "Update complete."):
 			current = message
 		}
 		return current
-	}
-}
-
-// KotsOutputLineBreaker creates a line break (new spinner) when some of the messages
-// are printed to the user. For example: after finishing all image uploads we want to
-// have a new spinner for the artifacts upload.
-func KotsOutputLineBreaker() spinner.LineBreakerFn {
-	// finished is an auxiliary function that evaluates if a message refers to a
-	// step that has been finished. We determine that by inspected if the message
-	// contains %d/%d and both integers are equal.
-	finished := func(message string) bool {
-		matches := CounterRegex.FindStringSubmatch(message)
-		if len(matches) != 3 {
-			return false
-		}
-		var counter int
-		if _, err := fmt.Sscanf(matches[1], "%d", &counter); err != nil {
-			return false
-		}
-		var total int
-		if _, err := fmt.Sscanf(matches[2], "%d", &total); err != nil {
-			return false
-		}
-		return counter == total
-	}
-
-	var previous string
-	var seen = map[string]bool{}
-	return func(current string) (bool, string) {
-		defer func() {
-			previous = current
-		}()
-
-		// if we have already seen this message we certainly have already assessed
-		// if a break line as necessary or not, on this case we return false so we
-		// do not keep breaking lines indefinitely.
-		if _, ok := seen[current]; ok {
-			return false, ""
-		}
-		seen[current] = true
-
-		// if the previous message evaluated does not relate to an end of a process
-		// we don't want to break the line. i.e. we only want to break the line when
-		// the previous evaluated message contains %d/%d and both integers are equal.
-		if !finished(previous) {
-			return false, ""
-		}
-
-		// if we are printing a message about pushing the embedded cluster artifacts
-		// it means that we have finished with the images and we want to break the line.
-		if strings.Contains(current, "Pushing additional artifacts") {
-			return true, "Application images are ready"
-		}
-
-		// if we are printing a message about the finalization of the installation it
-		// means that the embedded cluster artifacts are ready and we want to break the
-		// line.
-		if strings.Contains(current, "Finalizing") {
-			return true, "Additional artifacts are ready"
-		}
-		return false, ""
 	}
 }
