@@ -28,6 +28,8 @@ func (j JoinCommandResponse) extractK0sConfigOverridePatch(data []byte) (dig.Map
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal embedded config: %w", err)
 	}
+	fmt.Println(config)
+	fmt.Println("--------------------------------")
 	result := dig.Mapping{}
 	if api := config.DigMapping("config", "spec", "api"); len(api) > 0 {
 		result.DigMapping("config", "spec")["api"] = api
@@ -38,6 +40,8 @@ func (j JoinCommandResponse) extractK0sConfigOverridePatch(data []byte) (dig.Map
 	if workerProfiles := config.DigMapping("config", "spec", "workerProfiles"); len(workerProfiles) > 0 {
 		result.DigMapping("config", "spec")["workerProfiles"] = workerProfiles
 	}
+	fmt.Println(result)
+	fmt.Println("--------------------------------")
 	return result, nil
 }
 
