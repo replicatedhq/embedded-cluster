@@ -190,7 +190,7 @@ func (c *Cluster) Node(node int) *node {
 func (c *Cluster) runCommandOnNode(ctx context.Context, node *node, command []string, envs ...map[string]string) (string, string, error) {
 	args := []string{}
 	args = append(args, sshConnectionArgs(node)...)
-	args = append(args, "sh", "-c", strings.Join(command, " "))
+	args = append(args, fmt.Sprintf("sh -c '%s'", strings.Join(command, " ")))
 	c.t.Logf("  -> Running ssh command on node %s: %q", node.ID, args)
 	cmd := exec.CommandContext(ctx, "ssh", args...)
 
