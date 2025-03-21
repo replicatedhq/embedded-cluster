@@ -262,7 +262,7 @@ func (c *Cluster) CopyFileToNode(ctx context.Context, node *node, src, dest stri
 
 	args := []string{src}
 	args = append(args, sshConnectionArgs(node)...)
-	args[0] = fmt.Sprintf("%s:%s", args[0], dest)
+	args[1] = fmt.Sprintf("%s:%s", args[1], dest)
 	c.t.Logf("  -> Running scp command on node %s: %q", node.ID, args)
 	scpCmd := exec.CommandContext(ctx, "scp", args...)
 	output, err := scpCmd.CombinedOutput()
