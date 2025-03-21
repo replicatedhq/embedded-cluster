@@ -23,7 +23,7 @@ func createNetwork(ctx context.Context, gid string, ttl string) (*network, error
 	if err != nil {
 		return nil, err
 	}
-	cmd.Env = append(cmd.Environ(), apiTokenEnv)
+	cmd.Env = append(cmd.Environ(), apiTokenEnv...)
 
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
@@ -53,7 +53,7 @@ func deleteNetwork(ctx context.Context, networkID string) error {
 	if err != nil {
 		return err
 	}
-	cmd.Env = append(cmd.Environ(), apiTokenEnv)
+	cmd.Env = append(cmd.Environ(), apiTokenEnv...)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {

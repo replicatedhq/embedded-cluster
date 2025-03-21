@@ -76,7 +76,7 @@ func createNodes(ctx context.Context, gid string, networkID string, ttl string, 
 	if err != nil {
 		return nil, err
 	}
-	cmd.Env = append(cmd.Environ(), apiTokenEnv)
+	cmd.Env = append(cmd.Environ(), apiTokenEnv...)
 
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
@@ -109,7 +109,7 @@ func deleteNodesByGroupID(ctx context.Context, gid string) error {
 	if err != nil {
 		return err
 	}
-	cmd.Env = append(cmd.Environ(), apiTokenEnv)
+	cmd.Env = append(cmd.Environ(), apiTokenEnv...)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
