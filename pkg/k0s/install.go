@@ -195,6 +195,8 @@ func PatchK0sConfig(path string, patch string) error {
 		return fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
 	}
 	data, err := k8syaml.Marshal(unstructured)
+	fmt.Println(string(data))
+	fmt.Println("--------------------------------")
 	if err != nil {
 		return fmt.Errorf("unable to marshal node config: %w", err)
 	}

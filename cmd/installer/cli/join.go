@@ -423,6 +423,8 @@ func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinComm
 // Applies first the EmbeddedOverrides and then the EndUserOverrides.
 func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 	patch, err := jcmd.EmbeddedOverrides()
+	fmt.Println(patch)
+	fmt.Println("--------------------------------")
 	if err != nil {
 		return fmt.Errorf("unable to get embedded overrides: %w", err)
 	}
