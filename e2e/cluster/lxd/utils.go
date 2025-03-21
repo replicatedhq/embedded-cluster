@@ -2,7 +2,6 @@ package lxd
 
 import (
 	"bytes"
-	"path/filepath"
 	"strings"
 )
 
@@ -22,13 +21,6 @@ func mergeMaps(maps ...map[string]string) map[string]string {
 		}
 	}
 	return merged
-}
-
-func WithECShellEnv(dataDir string) map[string]string {
-	return map[string]string{
-		"KUBECONFIG": filepath.Join(dataDir, "k0s/pki/admin.conf"),
-		"PATH":       filepath.Join(dataDir, "bin"),
-	}
 }
 
 func WithMITMProxyEnv(nodeIPs []string) map[string]string {
