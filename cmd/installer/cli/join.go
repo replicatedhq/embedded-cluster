@@ -455,13 +455,13 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 func getFirstDefinedProfile() string {
 	k0scfg, err := os.Open(runtimeconfig.PathToK0sConfig())
 	if err != nil {
-		logrus.Errorf("unable to open k0s config: %v", err)
+		logrus.Debugf("unable to open k0s config: %v", err)
 		return ""
 	}
 	defer k0scfg.Close()
 	cfg, err := k0sconfig.ConfigFromReader(k0scfg)
 	if err != nil {
-		logrus.Errorf("unable to parse k0s config: %v", err)
+		logrus.Debugf("unable to parse k0s config: %v", err)
 		return ""
 	}
 	if len(cfg.Spec.WorkerProfiles) > 0 {
