@@ -100,6 +100,11 @@ runs:
     with:
       go-version-file: go.mod
       cache-dependency-path: "**/*.sum"
+  - name: Install Replicated CLI
+    shell: bash
+    run: |
+      curl -o install.sh -sSL https://raw.githubusercontent.com/replicatedhq/replicated/master/install.sh
+      sudo bash ./install.sh
   - name: Output CMX environment variables
     shell: bash
     if: ${{ inputs.cmx-replicated-api-token != '' && inputs.replicatedvm-ssh-key != '' && inputs.replicatedvm-ssh-user != '' }}
