@@ -155,8 +155,10 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
 		$(MAKE) output/bins/kubectl-kots-override ; \
 		cp output/bins/kubectl-kots-override $@ ; \
+		echo "$(eval KOTS_VERSION := kots-dev-$(shell shasum -a 256 $@ | cut -c1-8))" ; \
 	elif [ "$(KOTS_BINARY_FILE_OVERRIDE)" != "" ]; then \
 		cp $(KOTS_BINARY_FILE_OVERRIDE) $@ ; \
+		echo "$(eval KOTS_VERSION := kots-dev-$(shell shasum -a 256 $@ | cut -c1-8))" ; \
 	else \
 		$(MAKE) output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) ; \
 		cp output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) $@ ; \
