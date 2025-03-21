@@ -139,11 +139,6 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		return err
 	}
 
-	logrus.Debugf("configuring firewalld")
-	if err := configureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
-		logrus.Debugf("unable to configure firewalld: %v", err)
-	}
-
 	logrus.Debugf("running join preflights")
 	if err := runJoinPreflights(ctx, jcmd, flags, cidrCfg, metricsReporter); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
@@ -279,6 +274,11 @@ func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *
 		spinner.Errorf("Initialization failed")
 		spinner.CloseWithError()
 		return nil, fmt.Errorf("unable to get join CIDR config: %w", err)
+	}
+
+	logrus.Debugf("configuring firewalld")
+	if err := configureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
+		logrus.Debugf("unable to configure firewalld: %v", err)
 	}
 
 	spinner.Infof("Initialization complete")
@@ -417,19 +417,18 @@ func applyNetworkConfiguration(networkInterface string, jcmd *kotsadm.JoinComman
 func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinCommandResponse) error {
 	loading := spinner.Start()
 	defer loading.Close()
-	loading.Infof("Installing %s node", name)
+	loading.Infof("Installing node")
 	logrus.Debugf("starting %s service", name)
 	if _, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath(), "start"); err != nil {
 		return fmt.Errorf("unable to start service: %w", err)
 	}
 
-	loading.Infof("Waiting for %s node to be ready", name)
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
-	loading.Infof("Node installation finished")
+	loading.Infof("Node installed")
 	return nil
 }
 
@@ -509,11 +508,11 @@ func runK0sInstallCommand(networkInterface string, fullcmd string, profile strin
 func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string, isWorker bool) error {
 	loading := spinner.Start()
 	defer loading.Close()
-	loading.Infof("Waiting for node to join the cluster")
+	loading.Infof("Waiting for node")
 	if err := kubeutils.WaitForNode(ctx, kcli, hostname, isWorker); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
-	loading.Infof("Node joined the cluster successfully")
+	loading.Infof("Node is ready")
 	return nil
 }
 
