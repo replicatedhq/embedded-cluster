@@ -30,7 +30,6 @@ type Cluster struct {
 	networkID string
 	nodes     []*node
 	proxyNode *node
-	sshUser   string
 }
 
 type ClusterInput struct {
@@ -53,15 +52,16 @@ func NewCluster(ctx context.Context, input ClusterInput) *Cluster {
 
 	// This is temporarily required because vm ssh command and cmx forwarder do not support running
 	// a single command over ssh.
-	sshUser := os.Getenv("REPLICATEDVM_SSH_USER")
-	if sshUser == "" {
+	if val := os.Getenv("REPLICATEDVM_SSH_USER"); val == "" {
 		input.T.Fatalf("REPLICATEDVM_SSH_USER is not set")
+	}
+	if val := os.Getenv("CMX_REPLICATED_API_TOKEN"); val == "" {
+		input.T.Fatalf("CMX_REPLICATED_API_TOKEN is not set")
 	}
 
 	c := &Cluster{
-		t:       input.T,
-		sshUser: sshUser,
-		gid:     uuid.New().String(),
+		t:   input.T,
+		gid: uuid.New().String(),
 	}
 	c.t.Cleanup(c.destroy)
 
@@ -303,7 +303,7 @@ func sshConnectionArgs(node *node) []string {
 
 	sshDomain := os.Getenv("REPLICATEDVM_SSH_DOMAIN")
 	if sshDomain == "" {
-		sshDomain = "replicatedclusterstaging.com"
+		sshDomain = "replicatedcluster.com"
 	}
 	return []string{fmt.Sprintf("%s@%s", node.ID, sshDomain), "-o", "StrictHostKeyChecking=no"}
 }
