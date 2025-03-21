@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -95,17 +96,27 @@ func NewCluster(ctx context.Context, input ClusterInput) *Cluster {
 		c.proxyNode = proxyNodes[0]
 	}
 
+	eg := errgroup.Group{}
+
 	for _, node := range c.nodes {
-		c.t.Logf("Copying files to node %s", node.ID)
-		err := c.copyFilesToNode(ctx, node, input)
-		if err != nil {
-			c.t.Fatalf("Failed to copy files to node %s: %v", node.ID, err)
-		}
-		c.t.Logf("Copying dirs to node %s", node.ID)
-		err = c.copyDirsToNode(ctx, node)
-		if err != nil {
-			c.t.Fatalf("Failed to copy dirs to node %s: %v", node.ID, err)
-		}
+		eg.Go(func() error {
+			c.t.Logf("Copying files to node %s", node.ID)
+			err := c.copyFilesToNode(ctx, node, input)
+			if err != nil {
+				return fmt.Errorf("copy files to node %s: %v", node.ID, err)
+			}
+			c.t.Logf("Copying dirs to node %s", node.ID)
+			err = c.copyDirsToNode(ctx, node)
+			if err != nil {
+				return fmt.Errorf("copy dirs to node %s: %v", node.ID, err)
+			}
+			return nil
+		})
+	}
+
+	err = eg.Wait()
+	if err != nil {
+		c.t.Fatalf("Failed to copy files and dirs to nodes: %v", err)
 	}
 
 	return c
@@ -180,6 +191,7 @@ func (c *Cluster) runCommandOnNode(ctx context.Context, node *node, command []st
 	args := []string{}
 	args = append(args, sshConnectionArgs(node)...)
 	args = append(args, "sh", "-c", strings.Join(command, " "))
+	c.t.Logf("  -> Running ssh command on node %s: %q", node.ID, args)
 	cmd := exec.CommandContext(ctx, "ssh", args...)
 
 	env := os.Environ()
@@ -222,8 +234,8 @@ func (c *Cluster) copyFilesToNode(ctx context.Context, node *node, in ClusterInp
 
 func (c *Cluster) copyDirsToNode(ctx context.Context, node *node) error {
 	dirs := map[string]string{
-		"../../../scripts": "/usr/local/bin",
-		"playwright":       "/automation/playwright",
+		"scripts":    "/usr/local/bin",
+		"playwright": "/automation/playwright",
 		"../operator/charts/embedded-cluster-operator/troubleshoot": "/automation/troubleshoot",
 	}
 	for src, dest := range dirs {
@@ -251,6 +263,7 @@ func (c *Cluster) CopyFileToNode(ctx context.Context, node *node, src, dest stri
 	args := []string{src}
 	args = append(args, sshConnectionArgs(node)...)
 	args[0] = fmt.Sprintf("%s:%s", args[0], dest)
+	c.t.Logf("  -> Running scp command on node %s: %q", node.ID, args)
 	scpCmd := exec.CommandContext(ctx, "scp", args...)
 	output, err := scpCmd.CombinedOutput()
 	if err != nil {
@@ -275,6 +288,7 @@ func (c *Cluster) CopyDirToNode(ctx context.Context, node *node, src, dest strin
 	args := []string{src}
 	args = append(args, sshConnectionArgs(node)...)
 	args[0] = fmt.Sprintf("%s:%s", args[0], dest)
+	c.t.Logf("  -> Running scp command on node %s: %q", node.ID, args)
 	scpCmd := exec.CommandContext(ctx, "scp", args...)
 	output, err := scpCmd.CombinedOutput()
 	if err != nil {
