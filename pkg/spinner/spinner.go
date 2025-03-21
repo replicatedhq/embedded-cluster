@@ -17,11 +17,6 @@ var hasTTY = isatty.IsTerminal(os.Stdout.Fd())
 // WriteFn is a function that writes a formatted string.
 type WriteFn func(string, ...any) (int, error)
 
-// LineBreakerFn is a function that determines if it is time to break the
-// line thus creating a new spinner line. Returns a boolean and a string
-// indicating what needs to be printed before the line break.
-type LineBreakerFn func(string) (bool, string)
-
 // MaskFn is a function that masks a message. Receives a string and
 // returns a string, the returned string is printed to the terminal.
 type MaskFn func(string) string
@@ -33,7 +28,6 @@ type MessageWriter struct {
 	err    bool
 	printf WriteFn
 	mask   MaskFn
-	lbreak LineBreakerFn
 	tty    bool
 }
 
@@ -121,20 +115,6 @@ func (m *MessageWriter) loop() {
 		}
 
 		changed = previous != message
-
-		if m.lbreak != nil && changed {
-			if lbreak, lcontent := m.lbreak(message); lbreak {
-				if diff := len(previous) - len(lcontent); diff > 0 {
-					suffix := strings.Repeat(" ", diff)
-					lcontent = fmt.Sprintf("%s%s", lcontent, suffix)
-				}
-				if m.tty {
-					m.printf("\033[K\r✔  %s\n", lcontent)
-				} else {
-					m.printf("✔  %s\n", lcontent)
-				}
-			}
-		}
 
 		pos := counter % len(blocks)
 		if !end {
