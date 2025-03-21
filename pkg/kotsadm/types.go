@@ -38,7 +38,11 @@ func (j JoinCommandResponse) extractK0sConfigOverridePatch(data []byte) (dig.Map
 	if storage := config.DigMapping("config", "spec", "storage"); len(storage) > 0 {
 		result.DigMapping("config", "spec")["storage"] = storage
 	}
-	if workerProfiles := config.DigMapping("config", "spec", "workerProfiles"); len(workerProfiles) > 0 {
+	workerProfiles := config.DigMapping("config", "spec", "workerProfiles")
+	fmt.Println("workerProfiles")
+	fmt.Println(workerProfiles)
+	fmt.Println("--------------------------------")
+	if len(workerProfiles) > 0 {
 		result.DigMapping("config", "spec")["workerProfiles"] = workerProfiles
 	}
 	fmt.Println("result")
