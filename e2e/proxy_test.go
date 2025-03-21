@@ -397,7 +397,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 }
 
 func outputTCPDeniedLogs(t *testing.T, tc *lxd.Cluster) {
-	stdout, _, err := tc.RunCommandOnProxyNode(t, []string{"sh", "-c", "grep TCP_DENIED /var/log/squid/access.log || true"})
+	stdout, _, err := tc.RunCommandOnProxyNode(t, []string{"sh", "-c", "grep -A4 -B4 TCP_DENIED /var/log/squid/access.log || true"})
 	if err != nil {
 		t.Fatalf("fail to check squid access log: %v", err)
 	}
