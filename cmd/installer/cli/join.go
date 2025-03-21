@@ -8,7 +8,7 @@ import (
 	"strings"
 	"syscall"
 
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
@@ -331,8 +331,10 @@ func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandRespons
 		return fmt.Errorf("unable to apply configuration overrides: %w", err)
 	}
 
+	profile := getFirstDefinedProfile()
+
 	logrus.Debugf("joining node to cluster")
-	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand); err != nil {
+	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand, profile); err != nil {
 		return fmt.Errorf("unable to join node to cluster: %w", err)
 	}
 
@@ -450,31 +452,27 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 	return nil
 }
 
-// getFirstDefinedProfile returns the name of the first defined worker profile
-// from the on-disk k0s config file
 func getFirstDefinedProfile() string {
-	cfg, err := os.ReadFile(runtimeconfig.PathToK0sConfig())
-	fmt.Printf("cfg: %+v\n", cfg)
+	k0scfg, err := os.Open(runtimeconfig.PathToK0sConfig())
 	if err != nil {
 		return ""
 	}
-	k0scfg := k0sv1beta1.ClusterConfig{}
-	if err := yaml.Unmarshal(cfg, &k0scfg); err != nil {
+	defer k0scfg.Close()
+	cfg, err := k0sconfig.ConfigFromReader(k0scfg)
+	fmt.Printf("cfg: %+v\n", cfg)
+	fmt.Printf("cfg.Spec: %+v\n", cfg.Spec)
+	fmt.Printf("cfg.Spec.WorkerProfiles: %+v\n", cfg.Spec.WorkerProfiles)
+	if err != nil {
 		return ""
 	}
-	fmt.Printf("k0scfg: %+v\n", k0scfg)
-	fmt.Printf("k0scfg.Spec: %+v\n", k0scfg.Spec)
-	fmt.Printf("k0scfg.Spec.WorkerProfiles: %+v\n", k0scfg.Spec.WorkerProfiles)
-	// get first worker profile from cfg
-	if len(k0scfg.Spec.WorkerProfiles) == 0 {
-		return ""
+	if len(cfg.Spec.WorkerProfiles) > 0 {
+		return cfg.Spec.WorkerProfiles[0].Name
 	}
-	return k0scfg.Spec.WorkerProfiles[0].Name
+	return ""
 }
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots
-// adm api.
-func runK0sInstallCommand(networkInterface string, fullcmd string) error {
+func runK0sInstallCommand(networkInterface string, fullcmd string, profile string) error {
 	args := strings.Split(fullcmd, " ")
 	args = append(args, "--token-file", "/etc/k0s/join-token")
 
@@ -483,7 +481,6 @@ func runK0sInstallCommand(networkInterface string, fullcmd string) error {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
 
-	profile := getFirstDefinedProfile()
 	if profile != "" {
 		args = append(args, "--profile", profile)
 	}
