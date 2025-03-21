@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"syscall"
@@ -331,13 +332,8 @@ func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandRespons
 		return fmt.Errorf("unable to apply configuration overrides: %w", err)
 	}
 
-	profile := getFirstDefinedProfileFlag()
-	fmt.Println("profile")
-	fmt.Println(profile)
-	fmt.Println("--------------------------------")
-
 	logrus.Debugf("joining node to cluster")
-	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand, profile); err != nil {
+	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand); err != nil {
 		return fmt.Errorf("unable to join node to cluster: %w", err)
 	}
 
@@ -455,10 +451,26 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 	return nil
 }
 
+// readK0sConfig ensures the file has been synced to disk before reading it
+func readK0sConfig() ([]byte, error) {
+	file, err := os.OpenFile(runtimeconfig.PathToK0sConfig(), os.O_RDONLY, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open k0s config file: %w", err)
+	}
+	defer file.Close()
+
+	// Ensure file is synced to disk
+	if err := file.Sync(); err != nil {
+		return nil, fmt.Errorf("unable to sync k0s config file: %w", err)
+	}
+
+	return io.ReadAll(file)
+}
+
 // getFirstDefinedProfileFlag returns the name of the first defined worker profile
 // from the on-disk k0s config file
 func getFirstDefinedProfileFlag() string {
-	data, err := os.ReadFile(runtimeconfig.PathToK0sConfig())
+	data, err := readK0sConfig()
 	if err != nil {
 		logrus.Debugf("getFirstDefinedProfileFlag: unable to read k0s config file: %v", err)
 		return ""
@@ -470,7 +482,7 @@ func getFirstDefinedProfileFlag() string {
 		return ""
 	}
 	fmt.Println("k0scfg")
-	fmt.Printf("%+v\n", k0scfg)
+	fmt.Printf("%+v\n", k0scfg.Spec.WorkerProfiles)
 	fmt.Println("--------------------------------")
 
 	if k0scfg.Spec == nil {
@@ -489,10 +501,11 @@ func getFirstDefinedProfileFlag() string {
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots
 // adm api.
-func runK0sInstallCommand(networkInterface string, fullcmd string, profile string) error {
+func runK0sInstallCommand(networkInterface string, fullcmd string) error {
 	args := strings.Split(fullcmd, " ")
 	args = append(args, "--token-file", "/etc/k0s/join-token")
 
+	profile := getFirstDefinedProfileFlag()
 	if profile != "" {
 		args = append(args, "--profile", profile)
 	}
