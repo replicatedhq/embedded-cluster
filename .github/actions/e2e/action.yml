@@ -43,6 +43,12 @@ inputs:
   version-specifier:
     description: 'the git sha or tag used to generate application version strings'
     required: true
+  replicated-vm-ssh-user:
+    description: 'the user to use for ssh to the replicated vm'
+    required: false
+  replicated-vm-ssh-key:
+    description: 'the ssh key to use for ssh to the replicated vm'
+    required: false
   upgrade-target-ec-version:
     description: 'the embedded cluster version to expect after upgrades complete'
     required: false # this is only set by post-release testing
@@ -91,6 +97,14 @@ runs:
     with:
       go-version-file: go.mod
       cache-dependency-path: "**/*.sum"
+  - name: Output Replicated VM SSH Key
+    shell: bash
+    if: ${{ inputs.replicated-vm-ssh-key != '' && inputs.replicated-vm-ssh-user != '' }}
+    run: |
+      echo "${{ inputs.replicated-vm-ssh-key }}" | base64 --decode > /tmp/replicated-vm-ssh-key
+      chmod 600 /tmp/replicated-vm-ssh-key
+      echo "REPLICATEDVM_SSH_USER=${{ inputs.replicated-vm-ssh-user }}" >> $GITHUB_ENV
+      echo "REPLICATEDVM_SSH_KEY=/tmp/replicated-vm-ssh-key" >> $GITHUB_ENV
   - name: E2E
     shell: bash
     run: |

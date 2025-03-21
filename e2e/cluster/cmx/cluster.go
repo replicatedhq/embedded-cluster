@@ -51,6 +51,8 @@ func NewCluster(ctx context.Context, input ClusterInput) *Cluster {
 		panic("testing.T is required")
 	}
 
+	// This is temporarily required because vm ssh command and cmx forwarder do not support running
+	// a single command over ssh.
 	sshUser := os.Getenv("REPLICATEDVM_SSH_USER")
 	if sshUser == "" {
 		input.T.Fatalf("REPLICATEDVM_SSH_USER is not set")
@@ -292,12 +294,16 @@ func (c *Cluster) mkdirOnNode(ctx context.Context, node *node, dir string) error
 func sshConnectionArgs(node *node) []string {
 	if sshUser := os.Getenv("REPLICATEDVM_SSH_USER"); sshUser != "" {
 		// If ssh user is provided, we can make a direct ssh connection
-		return []string{fmt.Sprintf("%s@%s", sshUser, node.DirectSSHEndpoint), "-p", strconv.Itoa(node.DirectSSHPort), "-o", "StrictHostKeyChecking=no"}
+		args := []string{fmt.Sprintf("%s@%s", sshUser, node.DirectSSHEndpoint), "-p", strconv.Itoa(node.DirectSSHPort), "-o", "StrictHostKeyChecking=no"}
+		if sshKey := os.Getenv("REPLICATEDVM_SSH_KEY"); sshKey != "" {
+			args = append(args, "-i", sshKey)
+		}
+		return args
 	}
 
 	sshDomain := os.Getenv("REPLICATEDVM_SSH_DOMAIN")
 	if sshDomain == "" {
-		sshDomain = "replicatedcluster.com"
+		sshDomain = "replicatedclusterstaging.com"
 	}
 	return []string{fmt.Sprintf("%s@%s", node.ID, sshDomain), "-o", "StrictHostKeyChecking=no"}
 }
