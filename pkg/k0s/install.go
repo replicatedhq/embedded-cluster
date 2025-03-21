@@ -150,9 +150,6 @@ func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, overrides string) 
 
 // PatchK0sConfig patches the created k0s config with the unsupported overrides passed in.
 func PatchK0sConfig(path string, patch string) error {
-	fmt.Println("PatchK0sConfig")
-	fmt.Println(patch)
-	fmt.Println("--------------------------------")
 	if len(patch) == 0 {
 		return nil
 	}
@@ -198,9 +195,6 @@ func PatchK0sConfig(path string, patch string) error {
 		return fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
 	}
 	data, err := k8syaml.Marshal(unstructured)
-	fmt.Println("config data after patch")
-	fmt.Println(string(data))
-	fmt.Println("--------------------------------")
 	if err != nil {
 		return fmt.Errorf("unable to marshal node config: %w", err)
 	}

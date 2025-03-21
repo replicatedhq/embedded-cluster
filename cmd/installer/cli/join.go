@@ -331,8 +331,13 @@ func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandRespons
 		return fmt.Errorf("unable to apply configuration overrides: %w", err)
 	}
 
+	profile := getFirstDefinedProfileFlag()
+	fmt.Println("profile")
+	fmt.Println(profile)
+	fmt.Println("--------------------------------")
+
 	logrus.Debugf("joining node to cluster")
-	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand, getFirstDefinedProfileFlag()); err != nil {
+	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand, profile); err != nil {
 		return fmt.Errorf("unable to join node to cluster: %w", err)
 	}
 
@@ -422,11 +427,7 @@ func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinComm
 // applyJoinConfigurationOverrides applies both config overrides received from the kots api.
 // Applies first the EmbeddedOverrides and then the EndUserOverrides.
 func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
-	fmt.Println("applyJoinConfigurationOverrides")
 	patch, err := jcmd.EmbeddedOverrides()
-	fmt.Println("patch from embedded overrides")
-	fmt.Println(patch)
-	fmt.Println("--------------------------------")
 	if err != nil {
 		return fmt.Errorf("unable to get embedded overrides: %w", err)
 	}
@@ -468,6 +469,9 @@ func getFirstDefinedProfileFlag() string {
 		logrus.Debugf("getFirstDefinedProfileFlag: unable to parse k0s config: %v", err)
 		return ""
 	}
+	fmt.Println("k0scfg")
+	fmt.Printf("%+v\n", k0scfg)
+	fmt.Println("--------------------------------")
 
 	if k0scfg.Spec == nil {
 		logrus.Debugf("getFirstDefinedProfileFlag: k0s config Spec is nil")
