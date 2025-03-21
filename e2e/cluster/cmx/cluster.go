@@ -298,7 +298,7 @@ func (c *Cluster) CopyDirToNode(ctx context.Context, node *node, src, dest strin
 }
 
 func (c *Cluster) mkdirOnNode(ctx context.Context, node *node, dir string) error {
-	_, stderr, err := c.runCommandOnNode(ctx, node, []string{"mkdir", "-p", dir}, nil)
+	_, stderr, err := c.runCommandOnNode(ctx, node, []string{"sudo", "mkdir", "-p", dir}, nil)
 	if err != nil {
 		return fmt.Errorf("err: %v, stderr: %s", err, stderr)
 	}
