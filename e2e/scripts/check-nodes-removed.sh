@@ -3,7 +3,7 @@
 # It fails if the cluster size isn't exactly what we expect 
 set -euox pipefail
 
-DIR=/usr/local/bin
+DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . $DIR/common.sh
 
 main() {

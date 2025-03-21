@@ -19,11 +19,17 @@ type network struct {
 func createNetwork(ctx context.Context, gid string, ttl string) (*network, error) {
 	cmd := exec.CommandContext(ctx, "replicated", "network", "create", "--name", gid, "--ttl", ttl, "--wait", "2m", "--output", "json")
 
+	apiTokenEnv, err := replicatedApiTokenEnv()
+	if err != nil {
+		return nil, err
+	}
+	cmd.Env = append(cmd.Environ(), apiTokenEnv...)
+
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		return nil, fmt.Errorf("err: %v, stderr: %s", err, errBuf.String())
 	}
@@ -42,6 +48,13 @@ func createNetwork(ctx context.Context, gid string, ttl string) (*network, error
 
 func deleteNetwork(ctx context.Context, networkID string) error {
 	cmd := exec.CommandContext(ctx, "replicated", "network", "rm", "--name", networkID)
+
+	apiTokenEnv, err := replicatedApiTokenEnv()
+	if err != nil {
+		return err
+	}
+	cmd.Env = append(cmd.Environ(), apiTokenEnv...)
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("err: %v, output: %s", err, string(output))

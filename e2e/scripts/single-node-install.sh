@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euox pipefail
 
-DIR=/usr/local/bin
-. $DIR/common.sh
+DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+. "$DIR/common.sh"
 
 deploy_app() {
     echo "getting apps"

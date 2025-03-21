@@ -2266,12 +2266,10 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 	ctx := context.Background()
 
 	input := cmx.ClusterInput{
-		T:                   t,
-		Nodes:               1,
-		Distribution:        cmx.DefaultDistribution,
-		Version:             cmx.DefaultVersion,
-		LicensePath:         "license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+		T:            t,
+		Nodes:        1,
+		Distribution: cmx.DefaultDistribution,
+		Version:      cmx.DefaultVersion,
 	}
 	tc := cmx.NewCluster(ctx, input)
 	defer tc.Cleanup()
@@ -2291,18 +2289,32 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 
 	tc.CopyFileToNode(ctx, tc.Node(0), tmpfile.Name(), "/tmp/ca.crt")
 
+	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"/automation/scripts/vandoor-prepare.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
+	if stdout, stderr, err := tc.RunCommandOnNode(ctx, 0, line); err != nil {
+		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+
 	installSingleNodeWithOptions(t, tc, installOptions{
-		privateCA: "/tmp/ca.crt",
+		licensePath: "license.yaml",
+		privateCA:   "/tmp/ca.crt",
 	})
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest(ctx, "deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"/automation/scripts/single-node-install.sh", "ui", os.Getenv("SHORT_SHA"), "--private-ca", "/tmp/ca.crt"}
+	if stdout, stderr, err := tc.RunCommandOnNode(ctx, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: deploying app", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest(ctx, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkInstallationState(t, tc)
 
 	t.Logf("checking if the configmap was created with the right values")
-	line := []string{"kubectl", "get", "cm", "kotsadm-private-cas", "-n", "kotsadm", "-o", "json"}
+	line = []string{"kubectl", "get", "cm", "kotsadm-private-cas", "-n", "kotsadm", "-o", "json"}
 	stdout, _, err := tc.RunCommandOnNode(ctx, 0, line, withECShellEnv("/var/lib/embedded-cluster"))
 	require.NoError(t, err, "unable get kotsadm-private-cas configmap")
 

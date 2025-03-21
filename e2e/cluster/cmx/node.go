@@ -72,11 +72,17 @@ func createNodes(ctx context.Context, gid string, networkID string, ttl string, 
 	// Execute replicated CLI command
 	cmd := exec.CommandContext(ctx, "replicated", args...)
 
+	apiTokenEnv, err := replicatedApiTokenEnv()
+	if err != nil {
+		return nil, err
+	}
+	cmd.Env = append(cmd.Environ(), apiTokenEnv...)
+
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		return nil, fmt.Errorf("err: %v, stderr: %s", err, errBuf.String())
 	}
@@ -98,6 +104,13 @@ func createNodes(ctx context.Context, gid string, networkID string, ttl string, 
 
 func deleteNodesByGroupID(ctx context.Context, gid string) error {
 	cmd := exec.CommandContext(ctx, "replicated", "vm", "delete", "--tag", fmt.Sprintf("ec.e2e.group-id=%s", gid))
+
+	apiTokenEnv, err := replicatedApiTokenEnv()
+	if err != nil {
+		return err
+	}
+	cmd.Env = append(cmd.Environ(), apiTokenEnv...)
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("err: %v, output: %s", err, string(output))

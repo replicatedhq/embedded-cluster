@@ -2,7 +2,7 @@
 # This script waits for X nodes to be ready. X is the first argument.
 set -euox pipefail
 
-DIR=/usr/local/bin
+DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . $DIR/common.sh
 
 main() {
