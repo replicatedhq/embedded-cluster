@@ -256,11 +256,6 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		return fmt.Errorf("unable to initialize install: %w", err)
 	}
 
-	logrus.Debugf("configuring firewalld")
-	if err := configureFirewalld(ctx, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR); err != nil {
-		logrus.Debugf("unable to configure firewalld: %v", err)
-	}
-
 	logrus.Debugf("running install preflights")
 	if err := runInstallPreflights(ctx, flags, metricsReporter); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
@@ -593,6 +588,11 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
 		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
+	logrus.Debugf("configuring firewalld")
+	if err := configureFirewalld(ctx, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR); err != nil {
+		logrus.Debugf("unable to configure firewalld: %v", err)
+	}
+
 	spinner.Infof("Initialization complete")
 	spinner.Close()
 	return nil
@@ -656,7 +656,7 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 		return nil, fmt.Errorf("wait for node: %w", err)
 	}
 
-	loading.Infof("Node is ready")
+	loading.Infof("Node installed")
 	return cfg, nil
 }
 
@@ -771,7 +771,7 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 	}
 
 	text := fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel)
-	if !prompt.Confirm(text, true) {
+	if !prompt.Confirm(text, false) {
 		// TODO: send aborted metrics event
 		return NewErrorNothingElseToAdd(errors.New("user aborted: app not up-to-date"))
 	}
