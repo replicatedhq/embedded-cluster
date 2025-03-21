@@ -182,6 +182,12 @@ func PatchK0sConfig(path string, patch string) error {
 		}
 		finalcfg.Spec.Storage = result.Spec.Storage
 	}
+	if result.Spec.WorkerProfiles != nil {
+		if finalcfg.Spec == nil {
+			finalcfg.Spec = &k0sv1beta1.ClusterSpec{}
+		}
+		finalcfg.Spec.WorkerProfiles = result.Spec.WorkerProfiles
+	}
 	// This is necessary to install the previous version of k0s in e2e tests
 	// TODO: remove this once the previous version is > 1.29
 	unstructured, err := helpers.K0sClusterConfigTo129Compat(&finalcfg)
