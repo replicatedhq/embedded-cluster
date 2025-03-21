@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -38,8 +39,8 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 	return cfg
 }
 
-// extractK0sConfigPatch extracts the k0s config portion of the provided patch.
-func extractK0sConfigPatch(raw string) (string, error) {
+// ExtractK0sConfigPatch extracts the k0s config portion of the provided patch.
+func ExtractK0sConfigPatch(raw string) (string, error) {
 	type PatchBody struct {
 		Config map[string]interface{} `yaml:"config"`
 	}
@@ -61,7 +62,7 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 	if patch == "" {
 		return config, nil
 	}
-	patch, err := extractK0sConfigPatch(patch)
+	patch, err := ExtractK0sConfigPatch(patch)
 	if err != nil {
 		return nil, fmt.Errorf("unable to extract k0s config patch: %w", err)
 	}
@@ -93,7 +94,7 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags(nodeIP string) []string {
+func InstallFlags(nodeIP string, cfg *k0sconfig.ClusterConfig) []string {
 	flags := []string{
 		"install",
 		"controller",
@@ -102,6 +103,7 @@ func InstallFlags(nodeIP string) []string {
 		"--no-taints",
 		"-c", runtimeconfig.PathToK0sConfig(),
 	}
+	flags = append(flags, ProfileInstallFlag(cfg))
 	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
 	return flags
@@ -121,6 +123,14 @@ func AdditionalInstallFlagsController() []string {
 		"--disable-components", "konnectivity-server",
 		"--enable-dynamic-config",
 	}
+}
+
+func ProfileInstallFlag(cfg *k0sconfig.ClusterConfig) string {
+	controllerProfile := controllerWorkerProfile()
+	if controllerProfile == "" {
+		return ""
+	}
+	return "--profile=" + controllerProfile
 }
 
 // nodeLabels return a slice of string with labels (key=value format) for the node where we
@@ -159,6 +169,25 @@ func additionalControllerLabels() map[string]string {
 		}
 	}
 	return map[string]string{}
+}
+
+func controllerWorkerProfile() string {
+	// Read the k0s config file
+	data, err := os.ReadFile(runtimeconfig.PathToK0sConfig())
+	if err != nil {
+		return ""
+	}
+
+	var cfg k0sconfig.ClusterConfig
+	if err := k8syaml.Unmarshal(data, &cfg); err != nil {
+		return ""
+	}
+
+	// Return the first worker profile name if any exist
+	if len(cfg.Spec.WorkerProfiles) > 0 {
+		return cfg.Spec.WorkerProfiles[0].Name
+	}
+	return ""
 }
 
 func AdditionalCharts() []embeddedclusterv1beta1.Chart {
