@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"syscall"
@@ -451,51 +450,25 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 	return nil
 }
 
-// readK0sConfig ensures the file has been synced to disk before reading it
-func readK0sConfig() ([]byte, error) {
-	file, err := os.OpenFile(runtimeconfig.PathToK0sConfig(), os.O_RDONLY, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("unable to open k0s config file: %w", err)
-	}
-	defer file.Close()
-
-	// Ensure file is synced to disk
-	if err := file.Sync(); err != nil {
-		return nil, fmt.Errorf("unable to sync k0s config file: %w", err)
-	}
-
-	return io.ReadAll(file)
-}
-
-// getFirstDefinedProfileFlag returns the name of the first defined worker profile
+// getFirstDefinedProfile returns the name of the first defined worker profile
 // from the on-disk k0s config file
-func getFirstDefinedProfileFlag() string {
-	data, err := readK0sConfig()
+func getFirstDefinedProfile() string {
+	cfg, err := os.ReadFile(runtimeconfig.PathToK0sConfig())
+	fmt.Printf("cfg: %+v\n", cfg)
 	if err != nil {
-		logrus.Debugf("getFirstDefinedProfileFlag: unable to read k0s config file: %v", err)
 		return ""
 	}
-
-	var k0scfg k0sv1beta1.ClusterConfig
-	if err := yaml.Unmarshal(data, &k0scfg); err != nil {
-		logrus.Debugf("getFirstDefinedProfileFlag: unable to parse k0s config: %v", err)
+	k0scfg := k0sv1beta1.ClusterConfig{}
+	if err := yaml.Unmarshal(cfg, &k0scfg); err != nil {
 		return ""
 	}
-	fmt.Println("k0scfg")
-	fmt.Printf("%+v\n", k0scfg.Spec.WorkerProfiles)
-	fmt.Println("--------------------------------")
-
-	if k0scfg.Spec == nil {
-		logrus.Debugf("getFirstDefinedProfileFlag: k0s config Spec is nil")
-		return ""
-	}
-
+	fmt.Printf("k0scfg: %+v\n", k0scfg)
+	fmt.Printf("k0scfg.Spec: %+v\n", k0scfg.Spec)
+	fmt.Printf("k0scfg.Spec.WorkerProfiles: %+v\n", k0scfg.Spec.WorkerProfiles)
+	// get first worker profile from cfg
 	if len(k0scfg.Spec.WorkerProfiles) == 0 {
-		logrus.Debugf("getFirstDefinedProfileFlag: no worker profiles found")
 		return ""
 	}
-
-	logrus.Debugf("getFirstDefinedProfileFlag: found worker profile: %s", k0scfg.Spec.WorkerProfiles[0].Name)
 	return k0scfg.Spec.WorkerProfiles[0].Name
 }
 
@@ -505,14 +478,14 @@ func runK0sInstallCommand(networkInterface string, fullcmd string) error {
 	args := strings.Split(fullcmd, " ")
 	args = append(args, "--token-file", "/etc/k0s/join-token")
 
-	profile := getFirstDefinedProfileFlag()
-	if profile != "" {
-		args = append(args, "--profile", profile)
-	}
-
 	nodeIP, err := netutils.FirstValidAddress(networkInterface)
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
+	}
+
+	profile := getFirstDefinedProfile()
+	if profile != "" {
+		args = append(args, "--profile", profile)
 	}
 
 	args = append(args, config.AdditionalInstallFlags(nodeIP)...)
