@@ -4,14 +4,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -30,7 +33,6 @@ type Cluster struct {
 	networkID string
 	nodes     []*node
 	proxyNode *node
-	sshUser   string
 }
 
 type ClusterInput struct {
@@ -51,15 +53,16 @@ func NewCluster(ctx context.Context, input ClusterInput) *Cluster {
 		panic("testing.T is required")
 	}
 
-	sshUser := os.Getenv("REPLICATEDVM_SSH_USER")
-	if sshUser == "" {
+	if val := os.Getenv("REPLICATEDVM_SSH_USER"); val == "" {
 		input.T.Fatalf("REPLICATEDVM_SSH_USER is not set")
+	}
+	if val := os.Getenv("CMX_REPLICATED_API_TOKEN"); val == "" {
+		input.T.Fatalf("CMX_REPLICATED_API_TOKEN is not set")
 	}
 
 	c := &Cluster{
-		t:       input.T,
-		sshUser: sshUser,
-		gid:     uuid.New().String(),
+		t:   input.T,
+		gid: uuid.New().String(),
 	}
 	c.t.Cleanup(c.destroy)
 
@@ -70,16 +73,23 @@ func NewCluster(ctx context.Context, input ClusterInput) *Cluster {
 	}
 	c.networkID = network.ID
 
-	c.t.Logf("Creating %d nodes", input.Nodes)
-	nodes, err := createNodes(ctx, c.gid, c.networkID, DefaultTTL, clusterInputToCreateNodeOpts(input))
-	if err != nil {
-		c.t.Fatalf("Failed to create nodes: %v", err)
-	}
-	c.nodes = nodes
+	eg := errgroup.Group{}
 
-	// If proxy is requested, create an additional node
-	if input.WithProxy {
+	eg.Go(func() error {
+		c.t.Logf("Creating %d node(s)", input.Nodes)
+		start := time.Now()
+		nodes, err := createNodes(ctx, c.gid, c.networkID, DefaultTTL, clusterInputToCreateNodeOpts(input))
+		if err != nil {
+			return fmt.Errorf("create nodes: %v", err)
+		}
+		c.nodes = nodes
+		c.t.Logf("-> Created %d nodes in %s", len(nodes), time.Since(start))
+		return nil
+	})
+
+	eg.Go(func() error {
 		c.t.Logf("Creating proxy node")
+		start := time.Now()
 		proxyNodes, err := createNodes(ctx, c.gid, c.networkID, DefaultTTL, createNodeOpts{
 			Distribution: DefaultDistribution,
 			Version:      DefaultVersion,
@@ -88,22 +98,74 @@ func NewCluster(ctx context.Context, input ClusterInput) *Cluster {
 			DiskSize:     10,
 		})
 		if err != nil {
-			c.t.Fatalf("Failed to create proxy node: %v", err)
+			return fmt.Errorf("create proxy node: %v", err)
 		}
 		c.proxyNode = proxyNodes[0]
+
+		c.t.Logf("Enabling SSH access on proxy node")
+		err = c.enableSSHAccessOnNode(ctx, c.proxyNode)
+		if err != nil {
+			return fmt.Errorf("enable ssh access on proxy node: %v", err)
+		}
+
+		c.t.Logf("Copying dirs to proxy node")
+		err = c.copyDirsToNode(ctx, c.proxyNode)
+		if err != nil {
+			return fmt.Errorf("copy dirs to proxy node: %v", err)
+		}
+
+		c.t.Logf("-> Created proxy node in %s", time.Since(start))
+		return nil
+	})
+
+	err = eg.Wait()
+	if err != nil {
+		c.t.Fatalf("Failed to create nodes: %v", err)
 	}
 
+	if input.WithProxy {
+		c.t.Logf("Configuring proxy")
+		// TODO: ConfigureProxy
+	}
+
+	eg = errgroup.Group{}
+
 	for _, node := range c.nodes {
-		c.t.Logf("Copying files to node %s", node.ID)
-		err := c.copyFilesToNode(ctx, node, input)
-		if err != nil {
-			c.t.Fatalf("Failed to copy files to node %s: %v", node.ID, err)
-		}
-		c.t.Logf("Copying dirs to node %s", node.ID)
-		err = c.copyDirsToNode(ctx, node)
-		if err != nil {
-			c.t.Fatalf("Failed to copy dirs to node %s: %v", node.ID, err)
-		}
+		eg.Go(func() error {
+			start := time.Now()
+
+			c.t.Logf("Enabling SSH access on node %s", node.ID)
+			err := c.enableSSHAccessOnNode(ctx, node)
+			if err != nil {
+				return fmt.Errorf("enable ssh access: %v", err)
+			}
+
+			c.t.Logf("Copying files to node %s", node.ID)
+			err = c.copyFilesToNode(ctx, node, input)
+			if err != nil {
+				return fmt.Errorf("copy files to node %s: %v", node.ID, err)
+			}
+
+			c.t.Logf("Copying dirs to node %s", node.ID)
+			err = c.copyDirsToNode(ctx, node)
+			if err != nil {
+				return fmt.Errorf("copy dirs to node %s: %v", node.ID, err)
+			}
+
+			c.t.Logf("Installing dependencies on node %s", node.ID)
+			_, stderr, err := c.runCommandOnNode(ctx, node, "root", []string{"/automation/scripts/install-deps.sh"})
+			if err != nil {
+				return fmt.Errorf("install dependencies on node %s: %v, stderr: %s", node.ID, err, stderr)
+			}
+
+			c.t.Logf("-> Initialized node %s in %s", node.ID, time.Since(start))
+			return nil
+		})
+	}
+
+	err = eg.Wait()
+	if err != nil {
+		c.t.Fatalf("Failed to copy files and dirs to nodes: %v", err)
 	}
 
 	return c
@@ -160,24 +222,48 @@ func (c *Cluster) destroy() {
 
 // RunCommandOnNode executes a command on the specified node using replicated vm ssh
 func (c *Cluster) RunCommandOnNode(ctx context.Context, node int, command []string, envs ...map[string]string) (string, string, error) {
+	start := time.Now()
 	c.t.Logf("Running command on node %s: %s", c.nodes[node].ID, strings.Join(command, " "))
-	return c.runCommandOnNode(ctx, c.nodes[node], command, envs...)
+	stdout, stderr, err := c.runCommandOnNode(ctx, c.nodes[node], "root", command, envs...)
+	if err != nil {
+		return stdout, stderr, err
+	}
+	c.t.Logf("  -> Command on node %s completed in %s", c.nodes[node].ID, time.Since(start))
+	return "", "", nil
 }
 
 // RunCommandOnProxyNode executes a command on the proxy node
 func (c *Cluster) RunCommandOnProxyNode(ctx context.Context, command []string, envs ...map[string]string) (string, string, error) {
+	start := time.Now()
 	c.t.Logf("Running command on proxy node: %s", strings.Join(command, " "))
-	return c.runCommandOnNode(ctx, c.proxyNode, command, envs...)
+	stdout, stderr, err := c.runCommandOnNode(ctx, c.proxyNode, "root", command, envs...)
+	if err != nil {
+		return stdout, stderr, err
+	}
+	c.t.Logf("  -> Command on proxy node completed in %s", time.Since(start))
+	return stdout, stderr, nil
+}
+
+func (c *Cluster) RunRegularUserCommandOnNode(ctx context.Context, node int, command []string, envs ...map[string]string) (string, string, error) {
+	start := time.Now()
+	c.t.Logf("Running command on node %s as user %s: %s", c.nodes[node].ID, os.Getenv("REPLICATEDVM_SSH_USER"), strings.Join(command, " "))
+	stdout, stderr, err := c.runCommandOnNode(ctx, c.nodes[node], os.Getenv("REPLICATEDVM_SSH_USER"), command, envs...)
+	if err != nil {
+		return stdout, stderr, err
+	}
+	c.t.Logf("  -> Command on node %s completed in %s", c.nodes[node].ID, time.Since(start))
+	return stdout, stderr, nil
 }
 
 func (c *Cluster) Node(node int) *node {
 	return c.nodes[node]
 }
 
-func (c *Cluster) runCommandOnNode(ctx context.Context, node *node, command []string, envs ...map[string]string) (string, string, error) {
+func (c *Cluster) runCommandOnNode(ctx context.Context, node *node, sshUser string, command []string, envs ...map[string]string) (string, string, error) {
 	args := []string{}
-	args = append(args, sshConnectionArgs(node)...)
-	args = append(args, "sh", "-c", strings.Join(command, " "))
+	args = append(args, sshConnectionArgs(node, sshUser, false)...)
+	args = append(args, fmt.Sprintf("sh -c '%s'", strings.Join(command, " ")))
+	c.t.Logf("  -> Running ssh command on node %s: %q", node.ID, args)
 	cmd := exec.CommandContext(ctx, "ssh", args...)
 
 	env := os.Environ()
@@ -200,6 +286,19 @@ func (c *Cluster) runCommandOnNode(ctx context.Context, node *node, command []st
 	return stdout, stderr, err
 }
 
+func (c *Cluster) enableSSHAccessOnNode(ctx context.Context, node *node) error {
+	c.t.Logf("Enabling SSH access with root user on node %s", node.ID)
+	command := []string{
+		"sudo", "mkdir", "-p", "/root/.ssh",
+		"&&", "sudo", "cp", "-f", "$HOME/.ssh/authorized_keys", "/root/.ssh/authorized_keys",
+	}
+	_, stderr, err := c.runCommandOnNode(ctx, node, os.Getenv("REPLICATEDVM_SSH_USER"), command)
+	if err != nil {
+		return fmt.Errorf("enable SSH access with root user: %v, stderr: %s", err, stderr)
+	}
+	return nil
+}
+
 func (c *Cluster) copyFilesToNode(ctx context.Context, node *node, in ClusterInput) error {
 	files := map[string]string{
 		in.LicensePath:             "/assets/license.yaml",            //0644
@@ -220,8 +319,8 @@ func (c *Cluster) copyFilesToNode(ctx context.Context, node *node, in ClusterInp
 
 func (c *Cluster) copyDirsToNode(ctx context.Context, node *node) error {
 	dirs := map[string]string{
-		"../../../scripts": "/usr/local/bin",
-		"playwright":       "/automation/playwright",
+		"scripts":    "/automation/scripts",
+		"playwright": "/automation/playwright",
 		"../operator/charts/embedded-cluster-operator/troubleshoot": "/automation/troubleshoot",
 	}
 	for src, dest := range dirs {
@@ -234,6 +333,7 @@ func (c *Cluster) copyDirsToNode(ctx context.Context, node *node) error {
 }
 
 func (c *Cluster) CopyFileToNode(ctx context.Context, node *node, src, dest string) error {
+	start := time.Now()
 	c.t.Logf("Copying file %s to node %s at %s", src, node.ID, dest)
 
 	_, err := os.Stat(src)
@@ -246,18 +346,24 @@ func (c *Cluster) CopyFileToNode(ctx context.Context, node *node, src, dest stri
 		return fmt.Errorf("mkdir %s on node %s: %v", filepath.Dir(dest), node.ID, err)
 	}
 
-	args := []string{src}
-	args = append(args, sshConnectionArgs(node)...)
-	args[0] = fmt.Sprintf("%s:%s", args[0], dest)
+	args := []string{}
+	args = append(args, sshConnectionArgs(node, "root", true)...)
+	args[len(args)-1] = fmt.Sprintf("%s:%s", args[len(args)-1], dest)
+	args = append(args[0:len(args)-1], "-p", src, args[len(args)-1])
+
+	c.t.Logf("  -> Running scp command on node %s: %q", node.ID, args)
 	scpCmd := exec.CommandContext(ctx, "scp", args...)
 	output, err := scpCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("err: %v, output: %s", err, string(output))
 	}
+
+	c.t.Logf("  -> Copied file %s to node %s in %s", src, node.ID, time.Since(start))
 	return nil
 }
 
 func (c *Cluster) CopyDirToNode(ctx context.Context, node *node, src, dest string) error {
+	start := time.Now()
 	c.t.Logf("Copying dir %s to node %s at %s", src, node.ID, dest)
 
 	_, err := os.Stat(src)
@@ -265,62 +371,71 @@ func (c *Cluster) CopyDirToNode(ctx context.Context, node *node, src, dest strin
 		return fmt.Errorf("stat %s: %v", src, err)
 	}
 
-	err = c.mkdirOnNode(ctx, node, filepath.Dir(dest))
+	srcTar, err := tmpFileName("*.tar.gz")
 	if err != nil {
-		return fmt.Errorf("mkdir %s on node %s: %v", filepath.Dir(dest), node.ID, err)
+		return fmt.Errorf("create temp file: %v", err)
 	}
 
-	args := []string{src}
-	args = append(args, sshConnectionArgs(node)...)
-	args[0] = fmt.Sprintf("%s:%s", args[0], dest)
-	scpCmd := exec.CommandContext(ctx, "scp", args...)
-	output, err := scpCmd.CombinedOutput()
+	err = tgzDir(ctx, src, srcTar)
 	if err != nil {
-		return fmt.Errorf("err: %v, output: %s", err, string(output))
+		return fmt.Errorf("tgz dir %s: %v", src, err)
 	}
+	defer os.Remove(srcTar)
+
+	archiveDst := filepath.Join(filepath.Dir(dest), srcTar)
+	err = c.CopyFileToNode(ctx, node, srcTar, archiveDst)
+	if err != nil {
+		return fmt.Errorf("copy file %s to node %s at %s: %v", srcTar, node.ID, archiveDst, err)
+	}
+
+	envs := map[string]string{
+		"COPYFILE_DISABLE": "true", // disable metadata files on macOS
+	}
+	_, stderr, err := c.runCommandOnNode(ctx, node, "root", []string{"tar", "-xzf", archiveDst, "-C", filepath.Dir(dest)}, envs)
+	if err != nil {
+		return fmt.Errorf("run command: %v, stderr: %s", err, stderr)
+	}
+
+	c.t.Logf("  -> Copied dir %s to node %s in %s", src, node.ID, time.Since(start))
 	return nil
 }
 
 func (c *Cluster) mkdirOnNode(ctx context.Context, node *node, dir string) error {
-	_, stderr, err := c.runCommandOnNode(ctx, node, []string{"mkdir", "-p", dir}, nil)
+	_, stderr, err := c.runCommandOnNode(ctx, node, "root", []string{"mkdir", "-p", dir}, nil)
 	if err != nil {
 		return fmt.Errorf("err: %v, stderr: %s", err, stderr)
 	}
 	return nil
 }
 
-func sshConnectionArgs(node *node) []string {
-	if sshUser := os.Getenv("REPLICATEDVM_SSH_USER"); sshUser != "" {
-		// If ssh user is provided, we can make a direct ssh connection
-		return []string{fmt.Sprintf("%s@%s", sshUser, node.DirectSSHEndpoint), "-p", strconv.Itoa(node.DirectSSHPort), "-o", "StrictHostKeyChecking=no"}
-	}
+func sshConnectionArgs(node *node, sshUser string, isSCP bool) []string {
+	args := []string{"-o", "StrictHostKeyChecking=no"}
 
-	sshDomain := os.Getenv("REPLICATEDVM_SSH_DOMAIN")
-	if sshDomain == "" {
-		sshDomain = "replicatedcluster.com"
+	// If ssh user is provided, we can make a direct ssh connection
+	if sshKey := os.Getenv("REPLICATEDVM_SSH_KEY"); sshKey != "" {
+		args = append(args, "-i", sshKey)
 	}
-	return []string{fmt.Sprintf("%s@%s", node.ID, sshDomain), "-o", "StrictHostKeyChecking=no"}
+	if isSCP {
+		args = append(args, "-P", strconv.Itoa(node.DirectSSHPort))
+	} else {
+		args = append(args, "-p", strconv.Itoa(node.DirectSSHPort))
+	}
+	args = append(args, fmt.Sprintf("%s@%s", sshUser, node.DirectSSHEndpoint))
+	return args
 }
 
 // SetupPlaywright installs necessary dependencies for Playwright testing
 func (c *Cluster) SetupPlaywright(ctx context.Context, envs ...map[string]string) error {
 	c.t.Logf("Setting up Playwright")
 
-	// Install Node.js and other dependencies
-	setupCommands := [][]string{
-		{"curl", "-fsSL", "https://deb.nodesource.com/setup_16.x", "|", "sudo", "-E", "bash", "-"},
-		{"sudo", "apt-get", "install", "-y", "nodejs"},
-		{"npm", "install", "-g", "playwright"},
-		{"npx", "playwright", "install"},
+	line := []string{"/automation/scripts/bypass-kurl-proxy.sh"}
+	if _, stderr, err := c.RunCommandOnNode(ctx, 0, line, envs...); err != nil {
+		return fmt.Errorf("bypass kurl-proxy on proxy node: %v: %s", err, string(stderr))
 	}
-
-	for _, cmd := range setupCommands {
-		_, stderr, err := c.RunCommandOnNode(ctx, 0, cmd, envs...)
-		if err != nil {
-			return fmt.Errorf("run command %q on node %s: %v, stderr: %s", strings.Join(cmd, " "), c.nodes[0].ID, err, stderr)
-		}
+	line = []string{"/automation/scripts/install-playwright.sh"}
+	if _, stderr, err := c.RunCommandOnProxyNode(ctx, line); err != nil {
+		return fmt.Errorf("install playwright on proxy node: %v: %s", err, string(stderr))
 	}
-
 	return nil
 }
 
@@ -336,7 +451,14 @@ func (c *Cluster) SetupPlaywrightAndRunTest(ctx context.Context, testName string
 func (c *Cluster) RunPlaywrightTest(ctx context.Context, testName string, args ...string) (string, string, error) {
 	c.t.Logf("Running Playwright test %s", testName)
 
-	// Construct the test command
-	testCmd := append([]string{"npx", "playwright", "test", testName}, args...)
-	return c.RunCommandOnNode(ctx, 0, testCmd)
+	line := []string{"/automation/scripts/playwright.sh", testName}
+	line = append(line, args...)
+	env := map[string]string{
+		"BASE_URL": fmt.Sprintf("http://%s", net.JoinHostPort("TODO", "30003")), // TODO: get ip and expose port
+	}
+	stdout, stderr, err := c.RunCommandOnProxyNode(ctx, line, env)
+	if err != nil {
+		return stdout, stderr, fmt.Errorf("run playwright test %s on proxy node: %v", testName, err)
+	}
+	return stdout, stderr, nil
 }
