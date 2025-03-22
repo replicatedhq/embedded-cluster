@@ -263,7 +263,7 @@ func (c *Cluster) CopyFileToNode(ctx context.Context, node *node, src, dest stri
 	args := []string{}
 	args = append(args, sshConnectionArgs(node, true)...)
 	args[len(args)-1] = fmt.Sprintf("%s:%s", args[len(args)-1], dest)
-	args = append(args[0:len(args)-2], src, args[len(args)-2])
+	args = append(args[0:len(args)-1], src, args[len(args)-1])
 
 	c.t.Logf("  -> Running scp command on node %s: %q", node.ID, args)
 	scpCmd := exec.CommandContext(ctx, "scp", args...)
@@ -290,7 +290,7 @@ func (c *Cluster) CopyDirToNode(ctx context.Context, node *node, src, dest strin
 	args := []string{}
 	args = append(args, sshConnectionArgs(node, true)...)
 	args[len(args)-1] = fmt.Sprintf("%s:%s", args[len(args)-1], dest)
-	args = append(args[0:len(args)-2], "-rp", src, args[len(args)-2])
+	args = append(args[0:len(args)-1], src, args[len(args)-1])
 
 	c.t.Logf("  -> Running scp command on node %s: %q", node.ID, args)
 	scpCmd := exec.CommandContext(ctx, "scp", args...)
