@@ -133,34 +133,9 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		return err
 	}
 
-	logrus.Debugf("materializing %s binaries", name)
-	if err := materializeFiles(flags.airgapBundle); err != nil {
-		return err
-	}
-
-	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
-		logrus.Debugf("unable to configure sysctl: %v", err)
-	}
-
-	logrus.Debugf("configuring kernel modules")
-	if err := configutils.ConfigureKernelModules(); err != nil {
-		logrus.Debugf("unable to configure kernel modules: %v", err)
-	}
-
-	logrus.Debugf("configuring network manager")
-	if err := configureNetworkManager(ctx); err != nil {
-		return fmt.Errorf("unable to configure network manager: %w", err)
-	}
-
-	cidrCfg, err := getJoinCIDRConfig(jcmd)
+	cidrCfg, err := initializeJoin(ctx, name, flags, jcmd)
 	if err != nil {
-		return fmt.Errorf("unable to get join CIDR config: %w", err)
-	}
-
-	logrus.Debugf("configuring firewalld")
-	if err := configureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
-		logrus.Debugf("unable to configure firewalld: %v", err)
+		return err
 	}
 
 	logrus.Debugf("running join preflights")
@@ -273,6 +248,52 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *kotsadm.JoinC
 	}
 
 	return nil
+}
+
+func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm.JoinCommandResponse) (*CIDRConfig, error) {
+	spinner := spinner.Start()
+	spinner.Infof("Initializing")
+
+	logrus.Debugf("materializing %s binaries", name)
+	if err := materializeFiles(flags.airgapBundle); err != nil {
+		spinner.Errorf("Initialization failed")
+		spinner.CloseWithError()
+		return nil, err
+	}
+
+	logrus.Debugf("configuring sysctl")
+	if err := configutils.ConfigureSysctl(); err != nil {
+		logrus.Debugf("unable to configure sysctl: %v", err)
+	}
+
+	logrus.Debugf("configuring kernel modules")
+	if err := configutils.ConfigureKernelModules(); err != nil {
+		logrus.Debugf("unable to configure kernel modules: %v", err)
+	}
+
+	logrus.Debugf("configuring network manager")
+	if err := configureNetworkManager(ctx); err != nil {
+		spinner.Errorf("Initialization failed")
+		spinner.CloseWithError()
+		return nil, fmt.Errorf("unable to configure network manager: %w", err)
+	}
+
+	cidrCfg, err := getJoinCIDRConfig(jcmd)
+	if err != nil {
+		spinner.Errorf("Initialization failed")
+		spinner.CloseWithError()
+		return nil, fmt.Errorf("unable to get join CIDR config: %w", err)
+	}
+
+	logrus.Debugf("configuring firewalld")
+	if err := configureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
+		logrus.Debugf("unable to configure firewalld: %v", err)
+	}
+
+	spinner.Infof("Initialization complete")
+	spinner.Close()
+
+	return cidrCfg, nil
 }
 
 func getJoinCIDRConfig(jcmd *kotsadm.JoinCommandResponse) (*CIDRConfig, error) {
@@ -402,19 +423,18 @@ func applyNetworkConfiguration(networkInterface string, jcmd *kotsadm.JoinComman
 func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinCommandResponse) error {
 	loading := spinner.Start()
 	defer loading.Close()
-	loading.Infof("Installing %s node", name)
+	loading.Infof("Installing node")
 	logrus.Debugf("starting %s service", name)
 	if _, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath(), "start"); err != nil {
 		return fmt.Errorf("unable to start service: %w", err)
 	}
 
-	loading.Infof("Waiting for %s node to be ready", name)
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
-	loading.Infof("Node installation finished!")
+	loading.Infof("Node installed")
 	return nil
 }
 
@@ -475,11 +495,11 @@ func runK0sInstallCommand(networkInterface string, fullcmd string) error {
 func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string) error {
 	loading := spinner.Start()
 	defer loading.Close()
-	loading.Infof("Waiting for node to join the cluster")
+	loading.Infof("Waiting for node")
 	if err := kubeutils.WaitForControllerNode(ctx, kcli, hostname); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
-	loading.Infof("Node has joined the cluster!")
+	loading.Infof("Node is ready")
 	return nil
 }
 
