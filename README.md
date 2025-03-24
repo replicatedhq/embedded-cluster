@@ -23,6 +23,7 @@ Additionally, it includes a Registry when deployed in air gap mode, and SeaweedF
 - Dagger
 - shasum
 - jq
+- oras
 - Kubectl (for integration tests)
 - Kind (for integration tests)
 
