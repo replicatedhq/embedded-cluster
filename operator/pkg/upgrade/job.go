@@ -245,6 +245,8 @@ func operatorImageName(ctx context.Context, cli client.Client, in *ecv1beta1.Ins
 	}
 	for _, image := range meta.Images {
 		if strings.Contains(image, "embedded-cluster-operator-image") {
+			domains := runtimeconfig.GetDomains(in.Spec.Config)
+			image = strings.Replace(image, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 			return image, nil
 		}
 	}

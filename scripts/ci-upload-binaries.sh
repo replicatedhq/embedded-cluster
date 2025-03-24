@@ -114,7 +114,12 @@ function kotsbin() {
 
     if [ -n "${kots_url_override}" ]; then
         echo "KOTS_BINARY_URL_OVERRIDE is set to '${kots_url_override}', using that source"
-        curl --retry 5 --retry-all-errors -fL -o "build/kots_linux_${ARCH}.tar.gz" "${kots_url_override}"
+        if [[ "${kots_url_override}" == ttl.sh/* ]]; then
+            oras pull "${kots_url_override}" --output "build"
+            mv build/kots.tar.gz "build/kots_linux_${ARCH}.tar.gz"
+        else
+            curl --retry 5 --retry-all-errors -fL -o "build/kots_linux_${ARCH}.tar.gz" "${kots_url_override}"
+        fi
     elif [ -n "${kots_file_override}" ]; then
         echo "KOTS_BINARY_FILE_OVERRIDE is set to '${kots_file_override}', using that source"
         tar -czvf "build/kots_linux_${ARCH}.tar.gz" -C $(dirname "${kots_file_override}") $(basename "${kots_file_override}")

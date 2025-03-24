@@ -7,6 +7,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -96,9 +97,11 @@ func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, f
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
 
+	domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
+
 	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
-		ReplicatedAPIURL:       jcmd.InstallationSpec.MetricsBaseURL, // MetricsBaseURL is the replicated.app endpoint url
-		ProxyRegistryURL:       fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress),
+		ReplicatedAppURL:       netutil.MaybeAddHTTPS(domains.ReplicatedAppDomain),
+		ProxyRegistryURL:       netutil.MaybeAddHTTPS(domains.ProxyRegistryDomain),
 		Proxy:                  jcmd.InstallationSpec.Proxy,
 		PodCIDR:                cidrCfg.PodCIDR,
 		ServiceCIDR:            cidrCfg.ServiceCIDR,

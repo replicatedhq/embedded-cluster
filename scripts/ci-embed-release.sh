@@ -41,6 +41,12 @@ function init_vars() {
 
 function deps() {
     make output/bin/embedded-cluster-release-builder
+    
+    # Install Helm if not already installed
+    if ! command -v helm &> /dev/null; then
+        echo "Installing Helm..."
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    fi
 }
 
 function create_release_archive() {
@@ -56,6 +62,10 @@ function create_release_archive() {
         echo "channelSlug: \"${APP_CHANNEL_SLUG}\""
         echo "appSlug: \"${REPLICATED_APP}\""
         echo "versionLabel: \"${APP_VERSION}\""
+        echo "defaultDomains:"
+        echo "  replicatedAppDomain: \"staging.replicated.app\""
+        echo "  proxyRegistryDomain: \"proxy.staging.replicated.com\""
+        echo "  replicatedRegistryDomain: \"registry.staging.replicated.com\""
     } > output/tmp/release/release.yaml
 
     if [ "$USES_DEV_BUCKET" == "1" ]; then
@@ -71,9 +81,27 @@ function create_release_archive() {
     fi
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
+    
+    # Clean up backup files
+    find output/tmp/release -name "*.bak" -type f -delete
 
-    # remove the backup file
-    rm output/tmp/release/cluster-config.yaml.bak
+    # Package the Helm charts
+    for CHART in nginx-app redis-app; do
+        if [ -d "e2e/helm-charts/$CHART" ]; then
+            echo "Packaging Helm chart: $CHART..."
+            helm package -u e2e/helm-charts/$CHART -d output/tmp/release
+            
+            # Get the packaged chart filename
+            CHART_FILENAME=$(ls output/tmp/release/$CHART-*.tgz | head -1)
+            if [ -n "$CHART_FILENAME" ]; then
+                echo "Created Helm chart package: $CHART_FILENAME"
+            else
+                echo "Warning: Failed to create Helm chart package for $CHART"
+            fi
+        else
+            echo "Helm chart directory not found at e2e/helm-charts/$CHART"
+        fi
+    done
 
     tar -czf output/tmp/release.tar.gz -C output/tmp/release .
 

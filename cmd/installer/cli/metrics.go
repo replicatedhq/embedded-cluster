@@ -6,37 +6,38 @@ import (
 	"github.com/google/uuid"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 type InstallReporter struct {
-	license   *kotsv1beta1.License
+	baseURL   string
+	licenseID string
 	clusterID uuid.UUID
 	cmd       string
 }
 
-func NewInstallReporter(license *kotsv1beta1.License, clusterID uuid.UUID, cmd string) *InstallReporter {
+func NewInstallReporter(baseURL string, licenseID string, clusterID uuid.UUID, cmd string) *InstallReporter {
 	return &InstallReporter{
-		license:   license,
+		baseURL:   baseURL,
+		licenseID: licenseID,
 		clusterID: clusterID,
 		cmd:       cmd,
 	}
 }
 
 func (r *InstallReporter) ReportInstallationStarted(ctx context.Context) {
-	metrics.ReportInstallationStarted(ctx, r.license, r.clusterID)
+	metrics.ReportInstallationStarted(ctx, r.baseURL, r.licenseID, r.clusterID)
 }
 
 func (r *InstallReporter) ReportInstallationSucceeded(ctx context.Context) {
-	metrics.ReportInstallationSucceeded(ctx, r.license, r.clusterID)
+	metrics.ReportInstallationSucceeded(ctx, r.baseURL, r.clusterID)
 }
 
 func (r *InstallReporter) ReportInstallationFailed(ctx context.Context, err error) {
-	metrics.ReportInstallationFailed(ctx, r.license, r.clusterID, err)
+	metrics.ReportInstallationFailed(ctx, r.baseURL, r.clusterID, err)
 }
 
 func (r *InstallReporter) ReportPreflightsFailed(ctx context.Context, output preflightstypes.Output, bypassed bool) {
-	metrics.ReportPreflightsFailed(ctx, metrics.BaseURL(r.license), r.clusterID, output, bypassed, r.cmd)
+	metrics.ReportPreflightsFailed(ctx, r.baseURL, r.clusterID, output, bypassed, r.cmd)
 }
 
 type JoinReporter struct {

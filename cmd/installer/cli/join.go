@@ -129,6 +129,12 @@ func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
 }
 
 func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm.JoinCommandResponse, metricsReporter preflights.MetricsReporter) error {
+	// both controller and worker nodes will have 'worker' in the join command
+	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
+	if !isWorker {
+		logrus.Warnf("Do not join another node until this join is complete.")
+	}
+
 	if err := runJoinVerifyAndPrompt(name, flags, jcmd); err != nil {
 		return err
 	}
@@ -172,11 +178,11 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	}
 
 	logrus.Debugf("installing and joining cluster")
-	if err := installAndJoinCluster(ctx, jcmd, name, flags); err != nil {
+	if err := installAndJoinCluster(ctx, jcmd, name, flags, isWorker); err != nil {
 		return err
 	}
 
-	if !strings.Contains(jcmd.K0sJoinCommand, "controller") {
+	if isWorker {
 		logrus.Debugf("worker node join finished")
 		return nil
 	}
@@ -296,7 +302,7 @@ func getJoinCIDRConfig(jcmd *kotsadm.JoinCommandResponse) (*CIDRConfig, error) {
 	}, nil
 }
 
-func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, name string, flags JoinCmdFlags) error {
+func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, name string, flags JoinCmdFlags, isWorker bool) error {
 	logrus.Debugf("saving token to disk")
 	if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 		return fmt.Errorf("unable to save token to disk: %w", err)
@@ -314,8 +320,6 @@ func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandRespons
 	}
 
 	logrus.Debugf("creating systemd unit files")
-	// both controller and worker nodes will have 'worker' in the join command
-	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if err := createSystemdUnitFiles(ctx, isWorker, jcmd.InstallationSpec.Proxy); err != nil {
 		return fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
@@ -366,7 +370,8 @@ func installK0sBinary() error {
 
 func applyNetworkConfiguration(networkInterface string, jcmd *kotsadm.JoinCommandResponse) error {
 	if jcmd.InstallationSpec.Network != nil {
-		clusterSpec := config.RenderK0sConfig()
+		domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
+		clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 
 		address, err := netutils.FirstValidAddress(networkInterface)
 		if err != nil {

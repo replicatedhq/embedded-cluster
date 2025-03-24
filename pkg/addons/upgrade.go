@@ -18,6 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -42,8 +43,12 @@ func Upgrade(ctx context.Context, hcli helm.Client, in *ecv1beta1.Installation, 
 }
 
 func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
+	domains := runtimeconfig.GetDomains(in.Spec.Config)
+
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
+		&openebs.OpenEBS{
+			ProxyRegistryDomain: domains.ProxyRegistryDomain,
+		},
 	}
 
 	serviceCIDR := ""
@@ -59,7 +64,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator chart location")
 	}
-	ecoImageRepo, ecoImageTag, ecoUtilsImage, err := operatorImages(meta.Images)
+	ecoImageRepo, ecoImageTag, ecoUtilsImage, err := operatorImages(meta.Images, domains.ProxyRegistryDomain)
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator images")
 	}
@@ -72,32 +77,39 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		ImageRepoOverride:     ecoImageRepo,
 		ImageTagOverride:      ecoImageTag,
 		UtilsImageOverride:    ecoUtilsImage,
+		ProxyRegistryDomain:   domains.ProxyRegistryDomain,
 	})
 
 	if in.Spec.AirGap {
 		addOns = append(addOns, &registry.Registry{
-			ServiceCIDR: serviceCIDR,
-			IsHA:        in.Spec.HighAvailability,
+			ServiceCIDR:         serviceCIDR,
+			IsHA:                in.Spec.HighAvailability,
+			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 		})
 
 		if in.Spec.HighAvailability {
 			addOns = append(addOns, &seaweedfs.SeaweedFS{
-				ServiceCIDR: serviceCIDR,
+				ServiceCIDR:         serviceCIDR,
+				ProxyRegistryDomain: domains.ProxyRegistryDomain,
 			})
 		}
 	}
 
 	if in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
 		addOns = append(addOns, &velero.Velero{
-			Proxy: in.Spec.Proxy,
+			Proxy:               in.Spec.Proxy,
+			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 		})
 	}
 
 	addOns = append(addOns, &adminconsole.AdminConsole{
-		IsAirgap:    in.Spec.AirGap,
-		IsHA:        in.Spec.HighAvailability,
-		Proxy:       in.Spec.Proxy,
-		ServiceCIDR: serviceCIDR,
+		IsAirgap:                 in.Spec.AirGap,
+		IsHA:                     in.Spec.HighAvailability,
+		Proxy:                    in.Spec.Proxy,
+		ServiceCIDR:              serviceCIDR,
+		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
+		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
+		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,
 	})
 
 	return addOns, nil

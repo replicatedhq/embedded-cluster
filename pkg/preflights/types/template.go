@@ -14,7 +14,7 @@ type CIDRData struct {
 
 type TemplateData struct {
 	IsAirgap                bool
-	ReplicatedAPIURL        string
+	ReplicatedAppURL        string
 	ProxyRegistryURL        string
 	AdminConsolePort        int
 	LocalArtifactMirrorPort int

@@ -41,7 +41,6 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.60.3
           args: --build-tags exclude_graphdriver_btrfs
 
   test:
@@ -102,6 +101,8 @@ jobs:
             ./dev/.gomodcache
           key: dryrun-tests-go-cache
       - name: Dryrun tests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           make dryrun-tests
 
@@ -168,6 +169,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
+      - uses: oras-project/setup-oras@v1
 
       - name: Install dagger
         run: |
@@ -238,6 +241,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
+      - uses: oras-project/setup-oras@v1
 
       - name: Install dagger
         run: |
@@ -343,6 +348,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
+      - uses: oras-project/setup-oras@v1
 
       - name: Install dagger
         run: |
@@ -621,6 +628,7 @@ jobs:
       matrix:
         test:
           - TestPreflights
+          - TestPreflightsNoexec
           - TestMaterialize
           - TestHostPreflightCustomSpec
           - TestHostPreflightInBuiltSpec

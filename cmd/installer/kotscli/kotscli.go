@@ -19,11 +19,12 @@ var (
 )
 
 type InstallOptions struct {
-	AppSlug          string
-	LicenseFile      string
-	Namespace        string
-	AirgapBundle     string
-	ConfigValuesFile string
+	AppSlug               string
+	LicenseFile           string
+	Namespace             string
+	AirgapBundle          string
+	ConfigValuesFile      string
+	ReplicatedAppEndpoint string
 }
 
 func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
@@ -36,9 +37,7 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 
 	var appVersionLabel string
 	var channelSlug string
-	if channelRelease, err := release.GetChannelRelease(); err != nil {
-		return fmt.Errorf("unable to get channel release: %w", err)
-	} else if channelRelease != nil {
+	if channelRelease := release.GetChannelRelease(); channelRelease != nil {
 		appVersionLabel = channelRelease.VersionLabel
 		channelSlug = channelRelease.ChannelSlug
 	}
@@ -81,6 +80,9 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 		Env: map[string]string{
 			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
 		},
+	}
+	if opts.ReplicatedAppEndpoint != "" {
+		runCommandOptions.Env["REPLICATED_APP_ENDPOINT"] = opts.ReplicatedAppEndpoint
 	}
 	err = helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, installArgs...)
 	if err != nil {

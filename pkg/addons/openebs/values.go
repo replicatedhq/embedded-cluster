@@ -2,6 +2,7 @@ package openebs
 
 import (
 	"context"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -15,6 +16,12 @@ func (o *OpenEBS) GenerateHelmValues(ctx context.Context, kcli client.Client, ov
 	if err != nil {
 		return nil, errors.Wrap(err, "marshal helm values")
 	}
+
+	// replace proxy.replicated.com with the potentially customized proxy registry domain
+	if o.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", o.ProxyRegistryDomain)
+	}
+
 	copiedValues, err := helm.UnmarshalValues(marshalled)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshal helm values")

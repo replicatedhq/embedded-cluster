@@ -148,6 +148,8 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
+      - uses: oras-project/setup-oras@v1
+
       - name: Download buildtools artifact
         uses: actions/download-artifact@v4
         with:
@@ -463,6 +465,7 @@ jobs:
       matrix:
         test:
           - TestPreflights
+          - TestPreflightsNoexec
           - TestMaterialize
           - TestHostPreflightCustomSpec
           - TestHostPreflightInBuiltSpec

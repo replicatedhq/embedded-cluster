@@ -18,11 +18,18 @@ K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.117.0
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-# When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
-# scripts/ci-upload-binaries.sh may find the version in the cache and not upload the overridden binary.
+# If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
 KOTS_BINARY_URL_OVERRIDE =
+# If KOTS_BINARY_FILE_OVERRIDE is set, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
 # For dev env, build the kots binary in the kots repo with "make kots-linux-arm64" and set this to "../kots/bin/kots"
 KOTS_BINARY_FILE_OVERRIDE =
+
+ifeq ($(findstring ttl.sh,$(KOTS_BINARY_URL_OVERRIDE)),ttl.sh)
+KOTS_VERSION = kots-dev-$(shell oras manifest fetch $(KOTS_BINARY_URL_OVERRIDE) | jq '.layers[0].digest' | cut -c9-15)
+else ifdef KOTS_BINARY_FILE_OVERRIDE 
+KOTS_VERSION = kots-dev-$(shell shasum -a 256 $(KOTS_BINARY_FILE_OVERRIDE) | cut -c1-8)
+endif
+
 # TODO: move this to a manifest file
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
 # These are used to override the binary urls in dev and e2e tests
@@ -36,10 +43,6 @@ else ifeq ($(K0S_VERSION),v1.29.9+k0s.0-ec.0)
 K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.29.9%2Bk0s.0-ec.0-$(ARCH)
 else ifeq ($(K0S_VERSION),v1.28.14+k0s.0-ec.0)
 K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.28.14%2Bk0s.0-ec.0-$(ARCH)
-endif
-
-ifneq ($(KOTS_BINARY_FILE_OVERRIDE),)
-KOTS_VERSION = kots-dev-$(shell shasum -a 256 $(KOTS_BINARY_FILE_OVERRIDE) | cut -c1-8)
 endif
 
 LD_FLAGS = \
@@ -69,30 +72,39 @@ random-string = $(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)
 
 .PHONY: cmd/installer/goods/bins/k0s
 cmd/installer/goods/bins/k0s:
-	$(MAKE) output/bins/k0s-$(K0S_VERSION)-$(ARCH)
-	mkdir -p cmd/installer/goods/bins
-	cp output/bins/k0s-$(K0S_VERSION)-$(ARCH) $@
-
-output/bins/k0s-%:
 	mkdir -p output/bins
 	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
-	    curl --retry 5 --retry-all-errors -fL -o $@ "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
+		$(MAKE) output/bins/k0s-override ; \
+		cp output/bins/k0s-override $@ ; \
 	else \
-	    curl --retry 5 --retry-all-errors -fL -o $@ "https://github.com/k0sproject/k0s/releases/download/$(call split-hyphen,$*,1)/k0s-$(call split-hyphen,$*,1)-$(call split-hyphen,$*,2)" ; \
+		$(MAKE) output/bins/k0s-$(K0S_VERSION)-$(ARCH) ; \
+		cp output/bins/k0s-$(K0S_VERSION)-$(ARCH) $@ ; \
 	fi
+
+output/bins/k0s-%:
+	curl --retry 5 --retry-all-errors -fL -o $@ \
+		"https://github.com/k0sproject/k0s/releases/download/$(call split-hyphen,$*,1)/k0s-$(call split-hyphen,$*,1)-$(call split-hyphen,$*,2)"
+	chmod +x $@
+	touch $@
+
+.PHONY: output/bins/k0s-override
+output/bins/k0s-override:
+	mkdir -p output/bins
+	curl --retry 5 --retry-all-errors -fL -o $@ \
+		"$(K0S_BINARY_SOURCE_OVERRIDE)"
 	chmod +x $@
 	touch $@
 
 .PHONY: cmd/installer/goods/bins/kubectl-support_bundle
 cmd/installer/goods/bins/kubectl-support_bundle:
 	$(MAKE) output/bins/kubectl-support_bundle-$(TROUBLESHOOT_VERSION)-$(ARCH)
-	mkdir -p cmd/installer/goods/bins
 	cp output/bins/kubectl-support_bundle-$(TROUBLESHOOT_VERSION)-$(ARCH) $@
 
 output/bins/kubectl-support_bundle-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/support-bundle.tar.gz "https://github.com/replicatedhq/troubleshoot/releases/download/$(call split-hyphen,$*,1)/support-bundle_$(OS)_$(call split-hyphen,$*,2).tar.gz"
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/support-bundle.tar.gz \
+		"https://github.com/replicatedhq/troubleshoot/releases/download/$(call split-hyphen,$*,1)/support-bundle_$(OS)_$(call split-hyphen,$*,2).tar.gz"
 	tar -xzf output/tmp/support-bundle.tar.gz -C output/tmp
 	mv output/tmp/support-bundle $@
 	rm -rf output/tmp
@@ -101,13 +113,13 @@ output/bins/kubectl-support_bundle-%:
 .PHONY: cmd/installer/goods/bins/kubectl-preflight
 cmd/installer/goods/bins/kubectl-preflight:
 	$(MAKE) output/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-$(ARCH)
-	mkdir -p cmd/installer/goods/bins
 	cp output/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-$(ARCH) $@
 
 output/bins/kubectl-preflight-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(call split-hyphen,$*,1)/preflight_$(OS)_$(call split-hyphen,$*,2).tar.gz
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/preflight.tar.gz \
+		https://github.com/replicatedhq/troubleshoot/releases/download/$(call split-hyphen,$*,1)/preflight_$(OS)_$(call split-hyphen,$*,2).tar.gz
 	tar -xzf output/tmp/preflight.tar.gz -C output/tmp
 	mv output/tmp/preflight $@
 	rm -rf output/tmp
@@ -115,13 +127,12 @@ output/bins/kubectl-preflight-%:
 
 .PHONY: cmd/installer/goods/bins/local-artifact-mirror
 cmd/installer/goods/bins/local-artifact-mirror:
-	mkdir -p cmd/installer/goods/bins
 	$(MAKE) -C local-artifact-mirror build OS=$(OS) ARCH=$(ARCH)
 	cp local-artifact-mirror/bin/local-artifact-mirror-$(OS)-$(ARCH) $@
 	touch $@
 
 ifndef FIO_VERSION
-FIO_VERSION = $(shell curl --retry 5 --retry-all-errors -fsSL https://api.github.com/repos/axboe/fio/releases/latest | jq -r '.tag_name' | cut -d- -f2)
+FIO_VERSION = $(shell curl -fsSL --retry 5 --retry-all-errors $(GH_AUTH_HEADER) https://api.github.com/repos/axboe/fio/releases | jq -r '. | first | .tag_name' | cut -d- -f2)
 endif
 
 output/bins/fio-%:
@@ -136,13 +147,11 @@ output/bins/fio-%:
 cmd/installer/goods/bins/fio:
 ifneq ($(DISABLE_FIO_BUILD),1)
 	$(MAKE) output/bins/fio-$(FIO_VERSION)-$(ARCH)
-	mkdir -p cmd/installer/goods/bins
 	cp output/bins/fio-$(FIO_VERSION)-$(ARCH) $@
 endif
 
 .PHONY: cmd/installer/goods/internal/bins/kubectl-kots
 cmd/installer/goods/internal/bins/kubectl-kots:
-	mkdir -p cmd/installer/goods/internal/bins
 	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
 		$(MAKE) output/bins/kubectl-kots-override ; \
 		cp output/bins/kubectl-kots-override $@ ; \
@@ -157,7 +166,8 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "https://github.com/replicatedhq/kots/releases/download/$(call split-hyphen,$*,1)/kots_$(OS)_$(call split-hyphen,$*,2).tar.gz"
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz \
+		"https://github.com/replicatedhq/kots/releases/download/$(call split-hyphen,$*,1)/kots_$(OS)_$(call split-hyphen,$*,2).tar.gz"
 	tar -xzf output/tmp/kots.tar.gz -C output/tmp
 	mv output/tmp/kots $@
 	touch $@
@@ -166,7 +176,11 @@ output/bins/kubectl-kots-%:
 output/bins/kubectl-kots-override:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)"
+	if [[ "$(KOTS_BINARY_URL_OVERRIDE)" == ttl.sh* ]]; then \
+		oras pull "$(KOTS_BINARY_URL_OVERRIDE)" --output output/tmp ; \
+	else \
+		curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
+	fi
 	tar -xzf output/tmp/kots.tar.gz -C output/tmp
 	mv output/tmp/kots $@
 	touch $@
@@ -218,7 +232,6 @@ static: cmd/installer/goods/bins/k0s \
 
 .PHONY: static-dryrun
 static-dryrun:
-	@mkdir -p cmd/installer/goods/bins cmd/installer/goods/internal/bins
 	@touch cmd/installer/goods/bins/k0s \
 		cmd/installer/goods/bins/kubectl-preflight \
 		cmd/installer/goods/bins/kubectl-support_bundle \
@@ -261,14 +274,12 @@ envtest:
 
 .PHONY: unit-tests
 unit-tests: envtest
-	mkdir -p cmd/installer/goods/bins cmd/installer/goods/internal/bins
-	touch cmd/installer/goods/bins/BUILD cmd/installer/goods/internal/bins/BUILD # compilation will fail if no files are present
 	KUBEBUILDER_ASSETS="$(shell ./operator/bin/setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/operator/bin -p path)" \
 		go test -tags exclude_graphdriver_btrfs -v ./pkg/... ./cmd/...
 	$(MAKE) -C operator test
 
 .PHONY: vet
-vet: static
+vet:
 	go vet -tags exclude_graphdriver_btrfs ./...
 
 .PHONY: e2e-tests
@@ -318,8 +329,6 @@ scan:
 
 .PHONY: buildtools
 buildtools:
-	mkdir -p cmd/installer/goods/bins cmd/installer/goods/internal/bins
-	touch cmd/installer/goods/bins/BUILD cmd/installer/goods/internal/bins/BUILD # compilation will fail if no files are present
 	go build -tags exclude_graphdriver_btrfs -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: list-distros

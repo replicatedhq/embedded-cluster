@@ -16,19 +16,8 @@ http_access allow whitelist
 "
 
 whitelist_txt="
-proxy.replicated.com
+ec-e2e-proxy.testcluster.net
 ec-e2e-replicated-app.testcluster.net
-staging.replicated.app
-
-# ingress-nginx extension chart redirects to github.com releases/download
-kubernetes.github.io
-github.com
-objects.githubusercontent.com
-# goldpinger extension chart
-okgolove.github.io
-
-# install_kots_cli
-kots.io
 
 # dr
 .amazonaws.com

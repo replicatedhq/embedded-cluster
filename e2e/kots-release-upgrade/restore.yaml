@@ -20,7 +20,7 @@ spec:
       - init:
           initContainers:
           - name: restore-hook-init1
-            image: 'repl{{ LocalImageName "proxy.replicated.com/anonymous/nginx:1.24-alpine" }}'
+            image: 'repl{{ LocalImageName "nginx:1.25-alpine" }}'
             command:
             - /bin/ash
             - -c

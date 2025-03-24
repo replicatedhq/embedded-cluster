@@ -187,3 +187,38 @@ func TestPreflights(t *testing.T) {
 		})
 	}
 }
+
+func TestPreflightsNoexec(t *testing.T) {
+	t.Parallel()
+
+	tc := docker.NewCluster(&docker.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distro:       "debian-bookworm",
+		LicensePath:  "license.yaml",
+		ECBinaryPath: "../output/bin/embedded-cluster",
+	})
+	defer tc.Cleanup()
+
+	script := `set -e;
+mkdir -p /var/lib/ecmount;
+mkdir -p /var/lib/ec;
+mount --bind -o defaults,bind,noexec /var/lib/ecmount /var/lib/ec;
+`
+	_, stderr, err := tc.RunCommandOnNode(0, []string{script})
+	if err != nil {
+		t.Fatalf("failed to install deps: err=%v, stderr=%s", err, stderr)
+	}
+
+	runCmd := []string{"embedded-cluster install run-preflights --yes --license /assets/license.yaml --data-dir /var/lib/ec"}
+
+	// we are more interested in the results
+	runStdout, _, runErr := tc.RunCommandOnNode(0, runCmd)
+	if runErr == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	if !strings.Contains(runStdout, "Execution is not permitted.") {
+		t.Fatalf("expected not executable error, got %q", runStdout)
+	}
+}

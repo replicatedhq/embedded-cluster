@@ -1,11 +1,13 @@
 package lxd
 
 import (
+	"archive/tar"
 	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -221,13 +223,21 @@ func NewCluster(in *ClusterInput) *Cluster {
 	CreateProfile(in)
 	CreateNetworks(in)
 	out.Nodes, out.IPs = CreateNodes(in)
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(out.Nodes))
 	for _, node := range out.Nodes {
-		CopyFilesToNode(in, node)
-		CopyDirsToNode(in, node)
-		if in.CreateRegularUser {
-			CreateRegularUser(in, node)
-		}
+		go func(node string) {
+			defer wg.Done()
+			CopyFilesToNode(in, node)
+			CopyDirsToNode(in, node)
+			if in.CreateRegularUser {
+				CreateRegularUser(in, node)
+			}
+		}(node)
 	}
+	wg.Wait()
+
 	// We create a proxy node for all installations to run playwright tests.
 	out.Proxy = CreateProxy(in)
 	CopyDirsToNode(in, out.Proxy)
@@ -244,10 +254,17 @@ func NewCluster(in *ClusterInput) *Cluster {
 		env["http_proxy"] = HTTPProxy
 		env["https_proxy"] = HTTPProxy
 	}
+
+	wg.Add(len(out.Nodes))
 	for _, node := range out.Nodes {
-		in.T.Logf("Installing deps on node %s", node)
-		RunCommand(in, []string{"install-deps.sh"}, node, env)
+		go func(node string) {
+			defer wg.Done()
+			in.T.Logf("Installing deps on node %s", node)
+			RunCommand(in, []string{"install-deps.sh"}, node, env)
+		}(node)
 	}
+	wg.Wait()
+
 	return out
 }
 
@@ -498,28 +515,115 @@ func CopyDirsToNode(in *ClusterInput, node string) {
 	}
 }
 
-// CopyDirToNode copies a single directory to a node.
+// CopyDirToNode copies a single directory to a node by creating a tar archive and streaming it
 func CopyDirToNode(in *ClusterInput, node string, dir Dir) {
+	// Create a temporary tar file
+	tmpFile, err := os.CreateTemp("", "dir-*.tar")
+	if err != nil {
+		in.T.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	// Create tar writer
+	tw := tar.NewWriter(tmpFile)
+
+	// Walk through the directory and add files to tar
 	if err := filepath.Walk(dir.SourcePath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to access path %s: %v", path, err)
 		}
-		if info.IsDir() {
-			return nil
-		}
+
+		// Get relative path for tar header
 		relPath, err := filepath.Rel(dir.SourcePath, path)
 		if err != nil {
 			return fmt.Errorf("failed to get relative path: %v", err)
 		}
-		file := File{
-			SourcePath: path,
-			DestPath:   filepath.Join(dir.DestPath, relPath),
-			Mode:       int(info.Mode()),
+
+		// Skip if this is the root directory
+		if relPath == "." {
+			return nil
 		}
-		CopyFileToNode(in, node, file)
+
+		// Create tar header
+		header, err := tar.FileInfoHeader(info, "")
+		if err != nil {
+			return fmt.Errorf("failed to create tar header: %v", err)
+		}
+
+		// Update name to use relative path
+		header.Name = filepath.Join(filepath.Base(dir.DestPath), relPath)
+
+		// Write header
+		if err := tw.WriteHeader(header); err != nil {
+			return fmt.Errorf("failed to write tar header: %v", err)
+		}
+
+		// If this is a regular file, write the contents
+		if !info.IsDir() {
+			file, err := os.Open(path)
+			if err != nil {
+				return fmt.Errorf("failed to open file %s: %v", path, err)
+			}
+			defer file.Close()
+
+			if _, err := io.Copy(tw, file); err != nil {
+				return fmt.Errorf("failed to write file contents to tar: %v", err)
+			}
+		}
+
 		return nil
 	}); err != nil {
-		in.T.Fatalf("Failed to walk directory %s: %v", dir.SourcePath, err)
+		in.T.Fatalf("Failed to create tar archive: %v", err)
+	}
+
+	if err := tw.Close(); err != nil {
+		in.T.Fatalf("Failed to close tar writer: %v", err)
+	}
+
+	// Rewind the temp file for reading
+	if _, err := tmpFile.Seek(0, 0); err != nil {
+		in.T.Fatalf("Failed to rewind temp file: %v", err)
+	}
+
+	// Ensure parent directory exists on the node
+	RunCommand(in, []string{"mkdir", "-p", filepath.Dir(dir.DestPath)}, node)
+
+	// Stream and extract the tar file on the node
+	in.T.Logf("Copying directory `%s` to `%s` on node %s", dir.SourcePath, dir.DestPath, node)
+
+	stdout := bytes.NewBuffer(nil)
+	stderr := bytes.NewBuffer(nil)
+
+	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
+	if err != nil {
+		in.T.Fatalf("Failed to connect to LXD: %v", err)
+	}
+
+	req := api.InstanceExecPost{
+		Command:     []string{"tar", "-xf", "-", "-C", filepath.Dir(dir.DestPath)},
+		WaitForWS:   true,
+		Interactive: false,
+		Environment: map[string]string{},
+	}
+
+	args := lxd.InstanceExecArgs{
+		Stdin:    tmpFile,
+		Stdout:   &NoopCloser{stdout},
+		Stderr:   &NoopCloser{stderr},
+		DataDone: make(chan bool),
+	}
+
+	op, err := client.ExecInstance(node, req, &args)
+	if err != nil {
+		in.T.Fatalf("Failed to execute tar extract: %v", err)
+	}
+
+	err = op.Wait()
+	<-args.DataDone
+
+	if err != nil {
+		in.T.Fatalf("Failed to wait for tar extract: %v\nStderr: %s", err, stderr.String())
 	}
 }
 
@@ -579,19 +683,28 @@ func CopyFileFromNode(node, source, dest string) error {
 // CreateNodes creats the nodes for the cluster. The amount of nodes is
 // specified in the input.
 func CreateNodes(in *ClusterInput) ([]string, []string) {
-	nodes := []string{}
-	IPs := []string{}
-	for i := 0; i < in.Nodes; i++ {
-		node, ip := CreateNode(in, i)
-		if !in.WithProxy {
-			NodeHasInternet(in, node)
-		} else {
-			NodeHasNoInternet(in, node)
-		}
-		nodes = append(nodes, node)
-		IPs = append(IPs, ip)
+	ips := make([]string, in.Nodes)
+	nodes := make([]string, in.Nodes)
+
+	wg := sync.WaitGroup{}
+	wg.Add(in.Nodes)
+
+	for i := range in.Nodes {
+		go func(i int) {
+			defer wg.Done()
+			node, ip := CreateNode(in, i)
+			if !in.WithProxy {
+				NodeHasInternet(in, node)
+			} else {
+				NodeHasNoInternet(in, node)
+			}
+			ips[i] = ip
+			nodes[i] = node
+		}(i)
 	}
-	return nodes, IPs
+	wg.Wait()
+
+	return nodes, ips
 }
 
 // NodeHasInternet checks if the node has internet access. It does this by
@@ -1028,7 +1141,10 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 	c.T.Logf("%s: running playwright test %s on proxy node", time.Now().Format(time.RFC3339), testName)
 	line := []string{"playwright.sh", testName}
 	line = append(line, args...)
-	stdout, stderr, err := c.RunCommandOnProxyNode(c.T, line)
+	env := map[string]string{
+		"BASE_URL": fmt.Sprintf("http://%s", net.JoinHostPort(c.IPs[0], "30003")),
+	}
+	stdout, stderr, err := c.RunCommandOnProxyNode(c.T, line, env)
 	if err != nil {
 		return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, c.Proxy, err)
 	}

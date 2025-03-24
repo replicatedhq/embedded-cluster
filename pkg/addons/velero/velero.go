@@ -2,6 +2,7 @@ package velero
 
 import (
 	_ "embed"
+	"strings"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -11,7 +12,8 @@ import (
 )
 
 type Velero struct {
-	Proxy *ecv1beta1.ProxySpec
+	Proxy               *ecv1beta1.ProxySpec
+	ProxyRegistryDomain string
 }
 
 const (
@@ -56,4 +58,11 @@ func (v *Velero) ReleaseName() string {
 
 func (v *Velero) Namespace() string {
 	return namespace
+}
+
+func (v *Velero) ChartLocation() string {
+	if v.ProxyRegistryDomain == "" {
+		return Metadata.Location
+	}
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", v.ProxyRegistryDomain, 1)
 }

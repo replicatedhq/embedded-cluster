@@ -30,7 +30,7 @@ func operatorChart(meta *ectypes.ReleaseMetadata) (string, string, error) {
 	return "", "", errors.New("no embedded-cluster-operator chart found in release metadata")
 }
 
-func operatorImages(images []string) (string, string, string, error) {
+func operatorImages(images []string, proxyRegistryDomain string) (string, string, string, error) {
 	// determine the images to use for the operator chart
 	ecOperatorImage := ""
 	ecUtilsImage := ""
@@ -49,6 +49,12 @@ func operatorImages(images []string) (string, string, string, error) {
 	}
 	if ecUtilsImage == "" {
 		return "", "", "", errors.New("no ec-utils found in images")
+	}
+
+	// the override images for operator during upgrades also need to be updated to use a whitelabeled proxy registry
+	if proxyRegistryDomain != "" {
+		ecOperatorImage = strings.Replace(ecOperatorImage, "proxy.replicated.com", proxyRegistryDomain, 1)
+		ecUtilsImage = strings.Replace(ecUtilsImage, "proxy.replicated.com", proxyRegistryDomain, 1)
 	}
 
 	repo := strings.Split(ecOperatorImage, ":")[0]

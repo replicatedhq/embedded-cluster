@@ -26,9 +26,8 @@ func mergeMaps(maps ...map[string]string) map[string]string {
 
 func WithECShellEnv(dataDir string) map[string]string {
 	return map[string]string{
-		"EMBEDDED_CLUSTER_METRICS_BASEURL": "https://staging.replicated.app",
-		"KUBECONFIG":                       filepath.Join(dataDir, "k0s/pki/admin.conf"),
-		"PATH":                             filepath.Join(dataDir, "bin"),
+		"KUBECONFIG": filepath.Join(dataDir, "k0s/pki/admin.conf"),
+		"PATH":       filepath.Join(dataDir, "bin"),
 	}
 }
 
