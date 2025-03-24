@@ -176,3 +176,37 @@ func TestJoinRunPreflights(t *testing.T) {
 	dryrunJoin(t, "run-preflights", "10.0.0.1", "some-token")
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
+
+func TestJoinWorkerNode(t *testing.T) {
+	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
+	client := &dryrun.Client{
+		Kotsadm: dryrun.NewKotsadm(),
+	}
+	clusterID := uuid.New()
+	jcmd := &kotsadm.JoinCommandResponse{
+		K0sJoinCommand:         "/usr/local/bin/k0s install worker --no-taints --labels kots.io/embedded-cluster-role=total-1,kots.io/embedded-cluster-role-0=worker-test,worker-label=worker-label-value",
+		K0sToken:               "some-k0s-token",
+		EmbeddedClusterVersion: "v0.0.0",
+		ClusterID:              clusterID,
+		InstallationSpec: ecv1beta1.InstallationSpec{
+			ClusterID: clusterID.String(),
+			Config: &ecv1beta1.ConfigSpec{
+				UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{},
+			},
+			Network: &ecv1beta1.NetworkSpec{
+				PodCIDR:     "10.2.0.0/17",
+				ServiceCIDR: "10.2.128.0/17",
+			},
+		},
+	}
+	client.Kotsadm.SetGetJoinTokenResponse("10.0.0.1", "some-token", jcmd, nil)
+	dryrun.Init(drFile, client)
+	dr := dryrunJoin(t, "10.0.0.1", "some-token")
+
+	// --- validate os env --- //
+	assertEnv(t, dr.OSEnv, map[string]string{
+		"KUBECONFIG": "/var/lib/embedded-cluster/k0s/kubelet.conf", // uses kubelet config
+	})
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
