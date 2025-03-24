@@ -182,14 +182,24 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		return err
 	}
 
-	if isWorker {
-		logrus.Debugf("worker node join finished")
-		return nil
-	}
-
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to get kube client: %w", err)
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("unable to get hostname: %w", err)
+	}
+
+	logrus.Debugf("waiting for node to join cluster")
+	if err := waitForNodeToJoin(ctx, kcli, hostname, isWorker); err != nil {
+		return fmt.Errorf("unable to wait for node: %w", err)
+	}
+
+	if isWorker {
+		logrus.Debugf("worker node join finished")
+		return nil
 	}
 
 	airgapChartsPath := ""
@@ -206,15 +216,6 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		return fmt.Errorf("unable to create helm client: %w", err)
 	}
 	defer hcli.Close()
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		return fmt.Errorf("unable to get hostname: %w", err)
-	}
-
-	if err := waitForNodeToJoin(ctx, kcli, hostname); err != nil {
-		return fmt.Errorf("unable to wait for node: %w", err)
-	}
 
 	if flags.enableHighAvailability {
 		if err := maybeEnableHA(ctx, kcli, hcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config); err != nil {
@@ -246,7 +247,12 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *kotsadm.JoinC
 	}
 
 	runtimeconfig.Set(jcmd.InstallationSpec.RuntimeConfig)
-	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
+	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
+	if isWorker {
+		os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeletConfig())
+	} else {
+		os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
+	}
 	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
 	if err := runtimeconfig.WriteToDisk(); err != nil {
@@ -476,11 +482,11 @@ func runK0sInstallCommand(networkInterface string, fullcmd string) error {
 	return nil
 }
 
-func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string) error {
+func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string, isWorker bool) error {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Waiting for node to join the cluster")
-	if err := kubeutils.WaitForControllerNode(ctx, kcli, hostname); err != nil {
+	if err := kubeutils.WaitForNode(ctx, kcli, hostname, isWorker); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 	loading.Infof("Node has joined the cluster!")
