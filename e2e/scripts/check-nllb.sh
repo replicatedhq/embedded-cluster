@@ -17,6 +17,11 @@ function main() {
     local kotsadm_image=
     kotsadm_image=$(kubectl -n kotsadm get deploy kotsadm  -o jsonpath='{.spec.template.spec.containers[0].image}')
 
+    if [ -z "$kotsadm_image" ]; then
+        echo "No kotsadm image found"
+        exit 1
+    fi
+
     # run the pod on a worker node
     kubectl run test-nllb --image "$kotsadm_image" --overrides='{"spec": { "nodeSelector": {"kubernetes.io/hostname": "'"$worker_node"'"}}}' --command -- sleep infinity
 
