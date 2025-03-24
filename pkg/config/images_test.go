@@ -24,9 +24,6 @@ func TestListK0sImages(t *testing.T) {
 		if strings.Contains(image, "apiserver-network-proxy-agent") {
 			foundKonnectivity = true
 		}
-		if strings.Contains(image, "envoy-distroless") {
-			foundEnvoy = true
-		}
 	}
 	if !foundKubeRouter {
 		t.Errorf("airgap.GetImageURIs() = %v, want to contain kube-router", original)
@@ -36,9 +33,6 @@ func TestListK0sImages(t *testing.T) {
 	}
 	if !foundKonnectivity {
 		t.Errorf("airgap.GetImageURIs() = %v, want to contain apiserver-network-proxy-agent", original)
-	}
-	if !foundEnvoy {
-		t.Errorf("airgap.GetImageURIs() = %v, want to contain envoy-distroless", original)
 	}
 
 	filtered := ListK0sImages(RenderK0sConfig(runtimeconfig.DefaultProxyRegistryDomain))
@@ -77,9 +71,6 @@ func TestListK0sImages(t *testing.T) {
 		}
 		if strings.Contains(image, "apiserver-network-proxy-agent") {
 			t.Errorf("ListK0sImages() = %v, want not to contain apiserver-network-proxy-agent", filtered)
-		}
-		if strings.Contains(image, "envoy-distroless") {
-			t.Errorf("ListK0sImages() = %v, want not to contain envoy-distroless", filtered)
 		}
 	}
 }
