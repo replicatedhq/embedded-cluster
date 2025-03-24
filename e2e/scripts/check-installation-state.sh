@@ -53,6 +53,16 @@ main() {
         validate_data_dirs
     fi
 
+    # check worker profiles applied correctly
+    if ! grep -- "--profile=ip-forward" /etc/systemd/system/k0scontroller.service >/dev/null; then
+        echo "expected worker profile 'ip-forward' not found in k0scontroller.service"
+        exit 1
+    fi
+
+    
+
+        
+
     validate_no_pods_in_crashloop
 }
 
