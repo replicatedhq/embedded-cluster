@@ -1298,7 +1298,7 @@ func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) 
 	divider := strings.Repeat("-", maxLength)
 
 	bold := "\033[1m"
-	logrus.Infof("\n%s%s\n%s\n%s%s%s", bold, divider, message, divider, resetFormatting)
+	logrus.Infof("\n%s%s\n%s\n%s%s", bold, divider, message, divider, resetFormatting)
 
 	return nil
 }

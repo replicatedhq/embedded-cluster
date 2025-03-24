@@ -96,10 +96,6 @@ func preRunJoin(flags *JoinCmdFlags) error {
 
 	flags.isAirgap = flags.airgapBundle != ""
 
-	// set the umask to 022 so that we can create files/directories with 755 permissions
-	// this does not return an error - it returns the previous umask
-	_ = syscall.Umask(0o022)
-
 	return nil
 }
 
@@ -213,12 +209,6 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *kotsadm.JoinC
 		return fmt.Errorf("unable to write runtime config: %w", err)
 	}
 
-	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
-		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
-		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
-		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
-	}
-
 	// check to make sure the version returned by the join token is the same as the one we are running
 	if strings.TrimPrefix(jcmd.EmbeddedClusterVersion, "v") != strings.TrimPrefix(versions.Version, "v") {
 		return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
@@ -244,6 +234,16 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *kotsadm.JoinC
 func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm.JoinCommandResponse) (*CIDRConfig, error) {
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
+
+	// set the umask to 022 so that we can create files/directories with 755 permissions
+	// this does not return an error - it returns the previous umask
+	_ = syscall.Umask(0o022)
+
+	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
+		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
+		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
+	}
 
 	logrus.Debugf("materializing %s binaries", name)
 	if err := materializeFiles(flags.airgapBundle); err != nil {
