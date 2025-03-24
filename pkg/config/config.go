@@ -34,6 +34,8 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 	}
 	cfg.Spec.API.ExtraArgs["service-node-port-range"] = DefaultServiceNodePortRange
 	cfg.Spec.API.SANs = append(cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
+	cfg.Spec.Network.NodeLocalLoadBalancing.Enabled = true
+	cfg.Spec.Network.NodeLocalLoadBalancing.Type = "EnvoyProxy"
 	overrideK0sImages(cfg, proxyRegistryDomain)
 	return cfg
 }
