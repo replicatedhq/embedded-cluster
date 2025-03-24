@@ -94,7 +94,7 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags(nodeIP string, cfg *k0sconfig.ClusterConfig) []string {
+func InstallFlags(nodeIP string) []string {
 	flags := []string{
 		"install",
 		"controller",
