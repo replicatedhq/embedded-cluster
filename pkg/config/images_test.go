@@ -13,7 +13,7 @@ func TestListK0sImages(t *testing.T) {
 	if len(original) == 0 {
 		t.Errorf("airgap.GetImageURIs() = %v, want not empty", original)
 	}
-	var foundKubeRouter, foundCNINode, foundKonnectivity, foundEnvoy bool
+	var foundKubeRouter, foundCNINode, foundKonnectivity bool
 	for _, image := range original {
 		if strings.Contains(image, "kube-router") {
 			foundKubeRouter = true
