@@ -1851,11 +1851,12 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 // for them to report ready. Runs additional high availability validations afterwards.
 func TestMultiNodeHAInstallation(t *testing.T) {
 	tc := docker.NewCluster(&docker.ClusterInput{
-		T:            t,
-		Nodes:        4,
-		Distro:       "debian-bookworm",
-		LicensePath:  "license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
+		T:                      t,
+		Nodes:                  4,
+		Distro:                 "debian-bookworm",
+		LicensePath:            "license.yaml",
+		ECBinaryPath:           "../output/bin/embedded-cluster",
+		SupportBundleNodeIndex: 2,
 	})
 	defer tc.Cleanup()
 
@@ -1999,6 +2000,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
+		SupportBundleNodeIndex:  2,
 	})
 	defer tc.Cleanup()
 

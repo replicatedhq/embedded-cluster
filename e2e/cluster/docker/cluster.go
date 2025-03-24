@@ -13,21 +13,23 @@ import (
 type Cluster struct {
 	Nodes []*Container
 
-	t *testing.T
+	t                      *testing.T
+	supportBundleNodeIndex int
 }
 
 type ClusterInput struct {
-	T                    *testing.T
-	Nodes                int
-	Distro               string
-	LicensePath          string
-	ECBinaryPath         string
-	ECReleaseBuilderPath string
-	K0sDir               string
+	T                      *testing.T
+	Nodes                  int
+	Distro                 string
+	LicensePath            string
+	ECBinaryPath           string
+	ECReleaseBuilderPath   string
+	K0sDir                 string
+	SupportBundleNodeIndex int
 }
 
 func NewCluster(in *ClusterInput) *Cluster {
-	c := &Cluster{t: in.T}
+	c := &Cluster{t: in.T, supportBundleNodeIndex: in.SupportBundleNodeIndex}
 
 	c.Nodes = make([]*Container, in.Nodes)
 
@@ -170,16 +172,17 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 		}(i, &wg)
 	}
 
-	c.t.Logf("%s: generating cluster support bundle from node 0", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := c.RunCommandOnNode(0, []string{"collect-support-bundle-cluster.sh"}, envs...); err != nil {
+	node := c.Nodes[c.supportBundleNodeIndex]
+	c.t.Logf("%s: generating cluster support bundle from node %d", time.Now().Format(time.RFC3339), c.supportBundleNodeIndex)
+	if stdout, stderr, err := c.RunCommandOnNode(c.supportBundleNodeIndex, []string{"collect-support-bundle-cluster.sh"}, envs...); err != nil {
 		c.t.Logf("stdout: %s", stdout)
 		c.t.Logf("stderr: %s", stderr)
-		c.t.Logf("fail to generate cluster support from node %d bundle: %v", 0, err)
+		c.t.Logf("fail to generate cluster support from node %d bundle: %v", c.supportBundleNodeIndex, err)
 	} else {
-		c.t.Logf("%s: copying cluster support bundle from node 0 to local machine", time.Now().Format(time.RFC3339))
-		src := fmt.Sprintf("%s:cluster.tar.gz", c.Nodes[0].GetName())
+		c.t.Logf("%s: copying cluster support bundle from node %d to local machine", time.Now().Format(time.RFC3339), c.supportBundleNodeIndex)
+		src := fmt.Sprintf("%s:cluster.tar.gz", node.GetName())
 		dst := "support-bundle-cluster.tar.gz"
-		if stdout, stderr, err := c.Nodes[0].CopyFile(src, dst); err != nil {
+		if stdout, stderr, err := node.CopyFile(src, dst); err != nil {
 			c.t.Logf("stdout: %s", stdout)
 			c.t.Logf("stderr: %s", stderr)
 			c.t.Logf("fail to generate cluster support bundle from node 0: %v", err)

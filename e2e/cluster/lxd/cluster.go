@@ -70,6 +70,7 @@ type ClusterInput struct {
 	WithProxy                         bool
 	id                                string
 	AdditionalFiles                   []File
+	SupportBundleNodeIndex            int
 }
 
 // File holds information about a file that must be uploaded to a node.
@@ -88,12 +89,13 @@ type Dir struct {
 // Cluster is returned when a cluster is created. Contain a list of all node
 // names and the cluster id.
 type Cluster struct {
-	Nodes   []string
-	IPs     []string
-	network string
-	id      string
-	T       *testing.T
-	Proxy   string
+	Nodes                  []string
+	IPs                    []string
+	network                string
+	id                     string
+	T                      *testing.T
+	Proxy                  string
+	supportBundleNodeIndex int
 }
 
 // Destroy destroys a cluster pointed by the id property.
@@ -210,9 +212,10 @@ func NewCluster(in *ClusterInput) *Cluster {
 	in.network = <-networkaddr
 
 	out := &Cluster{
-		T:       in.T,
-		network: in.network,
-		id:      in.id,
+		T:                      in.T,
+		network:                in.network,
+		id:                     in.id,
+		supportBundleNodeIndex: in.SupportBundleNodeIndex,
 	}
 	out.T.Cleanup(out.Destroy)
 
@@ -1174,10 +1177,10 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 		}(i, &wg)
 	}
 
-	node := c.Nodes[0]
+	node := c.Nodes[c.supportBundleNodeIndex]
 	c.T.Logf("%s: generating cluster support bundle from node %s", time.Now().Format(time.RFC3339), node)
 	line := []string{"collect-support-bundle-cluster.sh"}
-	if stdout, stderr, err := c.RunCommandOnNode(0, line, envs...); err != nil {
+	if stdout, stderr, err := c.RunCommandOnNode(c.supportBundleNodeIndex, line, envs...); err != nil {
 		c.T.Logf("stdout: %s", stdout)
 		c.T.Logf("stderr: %s", stderr)
 		c.T.Logf("fail to generate cluster support from node %s bundle: %v", node, err)
