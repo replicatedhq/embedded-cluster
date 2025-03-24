@@ -193,10 +193,6 @@ func TestJoinWorkerNode(t *testing.T) {
 			Config: &ecv1beta1.ConfigSpec{
 				UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{},
 			},
-			Network: &ecv1beta1.NetworkSpec{
-				PodCIDR:     "10.2.0.0/17",
-				ServiceCIDR: "10.2.128.0/17",
-			},
 		},
 	}
 	client.Kotsadm.SetGetJoinTokenResponse("10.0.0.1", "some-token", jcmd, nil)
