@@ -39,8 +39,8 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 	return cfg
 }
 
-// ExtractK0sConfigPatch extracts the k0s config portion of the provided patch.
-func ExtractK0sConfigPatch(raw string) (string, error) {
+// extractK0sConfigPatch extracts the k0s config portion of the provided patch.
+func extractK0sConfigPatch(raw string) (string, error) {
 	type PatchBody struct {
 		Config map[string]interface{} `yaml:"config"`
 	}
@@ -62,7 +62,7 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 	if patch == "" {
 		return config, nil
 	}
-	patch, err := ExtractK0sConfigPatch(patch)
+	patch, err := extractK0sConfigPatch(patch)
 	if err != nil {
 		return nil, fmt.Errorf("unable to extract k0s config patch: %w", err)
 	}
@@ -103,7 +103,7 @@ func InstallFlags(nodeIP string, cfg *k0sconfig.ClusterConfig) []string {
 		"--no-taints",
 		"-c", runtimeconfig.PathToK0sConfig(),
 	}
-	flags = append(flags, ProfileInstallFlag(cfg))
+	flags = append(flags, ProfileInstallFlag())
 	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
 	return flags
@@ -125,7 +125,7 @@ func AdditionalInstallFlagsController() []string {
 	}
 }
 
-func ProfileInstallFlag(cfg *k0sconfig.ClusterConfig) string {
+func ProfileInstallFlag() string {
 	controllerProfile := controllerWorkerProfile()
 	if controllerProfile == "" {
 		return ""

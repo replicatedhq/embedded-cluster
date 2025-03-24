@@ -78,7 +78,7 @@ func Test_extractK0sConfigPatch(t *testing.T) {
 		t.Run(tname, func(t *testing.T) {
 			req := require.New(t)
 
-			extracted, err := ExtractK0sConfigPatch(tt.Override)
+			extracted, err := extractK0sConfigPatch(tt.Override)
 			req.NoError(err)
 
 			var actual map[string]interface{}
