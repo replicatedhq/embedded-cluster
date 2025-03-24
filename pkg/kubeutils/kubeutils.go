@@ -187,8 +187,8 @@ func (k *KubeUtils) WaitForNodes(ctx context.Context, cli client.Client) error {
 	return nil
 }
 
-// WaitForControllerNode waits for a specific controller node to be registered with the cluster.
-func (k *KubeUtils) WaitForControllerNode(ctx context.Context, kcli client.Client, name string) error {
+// WaitForNode waits for a specific controller node to be registered with the cluster.
+func (k *KubeUtils) WaitForNode(ctx context.Context, kcli client.Client, name string, isWorker bool) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
@@ -198,9 +198,11 @@ func (k *KubeUtils) WaitForControllerNode(ctx context.Context, kcli client.Clien
 				lasterr = fmt.Errorf("unable to get node: %v", err)
 				return false, nil
 			}
-			if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; !ok {
-				lasterr = fmt.Errorf("control plane label not found")
-				return false, nil
+			if !isWorker {
+				if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; !ok {
+					lasterr = fmt.Errorf("control plane label not found")
+					return false, nil
+				}
 			}
 			for _, condition := range node.Status.Conditions {
 				if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
