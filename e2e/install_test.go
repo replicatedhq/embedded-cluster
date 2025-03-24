@@ -1955,7 +1955,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 
 	stdout, stderr, err = tc.RunCommandOnNode(2, []string{"check-nodes-removed.sh", "3"})
 	if err != nil {
-		t.Fatalf("fail to remove controller node 2: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to check nodes removed: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking nllb", time.Now().Format(time.RFC3339))
@@ -2029,10 +2029,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
-	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
-	}
+	// do not remove the embedded-cluster binary as it is used for reset
 
 	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
@@ -2097,7 +2094,10 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(2, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node 2: %v", err)
 	}
-	// don't remove the embedded-cluster binary as it is used for reset
+	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
+	if _, _, err := tc.RunCommandOnNode(2, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster binary on node 2: %v", err)
+	}
 
 	// join another controller in HA mode
 	stdout, stderr, err = tc.RunPlaywrightTest("get-join-controller-command")
@@ -2173,7 +2173,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	stdout, stderr, err = tc.RunCommandOnNode(0, []string{bin, "reset", "--yes"})
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to remove controller node %s:", err)
+		t.Fatalf("fail to remove controller node 0 %s:", err)
 	}
 	if !strings.Contains(stdout, "High-availability clusters must maintain at least three controller nodes") {
 		t.Errorf("reset output does not contain the ha warning")
@@ -2182,7 +2182,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 
 	stdout, _, err = tc.RunCommandOnNode(2, []string{"check-nodes-removed.sh", "3"})
 	if err != nil {
-		t.Fatalf("fail to remove controller node 2: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to check nodes removed: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking nllb", time.Now().Format(time.RFC3339))
