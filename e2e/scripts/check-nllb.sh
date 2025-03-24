@@ -23,7 +23,8 @@ function main() {
     fi
 
     # run the pod on a worker node
-    kubectl run test-nllb --image "$kotsadm_image" --overrides='{"spec": { "nodeSelector": {"kubernetes.io/hostname": "'"$worker_node"'"}}}' --command -- sleep infinity
+    kubectl run test-nllb --image "$kotsadm_image" \
+        --overrides='{"spec": { "nodeSelector": {"kubernetes.io/hostname": "'"$worker_node"'"}}}' --command -- sleep infinity
 
     # wait for the pod to be running
     if ! kubectl wait --for=condition=ready pod/test-nllb --timeout=1m; then
