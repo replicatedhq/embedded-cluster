@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# This script is meant to be run after deleting the first control plane node to ensure the cluster
+# is still functional.
+
 set -euxo pipefail
 
 DIR=/usr/local/bin
