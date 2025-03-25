@@ -341,7 +341,10 @@ func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandRespons
 		return fmt.Errorf("unable to apply configuration overrides: %w", err)
 	}
 
-	profile := getFirstDefinedProfile()
+	profile, err := getFirstDefinedProfile()
+	if err != nil {
+		return fmt.Errorf("unable to get first defined profile: %w", err)
+	}
 
 	logrus.Debugf("joining node to cluster")
 	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand, profile); err != nil {
@@ -462,22 +465,20 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 	return nil
 }
 
-func getFirstDefinedProfile() string {
+func getFirstDefinedProfile() (string, error) {
 	k0scfg, err := os.Open(runtimeconfig.PathToK0sConfig())
 	if err != nil {
-		logrus.Debugf("unable to open k0s config: %v", err)
-		return ""
+		return "", fmt.Errorf("unable to open k0s config: %w", err)
 	}
 	defer k0scfg.Close()
 	cfg, err := k0sconfig.ConfigFromReader(k0scfg)
 	if err != nil {
-		logrus.Debugf("unable to parse k0s config: %v", err)
-		return ""
+		return "", fmt.Errorf("unable to parse k0s config: %w", err)
 	}
 	if len(cfg.Spec.WorkerProfiles) > 0 {
-		return cfg.Spec.WorkerProfiles[0].Name
+		return cfg.Spec.WorkerProfiles[0].Name, nil
 	}
-	return ""
+	return "", nil
 }
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots

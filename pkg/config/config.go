@@ -94,7 +94,7 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags(nodeIP string) []string {
+func InstallFlags(nodeIP string) ([]string, error) {
 	flags := []string{
 		"install",
 		"controller",
@@ -103,10 +103,14 @@ func InstallFlags(nodeIP string) []string {
 		"--no-taints",
 		"-c", runtimeconfig.PathToK0sConfig(),
 	}
-	flags = append(flags, ProfileInstallFlag())
+	profile, err := ProfileInstallFlag()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get profile install flag: %w", err)
+	}
+	flags = append(flags, profile)
 	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
-	return flags
+	return flags, nil
 }
 
 func AdditionalInstallFlags(nodeIP string) []string {
@@ -125,12 +129,12 @@ func AdditionalInstallFlagsController() []string {
 	}
 }
 
-func ProfileInstallFlag() string {
-	controllerProfile := controllerWorkerProfile()
-	if controllerProfile == "" {
-		return ""
+func ProfileInstallFlag() (string, error) {
+	controllerProfile, err := controllerWorkerProfile()
+	if err != nil {
+		return "", fmt.Errorf("unable to get controller worker profile: %w", err)
 	}
-	return "--profile=" + controllerProfile
+	return "--profile=" + controllerProfile, nil
 }
 
 // nodeLabels return a slice of string with labels (key=value format) for the node where we
@@ -171,23 +175,23 @@ func additionalControllerLabels() map[string]string {
 	return map[string]string{}
 }
 
-func controllerWorkerProfile() string {
+func controllerWorkerProfile() (string, error) {
 	// Read the k0s config file
 	data, err := os.ReadFile(runtimeconfig.PathToK0sConfig())
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("unable to read k0s config: %w", err)
 	}
 
 	var cfg k0sconfig.ClusterConfig
 	if err := k8syaml.Unmarshal(data, &cfg); err != nil {
-		return ""
+		return "", fmt.Errorf("unable to unmarshal k0s config: %w", err)
 	}
 
 	// Return the first worker profile name if any exist
 	if len(cfg.Spec.WorkerProfiles) > 0 {
-		return cfg.Spec.WorkerProfiles[0].Name
+		return cfg.Spec.WorkerProfiles[0].Name, nil
 	}
-	return ""
+	return "", nil
 }
 
 func AdditionalCharts() []embeddedclusterv1beta1.Chart {
