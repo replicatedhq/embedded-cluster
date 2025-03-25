@@ -63,11 +63,6 @@ func runEnableHA(ctx context.Context) error {
 		return NewErrorNothingElseToAdd(fmt.Errorf("high availability cannot be enabled: %s", reason))
 	}
 
-	kclient, err := kubeutils.GetClientset()
-	if err != nil {
-		return fmt.Errorf("unable to create kubernetes client: %w", err)
-	}
-
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("unable to get latest installation: %w", err)
@@ -88,5 +83,5 @@ func runEnableHA(ctx context.Context) error {
 	}
 	defer hcli.Close()
 
-	return addons.EnableHA(ctx, kcli, kclient, hcli, in.Spec.AirGap, in.Spec.Network.ServiceCIDR, in.Spec.Proxy, in.Spec.Config)
+	return addons.EnableHA(ctx, kcli, hcli, in.Spec.AirGap, in.Spec.Network.ServiceCIDR, in.Spec.Proxy, in.Spec.Config)
 }

@@ -27,7 +27,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 )
@@ -202,11 +201,6 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	}
 
 	if flags.enableHighAvailability {
-		kclient, err := kubeutils.GetClientset()
-		if err != nil {
-			return fmt.Errorf("unable to create kubernetes client: %w", err)
-		}
-
 		airgapChartsPath := ""
 		if flags.isAirgap {
 			airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
@@ -222,7 +216,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		}
 		defer hcli.Close()
 
-		if err := maybeEnableHA(ctx, kcli, kclient, hcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config); err != nil {
+		if err := maybeEnableHA(ctx, kcli, hcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config); err != nil {
 			return fmt.Errorf("unable to enable high availability: %w", err)
 		}
 	}
@@ -497,7 +491,7 @@ func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string,
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interface, hcli helm.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
 	canEnableHA, _, err := addons.CanEnableHA(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
@@ -513,5 +507,5 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.I
 		return nil
 	}
 	logrus.Info("")
-	return addons.EnableHA(ctx, kcli, kclient, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
+	return addons.EnableHA(ctx, kcli, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
 }
