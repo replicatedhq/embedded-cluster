@@ -298,7 +298,7 @@ spec:
   - run:
       collectorName: "ps-detect-antivirus-and-security-tools"
       command: "sh"
-      args: [-c, "ps -ef | grep -E 'clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt' | grep -v grep"]
+      args: [-c, "ps -ef | grep -E 'clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon' | grep -v grep"]
   - filesystemPerformance:
         collectorName: filesystem-write-latency-etcd
         timeout: 5m
@@ -620,7 +620,7 @@ spec:
   - textAnalyze:
       checkName: "Detect Threat Management and Network Security Tools"
       fileName: host-collectors/run-host/ps-detect-antivirus-and-security-tools.txt
-      regex: '\b(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt)\b'
+      regex: '\b(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon)\b'
       ignoreIfNoFiles: true
       outcomes:
         - fail:
