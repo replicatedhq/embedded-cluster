@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -145,10 +146,12 @@ func ResolveApkoPackageVersion(componentName, packageName, packageVersion string
 		fmt.Sprintf("PACKAGE_NAME=%s", packageName),
 		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
 	}
+	var errBuf bytes.Buffer
 	cmd := exec.Command("make", args...)
+	cmd.Stderr = &errBuf
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("run command: %w: %s", err, string(out))
+		return "", fmt.Errorf("run command: %w: %s", err, errBuf.String())
 	}
 	return strings.TrimSpace(string(out)), nil
 }

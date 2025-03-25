@@ -1851,11 +1851,12 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 // for them to report ready. Runs additional high availability validations afterwards.
 func TestMultiNodeHAInstallation(t *testing.T) {
 	tc := docker.NewCluster(&docker.ClusterInput{
-		T:            t,
-		Nodes:        4,
-		Distro:       "debian-bookworm",
-		LicensePath:  "license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
+		T:                      t,
+		Nodes:                  4,
+		Distro:                 "debian-bookworm",
+		LicensePath:            "license.yaml",
+		ECBinaryPath:           "../output/bin/embedded-cluster",
+		SupportBundleNodeIndex: 2,
 	})
 	defer tc.Cleanup()
 
@@ -1943,24 +1944,30 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	}
 
 	bin := strings.Split(command, " ")[0]
-	t.Logf("%s: resetting controller node 2", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(2, []string{bin, "reset", "--yes"})
+	t.Logf("%s: resetting controller node 0", time.Now().Format(time.RFC3339))
+	stdout, stderr, err = tc.RunCommandOnNode(0, []string{bin, "reset", "--yes"})
 	if err != nil {
-		t.Fatalf("fail to remove controller node 2: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to remove controller node 0: %v: %s: %s", err, stdout, stderr)
 	}
 	if !strings.Contains(stdout, "High-availability clusters must maintain at least three controller nodes") {
 		t.Errorf("reset output does not contain the ha warning")
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 	}
 
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"check-nodes-removed.sh", "3"})
+	stdout, stderr, err = tc.RunCommandOnNode(2, []string{"check-nodes-removed.sh", "3"})
 	if err != nil {
-		t.Fatalf("fail to remove worker node 0: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to check nodes removed: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking nllb", time.Now().Format(time.RFC3339))
+	line = []string{"check-nllb.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
+		t.Fatalf("fail to check nllb: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -1993,6 +2000,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
+		SupportBundleNodeIndex:  2,
 	})
 	defer tc.Cleanup()
 
@@ -2023,10 +2031,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
-	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
-	}
+	// do not remove the embedded-cluster binary as it is used for reset
 
 	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
@@ -2054,8 +2059,8 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		t.Fatalf("fail to prepare airgap files on node 1: %v", err)
 	}
 	t.Logf("%s: joining node 1 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunCommandOnNode(1, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 1 to the cluster as a worker: %v", err)
+	if stdout, stderr, err := tc.RunCommandOnNode(1, strings.Split(command, " ")); err != nil {
+		t.Fatalf("fail to join node 1 to the cluster as a worker: %v: %s: %s", err, stdout, stderr)
 	}
 	// remove the airgap bundle and binary after joining
 	line = []string{"rm", "/assets/release.airgap"}
@@ -2091,7 +2096,10 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(2, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node 2: %v", err)
 	}
-	// don't remove the embedded-cluster binary as it is used for reset
+	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
+	if _, _, err := tc.RunCommandOnNode(2, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster binary on node 2: %v", err)
+	}
 
 	// join another controller in HA mode
 	stdout, stderr, err = tc.RunPlaywrightTest("get-join-controller-command")
@@ -2163,27 +2171,32 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	}
 
 	bin := strings.Split(command, " ")[0]
-	t.Logf("%s: resetting controller node 2 with bin %q", time.Now().Format(time.RFC3339), bin)
-	stdout, stderr, err = tc.RunCommandOnNode(2, []string{bin, "reset", "--yes"})
+	t.Logf("%s: resetting controller node 0 with bin %q", time.Now().Format(time.RFC3339), bin)
+	stdout, stderr, err = tc.RunCommandOnNode(0, []string{bin, "reset", "--yes"})
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to remove controller node %s:", err)
+		t.Fatalf("fail to remove controller node 0 %s:", err)
 	}
 	if !strings.Contains(stdout, "High-availability clusters must maintain at least three controller nodes") {
 		t.Errorf("reset output does not contain the ha warning")
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 	}
 
-	stdout, _, err = tc.RunCommandOnNode(0, []string{"check-nodes-removed.sh", "3"})
+	stdout, _, err = tc.RunCommandOnNode(2, []string{"check-nodes-removed.sh", "3"})
 	if err != nil {
-		t.Log(stdout)
-		t.Fatalf("fail to remove worker node %s:", err)
+		t.Fatalf("fail to check nodes removed: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking nllb", time.Now().Format(time.RFC3339))
+	line = []string{"check-nllb.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
+		t.Fatalf("fail to check nllb: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v", err)
+	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

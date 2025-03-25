@@ -113,6 +113,8 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
     - name: Make manifests
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: make -C operator manifests
     - name: Check CRDs
       run: |
