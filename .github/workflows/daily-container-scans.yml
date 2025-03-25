@@ -58,9 +58,9 @@ jobs:
       # Specify platform to scan
       platform: linux/amd64
 
-  # Scan registry image using latest release tag
+  # Scan local artifact mirror image using latest release tag
   scan-registry:
-    name: Scan Registry Image
+    name: Scan Local Artifact Mirror Image
     needs: get-latest-tag  # Wait for tag to be fetched
     uses: ./.github/workflows/scan-container-image.yml
     # Grant required permissions to the reusable workflow
@@ -69,7 +69,7 @@ jobs:
       security-events: write # Needed to upload SARIF results
     with:
       # Use the latest release tag from the previous job
-      image: replicated/ec-registry:${{ needs.get-latest-tag.outputs.tag_name }}
+      image: replicated/embedded-cluster-local-artifact-mirror:${{ needs.get-latest-tag.outputs.tag_name }}
       # Report findings of medium severity or higher
       severity-cutoff: medium
       # Continue even if vulnerabilities are found
