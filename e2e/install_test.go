@@ -384,6 +384,11 @@ func TestMultiNodeInstallation(t *testing.T) {
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
+	t.Logf("checking worker profile on controller node %d", 0)
+	line := []string{"check-worker-profile.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", 0, err, stdout, stderr)
+	}
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
@@ -444,7 +449,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	}
 
 	t.Logf("checking worker profile on worker node %d", 3)
-	line := []string{"check-worker-profile.sh"}
+	line = []string{"check-worker-profile.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(3, line); err != nil {
 		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", 3, err, stdout, stderr)
 	}
@@ -2031,6 +2036,12 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
+	t.Logf("checking worker profile on controller node %d", 0)
+	line = []string{"check-worker-profile.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", 0, err, stdout, stderr)
+	}
+
 	// remove artifacts after installation to save space
 	line = []string{"rm", "/assets/release.airgap"}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
