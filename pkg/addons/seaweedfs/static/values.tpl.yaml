@@ -4,6 +4,7 @@ global:
 {{- if .ReplaceImages }}
   registry: "proxy.replicated.com/anonymous/"
 {{- end }}
+
 master:
 {{- if .ReplaceImages }}
   imageOverride: '{{ ImageString (index .Images "seaweedfs") }}'
@@ -16,6 +17,28 @@ master:
     hostPathPrefix: "/var/lib/embedded-cluster/seaweedfs/ssd"
   logs:
     hostPathPrefix: "/var/lib/embedded-cluster/seaweedfs/storage"
+  affinity: |
+    # schedule on control-plane nodes
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+    # schedule on different nodes when possible
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+              - seaweedfs
+            - key: app.kubernetes.io/component
+              operator: In
+              values:
+              - master
+          topologyKey: "kubernetes.io/hostname"
   config: |-
     [master.maintenance]
     # periodically run these scripts are the same as running them from 'weed shell'
@@ -32,6 +55,7 @@ master:
       fs.meta.load filer-backup.meta
     """
     sleep_minutes = 17          # sleep minutes between each script execution
+
 volume:
   # replicas must be at least replication (2) + 1 = 3
   replicas: 3
@@ -71,6 +95,7 @@ volume:
     storageClass: "openebs-hostpath"
     # set this to a high number so we dont have to worry about storage limit (50 * 30GB = 1500GB)
     maxVolumes: 50
+
 filer:
   replicas: 3
   nodeSelector: ~
@@ -79,6 +104,28 @@ filer:
 {{- end }}
   podAnnotations:
     backup.velero.io/backup-volumes: data-filer,seaweedfs-filer-log-volume
+  affinity: |
+    # schedule on control-plane nodes
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+    # schedule on different nodes when possible
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+              - seaweedfs
+            - key: app.kubernetes.io/component
+              operator: In
+              values:
+              - filer
+          topologyKey: "kubernetes.io/hostname"
   data:
     type: "persistentVolumeClaim"
     # openebs-hostpath storage does not limit the size of the volume

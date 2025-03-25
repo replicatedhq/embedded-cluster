@@ -57,6 +57,8 @@ affinity:
           operator: In
           values:
           - linux
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
 
 metrics:
   enabled: false
