@@ -58,7 +58,7 @@ jobs:
       # Specify platform to scan
       platform: linux/amd64
 
-  # Scan local artifact mirror image using latest release tag
+  # Scan registry image using latest release tag
   scan-registry:
     name: Scan Registry Image
     needs: get-latest-tag  # Wait for tag to be fetched
