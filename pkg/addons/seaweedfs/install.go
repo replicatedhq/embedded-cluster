@@ -20,6 +20,28 @@ func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli helm.C
 	return s.Upgrade(ctx, kcli, hcli, overrides)
 }
 
+func (s *SeaweedFS) Uninstall(ctx context.Context, kcli client.Client) error {
+	ns := corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	}
+	err := kcli.Delete(ctx, &ns)
+	if client.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, "delete namespace")
+	}
+
+	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, 1*time.Minute, false, func(ctx context.Context) (bool, error) {
+		err := kcli.Get(ctx, client.ObjectKey{Name: namespace}, &corev1.Namespace{})
+		return err != nil, nil
+	})
+	if err != nil {
+		return errors.Wrap(err, "wait for namespace to be deleted")
+	}
+
+	return nil
+}
+
 func (s *SeaweedFS) ensurePreRequisites(ctx context.Context, kcli client.Client) error {
 	if err := ensureNamespace(ctx, kcli, namespace); err != nil {
 		return errors.Wrap(err, "create namespace")

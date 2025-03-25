@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -19,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -105,24 +107,38 @@ func RegistryData(ctx context.Context, cli client.Client) error {
 			return fmt.Errorf("get relative path: %w", err)
 		}
 
+		// retry uploading the object 5 times with exponential backoff
+		var lasterr error
+		err = wait.ExponentialBackoffWithContext(ctx, wait.Backoff{
+			Duration: 1 * time.Second,
+			Factor:   2,
+			Steps:    5,
+		}, func(ctx context.Context) (bool, error) {
+			_, err = s3Uploader.Upload(ctx, &s3.PutObjectInput{
+				Bucket: ptr.To(s3Bucket),
+				Key:    &relPath,
+				Body:   f,
+			})
+			lasterr = err
+			return err == nil, nil
+		})
+		if err != nil {
+			if lasterr == nil {
+				lasterr = err
+			}
+			return fmt.Errorf("upload object: %w", lasterr)
+		}
+
 		count++
 		// NOTE: this is used by the cli to report progress
 		// DO NOT CHANGE THIS
 		slog.Info(
-			"Uploading object",
+			"Uploaded object",
 			append(
 				[]any{"path", relPath, "size", info.Size()},
 				getProgressArgs(count, total)...,
 			)...,
 		)
-		_, err = s3Uploader.Upload(ctx, &s3.PutObjectInput{
-			Bucket: ptr.To(s3Bucket),
-			Key:    &relPath,
-			Body:   f,
-		})
-		if err != nil {
-			return fmt.Errorf("upload object: %w", err)
-		}
 
 		return nil
 	})
