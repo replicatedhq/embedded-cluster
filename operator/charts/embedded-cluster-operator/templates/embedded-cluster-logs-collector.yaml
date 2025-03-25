@@ -23,7 +23,7 @@ data:
             podSpec:
               containers:
               - image: {{ .Values.utilsImage }}
-                imagePullPolicy: Always
+                imagePullPolicy: IfNotPresent
                 args: ["chroot","/host","journalctl","-u","k0scontroller","--no-pager","--since","2 days ago"]
                 name: debugger
                 resources: {}
@@ -52,7 +52,7 @@ data:
             podSpec:
               containers:
               - image: {{ .Values.utilsImage }}
-                imagePullPolicy: Always
+                imagePullPolicy: IfNotPresent
                 args: ["chroot","/host","journalctl","-u","k0sworker","--no-pager","--since","2 days ago"]
                 name: debugger
                 resources: {}
@@ -81,7 +81,7 @@ data:
             podSpec:
               containers:
               - image: {{ .Values.utilsImage }}
-                imagePullPolicy: Always
+                imagePullPolicy: IfNotPresent
                 args: ["chroot","/host","journalctl","-u","local-artifact-mirror","--no-pager","--since","2 days ago"]
                 name: debugger
                 resources: {}
