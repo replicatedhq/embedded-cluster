@@ -191,7 +191,20 @@ func TestJoinWorkerNode(t *testing.T) {
 		InstallationSpec: ecv1beta1.InstallationSpec{
 			ClusterID: clusterID.String(),
 			Config: &ecv1beta1.ConfigSpec{
-				UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{},
+				UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{
+					K0s: `
+config:
+  metadata:
+    name: foo
+  spec:
+    telemetry:
+    enabled: false
+    workerProfiles:
+    - name: ip-forward
+    values:
+      allowedUnsafeSysctls:
+      - net.ipv4.ip_forward`,
+				},
 			},
 		},
 	}
