@@ -81,15 +81,14 @@ func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 				supportBundle,
 				arguments...,
 			); err != nil {
-				spin.Infof("Failed to generate support bundle")
+				spin.Errorf("Failed to generate support bundle")
 				spin.CloseWithError()
 				io.Copy(os.Stdout, stdout)
 				io.Copy(os.Stderr, stderr)
 				return NewErrorNothingElseToAdd(errors.New("failed to generate support bundle"))
 			}
 
-			spin.Infof("Support bundle saved at %s", destination)
-			spin.Close()
+			spin.Closef("Support bundle saved at %s", destination)
 			return nil
 		},
 	}

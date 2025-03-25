@@ -556,7 +556,6 @@ func verifyNoInstallation(name string, cmdName string) error {
 
 func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
 	spinner := spinner.Start()
-
 	spinner.Infof("Initializing")
 
 	if err := materializeFiles(flags.airgapBundle); err != nil {
@@ -593,8 +592,7 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
 		logrus.Debugf("unable to configure firewalld: %v", err)
 	}
 
-	spinner.Infof("Initialization complete")
-	spinner.Close()
+	spinner.Closef("Initialization complete")
 	return nil
 }
 
@@ -626,37 +624,45 @@ func materializeFiles(airgapBundle string) error {
 
 func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
-	defer loading.Close()
 	loading.Infof("Installing node")
 	logrus.Debugf("creating k0s configuration file")
 
 	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides, mutate)
 	if err != nil {
+		loading.Errorf("Failed to install node")
+		loading.CloseWithError()
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 	logrus.Debugf("creating systemd unit files")
 	if err := createSystemdUnitFiles(ctx, false, proxy); err != nil {
+		loading.Errorf("Failed to install node")
+		loading.CloseWithError()
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
 	logrus.Debugf("installing k0s")
 	if err := k0s.Install(networkInterface); err != nil {
+		loading.Errorf("Failed to install node")
+		loading.CloseWithError()
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
 
-	loading.Infof("Waiting for node")
-
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
+		loading.Errorf("Failed to install node")
+		loading.CloseWithError()
 		return nil, fmt.Errorf("wait for k0s: %w", err)
 	}
 
+	loading.Infof("Waiting for node to be ready")
 	logrus.Debugf("waiting for node to be ready")
 	if err := waitForNode(ctx); err != nil {
+		loading.Errorf("Failed to wait for node")
+		loading.CloseWithError()
 		return nil, fmt.Errorf("wait for node: %w", err)
 	}
 
-	loading.Infof("Node installed")
+	loading.Closef("Node is ready")
 	return cfg, nil
 }
 

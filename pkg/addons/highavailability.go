@@ -46,7 +46,6 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
 // EnableHA enables high availability.
 func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
 	loading := spinner.Start()
-	defer loading.Close()
 
 	logrus.Debugf("Enabling high availability")
 
@@ -62,11 +61,15 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 		}
 		exists, err := hcli.ReleaseExists(ctx, sw.Namespace(), sw.ReleaseName())
 		if err != nil {
+			loading.Errorf("Failed to enable high availability")
+			loading.CloseWithError()
 			return errors.Wrap(err, "check if seaweedfs release exists")
 		}
 		if !exists {
 			logrus.Debugf("Installing seaweedfs")
 			if err := sw.Install(ctx, kcli, hcli, addOnOverrides(sw, cfgspec, nil), nil); err != nil {
+				loading.Errorf("Failed to enable high availability")
+				loading.CloseWithError()
 				return errors.Wrap(err, "install seaweedfs")
 			}
 			logrus.Debugf("Seaweedfs installed")
@@ -82,11 +85,15 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 		}
 		logrus.Debugf("Migrating registry data")
 		if err := reg.Migrate(ctx, kcli, loading); err != nil {
+			loading.Errorf("Failed to migrate registry data")
+			loading.CloseWithError()
 			return errors.Wrap(err, "migrate registry data")
 		}
 		logrus.Debugf("Registry migration complete")
 		logrus.Debugf("Upgrading registry")
 		if err := reg.Upgrade(ctx, kcli, hcli, addOnOverrides(reg, cfgspec, nil)); err != nil {
+			loading.Errorf("Failed to enable high availability")
+			loading.CloseWithError()
 			return errors.Wrap(err, "upgrade registry")
 		}
 		logrus.Debugf("Registry upgraded")
@@ -97,23 +104,29 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 	logrus.Debugf("Enabling admin console high availability")
 	err := EnableAdminConsoleHA(ctx, kcli, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
 	if err != nil {
+		loading.Errorf("Failed to update the Admin Console for high availability")
+		loading.CloseWithError()
 		return errors.Wrap(err, "enable admin console high availability")
 	}
 	logrus.Debugf("Admin console high availability enabled")
 
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
+		loading.Errorf("Failed to enable high availability")
+		loading.CloseWithError()
 		return errors.Wrap(err, "get latest installation")
 	}
 
 	if err := kubeutils.UpdateInstallation(ctx, kcli, in, func(in *ecv1beta1.Installation) {
 		in.Spec.HighAvailability = true
 	}); err != nil {
+		loading.Errorf("Failed to enable high availability")
+		loading.CloseWithError()
 		return errors.Wrap(err, "update installation")
 	}
 
 	logrus.Debugf("High availability enabled")
-	loading.Infof("High availability enabled")
+	loading.Closef("High availability enabled")
 	return nil
 }
 
