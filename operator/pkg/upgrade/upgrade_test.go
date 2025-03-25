@@ -90,11 +90,16 @@ func TestUpdateClusterConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "updates node local load balancing when nil",
+			name: "does not enable node local load balancing when nil",
 			currentConfig: &k0sv1beta1.ClusterConfig{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "k0s",
 					Namespace: "kube-system",
+				},
+				Spec: &k0sv1beta1.ClusterSpec{
+					Network: &k0sv1beta1.Network{
+						NodeLocalLoadBalancing: nil,
+					},
 				},
 			},
 			installation: &ecv1beta1.Installation{
@@ -107,7 +112,7 @@ func TestUpdateClusterConfig(t *testing.T) {
 				},
 			},
 			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {
-				assert.True(t, updatedConfig.Spec.Network.NodeLocalLoadBalancing.Enabled)
+				assert.False(t, updatedConfig.Spec.Network.NodeLocalLoadBalancing.Enabled)
 				assert.Equal(t, k0sv1beta1.NllbTypeEnvoyProxy, updatedConfig.Spec.Network.NodeLocalLoadBalancing.Type)
 				assert.Contains(t, updatedConfig.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image, "registry.com/")
 			},

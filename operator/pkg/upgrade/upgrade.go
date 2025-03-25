@@ -189,11 +189,17 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 		}
 	}
 
-	if currentCfg.Spec.Network.NodeLocalLoadBalancing == nil ||
-		!reflect.DeepEqual(*currentCfg.Spec.Network.NodeLocalLoadBalancing, *cfg.Spec.Network.NodeLocalLoadBalancing) {
-
-		currentCfg.Spec.Network.NodeLocalLoadBalancing = cfg.Spec.Network.NodeLocalLoadBalancing
-		didUpdate = true
+	if currentCfg.Spec.Network != nil &&
+		currentCfg.Spec.Network.NodeLocalLoadBalancing != nil &&
+		currentCfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy != nil &&
+		currentCfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image != nil {
+		if !reflect.DeepEqual(
+			*currentCfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image,
+			*cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image,
+		) {
+			currentCfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image = cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image
+			didUpdate = true
+		}
 	}
 
 	if !didUpdate {
