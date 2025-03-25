@@ -51,17 +51,9 @@ main() {
     # if this is the current version in CI
     if echo "$version" | grep -qvE "(pre-minio-removal|1.8.0-k8s)" ; then
         validate_data_dirs
+
+        validate_worker_profile
     fi
-
-    # check worker profiles applied correctly
-    if ! grep -- "--profile=ip-forward" /etc/systemd/system/k0scontroller.service >/dev/null; then
-        echo "expected worker profile 'ip-forward' not found in k0scontroller.service"
-        exit 1
-    fi
-
-    
-
-        
 
     validate_no_pods_in_crashloop
 }

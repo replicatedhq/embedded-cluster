@@ -462,3 +462,10 @@ validate_no_pods_in_crashloop() {
         exit 1
     fi
 }
+
+validate_worker_profile() {
+    if ! grep -- "--profile=ip-forward" /etc/systemd/system/k0scontroller.service >/dev/null; then
+        echo "expected worker profile 'ip-forward' not found in k0scontroller.service"
+        exit 1
+    fi
+}

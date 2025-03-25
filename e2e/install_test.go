@@ -422,6 +422,13 @@ func TestMultiNodeInstallation(t *testing.T) {
 		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Split(cmd, " ")); err != nil {
 			t.Fatalf("fail to join node %d as a controller: %v: %s: %s", node, err, stdout, stderr)
 		}
+
+		t.Logf("checking worker profile on controller node %d", node)
+		line := []string{"check-worker-profile.sh"}
+		if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+			t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", node, err, stdout, stderr)
+		}
+
 		// XXX If we are too aggressive joining nodes we can see the following error being
 		// thrown by kotsadm on its log (and we get a 500 back):
 		// "
@@ -436,6 +443,12 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to join node 3 to the cluster as a worker: %v: %s: %s", err, stdout, stderr)
 	}
 
+	t.Logf("checking worker profile on worker node %d", 3)
+	line := []string{"check-worker-profile.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(3, line); err != nil {
+		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", 3, err, stdout, stderr)
+	}
+
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
 	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "4"})
@@ -444,7 +457,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line := []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -2057,6 +2070,11 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(1, strings.Split(command, " ")); err != nil {
 		t.Fatalf("fail to join node 1 to the cluster as a worker: %v", err)
 	}
+	t.Logf("checking worker profile on worker node %d", 1)
+	line = []string{"check-worker-profile.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
+		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", 1, err, stdout, stderr)
+	}
 	// remove the airgap bundle and binary after joining
 	line = []string{"rm", "/assets/release.airgap"}
 	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
@@ -2086,6 +2104,11 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(2, strings.Split(command, " ")); err != nil {
 		t.Fatalf("fail to join node 2 as a controller: %v", err)
 	}
+	t.Logf("checking worker profile on controller node %d", 2)
+	line = []string{"check-worker-profile.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
+		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", 2, err, stdout, stderr)
+	}
 	// remove the airgap bundle and binary after joining
 	line = []string{"rm", "/assets/release.airgap"}
 	if _, _, err := tc.RunCommandOnNode(2, line); err != nil {
@@ -2112,6 +2135,11 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	line = append([]string{"join-ha.exp"}, []string{command}...)
 	if _, _, err := tc.RunCommandOnNode(3, line); err != nil {
 		t.Fatalf("fail to join node 3 as a controller in ha mode: %v", err)
+	}
+	t.Logf("checking worker profile on controller node %d", 3)
+	line = []string{"check-worker-profile.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(3, line); err != nil {
+		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", 3, err, stdout, stderr)
 	}
 	// remove the airgap bundle and binary after joining
 	line = []string{"rm", "/assets/release.airgap"}
