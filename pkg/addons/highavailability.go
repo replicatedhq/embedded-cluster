@@ -16,7 +16,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -33,7 +32,7 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, string, error) 
 
 	if err := kcli.Get(ctx, types.NamespacedName{Name: constants.EcRestoreStateCMName, Namespace: "embedded-cluster"}, &corev1.ConfigMap{}); err == nil {
 		return false, "a restore is in progress", nil
-	} else if !k8serrors.IsNotFound(err) {
+	} else if client.IgnoreNotFound(err) != nil {
 		return false, "", errors.Wrap(err, "get restore state configmap")
 	}
 
@@ -64,6 +63,12 @@ func EnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirga
 			ServiceCIDR:         serviceCIDR,
 			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 		}
+
+		logrus.Debugf("Maybe removing existing seaweedfs")
+		if err := sw.Uninstall(ctx, kcli); err != nil {
+			return errors.Wrap(err, "uninstall seaweedfs")
+		}
+
 		logrus.Debugf("Installing seaweedfs")
 		if err := sw.Install(ctx, kcli, hcli, addOnOverrides(sw, cfgspec, nil), nil); err != nil {
 			return errors.Wrap(err, "install seaweedfs")
