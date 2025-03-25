@@ -23,7 +23,7 @@ data:
             podSpec:
               containers:
               - image: {{ .Values.utilsImage }}
-                imagePullPolicy: Always
+                imagePullPolicy: IfNotPresent
                 args: ["chroot","/host","cat","/etc/systemd/system/local-artifact-mirror.service.d/embedded-cluster.conf"]
                 name: debugger
                 resources: {}
