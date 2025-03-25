@@ -18,9 +18,8 @@ import (
 // EnableHACmd is the command for enabling HA mode.
 func EnableHACmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "enable-ha",
-		Short:  fmt.Sprintf("Enable high availability for the %s cluster", name),
-		Hidden: true,
+		Use:   "enable-ha",
+		Short: fmt.Sprintf("Enable high availability for the %s cluster", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("enable-ha command must be run as root")
