@@ -164,8 +164,13 @@ func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, n
 		ctx, backoff, func(ctx context.Context) (bool, error) {
 			nsn := types.NamespacedName{Namespace: ns, Name: name}
 			err := cli.Get(ctx, nsn, &pod)
-			if err != nil {
-				return false, err
+			if k8serrors.IsNotFound(err) {
+				// exit
+				lasterr = fmt.Errorf("pod not found")
+				return false, lasterr
+			} else if err != nil {
+				lasterr = fmt.Errorf("get pod: %w", err)
+				return false, nil
 			}
 			return pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed, nil
 		},
