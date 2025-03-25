@@ -1,7 +1,9 @@
 package registry
 
 import (
+	"context"
 	_ "embed"
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -9,6 +11,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"gopkg.in/yaml.v3"
+	appsv1 "k8s.io/api/apps/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Registry struct {
@@ -100,4 +104,28 @@ func (r *Registry) ChartLocation() string {
 		return Metadata.Location
 	}
 	return strings.Replace(Metadata.Location, "proxy.replicated.com", r.ProxyRegistryDomain, 1)
+}
+
+// IsRegistryHA checks if the registry has been configured for HA by looking for the
+// REGISTRY_STORAGE_S3_ACCESSKEY environment variable in the docker-registry container.
+func IsRegistryHA(ctx context.Context, kcli client.Client) (bool, error) {
+	deploy := appsv1.Deployment{}
+	err := kcli.Get(ctx, client.ObjectKey{Namespace: namespace, Name: "registry"}, &deploy)
+	if err != nil {
+		return false, fmt.Errorf("get registry deployment: %w", err)
+	}
+
+	for _, c := range deploy.Spec.Template.Spec.Containers {
+		if c.Name == "docker-registry" {
+			for _, env := range c.Env {
+				if env.Name == "REGISTRY_STORAGE_S3_ACCESSKEY" &&
+					env.ValueFrom.SecretKeyRef != nil &&
+					env.ValueFrom.SecretKeyRef.Name == "seaweedfs-s3-rw" {
+					return true, nil
+				}
+			}
+		}
+	}
+
+	return false, nil
 }

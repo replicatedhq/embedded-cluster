@@ -17,9 +17,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -153,13 +150,6 @@ func RegistryData(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("walk registry data: %w", err)
 	}
 
-	slog.Info("Creating registry data migration secret")
-
-	err = ensureRegistryDataMigrationSecret(ctx, cli)
-	if err != nil {
-		return fmt.Errorf("ensure registry data migration secret: %w", err)
-	}
-
 	success = true
 
 	slog.Info("Registry data migration complete")
@@ -218,32 +208,6 @@ func ensureRegistryBucket(ctx context.Context, s3Client *s3.Client) error {
 			return errors.Wrap(err, "create bucket")
 		}
 	}
-	return nil
-}
-
-// ensureRegistryDataMigrationSecret indicates that the registry data migration has been completed.
-func ensureRegistryDataMigrationSecret(ctx context.Context, cli client.Client) error {
-	migrationSecret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      dataMigrationCompleteSecretName,
-			Namespace: runtimeconfig.RegistryNamespace,
-			Labels: map[string]string{
-				"replicated.com/disaster-recovery": "ec-install",
-			},
-		},
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		Data: map[string][]byte{
-			"migration": []byte("complete"),
-		},
-	}
-	err := cli.Create(ctx, &migrationSecret)
-	if err != nil && !k8serrors.IsAlreadyExists(err) {
-		return fmt.Errorf("create registry data migration secret: %w", err)
-	}
-
 	return nil
 }
 

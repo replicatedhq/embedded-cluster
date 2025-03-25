@@ -16,8 +16,6 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -28,21 +26,19 @@ import (
 const (
 	StatusConditionType = "RegistryMigrationStatus"
 
-	dataMigrationCompleteSecretName = "registry-data-migration-complete"
-	dataMigrationPodName            = "registry-data-migration"
-	serviceAccountName              = "registry-data-migration-serviceaccount"
+	dataMigrationPodName = "registry-data-migration"
+	serviceAccountName   = "registry-data-migration-serviceaccount"
 
 	// seaweedfsS3SecretName is the name of the secret containing the s3 credentials.
 	// This secret name is defined in the chart in the release metadata.
 	seaweedfsS3SecretName = "seaweedfs-s3-rw"
 )
 
-// RunDataMigrationPod should be called when transitioning from non-HA to HA airgapped
-// installations. This function creates a pod that will scale down the registry deployment then
-// upload the data to s3 before finally creating a 'migration is complete' secret in the registry
-// namespace. If this secret is present, the function will return without reattempting the
-// migration.
-func RunDataMigrationPod(ctx context.Context, cli client.Client, kclient kubernetes.Interface, in *ecv1beta1.Installation, image string) (<-chan string, <-chan error, error) {
+// RunDataMigration should be called when transitioning from non-HA to HA airgapped installations.
+// This function creates a pod that will scale down the registry deployment then upload the data to s3
+// before finally creating a 'migration is complete' secret in the registry namespace. If this secret
+// is present, the function will return without reattempting the migration.
+func RunDataMigration(ctx context.Context, cli client.Client, kclient kubernetes.Interface, in *ecv1beta1.Installation, image string) (<-chan string, <-chan error, error) {
 	progressCh := make(chan string)
 	errCh := make(chan error, 1)
 
@@ -50,15 +46,6 @@ func RunDataMigrationPod(ctx context.Context, cli client.Client, kclient kuberne
 	clientset, err := kubeutils.GetClientset()
 	if err != nil {
 		return nil, nil, fmt.Errorf("get kubernetes clientset: %w", err)
-	}
-
-	hasMigrated, err := hasRegistryMigrated(ctx, cli)
-	if err != nil {
-		return nil, nil, fmt.Errorf("check if registry has migrated before running migration: %w", err)
-	} else if hasMigrated {
-		close(progressCh)
-		errCh <- nil
-		return progressCh, errCh, nil
 	}
 
 	// TODO: should we check seaweedfs health?
@@ -299,7 +286,7 @@ func ensureMigrationServiceAccount(ctx context.Context, cli client.Client) error
 		},
 	}
 	err := cli.Create(ctx, &newRole)
-	if err != nil && !k8serrors.IsAlreadyExists(err) {
+	if client.IgnoreAlreadyExists(err) != nil {
 		return fmt.Errorf("create role: %w", err)
 	}
 
@@ -314,7 +301,7 @@ func ensureMigrationServiceAccount(ctx context.Context, cli client.Client) error
 		},
 	}
 	err = cli.Create(ctx, &newServiceAccount)
-	if err != nil && !k8serrors.IsAlreadyExists(err) {
+	if client.IgnoreAlreadyExists(err) != nil {
 		return fmt.Errorf("create service account: %w", err)
 	}
 
@@ -342,7 +329,7 @@ func ensureMigrationServiceAccount(ctx context.Context, cli client.Client) error
 	}
 
 	err = cli.Create(ctx, &newRoleBinding)
-	if err != nil && !k8serrors.IsAlreadyExists(err) {
+	if client.IgnoreAlreadyExists(err) != nil {
 		return fmt.Errorf("create role binding: %w", err)
 	}
 
@@ -365,24 +352,10 @@ func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 
 	obj.ObjectMeta.Labels = seaweedfs.ApplyLabels(obj.ObjectMeta.Labels, "s3")
 
-	if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
+	if err := kcli.Create(ctx, obj); client.IgnoreAlreadyExists(err) != nil {
 		return fmt.Errorf("create secret: %w", err)
 	}
 	return nil
-}
-
-// hasRegistryMigrated checks if the registry data has been migrated by looking for the 'migration complete' secret in the registry namespace
-func hasRegistryMigrated(ctx context.Context, cli client.Client) (bool, error) {
-	sec := corev1.Secret{}
-	err := cli.Get(ctx, client.ObjectKey{Namespace: runtimeconfig.RegistryNamespace, Name: dataMigrationCompleteSecretName}, &sec)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("get registry migration secret: %w", err)
-	}
-
-	return true, nil
 }
 
 func applyRegistryLabels(labels map[string]string, component string) map[string]string {

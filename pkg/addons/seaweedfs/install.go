@@ -11,7 +11,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -66,7 +65,7 @@ func ensureNamespace(ctx context.Context, kcli client.Client, namespace string) 
 			Name: namespace,
 		},
 	}
-	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
+	if err := kcli.Create(ctx, &ns); client.IgnoreAlreadyExists(err) != nil {
 		return err
 	}
 	return nil
@@ -104,7 +103,7 @@ func ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) 
 	obj.ObjectMeta.Labels = ApplyLabels(obj.ObjectMeta.Labels, "s3")
 
 	var existingObj corev1.Service
-	if err := kcli.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: obj.Namespace}, &existingObj); err != nil && !k8serrors.IsNotFound(err) {
+	if err := kcli.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: obj.Namespace}, &existingObj); client.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, "get s3 service")
 	} else if err == nil {
 		// if the service already exists and has the correct cluster IP, do not recreate it
@@ -117,7 +116,7 @@ func ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) 
 		}
 	}
 
-	if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
+	if err := kcli.Create(ctx, obj); err != nil {
 		return errors.Wrap(err, "create s3 service")
 	}
 
@@ -157,7 +156,7 @@ func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 
 	obj.ObjectMeta.Labels = ApplyLabels(obj.ObjectMeta.Labels, "s3")
 
-	if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
+	if err := kcli.Create(ctx, obj); client.IgnoreAlreadyExists(err) != nil {
 		return errors.Wrap(err, "create s3 secret")
 	}
 

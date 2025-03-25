@@ -410,9 +410,9 @@ func RunCommand(in *ClusterInput, cmdline []string, name string, envs ...map[str
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	err := Run(ctx, in.T, cmd)
-	in.T.Logf("stdout: %s", stdout.String())
-	in.T.Logf("stderr: %s", stderr.String())
 	if err != nil {
+		in.T.Logf("stdout: %s", stdout.String())
+		in.T.Logf("stderr: %s", stderr.String())
 		in.T.Fatalf("Failed to run command: %v", err)
 	}
 }

@@ -53,67 +53,40 @@ func EnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interf
 	loading := spinner.Start()
 	defer loading.Close()
 
+	loading.Infof("Enabling high availability")
 	logrus.Debugf("Enabling high availability")
 
 	if isAirgap {
-		loading.Infof("Enabling high availability")
-
-		domains := runtimeconfig.GetDomains(cfgspec)
-
-		// TODO (@salah): add support for end user overrides
-		sw := &seaweedfs.SeaweedFS{
-			ServiceCIDR:         serviceCIDR,
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		}
-
-		logrus.Debugf("Maybe removing existing seaweedfs")
-		if err := sw.Uninstall(ctx, kcli); err != nil {
-			return errors.Wrap(err, "uninstall seaweedfs")
-		}
-
-		logrus.Debugf("Installing seaweedfs")
-		if err := sw.Install(ctx, kcli, hcli, addOnOverrides(sw, cfgspec, nil), nil); err != nil {
-			return errors.Wrap(err, "install seaweedfs")
-		}
-		logrus.Debugf("Seaweedfs installed!")
-
-		in, err := kubeutils.GetLatestInstallation(ctx, kcli)
+		hasMigrated, err := registry.IsRegistryHA(ctx, kcli)
 		if err != nil {
-			return errors.Wrap(err, "get latest installation")
-		}
+			return errors.Wrap(err, "check if registry data has been migrated")
+		} else if !hasMigrated {
+			logrus.Debugf("Installing seaweedfs")
+			err = ensureSeaweedfs(ctx, kcli, hcli, serviceCIDR, cfgspec)
+			if err != nil {
+				return errors.Wrap(err, "ensure seaweedfs")
+			}
+			logrus.Debugf("Seaweedfs installed!")
 
-		operatorImage, err := getOperatorImage()
-		if err != nil {
-			return errors.Wrap(err, "get operator image")
-		}
-		if domains.ProxyRegistryDomain != "" {
-			operatorImage = strings.Replace(operatorImage, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
-		}
+			loading.Infof("Migrating data for high availability")
+			logrus.Debugf("Migrating data for high availability")
+			err = migrateRegistryData(ctx, kcli, kclient, cfgspec, loading)
+			if err != nil {
+				return errors.Wrap(err, "migrate registry data")
+			}
+			logrus.Debugf("Data migration complete!")
 
-		// TODO: timeout
-
-		loading.Infof("Migrating data for high availability")
-		logrus.Debugf("Migrating data for high availability")
-		progressCh, errCh, err := registrymigrate.RunDataMigrationPod(ctx, kcli, kclient, in, operatorImage)
-		if err != nil {
-			return errors.Wrap(err, "run registry data migration pod")
+			loading.Infof("Enabling registry high availability")
+			logrus.Debugf("Enabling registry high availability")
+			err = enableRegistryHA(ctx, kcli, hcli, serviceCIDR, cfgspec)
+			if err != nil {
+				return errors.Wrap(err, "enable registry high availability")
+			}
+			logrus.Debugf("Registry high availability enabled!")
 		}
-		if err := waitForPodAndLogProgress(loading, progressCh, errCh); err != nil {
-			return errors.Wrap(err, "registry data migration pod failed")
-		}
-		logrus.Debugf("Data migration complete!")
-
-		loading.Infof("Enabling registry high availability")
-		logrus.Debugf("Enabling registry high availability")
-		err = enableRegistryHA(ctx, kcli, hcli, serviceCIDR, cfgspec)
-		if err != nil {
-			return errors.Wrap(err, "enable registry high availability")
-		}
-		logrus.Debugf("Registry high availability enabled!")
 	}
 
 	loading.Infof("Updating the Admin Console for high availability")
-
 	logrus.Debugf("Enabling admin console high availability")
 	err := EnableAdminConsoleHA(ctx, kcli, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
 	if err != nil {
@@ -137,7 +110,58 @@ func EnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interf
 	return nil
 }
 
-// enableRegistryHA scales the registry deployment to the desired number of replicas.
+// migrateRegistryData runs the registry data migration.
+func migrateRegistryData(ctx context.Context, kcli client.Client, kclient kubernetes.Interface, cfgspec *ecv1beta1.ConfigSpec, progressWriter *spinner.MessageWriter) error {
+	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return errors.Wrap(err, "get latest installation")
+	}
+
+	operatorImage, err := getOperatorImage()
+	if err != nil {
+		return errors.Wrap(err, "get operator image")
+	}
+	domains := runtimeconfig.GetDomains(cfgspec)
+	if domains.ProxyRegistryDomain != "" {
+		operatorImage = strings.Replace(operatorImage, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
+	}
+
+	// TODO: timeout
+
+	progressCh, errCh, err := registrymigrate.RunDataMigration(ctx, kcli, kclient, in, operatorImage)
+	if err != nil {
+		return errors.Wrap(err, "run registry data migration")
+	}
+	if err := waitForPodAndLogProgress(progressWriter, progressCh, errCh); err != nil {
+		return errors.Wrap(err, "registry data migration failed")
+	}
+
+	return nil
+}
+
+// ensureSeaweedfs ensures that seaweedfs is installed.
+func ensureSeaweedfs(ctx context.Context, kcli client.Client, hcli helm.Client, serviceCIDR string, cfgspec *ecv1beta1.ConfigSpec) error {
+	domains := runtimeconfig.GetDomains(cfgspec)
+
+	// TODO (@salah): add support for end user overrides
+	sw := &seaweedfs.SeaweedFS{
+		ServiceCIDR:         serviceCIDR,
+		ProxyRegistryDomain: domains.ProxyRegistryDomain,
+	}
+
+	if err := sw.Uninstall(ctx, kcli); err != nil {
+		return errors.Wrap(err, "uninstall seaweedfs")
+	}
+
+	if err := sw.Install(ctx, kcli, hcli, addOnOverrides(sw, cfgspec, nil), nil); err != nil {
+		return errors.Wrap(err, "install seaweedfs")
+	}
+
+	return nil
+}
+
+// enableRegistryHA enables high availability for the registry and scales the registry deployment
+// to the desired number of replicas.
 func enableRegistryHA(ctx context.Context, kcli client.Client, hcli helm.Client, serviceCIDR string, cfgspec *ecv1beta1.ConfigSpec) error {
 	domains := runtimeconfig.GetDomains(cfgspec)
 
