@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -14,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	s3manager "github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	appsv1 "k8s.io/api/apps/v1"
@@ -206,7 +206,8 @@ func ensureRegistryBucket(ctx context.Context, s3Client *s3.Client) error {
 		Bucket: ptr.To(s3Bucket),
 	})
 	if err != nil {
-		if !strings.Contains(err.Error(), "BucketAlreadyExists") {
+		var bne *s3types.BucketAlreadyExists
+		if !errors.As(err, &bne) {
 			return errors.Wrap(err, "create bucket")
 		}
 	}
