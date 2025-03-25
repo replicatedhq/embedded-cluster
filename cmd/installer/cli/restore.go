@@ -533,7 +533,7 @@ func runRestoreWaitForNodes(ctx context.Context, flags InstallCmdFlags, backupTo
 	return nil
 }
 
-func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, backupToRestore *disasterrecovery.ReplicatedBackup) (err error) {
 	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
 	if err != nil {
 		return err
@@ -542,7 +542,14 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	}
 
 	loading := spinner.Start()
-	defer loading.Close()
+	defer func() {
+		if err != nil {
+			loading.Errorf("Failed to enable high availability for the Admin Console")
+			loading.CloseWithError()
+		} else {
+			loading.Closef("High availability enabled for the Admin Console")
+		}
+	}()
 
 	loading.Infof("Enabling high availability for the Admin Console")
 
@@ -575,8 +582,6 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	if err != nil {
 		return err
 	}
-
-	loading.Infof("High availability enabled for the Admin Console")
 
 	return nil
 }
@@ -1040,17 +1045,20 @@ func waitForBackups(ctx context.Context, out io.Writer, kcli client.Client, k0sC
 		return fmt.Fprintf(out, format, a...)
 	}))
 
-	defer loading.Close()
 	loading.Infof("Waiting for backups to become available")
 
 	rel := release.GetChannelRelease()
 
 	if rel == nil {
+		loading.Errorf("Failed to wait for backups to become available")
+		loading.CloseWithError()
 		return nil, fmt.Errorf("no release found in binary")
 	}
 
 	replicatedBackups, err := listBackupsWithTimeout(ctx, kcli, 30, 5*time.Second)
 	if err != nil {
+		loading.Errorf("Failed to wait for backups to become available")
+		loading.CloseWithError()
 		return nil, err
 	}
 
@@ -1069,6 +1077,9 @@ func waitForBackups(ctx context.Context, out io.Writer, kcli client.Client, k0sC
 	}
 
 	if len(validBackups) == 0 {
+		// TODO: try restoring with no backups available
+		loading.Errorf("No restorable backups found")
+		loading.CloseWithError()
 		return nil, &invalidBackupsError{
 			invalidBackups: invalidBackups,
 			invalidReasons: invalidReasons,
@@ -1077,10 +1088,11 @@ func waitForBackups(ctx context.Context, out io.Writer, kcli client.Client, k0sC
 
 	logrus.Debugf("Found %d restorable backup(s)", len(validBackups))
 	if len(validBackups) == 1 {
-		loading.Infof("Found 1 restorable backup")
+		loading.Closef("Found 1 restorable backup")
 	} else {
-		loading.Infof("Found %d restorable backups", len(validBackups))
+		loading.Closef("Found %d restorable backups", len(validBackups))
 	}
+
 	return validBackups, nil
 }
 
@@ -1266,7 +1278,6 @@ func ensureRestoreResourceModifiers(ctx context.Context, backup *velerov1.Backup
 // waitForDRComponent waits for a disaster recovery component to be restored.
 func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryComponent, restoreName string, isV2 bool) error {
 	loading := spinner.Start()
-	defer loading.Close()
 
 	switch drComponent {
 	case disasterRecoveryComponentECInstall:
@@ -1286,6 +1297,9 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 	// wait for velero restore to complete
 	restore, err := waitForVeleroRestoreCompleted(ctx, restoreName)
 	if err != nil {
+		loading.Errorf("Failed to restore")
+		loading.CloseWithError()
+
 		if restore != nil {
 			return fmt.Errorf("restore failed with %d errors and %d warnings: %w", restore.Status.Errors, restore.Status.Warnings, err)
 		}
@@ -1297,45 +1311,63 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		// wait for admin console to be ready
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
+			loading.Errorf("Failed to restore the Admin Console")
+			loading.CloseWithError()
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
 		if err := restoreWaitForAdminConsoleReady(ctx, kcli, runtimeconfig.KotsadmNamespace, loading); err != nil {
+			loading.Errorf("Failed to restore the Admin Console")
+			loading.CloseWithError()
 			return fmt.Errorf("unable to wait for admin console: %w", err)
 		}
 	} else if drComponent == disasterRecoveryComponentSeaweedFS {
 		// wait for seaweedfs to be ready
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
+			loading.Errorf("Failed to restore registry data")
+			loading.CloseWithError()
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
 		if err := restoreWaitForSeaweedfsReady(ctx, kcli, runtimeconfig.SeaweedFSNamespace, nil); err != nil {
+			loading.Errorf("Failed to restore registry data")
+			loading.CloseWithError()
 			return fmt.Errorf("unable to wait for seaweedfs to be ready: %w", err)
 		}
 	} else if drComponent == disasterRecoveryComponentRegistry {
 		// wait for registry to be ready
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
+			loading.Errorf("Failed to restore the registry")
+			loading.CloseWithError()
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
 		if err := kubeutils.WaitForDeployment(ctx, kcli, runtimeconfig.RegistryNamespace, "registry", nil); err != nil {
+			loading.Errorf("Failed to restore the registry")
+			loading.CloseWithError()
 			return fmt.Errorf("unable to wait for registry to be ready: %w", err)
 		}
 	} else if drComponent == disasterRecoveryComponentECO {
 		// wait for embedded cluster operator to reconcile the installation
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
+			loading.Errorf("Failed to restore the embedded cluster operator")
+			loading.CloseWithError()
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
 		if isV2 {
 			if err := kubeutils.WaitForDeployment(ctx, kcli, runtimeconfig.EmbeddedClusterNamespace, "embedded-cluster-operator", nil); err != nil {
+				loading.Errorf("Failed to restore the embedded cluster operator")
+				loading.CloseWithError()
 				return fmt.Errorf("unable to wait for embedded cluster operator to be ready: %w", err)
 			}
 		} else {
 			if err := kubeutils.WaitForInstallation(ctx, kcli, loading); err != nil {
+				loading.Errorf("Failed to restore the embedded cluster operator")
+				loading.CloseWithError()
 				return fmt.Errorf("unable to wait for installation to be ready: %w", err)
 			}
 		}
@@ -1343,17 +1375,17 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 
 	switch drComponent {
 	case disasterRecoveryComponentECInstall:
-		loading.Infof("Cluster state restored")
+		loading.Closef("Cluster state restored")
 	case disasterRecoveryComponentAdminConsole:
-		loading.Infof("Admin Console restored")
+		loading.Closef("Admin Console restored")
 	case disasterRecoveryComponentSeaweedFS:
-		loading.Infof("Registry data restored")
+		loading.Closef("Registry data restored")
 	case disasterRecoveryComponentRegistry:
-		loading.Infof("Registry restored")
+		loading.Closef("Registry restored")
 	case disasterRecoveryComponentECO:
-		loading.Infof("Embedded cluster operator restored")
+		loading.Closef("Embedded cluster operator restored")
 	case disasterRecoveryComponentApp:
-		loading.Infof("Application restored")
+		loading.Closef("Application restored")
 	}
 
 	return nil
@@ -1573,7 +1605,8 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkI
 	loading := spinner.Start()
 	loading.Infof("Waiting for all nodes to be ready")
 	if err := kubeutils.WaitForNodes(ctx, kcli); err != nil {
-		loading.Close()
+		loading.Errorf("Failed to wait for all nodes to be ready")
+		loading.CloseWithError()
 		return fmt.Errorf("unable to wait for nodes: %w", err)
 	}
 

@@ -186,10 +186,10 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 		}
 
 		pb.Warnf("%d host %s warned", len(output.Warn), s)
+		pb.Close()
 		if opts.AssumeYes {
 			// We have warnings but we are not in interactive mode
 			// so we just print the warnings and continue
-			pb.Close()
 			output.PrintTableWithoutInfo()
 			if opts.MetricsReporter != nil {
 				opts.MetricsReporter.ReportPreflightsFailed(ctx, *output, true)
@@ -197,7 +197,6 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 			return nil
 		}
 
-		pb.Close()
 		output.PrintTableWithoutInfo()
 
 		if !prompts.New().Confirm("Do you want to continue?", false) {
@@ -214,8 +213,7 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 	}
 
 	// No failures or warnings
-	pb.Infof("Host preflights succeeded")
-	pb.Close()
+	pb.Closef("Host preflights succeeded")
 
 	return nil
 }

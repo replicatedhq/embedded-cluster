@@ -123,7 +123,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	// both controller and worker nodes will have 'worker' in the join command
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if !isWorker {
-		logrus.Warnf("Do not join another node until this join is complete.")
+		logrus.Warn("Do not join another node until this join is complete.")
 	}
 
 	if err := runJoinVerifyAndPrompt(name, flags, jcmd); err != nil {
@@ -144,26 +144,38 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	}
 
 	logrus.Debugf("installing and joining cluster")
+	loading := spinner.Start()
+	loading.Infof("Installing node")
 	if err := installAndJoinCluster(ctx, jcmd, name, flags, isWorker); err != nil {
+		loading.Errorf("Failed to install node")
+		loading.CloseWithError()
 		return err
 	}
 
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
+		loading.Errorf("Failed to install node")
+		loading.CloseWithError()
 		return fmt.Errorf("unable to get kube client: %w", err)
 	}
 
 	hostname, err := os.Hostname()
 	if err != nil {
+		loading.Errorf("Failed to install node")
+		loading.CloseWithError()
 		return fmt.Errorf("unable to get hostname: %w", err)
 	}
 
 	logrus.Debugf("waiting for node to join cluster")
+	loading.Infof("Waiting for node")
 	nodename := strings.ToLower(hostname)
 	if err := waitForNodeToJoin(ctx, kcli, nodename, isWorker); err != nil {
+		loading.Errorf("Failed to wait for node")
+		loading.CloseWithError()
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
+	loading.Closef("Node is ready")
 	if isWorker {
 		logrus.Debugf("worker node join finished")
 		return nil
@@ -231,9 +243,17 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *kotsadm.JoinC
 	return nil
 }
 
-func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm.JoinCommandResponse) (*CIDRConfig, error) {
+func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm.JoinCommandResponse) (cidrCfg *CIDRConfig, err error) {
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
+	defer func() {
+		if err != nil {
+			spinner.Errorf("Initialization failed")
+			spinner.CloseWithError()
+		} else {
+			spinner.Closef("Initialization complete")
+		}
+	}()
 
 	// set the umask to 022 so that we can create files/directories with 755 permissions
 	// this does not return an error - it returns the previous umask
@@ -247,8 +267,6 @@ func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *
 
 	logrus.Debugf("materializing %s binaries", name)
 	if err := materializeFiles(flags.airgapBundle); err != nil {
-		spinner.Errorf("Initialization failed")
-		spinner.CloseWithError()
 		return nil, err
 	}
 
@@ -264,15 +282,11 @@ func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *
 
 	logrus.Debugf("configuring network manager")
 	if err := configureNetworkManager(ctx); err != nil {
-		spinner.Errorf("Initialization failed")
-		spinner.CloseWithError()
 		return nil, fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
-	cidrCfg, err := getJoinCIDRConfig(jcmd)
+	cidrCfg, err = getJoinCIDRConfig(jcmd)
 	if err != nil {
-		spinner.Errorf("Initialization failed")
-		spinner.CloseWithError()
 		return nil, fmt.Errorf("unable to get join CIDR config: %w", err)
 	}
 
@@ -280,9 +294,6 @@ func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *
 	if err := configureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
 		logrus.Debugf("unable to configure firewalld: %v", err)
 	}
-
-	spinner.Infof("Initialization complete")
-	spinner.Close()
 
 	return cidrCfg, nil
 }
@@ -415,9 +426,6 @@ func applyNetworkConfiguration(networkInterface string, jcmd *kotsadm.JoinComman
 
 // startAndWaitForK0s starts the k0s service and waits for the node to be ready.
 func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinCommandResponse) error {
-	loading := spinner.Start()
-	defer loading.Close()
-	loading.Infof("Installing node")
 	logrus.Debugf("starting %s service", name)
 	if _, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath(), "start"); err != nil {
 		return fmt.Errorf("unable to start service: %w", err)
@@ -428,7 +436,6 @@ func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinComm
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
-	loading.Infof("Node installed")
 	return nil
 }
 
@@ -506,13 +513,9 @@ func runK0sInstallCommand(networkInterface string, fullcmd string, profile strin
 }
 
 func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string, isWorker bool) error {
-	loading := spinner.Start()
-	defer loading.Close()
-	loading.Infof("Waiting for node")
 	if err := kubeutils.WaitForNode(ctx, kcli, hostname, isWorker); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
-	loading.Infof("Node is ready")
 	return nil
 }
 
