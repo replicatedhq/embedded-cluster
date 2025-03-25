@@ -156,26 +156,27 @@ func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name 
 }
 
 // WaitForPod waits for a pod to be completed.
-func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
+func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) (*corev1.Pod, error) {
 	backoff := opts.GetBackoff()
 	var lasterr error
+	var pod corev1.Pod
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
-			ready, err := k.IsPodComplete(ctx, cli, ns, name)
+			nsn := types.NamespacedName{Namespace: ns, Name: name}
+			err := cli.Get(ctx, nsn, &pod)
 			if err != nil {
-				lasterr = fmt.Errorf("unable to get pod status: %w", err)
-				return false, nil
+				return false, err
 			}
-			return ready, nil
+			return pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed, nil
 		},
 	); err != nil {
 		if lasterr != nil {
-			return fmt.Errorf("timed out waiting for pod %s: %w", name, lasterr)
+			return &pod, fmt.Errorf("timed out waiting for pod %s: %w", name, lasterr)
 		} else {
-			return fmt.Errorf("timed out waiting for pod %s", name)
+			return &pod, fmt.Errorf("timed out waiting for pod %s", name)
 		}
 	}
-	return nil
+	return &pod, nil
 }
 
 func (k *KubeUtils) WaitForNodes(ctx context.Context, cli client.Client) error {
@@ -312,22 +313,6 @@ func (k *KubeUtils) isJobFailed(job batchv1.Job) bool {
 	}
 	exceedsBackoffLimit := job.Status.Failed > backoffLimit
 	return exceedsBackoffLimit
-}
-
-// IsPodComplete returns true if the pod has completed.
-func (k *KubeUtils) IsPodComplete(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
-	pod := corev1.Pod{}
-	nsn := types.NamespacedName{Namespace: ns, Name: name}
-	err := cli.Get(ctx, nsn, &pod)
-	if err != nil {
-		return false, err
-	}
-	if pod.Status.Phase == corev1.PodSucceeded {
-		return true, nil
-	} else if pod.Status.Phase == corev1.PodFailed {
-		return true, fmt.Errorf("pod failed: %s", pod.Status.Reason)
-	}
-	return false, nil
 }
 
 // WaitForKubernetes waits for all deployments to be ready in kube-system, and returns an error channel.

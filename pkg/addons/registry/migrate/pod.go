@@ -14,7 +14,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +29,7 @@ const (
 	StatusConditionType = "RegistryMigrationStatus"
 
 	dataMigrationCompleteSecretName = "registry-data-migration-complete"
-	dataMigrationJobName            = "registry-data-migration"
+	dataMigrationPodName            = "registry-data-migration"
 	serviceAccountName              = "registry-data-migration-serviceaccount"
 
 	// seaweedfsS3SecretName is the name of the secret containing the s3 credentials.
@@ -38,12 +37,12 @@ const (
 	seaweedfsS3SecretName = "seaweedfs-s3-rw"
 )
 
-// RunDataMigrationJob should be called when transitioning from non-HA to HA airgapped
-// installations. This function creates a job that will scale down the registry deployment then
+// RunDataMigrationPod should be called when transitioning from non-HA to HA airgapped
+// installations. This function creates a pod that will scale down the registry deployment then
 // upload the data to s3 before finally creating a 'migration is complete' secret in the registry
 // namespace. If this secret is present, the function will return without reattempting the
 // migration.
-func RunDataMigrationJob(ctx context.Context, cli client.Client, kclient kubernetes.Interface, in *ecv1beta1.Installation, image string) (<-chan string, <-chan error, error) {
+func RunDataMigrationPod(ctx context.Context, cli client.Client, kclient kubernetes.Interface, in *ecv1beta1.Installation, image string) (<-chan string, <-chan error, error) {
 	progressCh := make(chan string)
 	errCh := make(chan error, 1)
 
@@ -76,42 +75,52 @@ func RunDataMigrationJob(ctx context.Context, cli client.Client, kclient kuberne
 		return nil, nil, fmt.Errorf("ensure s3 secret: %w", err)
 	}
 
-	logrus.Debug("Ensuring data migration job")
-	_, err = ensureDataMigrationJob(ctx, cli, image)
+	logrus.Debug("Ensuring data migration pod")
+	_, err = ensureDataMigrationPod(ctx, cli, image)
 	if err != nil {
-		return nil, nil, fmt.Errorf("ensure job: %w", err)
+		return nil, nil, fmt.Errorf("ensure pod: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	go func() {
 		defer cancel()
-		logrus.Debug("Monitoring job status")
-		defer logrus.Debug("Job status monitor stopped")
-		monitorJobStatus(ctx, cli, errCh)
+		logrus.Debug("Monitoring pod status")
+		defer logrus.Debug("Pod status monitor stopped")
+		monitorPodStatus(ctx, cli, errCh)
 	}()
 
-	go monitorJobProgress(ctx, cli, clientset, progressCh)
+	go monitorPodProgress(ctx, cli, clientset, progressCh)
 
 	return progressCh, errCh, nil
 }
 
-func ensureDataMigrationJob(ctx context.Context, cli client.Client, image string) (*batchv1.Job, error) {
-	job := newMigrationJob(image)
+func ensureDataMigrationPod(ctx context.Context, cli client.Client, image string) (*corev1.Pod, error) {
+	pod := newMigrationPod(image)
 
-	err := kubeutils.EnsureObject(ctx, cli, job, func(opts *kubeutils.EnsureObjectOptions) {
-		opts.DeleteOptions = append(opts.DeleteOptions, client.PropagationPolicy(metav1.DeletePropagationForeground))
-		opts.ShouldDelete = func(obj client.Object) bool {
-			exceedsBackoffLimit := job.Status.Failed > *job.Spec.BackoffLimit
-			return exceedsBackoffLimit
-		}
-	})
+	err := maybeDeleteDataMigrationPod(ctx, cli)
 	if err != nil {
-		return nil, fmt.Errorf("ensure object: %w", err)
+		return nil, fmt.Errorf("delete pod: %w", err)
 	}
-	return job, nil
+
+	err = cli.Create(ctx, pod)
+	if err != nil {
+		return nil, fmt.Errorf("create pod: %w", err)
+	}
+
+	return pod, nil
 }
 
-func monitorJobStatus(ctx context.Context, cli client.Client, errCh chan<- error) {
+func maybeDeleteDataMigrationPod(ctx context.Context, cli client.Client) error {
+	err := cli.Delete(ctx, &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: runtimeconfig.RegistryNamespace,
+			Name:      dataMigrationPodName,
+		},
+	})
+	return client.IgnoreNotFound(err)
+}
+
+func monitorPodStatus(ctx context.Context, cli client.Client, errCh chan<- error) {
 	defer close(errCh)
 
 	opts := &kubeutils.WaitOptions{
@@ -123,28 +132,32 @@ func monitorJobStatus(ctx context.Context, cli client.Client, errCh chan<- error
 			Jitter:   0.1,
 		},
 	}
-	err := kubeutils.WaitForJob(ctx, cli, runtimeconfig.RegistryNamespace, dataMigrationJobName, 1, opts)
-	errCh <- err
+	pod, err := kubeutils.WaitForPodComplete(ctx, cli, runtimeconfig.RegistryNamespace, dataMigrationPodName, opts)
+	if err != nil {
+		errCh <- err
+	}
+	switch pod.Status.Phase {
+	case corev1.PodFailed:
+		errCh <- fmt.Errorf("pod failed")
+	case corev1.PodSucceeded:
+		errCh <- nil
+	default:
+		errCh <- fmt.Errorf("pod is not succeeded or failed")
+	}
 }
 
-func monitorJobProgress(ctx context.Context, cli client.Client, kclient kubernetes.Interface, progressCh chan<- string) {
+func monitorPodProgress(ctx context.Context, cli client.Client, kclient kubernetes.Interface, progressCh chan<- string) {
 	defer close(progressCh)
 
 	for ctx.Err() == nil {
 		logrus.Debugf("Streaming registry data migration pod logs")
-		podLogs, err := streamJobLogs(ctx, cli, kclient)
+		podLogs, err := streamPodLogs(ctx, kclient)
 		if err != nil {
 			if ctx.Err() == nil {
-				if ok, err := isJobRetrying(ctx, cli); err != nil {
-					logrus.Debugf("Failed to check if data migration job is retrying: %v", err)
-				} else if ok {
-					progressCh <- "failed, retrying with backoff..."
-				} else {
-					logrus.Debugf("Failed to stream registry data migration pod logs: %v", err)
-				}
+				logrus.Debugf("Failed to stream registry data migration pod logs: %v", err)
 			}
 		} else {
-			err := streamJobProgress(podLogs, progressCh)
+			err := streamPodProgress(podLogs, progressCh)
 			if err != nil {
 				logrus.Debugf("Failed to stream registry data migration pod logs: %v", err)
 			} else {
@@ -159,30 +172,13 @@ func monitorJobProgress(ctx context.Context, cli client.Client, kclient kubernet
 	}
 }
 
-func streamJobLogs(ctx context.Context, cli client.Client, kclient kubernetes.Interface) (io.ReadCloser, error) {
-	podList := &corev1.PodList{}
-	err := cli.List(ctx, podList, client.InNamespace(runtimeconfig.RegistryNamespace), client.MatchingLabels{"job-name": dataMigrationJobName})
-	if err != nil {
-		return nil, fmt.Errorf("list pods: %w", err)
-	}
-
-	var podName string
-	for _, pod := range podList.Items {
-		if pod.Status.Phase == corev1.PodRunning {
-			podName = pod.Name
-			break
-		}
-	}
-	if podName == "" {
-		return nil, fmt.Errorf("no running pods found")
-	}
-
+func streamPodLogs(ctx context.Context, kclient kubernetes.Interface) (io.ReadCloser, error) {
 	logOpts := corev1.PodLogOptions{
 		Container: "migrate-registry-data",
 		Follow:    true,
 		TailLines: ptr.To(int64(100)),
 	}
-	podLogs, err := kclient.CoreV1().Pods(runtimeconfig.RegistryNamespace).GetLogs(podName, &logOpts).Stream(ctx)
+	podLogs, err := kclient.CoreV1().Pods(runtimeconfig.RegistryNamespace).GetLogs(dataMigrationPodName, &logOpts).Stream(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get logs: %w", err)
 	}
@@ -190,25 +186,7 @@ func streamJobLogs(ctx context.Context, cli client.Client, kclient kubernetes.In
 	return podLogs, nil
 }
 
-func isJobRetrying(ctx context.Context, cli client.Client) (bool, error) {
-	job := &batchv1.Job{}
-	err := cli.Get(ctx, client.ObjectKey{Namespace: runtimeconfig.RegistryNamespace, Name: dataMigrationJobName}, job)
-	if err != nil {
-		return false, fmt.Errorf("get job: %w", err)
-	}
-	if job.Status.Succeeded >= 1 {
-		// job is successful
-		return false, nil
-	}
-	if job.Status.Failed == 0 {
-		// job has not yet tried
-		return false, nil
-	}
-	exceedsBackoffLimit := job.Status.Failed > *job.Spec.BackoffLimit
-	return !exceedsBackoffLimit, nil
-}
-
-func streamJobProgress(rc io.ReadCloser, progressCh chan<- string) error {
+func streamPodProgress(rc io.ReadCloser, progressCh chan<- string) error {
 	defer rc.Close()
 
 	scanner := bufio.NewScanner(rc)
@@ -243,51 +221,46 @@ func getProgressFromLogLine(line string) string {
 	return progressRegex.FindStringSubmatch(line)[1]
 }
 
-func newMigrationJob(image string) *batchv1.Job {
-	job := &batchv1.Job{
+func newMigrationPod(image string) *corev1.Pod {
+	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      dataMigrationJobName,
+			Name:      dataMigrationPodName,
 			Namespace: runtimeconfig.RegistryNamespace,
 		},
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Job",
-			APIVersion: "batch/v1",
+			Kind:       "Pod",
+			APIVersion: "v1",
 		},
-		Spec: batchv1.JobSpec{
-			BackoffLimit: ptr.To[int32](6), // this is the default
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					RestartPolicy:      corev1.RestartPolicyNever,
-					ServiceAccountName: serviceAccountName,
-					Volumes: []corev1.Volume{
-						{
-							Name: "registry-data",
-							VolumeSource: corev1.VolumeSource{
-								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-									ClaimName: "registry", // yes it's really just called "registry"
-								},
-							},
+		Spec: corev1.PodSpec{
+			RestartPolicy:      corev1.RestartPolicyNever,
+			ServiceAccountName: serviceAccountName,
+			Volumes: []corev1.Volume{
+				{
+					Name: "registry-data",
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: "registry", // yes it's really just called "registry"
 						},
 					},
-					Containers: []corev1.Container{
+				},
+			},
+			Containers: []corev1.Container{
+				{
+					Name:    "migrate-registry-data",
+					Image:   image,
+					Command: []string{"/manager"},
+					Args:    []string{"migrate", "registry-data"},
+					VolumeMounts: []corev1.VolumeMount{
 						{
-							Name:    "migrate-registry-data",
-							Image:   image,
-							Command: []string{"/manager"},
-							Args:    []string{"migrate", "registry-data"},
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      "registry-data",
-									MountPath: "/registry",
-								},
-							},
-							EnvFrom: []corev1.EnvFromSource{
-								{
-									SecretRef: &corev1.SecretEnvSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: seaweedfsS3SecretName,
-										},
-									},
+							Name:      "registry-data",
+							MountPath: "/registry",
+						},
+					},
+					EnvFrom: []corev1.EnvFromSource{
+						{
+							SecretRef: &corev1.SecretEnvSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: seaweedfsS3SecretName,
 								},
 							},
 						},
@@ -297,9 +270,9 @@ func newMigrationJob(image string) *batchv1.Job {
 		},
 	}
 
-	job.ObjectMeta.Labels = applyRegistryLabels(job.ObjectMeta.Labels, dataMigrationJobName)
+	pod.ObjectMeta.Labels = applyRegistryLabels(pod.ObjectMeta.Labels, dataMigrationPodName)
 
-	return job
+	return pod
 }
 
 func ensureMigrationServiceAccount(ctx context.Context, cli client.Client) error {
@@ -410,19 +383,6 @@ func hasRegistryMigrated(ctx context.Context, cli client.Client) (bool, error) {
 	}
 
 	return true, nil
-}
-
-func maybeDeleteRegistryJob(ctx context.Context, cli client.Client) error {
-	err := cli.Delete(ctx, &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: runtimeconfig.RegistryNamespace,
-			Name:      dataMigrationJobName,
-		},
-	})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		return fmt.Errorf("delete registry migration job: %w", err)
-	}
-	return nil
 }
 
 func applyRegistryLabels(labels map[string]string, component string) map[string]string {

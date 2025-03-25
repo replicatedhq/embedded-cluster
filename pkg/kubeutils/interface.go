@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -25,7 +26,7 @@ type KubeUtilsInterface interface {
 	WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForService(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForJob(ctx context.Context, cli client.Client, ns, name string, completions int32, opts *WaitOptions) error
-	WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
+	WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) (*corev1.Pod, error)
 	WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error
 	WaitForNodes(ctx context.Context, cli client.Client) error
 	WaitForNode(ctx context.Context, kcli client.Client, name string, isWorker bool) error
@@ -73,7 +74,7 @@ func WaitForJob(ctx context.Context, cli client.Client, ns, name string, complet
 	return kb.WaitForJob(ctx, cli, ns, name, completions, opts)
 }
 
-func WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
+func WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) (*corev1.Pod, error) {
 	return kb.WaitForPodComplete(ctx, cli, ns, name, opts)
 }
 

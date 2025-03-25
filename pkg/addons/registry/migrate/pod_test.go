@@ -2,11 +2,8 @@ package migrate
 
 import (
 	"bytes"
-	"context"
 	"log/slog"
 	"testing"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func Test_isProgressLogLine(t *testing.T) {
@@ -41,31 +38,4 @@ func Test_getProgressFromLogLine(t *testing.T) {
 		t.Errorf("getProgressFromLogLine(%v) = %v, want %v", buf.String(), got, "")
 	}
 	buf.Reset()
-}
-
-func Test_isJobRetrying(t *testing.T) {
-	type args struct {
-		ctx context.Context
-		cli client.Client
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    bool
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := isJobRetrying(tt.args.ctx, tt.args.cli)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("isJobRetrying() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("isJobRetrying() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }

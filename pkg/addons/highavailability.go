@@ -94,12 +94,12 @@ func EnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interf
 
 		loading.Infof("Migrating data for high availability")
 		logrus.Debugf("Migrating data for high availability")
-		progressCh, errCh, err := registrymigrate.RunDataMigrationJob(ctx, kcli, kclient, in, operatorImage)
+		progressCh, errCh, err := registrymigrate.RunDataMigrationPod(ctx, kcli, kclient, in, operatorImage)
 		if err != nil {
-			return errors.Wrap(err, "run registry data migration job")
+			return errors.Wrap(err, "run registry data migration pod")
 		}
-		if err := waitForJobAndLogProgress(loading, progressCh, errCh); err != nil {
-			return errors.Wrap(err, "registry data migration job failed")
+		if err := waitForPodAndLogProgress(loading, progressCh, errCh); err != nil {
+			return errors.Wrap(err, "registry data migration pod failed")
 		}
 		logrus.Debugf("Data migration complete!")
 
@@ -175,7 +175,7 @@ func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Cli
 	return nil
 }
 
-func waitForJobAndLogProgress(progressWriter *spinner.MessageWriter, progressCh <-chan string, errCh <-chan error) error {
+func waitForPodAndLogProgress(progressWriter *spinner.MessageWriter, progressCh <-chan string, errCh <-chan error) error {
 	for {
 		select {
 		case err := <-errCh:
