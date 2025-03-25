@@ -114,11 +114,18 @@ func RegistryData(ctx context.Context, cli client.Client) error {
 			Factor:   2,
 			Steps:    5,
 		}, func(ctx context.Context) (bool, error) {
+			slog.Info("Uploading object", "path", relPath, "size", info.Size())
+
 			_, err = s3Uploader.Upload(ctx, &s3.PutObjectInput{
 				Bucket: ptr.To(s3Bucket),
 				Key:    &relPath,
 				Body:   f,
 			})
+			if err != nil {
+				slog.Error("Failed to upload object", "path", relPath, "error", err)
+			} else {
+				slog.Info("Uploaded object", "path", relPath)
+			}
 			lasterr = err
 			return err == nil, nil
 		})
