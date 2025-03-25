@@ -21,6 +21,10 @@ var operatorImageComponents = map[string]addonComponent{
 	"docker.io/library/busybox": {
 		name: "utils",
 	},
+	"docker.io/bloomberg/goldpinger": {
+		name:             "goldpinger",
+		useUpstreamImage: true,
+	},
 }
 
 var updateOperatorAddonCommand = &cli.Command{
@@ -130,9 +134,9 @@ func updateOperatorAddonImages(ctx context.Context, hcli helm.Client, chartURL s
 		return fmt.Errorf("failed to get images from embedded cluster operator chart: %w", err)
 	}
 
-	// make sure we include the operator util image as it does not show up when rendering the helm
-	// chart.
+	// make sure we include the operator util and goldpinger images as they don't show up when rendering the helm chart.
 	images = append(images, "docker.io/library/busybox:latest")
+	images = append(images, "docker.io/bloomberg/goldpinger:latest")
 
 	metaImages, err := UpdateImages(ctx, operatorImageComponents, embeddedclusteroperator.Metadata.Images, images)
 	if err != nil {
