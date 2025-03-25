@@ -3,22 +3,21 @@ package migrate
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	s3manager "github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -29,14 +28,23 @@ const (
 	labelSelector   = "app=docker-registry"
 )
 
+type Progress struct {
+	Total   int
+	Current int
+}
+
 // RegistryData runs a migration that copies data on disk in the registry-data PVC to the seaweedfs
-// s3 store. If it fails, it will scale the registry deployment back to 1. If it succeeds, it will
-// create a secret used to indicate success to the operator.
-func RegistryData(ctx context.Context, cli client.Client) error {
+// s3 store. If it fails, it will scale the registry deployment back to 1. It takes a progress
+// channel as an argument to report progress.
+func RegistryData(ctx context.Context, cli client.Client, progressCh chan<- Progress) error {
+	defer close(progressCh)
+
+	// TODO: should we check seaweedfs health?
+
 	// if the migration fails, we need to scale the registry back to 1
 	success := false
 
-	slog.Info("Scaling registry to 0 replicas")
+	logrus.Debugf("Scaling registry to 0 replicas")
 
 	err := registryScale(ctx, cli, 0)
 	if err != nil {
@@ -47,12 +55,12 @@ func RegistryData(ctx context.Context, cli client.Client) error {
 		r := recover()
 
 		if !success {
-			slog.Info("Scaling registry back to 1 replica after migration failure")
+			logrus.Debugf("Scaling registry back to 1 replica after migration failure")
 
 			// this should use the background context as we want it to run even if the context expired
 			err := registryScale(context.Background(), cli, 1)
 			if err != nil {
-				slog.Error("Failed to scale registry back to 1 replica", "error", err)
+				logrus.Errorf("Failed to scale registry back to 1 replica: %v", err)
 			}
 		}
 
@@ -61,28 +69,30 @@ func RegistryData(ctx context.Context, cli client.Client) error {
 		}
 	}()
 
-	slog.Info("Connecting to s3")
+	logrus.Debugf("Connecting to s3")
 
 	s3Client, err := getS3Client(ctx)
 	if err != nil {
 		return errors.Wrap(err, "get s3 client")
 	}
 
-	slog.Info("Ensuring registry bucket")
+	logrus.Debugf("Ensuring registry bucket")
 
 	err = ensureRegistryBucket(ctx, s3Client)
 	if err != nil {
 		return errors.Wrap(err, "ensure registry bucket")
 	}
 
-	slog.Info("Running registry data migration")
-
-	s3Uploader := s3manager.NewUploader(s3Client)
+	logrus.Debugf("Counting registry files")
 
 	total, err := countRegistryFiles()
 	if err != nil {
 		return errors.Wrap(err, "count registry files")
 	}
+
+	logrus.Debugf("Running registry data migration")
+
+	s3Uploader := s3manager.NewUploader(s3Client)
 
 	count := 0
 	err = filepath.Walk("/registry", func(path string, info os.FileInfo, err error) error {
@@ -105,23 +115,33 @@ func RegistryData(ctx context.Context, cli client.Client) error {
 			return fmt.Errorf("get relative path: %w", err)
 		}
 
-		count++
-		// NOTE: this is used by the cli to report progress
-		// DO NOT CHANGE THIS
-		slog.Info(
-			"Uploading object",
-			append(
-				[]any{"path", relPath, "size", info.Size()},
-				getProgressArgs(count, total)...,
-			)...,
-		)
-		_, err = s3Uploader.Upload(ctx, &s3.PutObjectInput{
-			Bucket: ptr.To(s3Bucket),
-			Key:    &relPath,
-			Body:   f,
+		logrus.Debugf("Uploading object: %s", relPath)
+
+		var lasterr error
+		err = wait.ExponentialBackoffWithContext(ctx, wait.Backoff{
+			Duration: 1 * time.Second,
+			Factor:   2,
+			Steps:    5,
+		}, func(ctx context.Context) (bool, error) {
+			_, err = s3Uploader.Upload(ctx, &s3.PutObjectInput{
+				Bucket: ptr.To(s3Bucket),
+				Key:    &relPath,
+				Body:   f,
+			})
+			lasterr = err
+			return err == nil, nil
 		})
 		if err != nil {
-			return fmt.Errorf("upload object: %w", err)
+			if lasterr == nil {
+				lasterr = err
+			}
+			return fmt.Errorf("upload object: %w", lasterr)
+		}
+
+		count++
+		progressCh <- Progress{
+			Total:   total,
+			Current: count,
 		}
 
 		return nil
@@ -130,16 +150,9 @@ func RegistryData(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("walk registry data: %w", err)
 	}
 
-	slog.Info("Creating registry data migration secret")
-
-	err = ensureRegistryDataMigrationSecret(ctx, cli)
-	if err != nil {
-		return fmt.Errorf("ensure registry data migration secret: %w", err)
-	}
-
 	success = true
 
-	slog.Info("Registry data migration complete")
+	logrus.Debugf("Registry data migration complete")
 
 	return nil
 }
@@ -190,36 +203,11 @@ func ensureRegistryBucket(ctx context.Context, s3Client *s3.Client) error {
 		Bucket: ptr.To(s3Bucket),
 	})
 	if err != nil {
-		if !strings.Contains(err.Error(), "BucketAlreadyExists") {
+		var bne *s3types.BucketAlreadyExists
+		if !errors.As(err, &bne) {
 			return errors.Wrap(err, "create bucket")
 		}
 	}
-	return nil
-}
-
-// ensureRegistryDataMigrationSecret indicates that the registry data migration has been completed.
-func ensureRegistryDataMigrationSecret(ctx context.Context, cli client.Client) error {
-	migrationSecret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      dataMigrationCompleteSecretName,
-			Namespace: runtimeconfig.RegistryNamespace,
-			Labels: map[string]string{
-				"replicated.com/disaster-recovery": "ec-install",
-			},
-		},
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		Data: map[string][]byte{
-			"migration": []byte("complete"),
-		},
-	}
-	err := cli.Create(ctx, &migrationSecret)
-	if err != nil && !k8serrors.IsAlreadyExists(err) {
-		return fmt.Errorf("create registry data migration secret: %w", err)
-	}
-
 	return nil
 }
 

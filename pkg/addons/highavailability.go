@@ -71,27 +71,24 @@ func EnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interf
 		}
 		logrus.Debugf("Seaweedfs installed!")
 
-		in, err := kubeutils.GetLatestInstallation(ctx, kcli)
-		if err != nil {
-			return errors.Wrap(err, "get latest installation")
-		}
-
-		operatorImage, err := getOperatorImage()
-		if err != nil {
-			return errors.Wrap(err, "get operator image")
-		}
-
 		// TODO: timeout
 
 		loading.Infof("Migrating data for high availability")
 		logrus.Debugf("Migrating data for high availability")
-		progressCh, errCh, err := registrymigrate.RunDataMigrationJob(ctx, kcli, kclient, in, operatorImage)
+
+		progressCh := make(chan registrymigrate.Progress)
+		errCh := make(chan error, 1)
+
+		go func() {
+			errCh <- registrymigrate.RegistryData(ctx, kcli, progressCh)
+			close(errCh)
+		}()
+
+		err := waitForDataMigrationAndLogProgress(loading, progressCh, errCh)
 		if err != nil {
-			return errors.Wrap(err, "run registry data migration job")
-		}
-		if err := waitForJobAndLogProgress(loading, progressCh, errCh); err != nil {
 			return errors.Wrap(err, "registry data migration job failed")
 		}
+
 		logrus.Debugf("Data migration complete!")
 
 		loading.Infof("Enabling registry high availability")
@@ -166,14 +163,15 @@ func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Cli
 	return nil
 }
 
-func waitForJobAndLogProgress(progressWriter *spinner.MessageWriter, progressCh <-chan string, errCh <-chan error) error {
+func waitForDataMigrationAndLogProgress(progressWriter *spinner.MessageWriter, progressCh <-chan registrymigrate.Progress, errCh <-chan error) error {
 	for {
 		select {
 		case err := <-errCh:
 			return err
 		case progress := <-progressCh:
-			logrus.Debugf("Migrating data for high availability (%s)", progress)
-			progressWriter.Infof("Migrating data for high availability (%s)", progress)
+			percent := progress.Current * 100 / progress.Total
+			logrus.Debugf("Migrating data for high availability (%d%%)", percent)
+			progressWriter.Infof("Migrating data for high availability (%d%%)", percent)
 		}
 	}
 }
