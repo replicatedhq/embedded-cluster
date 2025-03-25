@@ -121,6 +121,11 @@ func PathToKubeConfig() string {
 	return filepath.Join(EmbeddedClusterK0sSubDir(), "pki/admin.conf")
 }
 
+// PathToKubeletConfig returns the path to the kubelet config file.
+func PathToKubeletConfig() string {
+	return filepath.Join(EmbeddedClusterK0sSubDir(), "kubelet.conf")
+}
+
 // EmbeddedClusterSupportSubDir returns the path to the directory where embedded-cluster
 // support files are stored. Things that are useful when providing end user support in
 // a running cluster should be stored into this directory.
