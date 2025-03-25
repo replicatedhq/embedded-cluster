@@ -12,7 +12,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -95,7 +94,7 @@ func (k *KubeUtils) WaitForService(ctx context.Context, cli client.Client, ns, n
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
 			var svc corev1.Service
-			nsn := types.NamespacedName{Namespace: ns, Name: name}
+			nsn := client.ObjectKey{Namespace: ns, Name: name}
 			if err := cli.Get(ctx, nsn, &svc); err != nil {
 				lasterr = fmt.Errorf("unable to get service %s: %v", name, err)
 				return false, nil
@@ -162,7 +161,7 @@ func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, n
 	var pod corev1.Pod
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
-			nsn := types.NamespacedName{Namespace: ns, Name: name}
+			nsn := client.ObjectKey{Namespace: ns, Name: name}
 			err := cli.Get(ctx, nsn, &pod)
 			if k8serrors.IsNotFound(err) {
 				// exit
@@ -251,7 +250,7 @@ func (k *KubeUtils) WaitForNode(ctx context.Context, kcli client.Client, name st
 
 func (k *KubeUtils) IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
 	var namespace corev1.Namespace
-	if err := cli.Get(ctx, types.NamespacedName{Name: ns}, &namespace); err != nil {
+	if err := cli.Get(ctx, client.ObjectKey{Name: ns}, &namespace); err != nil {
 		return false, err
 	}
 	return namespace.Status.Phase == corev1.NamespaceActive, nil
@@ -260,7 +259,7 @@ func (k *KubeUtils) IsNamespaceReady(ctx context.Context, cli client.Client, ns 
 // IsDeploymentReady returns true if the deployment is ready.
 func (k *KubeUtils) IsDeploymentReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
 	var deploy appsv1.Deployment
-	nsn := types.NamespacedName{Namespace: ns, Name: name}
+	nsn := client.ObjectKey{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &deploy); err != nil {
 		return false, err
 	}
@@ -277,7 +276,7 @@ func (k *KubeUtils) IsDeploymentReady(ctx context.Context, cli client.Client, ns
 // IsStatefulSetReady returns true if the statefulset is ready.
 func (k *KubeUtils) IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
 	var statefulset appsv1.StatefulSet
-	nsn := types.NamespacedName{Namespace: ns, Name: name}
+	nsn := client.ObjectKey{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &statefulset); err != nil {
 		return false, err
 	}
@@ -294,7 +293,7 @@ func (k *KubeUtils) IsStatefulSetReady(ctx context.Context, cli client.Client, n
 // IsDaemonsetReady returns true if the daemonset is ready.
 func (k *KubeUtils) IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
 	var daemonset appsv1.DaemonSet
-	nsn := types.NamespacedName{Namespace: ns, Name: name}
+	nsn := client.ObjectKey{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &daemonset); err != nil {
 		return false, err
 	}
