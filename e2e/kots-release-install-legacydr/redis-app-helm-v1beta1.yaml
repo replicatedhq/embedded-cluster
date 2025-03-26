@@ -14,7 +14,7 @@ spec:
         replicated.com/disaster-recovery: app
     server:
       image:
-        repository: redis
+        repository: us-east4-docker.pkg.dev/replicated-qa/ec-smoke-test/redis
         tag: "7.2"
       service:
         type: ClusterIP
@@ -22,6 +22,6 @@ spec:
     client:
       enabled: true
       image:
-        repository: redis
+        repository: us-east4-docker.pkg.dev/replicated-qa/ec-smoke-test/redis
         tag: "7.2"
       intervalSeconds: 5
