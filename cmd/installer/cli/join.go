@@ -8,6 +8,7 @@ import (
 	"strings"
 	"syscall"
 
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
@@ -340,8 +341,13 @@ func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandRespons
 		return fmt.Errorf("unable to apply configuration overrides: %w", err)
 	}
 
+	profile, err := getFirstDefinedProfile()
+	if err != nil {
+		return fmt.Errorf("unable to get first defined profile: %w", err)
+	}
+
 	logrus.Debugf("joining node to cluster")
-	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand); err != nil {
+	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand, profile); err != nil {
 		return fmt.Errorf("unable to join node to cluster: %w", err)
 	}
 
@@ -459,15 +465,34 @@ func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 	return nil
 }
 
+func getFirstDefinedProfile() (string, error) {
+	k0scfg, err := os.Open(runtimeconfig.PathToK0sConfig())
+	if err != nil {
+		return "", fmt.Errorf("unable to open k0s config: %w", err)
+	}
+	defer k0scfg.Close()
+	cfg, err := k0sconfig.ConfigFromReader(k0scfg)
+	if err != nil {
+		return "", fmt.Errorf("unable to parse k0s config: %w", err)
+	}
+	if len(cfg.Spec.WorkerProfiles) > 0 {
+		return cfg.Spec.WorkerProfiles[0].Name, nil
+	}
+	return "", nil
+}
+
 // runK0sInstallCommand runs the k0s install command as provided by the kots
-// adm api.
-func runK0sInstallCommand(networkInterface string, fullcmd string) error {
+func runK0sInstallCommand(networkInterface string, fullcmd string, profile string) error {
 	args := strings.Split(fullcmd, " ")
 	args = append(args, "--token-file", "/etc/k0s/join-token")
 
 	nodeIP, err := netutils.FirstValidAddress(networkInterface)
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
+	}
+
+	if profile != "" {
+		args = append(args, "--profile", profile)
 	}
 
 	args = append(args, config.AdditionalInstallFlags(nodeIP)...)

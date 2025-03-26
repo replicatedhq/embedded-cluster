@@ -46,6 +46,11 @@ spec:
         spec:
           telemetry:
             enabled: false
+          workerProfiles:
+          - name: ip-forward
+            values:
+              allowedUnsafeSysctls:
+              - net.ipv4.ip_forward
   extensions:
     helm:
       charts:

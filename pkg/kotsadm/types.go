@@ -21,7 +21,7 @@ type JoinCommandResponse struct {
 }
 
 // extractK0sConfigOverridePatch parses the provided override and returns a dig.Mapping that
-// can be then applied on top a k0s configuration file to set both `api` and `storage` spec
+// can be then applied on top a k0s configuration file to set `api`, `storage` and `workerProfiles` spec
 // fields. All other fields in the override are ignored.
 func (j JoinCommandResponse) extractK0sConfigOverridePatch(data []byte) (dig.Mapping, error) {
 	config := dig.Mapping{}
@@ -34,6 +34,10 @@ func (j JoinCommandResponse) extractK0sConfigOverridePatch(data []byte) (dig.Map
 	}
 	if storage := config.DigMapping("config", "spec", "storage"); len(storage) > 0 {
 		result.DigMapping("config", "spec")["storage"] = storage
+	}
+	workerProfiles := config.Dig("config", "spec", "workerProfiles")
+	if workerProfiles != nil {
+		result.DigMapping("config", "spec")["workerProfiles"] = workerProfiles
 	}
 	return result, nil
 }
