@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -75,15 +76,10 @@ func EnableHA(
 			}
 			logrus.Debugf("Seaweedfs installed!")
 
-			// if the migration fails, we need to scale the registry back to 1
-			success := false
-			// This must be in a function so that success is evaluated correctly
-			defer func() {
-				scaleRegistryBackOnFailure(kcli, success)
-			}()
-
 			logrus.Debugf("Scaling registry to 0 replicas")
-			err := scaleRegistry(ctx, kcli, 0)
+			// if the migration fails, we need to scale the registry back to 1
+			defer maybeScaleRegistryBackOnFailure(kcli)
+			err := scaleRegistryDown(ctx, kcli)
 			if err != nil {
 				return errors.Wrap(err, "scale registry to 0 replicas")
 			}
@@ -94,8 +90,6 @@ func EnableHA(
 				return errors.Wrap(err, "migrate registry data")
 			}
 			logrus.Debugf("Data migration complete!")
-
-			success = true
 
 			logFn("Enabling registry high availability")
 			err = enableRegistryHA(ctx, kcli, hcli, serviceCIDR, cfgspec)
@@ -128,17 +122,31 @@ func EnableHA(
 	return nil
 }
 
-func scaleRegistryBackOnFailure(kcli client.Client, success bool) {
+// maybeScaleRegistryBackOnFailure scales the registry back to 1 replica if the migration failed
+// (the registry is at 0 replicas).
+func maybeScaleRegistryBackOnFailure(kcli client.Client) {
 	r := recover()
 
-	if !success {
-		logrus.Debugf("Scaling registry back to 1 replica after migration failure")
+	deploy := &appsv1.Deployment{}
+	// this should use the background context as we want it to run even if the context expired
+	err := kcli.Get(context.Background(), client.ObjectKey{Namespace: runtimeconfig.RegistryNamespace, Name: "registry"}, deploy)
+	if err != nil {
+		logrus.Errorf("Failed to get registry deployment: %v", err)
+		return
+	}
 
-		// this should use the background context as we want it to run even if the context expired
-		err := scaleRegistry(context.Background(), kcli, 1)
-		if err != nil {
-			logrus.Errorf("Failed to scale registry back to 1 replica: %v", err)
-		}
+	// if the deployment is already scaled up, it probably means success
+	if deploy.Spec.Replicas != nil && *deploy.Spec.Replicas > 0 {
+		return
+	}
+
+	logrus.Debugf("Scaling registry back to 1 replica after migration failure")
+
+	deploy.Spec.Replicas = ptr.To[int32](1)
+
+	err = kcli.Update(context.Background(), deploy)
+	if err != nil {
+		logrus.Errorf("Failed to scale registry back to 1 replica: %v", err)
 	}
 
 	if r != nil {
@@ -146,22 +154,17 @@ func scaleRegistryBackOnFailure(kcli client.Client, success bool) {
 	}
 }
 
-// scaleRegistry scales the registry deployment to the given replica count.
-// '0' and '1' are the only acceptable values.
-func scaleRegistry(ctx context.Context, cli client.Client, scale int32) error {
-	if scale != 0 && scale != 1 {
-		return fmt.Errorf("invalid scale: %d", scale)
-	}
-
-	currentRegistry := &appsv1.Deployment{}
-	err := cli.Get(ctx, client.ObjectKey{Namespace: runtimeconfig.RegistryNamespace, Name: "registry"}, currentRegistry)
+// scaleRegistryDown scales the registry deployment to 0 replicas.
+func scaleRegistryDown(ctx context.Context, cli client.Client) error {
+	deploy := &appsv1.Deployment{}
+	err := cli.Get(ctx, client.ObjectKey{Namespace: runtimeconfig.RegistryNamespace, Name: "registry"}, deploy)
 	if err != nil {
 		return fmt.Errorf("get registry deployment: %w", err)
 	}
 
-	currentRegistry.Spec.Replicas = &scale
+	deploy.Spec.Replicas = ptr.To(int32(0))
 
-	err = cli.Update(ctx, currentRegistry)
+	err = cli.Update(ctx, deploy)
 	if err != nil {
 		return fmt.Errorf("update registry deployment: %w", err)
 	}
