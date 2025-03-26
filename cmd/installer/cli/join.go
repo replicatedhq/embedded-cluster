@@ -123,7 +123,7 @@ func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
 		return err
 	}
 
-	cmd.Flags().BoolVar(&flags.assumeYes, "yes", false, "Assume yes to all prompts.")
+	cmd.Flags().BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	return nil
