@@ -154,7 +154,7 @@ func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name 
 	return nil
 }
 
-// WaitForPod waits for a pod to be completed.
+// WaitForPod waits for a pod to be completed (succeeded or failed).
 func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) (*corev1.Pod, error) {
 	backoff := opts.GetBackoff()
 	var lasterr error

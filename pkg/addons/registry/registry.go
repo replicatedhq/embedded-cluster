@@ -106,8 +106,7 @@ func (r *Registry) ChartLocation() string {
 	return strings.Replace(Metadata.Location, "proxy.replicated.com", r.ProxyRegistryDomain, 1)
 }
 
-// IsRegistryHA checks if the registry has been configured for HA by looking for the
-// REGISTRY_STORAGE_S3_ACCESSKEY environment variable in the docker-registry container.
+// IsRegistryHA checks if the registry deployment has greater than 1 replica.
 func IsRegistryHA(ctx context.Context, kcli client.Client) (bool, error) {
 	deploy := appsv1.Deployment{}
 	err := kcli.Get(ctx, client.ObjectKey{Namespace: namespace, Name: "registry"}, &deploy)
@@ -115,17 +114,5 @@ func IsRegistryHA(ctx context.Context, kcli client.Client) (bool, error) {
 		return false, fmt.Errorf("get registry deployment: %w", err)
 	}
 
-	for _, c := range deploy.Spec.Template.Spec.Containers {
-		if c.Name == "docker-registry" {
-			for _, env := range c.Env {
-				if env.Name == "REGISTRY_STORAGE_S3_ACCESSKEY" &&
-					env.ValueFrom.SecretKeyRef != nil &&
-					env.ValueFrom.SecretKeyRef.Name == "seaweedfs-s3-rw" {
-					return true, nil
-				}
-			}
-		}
-	}
-
-	return false, nil
+	return deploy.Spec.Replicas != nil && *deploy.Spec.Replicas > 1, nil
 }

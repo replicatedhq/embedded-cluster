@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	// s3SecretName is the name of the Registry s3 secret.
-	// This secret name is defined in the chart in the release metadata.
-	s3SecretName = "seaweedfs-s3-rw"
+	// seaweedfsS3SecretName is the name of the secret containing the s3 credentials.
+	// This secret name is defined in the values-ha.yaml file in the release metadata.
+	seaweedfsS3SecretName = "seaweedfs-s3-rw"
 )
 
 // Upgrade upgrades the registry chart to the latest version.
@@ -75,7 +75,7 @@ func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 	}
 
 	obj := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: s3SecretName, Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: seaweedfsS3SecretName, Namespace: namespace},
 		Data: map[string][]byte{
 			"s3AccessKey": []byte(accessKey),
 			"s3SecretKey": []byte(secretKey),

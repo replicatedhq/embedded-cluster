@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry/migrate"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/spf13/cobra"
 )
 
@@ -29,12 +28,7 @@ func MigrateRegistryDataCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			cli, err := kubeutils.KubeClient()
-			if err != nil {
-				return fmt.Errorf("failed to create kubernetes client: %w", err)
-			}
-
-			err = migrate.RegistryData(ctx, cli)
+			err := migrate.RegistryData(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to migrate registry data: %w", err)
 			}

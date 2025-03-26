@@ -15,11 +15,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/pkg/errors"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -29,37 +26,8 @@ const (
 )
 
 // RegistryData runs a migration that copies data on disk in the registry-data PVC to the seaweedfs
-// s3 store. If it fails, it will scale the registry deployment back to 1. If it succeeds, it will
-// create a secret used to indicate success to the operator.
-func RegistryData(ctx context.Context, cli client.Client) error {
-	// if the migration fails, we need to scale the registry back to 1
-	success := false
-
-	slog.Info("Scaling registry to 0 replicas")
-
-	err := registryScale(ctx, cli, 0)
-	if err != nil {
-		return fmt.Errorf("scale registry to 0 replicas: %w", err)
-	}
-
-	defer func() {
-		r := recover()
-
-		if !success {
-			slog.Info("Scaling registry back to 1 replica after migration failure")
-
-			// this should use the background context as we want it to run even if the context expired
-			err := registryScale(context.Background(), cli, 1)
-			if err != nil {
-				slog.Error("Failed to scale registry back to 1 replica", "error", err)
-			}
-		}
-
-		if r != nil {
-			panic(r)
-		}
-	}()
-
+// s3 store.
+func RegistryData(ctx context.Context) error {
 	slog.Info("Connecting to s3")
 
 	s3Client, err := getS3Client(ctx)
@@ -150,32 +118,7 @@ func RegistryData(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("walk registry data: %w", err)
 	}
 
-	success = true
-
 	slog.Info("Registry data migration complete")
-
-	return nil
-}
-
-// registryScale scales the registry deployment to the given replica count.
-// '0' and '1' are the only acceptable values.
-func registryScale(ctx context.Context, cli client.Client, scale int32) error {
-	if scale != 0 && scale != 1 {
-		return fmt.Errorf("invalid scale: %d", scale)
-	}
-
-	currentRegistry := &appsv1.Deployment{}
-	err := cli.Get(ctx, client.ObjectKey{Namespace: runtimeconfig.RegistryNamespace, Name: "registry"}, currentRegistry)
-	if err != nil {
-		return fmt.Errorf("get registry deployment: %w", err)
-	}
-
-	currentRegistry.Spec.Replicas = &scale
-
-	err = cli.Update(ctx, currentRegistry)
-	if err != nil {
-		return fmt.Errorf("update registry deployment: %w", err)
-	}
 
 	return nil
 }

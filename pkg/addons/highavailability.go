@@ -2,6 +2,7 @@ package addons
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -16,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -53,10 +55,10 @@ func EnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interf
 	loading := spinner.Start()
 	defer loading.Close()
 
-	loading.Infof("Enabling high availability")
-	logrus.Debugf("Enabling high availability")
-
 	if isAirgap {
+		loading.Infof("Enabling high availability")
+		logrus.Debugf("Enabling high availability")
+
 		hasMigrated, err := registry.IsRegistryHA(ctx, kcli)
 		if err != nil {
 			return errors.Wrap(err, "check if registry data has been migrated")
@@ -68,6 +70,19 @@ func EnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interf
 			}
 			logrus.Debugf("Seaweedfs installed!")
 
+			// if the migration fails, we need to scale the registry back to 1
+			success := false
+			// This must be in a function so that success is evaluated correctly
+			defer func() {
+				scaleRegistryBackOnFailure(kcli, success)
+			}()
+
+			logrus.Debugf("Scaling registry to 0 replicas")
+			err := scaleRegistry(ctx, kcli, 0)
+			if err != nil {
+				return errors.Wrap(err, "scale registry to 0 replicas")
+			}
+
 			loading.Infof("Migrating data for high availability")
 			logrus.Debugf("Migrating data for high availability")
 			err = migrateRegistryData(ctx, kcli, kclient, cfgspec, loading)
@@ -75,6 +90,8 @@ func EnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interf
 				return errors.Wrap(err, "migrate registry data")
 			}
 			logrus.Debugf("Data migration complete!")
+
+			success = true
 
 			loading.Infof("Enabling registry high availability")
 			logrus.Debugf("Enabling registry high availability")
@@ -107,6 +124,47 @@ func EnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interf
 
 	logrus.Debugf("High availability enabled!")
 	loading.Infof("High availability enabled!")
+	return nil
+}
+
+func scaleRegistryBackOnFailure(kcli client.Client, success bool) {
+	r := recover()
+
+	if !success {
+		logrus.Debugf("Scaling registry back to 1 replica after migration failure")
+
+		// this should use the background context as we want it to run even if the context expired
+		err := scaleRegistry(context.Background(), kcli, 1)
+		if err != nil {
+			logrus.Errorf("Failed to scale registry back to 1 replica: %v", err)
+		}
+	}
+
+	if r != nil {
+		panic(r)
+	}
+}
+
+// scaleRegistry scales the registry deployment to the given replica count.
+// '0' and '1' are the only acceptable values.
+func scaleRegistry(ctx context.Context, cli client.Client, scale int32) error {
+	if scale != 0 && scale != 1 {
+		return fmt.Errorf("invalid scale: %d", scale)
+	}
+
+	currentRegistry := &appsv1.Deployment{}
+	err := cli.Get(ctx, client.ObjectKey{Namespace: runtimeconfig.RegistryNamespace, Name: "registry"}, currentRegistry)
+	if err != nil {
+		return fmt.Errorf("get registry deployment: %w", err)
+	}
+
+	currentRegistry.Spec.Replicas = &scale
+
+	err = cli.Update(ctx, currentRegistry)
+	if err != nil {
+		return fmt.Errorf("update registry deployment: %w", err)
+	}
+
 	return nil
 }
 

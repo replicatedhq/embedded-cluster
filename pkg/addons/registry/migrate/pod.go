@@ -30,7 +30,7 @@ const (
 	serviceAccountName   = "registry-data-migration-serviceaccount"
 
 	// seaweedfsS3SecretName is the name of the secret containing the s3 credentials.
-	// This secret name is defined in the chart in the release metadata.
+	// This secret name is defined in the values-ha.yaml file in the release metadata.
 	seaweedfsS3SecretName = "seaweedfs-s3-rw"
 )
 
