@@ -1,8 +1,6 @@
 package e2e
 
 import (
-	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -22,79 +20,39 @@ func TestMultiNodeReset(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// generate all node join commands (2 for controllers and 1 for worker).
-	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
-	controllerCommands := []string{}
-	for i := 0; i < 2; i++ {
-		stdout, stderr, err := tc.RunPlaywrightTest("get-join-controller-command")
-		if err != nil {
-			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-		}
-		command, err := findJoinCommandInOutput(stdout)
-		if err != nil {
-			t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-		}
-		controllerCommands = append(controllerCommands, command)
-		t.Log("controller join token command:", command)
-	}
-	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command")
-	if err != nil {
-		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err := findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Log("worker join token command:", command)
+	// join a controller node
+	joinControllerNode(t, tc, 1)
 
-	// join the nodes.
-	for i, cmd := range controllerCommands {
-		node := i + 1
-		t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), node)
-		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Split(cmd, " ")); err != nil {
-			t.Fatalf("fail to join node %d as a controller: %v: %s: %s", node, err, stdout, stderr)
-		}
-		// XXX If we are too aggressive joining nodes we can see the following error being
-		// thrown by kotsadm on its log (and we get a 500 back):
-		// "
-		// failed to get controller role name: failed to get cluster config: failed to get
-		// current installation: failed to list installations: etcdserver: leader changed
-		// "
-		t.Logf("node %d joined, sleeping...", node)
-		time.Sleep(30 * time.Second)
-	}
-	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(3, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 3 to the cluster as a worker: %v: %s: %s", err, stdout, stderr)
-	}
+	// XXX If we are too aggressive joining nodes we can see the following error being
+	// thrown by kotsadm on its log (and we get a 500 back):
+	// "
+	// failed to get controller role name: failed to get cluster config: failed to get
+	// current installation: failed to list installations: etcdserver: leader changed
+	// "
+	t.Logf("node 1 joined, sleeping...")
+	time.Sleep(30 * time.Second)
+
+	// join another controller node
+	joinControllerNode(t, tc, 2)
+
+	// join a worker node
+	joinWorkerNode(t, tc, 3)
 
 	// wait for the nodes to report as ready.
-	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "4"})
-	if err != nil {
-		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
-	}
+	waitForNodes(t, tc, 4, nil)
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line := []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
-	bin := strings.Split(command, " ")[0]
+	bin := "embedded-cluster"
 	// reset worker node
 	t.Logf("%s: resetting worker node", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(3, []string{bin, "reset", "--yes"})
+	stdout, stderr, err := tc.RunCommandOnNode(3, []string{bin, "reset", "--yes"})
 	if err != nil {
 		t.Fatalf("fail to reset worker node 3: %v: %s: %s", err, stdout, stderr)
 	}
@@ -112,11 +70,7 @@ func TestMultiNodeReset(t *testing.T) {
 		t.Fatalf("fail to check nodes removed: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
