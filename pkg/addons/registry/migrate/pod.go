@@ -362,8 +362,7 @@ func applyRegistryLabels(labels map[string]string, component string) map[string]
 	if labels == nil {
 		labels = make(map[string]string)
 	}
-	// TODO: why would we want to back this up?
-	// labels["app"] = "docker-registry" // this is the backup/restore label for the registry
+	// we do not back this up so we dont add the label app=docker-registry
 	labels["app.kubernetes.io/component"] = component
 	labels["app.kubernetes.io/part-of"] = "embedded-cluster"
 	labels["app.kubernetes.io/managed-by"] = "embedded-cluster-operator"
