@@ -13,7 +13,6 @@ import (
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -313,9 +312,10 @@ func listBackups(ctx context.Context, cli client.Client, veleroNamespace string)
 func getBackupsFromName(ctx context.Context, cli client.Client, veleroNamespace string, backupName string) ([]velerov1.Backup, error) {
 	// first try to get the backup from the backup-name label
 	backups := &velerov1.BackupList{}
-	err := cli.List(ctx, backups, client.InNamespace(veleroNamespace), &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(labels.Set{InstanceBackupNameLabel: backupName}),
-	})
+	err := cli.List(ctx, backups,
+		client.InNamespace(veleroNamespace),
+		client.MatchingLabels{InstanceBackupNameLabel: backupName},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to list backups: %w", err)
 	}

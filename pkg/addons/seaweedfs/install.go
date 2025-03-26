@@ -4,45 +4,47 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
-	if err := s.createPreRequisites(ctx, kcli); err != nil {
-		return errors.Wrap(err, "create prerequisites")
+	return s.Upgrade(ctx, kcli, hcli, overrides)
+}
+
+func (s *SeaweedFS) Uninstall(ctx context.Context, kcli client.Client) error {
+	ns := corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	}
+	err := kcli.Delete(ctx, &ns)
+	if client.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, "delete namespace")
 	}
 
-	values, err := s.GenerateHelmValues(ctx, kcli, overrides)
-	if err != nil {
-		return errors.Wrap(err, "generate helm values")
-	}
-
-	_, err = hcli.Install(ctx, helm.InstallOptions{
-		ReleaseName:  releaseName,
-		ChartPath:    s.ChartLocation(),
-		ChartVersion: Metadata.Version,
-		Values:       values,
-		Namespace:    namespace,
-		Labels:       getBackupLabels(),
+	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, 1*time.Minute, false, func(ctx context.Context) (bool, error) {
+		err := kcli.Get(ctx, client.ObjectKey{Name: namespace}, &corev1.Namespace{})
+		return err != nil, nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "helm install")
+		return errors.Wrap(err, "wait for namespace to be deleted")
 	}
 
 	return nil
 }
 
-func (s *SeaweedFS) createPreRequisites(ctx context.Context, kcli client.Client) error {
-	if err := createNamespace(ctx, kcli, namespace); err != nil {
+func (s *SeaweedFS) ensurePreRequisites(ctx context.Context, kcli client.Client) error {
+	if err := ensureNamespace(ctx, kcli, namespace); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
 
@@ -50,20 +52,20 @@ func (s *SeaweedFS) createPreRequisites(ctx context.Context, kcli client.Client)
 		return errors.Wrap(err, "create s3 service")
 	}
 
-	if err := createS3Secret(ctx, kcli); err != nil {
+	if err := ensureS3Secret(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create s3 secret")
 	}
 
 	return nil
 }
 
-func createNamespace(ctx context.Context, kcli client.Client, namespace string) error {
+func ensureNamespace(ctx context.Context, kcli client.Client, namespace string) error {
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
 		},
 	}
-	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
+	if err := kcli.Create(ctx, &ns); client.IgnoreAlreadyExists(err) != nil {
 		return err
 	}
 	return nil
@@ -101,7 +103,7 @@ func ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) 
 	obj.ObjectMeta.Labels = ApplyLabels(obj.ObjectMeta.Labels, "s3")
 
 	var existingObj corev1.Service
-	if err := kcli.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: obj.Namespace}, &existingObj); err != nil && !k8serrors.IsNotFound(err) {
+	if err := kcli.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: obj.Namespace}, &existingObj); client.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, "get s3 service")
 	} else if err == nil {
 		// if the service already exists and has the correct cluster IP, do not recreate it
@@ -114,14 +116,14 @@ func ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) 
 		}
 	}
 
-	if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
+	if err := kcli.Create(ctx, obj); err != nil {
 		return errors.Wrap(err, "create s3 service")
 	}
 
 	return nil
 }
 
-func createS3Secret(ctx context.Context, kcli client.Client) error {
+func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 	var config seaweedfsConfig
 	config.Identities = append(config.Identities, seaweedfsIdentity{
 		Name: "anvAdmin",
@@ -154,7 +156,7 @@ func createS3Secret(ctx context.Context, kcli client.Client) error {
 
 	obj.ObjectMeta.Labels = ApplyLabels(obj.ObjectMeta.Labels, "s3")
 
-	if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
+	if err := kcli.Create(ctx, obj); client.IgnoreAlreadyExists(err) != nil {
 		return errors.Wrap(err, "create s3 secret")
 	}
 
