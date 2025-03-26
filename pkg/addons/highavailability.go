@@ -91,7 +91,7 @@ func EnableHA(
 			}
 			logrus.Debugf("Data migration complete!")
 
-			logFn("Enabling registry high availability")
+			logFn("Enabling high availability for the registry")
 			err = enableRegistryHA(ctx, kcli, hcli, serviceCIDR, cfgspec)
 			if err != nil {
 				return errors.Wrap(err, "enable registry high availability")
