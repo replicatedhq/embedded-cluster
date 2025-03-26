@@ -28,6 +28,13 @@ localpv-provisioner:
       tag: '{{ index (index .Images "openebs-provisioner-localpv").Tag .GOARCH }}'
 {{- end }}
     basePath: "/var/lib/embedded-cluster/openebs-local"
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
 lvm-localpv:
   enabled: false
 mayastor:

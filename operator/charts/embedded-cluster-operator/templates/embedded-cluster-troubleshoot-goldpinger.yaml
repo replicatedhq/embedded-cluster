@@ -19,9 +19,9 @@ data:
       collectors:
       - goldpinger:
           namespace: goldpinger
-          image: proxy.replicated.com/anonymous/bloomberg/goldpinger@sha256:70416f19f1cbeedd344d37b08e64114779976b99905e0d018e71c437cde750dc
+          image: {{ .Values.goldpingerImage }}
           podLaunchOptions:
-            image: proxy.replicated.com/anonymous/library/busybox@sha256:768e5c6f5cb6db0794eec98dc7a967f40631746c32232b78a3105fb946f3ab83
+            image: {{ .Values.utilsImage }}
           exclude: {{ .Values.isAirgap }}
       analyzers:
       - goldpinger:

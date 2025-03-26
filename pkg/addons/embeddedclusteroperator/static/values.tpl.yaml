@@ -7,4 +7,5 @@ image:
   repository: '{{ (index .Images "embedded-cluster-operator").Repo }}'
   tag: '{{ index (index .Images "embedded-cluster-operator").Tag .GOARCH }}'
 utilsImage: '{{ ImageString (index .Images "utils") }}'
+goldpingerImage: '{{ ImageString (index .Images "goldpinger") }}'
 {{- end }}

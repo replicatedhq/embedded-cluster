@@ -179,14 +179,32 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 
 	domains := runtimeconfig.GetDomains(in.Spec.Config)
 
+	didUpdate := false
+
 	cfg := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 	if currentCfg.Spec.Images != nil {
-		if reflect.DeepEqual(*currentCfg.Spec.Images, *cfg.Spec.Images) {
-			return nil
+		if !reflect.DeepEqual(*currentCfg.Spec.Images, *cfg.Spec.Images) {
+			currentCfg.Spec.Images = cfg.Spec.Images
+			didUpdate = true
 		}
 	}
 
-	currentCfg.Spec.Images = cfg.Spec.Images
+	if currentCfg.Spec.Network != nil &&
+		currentCfg.Spec.Network.NodeLocalLoadBalancing != nil &&
+		currentCfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy != nil &&
+		currentCfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image != nil {
+		if !reflect.DeepEqual(
+			*currentCfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image,
+			*cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image,
+		) {
+			currentCfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image = cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image
+			didUpdate = true
+		}
+	}
+
+	if !didUpdate {
+		return nil
+	}
 
 	unstructured, err := helpers.K0sClusterConfigTo129Compat(&currentCfg)
 	if err != nil {
