@@ -446,7 +446,7 @@ func (h *hostInfo) checkResetSafety(ctx context.Context, force bool) (bool, stri
 	}
 	for _, node := range nodeList.Items {
 		labels := node.GetLabels()
-		if labels["node-role.kubernetes.io/control-plane"] == "true" {
+		if _, ok := labels["node-role.kubernetes.io/control-plane"]; ok {
 			controllers = append(controllers, node.Name)
 		} else {
 			workers = append(workers, node.Name)

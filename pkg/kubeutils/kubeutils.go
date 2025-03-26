@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -382,13 +381,10 @@ func (k *KubeUtils) WaitForCRDToBeReady(ctx context.Context, cli client.Client, 
 }
 
 func NumOfControlPlaneNodes(ctx context.Context, cli client.Client) (int, error) {
-	opts := &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(
-			labels.Set{"node-role.kubernetes.io/control-plane": "true"},
-		),
-	}
 	var nodes corev1.NodeList
-	if err := cli.List(ctx, &nodes, opts); err != nil {
+	if err := cli.List(ctx, &nodes,
+		client.HasLabels{"node-role.kubernetes.io/control-plane"},
+	); err != nil {
 		return 0, err
 	}
 	return len(nodes.Items), nil

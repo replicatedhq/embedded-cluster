@@ -15,7 +15,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -51,13 +50,19 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, string, error) 
 }
 
 // EnableHA enables high availability.
-func EnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interface, hcli helm.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
-	loading := spinner.Start()
-	defer loading.Close()
+func EnableHA(
+	ctx context.Context, kcli client.Client, kclient kubernetes.Interface, hcli helm.Client,
+	isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec,
+	logMsg func(string, ...any),
+) error {
+	// Log to both the user and the logrus logger so that the logs appear in the log file.
+	logFn := func(format string, args ...any) {
+		logMsg(format, args...)
+		logrus.Debugf(format, args...)
+	}
 
 	if isAirgap {
-		loading.Infof("Enabling high availability")
-		logrus.Debugf("Enabling high availability")
+		logFn("Enabling high availability")
 
 		hasMigrated, err := registry.IsRegistryHA(ctx, kcli)
 		if err != nil {
@@ -83,9 +88,8 @@ func EnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interf
 				return errors.Wrap(err, "scale registry to 0 replicas")
 			}
 
-			loading.Infof("Migrating data for high availability")
-			logrus.Debugf("Migrating data for high availability")
-			err = migrateRegistryData(ctx, kcli, kclient, cfgspec, loading)
+			logFn("Migrating data for high availability")
+			err = migrateRegistryData(ctx, kcli, kclient, cfgspec, logFn)
 			if err != nil {
 				return errors.Wrap(err, "migrate registry data")
 			}
@@ -93,8 +97,7 @@ func EnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interf
 
 			success = true
 
-			loading.Infof("Enabling registry high availability")
-			logrus.Debugf("Enabling registry high availability")
+			logFn("Enabling registry high availability")
 			err = enableRegistryHA(ctx, kcli, hcli, serviceCIDR, cfgspec)
 			if err != nil {
 				return errors.Wrap(err, "enable registry high availability")
@@ -103,8 +106,7 @@ func EnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interf
 		}
 	}
 
-	loading.Infof("Updating the Admin Console for high availability")
-	logrus.Debugf("Enabling admin console high availability")
+	logFn("Updating the Admin Console for high availability")
 	err := EnableAdminConsoleHA(ctx, kcli, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
 	if err != nil {
 		return errors.Wrap(err, "enable admin console high availability")
@@ -122,8 +124,7 @@ func EnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interf
 		return errors.Wrap(err, "update installation")
 	}
 
-	logrus.Debugf("High availability enabled!")
-	loading.Infof("High availability enabled!")
+	logFn("High availability enabled!")
 	return nil
 }
 
@@ -169,7 +170,7 @@ func scaleRegistry(ctx context.Context, cli client.Client, scale int32) error {
 }
 
 // migrateRegistryData runs the registry data migration.
-func migrateRegistryData(ctx context.Context, kcli client.Client, kclient kubernetes.Interface, cfgspec *ecv1beta1.ConfigSpec, progressWriter *spinner.MessageWriter) error {
+func migrateRegistryData(ctx context.Context, kcli client.Client, kclient kubernetes.Interface, cfgspec *ecv1beta1.ConfigSpec, logMsg func(string, ...any)) error {
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
 		return errors.Wrap(err, "get latest installation")
@@ -190,7 +191,7 @@ func migrateRegistryData(ctx context.Context, kcli client.Client, kclient kubern
 	if err != nil {
 		return errors.Wrap(err, "run registry data migration")
 	}
-	if err := waitForPodAndLogProgress(progressWriter, progressCh, errCh); err != nil {
+	if err := waitForPodAndLogProgress(logMsg, progressCh, errCh); err != nil {
 		return errors.Wrap(err, "registry data migration failed")
 	}
 
@@ -257,14 +258,13 @@ func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Cli
 	return nil
 }
 
-func waitForPodAndLogProgress(progressWriter *spinner.MessageWriter, progressCh <-chan string, errCh <-chan error) error {
+func waitForPodAndLogProgress(logMsg func(string, ...any), progressCh <-chan string, errCh <-chan error) error {
 	for {
 		select {
 		case err := <-errCh:
 			return err
 		case progress := <-progressCh:
-			logrus.Debugf("Migrating data for high availability (%s)", progress)
-			progressWriter.Infof("Migrating data for high availability (%s)", progress)
+			logMsg("Migrating data for high availability (%s)", progress)
 		}
 	}
 }

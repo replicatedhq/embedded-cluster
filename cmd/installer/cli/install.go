@@ -23,6 +23,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
@@ -317,6 +318,15 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	}
 
 	// TODO (@salah): update installation status to reflect what's happening
+
+	logrus.Debugf("adding insecure registry")
+	registryIP, err := registry.GetRegistryClusterIP(flags.cidrCfg.ServiceCIDR)
+	if err != nil {
+		return fmt.Errorf("unable to get registry cluster IP: %w", err)
+	}
+	if err := airgap.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
+		return fmt.Errorf("unable to add insecure registry: %w", err)
+	}
 
 	var embCfgSpec *ecv1beta1.ConfigSpec
 	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
@@ -986,7 +996,7 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCm
 	}
 
 	// ensure that the installation CRD exists
-	if err := createInstallationCRD(ctx, kcli); err != nil {
+	if err := embeddedclusteroperator.EnsureInstallationCRD(ctx, kcli); err != nil {
 		return nil, fmt.Errorf("create installation CRD: %w", err)
 	}
 

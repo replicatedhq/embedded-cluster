@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -41,10 +40,6 @@ func (r *Registry) Install(ctx context.Context, kcli client.Client, hcli helm.Cl
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm install")
-	}
-
-	if err := airgap.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
-		return errors.Wrap(err, "add containerd registry config")
 	}
 
 	return nil

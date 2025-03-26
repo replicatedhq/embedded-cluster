@@ -513,5 +513,8 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.I
 		return nil
 	}
 	logrus.Info("")
-	return addons.EnableHA(ctx, kcli, kclient, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
+
+	loading := spinner.Start()
+	defer loading.Close()
+	return addons.EnableHA(ctx, kcli, kclient, hcli, isAirgap, serviceCIDR, proxy, cfgspec, loading.Infof)
 }
