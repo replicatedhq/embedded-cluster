@@ -56,24 +56,30 @@ func getProxySpec(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
 	// If flags aren't set, look for environment variables (lowercase takes precedence)
 	if httpProxy == "" {
 		if envValue := os.Getenv("http_proxy"); envValue != "" {
+			logrus.Debug("got http_proxy from http_proxy env var")
 			httpProxy = envValue
 		} else if envValue := os.Getenv("HTTP_PROXY"); envValue != "" {
+			logrus.Debug("got http_proxy from HTTP_PROXY env var")
 			httpProxy = envValue
 		}
 	}
 
 	if httpsProxy == "" {
 		if envValue := os.Getenv("https_proxy"); envValue != "" {
+			logrus.Debug("got https_proxy from https_proxy env var")
 			httpsProxy = envValue
 		} else if envValue := os.Getenv("HTTPS_PROXY"); envValue != "" {
+			logrus.Debug("got https_proxy from HTTPS_PROXY env var")
 			httpsProxy = envValue
 		}
 	}
 
 	if noProxy == "" {
 		if envValue := os.Getenv("no_proxy"); envValue != "" {
+			logrus.Debug("got no_proxy from no_proxy env var")
 			noProxy = envValue
 		} else if envValue := os.Getenv("NO_PROXY"); envValue != "" {
+			logrus.Debug("got no_proxy from NO_PROXY env var")
 			noProxy = envValue
 		}
 	}
