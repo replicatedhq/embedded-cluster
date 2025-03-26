@@ -173,7 +173,7 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 		}
 
 		if opts.MetricsReporter != nil {
-			opts.MetricsReporter.ReportPreflightsFailed(ctx, *output, true)
+			opts.MetricsReporter.ReportPreflightsFailed(ctx, *output, false)
 		}
 		return ErrPreflightsHaveFail
 	}
@@ -202,7 +202,7 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 
 		if !prompts.New().Confirm("Do you want to continue?", false) {
 			if opts.MetricsReporter != nil {
-				opts.MetricsReporter.ReportPreflightsFailed(ctx, *output, true)
+				opts.MetricsReporter.ReportPreflightsFailed(ctx, *output, false)
 			}
 			return ErrPreflightsHaveFail
 		}
