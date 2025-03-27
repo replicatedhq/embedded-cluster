@@ -156,18 +156,6 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 		t.Fatalf("fail to join node %d as a controller%s: %v: %s: %s",
 			node, map[bool]string{true: " in ha mode", false: ""}[opts.isHA], err, stdout, stderr)
 	}
-
-	if opts.isAirgap {
-		// remove the airgap bundle and binary after joining
-		line := []string{"rm", "/assets/release.airgap"}
-		if _, _, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
-			t.Fatalf("fail to remove airgap bundle on node %d: %v", node, err)
-		}
-		line = []string{"rm", "/usr/local/bin/embedded-cluster"}
-		if _, _, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
-			t.Fatalf("fail to remove embedded-cluster binary on node %d: %v", node, err)
-		}
-	}
 }
 
 func joinWorkerNode(t *testing.T, tc cluster.Cluster, node int) {
