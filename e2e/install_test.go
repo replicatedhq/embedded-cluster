@@ -1801,7 +1801,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fail to remove controller node 0: %v: %s: %s", err, stdout, stderr)
 	}
-	if !strings.Contains(stdout, "High-availability clusters must maintain at least three controller nodes") {
+	if !strings.Contains(stdout, "You must maintain at least three %s nodes in a high-availability cluster") {
 		t.Errorf("reset output does not contain the ha warning")
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -1951,7 +1951,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to remove controller node 0 %s:", err)
 	}
-	if !strings.Contains(stdout, "High-availability clusters must maintain at least three controller nodes") {
+	if !strings.Contains(stdout, "You must maintain at least three %s nodes in a high-availability cluster") {
 		t.Errorf("reset output does not contain the ha warning")
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 	}
