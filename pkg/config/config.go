@@ -139,6 +139,22 @@ func ProfileInstallFlag() (string, error) {
 	return "--profile=" + controllerProfile, nil
 }
 
+func GetControllerRoleName() string {
+	clusterConfig := release.GetEmbeddedClusterConfig()
+	controllerRoleName := "controller"
+	if clusterConfig != nil {
+		if clusterConfig.Spec.Roles.Controller.Name != "" {
+			controllerRoleName = clusterConfig.Spec.Roles.Controller.Name
+		}
+	}
+	return controllerRoleName
+}
+
+func HasCustomRoles() bool {
+	clusterConfig := release.GetEmbeddedClusterConfig()
+	return clusterConfig != nil && clusterConfig.Spec.Roles.Custom != nil && len(clusterConfig.Spec.Roles.Custom) > 0
+}
+
 // nodeLabels return a slice of string with labels (key=value format) for the node where we
 // are installing the k0s.
 func nodeLabels() []string {
@@ -151,20 +167,9 @@ func nodeLabels() []string {
 
 func controllerLabels() map[string]string {
 	lmap := additionalControllerLabels()
-	lmap["kots.io/embedded-cluster-role-0"] = getControllerRoleName()
+	lmap["kots.io/embedded-cluster-role-0"] = GetControllerRoleName()
 	lmap["kots.io/embedded-cluster-role"] = "total-1"
 	return lmap
-}
-
-func getControllerRoleName() string {
-	clusterConfig := release.GetEmbeddedClusterConfig()
-	controllerRoleName := "controller"
-	if clusterConfig != nil {
-		if clusterConfig.Spec.Roles.Controller.Name != "" {
-			controllerRoleName = clusterConfig.Spec.Roles.Controller.Name
-		}
-	}
-	return controllerRoleName
 }
 
 func additionalControllerLabels() map[string]string {
