@@ -147,22 +147,19 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	loading := spinner.Start()
 	loading.Infof("Installing node")
 	if err := installAndJoinCluster(ctx, jcmd, name, flags, isWorker); err != nil {
-		loading.Errorf("Failed to install node")
-		loading.CloseWithError()
+		loading.ErrorClosef("Failed to install node")
 		return err
 	}
 
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
-		loading.Errorf("Failed to install node")
-		loading.CloseWithError()
+		loading.ErrorClosef("Failed to install node")
 		return fmt.Errorf("unable to get kube client: %w", err)
 	}
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		loading.Errorf("Failed to install node")
-		loading.CloseWithError()
+		loading.ErrorClosef("Failed to install node")
 		return fmt.Errorf("unable to get hostname: %w", err)
 	}
 
@@ -170,8 +167,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	loading.Infof("Waiting for node")
 	nodename := strings.ToLower(hostname)
 	if err := waitForNodeToJoin(ctx, kcli, nodename, isWorker); err != nil {
-		loading.Errorf("Failed to wait for node")
-		loading.CloseWithError()
+		loading.ErrorClosef("Failed to wait for node")
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
@@ -248,8 +244,7 @@ func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *
 	spinner.Infof("Initializing")
 	defer func() {
 		if err != nil {
-			spinner.Errorf("Initialization failed")
-			spinner.CloseWithError()
+			spinner.ErrorClosef("Initialization failed")
 		} else {
 			spinner.Closef("Initialization complete")
 		}
