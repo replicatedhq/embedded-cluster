@@ -815,7 +815,7 @@ func CreateNode(in *ClusterInput, i int) (string, string) {
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	name := fmt.Sprintf("node-%s-%02d", in.id, i)
+	name := fmt.Sprintf("Node-%s-%02d", in.id, i)
 	profile := fmt.Sprintf("profile-%s", in.id)
 	net := fmt.Sprintf("internal-%s", in.id)
 	request := api.InstancesPost{
