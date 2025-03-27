@@ -81,8 +81,7 @@ func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 				supportBundle,
 				arguments...,
 			); err != nil {
-				spin.Errorf("Failed to generate support bundle")
-				spin.CloseWithError()
+				spin.ErrorClosef("Failed to generate support bundle")
 				io.Copy(os.Stdout, stdout)
 				io.Copy(os.Stderr, stderr)
 				return NewErrorNothingElseToAdd(errors.New("failed to generate support bundle"))
