@@ -10,3 +10,7 @@ test: test-kind
 .PHONY: test-kind
 test-kind:
 	$(MAKE) -C ./kind test
+
+.PHONY: clean
+clean:
+	$(MAKE) -C ./kind clean

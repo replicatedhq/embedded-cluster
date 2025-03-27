@@ -69,6 +69,9 @@ func removeControlPlaneNodeTaint(t *testing.T, kubeconfig string, node string) {
 		"kubectl", "--kubeconfig", kubeconfig, "taint", "nodes", node, "node-role.kubernetes.io/control-plane:NoSchedule-",
 	).CombinedOutput()
 	if err != nil {
+		if strings.Contains(string(out), "\" not found") {
+			return
+		}
 		t.Logf("output: %s", out)
 		t.Fatalf("failed to remove control plane node taint from node %s: %s", node, err)
 	}
