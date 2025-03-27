@@ -648,7 +648,7 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 		return nil, fmt.Errorf("wait for k0s: %w", err)
 	}
 
-	loading.Infof("Waiting for node to be ready")
+	loading.Infof("Waiting for node")
 	logrus.Debugf("waiting for node to be ready")
 	if err := waitForNode(ctx); err != nil {
 		loading.ErrorClosef("Failed to wait for node")
