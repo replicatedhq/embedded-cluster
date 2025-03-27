@@ -17,9 +17,8 @@ test-openebs: openebs.test
 
 .PHONY: test-registry
 test-registry: registry.test
-	$(MAKE) -C ../../../operator build-and-push-operator-image \
-		USE_CHAINGUARD=0 \
-		IMAGE_NAME=ttl.sh/replicated/embedded-cluster-operator-image
+	$(MAKE) -C ../../../operator build-ttl.sh \
+		USE_CHAINGUARD=0
 	DEBUG=$(DEBUG) SKIP_OPERATOR_IMAGE_BUILD=1 ./registry.test \
 		-test.v \
 		-test.timeout=15m \

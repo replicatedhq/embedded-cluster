@@ -34,7 +34,6 @@ import (
 func TestRegistry_EnableHAAirgap(t *testing.T) {
 	ctx := t.Context()
 
-	t.Log("building operator image")
 	buildOperatorImage(t)
 
 	util.SetupCtrlLogging(t)
@@ -213,9 +212,10 @@ func buildOperatorImage(t *testing.T) string {
 	operatorDir := filepath.Join(workspaceRoot, "operator")
 
 	if os.Getenv("SKIP_OPERATOR_IMAGE_BUILD") == "" {
-		cmd := exec.CommandContext(t.Context(), "make", "-C", operatorDir,
-			"build-and-push-operator-image", "USE_CHAINGUARD=0",
-			"IMAGE_NAME=ttl.sh/replicated/embedded-cluster-operator-image",
+		t.Log("building operator image")
+
+		cmd := exec.CommandContext(
+			t.Context(), "make", "-C", operatorDir, "build-ttl.sh", "USE_CHAINGUARD=0",
 		)
 
 		var errBuf bytes.Buffer
