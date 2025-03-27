@@ -10,7 +10,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -59,8 +58,8 @@ func runEnableHA(ctx context.Context) error {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
 	}
 	if !canEnableHA {
-		logrus.Warnf("High availability cannot be enabled: %s", reason)
-		return NewErrorNothingElseToAdd(fmt.Errorf("high availability cannot be enabled: %s", reason))
+		logrus.Warnf("High availability cannot be enabled because %s", reason)
+		return NewErrorNothingElseToAdd(fmt.Errorf("high availability cannot be enabled because %s", reason))
 	}
 
 	kclient, err := kubeutils.GetClientset()
@@ -88,8 +87,5 @@ func runEnableHA(ctx context.Context) error {
 	}
 	defer hcli.Close()
 
-	loading := spinner.Start()
-	defer loading.Close()
-
-	return addons.EnableHA(ctx, kcli, kclient, hcli, in.Spec.AirGap, in.Spec.Network.ServiceCIDR, in.Spec.Proxy, in.Spec.Config, loading)
+	return addons.EnableHA(ctx, kcli, kclient, hcli, in.Spec.AirGap, in.Spec.Network.ServiceCIDR, in.Spec.Proxy, in.Spec.Config)
 }

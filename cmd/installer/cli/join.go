@@ -172,6 +172,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	}
 
 	loading.Closef("Node is ready")
+	logrus.Infof("\nNode joined the cluster successfully")
 	if isWorker {
 		logrus.Debugf("worker node join finished")
 		return nil
@@ -595,18 +596,5 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 	}
 	defer hcli.Close()
 
-	loading := spinner.Start()
-	defer loading.Close()
-
-	return addons.EnableHA(
-		ctx,
-		kcli,
-		kclient,
-		hcli,
-		flags.isAirgap,
-		serviceCIDR,
-		jcmd.InstallationSpec.Proxy,
-		jcmd.InstallationSpec.Config,
-		loading,
-	)
+	return addons.EnableHA(ctx, kcli, kclient, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
 }
