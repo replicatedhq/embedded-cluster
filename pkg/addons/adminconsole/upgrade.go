@@ -55,7 +55,7 @@ func ensurePostUpgradeHooksDeleted(ctx context.Context, kcli client.Client) erro
 			Name:      "kotsadm-keep-resources",
 		},
 	}
-	err := kcli.Delete(ctx, job)
+	err := kcli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground))
 	if client.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, "delete kotsadm-keep-resources job")
 	}

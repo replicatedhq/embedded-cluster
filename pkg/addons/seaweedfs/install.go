@@ -174,7 +174,7 @@ func ensurePostInstallHooksDeleted(ctx context.Context, kcli client.Client) erro
 			Name:      fmt.Sprintf("%s-bucket-hook", releaseName),
 		},
 	}
-	err := kcli.Delete(ctx, job)
+	err := kcli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground))
 	if client.IgnoreNotFound(err) != nil {
 		return errors.Wrapf(err, "delete %s-bucket-hook job", releaseName)
 	}
