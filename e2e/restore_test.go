@@ -820,10 +820,18 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	// add the expected nodes to the cluster, then continue to phase 2.
 
 	// join a controller
-	joinControllerNodeWithOptions(t, tc, 1, joinOptions{isAirgap: true, isRestore: true, withEnv: withEnv})
+	joinControllerNodeWithOptions(t, tc, 1, joinOptions{
+		isAirgap:  true,
+		isRestore: true,
+		withEnv:   withEnv,
+	})
 
 	// join another controller in non-HA mode
-	joinControllerNodeWithOptions(t, tc, 2, joinOptions{isAirgap: true, isRestore: true, withEnv: withEnv})
+	joinControllerNodeWithOptions(t, tc, 2, joinOptions{
+		isAirgap:  true,
+		isRestore: true,
+		withEnv:   withEnv,
+	})
 
 	// wait for the nodes to report as ready.
 	waitForNodes(t, tc, 3, withEnv, "true")

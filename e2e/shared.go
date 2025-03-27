@@ -129,7 +129,7 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 	}
 	t.Log("controller join token command:", command)
 
-	if opts.isAirgap {
+	if opts.isAirgap && !opts.isRestore { // skip airgap prepare for restore as it's already done on the initial installation
 		t.Logf("%s: preparing embedded cluster airgap files on node %d", time.Now().Format(time.RFC3339), node)
 		if _, _, err := tc.RunCommandOnNode(node, []string{"airgap-prepare.sh"}, opts.withEnv); err != nil {
 			t.Fatalf("fail to prepare airgap files on node %d: %v", node, err)
