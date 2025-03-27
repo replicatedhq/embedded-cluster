@@ -10,6 +10,10 @@ import (
 )
 
 func TestOpenEBS_AnalyticsDisabled(t *testing.T) {
+	t.Parallel()
+
+	util.SetupCtrlLogging(t)
+
 	clusterName := util.GenerateClusterName(t)
 	kubeconfig := util.SetupKindCluster(t, clusterName, nil)
 
