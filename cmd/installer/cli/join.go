@@ -28,19 +28,18 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
 type JoinCmdFlags struct {
-	airgapBundle           string
-	isAirgap               bool
-	enableHighAvailability bool
-	networkInterface       string
-	assumeYes              bool
-	skipHostPreflights     bool
-	ignoreHostPreflights   bool
+	airgapBundle         string
+	isAirgap             bool
+	noHA                 bool
+	networkInterface     string
+	assumeYes            bool
+	skipHostPreflights   bool
+	ignoreHostPreflights bool
 }
 
 // JoinCmd returns a cobra command for joining a node to the cluster.
@@ -108,11 +107,7 @@ func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
 	cmd.Flags().StringVar(&flags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
 	cmd.Flags().StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
 	cmd.Flags().BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
-
-	cmd.Flags().BoolVar(&flags.enableHighAvailability, "enable-ha", false, "Enable high availability.")
-	if err := cmd.Flags().MarkHidden("enable-ha"); err != nil {
-		return err
-	}
+	cmd.Flags().BoolVar(&flags.noHA, "no-ha", false, "Do not prompt for or enable high availability.")
 
 	cmd.Flags().BoolVar(&flags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
 	if err := cmd.Flags().MarkHidden("skip-host-preflights"); err != nil {
@@ -202,30 +197,8 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		return nil
 	}
 
-	if flags.enableHighAvailability {
-		kclient, err := kubeutils.GetClientset()
-		if err != nil {
-			return fmt.Errorf("unable to create kubernetes client: %w", err)
-		}
-
-		airgapChartsPath := ""
-		if flags.isAirgap {
-			airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
-		}
-
-		hcli, err := helm.NewClient(helm.HelmOptions{
-			KubeConfig: runtimeconfig.PathToKubeConfig(),
-			K0sVersion: versions.K0sVersion,
-			AirgapPath: airgapChartsPath,
-		})
-		if err != nil {
-			return fmt.Errorf("unable to create helm client: %w", err)
-		}
-		defer hcli.Close()
-
-		if err := maybeEnableHA(ctx, kcli, kclient, hcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config); err != nil {
-			return fmt.Errorf("unable to enable high availability: %w", err)
-		}
+	if err := maybeEnableHA(ctx, kcli, flags, cidrCfg.ServiceCIDR, jcmd); err != nil {
+		return fmt.Errorf("unable to enable high availability: %w", err)
 	}
 
 	logrus.Debugf("controller node join finished")
@@ -522,7 +495,12 @@ func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string,
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interface, hcli helm.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, serviceCIDR string, jcmd *kotsadm.JoinCommandResponse) error {
+	if flags.noHA {
+		logrus.Debug("--no-ha flag provided, skipping high availability")
+		return nil
+	}
+
 	canEnableHA, _, err := addons.CanEnableHA(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
@@ -530,16 +508,49 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.I
 	if !canEnableHA {
 		return nil
 	}
-	logrus.Info("")
-	logrus.Info("You can enable high availability when adding a third controller node or more. This will migrate data so that it is replicated across cluster nodes. Once enabled, you must maintain at least three controller nodes.")
-	logrus.Info("")
-	shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", false)
-	if !shouldEnableHA {
-		return nil
+
+	if !flags.assumeYes {
+		logrus.Info("")
+		logrus.Info("You can enable high availability when adding a third controller node or more. This will migrate data so that it is replicated across cluster nodes. Once enabled, you must maintain at least three controller nodes.")
+		logrus.Info("")
+		shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", true)
+		if !shouldEnableHA {
+			return nil
+		}
+		logrus.Info("")
 	}
-	logrus.Info("")
+
+	kclient, err := kubeutils.GetClientset()
+	if err != nil {
+		return fmt.Errorf("unable to create kubernetes client: %w", err)
+	}
+
+	airgapChartsPath := ""
+	if flags.isAirgap {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create helm client: %w", err)
+	}
+	defer hcli.Close()
 
 	loading := spinner.Start()
 	defer loading.Close()
-	return addons.EnableHA(ctx, kcli, kclient, hcli, isAirgap, serviceCIDR, proxy, cfgspec, loading.Infof)
+
+	return addons.EnableHA(
+		ctx,
+		kcli,
+		kclient,
+		hcli,
+		flags.isAirgap,
+		serviceCIDR,
+		jcmd.InstallationSpec.Proxy,
+		jcmd.InstallationSpec.Config,
+		loading.Infof,
+	)
 }
