@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
@@ -386,7 +387,7 @@ func (h *hostInfo) getHostName() error {
 	if err != nil {
 		return fmt.Errorf("unable to get hostname: %w", err)
 	}
-	h.Hostname = hostname
+	h.Hostname = strings.ToLower(hostname)
 	return nil
 }
 
