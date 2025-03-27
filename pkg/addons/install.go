@@ -50,8 +50,7 @@ func Install(ctx context.Context, hcli helm.Client, opts InstallOptions) error {
 		overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
 		if err := addon.Install(ctx, kcli, hcli, overrides, loading); err != nil {
-			loading.Errorf("Failed to install %s", addon.Name())
-			loading.CloseWithError()
+			loading.ErrorClosef("Failed to install %s", addon.Name())
 			return errors.Wrapf(err, "install %s", addon.Name())
 		}
 

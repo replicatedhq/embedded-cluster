@@ -143,8 +143,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 		},
 	}
 	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, airgapUpdateArgs...); err != nil {
-		loading.Errorf("Failed to update")
-		loading.CloseWithError()
+		loading.ErrorClosef("Failed to update")
 		return fmt.Errorf("unable to update the application: %w", err)
 	}
 
@@ -201,8 +200,7 @@ func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
 	loading.Infof("Configuring backup storage location")
 
 	if _, err := helpers.RunCommand(kotsBinPath, veleroConfigureOtherS3Args...); err != nil {
-		loading.Errorf("Failed to configure backup storage location")
-		loading.CloseWithError()
+		loading.ErrorClosef("Failed to configure backup storage location")
 		return fmt.Errorf("unable to configure s3: %w", err)
 	}
 

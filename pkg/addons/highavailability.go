@@ -74,7 +74,7 @@ func EnableHA(
 			if err != nil {
 				return errors.Wrap(err, "ensure seaweedfs")
 			}
-			logrus.Debugf("Seaweedfs installed!")
+			logrus.Debugf("Seaweedfs installed")
 
 			logrus.Debugf("Scaling registry to 0 replicas")
 			// if the migration fails, we need to scale the registry back to 1
@@ -89,14 +89,14 @@ func EnableHA(
 			if err != nil {
 				return errors.Wrap(err, "migrate registry data")
 			}
-			logrus.Debugf("Data migration complete!")
+			logrus.Debugf("Data migration complete")
 
 			logFn("Enabling high availability for the registry")
 			err = enableRegistryHA(ctx, kcli, hcli, serviceCIDR, cfgspec)
 			if err != nil {
 				return errors.Wrap(err, "enable registry high availability")
 			}
-			logrus.Debugf("Registry high availability enabled!")
+			logrus.Debugf("Registry high availability enabled")
 		}
 	}
 
@@ -105,7 +105,7 @@ func EnableHA(
 	if err != nil {
 		return errors.Wrap(err, "enable admin console high availability")
 	}
-	logrus.Debugf("Admin console high availability enabled!")
+	logrus.Debugf("Admin console high availability enabled")
 
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
@@ -118,7 +118,7 @@ func EnableHA(
 		return errors.Wrap(err, "update installation")
 	}
 
-	logFn("High availability enabled!")
+	logFn("High availability enabled")
 	return nil
 }
 

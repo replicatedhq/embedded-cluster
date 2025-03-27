@@ -132,7 +132,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 
 	cidrCfg, err := initializeJoin(ctx, name, flags, jcmd)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to initialize join: %w", err)
 	}
 
 	logrus.Debugf("running join preflights")
@@ -177,8 +177,35 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		return nil
 	}
 
+<<<<<<< HEAD
 	if err := maybeEnableHA(ctx, kcli, flags, cidrCfg.ServiceCIDR, jcmd); err != nil {
 		return fmt.Errorf("unable to enable high availability: %w", err)
+=======
+	if flags.enableHighAvailability {
+		kclient, err := kubeutils.GetClientset()
+		if err != nil {
+			return fmt.Errorf("unable to create kubernetes client: %w", err)
+		}
+
+		airgapChartsPath := ""
+		if flags.isAirgap {
+			airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+		}
+
+		hcli, err := helm.NewClient(helm.HelmOptions{
+			KubeConfig: runtimeconfig.PathToKubeConfig(),
+			K0sVersion: versions.K0sVersion,
+			AirgapPath: airgapChartsPath,
+		})
+		if err != nil {
+			return fmt.Errorf("unable to create helm client: %w", err)
+		}
+		defer hcli.Close()
+
+		if err := maybeEnableHA(ctx, kcli, kclient, hcli, flags.isAirgap, cidrCfg.ServiceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config); err != nil {
+			return fmt.Errorf("unable to enable high availability: %w", err)
+		}
+>>>>>>> b8eb1941 (more changes)
 	}
 
 	logrus.Debugf("controller node join finished")

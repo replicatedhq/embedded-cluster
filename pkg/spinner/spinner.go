@@ -50,6 +50,11 @@ func (m *MessageWriter) Closef(format string, args ...interface{}) {
 	m.Close()
 }
 
+func (m *MessageWriter) ErrorClosef(format string, args ...interface{}) {
+	m.ch <- fmt.Sprintf(format, args...)
+	m.CloseWithError()
+}
+
 // Close closes the MessageWriter inner channel.
 func (m *MessageWriter) Close() {
 	close(m.ch)

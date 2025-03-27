@@ -38,6 +38,15 @@ func TestStartAndClosef(t *testing.T) {
 	time.Sleep(time.Second)
 	pb.Closef("closing with this  value")
 	assert.Contains(t, buf.String(), "closing with this  value")
+	assert.Contains(t, buf.String(), "✔") // Should contain success symbol
+}
+
+func TestStartAndErrorClosef(t *testing.T) {
+	pb, buf := startTest()
+	pb.Infof("hello")
+	pb.ErrorClosef("error occurred: %s", "something went wrong")
+	assert.Contains(t, buf.String(), "error occurred: something went wrong")
+	assert.Contains(t, buf.String(), "✗") // Should contain error symbol
 }
 
 func TestStartAndClose(t *testing.T) {

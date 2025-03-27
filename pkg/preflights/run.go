@@ -118,7 +118,7 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 
 	output, stderr, err := Run(ctx, hpf, opts.Proxy)
 	if err != nil {
-		pb.CloseWithError()
+		pb.ErrorClosef("Failed to run host preflights")
 		return fmt.Errorf("host preflights failed to run: %w", err)
 	}
 	if stderr != "" {
@@ -143,12 +143,11 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 		}
 
 		if output.HasWarn() {
-			pb.Errorf("%d host %s failed and %d warned", len(output.Fail), s, len(output.Warn))
+			pb.ErrorClosef("%d host %s failed and %d warned", len(output.Fail), s, len(output.Warn))
 		} else {
-			pb.Errorf("%d host %s failed", len(output.Fail), s)
+			pb.ErrorClosef("%d host %s failed", len(output.Fail), s)
 		}
 
-		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
 
 		if opts.IgnoreHostPreflights {
