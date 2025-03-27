@@ -379,7 +379,7 @@ func ConfigureProxy(in *ClusterInput) {
 	// http requests using the proxy. we also copy the squid ca to the nodes and make
 	// them trust it.
 	for i := 0; i < in.Nodes; i++ {
-		name := fmt.Sprintf("node-%s-%02d", in.id, i)
+		name := fmt.Sprintf("Node-%s-%02d", in.id, i)
 		RunCommand(in, []string{"mkdir", "-p", "/usr/local/share/ca-certificates/proxy"}, name)
 
 		CopyFileToNode(in, name, File{
