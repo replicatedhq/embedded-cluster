@@ -1,30 +1,83 @@
 package util
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
+	clientcmd "k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/yaml"
 )
 
+// SetupCtrlLogging returns a function that can be used to capture the logs from the controller-runtime package.
+func SetupCtrlLogging(t *testing.T) {
+	pr, pw := io.Pipe()
+	k8slogger := ctrlzap.New(func(o *zap.Options) {
+		o.DestWriter = pw
+	})
+	ctrllog.SetLogger(k8slogger)
+
+	go func() {
+		scanner := bufio.NewScanner(pr)
+		for scanner.Scan() {
+			t.Log(scanner.Text())
+		}
+	}()
+}
+
+func CtrlClient(t *testing.T, kubeconfig string) client.Client {
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		t.Fatalf("failed to build config from flags: %s", err)
+	}
+
+	// Create Kubernetes clients
+	kcli, err := client.New(config, client.Options{})
+	if err != nil {
+		t.Fatalf("failed to create kubernetes client: %s", err)
+	}
+	return kcli
+}
+
+func KubeClient(t *testing.T, kubeconfig string) kubernetes.Interface {
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		t.Fatalf("failed to build config from flags: %s", err)
+	}
+	kclient, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		t.Fatalf("failed to create kubernetes client: %s", err)
+	}
+	return kclient
+}
+
 func KubectlApply(t *testing.T, kubeconfig string, namespace string, file string) {
-	t.Logf("applying %s", file)
-	out, err := exec.Command("kubectl", "--kubeconfig", kubeconfig, "apply", "-f", file, "-n", namespace).CombinedOutput()
+	t.Logf("applying %s", filepath.Base(file))
+	out, err := exec.Command(
+		"kubectl", "--kubeconfig", kubeconfig, "apply", "-f", file, "-n", namespace,
+	).CombinedOutput()
 	if err != nil {
 		t.Logf("output: %s", out)
 		t.Fatalf("failed to apply %s: %s", file, err)
 	}
-	t.Logf("applied %s", file)
+	t.Logf("applied %s", filepath.Base(file))
 }
 
 func WaitForPodComplete(t *testing.T, kubeconfig string, namespace string, name string, timeout time.Duration) {
 	t.Logf("waiting for pod %s:%s to be succeeded", namespace, name)
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(t.Context(), timeout)
 	defer cancel()
 	err := wait.PollUntilContextCancel(ctx, 2*time.Second, true, func(ctx context.Context) (bool, error) {
 		return isPodSucceeded(kubeconfig, namespace, name)
@@ -46,13 +99,15 @@ func isPodSucceeded(kubeconfig string, namespace string, name string) (bool, err
 	}
 	if string(out) == "Succeeded" {
 		return true, nil
+	} else if string(out) == "Failed" {
+		return false, fmt.Errorf("pod failed")
 	}
 	return false, nil
 }
 
 func WaitForDeployment(t *testing.T, kubeconfig string, namespace string, name string, replicas int, timeout time.Duration) {
 	t.Logf("waiting for deployment %s:%s to be ready", namespace, name)
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(t.Context(), timeout)
 	defer cancel()
 	err := wait.PollUntilContextCancel(ctx, 2*time.Second, true, func(ctx context.Context) (bool, error) {
 		return isDeploymentReady(kubeconfig, namespace, name, replicas)
@@ -94,7 +149,7 @@ func GetDeployment(t *testing.T, kubeconfig string, namespace string, name strin
 
 func WaitForStorageClass(t *testing.T, kubeconfig string, name string, timeout time.Duration) {
 	t.Logf("waiting for storageclass %s", name)
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(t.Context(), timeout)
 	defer cancel()
 	err := wait.PollUntilContextCancel(ctx, 2*time.Second, true, func(ctx context.Context) (bool, error) {
 		cmd := exec.Command(

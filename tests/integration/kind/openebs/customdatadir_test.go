@@ -1,14 +1,12 @@
 package openebs
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util/kind"
@@ -18,6 +16,8 @@ import (
 
 func TestOpenEBS_CustomDataDir(t *testing.T) {
 	t.Parallel()
+
+	util.SetupCtrlLogging(t)
 
 	clusterName := util.GenerateClusterName(t)
 	kindConfig := util.NewKindClusterConfig(t, clusterName, nil)
@@ -31,14 +31,13 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 
 	runtimeconfig.SetDataDir("/custom")
 
-	hcli, err := helm.NewClient(helm.HelmOptions{KubeConfig: kubeconfig})
-	require.NoError(t, err)
-	defer hcli.Close()
+	kcli := util.CtrlClient(t, kubeconfig)
+	hcli := util.HelmClient(t, kubeconfig)
 
 	addon := &openebs.OpenEBS{
 		ProxyRegistryDomain: "proxy.replicated.com",
 	}
-	if err := addon.Install(context.Background(), nil, hcli, nil, nil); err != nil {
+	if err := addon.Install(t.Context(), kcli, hcli, nil, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 
@@ -47,7 +46,7 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 	// create a Pod and PVC to test that the data dir is mounted
 	createPodAndPVC(t, kubeconfig)
 
-	_, err = os.Stat(filepath.Join(dataDir, "openebs-local"))
+	_, err := os.Stat(filepath.Join(dataDir, "openebs-local"))
 	require.NoError(t, err, "failed to find %s data dir")
 	entries, err := os.ReadDir(dataDir)
 	require.NoError(t, err, "failed to read openebs data dir")
