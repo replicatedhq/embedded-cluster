@@ -172,7 +172,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	}
 
 	loading.Closef("Node is ready")
-	logrus.Infof("\nNode joined the cluster successfully")
+	logrus.Infof("\n\033[1mNode joined the cluster successfully\033[0m")
 	if isWorker {
 		logrus.Debugf("worker node join finished")
 		return nil
