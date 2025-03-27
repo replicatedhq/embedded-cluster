@@ -134,8 +134,8 @@ func EnableHA(
 	}
 
 	logrus.Debug("high availability enabled")
-	spinner.Infof("High availability enabled")
-	logrus.Info("\nHigh availability is now enabled. You must maintain at least three controller nodes.")
+	spinner.Closef("High availability enabled")
+	logrus.Info("\n\033[1mHigh availability is now enabled. You must maintain at least three controller nodes.\033[0m")
 	return nil
 }
 
