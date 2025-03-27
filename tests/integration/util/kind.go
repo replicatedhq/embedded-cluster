@@ -57,7 +57,24 @@ func CreateKindClusterFromConfig(t *testing.T, config kind.Cluster) string {
 	}
 	t.Logf("created kind cluster %s", config.Name)
 	waitForDefaultServiceAccount(t, kubeconfig, 30*time.Second)
+	nodes := kindListNodes(t, config.Name)
+	for _, node := range nodes {
+		removeControlPlaneNodeTaint(t, kubeconfig, node)
+	}
 	return kubeconfig
+}
+
+func removeControlPlaneNodeTaint(t *testing.T, kubeconfig string, node string) {
+	out, err := exec.Command(
+		"kubectl", "--kubeconfig", kubeconfig, "taint", "nodes", node, "node-role.kubernetes.io/control-plane:NoSchedule-",
+	).CombinedOutput()
+	if err != nil {
+		if strings.Contains(string(out), "\" not found") {
+			return
+		}
+		t.Logf("output: %s", out)
+		t.Fatalf("failed to remove control plane node taint from node %s: %s", node, err)
+	}
 }
 
 func DeleteKindCluster(t *testing.T, name string) {
@@ -90,7 +107,24 @@ func KindGetExposedPort(t *testing.T, name string, containerPort string) string 
 	return ""
 }
 
+const containerdConfigPatch = `
+[plugins."io.containerd.cri.v1.images".registry]
+   config_path = "/etc/containerd/certs.d"
+`
+
+const containerdHostsFile = `
+[host."https://10.96.0.11:5000"]
+  capabilities = ["pull", "resolve", "push"]
+  skip_verify = true
+`
+
 func NewKindClusterConfig(t *testing.T, name string, opts *KindClusterOptions) kind.Cluster {
+	hostFile := WriteTempFile(t, "containerd-hosts-*.yaml", []byte(containerdHostsFile), 0644)
+	hostMount := kind.Mount{
+		HostPath:      hostFile,
+		ContainerPath: "/etc/containerd/certs.d/10.96.0.11_5000_/hosts.toml",
+	}
+
 	config := kind.Cluster{
 		APIVersion: "kind.x-k8s.io/v1alpha4",
 		Kind:       "Cluster",
@@ -99,6 +133,9 @@ func NewKindClusterConfig(t *testing.T, name string, opts *KindClusterOptions) k
 			// same as k0s
 			PodSubnet:     "10.244.0.0/16",
 			ServiceSubnet: "10.96.0.0/12",
+		},
+		ContainerdConfigPatches: []string{
+			containerdConfigPatch,
 		},
 	}
 	numControllerNodes := 1
@@ -119,18 +156,20 @@ func NewKindClusterConfig(t *testing.T, name string, opts *KindClusterOptions) k
 			})
 		}
 	}
-	for i := 0; i < numControllerNodes; i++ {
+	for i := range numControllerNodes {
 		node := kind.Node{
-			Role: "control-plane",
+			Role:        "control-plane",
+			ExtraMounts: []kind.Mount{hostMount},
 		}
 		if numWorkerNodes == 0 && i == 0 {
 			node.ExtraPortMappings = portMappings
 		}
 		config.Nodes = append(config.Nodes, node)
 	}
-	for i := 0; i < numWorkerNodes; i++ {
+	for i := range numWorkerNodes {
 		node := kind.Node{
-			Role: "worker",
+			Role:        "worker",
+			ExtraMounts: []kind.Mount{hostMount},
 		}
 		if i == 0 {
 			node.ExtraPortMappings = portMappings
@@ -160,8 +199,10 @@ func kindListNodes(t *testing.T, name string) []string {
 		t.Fatalf("failed to get kind nodes: %s", err)
 	}
 	var nodes []string
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		if line == "" {
+			continue
+		} else if strings.HasSuffix(line, "-external-load-balancer") {
 			continue
 		}
 		nodes = append(nodes, strings.TrimSpace(line))
@@ -174,7 +215,7 @@ func kindNodeGetExposedPorts(t *testing.T, name string) KindExposedPorts {
 	if err != nil {
 		t.Fatalf("failed to get docker container inspect: %s", err)
 	}
-	var inspect struct {
+	var inspect []struct {
 		NetworkSettings struct {
 			Ports map[string][]struct {
 				HostPort string `json:"HostPort"`
@@ -185,8 +226,11 @@ func kindNodeGetExposedPorts(t *testing.T, name string) KindExposedPorts {
 	if err != nil {
 		t.Fatalf("failed to unmarshal docker container inspect: %s", err)
 	}
+	if len(inspect) != 1 {
+		t.Fatalf("expected 1 container, got %d", len(inspect))
+	}
 	ports := KindExposedPorts{}
-	for port, bindings := range inspect.NetworkSettings.Ports {
+	for port, bindings := range inspect[0].NetworkSettings.Ports {
 		containerPort := strings.Split(port, "/")[0]
 		for _, p := range bindings {
 			ports[containerPort] = p.HostPort

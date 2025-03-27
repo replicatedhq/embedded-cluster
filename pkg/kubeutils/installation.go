@@ -2,6 +2,7 @@ package kubeutils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -64,7 +65,12 @@ func (k *KubeUtils) WaitForInstallation(ctx context.Context, cli client.Client, 
 		},
 	); err != nil {
 		if wait.Interrupted(err) {
-			if lasterr != nil {
+			if errors.Is(err, context.Canceled) {
+				if lasterr != nil {
+					err = errors.Join(err, lasterr)
+				}
+				return err
+			} else if lasterr != nil {
 				return fmt.Errorf("timed out waiting for the installation to finish: %v", lasterr)
 			} else {
 				return fmt.Errorf("timed out waiting for the installation to finish")

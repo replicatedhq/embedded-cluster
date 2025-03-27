@@ -2,6 +2,7 @@ package kubeutils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -32,7 +33,12 @@ func (k *KubeUtils) WaitForNamespace(ctx context.Context, cli client.Client, ns 
 			return ready, nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
 			return fmt.Errorf("timed out waiting for namespace %s: %v", ns, lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for namespace %s", ns)
@@ -55,7 +61,12 @@ func (k *KubeUtils) WaitForDeployment(ctx context.Context, cli client.Client, ns
 			return ready, nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
 			return fmt.Errorf("timed out waiting for %s to deploy: %v", name, lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for %s to deploy", name)
@@ -78,7 +89,12 @@ func (k *KubeUtils) WaitForDaemonset(ctx context.Context, cli client.Client, ns,
 			return ready, nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
 			return fmt.Errorf("timed out waiting for %s to deploy: %v", name, lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for %s to deploy", name)
@@ -101,7 +117,12 @@ func (k *KubeUtils) WaitForService(ctx context.Context, cli client.Client, ns, n
 			return svc.Spec.ClusterIP != "", nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
 			return fmt.Errorf("timed out waiting for service %s to have an IP: %v", name, lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for service %s to have an IP", name)
@@ -145,10 +166,16 @@ func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name 
 			return false, nil
 		},
 	); err != nil {
-		if lasterr != nil {
-			return lasterr
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
+			return fmt.Errorf("timed out waiting for job %s: %w", name, lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for job %s", name)
 		}
-		return fmt.Errorf("timed out waiting for job %s", name)
 	}
 	return nil
 }
@@ -173,7 +200,12 @@ func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, n
 			return pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed, nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return &pod, err
+		} else if lasterr != nil {
 			return &pod, fmt.Errorf("timed out waiting for pod %s: %w", name, lasterr)
 		} else {
 			return &pod, fmt.Errorf("timed out waiting for pod %s", name)
@@ -203,7 +235,12 @@ func (k *KubeUtils) WaitForNodes(ctx context.Context, cli client.Client) error {
 			return readynodes == len(nodes.Items) && len(nodes.Items) > 0, nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
 			return fmt.Errorf("timed out waiting for nodes to be ready: %v", lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for nodes to be ready")
@@ -238,7 +275,12 @@ func (k *KubeUtils) WaitForNode(ctx context.Context, kcli client.Client, name st
 			return false, nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
 			return fmt.Errorf("timed out waiting for node %s: %w", name, lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for node %s", name)

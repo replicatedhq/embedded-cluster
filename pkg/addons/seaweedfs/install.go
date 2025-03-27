@@ -4,42 +4,44 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
-	return s.Upgrade(ctx, kcli, hcli, overrides)
-}
-
-func (s *SeaweedFS) Uninstall(ctx context.Context, kcli client.Client) error {
-	ns := corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
-		},
-	}
-	err := kcli.Delete(ctx, &ns)
-	if client.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, "delete namespace")
+	if err := s.ensurePreRequisites(ctx, kcli); err != nil {
+		return errors.Wrap(err, "create prerequisites")
 	}
 
-	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, 1*time.Minute, false, func(ctx context.Context) (bool, error) {
-		err := kcli.Get(ctx, client.ObjectKey{Name: namespace}, &corev1.Namespace{})
-		return err != nil, nil
+	values, err := s.GenerateHelmValues(ctx, kcli, overrides)
+	if err != nil {
+		return errors.Wrap(err, "generate helm values")
+	}
+
+	err = ensurePostInstallHooksDeleted(ctx, kcli)
+	if err != nil {
+		return errors.Wrap(err, "ensure hooks deleted")
+	}
+
+	_, err = hcli.Install(ctx, helm.InstallOptions{
+		ReleaseName:  releaseName,
+		ChartPath:    s.ChartLocation(),
+		ChartVersion: Metadata.Version,
+		Values:       values,
+		Namespace:    namespace,
+		Labels:       getBackupLabels(),
 	})
 	if err != nil {
-		return errors.Wrap(err, "wait for namespace to be deleted")
+		return errors.Wrap(err, "helm install")
 	}
-
 	return nil
 }
 
@@ -158,6 +160,23 @@ func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 
 	if err := kcli.Create(ctx, obj); client.IgnoreAlreadyExists(err) != nil {
 		return errors.Wrap(err, "create s3 secret")
+	}
+
+	return nil
+}
+
+// ensurePostInstallHooksDeleted will delete helm hooks if for some reason they fail. It is
+// necessary if the hook does not have the "before-hook-creation" delete policy.
+func ensurePostInstallHooksDeleted(ctx context.Context, kcli client.Client) error {
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      fmt.Sprintf("%s-bucket-hook", releaseName),
+		},
+	}
+	err := kcli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground))
+	if client.IgnoreNotFound(err) != nil {
+		return errors.Wrapf(err, "delete %s-bucket-hook job", releaseName)
 	}
 
 	return nil

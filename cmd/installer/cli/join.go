@@ -551,6 +551,6 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 		serviceCIDR,
 		jcmd.InstallationSpec.Proxy,
 		jcmd.InstallationSpec.Config,
-		loading.Infof,
+		loading,
 	)
 }
