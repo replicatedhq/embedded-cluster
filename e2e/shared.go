@@ -33,10 +33,11 @@ type installationStateOptions struct {
 }
 
 type joinOptions struct {
-	isAirgap  bool
-	isHA      bool
-	isRestore bool
-	withEnv   map[string]string
+	isAirgap   bool
+	isHA       bool
+	isRestore  bool
+	keepAssets bool
+	withEnv    map[string]string
 }
 
 func installSingleNode(t *testing.T, tc cluster.Cluster) {
@@ -156,6 +157,18 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 		t.Fatalf("fail to join node %d as a controller%s: %v: %s: %s",
 			node, map[bool]string{true: " in ha mode", false: ""}[opts.isHA], err, stdout, stderr)
 	}
+
+	if opts.isAirgap && !opts.keepAssets {
+		// remove the airgap bundle and binary after joining
+		line := []string{"rm", "/assets/release.airgap"}
+		if _, _, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
+			t.Fatalf("fail to remove airgap bundle on node %d: %v", node, err)
+		}
+		line = []string{"rm", "/usr/local/bin/embedded-cluster"}
+		if _, _, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
+			t.Fatalf("fail to remove embedded-cluster binary on node %d: %v", node, err)
+		}
+	}
 }
 
 func joinWorkerNode(t *testing.T, tc cluster.Cluster, node int) {
@@ -186,7 +199,7 @@ func joinWorkerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts 
 		t.Fatalf("fail to join node %d to the cluster as a worker: %v: %s: %s", node, err, stdout, stderr)
 	}
 
-	if opts.isAirgap {
+	if opts.isAirgap && !opts.keepAssets {
 		// remove the airgap bundle and binary after joining
 		line := []string{"rm", "/assets/release.airgap"}
 		if _, _, err := tc.RunCommandOnNode(node, line); err != nil {
