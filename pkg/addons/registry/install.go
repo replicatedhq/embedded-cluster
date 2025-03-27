@@ -6,13 +6,11 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -44,10 +42,6 @@ func (r *Registry) Install(ctx context.Context, kcli client.Client, hcli helm.Cl
 		return errors.Wrap(err, "helm install")
 	}
 
-	if err := airgap.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
-		return errors.Wrap(err, "add containerd registry config")
-	}
-
 	return nil
 }
 
@@ -73,7 +67,7 @@ func createNamespace(ctx context.Context, kcli client.Client, namespace string) 
 			Name: namespace,
 		},
 	}
-	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
+	if err := kcli.Create(ctx, &ns); client.IgnoreAlreadyExists(err) != nil {
 		return err
 	}
 	return nil

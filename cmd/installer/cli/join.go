@@ -28,6 +28,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 )
@@ -42,9 +43,7 @@ type JoinCmdFlags struct {
 	ignoreHostPreflights bool
 }
 
-// This is the upcoming version of join without the operator and where
-// join does all of the work. This is a hidden command until it's tested
-// and ready.
+// JoinCmd returns a cobra command for joining a node to the cluster.
 func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	var flags JoinCmdFlags
 
@@ -199,23 +198,30 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		return nil
 	}
 
-	airgapChartsPath := ""
-	if flags.isAirgap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
-	}
+	if flags.enableHighAvailability {
+		kclient, err := kubeutils.GetClientset()
+		if err != nil {
+			return fmt.Errorf("unable to create kubernetes client: %w", err)
+		}
 
-	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to create helm client: %w", err)
-	}
-	defer hcli.Close()
+		airgapChartsPath := ""
+		if flags.isAirgap {
+			airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+		}
 
-	if err := maybeEnableHA(ctx, kcli, hcli, flags, cidrCfg.ServiceCIDR, jcmd); err != nil {
-		return fmt.Errorf("unable to enable high availability: %w", err)
+		hcli, err := helm.NewClient(helm.HelmOptions{
+			KubeConfig: runtimeconfig.PathToKubeConfig(),
+			K0sVersion: versions.K0sVersion,
+			AirgapPath: airgapChartsPath,
+		})
+		if err != nil {
+			return fmt.Errorf("unable to create helm client: %w", err)
+		}
+		defer hcli.Close()
+
+		if err := maybeEnableHA(ctx, kcli, kclient, hcli, flags, cidrCfg.ServiceCIDR, jcmd); err != nil {
+			return fmt.Errorf("unable to enable high availability: %w", err)
+		}
 	}
 
 	logrus.Debugf("controller node join finished")
@@ -512,13 +518,13 @@ func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string,
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, flags JoinCmdFlags, serviceCIDR string, jcmd *kotsadm.JoinCommandResponse) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interface, hcli helm.Client, flags JoinCmdFlags, serviceCIDR string, jcmd *kotsadm.JoinCommandResponse) error {
 	if flags.noHA {
 		logrus.Debug("--no-ha flag provided, skipping high availability")
 		return nil
 	}
 
-	canEnableHA, err := addons.CanEnableHA(ctx, kcli)
+	canEnableHA, _, err := addons.CanEnableHA(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
 	}
@@ -537,5 +543,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, hcli helm.Client, fl
 		logrus.Info("")
 	}
 
-	return addons.EnableHA(ctx, kcli, hcli, flags.isAirgap, serviceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config)
+	loading := spinner.Start()
+	defer loading.Close()
+	return addons.EnableHA(ctx, kcli, kclient, hcli, flags.isAirgap, serviceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config, loading.Infof)
 }

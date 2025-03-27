@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -25,7 +26,7 @@ type KubeUtilsInterface interface {
 	WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForService(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForJob(ctx context.Context, cli client.Client, ns, name string, completions int32, opts *WaitOptions) error
-	WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
+	WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) (*corev1.Pod, error)
 	WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error
 	WaitForNodes(ctx context.Context, cli client.Client) error
 	WaitForNode(ctx context.Context, kcli client.Client, name string, isWorker bool) error
@@ -33,7 +34,6 @@ type KubeUtilsInterface interface {
 	IsDeploymentReady(ctx context.Context, cli client.Client, ns, name string) (bool, error)
 	IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error)
 	IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error)
-	IsJobComplete(ctx context.Context, cli client.Client, ns, name string, completions int32) (bool, error)
 	WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error
 	WaitForCRDToBeReady(ctx context.Context, cli client.Client, name string) error
 	KubeClient() (client.Client, error)
@@ -74,7 +74,7 @@ func WaitForJob(ctx context.Context, cli client.Client, ns, name string, complet
 	return kb.WaitForJob(ctx, cli, ns, name, completions, opts)
 }
 
-func WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
+func WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) (*corev1.Pod, error) {
 	return kb.WaitForPodComplete(ctx, cli, ns, name, opts)
 }
 
@@ -104,10 +104,6 @@ func IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string)
 
 func IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
 	return kb.IsDaemonsetReady(ctx, cli, ns, name)
-}
-
-func IsJobComplete(ctx context.Context, cli client.Client, ns, name string, completions int32) (bool, error) {
-	return kb.IsJobComplete(ctx, cli, ns, name, completions)
 }
 
 func WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error {

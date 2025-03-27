@@ -27,8 +27,8 @@ const (
 	// lowerBandIPIndex is the index of the seaweedfs service IP in the service CIDR.
 	lowerBandIPIndex = 11
 
-	// s3SecretName is the name of the Seaweedfs secret.
-	// This secret name is defined in the chart in the release metadata.
+	// s3SecretName is the name of the secret containing the s3 credentials.
+	// This secret name is defined in the values-ha.yaml file in the release metadata.
 	s3SecretName = "secret-seaweedfs-s3"
 )
 
