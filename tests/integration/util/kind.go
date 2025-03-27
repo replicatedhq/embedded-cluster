@@ -108,11 +108,23 @@ func KindGetExposedPort(t *testing.T, name string, containerPort string) string 
 }
 
 const containerdConfigPatch = `
-[plugins."io.containerd.grpc.v1.cri".registry.configs."10.96.0.11:5000".tls]
-  insecure_skip_verify = true
+[plugins."io.containerd.cri.v1.images".registry]
+   config_path = "/etc/containerd/certs.d"
+`
+
+const containerdHostsFile = `
+[host."https://10.96.0.11:5000"]
+  capabilities = ["pull", "resolve", "push"]
+  skip_verify = true
 `
 
 func NewKindClusterConfig(t *testing.T, name string, opts *KindClusterOptions) kind.Cluster {
+	hostFile := WriteTempFile(t, "containerd-hosts-*.yaml", []byte(containerdHostsFile), 0644)
+	hostMount := kind.Mount{
+		HostPath:      hostFile,
+		ContainerPath: "/etc/containerd/certs.d/10.96.0.11_5000_/hosts.toml",
+	}
+
 	config := kind.Cluster{
 		APIVersion: "kind.x-k8s.io/v1alpha4",
 		Kind:       "Cluster",
@@ -146,7 +158,8 @@ func NewKindClusterConfig(t *testing.T, name string, opts *KindClusterOptions) k
 	}
 	for i := range numControllerNodes {
 		node := kind.Node{
-			Role: "control-plane",
+			Role:        "control-plane",
+			ExtraMounts: []kind.Mount{hostMount},
 		}
 		if numWorkerNodes == 0 && i == 0 {
 			node.ExtraPortMappings = portMappings
@@ -155,7 +168,8 @@ func NewKindClusterConfig(t *testing.T, name string, opts *KindClusterOptions) k
 	}
 	for i := range numWorkerNodes {
 		node := kind.Node{
-			Role: "worker",
+			Role:        "worker",
+			ExtraMounts: []kind.Mount{hostMount},
 		}
 		if i == 0 {
 			node.ExtraPortMappings = portMappings
