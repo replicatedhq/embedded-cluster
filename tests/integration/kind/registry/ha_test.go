@@ -215,17 +215,19 @@ func buildOperatorImage(t *testing.T) string {
 	workspaceRoot := filepath.Join(testDir, "..", "..", "..")
 	operatorDir := filepath.Join(workspaceRoot, "operator")
 
-	cmd := exec.CommandContext(t.Context(), "make", "-C", operatorDir,
-		"build-and-push-operator-image", "USE_CHAINGUARD=0",
-		"IMAGE_NAME=ttl.sh/replicated/embedded-cluster-operator-image",
-	)
+	if os.Getenv("SKIP_OPERATOR_IMAGE_BUILD") == "" {
+		cmd := exec.CommandContext(t.Context(), "make", "-C", operatorDir,
+			"build-and-push-operator-image", "USE_CHAINGUARD=0",
+			"IMAGE_NAME=ttl.sh/replicated/embedded-cluster-operator-image",
+		)
 
-	var errBuf bytes.Buffer
-	cmd.Stderr = &errBuf
+		var errBuf bytes.Buffer
+		cmd.Stderr = &errBuf
 
-	err := cmd.Run()
-	if err != nil {
-		t.Fatalf("failed to build operator image: %v: %s", err, errBuf.String())
+		err := cmd.Run()
+		if err != nil {
+			t.Fatalf("failed to build operator image: %v: %s", err, errBuf.String())
+		}
 	}
 
 	image, err := os.ReadFile(filepath.Join(operatorDir, "build/image"))
