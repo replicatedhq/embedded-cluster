@@ -74,14 +74,14 @@ fmt: ## Run go fmt against code.
 
 .PHONY: test
 test: manifests envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test -tags exclude_graphdriver_btrfs ./... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test -tags $(GO_BUILD_TAGS) ./... -coverprofile cover.out
 
 ##@ Build
 
 .PHONY: build
 build: ## Build manager binary.
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
-		-tags osusergo,netgo,exclude_graphdriver_btrfs \
+		-tags osusergo,netgo,$(GO_BUILD_TAGS) \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
 		-o bin/manager main.go
 

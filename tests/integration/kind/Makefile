@@ -4,6 +4,8 @@ DEBUG ?=
 PARALLEL ?= 2
 RUN ?=
 
+GO_BUILD_TAGS ?= containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay
+
 .PHONY: test
 test: test-openebs test-registry
 
@@ -31,9 +33,9 @@ clean:
 	rm -f *.test
 
 openebs.test:
-	go test -c -tags "containers_image_openpgp exclude_graphdriver_btrfs exclude_graphdriver_devicemapper exclude_graphdriver_overlay" \
+	go test -c -tags $(GO_BUILD_TAGS) \
 		./openebs
 
 registry.test:
-	go test -c -tags "containers_image_openpgp exclude_graphdriver_btrfs exclude_graphdriver_devicemapper exclude_graphdriver_overlay" \
+	go test -c -tags $(GO_BUILD_TAGS) \
 		./registry
