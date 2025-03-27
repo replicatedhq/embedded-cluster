@@ -32,9 +32,6 @@ import (
 )
 
 func TestRegistry_EnableHAAirgap(t *testing.T) {
-	// This cannot run in parallel because it uses the logrus standard logger
-	// t.Parallel()
-
 	ctx := t.Context()
 
 	t.Log("building operator image")

@@ -15,8 +15,6 @@ import (
 )
 
 func TestOpenEBS_CustomDataDir(t *testing.T) {
-	t.Parallel()
-
 	util.SetupCtrlLogging(t)
 
 	clusterName := util.GenerateClusterName(t)

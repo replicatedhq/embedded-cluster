@@ -1,7 +1,6 @@
 SHELL := /bin/bash
 
 DEBUG ?=
-PARALLEL ?= 2
 RUN ?=
 
 GO_BUILD_TAGS ?= containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay
@@ -14,7 +13,6 @@ test-openebs: openebs.test
 	DEBUG=$(DEBUG) ./openebs.test \
 		-test.v \
 		-test.timeout=5m \
-		-test.parallel=$(PARALLEL) \
 		-test.run='$(value RUN)'
 
 .PHONY: test-registry
@@ -25,7 +23,6 @@ test-registry: registry.test
 	DEBUG=$(DEBUG) SKIP_OPERATOR_IMAGE_BUILD=1 ./registry.test \
 		-test.v \
 		-test.timeout=15m \
-		-test.parallel=$(PARALLEL) \
 		-test.run='$(value RUN)'
 
 .PHONY: clean
