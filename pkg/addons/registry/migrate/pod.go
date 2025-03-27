@@ -42,16 +42,8 @@ func RunDataMigration(ctx context.Context, cli client.Client, kclient kubernetes
 	progressCh := make(chan string)
 	errCh := make(chan error, 1)
 
-	// TODO: this should be an argument
-	clientset, err := kubeutils.GetClientset()
-	if err != nil {
-		return nil, nil, fmt.Errorf("get kubernetes clientset: %w", err)
-	}
-
-	// TODO: should we check seaweedfs health?
-
 	logrus.Debug("Ensuring migration service account")
-	err = ensureMigrationServiceAccount(ctx, cli)
+	err := ensureMigrationServiceAccount(ctx, cli)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ensure service account: %w", err)
 	}
@@ -76,7 +68,7 @@ func RunDataMigration(ctx context.Context, cli client.Client, kclient kubernetes
 		monitorPodStatus(ctx, cli, errCh)
 	}()
 
-	go monitorPodProgress(ctx, cli, clientset, progressCh)
+	go monitorPodProgress(ctx, kclient, progressCh)
 
 	return progressCh, errCh, nil
 }
@@ -133,7 +125,7 @@ func monitorPodStatus(ctx context.Context, cli client.Client, errCh chan<- error
 	}
 }
 
-func monitorPodProgress(ctx context.Context, cli client.Client, kclient kubernetes.Interface, progressCh chan<- string) {
+func monitorPodProgress(ctx context.Context, kclient kubernetes.Interface, progressCh chan<- string) {
 	defer close(progressCh)
 
 	for ctx.Err() == nil {
@@ -342,19 +334,42 @@ func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 		return fmt.Errorf("get seaweedfs s3 rw creds: %w", err)
 	}
 
-	obj := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Namespace: runtimeconfig.RegistryNamespace, Name: seaweedfsS3SecretName},
+	var secret corev1.Secret
+	err = kcli.Get(ctx, client.ObjectKey{
+		Namespace: runtimeconfig.RegistryNamespace,
+		Name:      seaweedfsS3SecretName,
+	}, &secret)
+	if client.IgnoreNotFound(err) != nil {
+		return fmt.Errorf("get secret: %w", err)
+	} else if err == nil {
+		secret.Data = map[string][]byte{
+			"s3AccessKey": []byte(accessKey),
+			"s3SecretKey": []byte(secretKey),
+		}
+
+		if err := kcli.Update(ctx, &secret); err != nil {
+			return fmt.Errorf("update secret: %w", err)
+		}
+
+		return nil
+	}
+
+	secret = corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: runtimeconfig.RegistryNamespace,
+			Name:      seaweedfsS3SecretName,
+			Labels:    seaweedfs.ApplyLabels(secret.ObjectMeta.Labels, "s3"),
+		},
 		Data: map[string][]byte{
 			"s3AccessKey": []byte(accessKey),
 			"s3SecretKey": []byte(secretKey),
 		},
 	}
 
-	obj.ObjectMeta.Labels = seaweedfs.ApplyLabels(obj.ObjectMeta.Labels, "s3")
-
-	if err := kcli.Create(ctx, obj); client.IgnoreAlreadyExists(err) != nil {
+	if err := kcli.Create(ctx, &secret); err != nil {
 		return fmt.Errorf("create secret: %w", err)
 	}
+
 	return nil
 }
 

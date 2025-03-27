@@ -25,8 +25,7 @@ test-registry: registry.test
 
 .PHONY: clean
 clean:
-	rm -f openebs.test
-	rm -f registry.test
+	rm -f *.test
 
 openebs.test:
 	go test -c -tags "containers_image_openpgp exclude_graphdriver_btrfs exclude_graphdriver_devicemapper exclude_graphdriver_overlay" \
