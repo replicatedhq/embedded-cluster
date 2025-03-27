@@ -28,7 +28,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 )
@@ -198,27 +197,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 		return nil
 	}
 
-	kclient, err := kubeutils.GetClientset()
-	if err != nil {
-		return fmt.Errorf("unable to create kubernetes client: %w", err)
-	}
-
-	airgapChartsPath := ""
-	if flags.isAirgap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
-	}
-
-	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to create helm client: %w", err)
-	}
-	defer hcli.Close()
-
-	if err := maybeEnableHA(ctx, kcli, kclient, hcli, flags, cidrCfg.ServiceCIDR, jcmd); err != nil {
+	if err := maybeEnableHA(ctx, kcli, flags, cidrCfg.ServiceCIDR, jcmd); err != nil {
 		return fmt.Errorf("unable to enable high availability: %w", err)
 	}
 
@@ -516,7 +495,7 @@ func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string,
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interface, hcli helm.Client, flags JoinCmdFlags, serviceCIDR string, jcmd *kotsadm.JoinCommandResponse) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, serviceCIDR string, jcmd *kotsadm.JoinCommandResponse) error {
 	if flags.noHA {
 		logrus.Debug("--no-ha flag provided, skipping high availability")
 		return nil
@@ -541,7 +520,37 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, kclient kubernetes.I
 		logrus.Info("")
 	}
 
+	kclient, err := kubeutils.GetClientset()
+	if err != nil {
+		return fmt.Errorf("unable to create kubernetes client: %w", err)
+	}
+
+	airgapChartsPath := ""
+	if flags.isAirgap {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create helm client: %w", err)
+	}
+	defer hcli.Close()
+
 	loading := spinner.Start()
 	defer loading.Close()
-	return addons.EnableHA(ctx, kcli, kclient, hcli, flags.isAirgap, serviceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config, loading.Infof)
+
+	return addons.EnableHA(
+		ctx,
+		kcli,
+		kclient,
+		hcli,
+		flags.isAirgap,
+		serviceCIDR,
+		jcmd.InstallationSpec.Proxy,
+		jcmd.InstallationSpec.Config,
+		loading.Infof,
+	)
 }
