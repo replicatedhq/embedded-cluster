@@ -597,5 +597,5 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 	}
 	defer hcli.Close()
 
-	return addons.EnableHA(ctx, kcli, kclient, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
+	return addons.EnableHA(ctx, kcli, kclient, hcli, isAirgap, serviceCIDR, proxy, cfgspec, logrus.Infof)
 }
