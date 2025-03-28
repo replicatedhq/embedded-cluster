@@ -281,7 +281,7 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 	line := []string{"playwright.sh", testName}
 	line = append(line, args...)
 	env := map[string]string{
-		"BASE_URL": fmt.Sprintf("http://%s", net.JoinHostPort("100.64.0.1", "30003")),
+		"BASE_URL": fmt.Sprintf("http://%s", net.JoinHostPort("100.64.0.2", "30003")),
 	}
 	stdout, stderr, err := c.runCommandOnNode(c.proxyNode, "root", line, env)
 	if err != nil {
