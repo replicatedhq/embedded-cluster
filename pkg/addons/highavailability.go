@@ -15,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -54,71 +55,82 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, string, error) 
 func EnableHA(
 	ctx context.Context, kcli client.Client, kclient kubernetes.Interface, hcli helm.Client,
 	isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec,
-	logMsg func(string, ...any),
 ) error {
-	// Log to both the user and the logrus logger so that the logs appear in the log file.
-	logFn := func(format string, args ...any) {
-		logMsg(format, args...)
-		logrus.Debugf(format, args...)
-	}
+	spinner := spinner.Start()
 
 	if isAirgap {
-		logFn("Enabling high availability")
+		logrus.Debugf("enabling high availability")
+		spinner.Infof("Enabling high availability")
 
 		hasMigrated, err := registry.IsRegistryHA(ctx, kcli)
 		if err != nil {
+			spinner.ErrorClosef("Failed to enable high availability")
 			return errors.Wrap(err, "check if registry data has been migrated")
 		} else if !hasMigrated {
 			logrus.Debugf("Installing seaweedfs")
 			err = ensureSeaweedfs(ctx, kcli, hcli, serviceCIDR, cfgspec)
 			if err != nil {
+				spinner.ErrorClosef("Failed to enable high availability")
 				return errors.Wrap(err, "ensure seaweedfs")
 			}
-			logrus.Debugf("Seaweedfs installed!")
+			logrus.Debugf("Seaweedfs installed")
 
 			logrus.Debugf("Scaling registry to 0 replicas")
 			// if the migration fails, we need to scale the registry back to 1
 			defer maybeScaleRegistryBackOnFailure(kcli)
 			err := scaleRegistryDown(ctx, kcli)
 			if err != nil {
+				spinner.ErrorClosef("Failed to enable high availability")
 				return errors.Wrap(err, "scale registry to 0 replicas")
 			}
 
-			logFn("Migrating data for high availability")
-			err = migrateRegistryData(ctx, kcli, kclient, cfgspec, logFn)
+			logrus.Debugf("migrating data for high availability")
+			spinner.Infof("Migrating data for high availability")
+			err = migrateRegistryData(ctx, kcli, kclient, cfgspec, spinner)
 			if err != nil {
+				spinner.ErrorClosef("Failed to migrate registry data")
 				return errors.Wrap(err, "migrate registry data")
 			}
-			logrus.Debugf("Data migration complete!")
+			logrus.Debugf("Data migration complete")
 
-			logFn("Enabling high availability for the registry")
+			logrus.Debugf("enabling high availability for the registry")
+			spinner.Infof("Enabling high availability for the registry")
 			err = enableRegistryHA(ctx, kcli, hcli, serviceCIDR, cfgspec)
 			if err != nil {
+				spinner.ErrorClosef("Failed to enable high availability for the registry")
 				return errors.Wrap(err, "enable registry high availability")
 			}
-			logrus.Debugf("Registry high availability enabled!")
+			logrus.Debugf("Registry high availability enabled")
 		}
 	}
 
-	logFn("Updating the Admin Console for high availability")
+	logrus.Debugf("enabling high availability for the admin console")
+	spinner.Infof("Enabling high availability for the Adminc Console")
 	err := EnableAdminConsoleHA(ctx, kcli, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
 	if err != nil {
+		spinner.ErrorClosef("Failed to enable high availability for the Admin Console")
 		return errors.Wrap(err, "enable admin console high availability")
 	}
-	logrus.Debugf("Admin console high availability enabled!")
+	logrus.Debugf("Admin console high availability enabled")
 
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
+		spinner.ErrorClosef("Failed to enable high availability")
 		return errors.Wrap(err, "get latest installation")
 	}
 
 	if err := kubeutils.UpdateInstallation(ctx, kcli, in, func(in *ecv1beta1.Installation) {
 		in.Spec.HighAvailability = true
 	}); err != nil {
+		spinner.ErrorClosef("Failed to enable high availability")
 		return errors.Wrap(err, "update installation")
 	}
 
-	logFn("High availability enabled!")
+	logrus.Debugf("high availability enabled")
+	spinner.Closef("High availability enabled")
+
+	logrus.Info("\nHigh availability enabled")
+	logrus.Info("You must maintain at least three controller nodes.\n")
 	return nil
 }
 
@@ -173,14 +185,16 @@ func scaleRegistryDown(ctx context.Context, cli client.Client) error {
 }
 
 // migrateRegistryData runs the registry data migration.
-func migrateRegistryData(ctx context.Context, kcli client.Client, kclient kubernetes.Interface, cfgspec *ecv1beta1.ConfigSpec, logMsg func(string, ...any)) error {
+func migrateRegistryData(ctx context.Context, kcli client.Client, kclient kubernetes.Interface, cfgspec *ecv1beta1.ConfigSpec, spinner *spinner.MessageWriter) error {
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
+		spinner.ErrorClosef("Failed to migrate registry data")
 		return errors.Wrap(err, "get latest installation")
 	}
 
 	operatorImage, err := getOperatorImage()
 	if err != nil {
+		spinner.ErrorClosef("Failed to migrate registry data")
 		return errors.Wrap(err, "get operator image")
 	}
 	domains := runtimeconfig.GetDomains(cfgspec)
@@ -192,9 +206,11 @@ func migrateRegistryData(ctx context.Context, kcli client.Client, kclient kubern
 
 	progressCh, errCh, err := registrymigrate.RunDataMigration(ctx, kcli, kclient, in, operatorImage)
 	if err != nil {
+		spinner.ErrorClosef("Failed to migrate registry data")
 		return errors.Wrap(err, "run registry data migration")
 	}
-	if err := waitForPodAndLogProgress(logMsg, progressCh, errCh); err != nil {
+	if err := waitForPodAndLogProgress(spinner, progressCh, errCh); err != nil {
+		spinner.ErrorClosef("Failed to migrate registry data")
 		return errors.Wrap(err, "registry data migration failed")
 	}
 
@@ -211,12 +227,8 @@ func ensureSeaweedfs(ctx context.Context, kcli client.Client, hcli helm.Client, 
 		ProxyRegistryDomain: domains.ProxyRegistryDomain,
 	}
 
-	if err := sw.Uninstall(ctx, kcli); err != nil {
-		return errors.Wrap(err, "uninstall seaweedfs")
-	}
-
-	if err := sw.Install(ctx, kcli, hcli, addOnOverrides(sw, cfgspec, nil), nil); err != nil {
-		return errors.Wrap(err, "install seaweedfs")
+	if err := sw.Upgrade(ctx, kcli, hcli, addOnOverrides(sw, cfgspec, nil)); err != nil {
+		return errors.Wrap(err, "upgrade seaweedfs")
 	}
 
 	return nil
@@ -261,13 +273,14 @@ func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Cli
 	return nil
 }
 
-func waitForPodAndLogProgress(logMsg func(string, ...any), progressCh <-chan string, errCh <-chan error) error {
+func waitForPodAndLogProgress(spinner *spinner.MessageWriter, progressCh <-chan string, errCh <-chan error) error {
 	for {
 		select {
 		case err := <-errCh:
 			return err
 		case progress := <-progressCh:
-			logMsg("Migrating data for high availability (%s)", progress)
+			logrus.Debugf("Migrating data for high availability (%s)", progress)
+			spinner.Infof("Migrating data for high availability (%s)", progress)
 		}
 	}
 }
