@@ -70,7 +70,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
-			logrus.Warn("\nThis will remove the node from the cluster and erase all data stored on it.")
+			logrus.Warn("\nResetting a node will remove it from the cluster and erase all data stored on it.")
 			logrus.Warn("The node will reboot after it is reset.")
 			logrus.Warn("Do not reset another node until this process is complete.\n")
 			if !force && !assumeYes && !prompts.New().Confirm("Do you want to continue?", false) {
