@@ -309,14 +309,14 @@ func (c *Cluster) runCommandOnNode(node *node, sshUser string, command []string,
 	args := []string{}
 	args = append(args, sshConnectionArgs(node, sshUser, false)...)
 
-	envArr := []string{}
+	cmdArr := []string{}
 	for _, e := range envs {
 		for k, v := range e {
-			envArr = append(envArr, fmt.Sprintf("export %s=%s;", k, v))
+			cmdArr = append(cmdArr, fmt.Sprintf("export %s=%s", k, v))
 		}
 	}
-
-	args = append(args, fmt.Sprintf("%s; sh -c '%s'", strings.Join(envArr, " "), strings.Join(command, " ")))
+	cmdArr = append(cmdArr, fmt.Sprintf("sh -c '%s'", strings.Join(command, " ")))
+	args = append(args, strings.Join(cmdArr, "; "))
 
 	c.t.Logf("  -> Running ssh command on node %s: %q", node.ID, args)
 	cmd := exec.CommandContext(c.t.Context(), "ssh", args...)
