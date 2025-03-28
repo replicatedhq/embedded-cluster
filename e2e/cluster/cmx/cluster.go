@@ -277,7 +277,7 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 	line := []string{"/automation/scripts/playwright.sh", testName}
 	line = append(line, args...)
 	env := map[string]string{
-		"BASE_URL": fmt.Sprintf("http://%s", net.JoinHostPort("TODO", "30003")), // TODO: get ip and expose port
+		"BASE_URL": fmt.Sprintf("http://%s", net.JoinHostPort("100.64.0.1", "30003")),
 	}
 	stdout, stderr, err := c.RunCommandOnProxyNode(line, env)
 	if err != nil {
