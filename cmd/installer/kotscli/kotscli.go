@@ -135,6 +135,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 		opts.AirgapBundle,
 	}
 
+	logrus.Info("")
 	loading := spinner.Start(spinner.WithMask(maskfn))
 	runCommandOptions := helpers.RunCommandOptions{
 		Stdout: loading,

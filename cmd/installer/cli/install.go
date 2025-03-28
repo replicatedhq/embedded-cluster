@@ -423,7 +423,7 @@ func ensureAdminConsolePassword(flags *InstallCmdFlags) error {
 	if flags.adminConsolePassword == "" {
 		// no password was provided
 		if flags.assumeYes {
-			logrus.Infof("The Admin Console password is set to %q", "password")
+			logrus.Infof("\nThe Admin Console password is set to %q", "password")
 			flags.adminConsolePassword = "password"
 		} else {
 			maxTries := 3
@@ -546,7 +546,7 @@ func verifyNoInstallation(name string, cmdName string) error {
 	}
 	if installed {
 		logrus.Errorf("An installation is detected on this machine.")
-		logrus.Infof("If you want to %s, you need to remove the existing installation first.", cmdName)
+		logrus.Infof("To %s, you must first remove the existing installation.", cmdName)
 		logrus.Infof("You can do this by running the following command:")
 		logrus.Infof("\n  sudo ./%s reset\n", name)
 		return NewErrorNothingElseToAdd(errors.New("previous installation detected"))
@@ -555,6 +555,7 @@ func verifyNoInstallation(name string, cmdName string) error {
 }
 
 func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
+	logrus.Info("")
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
 
