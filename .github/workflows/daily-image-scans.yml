@@ -1,0 +1,67 @@
+name: Container Security Scans
+
+# Trigger configuration
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs nightly at midnight (UTC)
+  workflow_dispatch:      # Allows manual triggering through GitHub UI
+
+permissions: {}  # Remove all permissions by default
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  get-latest-tag:
+    name: Get Latest Release Tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read   
+    outputs:
+      tag_name: ${{ steps.get_release.outputs.tag_name }}
+    steps:
+      - name: Get latest release
+        id: get_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const release = await github.rest.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            core.setOutput('tag_name', release.data.tag_name);
+  
+  scan-operator:
+    name: Scan Operator Image
+    needs: get-latest-tag  
+    uses: ./.github/workflows/scan-image-grype.yml
+    permissions:
+      contents: read        
+      security-events: write 
+      actions: read
+    with:
+      image: replicated/embedded-cluster-operator-image:${{ needs.get-latest-tag.outputs.tag_name }}
+      severity-cutoff: negligible
+      fail-build: false
+      output-file: results.sarif
+      timeout-minutes: 30
+      retention-days: 90
+      category-prefix: container-scan-
+
+  scan-registry:
+    name: Scan Local Artifact Mirror Image
+    needs: get-latest-tag  
+    uses: ./.github/workflows/scan-image-grype.yml
+    permissions:
+      contents: read       
+      security-events: write 
+      actions: read
+    with:
+      image: replicated/embedded-cluster-local-artifact-mirror:${{ needs.get-latest-tag.outputs.tag_name }}
+      severity-cutoff: negligible
+      fail-build: false
+      output-file: results.sarif
+      timeout-minutes: 30
+      retention-days: 90
+      category-prefix: container-scan-
