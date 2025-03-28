@@ -6,18 +6,25 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
+type EnableHACmdFlags struct {
+	assumeYes bool
+}
+
 // EnableHACmd is the command for enabling HA mode.
 func EnableHACmd(ctx context.Context, name string) *cobra.Command {
+	var flags EnableHACmdFlags
+
 	cmd := &cobra.Command{
 		Use:   "enable-ha",
 		Short: fmt.Sprintf("Enable high availability for the %s cluster", name),
@@ -37,7 +44,7 @@ func EnableHACmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runEnableHA(cmd.Context()); err != nil {
+			if err := runEnableHA(cmd.Context(), flags); err != nil {
 				return err
 			}
 
@@ -45,10 +52,12 @@ func EnableHACmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
+
 	return cmd
 }
 
-func runEnableHA(ctx context.Context) error {
+func runEnableHA(ctx context.Context, flags EnableHACmdFlags) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to get kube client: %w", err)
@@ -59,8 +68,27 @@ func runEnableHA(ctx context.Context) error {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
 	}
 	if !canEnableHA {
-		logrus.Warnf("High availability cannot be enabled: %s", reason)
-		return NewErrorNothingElseToAdd(fmt.Errorf("high availability cannot be enabled: %s", reason))
+		logrus.Warnf("High availability cannot be enabled because %s", reason)
+		return NewErrorNothingElseToAdd(fmt.Errorf("high availability cannot be enabled because %s", reason))
+	}
+
+	if config.HasCustomRoles() {
+		controllerRoleName := config.GetControllerRoleName()
+		logrus.Infof("\nHigh availability can be enabled once you have three or more %s nodes.", controllerRoleName)
+		logrus.Info("Enabling it will replicate data across cluster nodes.")
+		logrus.Infof("After HA is enabled, you must maintain at least three %s nodes.\n", controllerRoleName)
+	} else {
+		logrus.Info("\nHigh availability can be enabled once you have three or more nodes.")
+		logrus.Info("Enabling it will replicate data across cluster nodes.")
+		logrus.Info("After HA is enabled, you must maintain at least three nodes.\n")
+	}
+
+	if !flags.assumeYes {
+		shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", true)
+		if !shouldEnableHA {
+			return nil
+		}
+		logrus.Info("")
 	}
 
 	kclient, err := kubeutils.GetClientset()
@@ -88,8 +116,5 @@ func runEnableHA(ctx context.Context) error {
 	}
 	defer hcli.Close()
 
-	loading := spinner.Start()
-	defer loading.Close()
-
-	return addons.EnableHA(ctx, kcli, kclient, hcli, in.Spec.AirGap, in.Spec.Network.ServiceCIDR, in.Spec.Proxy, in.Spec.Config, loading)
+	return addons.EnableHA(ctx, kcli, kclient, hcli, in.Spec.AirGap, in.Spec.Network.ServiceCIDR, in.Spec.Proxy, in.Spec.Config)
 }

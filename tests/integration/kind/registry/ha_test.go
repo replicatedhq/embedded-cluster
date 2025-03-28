@@ -123,7 +123,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	loading := newTestingSpinner(t)
 	func() {
 		defer loading.Close()
-		err = addons.EnableHA(ctx, kcli, kclient, hcli, true, "10.96.0.0/12", nil, cfgSpec, loading)
+		err = addons.EnableHA(ctx, kcli, kclient, hcli, true, "10.96.0.0/12", nil, cfgSpec)
 		require.NoError(t, err)
 	}()
 
@@ -185,7 +185,7 @@ func enableHAAndCancelContextOnMessage(
 	defer loading.Close()
 
 	t.Log("enabling HA and cancelling context on message")
-	err = addons.EnableHA(ctx, kcli, kclient, hcli, true, "10.96.0.0/12", nil, cfgSpec, loading)
+	err = addons.EnableHA(ctx, kcli, kclient, hcli, true, "10.96.0.0/12", nil, cfgSpec)
 	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
 	t.Logf("cancelled context and got error: %v", err)
 }
