@@ -308,17 +308,18 @@ func (c *Cluster) destroy() {
 func (c *Cluster) runCommandOnNode(node *node, sshUser string, command []string, envs ...map[string]string) (string, string, error) {
 	args := []string{}
 	args = append(args, sshConnectionArgs(node, sshUser, false)...)
-	args = append(args, fmt.Sprintf("sh -c '%s'", strings.Join(command, " ")))
-	c.t.Logf("  -> Running ssh command on node %s: %q", node.ID, args)
-	cmd := exec.CommandContext(c.t.Context(), "ssh", args...)
 
-	env := os.Environ()
+	envArr := []string{}
 	for _, e := range envs {
 		for k, v := range e {
-			env = append(env, fmt.Sprintf("%s=%s", k, v))
+			envArr = append(envArr, fmt.Sprintf("export %s=%s;", k, v))
 		}
 	}
-	cmd.Env = env
+
+	args = append(args, fmt.Sprintf("%s; sh -c '%s'", strings.Join(envArr, " "), strings.Join(command, " ")))
+
+	c.t.Logf("  -> Running ssh command on node %s: %q", node.ID, args)
+	cmd := exec.CommandContext(c.t.Context(), "ssh", args...)
 
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
