@@ -284,7 +284,6 @@ vet:
 
 .PHONY: e2e-tests
 e2e-tests: embedded-release
-e2e-tests:
 	go test -tags $(GO_BUILD_TAGS) -timeout 60m -ldflags="$(LD_FLAGS)" -parallel 1 -failfast -v ./e2e
 
 .PHONY: e2e-test
