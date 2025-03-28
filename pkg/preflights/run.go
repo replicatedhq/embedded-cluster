@@ -109,8 +109,7 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 	spinner := spinner.Start()
 
 	if opts.SkipHostPreflights {
-		spinner.Infof("Host preflights skipped")
-		spinner.Close()
+		spinner.Closef("Host preflights skipped")
 		return nil
 	}
 

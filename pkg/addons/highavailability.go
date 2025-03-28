@@ -41,12 +41,12 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, string, error) 
 		return false, "", errors.Wrap(err, "get restore state configmap")
 	}
 
-	ncps, err := kubeutils.NumOfControlPlaneNodes(ctx, kcli)
+	numControllerNodes, err := kubeutils.NumOfControlPlaneNodes(ctx, kcli)
 	if err != nil {
 		return false, "", errors.Wrap(err, "check control plane nodes")
 	}
-	if ncps < 3 {
-		return false, "number of control plane nodes is less than 3", nil
+	if numControllerNodes < 3 {
+		return false, "at least three controller nodes are required", nil
 	}
 	return true, "", nil
 }
