@@ -423,7 +423,7 @@ func ensureAdminConsolePassword(flags *InstallCmdFlags) error {
 	if flags.adminConsolePassword == "" {
 		// no password was provided
 		if flags.assumeYes {
-			logrus.Infof("\nThe Admin Console password is set to %q", "password")
+			logrus.Infof("\nThe Admin Console password is set to %q.", "password")
 			flags.adminConsolePassword = "password"
 		} else {
 			maxTries := 3

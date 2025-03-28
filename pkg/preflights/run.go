@@ -166,9 +166,15 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 		}
 
 		if len(output.Fail)+len(output.Warn) > 1 {
-			logrus.Info("Please address these issues and try again.")
+			logrus.Info("\n\033[1m" +
+				"------------------------------------------\n" +
+				"Please address these issues and try again.\n" +
+				"------------------------------------------\033[0m\n")
 		} else {
-			logrus.Info("Please address this issue and try again.")
+			logrus.Info("\n\033[1m" +
+				"----------------------------------------\n" +
+				"Please address this issue and try again.\n" +
+				"----------------------------------------\033[0m\n")
 		}
 
 		if opts.MetricsReporter != nil {
