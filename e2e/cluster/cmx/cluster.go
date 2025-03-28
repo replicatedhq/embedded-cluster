@@ -364,10 +364,13 @@ func (c *Cluster) copyFilesToNode(node *node, in ClusterInput) error {
 }
 
 func (c *Cluster) copyDirsToNode(node *node) error {
+	// Get the directory of the current test file
+	testDir := filepath.Dir(c.t.Name())
+
 	dirs := map[string]string{
-		"scripts":    "/automation/scripts",
-		"playwright": "/automation/playwright",
-		"../operator/charts/embedded-cluster-operator/troubleshoot": "/automation/troubleshoot",
+		filepath.Join(testDir, "scripts"):                                                   "/automation/scripts",
+		filepath.Join(testDir, "playwright"):                                                "/automation/playwright",
+		filepath.Join(testDir, "../operator/charts/embedded-cluster-operator/troubleshoot"): "/automation/troubleshoot",
 	}
 	for src, dest := range dirs {
 		err := c.copyDirToNode(node, src, dest)
