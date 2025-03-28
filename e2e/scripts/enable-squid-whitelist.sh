@@ -62,9 +62,9 @@ function validate_whitelist() {
     fi
 
     # validate that we cannot access google.com (should be blocked)
-    status_code=$(curl -s -o /dev/null -w "%{http_connect}" -x http://10.0.0.254:3128 https://google.com)
+    status_code=$(curl -s -o /dev/null -w "%{http_connect}" -x http://10.0.0.254:3128 https://speedtest.net)
     if [ "$status_code" -ne 403 ] && [ "$status_code" -ne 407 ]; then
-        echo "Error: google.com expected status code 403 or 407 (blocked), got $status_code"
+        echo "Error: speedtest.net expected status code 403 or 407 (blocked), got $status_code"
         return 1
     fi
 
