@@ -153,7 +153,7 @@ func NewCluster(ctx context.Context, input ClusterInput) *Cluster {
 			}
 
 			c.t.Logf("Installing dependencies on node %s", node.ID)
-			_, stderr, err := c.runCommandOnNode(node, "root", []string{"/automation/scripts/install-deps.sh"})
+			_, stderr, err := c.runCommandOnNode(node, "root", []string{"install-deps.sh"})
 			if err != nil {
 				return fmt.Errorf("install dependencies on node %s: %v, stderr: %s", node.ID, err, stderr)
 			}
@@ -251,11 +251,11 @@ func (c *Cluster) CopyDirToNode(node int, src, dest string) error {
 func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
 	c.t.Logf("Setting up Playwright")
 
-	line := []string{"/automation/scripts/bypass-kurl-proxy.sh"}
+	line := []string{"bypass-kurl-proxy.sh"}
 	if _, stderr, err := c.RunCommandOnNode(0, line, envs...); err != nil {
 		return fmt.Errorf("bypass kurl-proxy on proxy node: %v: %s", err, string(stderr))
 	}
-	line = []string{"/automation/scripts/install-playwright.sh"}
+	line = []string{"install-playwright.sh"}
 	if _, stderr, err := c.RunCommandOnProxyNode(line); err != nil {
 		return fmt.Errorf("install playwright on proxy node: %v: %s", err, string(stderr))
 	}
@@ -274,7 +274,7 @@ func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (st
 func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, string, error) {
 	c.t.Logf("Running Playwright test %s", testName)
 
-	line := []string{"/automation/scripts/playwright.sh", testName}
+	line := []string{"playwright.sh", testName}
 	line = append(line, args...)
 	env := map[string]string{
 		"BASE_URL": fmt.Sprintf("http://%s", net.JoinHostPort("100.64.0.1", "30003")),
@@ -374,6 +374,10 @@ func (c *Cluster) copyDirsToNode(node *node) error {
 		if err != nil {
 			return fmt.Errorf("copy dir %s to node %s at %s: %v", src, node.ID, dest, err)
 		}
+	}
+	_, stderr, err := c.runCommandOnNode(node, "root", []string{"cp", "-r", "/automation/scripts/*", "/usr/local/bin"})
+	if err != nil {
+		return fmt.Errorf("copy scripts to /usr/local/bin: %v, stderr: %s", err, stderr)
 	}
 	return nil
 }
