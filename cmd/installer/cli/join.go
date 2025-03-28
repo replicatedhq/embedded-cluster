@@ -123,13 +123,14 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	// both controller and worker nodes will have 'worker' in the join command
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if !isWorker {
-		logrus.Warn("Do not join another node until this join is complete.")
+		logrus.Warn("\nDo not join another node until this node has joined successfully.")
 	}
 
 	if err := runJoinVerifyAndPrompt(name, flags, jcmd); err != nil {
 		return err
 	}
 
+	logrus.Info("")
 	cidrCfg, err := initializeJoin(ctx, name, flags, jcmd)
 	if err != nil {
 		return fmt.Errorf("unable to initialize join: %w", err)
@@ -172,7 +173,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	}
 
 	loading.Closef("Node is ready")
-	logrus.Infof("\n\033[1mNode joined the cluster successfully\033[0m")
+	logrus.Infof("\nNode joined the cluster successfully")
 	if isWorker {
 		logrus.Debugf("worker node join finished")
 		return nil

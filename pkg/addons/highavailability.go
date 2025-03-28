@@ -47,7 +47,7 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, string, error) 
 	}
 	if numControllerNodes < 3 {
 		// TODO: @ajp-io add in controller role name
-		return false, "there must be at least 3 controller nodes", nil
+		return false, "at least three controller nodes are required", nil
 	}
 	return true, "", nil
 }
@@ -57,12 +57,6 @@ func EnableHA(
 	ctx context.Context, kcli client.Client, kclient kubernetes.Interface, hcli helm.Client,
 	isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec,
 ) error {
-	// // Log to both the user and the logrus logger so that the logs appear in the log file.
-	// logFn := func(format string, args ...any) {
-	// 	logMsg(format, args...)
-	// 	logrus.Debugf(format, args...)
-	// }
-
 	spinner := spinner.Start()
 
 	if isAirgap {
@@ -135,7 +129,9 @@ func EnableHA(
 
 	logrus.Debug("high availability enabled")
 	spinner.Closef("High availability enabled")
-	logrus.Info("\n\033[1mHigh availability is now enabled. You must maintain at least three controller nodes.\033[0m")
+	// TODO: @ajp-io add in controller role name
+	logrus.Info("High availability is now enabled.")
+	logrus.Info("You must maintain at least three controller nodes.")
 	return nil
 }
 
