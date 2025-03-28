@@ -2299,12 +2299,6 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 		privateCA: "/tmp/ca.crt",
 	})
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"/automation/scripts/single-node-install.sh", "ui", os.Getenv("SHORT_SHA"), "--private-ca", "/tmp/ca.crt"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
-
 	t.Logf("%s: deploying app", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
