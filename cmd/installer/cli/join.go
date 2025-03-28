@@ -168,7 +168,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	loading.Infof("Waiting for node")
 	nodename := strings.ToLower(hostname)
 	if err := waitForNodeToJoin(ctx, kcli, nodename, isWorker); err != nil {
-		loading.ErrorClosef("Failed to wait for node")
+		loading.ErrorClosef("Node failed to become ready")
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
@@ -529,21 +529,19 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 	if !canEnableHA {
 		return nil
 	}
+
+	if config.HasCustomRoles() {
+		controllerRoleName := config.GetControllerRoleName()
+		logrus.Info("\nHigh availability can be enabled once you have three or more %s nodes.", controllerRoleName)
+		logrus.Info("Enabling it will replicate data across cluster nodes.")
+		logrus.Info("After HA is enabled, you must maintain at least three %s nodes.\n", controllerRoleName)
+	} else {
+		logrus.Info("\nHigh availability can be enabled once you have three or more nodes.")
+		logrus.Info("Enabling it will replicate data across cluster nodes.")
+		logrus.Info("After HA is enabled, you must maintain at least three nodes.\n")
+	}
+
 	if !flags.assumeYes {
-		if config.HasCustomRoles() {
-			controllerRoleName := config.GetControllerRoleName()
-			logrus.Info("")
-			logrus.Infof("You can enable high availability for clusters with three or more %s nodes.", controllerRoleName)
-			logrus.Infof("Data will be migrated so it is replicated across cluster nodes.")
-			logrus.Infof("When high availability is enabled, you must maintain at least three %s nodes.", controllerRoleName)
-			logrus.Info("")
-		} else {
-			logrus.Info("")
-			logrus.Info("You can enable high availability for clusters with three or more nodes.")
-			logrus.Info("Data will be migrated so it is replicated across cluster nodes.")
-			logrus.Info("When high availability is enabled, you must maintain at least three nodes.")
-			logrus.Info("")
-		}
 		shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", false)
 		if !shouldEnableHA {
 			return nil
@@ -570,5 +568,14 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 	}
 	defer hcli.Close()
 
-	return addons.EnableHA(ctx, kcli, kclient, hcli, flags.isAirgap, serviceCIDR, jcmd.InstallationSpec.Proxy, jcmd.InstallationSpec.Config)
+	return addons.EnableHA(
+		ctx,
+		kcli,
+		kclient,
+		hcli,
+		flags.isAirgap,
+		serviceCIDR,
+		jcmd.InstallationSpec.Proxy,
+		jcmd.InstallationSpec.Config,
+	)
 }

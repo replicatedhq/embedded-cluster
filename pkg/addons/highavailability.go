@@ -59,7 +59,7 @@ func EnableHA(
 	spinner := spinner.Start()
 
 	if isAirgap {
-		logrus.Debugf("enabling high availability")
+		logrus.Debugf("Enabling high availability")
 		spinner.Infof("Enabling high availability")
 
 		hasMigrated, err := registry.IsRegistryHA(ctx, kcli)
@@ -84,7 +84,7 @@ func EnableHA(
 				return errors.Wrap(err, "scale registry to 0 replicas")
 			}
 
-			logrus.Debugf("migrating data for high availability")
+			logrus.Debugf("Migrating data for high availability")
 			spinner.Infof("Migrating data for high availability")
 			err = migrateRegistryData(ctx, kcli, kclient, cfgspec, spinner)
 			if err != nil {
@@ -93,7 +93,7 @@ func EnableHA(
 			}
 			logrus.Debugf("Data migration complete")
 
-			logrus.Debugf("enabling high availability for the registry")
+			logrus.Debugf("Enabling high availability for the registry")
 			spinner.Infof("Enabling high availability for the registry")
 			err = enableRegistryHA(ctx, kcli, hcli, serviceCIDR, cfgspec)
 			if err != nil {
@@ -104,8 +104,8 @@ func EnableHA(
 		}
 	}
 
-	logrus.Debugf("enabling high availability for the admin console")
-	spinner.Infof("Enabling high availability for the Adminc Console")
+	logrus.Debugf("Enabling high availability for the Admin Console")
+	spinner.Infof("Enabling high availability for the Admin Console")
 	err := EnableAdminConsoleHA(ctx, kcli, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
 	if err != nil {
 		spinner.ErrorClosef("Failed to enable high availability for the Admin Console")

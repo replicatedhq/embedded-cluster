@@ -106,19 +106,19 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 		return nil
 	}
 
-	pb := spinner.Start()
+	spinner := spinner.Start()
 
 	if opts.SkipHostPreflights {
-		pb.Infof("Host preflights skipped")
-		pb.Close()
+		spinner.Infof("Host preflights skipped")
+		spinner.Close()
 		return nil
 	}
 
-	pb.Infof("Running host preflights")
+	spinner.Infof("Running host preflights")
 
 	output, stderr, err := Run(ctx, hpf, opts.Proxy)
 	if err != nil {
-		pb.ErrorClosef("Failed to run host preflights")
+		spinner.ErrorClosef("Failed to run host preflights")
 		return fmt.Errorf("host preflights failed to run: %w", err)
 	}
 	if stderr != "" {
@@ -143,9 +143,9 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 		}
 
 		if output.HasWarn() {
-			pb.ErrorClosef("%d host %s failed and %d warned", len(output.Fail), s, len(output.Warn))
+			spinner.ErrorClosef("%d host %s failed and %d warned", len(output.Fail), s, len(output.Warn))
 		} else {
-			pb.ErrorClosef("%d host %s failed", len(output.Fail), s)
+			spinner.ErrorClosef("%d host %s failed", len(output.Fail), s)
 		}
 
 		output.PrintTableWithoutInfo()
@@ -184,8 +184,8 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 			s = "preflight"
 		}
 
-		pb.Warnf("%d host %s warned", len(output.Warn), s)
-		pb.Close()
+		spinner.Warnf("%d host %s warned", len(output.Warn), s)
+		spinner.Close()
 		if opts.AssumeYes {
 			// We have warnings but we are not in interactive mode
 			// so we just print the warnings and continue
@@ -212,7 +212,7 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 	}
 
 	// No failures or warnings
-	pb.Closef("Host preflights succeeded")
+	spinner.Closef("Host preflights succeeded")
 
 	return nil
 }

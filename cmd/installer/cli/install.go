@@ -652,7 +652,7 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 	loading.Infof("Waiting for node")
 	logrus.Debugf("waiting for node to be ready")
 	if err := waitForNode(ctx); err != nil {
-		loading.ErrorClosef("Failed to wait for node")
+		loading.ErrorClosef("Node failed to become ready")
 		return nil, fmt.Errorf("wait for node: %w", err)
 	}
 
@@ -770,8 +770,7 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 		return nil
 	}
 
-	text := fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel)
-	if !prompt.Confirm(text, false) {
+	if !prompt.Confirm(fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel), false) {
 		// TODO: send aborted metrics event
 		return NewErrorNothingElseToAdd(errors.New("user aborted: app not up-to-date"))
 	}

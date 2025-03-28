@@ -71,8 +71,9 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
-			logrus.Warn("This action will remove the node from the cluster and erase all data stored on it.")
-			logrus.Warn("The node will reboot after the reset. Do not reset another node until this process is complete.")
+			logrus.Warn("\nThis will remove the node from the cluster and erase all data stored on it.")
+			logrus.Warn("The node will reboot after it is reset.")
+			logrus.Warn("Do not reset another node until this process is complete.\n")
 			if !force && !assumeYes && !prompts.New().Confirm("Do you want to continue?", false) {
 				return nil
 			}
@@ -83,6 +84,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
+			logrus.Info("")
 			// basic check to see if it's safe to remove this node from the cluster
 			if currentHost.Status.Role == "controller" {
 				safeToRemove, reason, err := currentHost.checkResetSafety(ctx, force)
@@ -103,7 +105,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			// do not drain node if this is the only controller node in the cluster
 			// if there is an error (numControllerNodes == 0), drain anyway to be safe
 			if currentHost.Status.Role != "controller" || numControllerNodes != 1 {
-				spinner.Infof("\nDraining workloads from the node")
+				spinner.Infof("Draining workloads from the node")
 				err = currentHost.drainNode()
 				if !checkErrPrompt(assumeYes, force, err) {
 					spinner.ErrorClosef("Failed to drain workloads")
