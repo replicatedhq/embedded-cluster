@@ -12,20 +12,20 @@ import (
 
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/k0sproject/k0s/pkg/etcd"
-	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+var haWarningMessage = "WARNING: High-availability clusters must maintain at least three controller nodes, but resetting this node will leave only two. This can lead to a loss of functionality and non-recoverable failures. You should re-add a third node as soon as possible."
 
 const (
 	k0sBinPath = "/usr/local/bin/k0s"
@@ -81,7 +81,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			// populate options struct with host information
 			currentHost, err := newHostInfo(ctx)
 			if !checkErrPrompt(assumeYes, force, err) {
-				return err
+				return fmt.Errorf("Aborting")
 			}
 
 			logrus.Info("")
@@ -100,25 +100,21 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			if currentHost.KclientError == nil {
 				numControllerNodes, _ = kubeutils.NumOfControlPlaneNodes(ctx, currentHost.Kclient)
 			}
-
-			spinner := spinner.Start()
 			// do not drain node if this is the only controller node in the cluster
 			// if there is an error (numControllerNodes == 0), drain anyway to be safe
 			if currentHost.Status.Role != "controller" || numControllerNodes != 1 {
-				spinner.Infof("Draining workloads from the node")
+				logrus.Info("Draining node...")
 				err = currentHost.drainNode()
 				if !checkErrPrompt(assumeYes, force, err) {
-					spinner.ErrorClosef("Failed to drain workloads")
 					return err
 				}
 
 				// remove node from cluster
-				spinner.Infof("Removing the node from the cluster")
+				logrus.Info("Removing node from cluster...")
 				removeCtx, removeCancel := context.WithTimeout(ctx, time.Minute)
 				defer removeCancel()
 				err = currentHost.deleteNode(removeCtx)
 				if !checkErrPrompt(assumeYes, force, err) {
-					spinner.ErrorClosef("Failed to remove the node from the cluster")
 					return err
 				}
 
@@ -130,14 +126,12 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 					defer deleteCancel()
 					err := currentHost.deleteControlNode(deleteControlCtx)
 					if !checkErrPrompt(assumeYes, force, err) {
-						spinner.ErrorClosef("Failed to remove the node from the cluster")
 						return err
 					}
 
 					// try and leave etcd cluster
 					err = currentHost.leaveEtcdcluster()
 					if !checkErrPrompt(assumeYes, force, err) {
-						spinner.ErrorClosef("Failed to remove the node from the cluster")
 						return err
 					}
 
@@ -145,52 +139,44 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			// reset
-			spinner.Infof("Resetting the node")
+			logrus.Infof("Resetting node...")
 			err = stopAndResetK0s(runtimeconfig.EmbeddedClusterK0sSubDir())
 			if !checkErrPrompt(assumeYes, force, err) {
-				spinner.ErrorClosef("Failed to reset the node")
 				return err
 			}
 
 			logrus.Debugf("Resetting firewalld...")
 			err = resetFirewalld(ctx)
 			if !checkErrPrompt(assumeYes, force, err) {
-				spinner.ErrorClosef("Failed to reset the node")
 				return fmt.Errorf("failed to reset firewalld: %w", err)
 			}
 
 			if err := helpers.RemoveAll(runtimeconfig.PathToK0sConfig()); err != nil {
-				spinner.ErrorClosef("Failed to reset the node")
 				return fmt.Errorf("failed to remove k0s config: %w", err)
 			}
 
 			lamPath := "/etc/systemd/system/local-artifact-mirror.service"
 			if _, err := os.Stat(lamPath); err == nil {
 				if _, err := helpers.RunCommand("systemctl", "stop", "local-artifact-mirror"); err != nil {
-					spinner.ErrorClosef("Failed to reset the node")
 					return err
 				}
 			}
 			if err := helpers.RemoveAll(lamPath); err != nil {
-				spinner.ErrorClosef("Failed to reset the node")
 				return fmt.Errorf("failed to remove local-artifact-mirror service file: %w", err)
 			}
 
 			lamPathD := "/etc/systemd/system/local-artifact-mirror.service.d"
 			if err := helpers.RemoveAll(lamPathD); err != nil {
-				spinner.ErrorClosef("Failed to reset the node")
 				return fmt.Errorf("failed to remove local-artifact-mirror config directory: %w", err)
 			}
 
 			proxyControllerPath := "/etc/systemd/system/k0scontroller.service.d"
 			if err := helpers.RemoveAll(proxyControllerPath); err != nil {
-				spinner.ErrorClosef("Failed to reset the node")
 				return fmt.Errorf("failed to remove proxy controller config directory: %w", err)
 			}
 
 			proxyWorkerPath := "/etc/systemd/system/k0sworker.service.d"
 			if err := helpers.RemoveAll(proxyWorkerPath); err != nil {
-				spinner.ErrorClosef("Failed to reset the node")
 				return fmt.Errorf("failed to remove proxy worker config directory: %w", err)
 			}
 
@@ -198,42 +184,33 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			// dev environment because k0s is mounted in the docker container:
 			//  "failed to remove embedded cluster directory: remove k0s: unlinkat /var/lib/embedded-cluster/k0s: device or resource busy"
 			if err := helpers.RemoveAll(runtimeconfig.EmbeddedClusterHomeDirectory()); err != nil {
-				spinner.ErrorClosef("Failed to reset the node")
-				return fmt.Errorf("failed to remove embedded cluster directory: %w", err)
+				logrus.Debugf("Failed to remove embedded cluster directory: %v", err)
 			}
 
 			if err := helpers.RemoveAll(runtimeconfig.EmbeddedClusterLogsSubDir()); err != nil {
-				spinner.ErrorClosef("Failed to reset the node")
 				return fmt.Errorf("failed to remove logs directory: %w", err)
 			}
 
 			if err := helpers.RemoveAll(runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir()); err != nil {
-				spinner.ErrorClosef("Failed to reset the node")
 				return fmt.Errorf("failed to remove openebs storage: %w", err)
 			}
 
 			if err := helpers.RemoveAll("/etc/NetworkManager/conf.d/embedded-cluster.conf"); err != nil {
-				spinner.ErrorClosef("Failed to reset the node")
 				return fmt.Errorf("failed to remove NetworkManager configuration: %w", err)
 			}
 
 			if err := helpers.RemoveAll("/usr/local/bin/k0s"); err != nil {
-				spinner.ErrorClosef("Failed to reset the node")
 				return fmt.Errorf("failed to remove k0s binary: %w", err)
 			}
 
 			if err := helpers.RemoveAll(runtimeconfig.PathToECConfig()); err != nil {
-				spinner.ErrorClosef("Failed to reset the node")
 				return fmt.Errorf("failed to remove embedded cluster data config: %w", err)
 			}
 
 			if err := helpers.RemoveAll("/etc/sysctl.d/99-embedded-cluster.conf"); err != nil {
-				spinner.ErrorClosef("Failed to reset the node")
 				return fmt.Errorf("failed to remove embedded cluster sysctl config: %w", err)
 			}
 
-			spinner.Closef("Reset complete")
-			logrus.Info("\nThe node has been reset and will now reboot.")
 			if _, err := helpers.RunCommand("reboot"); err != nil {
 				return err
 			}
@@ -294,21 +271,12 @@ func maybePrintHAWarning(ctx context.Context) error {
 		return nil
 	}
 
-	numControllerNodes, err := kubeutils.NumOfControlPlaneNodes(ctx, kubecli)
+	ncps, err := kubeutils.NumOfControlPlaneNodes(ctx, kubecli)
 	if err != nil {
 		return fmt.Errorf("unable to check control plane nodes: %w", err)
 	}
-	if numControllerNodes == 3 {
-		if config.HasCustomRoles() {
-			controllerRoleName := config.GetControllerRoleName()
-			logrus.Warn(fmt.Sprintf("You must maintain at least three %s nodes in a high-availability cluster, but resetting this node will leave only two.", controllerRoleName))
-			logrus.Warn("This can lead to a loss of functionality and non-recoverable failures.")
-			logrus.Warn(fmt.Sprintf("If you reset this node, re-join a third %s node as soon as possible.", controllerRoleName))
-		} else {
-			logrus.Warn("You must maintain at least three nodes in a high-availability cluster, but resetting this node will leave only two.")
-			logrus.Warn("This can lead to a loss of functionality and non-recoverable failures.")
-			logrus.Warn("If you reset this node, re-join a third node as soon as possible.")
-		}
+	if ncps == 3 {
+		logrus.Warn(haWarningMessage)
 		logrus.Info("")
 	}
 	return nil
