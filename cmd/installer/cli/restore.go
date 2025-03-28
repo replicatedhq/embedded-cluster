@@ -345,7 +345,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	}
 
 	if !s3BackupStoreHasData(s3Store) {
-		logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", name)
+		logrus.Infof("\nYou'll be guided through the process of restoring %s from a backup.\n", name)
 		logrus.Info("Enter information to configure access to your backup storage location.\n")
 
 		promptForS3BackupStore(s3Store)
