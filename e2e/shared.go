@@ -23,6 +23,7 @@ type installOptions struct {
 	noProxy                 string
 	privateCA               string
 	configValuesFile        string
+	networkInterface        string
 	withEnv                 map[string]string
 }
 
@@ -83,6 +84,9 @@ func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts install
 	}
 	if opts.configValuesFile != "" {
 		line = append(line, "--config-values", opts.configValuesFile)
+	}
+	if opts.networkInterface != "" {
+		line = append(line, "--network-interface", opts.networkInterface)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))

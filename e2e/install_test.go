@@ -2296,7 +2296,8 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 	}
 
 	installSingleNodeWithOptions(t, tc, installOptions{
-		privateCA: "/tmp/ca.crt",
+		networkInterface: "tailscale0",
+		privateCA:        "/tmp/ca.crt",
 	})
 
 	t.Logf("%s: deploying app", time.Now().Format(time.RFC3339))
