@@ -80,7 +80,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			// populate options struct with host information
 			currentHost, err := newHostInfo(ctx)
 			if !checkErrPrompt(assumeYes, force, err) {
-				return fmt.Errorf("Aborting")
+				return err
 			}
 
 			logrus.Info("")
