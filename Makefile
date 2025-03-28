@@ -284,12 +284,10 @@ vet:
 
 .PHONY: e2e-tests
 e2e-tests: embedded-release
-e2e-tests: export SHORT_SHA = dev-$(shell git rev-parse --short HEAD)
 e2e-tests:
 	go test -tags $(GO_BUILD_TAGS) -timeout 60m -ldflags="$(LD_FLAGS)" -parallel 1 -failfast -v ./e2e
 
 .PHONY: e2e-test
-e2e-test: export SHORT_SHA = dev-$(shell git rev-parse --short HEAD)
 e2e-test:
 	go test -tags $(GO_BUILD_TAGS) -timeout 60m -ldflags="$(LD_FLAGS)" -v ./e2e -run ^$(TEST_NAME)$$
 
