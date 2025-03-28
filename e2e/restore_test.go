@@ -237,7 +237,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		outputTCPDeniedLogs(t, tc)
+		failOnProxyTCPDenied(t, tc)
 	})
 
 	installSingleNodeWithOptions(t, tc, installOptions{
