@@ -113,5 +113,5 @@ func runEnableHA(ctx context.Context, flags EnableHACmdFlags) error {
 	}
 	defer hcli.Close()
 
-	return addons.EnableHA(ctx, kcli, kclient, hcli, in.Spec.AirGap, in.Spec.Network.ServiceCIDR, in.Spec.Proxy, in.Spec.Config)
+	return addons.EnableHA(ctx, kcli, kclient, hcli, in.Spec.AirGap, in.Spec.Network.ServiceCIDR, in.Spec.Proxy, in.Spec.Config, logrus.Infof)
 }
