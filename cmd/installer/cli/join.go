@@ -508,12 +508,22 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 	if !canEnableHA {
 		return nil
 	}
-
 	if !flags.assumeYes {
-		logrus.Info("")
-		logrus.Info("You can enable high availability when adding a third controller node or more. This will migrate data so that it is replicated across cluster nodes. Once enabled, you must maintain at least three controller nodes.")
-		logrus.Info("")
-		shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", true)
+		if config.HasCustomRoles() {
+			controllerRoleName := config.GetControllerRoleName()
+			logrus.Info("")
+			logrus.Infof("You can enable high availability for clusters with three or more %s nodes.", controllerRoleName)
+			logrus.Infof("Data will be migrated so it is replicated across cluster nodes.")
+			logrus.Infof("When high availability is enabled, you must maintain at least three %s nodes.", controllerRoleName)
+			logrus.Info("")
+		} else {
+			logrus.Info("")
+			logrus.Info("You can enable high availability for clusters with three or more nodes.")
+			logrus.Info("Data will be migrated so it is replicated across cluster nodes.")
+			logrus.Info("When high availability is enabled, you must maintain at least three nodes.")
+			logrus.Info("")
+		}
+		shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", false)
 		if !shouldEnableHA {
 			return nil
 		}
