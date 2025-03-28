@@ -71,6 +71,7 @@ type ClusterInput struct {
 	id                                string
 	AdditionalFiles                   []File
 	SupportBundleNodeIndex            int
+	LowercaseNodeNames                bool
 }
 
 // File holds information about a file that must be uploaded to a node.
@@ -380,6 +381,9 @@ func ConfigureProxy(in *ClusterInput) {
 	// them trust it.
 	for i := 0; i < in.Nodes; i++ {
 		name := fmt.Sprintf("Node-%s-%02d", in.id, i)
+		if in.LowercaseNodeNames {
+			name = strings.ToLower(name)
+		}
 		RunCommand(in, []string{"mkdir", "-p", "/usr/local/share/ca-certificates/proxy"}, name)
 
 		CopyFileToNode(in, name, File{
@@ -816,6 +820,9 @@ func CreateNode(in *ClusterInput, i int) (string, string) {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
 	name := fmt.Sprintf("Node-%s-%02d", in.id, i)
+	if in.LowercaseNodeNames {
+		name = strings.ToLower(name)
+	}
 	profile := fmt.Sprintf("profile-%s", in.id)
 	net := fmt.Sprintf("internal-%s", in.id)
 	request := api.InstancesPost{
