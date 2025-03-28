@@ -89,7 +89,7 @@ func EnableHA(
 			spinner.Infof("Migrating data for high availability")
 			err = migrateRegistryData(ctx, kcli, kclient, cfgspec, spinner)
 			if err != nil {
-				spinner.ErrorClosef("Failed to enable high availability")
+				spinner.ErrorClosef("Failed to migrate registry data")
 				return errors.Wrap(err, "migrate registry data")
 			}
 			logrus.Debugf("Data migration complete")
@@ -105,7 +105,7 @@ func EnableHA(
 		}
 	}
 
-	logrus.Debug("updating the admin console for high availability")
+	logrus.Debug("enabling high availability for the admin console")
 	spinner.Infof("Enabling high availability for the Admin Console")
 	err := EnableAdminConsoleHA(ctx, kcli, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
 	if err != nil {
@@ -127,11 +127,12 @@ func EnableHA(
 		return errors.Wrap(err, "update installation")
 	}
 
-	logrus.Debug("high availability enabled")
+	logrus.Debugf("high availability enabled")
 	spinner.Closef("High availability enabled")
+
+	logrus.Info("\nHigh availability is now enabled.")
 	// TODO: @ajp-io add in controller role name
-	logrus.Info("High availability is now enabled.")
-	logrus.Info("You must maintain at least three controller nodes.")
+	logrus.Info("You must maintain at least three controller nodes.\n")
 	return nil
 }
 
@@ -284,7 +285,7 @@ func waitForPodAndLogProgress(spinner *spinner.MessageWriter, progressCh <-chan 
 		case err := <-errCh:
 			return err
 		case progress := <-progressCh:
-			logrus.Debugf("Migrating data for high availability (%s)", progress)
+			logrus.Debugf("migrating data for high availability (%s)", progress)
 			spinner.Infof("Migrating data for high availability (%s)", progress)
 		}
 	}
