@@ -188,7 +188,8 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	}
 
 	logrus.Debugf("waiting for node to join cluster")
-	if err := waitForNodeToJoin(ctx, kcli, hostname, isWorker); err != nil {
+	nodename := strings.ToLower(hostname)
+	if err := waitForNodeToJoin(ctx, kcli, nodename, isWorker); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
