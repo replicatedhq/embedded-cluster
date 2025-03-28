@@ -277,11 +277,13 @@ func maybePrintHAWarning(ctx context.Context) error {
 	if numControllerNodes == 3 {
 		if config.HasCustomRoles() {
 			controllerRoleName := config.GetControllerRoleName()
-			logrus.Warn(fmt.Sprintf("\nYou must maintain at least three %s nodes in a high-availability cluster, but resetting this node will leave only two.", controllerRoleName))
+			logrus.Warnf("\nHigh-availability clusters require at least three %s nodes.", controllerRoleName)
+			logrus.Warn("Resetting this node will leave only two.")
 			logrus.Warn("This can lead to a loss of functionality and non-recoverable failures.")
-			logrus.Warn(fmt.Sprintf("If you reset this node, re-join a third %s node as soon as possible.", controllerRoleName))
+			logrus.Warnf("If you reset this node, re-join a third %s node as soon as possible.\n", controllerRoleName)
 		} else {
-			logrus.Warn("\nYou must maintain at least three nodes in a high-availability cluster, but resetting this node will leave only two.")
+			logrus.Warn("\nHigh-availability clusters require at least three nodes.")
+			logrus.Warn("Resetting this node will leave only two.")
 			logrus.Warn("This can lead to a loss of functionality and non-recoverable failures.")
 			logrus.Warn("If you reset this node, re-join a third node as soon as possible.")
 		}
