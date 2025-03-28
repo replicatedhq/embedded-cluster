@@ -101,6 +101,11 @@ type Cluster struct {
 
 // Destroy destroys a cluster pointed by the id property.
 func (c *Cluster) Destroy() {
+	if os.Getenv("SKIP_LXD_CLEANUP") != "" {
+		c.T.Logf("Skipping LXD cleanup")
+		return
+	}
+
 	c.T.Logf("Destroying cluster %s", c.id)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
