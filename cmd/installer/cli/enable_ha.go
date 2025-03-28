@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -71,16 +72,18 @@ func runEnableHA(ctx context.Context, flags EnableHACmdFlags) error {
 		return NewErrorNothingElseToAdd(fmt.Errorf("high availability cannot be enabled because %s", reason))
 	}
 
-	if !flags.assumeYes {
-		// logrus.Info("High availability can be enabled once you have three or more controller nodes.")
-		// logrus.Info("Enabling it will replicate data across the cluster to ensure resilience and fault tolerance.")
-		// logrus.Info("After HA is enabled, you must maintain at least three controller nodes to keep it active.")
-		// TODO: @ajp-io add in controller role name
-		logrus.Info("You can enable high availability for clusters with three or more controller nodes.")
-		logrus.Info("This will migrate data so that it is replicated across cluster nodes.")
-		logrus.Info("When high availability is enabled, you must maintain at least three controller nodes.")
-		logrus.Info("")
+	if config.HasCustomRoles() {
+		controllerRoleName := config.GetControllerRoleName()
+		logrus.Info("\nHigh availability can be enabled once you have three or more %s nodes.", controllerRoleName)
+		logrus.Info("Enabling it will replicate data across cluster nodes.")
+		logrus.Info("After HA is enabled, you must maintain at least three %s nodes.\n", controllerRoleName)
+	} else {
+		logrus.Info("\nHigh availability can be enabled once you have three or more nodes.")
+		logrus.Info("Enabling it will replicate data across cluster nodes.")
+		logrus.Info("After HA is enabled, you must maintain at least three nodes.\n")
+	}
 
+	if !flags.assumeYes {
 		shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", true)
 		if !shouldEnableHA {
 			return nil
