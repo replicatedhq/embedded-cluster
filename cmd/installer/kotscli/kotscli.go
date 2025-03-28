@@ -148,7 +148,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 		return fmt.Errorf("unable to update the application: %w", err)
 	}
 
-	loading.Closef("Update complete.")
+	loading.Closef("Update complete")
 
 	logrus.Info("\n\033[1m" +
 		"----------------------------------------------\n" +

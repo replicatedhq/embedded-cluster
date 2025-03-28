@@ -280,7 +280,7 @@ func maybePrintHAWarning(ctx context.Context) error {
 			logrus.Warnf("\nHigh-availability clusters require at least three %s nodes.", controllerRoleName)
 			logrus.Warn("Resetting this node will leave only two.")
 			logrus.Warn("This can lead to a loss of functionality and non-recoverable failures.")
-			logrus.Warnf("If you reset this node, re-join a third %s node as soon as possible.\n", controllerRoleName)
+			logrus.Warnf("If you reset this node, re-join a third %s node as soon as possible.", controllerRoleName)
 		} else {
 			logrus.Warn("\nHigh-availability clusters require at least three nodes.")
 			logrus.Warn("Resetting this node will leave only two.")

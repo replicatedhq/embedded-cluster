@@ -173,7 +173,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	}
 
 	loading.Closef("Node is ready")
-	logrus.Infof("\nNode joined the cluster successfully\n")
+	logrus.Infof("\nNode joined the cluster successfully.\n")
 	if isWorker {
 		logrus.Debugf("worker node join finished")
 		return nil
@@ -532,9 +532,9 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 
 	if config.HasCustomRoles() {
 		controllerRoleName := config.GetControllerRoleName()
-		logrus.Info("High availability can be enabled once you have three or more %s nodes.", controllerRoleName)
+		logrus.Infof("High availability can be enabled once you have three or more %s nodes.", controllerRoleName)
 		logrus.Info("Enabling it will replicate data across cluster nodes.")
-		logrus.Info("After HA is enabled, you must maintain at least three %s nodes.\n", controllerRoleName)
+		logrus.Infof("After HA is enabled, you must maintain at least three %s nodes.\n", controllerRoleName)
 	} else {
 		logrus.Info("High availability can be enabled once you have three or more nodes.")
 		logrus.Info("Enabling it will replicate data across cluster nodes.")
@@ -542,7 +542,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 	}
 
 	if !flags.assumeYes {
-		shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", false)
+		shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", true)
 		if !shouldEnableHA {
 			return nil
 		}

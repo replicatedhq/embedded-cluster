@@ -32,7 +32,7 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, string, error) 
 		return false, "", errors.Wrap(err, "get latest installation")
 	}
 	if in.Spec.HighAvailability {
-		return false, "already enabled", nil
+		return false, "it is already enabled", nil
 	}
 
 	if err := kcli.Get(ctx, types.NamespacedName{Name: constants.EcRestoreStateCMName, Namespace: "embedded-cluster"}, &corev1.ConfigMap{}); err == nil {
@@ -111,7 +111,7 @@ func EnableHA(
 		spinner.ErrorClosef("Failed to enable high availability for the Admin Console")
 		return errors.Wrap(err, "enable admin console high availability")
 	}
-	logrus.Debugf("Admin console high availability enabled")
+	logrus.Debugf("Admin Console high availability enabled")
 
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
@@ -129,7 +129,7 @@ func EnableHA(
 	logrus.Debugf("high availability enabled")
 	spinner.Closef("High availability enabled")
 
-	logrus.Info("\nHigh availability enabled")
+	logrus.Info("\nHigh availability is now enabled.")
 	logrus.Info("You must maintain at least three controller nodes.\n")
 	return nil
 }
