@@ -40,13 +40,22 @@ spec:
         args: ['-c', 'command -v umount']
     - hostOS: {}
     - http:
-        collectorName: http-replicated-app
+        collectorName: http-replicated-app-provided-ca-certs
         get:
           url: '{{ .ReplicatedAppURL }}'
           timeout: 5s
           tls:
             cacert: '{{ .PrivateCA }}'
           proxy: '{{ .HTTPSProxy }}'
+        # only run this HTTP collectors if a private CA is provided
+        exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") (neq .PrivateCA "") }}'
+    - http:
+        collectorName: http-replicated-app-host-ca-certs
+        get:
+          url: '{{ .ReplicatedAppURL }}'
+          timeout: 5s
+          proxy: '{{ .HTTPSProxy }}'
+        # run this regardless of whether a private CA is provided - the host must trust any private CAs in order to pull images
         exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") }}'
     - http:
         collectorName: http-proxy-replicated-com
@@ -410,8 +419,31 @@ spec:
               message: Kernel version must be at least 3.10
     - http:
         checkName: API Access
-        collectorName: http-replicated-app
+        collectorName: http-replicated-app-host-ca-certs
         exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") }}'
+        outcomes:
+          - fail:
+              when: error
+              message: >
+                Error connecting to {{ .ReplicatedAppURL }}.
+                Ensure your firewall is properly configured, and use --http-proxy,
+                --https-proxy, and --no-proxy if there is a proxy server.
+                The static IP addresses for {{ .ReplicatedAppURL }} are
+                162.159.133.41 and 162.159.134.41.
+          - pass:
+              when: 'statusCode == 200'
+              message: 'Connected to {{ .ReplicatedAppURL }}'
+          - fail:
+              message: >
+                Error connecting to {{ .ReplicatedAppURL }}.
+                Ensure your firewall is properly configured, and use --http-proxy,
+                --https-proxy, and --no-proxy if there is a proxy server.
+                The static IP addresses for {{ .ReplicatedAppURL }} are
+                162.159.133.41 and 162.159.134.41.
+    - http:
+        checkName: API Access with Provided CA Certs
+        collectorName: http-replicated-app-provided-ca-certs
+        exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") (neq .PrivateCA "") }}'
         outcomes:
           - fail:
               when: error
