@@ -1081,6 +1081,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 		AirgapInstallBundlePath:  airgapInstallBundlePath,
 		AirgapUpgradeBundlePath:  airgapUpgradeBundlePath,
 		AirgapUpgrade2BundlePath: airgapUpgrade2BundlePath,
+		LowercaseNodeNames:       true,
 	})
 	defer tc.Cleanup(withEnv)
 
@@ -1588,6 +1589,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		AirgapInstallBundlePath:  airgapInstallBundlePath,
 		AirgapUpgradeBundlePath:  airgapUpgradeBundlePath,
 		AirgapUpgrade2BundlePath: airgapUpgrade2BundlePath,
+		LowercaseNodeNames:       true,
 	})
 	defer tc.Cleanup()
 

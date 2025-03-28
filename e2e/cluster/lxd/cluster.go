@@ -71,6 +71,7 @@ type ClusterInput struct {
 	id                                string
 	AdditionalFiles                   []File
 	SupportBundleNodeIndex            int
+	LowercaseNodeNames                bool
 }
 
 // File holds information about a file that must be uploaded to a node.
@@ -100,6 +101,11 @@ type Cluster struct {
 
 // Destroy destroys a cluster pointed by the id property.
 func (c *Cluster) Destroy() {
+	if os.Getenv("SKIP_LXD_CLEANUP") != "" {
+		c.T.Logf("Skipping LXD cleanup")
+		return
+	}
+
 	c.T.Logf("Destroying cluster %s", c.id)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
@@ -379,7 +385,10 @@ func ConfigureProxy(in *ClusterInput) {
 	// http requests using the proxy. we also copy the squid ca to the nodes and make
 	// them trust it.
 	for i := 0; i < in.Nodes; i++ {
-		name := fmt.Sprintf("node-%s-%02d", in.id, i)
+		name := fmt.Sprintf("Node-%s-%02d", in.id, i)
+		if in.LowercaseNodeNames {
+			name = strings.ToLower(name)
+		}
 		RunCommand(in, []string{"mkdir", "-p", "/usr/local/share/ca-certificates/proxy"}, name)
 
 		CopyFileToNode(in, name, File{
@@ -815,7 +824,10 @@ func CreateNode(in *ClusterInput, i int) (string, string) {
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	name := fmt.Sprintf("node-%s-%02d", in.id, i)
+	name := fmt.Sprintf("Node-%s-%02d", in.id, i)
+	if in.LowercaseNodeNames {
+		name = strings.ToLower(name)
+	}
 	profile := fmt.Sprintf("profile-%s", in.id)
 	net := fmt.Sprintf("internal-%s", in.id)
 	request := api.InstancesPost{

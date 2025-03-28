@@ -983,7 +983,8 @@ func waitForNode(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("get hostname: %w", err)
 	}
-	if err := kubeutils.WaitForNode(ctx, kcli, hostname, false); err != nil {
+	nodename := strings.ToLower(hostname)
+	if err := kubeutils.WaitForNode(ctx, kcli, nodename, false); err != nil {
 		return fmt.Errorf("wait for node: %w", err)
 	}
 	return nil

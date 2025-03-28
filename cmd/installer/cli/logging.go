@@ -9,6 +9,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -117,6 +118,7 @@ func SetupLogging() {
 	logrus.SetOutput(logfile)
 	logrus.AddHook(&StdoutLogger{})
 	logrus.Debugf("command line: %v", os.Args)
+	logrus.Debugf("Embedded Cluster: %s, k0s: %s", versions.Version, versions.K0sVersion)
 
 	setupCtrlLogging(logfile)
 
