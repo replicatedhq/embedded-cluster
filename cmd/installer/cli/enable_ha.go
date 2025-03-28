@@ -74,9 +74,9 @@ func runEnableHA(ctx context.Context, flags EnableHACmdFlags) error {
 
 	if config.HasCustomRoles() {
 		controllerRoleName := config.GetControllerRoleName()
-		logrus.Info("\nHigh availability can be enabled once you have three or more %s nodes.", controllerRoleName)
+		logrus.Infof("\nHigh availability can be enabled once you have three or more %s nodes.", controllerRoleName)
 		logrus.Info("Enabling it will replicate data across cluster nodes.")
-		logrus.Info("After HA is enabled, you must maintain at least three %s nodes.\n", controllerRoleName)
+		logrus.Infof("After HA is enabled, you must maintain at least three %s nodes.\n", controllerRoleName)
 	} else {
 		logrus.Info("\nHigh availability can be enabled once you have three or more nodes.")
 		logrus.Info("Enabling it will replicate data across cluster nodes.")

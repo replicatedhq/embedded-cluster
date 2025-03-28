@@ -529,8 +529,8 @@ func verifyChannelRelease(cmdName string, isAirgap bool, assumeYes bool) error {
 	channelRelease := release.GetChannelRelease()
 
 	if channelRelease != nil && channelRelease.Airgap && !isAirgap && !assumeYes {
-		logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
-		logrus.Warnf("If you continue, the %s will not use an air gap bundle and will connect to the internet.", cmdName)
+		logrus.Warnf("\nYou downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
+		logrus.Warnf("If you continue, the %s will not use an air gap bundle and will connect to the internet.\n", cmdName)
 		if !prompts.New().Confirm(fmt.Sprintf("Do you want to proceed with an online %s?", cmdName), false) {
 			// TODO: send aborted metrics event
 			return NewErrorNothingElseToAdd(errors.New("user aborted: air gap bundle downloaded but flag not provided"))
