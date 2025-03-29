@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
 )
@@ -8,6 +9,7 @@ import (
 var (
 	_ Cluster = (*lxd.Cluster)(nil)
 	_ Cluster = (*docker.Cluster)(nil)
+	_ Cluster = (*cmx.Cluster)(nil)
 )
 
 type Cluster interface {

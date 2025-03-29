@@ -43,6 +43,15 @@ inputs:
   version-specifier:
     description: 'the git sha or tag used to generate application version strings'
     required: true
+  cmx-replicated-api-token:
+    description: 'the replicated api token to use for cmx e2e tests'
+    required: false
+  replicatedvm-ssh-user:
+    description: 'the user to use for ssh to the replicated vm'
+    required: false
+  replicatedvm-ssh-key:
+    description: 'the ssh key to use for ssh to the replicated vm'
+    required: false
   upgrade-target-ec-version:
     description: 'the embedded cluster version to expect after upgrades complete'
     required: false # this is only set by post-release testing
@@ -91,6 +100,20 @@ runs:
     with:
       go-version-file: go.mod
       cache-dependency-path: "**/*.sum"
+  - name: Install Replicated CLI
+    shell: bash
+    run: |
+      curl -o install.sh -sSL https://raw.githubusercontent.com/replicatedhq/replicated/master/install.sh
+      sudo bash ./install.sh
+  - name: Output CMX environment variables
+    shell: bash
+    if: ${{ inputs.cmx-replicated-api-token != '' && inputs.replicatedvm-ssh-key != '' && inputs.replicatedvm-ssh-user != '' }}
+    run: |
+      echo "${{ inputs.replicatedvm-ssh-key }}" | base64 --decode > /tmp/replicatedvm-ssh-key
+      chmod 400 /tmp/replicatedvm-ssh-key
+      echo "CMX_REPLICATED_API_TOKEN=${{ inputs.cmx-replicated-api-token }}" >> $GITHUB_ENV
+      echo "REPLICATEDVM_SSH_USER=${{ inputs.replicatedvm-ssh-user }}" >> $GITHUB_ENV
+      echo "REPLICATEDVM_SSH_KEY=/tmp/replicatedvm-ssh-key" >> $GITHUB_ENV
   - name: E2E
     shell: bash
     run: |
