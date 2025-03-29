@@ -19,13 +19,13 @@ images:
     calico-node:
         repo: proxy.replicated.com/anonymous/replicated/ec-calico-node
         tag:
-            amd64: 3.28.2-r1-amd64@sha256:3ed1476619f024924a7e1953b9736e79dcd5cc337b7ac83c1ebb360fb2353aaf
-            arm64: 3.28.2-r1-arm64@sha256:e66545a3e58dceeec3b93c6dad27d483787a7726ae6462bea52925c9e1881ad0
+            amd64: 3.28.2-r1-amd64@sha256:c2f3745a0a05d33ab6744269ab73d4973c64fd8e9af19b4f0af7b3837d7b8154
+            arm64: 3.28.2-r1-arm64@sha256:73d2445103ca9e31a783829649e6803c36a54bb12e7f6d54e6b32ce92196158d
     coredns:
         repo: proxy.replicated.com/anonymous/replicated/ec-coredns
         tag:
-            amd64: 1.12.0-r8-amd64@sha256:b66aa68194c2214e42b5abb513742e393d120d4363ad184ab6e3c5d173f98b48
-            arm64: 1.12.0-r8-arm64@sha256:122fc6b7ea9d11ac8ac8bac5d02510bd7493d4687b28fdad1c2888b7093ab269
+            amd64: 1.12.0-r9-amd64@sha256:c38d5af9fb2ca7c8c5cb447d2661857ac88a5f0ad3c1e1b279fbfe3e6ccebd18
+            arm64: 1.12.0-r9-arm64@sha256:0aa97c9a64b8a31965a10d5fb6d6840509cfc1927e17922811065f64c98727f9
     envoy-distroless:
         repo: proxy.replicated.com/anonymous/replicated/ec-envoy-distroless
         tag:
