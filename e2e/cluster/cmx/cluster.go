@@ -112,6 +112,12 @@ func NewCluster(ctx context.Context, input ClusterInput) *Cluster {
 			return fmt.Errorf("enable ssh access on proxy node: %v", err)
 		}
 
+		c.logf("Setting timezone on proxy node")
+		err = c.setTimezoneOnNode(c.proxyNode)
+		if err != nil {
+			return fmt.Errorf("set timezone on proxy node: %v", err)
+		}
+
 		c.logf("Copying dirs to proxy node")
 		err = c.copyDirsToNode(c.proxyNode)
 		if err != nil {
@@ -142,6 +148,12 @@ func NewCluster(ctx context.Context, input ClusterInput) *Cluster {
 			err := c.enableSSHAccessOnNode(node)
 			if err != nil {
 				return fmt.Errorf("enable ssh access: %v", err)
+			}
+
+			c.logf("Setting timezone on node %s", node.ID)
+			err = c.setTimezoneOnNode(node)
+			if err != nil {
+				return fmt.Errorf("set timezone on node %s: %v", node.ID, err)
 			}
 
 			c.logf("Copying files to node %s", node.ID)
@@ -351,6 +363,14 @@ func (c *Cluster) enableSSHAccessOnNode(node *node) error {
 	_, stderr, err := c.runCommandOnNode(node, os.Getenv("REPLICATEDVM_SSH_USER"), command)
 	if err != nil {
 		return fmt.Errorf("enable SSH access with root user: %v, stderr: %s", err, stderr)
+	}
+	return nil
+}
+
+func (c *Cluster) setTimezoneOnNode(node *node) error {
+	_, stderr, err := c.runCommandOnNode(node, "root", []string{"timedatectl", "set-timezone", "Etc/UTC"})
+	if err != nil {
+		return fmt.Errorf("set timezone on node %s: %v, stderr: %s", node.ID, err, stderr)
 	}
 	return nil
 }
