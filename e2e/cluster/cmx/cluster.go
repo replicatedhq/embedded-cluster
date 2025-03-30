@@ -33,6 +33,7 @@ type Cluster struct {
 	gid                    string
 	networkID              string
 	nodes                  []*node
+	nodePrivateIPs         []string
 	proxyNode              *node
 	supportBundleNodeIndex int
 }
@@ -140,7 +141,9 @@ func NewCluster(ctx context.Context, input ClusterInput) *Cluster {
 
 	eg = errgroup.Group{}
 
-	for _, node := range c.nodes {
+	c.nodePrivateIPs = make([]string, len(c.nodes))
+
+	for i, node := range c.nodes {
 		eg.Go(func() error {
 			start := time.Now()
 
@@ -149,6 +152,9 @@ func NewCluster(ctx context.Context, input ClusterInput) *Cluster {
 			if err != nil {
 				return fmt.Errorf("enable ssh access: %v", err)
 			}
+
+			c.logf("Discovering private IP for node %s", node.ID)
+			c.nodePrivateIPs[i] = c.discoverNodePrivateIP(node)
 
 			c.logf("Setting timezone on node %s", node.ID)
 			err = c.setTimezoneOnNode(node)
@@ -293,7 +299,7 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 	line := []string{"playwright.sh", testName}
 	line = append(line, args...)
 	env := map[string]string{
-		"BASE_URL": fmt.Sprintf("http://%s", net.JoinHostPort("100.64.0.2", "30003")),
+		"BASE_URL": fmt.Sprintf("http://%s", net.JoinHostPort(c.nodePrivateIPs[0], "30003")),
 	}
 	stdout, stderr, err := c.runCommandOnNode(c.proxyNode, "root", line, env)
 	if err != nil {
@@ -365,6 +371,17 @@ func (c *Cluster) enableSSHAccessOnNode(node *node) error {
 		return fmt.Errorf("enable SSH access with root user: %v, stderr: %s", err, stderr)
 	}
 	return nil
+}
+
+func (c *Cluster) discoverNodePrivateIP(node *node) string {
+	c.logf("Discovering private IP for node %s", node.ID)
+	ip, stderr, err := c.runCommandOnNode(node, "root",
+		[]string{"ip", "-f", "inet", "addr", "show", "tailscale0", "|", "sed", "-En", "-e", `s/.*inet ([0-9.]+).*/\1/p`},
+	)
+	if err != nil {
+		c.t.Fatalf("Failed to get private IP for node %s: %v, stderr: %s", node.ID, err, stderr)
+	}
+	return ip
 }
 
 func (c *Cluster) setTimezoneOnNode(node *node) error {
