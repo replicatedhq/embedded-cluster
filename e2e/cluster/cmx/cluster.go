@@ -376,7 +376,7 @@ func (c *Cluster) enableSSHAccessOnNode(node *node) error {
 func (c *Cluster) discoverNodePrivateIP(node *node) string {
 	c.logf("Discovering private IP for node %s", node.ID)
 	ip, stderr, err := c.runCommandOnNode(node, "root",
-		[]string{"ip", "-f", "inet", "addr", "show", "tailscale0", "|", "sed", "-En", "-e", `s/.*inet ([0-9.]+).*/\1/p`},
+		[]string{"ip", "-f", "inet", "addr", "show", "tailscale0", "|", "sed", "-En", "-e", `'s/.*inet ([0-9.]+).*/\1/p'`},
 	)
 	if err != nil {
 		c.t.Fatalf("Failed to get private IP for node %s: %v, stderr: %s", node.ID, err, stderr)
