@@ -291,6 +291,11 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 }
 
 func (c *Cluster) destroy() {
+	if os.Getenv("SKIP_CMX_CLEANUP") != "" {
+		c.t.Logf("Skipping CMX cleanup")
+		return
+	}
+
 	if c.gid != "" {
 		// Best effort cleanup
 		c.logf("Cleaning up nodes")

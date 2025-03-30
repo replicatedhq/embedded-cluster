@@ -137,6 +137,7 @@ runs:
       export EXPECT_K0S_VERSION_PREVIOUS_STABLE=${{ inputs.k0s-version-previous-stable }}
       export EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION=${{ inputs.upgrade-target-ec-version }}
       export SKIP_LXD_CLEANUP=true
+      export SKIP_CMX_CLEANUP=true
       make e2e-test TEST_NAME=${{ inputs.test-name }}
   - name: Troubleshoot
     if: ${{ !cancelled() }}
