@@ -254,6 +254,8 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	line = []string{"check-preflights-fail.sh", "--http-proxy", lxd.HTTPMITMProxy, "--https-proxy", lxd.HTTPMITMProxy}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, lxd.WithMITMProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to check preflight checks: %v: %s: %s", err, stdout, stderr)
+	} else {
+		t.Logf("Preflight checks failed as expected:\n%s\n%s", stdout, stderr)
 	}
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
