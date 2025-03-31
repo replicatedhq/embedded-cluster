@@ -48,7 +48,7 @@ spec:
             cacert: '{{ .PrivateCA }}'
           proxy: '{{ .HTTPSProxy }}'
         # only run this HTTP collectors if a private CA is provided
-        exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") (neq .PrivateCA "") }}'
+        exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") (ne .PrivateCA "") }}'
     - http:
         collectorName: http-replicated-app-host-ca-certs
         get:
@@ -443,7 +443,7 @@ spec:
     - http:
         checkName: API Access with Provided CA Certs
         collectorName: http-replicated-app-provided-ca-certs
-        exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") (neq .PrivateCA "") }}'
+        exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") (ne .PrivateCA "") }}'
         outcomes:
           - fail:
               when: error
