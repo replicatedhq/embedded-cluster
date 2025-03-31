@@ -343,7 +343,7 @@ func (c *Cluster) runCommandOnNode(node *node, sshUser string, command []string,
 		}
 	}
 	cmdArr = append(cmdArr, strings.Join(command, " "))
-	args = append(args, strings.Join(cmdArr, "; "))
+	args = append(args, strings.Join(cmdArr, " && "))
 
 	c.logf("  -> Running ssh command on node %s: %q", node.ID, args)
 	cmd := exec.CommandContext(c.t.Context(), "ssh", args...)
