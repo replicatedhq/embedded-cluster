@@ -381,7 +381,7 @@ func (c *Cluster) discoverNodePrivateIP(node *node) string {
 	if err != nil {
 		c.t.Fatalf("Failed to get private IP for node %s: %v, stderr: %s", node.ID, err, stderr)
 	}
-	return ip
+	return strings.TrimSpace(ip)
 }
 
 func (c *Cluster) setTimezoneOnNode(node *node) error {
