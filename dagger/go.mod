@@ -1,6 +1,6 @@
 module dagger/embedded-cluster
 
-go 1.23.2
+go 1.24.1
 
 require (
 	github.com/99designs/gqlgen v0.17.57
