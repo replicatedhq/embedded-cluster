@@ -56,7 +56,7 @@ func TestProxiedEnvironment(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		outputTCPDeniedLogs(t, tc)
+		failOnProxyTCPDenied(t, tc)
 	})
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
@@ -147,7 +147,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		outputTCPDeniedLogs(t, tc)
+		failOnProxyTCPDenied(t, tc)
 	})
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
@@ -246,7 +246,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		outputTCPDeniedLogs(t, tc)
+		failOnProxyTCPDenied(t, tc)
 	})
 
 	// test to ensure that preflight checks fail without the CA cert
@@ -295,11 +295,15 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func outputTCPDeniedLogs(t *testing.T, tc *lxd.Cluster) {
-	stdout, _, err := tc.RunCommandOnProxyNode(t, []string{"sh", "-c", "grep -A4 -B4 TCP_DENIED /var/log/squid/access.log || true"})
+func failOnProxyTCPDenied(t *testing.T, tc *lxd.Cluster) {
+	line := []string{"sh", "-c", `grep -A1 TCP_DENIED /var/log/squid/access.log | grep -v speedtest\.net`}
+	stdout, _, err := tc.RunCommandOnProxyNode(t, line)
 	if err != nil {
 		t.Fatalf("fail to check squid access log: %v", err)
 	}
 	t.Logf("TCP_DENIED logs:")
 	t.Log(stdout)
+	if strings.Contains(stdout, "TCP_DENIED") {
+		t.Fatalf("TCP_DENIED logs found")
+	}
 }
