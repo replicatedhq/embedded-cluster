@@ -222,11 +222,10 @@ func (c *Cluster) RunCommandOnNode(node int, command []string, envs ...map[strin
 	start := time.Now()
 	c.logf("Running command on node %s: %s", c.nodes[node].ID, strings.Join(command, " "))
 	stdout, stderr, err := c.runCommandOnNode(c.nodes[node], "root", command, envs...)
-	if err != nil {
-		return stdout, stderr, err
+	if err == nil {
+		c.logf("  -> Command on node %s completed in %s", c.nodes[node].ID, time.Since(start))
 	}
-	c.logf("  -> Command on node %s completed in %s", c.nodes[node].ID, time.Since(start))
-	return "", "", nil
+	return stdout, stderr, err
 }
 
 // RunCommandOnProxyNode executes a command on the proxy node as the root user
@@ -234,11 +233,10 @@ func (c *Cluster) RunCommandOnProxyNode(command []string, envs ...map[string]str
 	start := time.Now()
 	c.logf("Running command on proxy node: %s", strings.Join(command, " "))
 	stdout, stderr, err := c.runCommandOnNode(c.proxyNode, "root", command, envs...)
-	if err != nil {
-		return stdout, stderr, err
+	if err == nil {
+		c.logf("  -> Command on proxy node completed in %s", time.Since(start))
 	}
-	c.logf("  -> Command on proxy node completed in %s", time.Since(start))
-	return stdout, stderr, nil
+	return stdout, stderr, err
 }
 
 // RunRegularUserCommandOnNode executes a command on the specified node as a non-root user
@@ -246,11 +244,10 @@ func (c *Cluster) RunRegularUserCommandOnNode(node int, command []string, envs .
 	start := time.Now()
 	c.logf("Running command on node %s as user %s: %s", c.nodes[node].ID, os.Getenv("REPLICATEDVM_SSH_USER"), strings.Join(command, " "))
 	stdout, stderr, err := c.runCommandOnNode(c.nodes[node], os.Getenv("REPLICATEDVM_SSH_USER"), command, envs...)
-	if err != nil {
-		return stdout, stderr, err
+	if err == nil {
+		c.logf("  -> Command on node %s completed in %s", c.nodes[node].ID, time.Since(start))
 	}
-	c.logf("  -> Command on node %s completed in %s", c.nodes[node].ID, time.Since(start))
-	return stdout, stderr, nil
+	return stdout, stderr, err
 }
 
 // Cleanup removes the VM instance

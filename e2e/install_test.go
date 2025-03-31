@@ -2314,7 +2314,7 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 
 	var cm corev1.ConfigMap
 	err = json.Unmarshal([]byte(stdout), &cm)
-	require.NoErrorf(t, err, "unable to unmarshal output to configmap: %q", stdout)
+	require.NoErrorf(t, err, "unable to unmarshal configmap output: %q", stdout)
 	require.Contains(t, cm.Data, "ca_0.crt", "index ca_0.crt not found in ca secret")
 	require.Equal(t, crtContent, cm.Data["ca_0.crt"], "content mismatch")
 
