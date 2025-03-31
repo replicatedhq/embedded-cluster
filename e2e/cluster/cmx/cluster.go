@@ -342,7 +342,7 @@ func (c *Cluster) runCommandOnNode(node *node, sshUser string, command []string,
 			cmdArr = append(cmdArr, fmt.Sprintf("export %s=%s", k, v))
 		}
 	}
-	cmdArr = append(cmdArr, fmt.Sprintf("sh -c '%s'", strings.Join(command, " ")))
+	cmdArr = append(cmdArr, strings.Join(command, " "))
 	args = append(args, strings.Join(cmdArr, "; "))
 
 	c.logf("  -> Running ssh command on node %s: %q", node.ID, args)
@@ -376,7 +376,7 @@ func (c *Cluster) enableSSHAccessOnNode(node *node) error {
 func (c *Cluster) discoverNodePrivateIP(node *node) string {
 	c.logf("Discovering private IP for node %s", node.ID)
 	ip, stderr, err := c.runCommandOnNode(node, "root",
-		[]string{"ip", "-f", "inet", "addr", "show", "tailscale0", "|", "sed", "-En", "-e", `"s/.*inet ([0-9.]+).*/\1/p"`},
+		[]string{"ip", "-f", "inet", "addr", "show", "tailscale0", "|", "sed", "-En", "-e", `'s/.*inet ([0-9.]+).*/\1/p'`},
 	)
 	if err != nil {
 		c.t.Fatalf("Failed to get private IP for node %s: %v, stderr: %s", node.ID, err, stderr)
