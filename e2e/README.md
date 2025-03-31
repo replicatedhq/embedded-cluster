@@ -3,8 +3,9 @@
 ### Buildting the release for E2E tests
 
 ```bash
-./scripts/build-and-release.sh ARCH=amd64 \
-   APP_VERSION="appver-dev-local-$USER"
+export ARCH=amd64
+export APP_VERSION="appver-dev-local-$USER"
+./scripts/build-and-release.sh
 ```
 
 ### Running individual CMX tests locally
