@@ -251,7 +251,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 
 	// test to ensure that preflight checks fail without the CA cert
 	t.Logf("%s: checking preflight checks with MITM proxy", time.Now().Format(time.RFC3339))
-	line = []string{"preflight-checks-fail.sh", "--http-proxy", lxd.HTTPMITMProxy, "--https-proxy", lxd.HTTPMITMProxy}
+	line = []string{"check-preflights-fail.sh", "--http-proxy", lxd.HTTPMITMProxy, "--https-proxy", lxd.HTTPMITMProxy}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, lxd.WithMITMProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to check preflight checks: %v: %s: %s", err, stdout, stderr)
 	}
