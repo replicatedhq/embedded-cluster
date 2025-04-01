@@ -113,12 +113,6 @@ func NewCluster(ctx context.Context, input ClusterInput) *Cluster {
 			return fmt.Errorf("enable ssh access on proxy node: %v", err)
 		}
 
-		c.logf("Setting timezone on proxy node")
-		err = c.setTimezoneOnNode(c.proxyNode)
-		if err != nil {
-			return fmt.Errorf("set timezone on proxy node: %v", err)
-		}
-
 		c.logf("Copying dirs to proxy node")
 		err = c.copyDirsToNode(c.proxyNode)
 		if err != nil {
@@ -155,12 +149,6 @@ func NewCluster(ctx context.Context, input ClusterInput) *Cluster {
 
 			c.logf("Discovering private IP for node %s", node.ID)
 			c.nodePrivateIPs[i] = c.discoverNodePrivateIP(node)
-
-			c.logf("Setting timezone on node %s", node.ID)
-			err = c.setTimezoneOnNode(node)
-			if err != nil {
-				return fmt.Errorf("set timezone on node %s: %v", node.ID, err)
-			}
 
 			c.logf("Copying files to node %s", node.ID)
 			err = c.copyFilesToNode(node, input)
@@ -379,14 +367,6 @@ func (c *Cluster) discoverNodePrivateIP(node *node) string {
 		c.t.Fatalf("Failed to get private IP for node %s: %v, stderr: %s", node.ID, err, stderr)
 	}
 	return strings.TrimSpace(ip)
-}
-
-func (c *Cluster) setTimezoneOnNode(node *node) error {
-	_, stderr, err := c.runCommandOnNode(node, "root", []string{"timedatectl", "set-timezone", "Etc/UTC"})
-	if err != nil {
-		return fmt.Errorf("set timezone on node %s: %v, stderr: %s", node.ID, err, stderr)
-	}
-	return nil
 }
 
 func (c *Cluster) copyFilesToNode(node *node, in ClusterInput) error {
