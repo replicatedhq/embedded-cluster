@@ -185,6 +185,10 @@ spec:
             dir="{{ .DataDir }}"
             while [ "$dir" != "/" ]; do find "$dir" -maxdepth 0 ! -perm -111; dir=$(dirname "$dir"); done
             find "/" -maxdepth 0 ! -perm -111
+    - tls:
+        collectorName: replicatedapp
+        address: "{{ .ReplicatedAppURL }}:443"
+        exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") }}'
   analyzers:
     - cpu:
         checkName: CPU
@@ -1174,3 +1178,14 @@ spec:
           - fail:
               message: >-
                 The following directories lack execute permissions: {{ `{{ .Dirs | trim | splitList "\n" | join ", " }}` }}.
+    - tls:
+        checkName: replicatedapp
+        collectorName: replicatedapp
+        # exclude this in airgap, when there isn't a provided replicated url, or when a private CA is provided
+        exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") (ne .PrivateCA "") }}'
+        outcomes:
+          - pass:
+              when: "issuer == E5"
+              message: "The issuer of {{ .ReplicatedAppURL }} is E5 (letsencrypt) as expected"
+          - fail:
+              message: "The issuer of {{ .ReplicatedAppURL }} is not E5 (letsencrypt) - you may need to provide your CA's certificate with the '--private-ca' flag"
