@@ -2,10 +2,10 @@ package openebs
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -15,7 +15,7 @@ func (o *OpenEBS) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Cli
 		return errors.Wrap(err, "check if release exists")
 	}
 	if !exists {
-		slog.Info("Release not found, installing", "release", releaseName, "namespace", namespace)
+		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, namespace)
 		if err := o.Install(ctx, kcli, hcli, overrides, nil); err != nil {
 			return errors.Wrap(err, "install")
 		}

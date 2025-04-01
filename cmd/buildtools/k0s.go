@@ -76,6 +76,12 @@ var k0sImageComponents = map[string]addonComponent{
 			return fmt.Sprintf("registry.k8s.io/pause:%s", opts.upstreamVersion.Original()), nil
 		},
 	},
+	"quay.io/k0sproject/envoy-distroless": {
+		name: "envoy-distroless",
+		getWolfiPackageName: func(opts addonComponentOptions) string {
+			return fmt.Sprintf("envoy-%d.%d", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
+		},
+	},
 }
 
 var updateK0sImagesCommand = &cli.Command{

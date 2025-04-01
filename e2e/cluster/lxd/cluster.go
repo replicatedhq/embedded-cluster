@@ -70,6 +70,8 @@ type ClusterInput struct {
 	WithProxy                         bool
 	id                                string
 	AdditionalFiles                   []File
+	SupportBundleNodeIndex            int
+	LowercaseNodeNames                bool
 }
 
 // File holds information about a file that must be uploaded to a node.
@@ -88,16 +90,22 @@ type Dir struct {
 // Cluster is returned when a cluster is created. Contain a list of all node
 // names and the cluster id.
 type Cluster struct {
-	Nodes   []string
-	IPs     []string
-	network string
-	id      string
-	T       *testing.T
-	Proxy   string
+	Nodes                  []string
+	IPs                    []string
+	network                string
+	id                     string
+	T                      *testing.T
+	Proxy                  string
+	supportBundleNodeIndex int
 }
 
 // Destroy destroys a cluster pointed by the id property.
 func (c *Cluster) Destroy() {
+	if os.Getenv("SKIP_LXD_CLEANUP") != "" {
+		c.T.Logf("Skipping LXD cleanup")
+		return
+	}
+
 	c.T.Logf("Destroying cluster %s", c.id)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
@@ -210,9 +218,10 @@ func NewCluster(in *ClusterInput) *Cluster {
 	in.network = <-networkaddr
 
 	out := &Cluster{
-		T:       in.T,
-		network: in.network,
-		id:      in.id,
+		T:                      in.T,
+		network:                in.network,
+		id:                     in.id,
+		supportBundleNodeIndex: in.SupportBundleNodeIndex,
 	}
 	out.T.Cleanup(out.Destroy)
 
@@ -376,7 +385,10 @@ func ConfigureProxy(in *ClusterInput) {
 	// http requests using the proxy. we also copy the squid ca to the nodes and make
 	// them trust it.
 	for i := 0; i < in.Nodes; i++ {
-		name := fmt.Sprintf("node-%s-%02d", in.id, i)
+		name := fmt.Sprintf("Node-%s-%02d", in.id, i)
+		if in.LowercaseNodeNames {
+			name = strings.ToLower(name)
+		}
 		RunCommand(in, []string{"mkdir", "-p", "/usr/local/share/ca-certificates/proxy"}, name)
 
 		CopyFileToNode(in, name, File{
@@ -410,9 +422,9 @@ func RunCommand(in *ClusterInput, cmdline []string, name string, envs ...map[str
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	err := Run(ctx, in.T, cmd)
-	in.T.Logf("stdout: %s", stdout.String())
-	in.T.Logf("stderr: %s", stderr.String())
 	if err != nil {
+		in.T.Logf("stdout: %s", stdout.String())
+		in.T.Logf("stderr: %s", stderr.String())
 		in.T.Fatalf("Failed to run command: %v", err)
 	}
 }
@@ -812,7 +824,10 @@ func CreateNode(in *ClusterInput, i int) (string, string) {
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	name := fmt.Sprintf("node-%s-%02d", in.id, i)
+	name := fmt.Sprintf("Node-%s-%02d", in.id, i)
+	if in.LowercaseNodeNames {
+		name = strings.ToLower(name)
+	}
 	profile := fmt.Sprintf("profile-%s", in.id)
 	net := fmt.Sprintf("internal-%s", in.id)
 	request := api.InstancesPost{
@@ -1174,10 +1189,10 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 		}(i, &wg)
 	}
 
-	node := c.Nodes[0]
+	node := c.Nodes[c.supportBundleNodeIndex]
 	c.T.Logf("%s: generating cluster support bundle from node %s", time.Now().Format(time.RFC3339), node)
 	line := []string{"collect-support-bundle-cluster.sh"}
-	if stdout, stderr, err := c.RunCommandOnNode(0, line, envs...); err != nil {
+	if stdout, stderr, err := c.RunCommandOnNode(c.supportBundleNodeIndex, line, envs...); err != nil {
 		c.T.Logf("stdout: %s", stdout)
 		c.T.Logf("stderr: %s", stderr)
 		c.T.Logf("fail to generate cluster support from node %s bundle: %v", node, err)

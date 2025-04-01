@@ -87,8 +87,9 @@ spec:
         collectorName: Kube API Server Port
         port: 6443
     - tcpPortStatus:
-        collectorName: Envoy Port
+        collectorName: Envoy Internal Port
         port: 7443
+        interface: lo
     - tcpPortStatus:
         collectorName: Kotsadm Node Port
         port: {{ .AdminConsolePort }}
@@ -590,8 +591,8 @@ spec:
           - error:
               message: Port 6443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 6443/TCP is available.
     - tcpPortStatus:
-        checkName: Envoy Port Availability
-        collectorName: Envoy Port
+        checkName: Envoy Internal Port Availability
+        collectorName: Envoy Internal Port
         outcomes:
           - fail:
               when: "connection-refused"

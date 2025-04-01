@@ -35,3 +35,15 @@ func WithMask(mfn MaskFn) Option {
 func (m *MessageWriter) SetMask(mfn MaskFn) {
 	m.mask = mfn
 }
+
+// WithTTY sets the TTY flag on the MessageWriter.
+func WithTTY(tty bool) Option {
+	return func(m *MessageWriter) {
+		m.tty = tty
+	}
+}
+
+// SetTTY sets the TTY flag for a MessageWriter.
+func (m *MessageWriter) SetTTY(tty bool) {
+	m.tty = tty
+}

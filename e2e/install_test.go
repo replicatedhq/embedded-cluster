@@ -32,21 +32,15 @@ func TestSingleNodeInstallation(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA"), "--admin-console-port", "30002"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNodeWithOptions(t, tc, installOptions{
+		adminConsolePort: "30002",
+	})
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
@@ -57,7 +51,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	line := []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -101,21 +95,13 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 		t.Fatalf("fail to configure firewalld: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	t.Logf("%s: validating firewalld", time.Now().Format(time.RFC3339))
 	line = []string{"firewalld-validate.sh"}
@@ -160,21 +146,13 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
@@ -185,7 +163,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	line := []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -207,21 +185,13 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
@@ -232,7 +202,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	line := []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -260,21 +230,13 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
@@ -380,74 +342,38 @@ func TestMultiNodeInstallation(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
+	checkWorkerProfile(t, tc, 0)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// generate all node join commands (2 for controllers and 1 for worker).
-	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
-	controllerCommands := []string{}
-	for i := 0; i < 2; i++ {
-		stdout, stderr, err := tc.RunPlaywrightTest("get-join-controller-command")
-		if err != nil {
-			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-		}
-		command, err := findJoinCommandInOutput(stdout)
-		if err != nil {
-			t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-		}
-		controllerCommands = append(controllerCommands, command)
-		t.Log("controller join token command:", command)
-	}
-	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command")
-	if err != nil {
-		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err := findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Log("worker join token command:", command)
+	// join a controller node
+	joinControllerNode(t, tc, 1)
+	checkWorkerProfile(t, tc, 1)
 
-	// join the nodes.
-	for i, cmd := range controllerCommands {
-		node := i + 1
-		t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), node)
-		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Split(cmd, " ")); err != nil {
-			t.Fatalf("fail to join node %d as a controller: %v: %s: %s", node, err, stdout, stderr)
-		}
-		// XXX If we are too aggressive joining nodes we can see the following error being
-		// thrown by kotsadm on its log (and we get a 500 back):
-		// "
-		// failed to get controller role name: failed to get cluster config: failed to get
-		// current installation: failed to list installations: etcdserver: leader changed
-		// "
-		t.Logf("node %d joined, sleeping...", node)
-		time.Sleep(30 * time.Second)
-	}
-	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(3, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 3 to the cluster as a worker: %v: %s: %s", err, stdout, stderr)
-	}
+	// XXX If we are too aggressive joining nodes we can see the following error being
+	// thrown by kotsadm on its log (and we get a 500 back):
+	// "
+	// failed to get controller role name: failed to get cluster config: failed to get
+	// current installation: failed to list installations: etcdserver: leader changed
+	// "
+	t.Logf("node 1 joined, sleeping...")
+	time.Sleep(30 * time.Second)
+
+	// join another controller node
+	joinControllerNode(t, tc, 2)
+	checkWorkerProfile(t, tc, 2)
+
+	// join a worker node
+	joinWorkerNode(t, tc, 3)
+	checkWorkerProfile(t, tc, 3)
 
 	// wait for the nodes to report as ready.
-	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "4"})
-	if err != nil {
-		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
-	}
+	waitForNodes(t, tc, 4, nil)
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line := []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -470,21 +396,13 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
@@ -532,11 +450,10 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    initialVersion,
+		k8sVersion: k8sVersionPreviousStable(),
+	})
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
@@ -552,11 +469,9 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to install kots cli on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", appUpgradeVersion, k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version: appUpgradeVersion,
+	})
 
 	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -604,11 +519,10 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", initialVersion, k8sVersionPrevious()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    initialVersion,
+		k8sVersion: k8sVersionPrevious(),
+	})
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
@@ -698,11 +612,11 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", appVer, "v1.28.11"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    appVer,
+		k8sVersion: "v1.28.11",
+		withEnv:    withEnv,
+	})
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
@@ -718,11 +632,10 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to install kots cli on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", appUpgradeVersion, k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version: appUpgradeVersion,
+		withEnv: withEnv,
+	})
 
 	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -782,24 +695,16 @@ func TestResetAndReinstall(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
+	line := []string{"reset-installation.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
 	}
@@ -807,21 +712,13 @@ func TestResetAndReinstall(t *testing.T) {
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
 
-	t.Logf("%s: installing embedded-cluster on node 0 after reset", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state after reinstall", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -1184,6 +1081,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 		AirgapInstallBundlePath:  airgapInstallBundlePath,
 		AirgapUpgradeBundlePath:  airgapUpgradeBundlePath,
 		AirgapUpgrade2BundlePath: airgapUpgrade2BundlePath,
+		LowercaseNodeNames:       true,
 	})
 	defer tc.Cleanup(withEnv)
 
@@ -1691,6 +1589,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		AirgapInstallBundlePath:  airgapInstallBundlePath,
 		AirgapUpgradeBundlePath:  airgapUpgradeBundlePath,
 		AirgapUpgrade2BundlePath: airgapUpgrade2BundlePath,
+		LowercaseNodeNames:       true,
 	})
 	defer tc.Cleanup()
 
@@ -1851,79 +1750,35 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 // for them to report ready. Runs additional high availability validations afterwards.
 func TestMultiNodeHAInstallation(t *testing.T) {
 	tc := docker.NewCluster(&docker.ClusterInput{
-		T:            t,
-		Nodes:        4,
-		Distro:       "debian-bookworm",
-		LicensePath:  "license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
+		T:                      t,
+		Nodes:                  4,
+		Distro:                 "debian-bookworm",
+		LicensePath:            "license.yaml",
+		ECBinaryPath:           "../output/bin/embedded-cluster",
+		SupportBundleNodeIndex: 2,
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	// join a worker
-	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command")
-	if err != nil {
-		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err := findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Log("worker join token command:", command)
-	t.Logf("%s: joining node 1 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(1, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 1 to the cluster as a worker: %v: %s: %s", err, stdout, stderr)
-	}
+	joinWorkerNode(t, tc, 1)
 
 	// join a controller
-	stdout, stderr, err = tc.RunPlaywrightTest("get-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 2 to the cluster (controller)", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(2, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 2 as a controller: %v: %s: %s", err, stdout, stderr)
-	}
+	joinControllerNode(t, tc, 2)
 
 	// join another controller in HA mode
-	stdout, stderr, err = tc.RunPlaywrightTest("get-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 3 to the cluster (controller) in ha mode", time.Now().Format(time.RFC3339))
-	line := []string{"join-ha.exp", fmt.Sprintf("'%s'", command)} // pass join command as a single argument
-	if stdout, stderr, err := tc.RunCommandOnNode(3, line); err != nil {
-		t.Fatalf("fail to join node 3 as a controller in ha mode: %v: %s: %s", err, stdout, stderr)
-	}
+	joinControllerNodeWithOptions(t, tc, 3, joinOptions{isHA: true})
 
 	// wait for the nodes to report as ready.
-	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "4"})
-	if err != nil {
-		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
-	}
+	waitForNodes(t, tc, 4, nil)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
-	line = []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line := []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check post ha state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -1942,25 +1797,31 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	bin := strings.Split(command, " ")[0]
-	t.Logf("%s: resetting controller node 2", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(2, []string{bin, "reset", "--yes"})
+	bin := "embedded-cluster"
+	t.Logf("%s: resetting controller node 0", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{bin, "reset", "--yes"})
 	if err != nil {
-		t.Fatalf("fail to remove controller node 2: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to remove controller node 0: %v: %s: %s", err, stdout, stderr)
 	}
-	if !strings.Contains(stdout, "High-availability clusters must maintain at least three controller nodes") {
+	if !strings.Contains(stdout, "You must maintain at least three controller-test nodes in a high-availability cluster") {
 		t.Errorf("reset output does not contain the ha warning")
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 	}
 
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"check-nodes-removed.sh", "3"})
+	stdout, stderr, err = tc.RunCommandOnNode(2, []string{"check-nodes-removed.sh", "3"})
 	if err != nil {
-		t.Fatalf("fail to remove worker node 0: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to check nodes removed: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking nllb", time.Now().Format(time.RFC3339))
+	line = []string{"check-nllb.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
+		t.Fatalf("fail to check nllb: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -1993,6 +1854,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
+		SupportBundleNodeIndex:  2,
 	})
 	defer tc.Cleanup()
 
@@ -2018,15 +1880,15 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
+
+	checkWorkerProfile(t, tc, 0)
+
 	// remove artifacts after installation to save space
 	line = []string{"rm", "/assets/release.airgap"}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
-	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
-	}
+	// do not remove the embedded-cluster binary as it is used for reset
 
 	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
@@ -2039,97 +1901,19 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	}
 
 	// join a worker
-	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command")
-	if err != nil {
-		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err := findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v", err)
-	}
-	t.Log("worker join token command:", command)
-	t.Logf("%s: preparing embedded cluster airgap files on node 1", time.Now().Format(time.RFC3339))
-	line = []string{"airgap-prepare.sh"}
-	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
-		t.Fatalf("fail to prepare airgap files on node 1: %v", err)
-	}
-	t.Logf("%s: joining node 1 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunCommandOnNode(1, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 1 to the cluster as a worker: %v", err)
-	}
-	// remove the airgap bundle and binary after joining
-	line = []string{"rm", "/assets/release.airgap"}
-	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
-		t.Fatalf("fail to remove airgap bundle on node 1: %v", err)
-	}
-	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
-	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
-		t.Fatalf("fail to remove embedded-cluster binary on node 1: %v", err)
-	}
+	joinWorkerNodeWithOptions(t, tc, 1, joinOptions{isAirgap: true})
+	checkWorkerProfile(t, tc, 1)
 
 	// join a controller
-	stdout, stderr, err = tc.RunPlaywrightTest("get-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v", err)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: preparing embedded cluster airgap files on node 2", time.Now().Format(time.RFC3339))
-	line = []string{"airgap-prepare.sh"}
-	if _, _, err := tc.RunCommandOnNode(2, line); err != nil {
-		t.Fatalf("fail to prepare airgap files on node 2: %v", err)
-	}
-	t.Logf("%s: joining node 2 to the cluster (controller)", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunCommandOnNode(2, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 2 as a controller: %v", err)
-	}
-	// remove the airgap bundle and binary after joining
-	line = []string{"rm", "/assets/release.airgap"}
-	if _, _, err := tc.RunCommandOnNode(2, line); err != nil {
-		t.Fatalf("fail to remove airgap bundle on node 2: %v", err)
-	}
-	// don't remove the embedded-cluster binary as it is used for reset
+	joinControllerNodeWithOptions(t, tc, 2, joinOptions{isAirgap: true})
+	checkWorkerProfile(t, tc, 2)
 
 	// join another controller in HA mode
-	stdout, stderr, err = tc.RunPlaywrightTest("get-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v", err)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: preparing embedded cluster airgap files on node 3", time.Now().Format(time.RFC3339))
-	line = []string{"airgap-prepare.sh"}
-	if _, _, err := tc.RunCommandOnNode(3, line); err != nil {
-		t.Fatalf("fail to prepare airgap files on node 3: %v", err)
-	}
-	t.Logf("%s: joining node 3 to the cluster (controller) in ha mode", time.Now().Format(time.RFC3339))
-	line = append([]string{"join-ha.exp"}, []string{command}...)
-	if _, _, err := tc.RunCommandOnNode(3, line); err != nil {
-		t.Fatalf("fail to join node 3 as a controller in ha mode: %v", err)
-	}
-	// remove the airgap bundle and binary after joining
-	line = []string{"rm", "/assets/release.airgap"}
-	if _, _, err := tc.RunCommandOnNode(3, line); err != nil {
-		t.Fatalf("fail to remove airgap bundle on node 3: %v", err)
-	}
-	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
-	if _, _, err := tc.RunCommandOnNode(3, line); err != nil {
-		t.Fatalf("fail to remove embedded-cluster binary on node 3: %v", err)
-	}
+	joinControllerNodeWithOptions(t, tc, 3, joinOptions{isAirgap: true, isHA: true})
+	checkWorkerProfile(t, tc, 3)
 
 	// wait for the nodes to report as ready.
-	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, _, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "4"})
-	if err != nil {
-		t.Log(stdout)
-		t.Fatalf("fail to wait for ready nodes: %v", err)
-	}
+	waitForNodes(t, tc, 4, nil)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
@@ -2162,28 +1946,33 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
-	bin := strings.Split(command, " ")[0]
-	t.Logf("%s: resetting controller node 2 with bin %q", time.Now().Format(time.RFC3339), bin)
-	stdout, stderr, err = tc.RunCommandOnNode(2, []string{bin, "reset", "--yes"})
+	bin := "embedded-cluster"
+	t.Logf("%s: resetting controller node 0 with bin %q", time.Now().Format(time.RFC3339), bin)
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{bin, "reset", "--yes"})
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to remove controller node %s:", err)
+		t.Fatalf("fail to remove controller node 0 %s:", err)
 	}
-	if !strings.Contains(stdout, "High-availability clusters must maintain at least three controller nodes") {
+	if !strings.Contains(stdout, "You must maintain at least three controller-test nodes in a high-availability cluster") {
 		t.Errorf("reset output does not contain the ha warning")
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 	}
 
-	stdout, _, err = tc.RunCommandOnNode(0, []string{"check-nodes-removed.sh", "3"})
+	stdout, _, err = tc.RunCommandOnNode(2, []string{"check-nodes-removed.sh", "3"})
 	if err != nil {
-		t.Log(stdout)
-		t.Fatalf("fail to remove worker node %s:", err)
+		t.Fatalf("fail to check nodes removed: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking nllb", time.Now().Format(time.RFC3339))
+	line = []string{"check-nllb.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
+		t.Fatalf("fail to check nllb: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v", err)
+	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -2207,21 +1996,13 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	t.Logf("%s: ensuring velero is installed", time.Now().Format(time.RFC3339))
 	line = []string{"check-velero-state.sh", os.Getenv("SHORT_SHA")}
@@ -2262,82 +2043,41 @@ func TestCustomCIDR(t *testing.T) {
 	defer tc.Cleanup()
 	t.Log("non-proxied infrastructure created")
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	// this uses the proxy install script because that accepts arbitrary install flags
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	line = append(line, "--pod-cidr", "10.128.0.0/20")
-	line = append(line, "--service-cidr", "10.129.0.0/20")
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNodeWithOptions(t, tc, installOptions{
+		podCidr:     "10.128.0.0/20",
+		serviceCidr: "10.129.0.0/20",
+	})
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// generate all node join commands (2 for controllers and 1 for worker).
-	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
-	controllerCommands := []string{}
-	for i := 0; i < 2; i++ {
-		stdout, stderr, err := tc.RunPlaywrightTest("get-join-controller-command")
-		if err != nil {
-			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-		}
-		command, err := findJoinCommandInOutput(stdout)
-		if err != nil {
-			t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-		}
-		controllerCommands = append(controllerCommands, command)
-		t.Log("controller join token command:", command)
-	}
-	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command")
-	if err != nil {
-		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err := findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Log("worker join token command:", command)
+	// join a controller node
+	joinControllerNode(t, tc, 1)
 
-	// join the nodes.
-	for i, cmd := range controllerCommands {
-		node := i + 1
-		t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), node)
-		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Split(cmd, " ")); err != nil {
-			t.Fatalf("fail to join node %d as a controller: %v: %s: %s", node, err, stdout, stderr)
-		}
-		// XXX If we are too aggressive joining nodes we can see the following error being
-		// thrown by kotsadm on its log (and we get a 500 back):
-		// "
-		// failed to get controller role name: failed to get cluster config: failed to get
-		// current installation: failed to list installations: etcdserver: leader changed
-		// "
-		t.Logf("node %d joined, sleeping...", node)
-		time.Sleep(30 * time.Second)
-	}
-	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(3, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 3 to the cluster as a worker: %v: %s: %s", err, stdout, stderr)
-	}
+	// XXX If we are too aggressive joining nodes we can see the following error being
+	// thrown by kotsadm on its log (and we get a 500 back):
+	// "
+	// failed to get controller role name: failed to get cluster config: failed to get
+	// current installation: failed to list installations: etcdserver: leader changed
+	// "
+	t.Logf("node 1 joined, sleeping...")
+	time.Sleep(30 * time.Second)
+
+	// join another controller node
+	joinControllerNode(t, tc, 2)
+
+	// join a worker node
+	joinWorkerNode(t, tc, 3)
 
 	// wait for the nodes to report as ready.
-	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "4"})
-	if err != nil {
-		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
-	}
+	waitForNodes(t, tc, 4, nil)
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	// ensure that the cluster is using the right IP ranges.
 	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
 	if err != nil {
 		t.Fatalf("fail to check addresses on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -2359,21 +2099,13 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
 	skipClusterUpgradeCheck := "true"
@@ -2384,11 +2116,9 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", appUpgradeVersion, k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version: appUpgradeVersion,
+	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -2454,6 +2184,9 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	}
 	t.Log("controller join token command:", controllerCommand)
 
+	// bypass ha prompt
+	controllerCommand = strings.Replace(controllerCommand, "join", "join --no-ha", 1)
+
 	// join the controller nodes
 	joinCommandsSequence := [][]string{
 		{"rm", "/assets/ec-release-upgrade.tgz"},
@@ -2491,11 +2224,7 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	)
 
 	// wait for the nodes to report as ready.
-	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	if stdout, _, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "5"}); err != nil {
-		t.Log(stdout)
-		t.Fatalf("fail to wait for ready nodes: %v", err)
-	}
+	waitForNodes(t, tc, 5, nil)
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
 	line := []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
@@ -2560,24 +2289,18 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 		Mode:       0666,
 	})
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA"), "--private-ca", "/tmp/ca.crt"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
-	}
+	installSingleNodeWithOptions(t, tc, installOptions{
+		privateCA: "/tmp/ca.crt",
+	})
 
 	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
-	}
+	checkInstallationState(t, tc)
 
 	t.Logf("checking if the configmap was created with the right values")
-	line = []string{"kubectl", "get", "cm", "kotsadm-private-cas", "-n", "kotsadm", "-o", "json"}
+	line := []string{"kubectl", "get", "cm", "kotsadm-private-cas", "-n", "kotsadm", "-o", "json"}
 	stdout, _, err := tc.RunCommandOnNode(0, line, lxd.WithECShellEnv("/var/lib/embedded-cluster"))
 	require.NoError(t, err, "unable get kotsadm-private-cas configmap")
 
@@ -2635,11 +2358,9 @@ spec:
 		t.Fatalf("fail to create config values file: %v", err)
 	}
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA"), "--config-values", "/assets/config-values.yaml"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNodeWithOptions(t, tc, installOptions{
+		configValuesFile: "/assets/config-values.yaml",
+	})
 
 	t.Logf("%s: checking config values", time.Now().Format(time.RFC3339))
 	line = []string{"check-config-values.sh", hostname, password}
@@ -2647,11 +2368,7 @@ spec:
 		t.Fatalf("fail to check config values: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion, "", hostname}

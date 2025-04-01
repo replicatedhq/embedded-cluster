@@ -1,11 +1,12 @@
 package kind
 
 type Cluster struct {
-	APIVersion string     `yaml:"apiVersion" json:"apiVersion"`
-	Kind       string     `yaml:"kind" json:"kind"`
-	Name       string     `yaml:"name" json:"name"`
-	Nodes      []Node     `yaml:"nodes,omitempty" json:"nodes,omitempty"`
-	Networking Networking `yaml:"networking,omitempty" json:"networking,omitempty"`
+	APIVersion              string     `yaml:"apiVersion" json:"apiVersion"`
+	Kind                    string     `yaml:"kind" json:"kind"`
+	Name                    string     `yaml:"name" json:"name"`
+	Nodes                   []Node     `yaml:"nodes,omitempty" json:"nodes,omitempty"`
+	Networking              Networking `yaml:"networking,omitempty" json:"networking,omitempty"`
+	ContainerdConfigPatches []string   `yaml:"containerdConfigPatches,omitempty" json:"containerdConfigPatches,omitempty"`
 }
 
 type Node struct {

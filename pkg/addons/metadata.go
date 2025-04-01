@@ -1,6 +1,8 @@
 package addons
 
 import (
+	"strings"
+
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -116,4 +118,13 @@ func GetAdditionalImages() []string {
 	images = append(images, adminconsole.GetAdditionalImages()...)
 
 	return images
+}
+
+func getOperatorImage() (string, error) {
+	for _, image := range embeddedclusteroperator.GetImages() {
+		if strings.Contains(image, "/embedded-cluster-operator-image:") {
+			return image, nil
+		}
+	}
+	return "", errors.New("embedded-cluster-operator image not found in metadata")
 }

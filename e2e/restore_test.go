@@ -38,28 +38,20 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
+	line := []string{"reset-installation.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
 	}
@@ -79,11 +71,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
 	line = []string{"check-post-restore.sh"}
@@ -148,11 +136,7 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if err := tc.SetupPlaywright(); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
@@ -161,11 +145,9 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", appVersion, k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version: appVersion,
+	})
 
 	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
@@ -192,12 +174,11 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", appVersion, k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version: appVersion,
+	})
 
+	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
 	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
 	if err := tc.SetupPlaywright(); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
@@ -256,27 +237,21 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		outputTCPDeniedLogs(t, tc)
+		failOnProxyTCPDenied(t, tc)
 	})
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	line = append(line, "--http-proxy", lxd.HTTPProxy)
-	line = append(line, "--https-proxy", lxd.HTTPProxy)
-	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
-	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
-	}
+	installSingleNodeWithOptions(t, tc, installOptions{
+		httpProxy:  lxd.HTTPProxy,
+		httpsProxy: lxd.HTTPProxy,
+		noProxy:    strings.Join(tc.IPs, ","),
+		withEnv:    lxd.WithProxyEnv(tc.IPs),
+	})
 
 	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
-	}
+	checkInstallationState(t, tc)
 
 	if _, _, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
@@ -300,11 +275,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("fail to restore the installation: %v", err)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
-	}
+	checkInstallationState(t, tc)
 
 	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
 	line = []string{"check-post-restore.sh"}
@@ -350,28 +321,20 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
+	line := []string{"reset-installation.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
 	}
@@ -385,11 +348,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to restore the installation: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, tc)
 
 	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
 	line = []string{"check-post-restore.sh"}
@@ -579,58 +538,23 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	// join a controller
-	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err := findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 1 to the cluster (controller)", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(1, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 1 as a controller: %v: %s: %s", err, stdout, stderr)
-	}
+	joinControllerNode(t, tc, 1)
 
 	// join another controller in HA mode
-	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunPlaywrightTest("get-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 2 to the cluster (controller) in ha mode", time.Now().Format(time.RFC3339))
-	line = []string{"join-ha.exp", fmt.Sprintf("'%s'", command)} // pass join command as a single argument
-	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
-		t.Fatalf("fail to join node 2 as a controller in ha mode: %v: %s: %s", err, stdout, stderr)
-	}
+	joinControllerNodeWithOptions(t, tc, 2, joinOptions{isHA: true})
 
 	// wait for the nodes to report as ready.
-	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "3"})
-	if err != nil {
-		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
-	}
+	waitForNodes(t, tc, 3, nil)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
-	line = []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line := []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check post ha state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -679,43 +603,13 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	// add the expected nodes to the cluster, then continue to phase 2.
 
 	// join a controller
-	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunPlaywrightTest("get-restore-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 1 to the cluster (controller)", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(1, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 1 as a controller: %v: %s: %s", err, stdout, stderr)
-	}
+	joinControllerNodeWithOptions(t, tc, 1, joinOptions{isRestore: true})
 
 	// join another controller in non-HA mode
-	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunPlaywrightTest("get-restore-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 2 to the cluster (controller)", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(2, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 2 as a controller: %v: %s: %s", err, stdout, stderr)
-	}
+	joinControllerNodeWithOptions(t, tc, 2, joinOptions{isRestore: true})
 
 	// wait for the nodes to report as ready.
-	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "3", "true"})
-	if err != nil {
-		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
-	}
+	waitForNodes(t, tc, 3, nil, "true")
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"restore-multi-node-phase2.exp"}); err != nil {
@@ -833,57 +727,22 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	// join a controller
-	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err := findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v", err)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: preparing embedded cluster airgap files on node 1", time.Now().Format(time.RFC3339))
-	line = []string{"airgap-prepare.sh"}
-	if _, _, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
-		t.Fatalf("fail to prepare airgap files on node 1: %v", err)
-	}
-	t.Logf("%s: joining node 1 to the cluster (controller)", time.Now().Format(time.RFC3339))
-	line = strings.Split(command, " ")
-	if _, _, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
-		t.Fatalf("fail to join node 1 as a controller: %v", err)
-	}
+	joinControllerNodeWithOptions(t, tc, 1, joinOptions{
+		isAirgap:   true,
+		keepAssets: true,
+		withEnv:    withEnv,
+	})
 
 	// join another controller in HA mode
-	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunPlaywrightTest("get-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v", err)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: preparing embedded cluster airgap files on node 2", time.Now().Format(time.RFC3339))
-	line = []string{"airgap-prepare.sh"}
-	if _, _, err := tc.RunCommandOnNode(2, line, withEnv); err != nil {
-		t.Fatalf("fail to prepare airgap files on node 2: %v", err)
-	}
-	t.Logf("%s: joining node 2 to the cluster (controller) in ha mode", time.Now().Format(time.RFC3339))
-	line = append([]string{"join-ha.exp"}, []string{command}...)
-	if _, _, err := tc.RunCommandOnNode(2, line, withEnv); err != nil {
-		t.Fatalf("fail to join node 2 as a controller in ha mode: %v", err)
-	}
+	joinControllerNodeWithOptions(t, tc, 2, joinOptions{
+		isAirgap:   true,
+		isHA:       true,
+		keepAssets: true,
+		withEnv:    withEnv,
+	})
 
 	// wait for the nodes to report as ready.
-	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	line = []string{"wait-for-ready-nodes.sh", "3"}
-	stdout, _, err = tc.RunCommandOnNode(0, line, withEnv)
-	if err != nil {
-		t.Log(stdout)
-		t.Fatalf("fail to wait for ready nodes: %v", err)
-	}
+	waitForNodes(t, tc, 3, withEnv)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
@@ -961,44 +820,21 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	// add the expected nodes to the cluster, then continue to phase 2.
 
 	// join a controller
-	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunPlaywrightTest("get-restore-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v", err)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 1 to the cluster (controller)", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunCommandOnNode(1, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 1 as a controller: %v", err)
-	}
+	joinControllerNodeWithOptions(t, tc, 1, joinOptions{
+		isAirgap:  true,
+		isRestore: true,
+		withEnv:   withEnv,
+	})
 
 	// join another controller in non-HA mode
-	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunPlaywrightTest("get-restore-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v", err)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 2 to the cluster (controller)", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunCommandOnNode(2, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 2 as a controller: %v", err)
-	}
+	joinControllerNodeWithOptions(t, tc, 2, joinOptions{
+		isAirgap:  true,
+		isRestore: true,
+		withEnv:   withEnv,
+	})
 
 	// wait for the nodes to report as ready.
-	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, _, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "3", "true"}, withEnv)
-	if err != nil {
-		t.Log(stdout)
-		t.Fatalf("fail to wait for ready nodes: %v", err)
-	}
+	waitForNodes(t, tc, 3, withEnv, "true")
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
 	line = []string{"restore-multi-node-airgap-phase2.exp"}

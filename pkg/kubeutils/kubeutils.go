@@ -2,6 +2,7 @@ package kubeutils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -10,8 +11,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -33,7 +33,12 @@ func (k *KubeUtils) WaitForNamespace(ctx context.Context, cli client.Client, ns 
 			return ready, nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
 			return fmt.Errorf("timed out waiting for namespace %s: %v", ns, lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for namespace %s", ns)
@@ -56,7 +61,12 @@ func (k *KubeUtils) WaitForDeployment(ctx context.Context, cli client.Client, ns
 			return ready, nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
 			return fmt.Errorf("timed out waiting for %s to deploy: %v", name, lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for %s to deploy", name)
@@ -79,7 +89,12 @@ func (k *KubeUtils) WaitForDaemonset(ctx context.Context, cli client.Client, ns,
 			return ready, nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
 			return fmt.Errorf("timed out waiting for %s to deploy: %v", name, lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for %s to deploy", name)
@@ -94,7 +109,7 @@ func (k *KubeUtils) WaitForService(ctx context.Context, cli client.Client, ns, n
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
 			var svc corev1.Service
-			nsn := types.NamespacedName{Namespace: ns, Name: name}
+			nsn := client.ObjectKey{Namespace: ns, Name: name}
 			if err := cli.Get(ctx, nsn, &svc); err != nil {
 				lasterr = fmt.Errorf("unable to get service %s: %v", name, err)
 				return false, nil
@@ -102,7 +117,12 @@ func (k *KubeUtils) WaitForService(ctx context.Context, cli client.Client, ns, n
 			return svc.Spec.ClusterIP != "", nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
 			return fmt.Errorf("timed out waiting for service %s to have an IP: %v", name, lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for service %s to have an IP", name)
@@ -117,15 +137,41 @@ func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name 
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
-			ready, err := k.IsJobComplete(ctx, cli, ns, name, completions)
-			if err != nil {
-				lasterr = fmt.Errorf("unable to get job status: %w", err)
+			var job batchv1.Job
+			err := cli.Get(ctx, client.ObjectKey{Namespace: ns, Name: name}, &job)
+			if k8serrors.IsNotFound(err) {
+				// exit
+				lasterr = fmt.Errorf("job not found")
+				return false, lasterr
+			} else if err != nil {
+				lasterr = fmt.Errorf("unable to get job: %w", err)
 				return false, nil
 			}
-			return ready, nil
+
+			failed := k.isJobFailed(job)
+			if failed {
+				// exit
+				lasterr = fmt.Errorf("job failed")
+				return false, lasterr
+			}
+
+			completed := k.isJobCompleted(job, completions)
+			if completed {
+				return true, nil
+			}
+
+			// TODO: need to handle the case where the pod get stuck in pending
+			// This can happen if nodes are not schedulable or if a volume is not found
+
+			return false, nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
 			return fmt.Errorf("timed out waiting for job %s: %w", name, lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for job %s", name)
@@ -134,27 +180,38 @@ func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name 
 	return nil
 }
 
-// WaitForPod waits for a pod to be completed.
-func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
+// WaitForPod waits for a pod to be completed (succeeded or failed).
+func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) (*corev1.Pod, error) {
 	backoff := opts.GetBackoff()
 	var lasterr error
+	var pod corev1.Pod
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
-			ready, err := k.IsPodComplete(ctx, cli, ns, name)
-			if err != nil {
-				lasterr = fmt.Errorf("unable to get pod status: %w", err)
+			nsn := client.ObjectKey{Namespace: ns, Name: name}
+			err := cli.Get(ctx, nsn, &pod)
+			if k8serrors.IsNotFound(err) {
+				// exit
+				lasterr = fmt.Errorf("pod not found")
+				return false, lasterr
+			} else if err != nil {
+				lasterr = fmt.Errorf("get pod: %w", err)
 				return false, nil
 			}
-			return ready, nil
+			return pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed, nil
 		},
 	); err != nil {
-		if lasterr != nil {
-			return fmt.Errorf("timed out waiting for pod %s: %w", name, lasterr)
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return &pod, err
+		} else if lasterr != nil {
+			return &pod, fmt.Errorf("timed out waiting for pod %s: %w", name, lasterr)
 		} else {
-			return fmt.Errorf("timed out waiting for pod %s", name)
+			return &pod, fmt.Errorf("timed out waiting for pod %s", name)
 		}
 	}
-	return nil
+	return &pod, nil
 }
 
 func (k *KubeUtils) WaitForNodes(ctx context.Context, cli client.Client) error {
@@ -178,7 +235,12 @@ func (k *KubeUtils) WaitForNodes(ctx context.Context, cli client.Client) error {
 			return readynodes == len(nodes.Items) && len(nodes.Items) > 0, nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
 			return fmt.Errorf("timed out waiting for nodes to be ready: %v", lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for nodes to be ready")
@@ -213,7 +275,12 @@ func (k *KubeUtils) WaitForNode(ctx context.Context, kcli client.Client, name st
 			return false, nil
 		},
 	); err != nil {
-		if lasterr != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
 			return fmt.Errorf("timed out waiting for node %s: %w", name, lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for node %s", name)
@@ -224,7 +291,7 @@ func (k *KubeUtils) WaitForNode(ctx context.Context, kcli client.Client, name st
 
 func (k *KubeUtils) IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
 	var namespace corev1.Namespace
-	if err := cli.Get(ctx, types.NamespacedName{Name: ns}, &namespace); err != nil {
+	if err := cli.Get(ctx, client.ObjectKey{Name: ns}, &namespace); err != nil {
 		return false, err
 	}
 	return namespace.Status.Phase == corev1.NamespaceActive, nil
@@ -233,7 +300,7 @@ func (k *KubeUtils) IsNamespaceReady(ctx context.Context, cli client.Client, ns 
 // IsDeploymentReady returns true if the deployment is ready.
 func (k *KubeUtils) IsDeploymentReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
 	var deploy appsv1.Deployment
-	nsn := types.NamespacedName{Namespace: ns, Name: name}
+	nsn := client.ObjectKey{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &deploy); err != nil {
 		return false, err
 	}
@@ -250,7 +317,7 @@ func (k *KubeUtils) IsDeploymentReady(ctx context.Context, cli client.Client, ns
 // IsStatefulSetReady returns true if the statefulset is ready.
 func (k *KubeUtils) IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
 	var statefulset appsv1.StatefulSet
-	nsn := types.NamespacedName{Namespace: ns, Name: name}
+	nsn := client.ObjectKey{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &statefulset); err != nil {
 		return false, err
 	}
@@ -267,7 +334,7 @@ func (k *KubeUtils) IsStatefulSetReady(ctx context.Context, cli client.Client, n
 // IsDaemonsetReady returns true if the daemonset is ready.
 func (k *KubeUtils) IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
 	var daemonset appsv1.DaemonSet
-	nsn := types.NamespacedName{Namespace: ns, Name: name}
+	nsn := client.ObjectKey{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &daemonset); err != nil {
 		return false, err
 	}
@@ -277,33 +344,20 @@ func (k *KubeUtils) IsDaemonsetReady(ctx context.Context, cli client.Client, ns,
 	return false, nil
 }
 
-// IsJobComplete returns true if the job has been completed successfully.
-func (k *KubeUtils) IsJobComplete(ctx context.Context, cli client.Client, ns, name string, completions int32) (bool, error) {
-	var job batchv1.Job
-	nsn := types.NamespacedName{Namespace: ns, Name: name}
-	if err := cli.Get(ctx, nsn, &job); err != nil {
-		return false, err
-	}
-	if job.Status.Succeeded >= completions {
-		return true, nil
-	}
-	return false, nil
+// isJobCompleted returns true if the job has been completed successfully.
+func (k *KubeUtils) isJobCompleted(job batchv1.Job, completions int32) bool {
+	isSucceeded := job.Status.Succeeded >= completions
+	return isSucceeded
 }
 
-// IsPodComplete returns true if the pod has completed.
-func (k *KubeUtils) IsPodComplete(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
-	pod := corev1.Pod{}
-	nsn := types.NamespacedName{Namespace: ns, Name: name}
-	err := cli.Get(ctx, nsn, &pod)
-	if err != nil {
-		return false, err
+// isJobFailed if the job has exceeded the backoff limit.
+func (k *KubeUtils) isJobFailed(job batchv1.Job) bool {
+	backoffLimit := int32(6) // default
+	if job.Spec.BackoffLimit != nil {
+		backoffLimit = *job.Spec.BackoffLimit
 	}
-	if pod.Status.Phase == corev1.PodSucceeded {
-		return true, nil
-	} else if pod.Status.Phase == corev1.PodFailed {
-		return true, fmt.Errorf("pod failed: %s", pod.Status.Reason)
-	}
-	return false, nil
+	exceedsBackoffLimit := job.Status.Failed > backoffLimit
+	return exceedsBackoffLimit
 }
 
 // WaitForKubernetes waits for all deployments to be ready in kube-system, and returns an error channel.
@@ -369,13 +423,10 @@ func (k *KubeUtils) WaitForCRDToBeReady(ctx context.Context, cli client.Client, 
 }
 
 func NumOfControlPlaneNodes(ctx context.Context, cli client.Client) (int, error) {
-	opts := &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(
-			labels.Set{"node-role.kubernetes.io/control-plane": "true"},
-		),
-	}
 	var nodes corev1.NodeList
-	if err := cli.List(ctx, &nodes, opts); err != nil {
+	if err := cli.List(ctx, &nodes,
+		client.HasLabels{"node-role.kubernetes.io/control-plane"},
+	); err != nil {
 		return 0, err
 	}
 	return len(nodes.Items), nil

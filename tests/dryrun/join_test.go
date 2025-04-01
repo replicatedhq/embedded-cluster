@@ -1,6 +1,7 @@
 package dryrun
 
 import (
+	"context"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,13 +13,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func TestJoinTCPConnectionsRequired(t *testing.T) {
-	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
-	client := &dryrun.Client{
-		Kotsadm: dryrun.NewKotsadm(),
-	}
+func TestJoinControllerNode(t *testing.T) {
 	clusterID := uuid.New()
 	jcmd := &kotsadm.JoinCommandResponse{
 		K0sJoinCommand:         "/usr/local/bin/k0s install controller --enable-worker --no-taints --labels kots.io/embedded-cluster-role=total-1,kots.io/embedded-cluster-role-0=controller-test,controller-label=controller-label-value",
@@ -37,8 +37,37 @@ func TestJoinTCPConnectionsRequired(t *testing.T) {
 		},
 		TCPConnectionsRequired: []string{"10.0.0.1:6443", "10.0.0.1:9443"},
 	}
-	client.Kotsadm.SetGetJoinTokenResponse("10.0.0.1", "some-token", jcmd, nil)
-	dryrun.Init(drFile, client)
+
+	kotsadm := dryrun.NewKotsadm()
+	kubeUtils := &dryrun.KubeUtils{}
+
+	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
+	dryrun.Init(drFile, &dryrun.Client{
+		Kotsadm:   kotsadm,
+		KubeUtils: kubeUtils,
+	})
+
+	kotsadm.SetGetJoinTokenResponse("10.0.0.1", "some-token", jcmd, nil)
+
+	kubeClient, err := kubeUtils.KubeClient()
+	require.NoError(t, err)
+
+	kubeClient.Create(context.Background(), &ecv1beta1.Installation{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Installation",
+			APIVersion: "v1beta1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "20241002205018",
+		},
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Version: "2.2.0+k8s-1.30",
+			},
+			RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{},
+		},
+	}, &ctrlclient.CreateOptions{})
+
 	dr := dryrunJoin(t, "10.0.0.1", "some-token")
 
 	// --- validate host preflight spec --- //
@@ -191,7 +220,20 @@ func TestJoinWorkerNode(t *testing.T) {
 		InstallationSpec: ecv1beta1.InstallationSpec{
 			ClusterID: clusterID.String(),
 			Config: &ecv1beta1.ConfigSpec{
-				UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{},
+				UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{
+					K0s: `
+config:
+  metadata:
+    name: foo
+  spec:
+    telemetry:
+    enabled: false
+    workerProfiles:
+    - name: ip-forward
+    values:
+      allowedUnsafeSysctls:
+      - net.ipv4.ip_forward`,
+				},
 			},
 		},
 	}

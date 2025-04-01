@@ -3,7 +3,20 @@ package util
 import (
 	"os/exec"
 	"testing"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 )
+
+func HelmClient(t *testing.T, kubeconfig string) helm.Client {
+	hcli, err := helm.NewClient(helm.HelmOptions{KubeConfig: kubeconfig})
+	if err != nil {
+		t.Fatalf("failed to create helm client: %s", err)
+	}
+	t.Cleanup(func() {
+		hcli.Close()
+	})
+	return hcli
+}
 
 func WriteHelmValuesFile(t *testing.T, values string) string {
 	return WriteTempFile(t, "values-*.yaml", []byte(values), 0644)

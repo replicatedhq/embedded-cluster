@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/k0sproject/k0s/pkg/etcd"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -23,8 +25,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-var haWarningMessage = "WARNING: High-availability clusters must maintain at least three controller nodes, but resetting this node will leave only two. This can lead to a loss of functionality and non-recoverable failures. You should re-add a third node as soon as possible."
 
 const (
 	k0sBinPath = "/usr/local/bin/k0s"
@@ -217,7 +217,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&force, "force", false, "Ignore errors encountered when resetting the node (implies ---yes)")
-	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
+	cmd.Flags().BoolVarP(&assumeYes, "yes", "y", false, "Assume yes to all prompts.")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	cmd.AddCommand(ResetFirewalldCmd(ctx, name))
@@ -268,12 +268,21 @@ func maybePrintHAWarning(ctx context.Context) error {
 		return nil
 	}
 
-	ncps, err := kubeutils.NumOfControlPlaneNodes(ctx, kubecli)
+	numControllerNodes, err := kubeutils.NumOfControlPlaneNodes(ctx, kubecli)
 	if err != nil {
 		return fmt.Errorf("unable to check control plane nodes: %w", err)
 	}
-	if ncps == 3 {
-		logrus.Warn(haWarningMessage)
+	if numControllerNodes == 3 {
+		if config.HasCustomRoles() {
+			controllerRoleName := config.GetControllerRoleName()
+			logrus.Warn(fmt.Sprintf("You must maintain at least three %s nodes in a high-availability cluster, but resetting this node will leave only two.", controllerRoleName))
+			logrus.Warn("This can lead to a loss of functionality and non-recoverable failures.")
+			logrus.Warn(fmt.Sprintf("If you reset this node, re-join a third %s node as soon as possible.", controllerRoleName))
+		} else {
+			logrus.Warn("You must maintain at least three nodes in a high-availability cluster, but resetting this node will leave only two.")
+			logrus.Warn("This can lead to a loss of functionality and non-recoverable failures.")
+			logrus.Warn("If you reset this node, re-join a third node as soon as possible.")
+		}
 		logrus.Info("")
 	}
 	return nil
@@ -386,7 +395,7 @@ func (h *hostInfo) getHostName() error {
 	if err != nil {
 		return fmt.Errorf("unable to get hostname: %w", err)
 	}
-	h.Hostname = hostname
+	h.Hostname = strings.ToLower(hostname)
 	return nil
 }
 
@@ -446,7 +455,7 @@ func (h *hostInfo) checkResetSafety(ctx context.Context, force bool) (bool, stri
 	}
 	for _, node := range nodeList.Items {
 		labels := node.GetLabels()
-		if labels["node-role.kubernetes.io/control-plane"] == "true" {
+		if _, ok := labels["node-role.kubernetes.io/control-plane"]; ok {
 			controllers = append(controllers, node.Name)
 		} else {
 			workers = append(workers, node.Name)

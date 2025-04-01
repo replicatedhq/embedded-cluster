@@ -56,11 +56,11 @@ ensure_installation_is_installed() {
         kubectl describe clusterconfig -A
         kubectl get pods -A
         echo "node charts"
-        kubectl get charts -n node-role.kubernetes.io/control-plane -A
+        kubectl get charts -A
         echo "node secrets"
-        kubectl get secrets -n node-role.kubernetes.io/control-plane -A
+        kubectl get secrets -A
         echo "node pods"
-        kubectl get pods -n node-role.kubernetes.io/control-plane -A
+        kubectl get pods -A
         exit 1
     fi
 }
@@ -459,6 +459,24 @@ validate_no_pods_in_crashloop() {
     if kubectl get pods -A | grep CrashLoopBackOff -q ; then
         echo "found pods in CrashLoopBackOff state"
         kubectl get pods -A | grep CrashLoopBackOff
+        exit 1
+    fi
+}
+
+validate_worker_profile() {
+    # if /etc/systemd/system/k0scontroller.service exists, check it - otherwise check /etc/systemd/system/k0sworker.service
+    if [ -f /etc/systemd/system/k0scontroller.service ]; then
+        if ! grep -- "--profile=ip-forward" /etc/systemd/system/k0scontroller.service >/dev/null; then
+            echo "expected worker profile 'ip-forward' not found in k0scontroller.service"
+            exit 1
+        fi
+    elif [ -f /etc/systemd/system/k0sworker.service ]; then
+        if ! grep -- "--profile=ip-forward" /etc/systemd/system/k0sworker.service >/dev/null; then
+            echo "expected worker profile 'ip-forward' not found in k0sworker.service"
+            exit 1
+        fi
+    else
+        echo "expected k0scontroller.service or k0sworker.service not found"
         exit 1
     fi
 }

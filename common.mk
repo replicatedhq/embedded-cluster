@@ -25,6 +25,8 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+GO_BUILD_TAGS ?= containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay
+
 ifdef GH_TOKEN
 GH_AUTH_HEADER ?= "Authorization: token $(GH_TOKEN)"
 endif

@@ -41,7 +41,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
-          args: --build-tags exclude_graphdriver_btrfs
+          args: --build-tags containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay
 
   test:
     name: Unit tests
@@ -73,6 +73,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Setup go
         uses: actions/setup-go@v5
         with:
@@ -80,7 +82,7 @@ jobs:
           cache-dependency-path: "**/*.sum"
       - name: Install kind
         run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.27.0/kind-linux-amd64
           chmod +x ./kind
           sudo mv ./kind /usr/local/bin/kind
       - name: Run tests
@@ -113,6 +115,8 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
     - name: Make manifests
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: make -C operator manifests
     - name: Check CRDs
       run: |

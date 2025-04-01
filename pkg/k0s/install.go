@@ -31,7 +31,11 @@ func Install(networkInterface string) error {
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
-	if _, err := helpers.RunCommand(hstbin, config.InstallFlags(nodeIP)...); err != nil {
+	flags, err := config.InstallFlags(nodeIP)
+	if err != nil {
+		return fmt.Errorf("unable to get install flags: %w", err)
+	}
+	if _, err := helpers.RunCommand(hstbin, flags...); err != nil {
 		return fmt.Errorf("unable to install: %w", err)
 	}
 	if _, err := helpers.RunCommand(hstbin, "start"); err != nil {
@@ -115,11 +119,12 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 	return cfg, nil
 }
 
-// applyUnsupportedOverrides applies overrides to the k0s configuration. Applies first the
-// overrides embedded into the binary and after the ones provided by the user (--overrides).
+// applyUnsupportedOverrides applies overrides to the k0s configuration. Applies the
+// overrides embedded into the binary and then the ones provided by the user (--overrides).
 func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, overrides string) (*k0sv1beta1.ClusterConfig, error) {
 	embcfg := release.GetEmbeddedClusterConfig()
 	if embcfg != nil {
+		// Apply vendor k0s overrides
 		overrides := embcfg.Spec.UnsupportedOverrides.K0s
 		var err error
 		cfg, err = config.PatchK0sConfig(cfg, overrides)
@@ -132,7 +137,9 @@ func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, overrides string) 
 	if err != nil {
 		return nil, fmt.Errorf("unable to process overrides file: %w", err)
 	}
+
 	if eucfg != nil {
+		// Apply end user k0s overrides
 		overrides := eucfg.Spec.UnsupportedOverrides.K0s
 		var err error
 		cfg, err = config.PatchK0sConfig(cfg, overrides)
@@ -177,6 +184,12 @@ func PatchK0sConfig(path string, patch string) error {
 			finalcfg.Spec = &k0sv1beta1.ClusterSpec{}
 		}
 		finalcfg.Spec.Storage = result.Spec.Storage
+	}
+	if result.Spec.WorkerProfiles != nil {
+		if finalcfg.Spec == nil {
+			finalcfg.Spec = &k0sv1beta1.ClusterSpec{}
+		}
+		finalcfg.Spec.WorkerProfiles = result.Spec.WorkerProfiles
 	}
 	// This is necessary to install the previous version of k0s in e2e tests
 	// TODO: remove this once the previous version is > 1.29

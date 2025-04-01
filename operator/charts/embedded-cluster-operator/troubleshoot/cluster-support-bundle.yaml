@@ -101,6 +101,13 @@ spec:
       limits:
         maxAge: 720h
   - logs:
+      name: podlogs/registry-data-migration
+      namespace: registry
+      selector:
+      - app.kubernetes.io/component=registry-data-migration
+      limits:
+        maxAge: 720h
+  - logs:
       name: podlogs/seaweedfs
       namespace: seaweedfs
       selector:

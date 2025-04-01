@@ -22,6 +22,30 @@ func K0sClusterConfigTo129Compat(clusterConfig *k0sv1beta1.ClusterConfig) (*unst
 		return nil, fmt.Errorf("convert to unstructured: %w", err)
 	}
 	unst := obj.UnstructuredContent()
+
+	// check the entire spec path before attempting to access "charts"
+	if unst["spec"] == nil {
+		return obj, nil
+	}
+	if _, ok := unst["spec"].(map[string]interface{}); !ok {
+		return obj, nil
+	}
+	if _, ok := unst["spec"].(map[string]interface{})["extensions"]; !ok {
+		return obj, nil
+	}
+	if _, ok := unst["spec"].(map[string]interface{})["extensions"].(map[string]interface{}); !ok {
+		return obj, nil
+	}
+	if _, ok := unst["spec"].(map[string]interface{})["extensions"].(map[string]interface{})["helm"]; !ok {
+		return obj, nil
+	}
+	if _, ok := unst["spec"].(map[string]interface{})["extensions"].(map[string]interface{})["helm"].(map[string]interface{}); !ok {
+		return obj, nil
+	}
+	if _, ok := unst["spec"].(map[string]interface{})["extensions"].(map[string]interface{})["helm"].(map[string]interface{})["charts"]; !ok {
+		return obj, nil
+	}
+
 	charts, ok := unst["spec"].(map[string]interface{})["extensions"].(map[string]interface{})["helm"].(map[string]interface{})["charts"].([]interface{})
 	if !ok {
 		return obj, nil

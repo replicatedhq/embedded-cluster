@@ -33,8 +33,7 @@ func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 		// skip these images
 		case cfg.Spec.Images.KubeRouter.CNI.URI(),
 			cfg.Spec.Images.KubeRouter.CNIInstaller.URI(),
-			cfg.Spec.Images.Konnectivity.URI(),
-			cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.URI():
+			cfg.Spec.Images.Konnectivity.URI():
 		default:
 			if strings.Contains(image, constant.KubePauseContainerImage) {
 				// there's a bug in GetImageURIs where it always returns the original pause image
@@ -52,6 +51,15 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig, proxyRegistryDomain string
 	if cfg.Spec.Images == nil {
 		cfg.Spec.Images = &k0sv1beta1.ClusterImages{}
 	}
+	if cfg.Spec.Network == nil {
+		cfg.Spec.Network = &k0sv1beta1.Network{}
+	}
+	if cfg.Spec.Network.NodeLocalLoadBalancing == nil {
+		cfg.Spec.Network.NodeLocalLoadBalancing = &k0sv1beta1.NodeLocalLoadBalancing{}
+	}
+	if cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy == nil {
+		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy = &k0sv1beta1.EnvoyProxy{}
+	}
 
 	if proxyRegistryDomain == "" {
 		cfg.Spec.Images.CoreDNS.Image = Metadata.Images["coredns"].Repo
@@ -61,6 +69,7 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig, proxyRegistryDomain string
 		cfg.Spec.Images.MetricsServer.Image = Metadata.Images["metrics-server"].Repo
 		cfg.Spec.Images.KubeProxy.Image = Metadata.Images["kube-proxy"].Repo
 		cfg.Spec.Images.Pause.Image = Metadata.Images["pause"].Repo
+		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = Metadata.Images["envoy-distroless"].Repo
 	} else {
 		cfg.Spec.Images.CoreDNS.Image = strings.Replace(Metadata.Images["coredns"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
 		cfg.Spec.Images.Calico.Node.Image = strings.Replace(Metadata.Images["calico-node"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
@@ -69,6 +78,7 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig, proxyRegistryDomain string
 		cfg.Spec.Images.MetricsServer.Image = strings.Replace(Metadata.Images["metrics-server"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
 		cfg.Spec.Images.KubeProxy.Image = strings.Replace(Metadata.Images["kube-proxy"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
 		cfg.Spec.Images.Pause.Image = strings.Replace(Metadata.Images["pause"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = strings.Replace(Metadata.Images["envoy-distroless"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
 	}
 
 	cfg.Spec.Images.CoreDNS.Version = Metadata.Images["coredns"].Tag[runtime.GOARCH]
@@ -78,4 +88,5 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig, proxyRegistryDomain string
 	cfg.Spec.Images.MetricsServer.Version = Metadata.Images["metrics-server"].Tag[runtime.GOARCH]
 	cfg.Spec.Images.KubeProxy.Version = Metadata.Images["kube-proxy"].Tag[runtime.GOARCH]
 	cfg.Spec.Images.Pause.Version = Metadata.Images["pause"].Tag[runtime.GOARCH]
+	cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Version = Metadata.Images["envoy-distroless"].Tag[runtime.GOARCH]
 }

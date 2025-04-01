@@ -275,20 +275,20 @@ envtest:
 .PHONY: unit-tests
 unit-tests: envtest
 	KUBEBUILDER_ASSETS="$(shell ./operator/bin/setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/operator/bin -p path)" \
-		go test -tags exclude_graphdriver_btrfs -v ./pkg/... ./cmd/...
+		go test -tags $(GO_BUILD_TAGS) -v ./pkg/... ./cmd/...
 	$(MAKE) -C operator test
 
 .PHONY: vet
 vet:
-	go vet -tags exclude_graphdriver_btrfs ./...
+	go vet -tags $(GO_BUILD_TAGS) ./...
 
 .PHONY: e2e-tests
 e2e-tests: embedded-release
-	go test -tags exclude_graphdriver_btrfs -timeout 60m -ldflags="$(LD_FLAGS)" -parallel 1 -failfast -v ./e2e
+	go test -tags $(GO_BUILD_TAGS) -timeout 60m -ldflags="$(LD_FLAGS)" -parallel 1 -failfast -v ./e2e
 
 .PHONY: e2e-test
 e2e-test:
-	go test -tags exclude_graphdriver_btrfs -timeout 60m -ldflags="$(LD_FLAGS)" -v ./e2e -run ^$(TEST_NAME)$$
+	go test -tags $(GO_BUILD_TAGS) -timeout 60m -ldflags="$(LD_FLAGS)" -v ./e2e -run ^$(TEST_NAME)$$
 
 .PHONY: dryrun-tests
 dryrun-tests: export DRYRUN_MATCH = Test
@@ -312,11 +312,11 @@ clean:
 
 .PHONY: lint
 lint:
-	golangci-lint run -c .golangci.yml ./... --build-tags exclude_graphdriver_btrfs
+	golangci-lint run -c .golangci.yml ./... --build-tags $(GO_BUILD_TAGS)
 
 .PHONY: lint-and-fix
 lint-and-fix:
-	golangci-lint run --fix -c .golangci.yml ./... --build-tags exclude_graphdriver_btrfs
+	golangci-lint run --fix -c .golangci.yml ./... --build-tags $(GO_BUILD_TAGS)
 
 .PHONY: scan
 scan:
@@ -329,7 +329,7 @@ scan:
 
 .PHONY: buildtools
 buildtools:
-	go build -tags exclude_graphdriver_btrfs -o ./output/bin/buildtools ./cmd/buildtools
+	go build -tags $(GO_BUILD_TAGS) -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: list-distros
 list-distros:

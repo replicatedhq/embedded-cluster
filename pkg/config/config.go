@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -34,6 +35,8 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 	}
 	cfg.Spec.API.ExtraArgs["service-node-port-range"] = DefaultServiceNodePortRange
 	cfg.Spec.API.SANs = append(cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
+	cfg.Spec.Network.NodeLocalLoadBalancing.Enabled = true
+	cfg.Spec.Network.NodeLocalLoadBalancing.Type = k0sconfig.NllbTypeEnvoyProxy
 	overrideK0sImages(cfg, proxyRegistryDomain)
 	return cfg
 }
@@ -93,7 +96,7 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags(nodeIP string) []string {
+func InstallFlags(nodeIP string) ([]string, error) {
 	flags := []string{
 		"install",
 		"controller",
@@ -102,9 +105,14 @@ func InstallFlags(nodeIP string) []string {
 		"--no-taints",
 		"-c", runtimeconfig.PathToK0sConfig(),
 	}
+	profile, err := ProfileInstallFlag()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get profile install flag: %w", err)
+	}
+	flags = append(flags, profile)
 	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
-	return flags
+	return flags, nil
 }
 
 func AdditionalInstallFlags(nodeIP string) []string {
@@ -123,6 +131,30 @@ func AdditionalInstallFlagsController() []string {
 	}
 }
 
+func ProfileInstallFlag() (string, error) {
+	controllerProfile, err := controllerWorkerProfile()
+	if err != nil {
+		return "", fmt.Errorf("unable to get controller worker profile: %w", err)
+	}
+	return "--profile=" + controllerProfile, nil
+}
+
+func GetControllerRoleName() string {
+	clusterConfig := release.GetEmbeddedClusterConfig()
+	controllerRoleName := "controller"
+	if clusterConfig != nil {
+		if clusterConfig.Spec.Roles.Controller.Name != "" {
+			controllerRoleName = clusterConfig.Spec.Roles.Controller.Name
+		}
+	}
+	return controllerRoleName
+}
+
+func HasCustomRoles() bool {
+	clusterConfig := release.GetEmbeddedClusterConfig()
+	return clusterConfig != nil && clusterConfig.Spec.Roles.Custom != nil && len(clusterConfig.Spec.Roles.Custom) > 0
+}
+
 // nodeLabels return a slice of string with labels (key=value format) for the node where we
 // are installing the k0s.
 func nodeLabels() []string {
@@ -135,20 +167,9 @@ func nodeLabels() []string {
 
 func controllerLabels() map[string]string {
 	lmap := additionalControllerLabels()
-	lmap["kots.io/embedded-cluster-role-0"] = getControllerRoleName()
+	lmap["kots.io/embedded-cluster-role-0"] = GetControllerRoleName()
 	lmap["kots.io/embedded-cluster-role"] = "total-1"
 	return lmap
-}
-
-func getControllerRoleName() string {
-	clusterConfig := release.GetEmbeddedClusterConfig()
-	controllerRoleName := "controller"
-	if clusterConfig != nil {
-		if clusterConfig.Spec.Roles.Controller.Name != "" {
-			controllerRoleName = clusterConfig.Spec.Roles.Controller.Name
-		}
-	}
-	return controllerRoleName
 }
 
 func additionalControllerLabels() map[string]string {
@@ -159,6 +180,25 @@ func additionalControllerLabels() map[string]string {
 		}
 	}
 	return map[string]string{}
+}
+
+func controllerWorkerProfile() (string, error) {
+	// Read the k0s config file
+	data, err := os.ReadFile(runtimeconfig.PathToK0sConfig())
+	if err != nil {
+		return "", fmt.Errorf("unable to read k0s config: %w", err)
+	}
+
+	var cfg k0sconfig.ClusterConfig
+	if err := k8syaml.Unmarshal(data, &cfg); err != nil {
+		return "", fmt.Errorf("unable to unmarshal k0s config: %w", err)
+	}
+
+	// Return the first worker profile name if any exist
+	if len(cfg.Spec.WorkerProfiles) > 0 {
+		return cfg.Spec.WorkerProfiles[0].Name, nil
+	}
+	return "", nil
 }
 
 func AdditionalCharts() []embeddedclusterv1beta1.Chart {

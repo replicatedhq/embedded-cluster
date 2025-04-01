@@ -2,11 +2,11 @@ package registry
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	// s3SecretName is the name of the Registry s3 secret.
-	// This secret name is defined in the chart in the release metadata.
-	s3SecretName = "seaweedfs-s3-rw"
+	// seaweedfsS3SecretName is the name of the secret containing the s3 credentials.
+	// This secret name is defined in the values-ha.yaml file in the release metadata.
+	seaweedfsS3SecretName = "seaweedfs-s3-rw"
 )
 
 // Upgrade upgrades the registry chart to the latest version.
@@ -26,7 +26,7 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Cl
 		return errors.Wrap(err, "check if release exists")
 	}
 	if !exists {
-		slog.Info("Release not found, installing", "release", releaseName, "namespace", namespace)
+		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, namespace)
 		if err := r.Install(ctx, kcli, hcli, overrides, nil); err != nil {
 			return errors.Wrap(err, "install")
 		}
@@ -60,7 +60,7 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Cl
 
 func (r *Registry) createUpgradePreRequisites(ctx context.Context, kcli client.Client) error {
 	if r.IsHA {
-		if err := createS3Secret(ctx, kcli); err != nil {
+		if err := ensureS3Secret(ctx, kcli); err != nil {
 			return errors.Wrap(err, "create s3 secret")
 		}
 	}
@@ -68,14 +68,14 @@ func (r *Registry) createUpgradePreRequisites(ctx context.Context, kcli client.C
 	return nil
 }
 
-func createS3Secret(ctx context.Context, kcli client.Client) error {
+func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 	accessKey, secretKey, err := seaweedfs.GetS3RWCreds(ctx, kcli)
 	if err != nil {
 		return errors.Wrap(err, "get seaweedfs s3 rw creds")
 	}
 
 	obj := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: s3SecretName, Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: seaweedfsS3SecretName, Namespace: namespace},
 		Data: map[string][]byte{
 			"s3AccessKey": []byte(accessKey),
 			"s3SecretKey": []byte(secretKey),
