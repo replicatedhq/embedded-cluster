@@ -49,7 +49,7 @@ jobs:
       retention-days: 90
       category-prefix: container-scan-
 
-  scan-registry:
+  scan-local-artifact-mirror:
     name: Scan Local Artifact Mirror Image
     needs: get-latest-tag  
     uses: ./.github/workflows/scan-image-grype.yml
