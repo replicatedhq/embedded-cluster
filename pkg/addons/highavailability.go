@@ -3,7 +3,11 @@ package addons
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -20,6 +24,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -254,6 +259,41 @@ func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Cli
 		return errors.Wrap(err, "upgrade admin console")
 	}
 
+	if err := kubeutils.WaitForStatefulset(ctx, kcli, runtimeconfig.KotsadmNamespace, "kotsadm-rqlite", nil); err != nil {
+		return errors.Wrap(err, "wait for rqlite to be ready")
+	}
+
+	// get the list of rqlite pods
+	pods := &corev1.PodList{}
+	err := kcli.List(ctx, pods, client.InNamespace(runtimeconfig.KotsadmNamespace), client.MatchingLabels{"app": "kotsadm-rqlite"})
+	if err != nil {
+		return errors.Wrap(err, "list rqlite pods")
+	}
+
+	// if there are not three pods, return an error
+	if len(pods.Items) != 3 {
+		return fmt.Errorf("expected 3 rqlite pods, got %d", len(pods.Items))
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(3)
+	isFailed := false
+
+	// wait for all rqlite pods to return healthy responses to ip:4001/readyz?sync&timeout=5s
+	for _, pod := range pods.Items {
+		go func(pod corev1.Pod) {
+			if err := waitForRqliteSync(ctx, pod); err != nil {
+				logrus.Errorf("rqlite pod %s failed to sync: %v", pod.Name, err)
+				isFailed = true
+			}
+			wg.Done()
+		}(pod)
+	}
+
+	wg.Wait()
+	if isFailed {
+		return fmt.Errorf("rqlite pods failed to sync")
+	}
 	return nil
 }
 
@@ -267,4 +307,39 @@ func waitForPodAndLogProgress(writer *spinner.MessageWriter, progressCh <-chan s
 			writer.Infof("Migrating data for high availability (%s)", progress)
 		}
 	}
+}
+
+func waitForRqliteSync(ctx context.Context, pod corev1.Pod) error {
+	err := wait.ExponentialBackoffWithContext(ctx, wait.Backoff{
+		Duration: 5 * time.Second,
+		Factor:   1.0,
+		Steps:    60,
+	}, func(ctx context.Context) (bool, error) {
+		url := fmt.Sprintf("http://%s:4001/readyz?sync&timeout=5s", pod.Status.PodIP)
+		resp, err := http.Get(url)
+		if err != nil {
+			return false, nil
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return false, nil
+		}
+
+		// read the body
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return false, nil
+		}
+
+		// look for 'sync ok' in the body
+		if strings.Contains(string(body), "sync ok") {
+			return true, nil
+		}
+
+		return false, nil
+	})
+	if err != nil {
+		return errors.Wrap(err, "wait for rqlite to be ready")
+	}
+	return nil
 }
