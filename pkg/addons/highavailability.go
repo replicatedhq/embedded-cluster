@@ -270,6 +270,8 @@ func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Cli
 		return errors.Wrap(err, "list rqlite pods")
 	}
 
+	logrus.Infof("Waiting for %d rqlite pods to be ready", len(pods.Items))
+
 	wg := sync.WaitGroup{}
 	wg.Add(len(pods.Items))
 	isFailed := false
@@ -330,6 +332,8 @@ func waitForRqliteSync(ctx context.Context, pod corev1.Pod) error {
 		if strings.Contains(string(body), "sync ok") {
 			return true, nil
 		}
+
+		logrus.Infof("rqlite pod %s returned %q", pod.Name, string(body))
 
 		return false, nil
 	})
