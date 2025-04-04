@@ -226,15 +226,17 @@ func GetLatestKotsHelmTag(ctx context.Context) (string, error) {
 	latestTag := tags[0].GetName()
 	logrus.Infof("latest tag: %s", latestTag)
 
-	// check to see if the next tag is a 'build.x' tag - if so, return that
-	if len(tags) > 1 {
-		logrus.Infof("next tag: %s", tags[1].GetName())
-		if strings.HasPrefix(tags[1].GetName(), latestTag) {
-			logrus.Infof("next tag has same prefix: %s", tags[1].GetName())
-			if strings.Contains(tags[1].GetName(), "-build.") {
-				logrus.Infof("next tag is a build tag: %s", tags[1].GetName())
-				return tags[1].GetName(), nil
-			}
+	// check to see if there is a 'build.x' tag - if so, return that
+	for _, tag := range tags {
+		logrus.Infof("checkingtag: %s", tag.GetName())
+		if !strings.HasPrefix(tag.GetName(), latestTag) {
+			// tags are sorted, so once we find a tag that doesn't have the same prefix, we can break
+			logrus.Infof("tag does not have same prefix: %s", tag.GetName())
+			break
+		}
+		if strings.Contains(tag.GetName(), "-build.") {
+			logrus.Infof("tag is a build tag, returning: %s", tag.GetName())
+			return tag.GetName(), nil
 		}
 	}
 	return latestTag, nil
