@@ -270,13 +270,8 @@ func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Cli
 		return errors.Wrap(err, "list rqlite pods")
 	}
 
-	// if there are not three pods, return an error
-	if len(pods.Items) != 3 {
-		return fmt.Errorf("expected 3 rqlite pods, got %d", len(pods.Items))
-	}
-
 	wg := sync.WaitGroup{}
-	wg.Add(3)
+	wg.Add(len(pods.Items))
 	isFailed := false
 
 	// wait for all rqlite pods to return healthy responses to ip:4001/readyz?sync&timeout=5s
