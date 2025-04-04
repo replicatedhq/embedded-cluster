@@ -571,7 +571,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	}
 	defer hcli.Close()
 
-	err = addons.EnableAdminConsoleHA(ctx, kcli, hcli, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config)
+	err = addons.EnableAdminConsoleHA(ctx, kcli, hcli, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config, in.Spec.LicenseInfo)
 	if err != nil {
 		return err
 	}

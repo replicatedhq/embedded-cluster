@@ -53,10 +53,10 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, string, error) 
 // EnableHA enables high availability.
 func EnableHA(
 	ctx context.Context, kcli client.Client, kclient kubernetes.Interface, hcli helm.Client,
-	isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec,
+	serviceCIDR string, inSpec ecv1beta1.InstallationSpec,
 	spinner *spinner.MessageWriter,
 ) error {
-	if isAirgap {
+	if inSpec.AirGap {
 		logrus.Debugf("Enabling high availability")
 		spinner.Infof("Enabling high availability")
 
@@ -65,7 +65,7 @@ func EnableHA(
 			return errors.Wrap(err, "check if registry data has been migrated")
 		} else if !hasMigrated {
 			logrus.Debugf("Installing seaweedfs")
-			err = ensureSeaweedfs(ctx, kcli, hcli, serviceCIDR, cfgspec)
+			err = ensureSeaweedfs(ctx, kcli, hcli, serviceCIDR, inSpec.Config)
 			if err != nil {
 				return errors.Wrap(err, "ensure seaweedfs")
 			}
@@ -81,7 +81,7 @@ func EnableHA(
 
 			logrus.Debugf("Migrating data for high availability")
 			spinner.Infof("Migrating data for high availability")
-			err = migrateRegistryData(ctx, kcli, kclient, cfgspec, spinner)
+			err = migrateRegistryData(ctx, kcli, kclient, inSpec.Config, spinner)
 			if err != nil {
 				return errors.Wrap(err, "migrate registry data")
 			}
@@ -89,7 +89,7 @@ func EnableHA(
 
 			logrus.Debugf("Enabling high availability for the registry")
 			spinner.Infof("Enabling high availability for the registry")
-			err = enableRegistryHA(ctx, kcli, hcli, serviceCIDR, cfgspec)
+			err = enableRegistryHA(ctx, kcli, hcli, serviceCIDR, inSpec.Config)
 			if err != nil {
 				return errors.Wrap(err, "enable registry high availability")
 			}
@@ -99,7 +99,7 @@ func EnableHA(
 
 	logrus.Debugf("Updating the Admin Console for high availability")
 	spinner.Infof("Updating the Admin Console for high availability")
-	err := EnableAdminConsoleHA(ctx, kcli, hcli, isAirgap, serviceCIDR, proxy, cfgspec)
+	err := EnableAdminConsoleHA(ctx, kcli, hcli, inSpec.AirGap, serviceCIDR, inSpec.Proxy, inSpec.Config, inSpec.LicenseInfo)
 	if err != nil {
 		return errors.Wrap(err, "enable admin console high availability")
 	}
@@ -236,7 +236,7 @@ func enableRegistryHA(ctx context.Context, kcli client.Client, hcli helm.Client,
 }
 
 // EnableAdminConsoleHA enables high availability for the admin console.
-func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec) error {
+func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Client, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo) error {
 	domains := runtimeconfig.GetDomains(cfgspec)
 
 	// TODO (@salah): add support for end user overrides
@@ -245,6 +245,7 @@ func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Cli
 		IsHA:                     true,
 		Proxy:                    proxy,
 		ServiceCIDR:              serviceCIDR,
+		IsMultinodeEnabled:       licenseInfo != nil && licenseInfo.IsMultinodeEnabled,
 		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
 		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
 		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,
