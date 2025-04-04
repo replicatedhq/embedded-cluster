@@ -22,6 +22,10 @@ func (k *KubeUtils) WaitForDeployment(ctx context.Context, cli client.Client, ns
 	return nil
 }
 
+func (k *KubeUtils) WaitForStatefulset(ctx context.Context, cli client.Client, ns, name string, opts *kubeutils.WaitOptions) error {
+	return nil
+}
+
 func (k *KubeUtils) WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string, opts *kubeutils.WaitOptions) error {
 	return nil
 }

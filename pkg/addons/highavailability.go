@@ -3,8 +3,6 @@ package addons
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -23,6 +21,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 )
 
 // CanEnableHA checks if high availability can be enabled in the cluster.
@@ -252,6 +251,10 @@ func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Cli
 	}
 	if err := ac.Upgrade(ctx, kcli, hcli, addOnOverrides(ac, cfgspec, nil)); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
+	}
+
+	if err := kubeutils.WaitForStatefulset(ctx, kcli, runtimeconfig.KotsadmNamespace, "kotsadm-rqlite", nil); err != nil {
+		return errors.Wrap(err, "wait for rqlite to be ready")
 	}
 
 	return nil

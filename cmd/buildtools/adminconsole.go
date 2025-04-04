@@ -44,7 +44,7 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 		defer hcli.Close()
 
 		logrus.Infof("getting admin console latest tag")
-		latest, err := GetLatestGitHubTag(c.Context, "replicatedhq", "kots-helm")
+		latest, err := GetLatestKotsHelmTag(c.Context)
 		if err != nil {
 			return fmt.Errorf("failed to get admin console latest tag: %w", err)
 		}

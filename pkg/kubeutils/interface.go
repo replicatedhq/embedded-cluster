@@ -23,6 +23,7 @@ func Set(_kb KubeUtilsInterface) {
 type KubeUtilsInterface interface {
 	WaitForNamespace(ctx context.Context, cli client.Client, ns string, opts *WaitOptions) error
 	WaitForDeployment(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
+	WaitForStatefulset(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForService(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForJob(ctx context.Context, cli client.Client, ns, name string, completions int32, opts *WaitOptions) error
@@ -60,6 +61,10 @@ func WaitForNamespace(ctx context.Context, cli client.Client, ns string, opts *W
 
 func WaitForDeployment(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
 	return kb.WaitForDeployment(ctx, cli, ns, name, opts)
+}
+
+func WaitForStatefulset(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
+	return kb.WaitForStatefulset(ctx, cli, ns, name, opts)
 }
 
 func WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
