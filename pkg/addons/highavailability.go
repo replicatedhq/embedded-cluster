@@ -3,12 +3,6 @@ package addons
 import (
 	"context"
 	"fmt"
-	"io"
-	"net/http"
-	"strings"
-	"sync"
-	"time"
-
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -24,10 +18,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 )
 
 // CanEnableHA checks if high availability can be enabled in the cluster.
@@ -263,34 +257,6 @@ func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Cli
 		return errors.Wrap(err, "wait for rqlite to be ready")
 	}
 
-	// get the list of rqlite pods
-	pods := &corev1.PodList{}
-	err := kcli.List(ctx, pods, client.InNamespace(runtimeconfig.KotsadmNamespace), client.MatchingLabels{"app": "kotsadm-rqlite"})
-	if err != nil {
-		return errors.Wrap(err, "list rqlite pods")
-	}
-
-	logrus.Infof("Waiting for %d rqlite pods to be ready", len(pods.Items))
-
-	wg := sync.WaitGroup{}
-	wg.Add(len(pods.Items))
-	isFailed := false
-
-	// wait for all rqlite pods to return healthy responses to ip:4001/readyz?sync&timeout=5s
-	for _, pod := range pods.Items {
-		go func(pod corev1.Pod) {
-			if err := waitForRqliteSync(ctx, pod); err != nil {
-				logrus.Errorf("rqlite pod %s failed to sync: %v", pod.Name, err)
-				isFailed = true
-			}
-			wg.Done()
-		}(pod)
-	}
-
-	wg.Wait()
-	if isFailed {
-		return fmt.Errorf("rqlite pods failed to sync")
-	}
 	return nil
 }
 
@@ -304,44 +270,4 @@ func waitForPodAndLogProgress(writer *spinner.MessageWriter, progressCh <-chan s
 			writer.Infof("Migrating data for high availability (%s)", progress)
 		}
 	}
-}
-
-func waitForRqliteSync(ctx context.Context, pod corev1.Pod) error {
-	err := wait.ExponentialBackoffWithContext(ctx, wait.Backoff{
-		Duration: 5 * time.Second,
-		Factor:   1.0,
-		Steps:    60,
-	}, func(ctx context.Context) (bool, error) {
-		url := fmt.Sprintf("http://%s:4001/readyz?sync&timeout=5s", pod.Status.PodIP)
-		resp, err := http.Get(url)
-		if err != nil {
-			logrus.Errorf("rqlite pod %s returned error: %v", pod.Name, err)
-			return false, nil
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			logrus.Errorf("rqlite pod %s returned status code %d", pod.Name, resp.StatusCode)
-			return false, nil
-		}
-
-		// read the body
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			logrus.Errorf("rqlite pod %s returned error reading body: %v", pod.Name, err)
-			return false, nil
-		}
-
-		// look for 'sync ok' in the body
-		if strings.Contains(string(body), "sync ok") {
-			return true, nil
-		}
-
-		logrus.Infof("rqlite pod %s returned %q", pod.Name, string(body))
-
-		return false, nil
-	})
-	if err != nil {
-		return errors.Wrap(err, "wait for rqlite to be ready")
-	}
-	return nil
 }

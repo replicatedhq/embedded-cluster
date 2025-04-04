@@ -356,7 +356,6 @@ func (k *KubeUtils) IsStatefulSetReady(ctx context.Context, cli client.Client, n
 		}
 		return false, nil
 	}
-	fmt.Printf("statefulset.Status.ReadyReplicas: %d statefulset.Spec.Replicas: %d\n", statefulset.Status.ReadyReplicas, *statefulset.Spec.Replicas)
 	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas, nil
 }
 
