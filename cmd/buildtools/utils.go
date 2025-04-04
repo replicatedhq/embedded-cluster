@@ -224,11 +224,15 @@ func GetLatestKotsHelmTag(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("no tags found")
 	}
 	latestTag := tags[0].GetName()
+	logrus.Infof("latest tag: %s", latestTag)
 
 	// check to see if the next tag is a 'build.x' tag - if so, return that
 	if len(tags) > 1 {
+		logrus.Infof("next tag: %s", tags[1].GetName())
 		if strings.HasPrefix(tags[1].GetName(), latestTag) {
-			if regexp.MustCompile(`-build\.\d+$`).MatchString(tags[1].GetName()) {
+			logrus.Infof("next tag has same prefix: %s", tags[1].GetName())
+			if strings.Contains(tags[1].GetName(), "-build.") {
+				logrus.Infof("next tag is a build tag: %s", tags[1].GetName())
 				return tags[1].GetName(), nil
 			}
 		}
