@@ -315,16 +315,19 @@ func waitForRqliteSync(ctx context.Context, pod corev1.Pod) error {
 		url := fmt.Sprintf("http://%s:4001/readyz?sync&timeout=5s", pod.Status.PodIP)
 		resp, err := http.Get(url)
 		if err != nil {
+			logrus.Errorf("rqlite pod %s returned error: %v", pod.Name, err)
 			return false, nil
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
+			logrus.Errorf("rqlite pod %s returned status code %d", pod.Name, resp.StatusCode)
 			return false, nil
 		}
 
 		// read the body
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
+			logrus.Errorf("rqlite pod %s returned error reading body: %v", pod.Name, err)
 			return false, nil
 		}
 
