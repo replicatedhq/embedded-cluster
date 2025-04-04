@@ -107,6 +107,7 @@ type LocalArtifactMirrorSpec struct {
 // LicenseInfo holds information about the license used to install the cluster.
 type LicenseInfo struct {
 	IsDisasterRecoverySupported bool `json:"isDisasterRecoverySupported,omitempty"`
+	IsMultinodeDisabled         bool `json:"isMultinodeDisabled,omitempty"`
 }
 
 // ConfigSecret holds a reference to secret containing the embedded cluster
