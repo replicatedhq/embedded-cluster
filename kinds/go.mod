@@ -1,6 +1,7 @@
 module github.com/replicatedhq/embedded-cluster/kinds
 
 go 1.24.0
+
 require (
 	github.com/k0sproject/k0s v1.30.7-0.20241029184556-a942e759e13b
 	github.com/stretchr/testify v1.10.0
