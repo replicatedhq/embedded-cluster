@@ -70,10 +70,11 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
-			logrus.Warn("This will remove this node from the cluster and completely reset it, removing all data stored on the node.")
-			logrus.Warn("This node will also reboot. Do not reset another node until this is complete.")
+			logrus.Warn("\nResetting a node will remove it from the cluster and erase all data stored on it.")
+			logrus.Warn("The node will reboot after it is reset.")
+			logrus.Warn("Do not reset another node until this process is complete.\n")
 			if !force && !assumeYes && !prompts.New().Confirm("Do you want to continue?", false) {
-				return fmt.Errorf("Aborting")
+				return nil
 			}
 
 			// populate options struct with host information
@@ -82,6 +83,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
+			logrus.Info("")
 			// basic check to see if it's safe to remove this node from the cluster
 			if currentHost.Status.Role == "controller" {
 				safeToRemove, reason, err := currentHost.checkResetSafety(ctx, force)
@@ -275,15 +277,16 @@ func maybePrintHAWarning(ctx context.Context) error {
 	if numControllerNodes == 3 {
 		if config.HasCustomRoles() {
 			controllerRoleName := config.GetControllerRoleName()
-			logrus.Warn(fmt.Sprintf("You must maintain at least three %s nodes in a high-availability cluster, but resetting this node will leave only two.", controllerRoleName))
+			logrus.Warnf("\nHigh-availability clusters require at least three %s nodes.", controllerRoleName)
+			logrus.Warn("Resetting this node will leave only two.")
 			logrus.Warn("This can lead to a loss of functionality and non-recoverable failures.")
-			logrus.Warn(fmt.Sprintf("If you reset this node, re-join a third %s node as soon as possible.", controllerRoleName))
+			logrus.Warnf("If you reset this node, re-join a third %s node as soon as possible.", controllerRoleName)
 		} else {
-			logrus.Warn("You must maintain at least three nodes in a high-availability cluster, but resetting this node will leave only two.")
+			logrus.Warn("\nHigh-availability clusters require at least three nodes.")
+			logrus.Warn("Resetting this node will leave only two.")
 			logrus.Warn("This can lead to a loss of functionality and non-recoverable failures.")
 			logrus.Warn("If you reset this node, re-join a third node as soon as possible.")
 		}
-		logrus.Info("")
 	}
 	return nil
 }
