@@ -30,7 +30,7 @@ require (
 	github.com/k0sproject/k0s v1.30.10-0.20250117153350-dcf3c22bb568
 	github.com/ohler55/ojg v1.26.2
 	github.com/onsi/ginkgo/v2 v2.23.3
-	github.com/onsi/gomega v1.36.3
+	github.com/onsi/gomega v1.37.0
 	github.com/replicatedhq/embedded-cluster/kinds v0.0.0
 	github.com/replicatedhq/embedded-cluster/utils v0.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240814191029-3f677ee409a0
