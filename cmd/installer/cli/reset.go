@@ -375,7 +375,6 @@ func (h *hostInfo) leaveEtcdcluster() {
 
 	// If we get here, we failed to leave after retries
 	logrus.Warnf("Unable to leave etcd cluster after retries (this is often normal during reset): %v, %s", err, out)
-	return
 }
 
 var (
