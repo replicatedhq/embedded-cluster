@@ -127,11 +127,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 					}
 
 					// try and leave etcd cluster
-					err = currentHost.leaveEtcdcluster()
-					if !checkErrPrompt(assumeYes, force, err) {
-						return err
-					}
-
+					currentHost.leaveEtcdcluster()
 				}
 			}
 
@@ -329,7 +325,7 @@ type etcdMembers struct {
 }
 
 // leaveEtcdcluster uses k0s to attempt to leave the etcd cluster
-func (h *hostInfo) leaveEtcdcluster() error {
+func (h *hostInfo) leaveEtcdcluster() {
 	// Try to list members with retries
 	var memberlist etcdMembers
 	var out string
@@ -351,25 +347,25 @@ func (h *hostInfo) leaveEtcdcluster() error {
 
 	if err != nil {
 		logrus.Warnf("Unable to list etcd members, continuing with reset: %v", err)
-		return nil
+		return
 	}
 
 	// If we're the only member, no need to leave
 	if len(memberlist.Members) == 1 && memberlist.Members[h.Hostname] != "" {
-		return nil
+		return
 	}
 
 	// Attempt to leave the cluster with retries
 	for i := 0; i < 3; i++ {
 		out, err = helpers.RunCommand(k0sBinPath, "etcd", "leave")
 		if err == nil {
-			return nil
+			return
 		}
 
 		// Check if the error is due to etcd being stopped
 		if strings.Contains(err.Error(), "etcdserver: server stopped") {
 			logrus.Warnf("Etcd server is stopped, continuing with reset")
-			return nil
+			return
 		}
 
 		if i < 2 { // Don't sleep on last attempt
@@ -379,7 +375,7 @@ func (h *hostInfo) leaveEtcdcluster() error {
 
 	// If we get here, we failed to leave after retries
 	logrus.Warnf("Unable to leave etcd cluster after retries (this is often normal during reset): %v, %s", err, out)
-	return nil
+	return
 }
 
 var (
