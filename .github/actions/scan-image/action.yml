@@ -1,4 +1,4 @@
-name: Scan image
+name: Scan Container Image Grype SARIF
 description: 'Scan a container image for vulnerabilities and optionally upload the results for GitHub code scanning'
 inputs:
   image-ref:
@@ -7,7 +7,35 @@ inputs:
   upload-sarif:
     description: 'Whether to upload the scan results as a SARIF file'
     required: false
-    default: 'false'
+    default: 'true'
+  severity-cutoff:
+    description: 'Minimum severity to report (critical, high, medium, low, negligible)'
+    required: false
+    default: 'medium'
+  fail-build:
+    description: 'Fail the workflow if vulnerabilities are found'
+    required: false
+    default: 'true'
+  output-file:
+    description: 'Output file name for SARIF results'
+    required: false
+    default: 'results.sarif'
+  timeout-minutes:
+    description: 'Maximum time in minutes to wait for the scan to complete'
+    required: false
+    default: '30'
+  retention-days:
+    description: 'Number of days to retain the scan results artifact'
+    required: false
+    default: '90'
+  category-prefix:
+    description: 'Prefix to use for the SARIF category name'
+    required: false
+    default: 'image-scan-'
+  only-fixed:
+    description: 'Only report vulnerabilities that have a fix available'
+    required: false
+    default: 'true'
 
 runs:
   using: composite
@@ -18,29 +46,79 @@ runs:
       run: |
         image_id=$(${{github.action_path}}/image_id.sh '${{ inputs.image-ref }}')
         echo "image_id=$image_id" >> $GITHUB_OUTPUT
+    
+    - name: Extract image details
+      id: image_details
+      shell: bash
+      run: |
+        IMAGE_NAME=$(echo "${{ inputs.image-ref }}" | cut -d':' -f1)
+        IMAGE_TAG=$(echo "${{ inputs.image-ref }}" | cut -d':' -f2)
+        [[ "$IMAGE_TAG" == "$IMAGE_NAME" ]] && IMAGE_TAG="latest"
+        SAFE_NAME=$(echo "${IMAGE_NAME}-${IMAGE_TAG}" | sed 's/[\/:]/-/g')
+        {
+          echo "image_name=${IMAGE_NAME}"
+          echo "image_tag=${IMAGE_TAG}"
+          echo "safe_name=${SAFE_NAME}"
+        } >> "$GITHUB_OUTPUT"
 
-    - name: Scan image
-      uses: aquasecurity/trivy-action@0.24.0
+    - name: Scan image with Grype
+      uses: anchore/scan-action@v6
+      id: scan
+      continue-on-error: ${{ inputs.fail-build != 'true' }}
       with:
-        image-ref: '${{ inputs.image-ref }}'
-        ignore-unfixed: true
-        severity: CRITICAL,HIGH,MEDIUM
-        exit-code: 1
-        trivyignores: .trivyignore
+        image: "${{ inputs.image-ref }}"
+        fail-build: "${{ inputs.fail-build }}"
+        severity-cutoff: "${{ inputs.severity-cutoff }}"
+        output-format: sarif
+        output-file: "${{ inputs.output-file }}"
+        by-cve: true
+        only-fixed: "${{ inputs.only-fixed }}"
 
-    - name: Output sarif
-      uses: aquasecurity/trivy-action@0.24.0
+    - name: Check scan status
+      if: steps.scan.outcome == 'failure' && inputs.fail-build == 'true'
+      shell: bash
+      run: |
+        echo "::error::Scan failed for image ${{ inputs.image-ref }}"
+        echo "Please check the scan logs above for details"
+        exit 1
+
+    - name: Enrich or generate SARIF
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}
-      with:
-        image-ref: '${{ matrix.image }}'
-        format: sarif
-        output: trivy-results.sarif
-        ignore-unfixed: true
-        severity: CRITICAL,HIGH,MEDIUM
+      shell: bash
+      run: |
+        if [ ! -f ${{ inputs.output-file }} ]; then
+          echo "No SARIF file found — creating minimal empty SARIF"
+          echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Anchore Grype","informationUri":"https://github.com/anchore/grype","rules":[]}},"results":[],"properties":{"isFallbackSarif":true}}]}' > ${{ inputs.output-file }}
+        fi
 
-    - name: Upload sarif
+        jq --arg imageRef "${{ inputs.image-ref }}" \
+           --arg repo "${{ steps.image_details.outputs.image_name }}" \
+           --arg name "${{ steps.image_details.outputs.image_name }}" \
+           --arg tag "${{ steps.image_details.outputs.image_tag }}" \
+           --arg scanTime "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+           '.runs[0].properties = {
+              "imageRef": $imageRef,
+              "repository": $repo,
+              "scanTime": $scanTime,
+              "imageMetadata": {
+                "name": $name,
+                "tag": $tag
+              }
+            }' ${{ inputs.output-file }} > enriched-results.sarif
+
+        mv enriched-results.sarif ${{ inputs.output-file }}
+
+    - name: Upload SARIF file
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}
       uses: github/codeql-action/upload-sarif@v3
       with:
-        sarif_file: trivy-results.sarif
+        sarif_file: ${{ inputs.output-file }}
         category: 'image-scan:${{ steps.image-id.outputs.image_id }}'
+
+    - name: Archive scan results
+      if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: "sarif-${{ steps.image_details.outputs.safe_name }}"
+        path: ${{ inputs.output-file }}
+        retention-days: ${{ inputs.retention-days }}
