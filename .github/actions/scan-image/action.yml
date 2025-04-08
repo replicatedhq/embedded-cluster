@@ -96,13 +96,26 @@ runs:
            --arg name "${{ steps.image_details.outputs.image_name }}" \
            --arg tag "${{ steps.image_details.outputs.image_tag }}" \
            --arg scanTime "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+           --arg digest "$(echo "${{ inputs.image-ref }}" | grep -o '@sha256:[a-f0-9]*' || true)" \
            '.runs[0].properties = {
               "imageRef": $imageRef,
               "repository": $repo,
               "scanTime": $scanTime,
               "imageMetadata": {
                 "name": $name,
-                "tag": $tag
+                "tag": $tag,
+                "digest": ($digest | if . == "" then null else . end),
+                "repoDigest": ($imageRef | if contains("@sha256:") then . else null end),
+                "labels": {},
+                "annotations": {
+                  "scanTime": $scanTime,
+                  "tool": "grype",
+                  "toolVersion": "latest"
+                }
+              },
+              "partialFingerprints": {
+                "scanTargetFingerprint": ($imageRef | sub("@sha256:[a-f0-9]+$"; "")),
+                "scanTimeFingerprint": $scanTime
               }
             }' ${{ inputs.output-file }} > enriched-results.sarif
 
