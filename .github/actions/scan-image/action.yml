@@ -98,14 +98,14 @@ runs:
            --arg scanTime "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
            --arg digest "$(echo "${{ inputs.image-ref }}" | grep -o 'sha256:[a-f0-9]*' || true)" \
            '.runs[0].properties = {
-              "imageRef": ($imageRef | sub("proxy\\.replicated\\.com/anonymous/replicated/"; "")),
+              "imageRef": ($name | sub("proxy\\.replicated\\.com/anonymous/replicated/"; "replicatedhq/embedded-cluster/")) + ":" + $tag + if $digest != "" then "@" + $digest else "" end,
               "repository": $repo,
               "scanTime": $scanTime,
               "imageMetadata": {
-                "name": ($name | sub("proxy\\.replicated\\.com/anonymous/replicated/"; "")),
+                "name": ($name | sub("proxy\\.replicated\\.com/anonymous/replicated/"; "replicatedhq/embedded-cluster/")),
                 "tag": $tag,
                 "digest": ($digest | if . == "" then null else . end),
-                "repoDigest": ($name | sub("proxy\\.replicated\\.com/anonymous/replicated/"; "") | . + "@" + ($digest | if . == "" then null else . end)),
+                "repoDigest": ($name | sub("proxy\\.replicated\\.com/anonymous/replicated/"; "replicatedhq/embedded-cluster/")) + "@" + ($digest | if . == "" then null else . end),
                 "labels": {},
                 "annotations": {
                   "scanTime": $scanTime,
