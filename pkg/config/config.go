@@ -21,6 +21,9 @@ const (
 	DefaultVendorChartOrder     = 10
 )
 
+// k0sConfigPathOverride is used during tests to override the path to the k0s config file.
+var k0sConfigPathOverride string
+
 // RenderK0sConfig renders a k0s cluster configuration.
 func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 	cfg := k0sconfig.DefaultClusterConfig()
@@ -109,7 +112,9 @@ func InstallFlags(nodeIP string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get profile install flag: %w", err)
 	}
-	flags = append(flags, profile)
+	if profile != "" {
+		flags = append(flags, profile)
+	}
 	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
 	return flags, nil
@@ -135,6 +140,9 @@ func ProfileInstallFlag() (string, error) {
 	controllerProfile, err := controllerWorkerProfile()
 	if err != nil {
 		return "", fmt.Errorf("unable to get controller worker profile: %w", err)
+	}
+	if controllerProfile == "" {
+		return "", nil
 	}
 	return "--profile=" + controllerProfile, nil
 }
@@ -184,7 +192,12 @@ func additionalControllerLabels() map[string]string {
 
 func controllerWorkerProfile() (string, error) {
 	// Read the k0s config file
-	data, err := os.ReadFile(runtimeconfig.PathToK0sConfig())
+	k0sPath := runtimeconfig.PathToK0sConfig()
+	if k0sConfigPathOverride != "" {
+		k0sPath = k0sConfigPathOverride
+	}
+
+	data, err := os.ReadFile(k0sPath)
 	if err != nil {
 		return "", fmt.Errorf("unable to read k0s config: %w", err)
 	}

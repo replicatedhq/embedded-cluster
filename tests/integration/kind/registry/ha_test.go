@@ -55,7 +55,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	kclient := util.KubeClient(t, kubeconfig)
 	hcli := util.HelmClient(t, kubeconfig)
 
-	t.Log("installing openebs")
+	t.Logf("%s installing openebs", formattedTime())
 	addon := &openebs.OpenEBS{
 		ProxyRegistryDomain: "proxy.replicated.com",
 	}
@@ -63,10 +63,10 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 
-	t.Log("waiting for storageclass")
+	t.Logf("%s waiting for storageclass", formattedTime())
 	util.WaitForStorageClass(t, kubeconfig, "openebs-hostpath", 30*time.Second)
 
-	t.Log("installing registry")
+	t.Logf("%s installing registry", formattedTime())
 	registryAddon := &registry.Registry{
 		ServiceCIDR:         "10.96.0.0/12",
 		ProxyRegistryDomain: "proxy.replicated.com",
@@ -74,10 +74,10 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	}
 	require.NoError(t, registryAddon.Install(ctx, kcli, hcli, nil, nil))
 
-	t.Log("creating hostport service")
+	t.Logf("%s creating hostport service", formattedTime())
 	registryAddr := createHostPortService(t, clusterName, kubeconfig)
 
-	t.Log("installing admin console")
+	t.Logf("%s installing admin console", formattedTime())
 	adminConsoleAddon := &adminconsole.AdminConsole{
 		IsAirgap:            true,
 		ServiceCIDR:         "10.96.0.0/12",
@@ -86,13 +86,13 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	}
 	require.NoError(t, adminConsoleAddon.Install(ctx, kcli, hcli, nil, nil))
 
-	t.Log("pushing image to registry")
+	t.Logf("%s pushing image to registry", formattedTime())
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")
 
-	t.Log("running pod to validate image pull")
+	t.Logf("%s running pod to validate image pull", formattedTime())
 	runPodAndValidateImagePull(t, kubeconfig, "pod-1", "pod1.yaml")
 
-	t.Log("creating installation with HA disabled")
+	t.Logf("%s creating installation with HA disabled", formattedTime())
 	util.EnsureInstallation(t, kcli, ecv1beta1.InstallationSpec{
 		HighAvailability: false,
 	})
@@ -119,7 +119,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, canEnable, "should be able to enable HA: %s", reason)
 
-	t.Log("enabling HA")
+	t.Logf("%s enabling HA", formattedTime())
 	loading := newTestingSpinner(t)
 	func() {
 		defer loading.Close()
@@ -127,13 +127,13 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	t.Log("pushing a second image to registry")
+	t.Logf("%s pushing a second image to registry", formattedTime())
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.37.0")
 
-	t.Log("running pod to validate image pull")
+	t.Logf("%s running pod to validate image pull", formattedTime())
 	runPodAndValidateImagePull(t, kubeconfig, "pod-1", "pod1.yaml")
 
-	t.Log("running second pod to validate image pull")
+	t.Logf("%s running second pod to validate image pull", formattedTime())
 	runPodAndValidateImagePull(t, kubeconfig, "pod-2", "pod2.yaml")
 }
 
@@ -175,7 +175,7 @@ func enableHAAndCancelContextOnMessage(
 		defer pr.Close()
 		got := waitForMatchingMessage(t, pr, re)
 		if got {
-			t.Log("cancelling context")
+			t.Logf("%s cancelling context", formattedTime())
 			cancel()
 		}
 		io.Copy(io.Discard, pr) // discard the rest of the output
@@ -184,19 +184,18 @@ func enableHAAndCancelContextOnMessage(
 	loading := newTestingSpinner(t)
 	defer loading.Close()
 
-	t.Log("enabling HA and cancelling context on message")
+	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
 	err = addons.EnableHA(ctx, kcli, kclient, hcli, true, "10.96.0.0/12", nil, cfgSpec, loading)
 	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
-	t.Logf("cancelled context and got error: %v", err)
+	t.Logf("%s cancelled context and got error: %v", formattedTime(), err)
 }
 
 func waitForMatchingMessage(t *testing.T, r io.Reader, re *regexp.Regexp) bool {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		b := scanner.Bytes()
-		// t.Logf("got message: %s", string(b))
 		if re.Match(b) {
-			t.Logf("got matching message: %s", string(b))
+			t.Logf("%s got matching message: %s", formattedTime(), string(b))
 			return true
 		}
 	}
@@ -212,7 +211,7 @@ func buildOperatorImage(t *testing.T) string {
 	operatorDir := filepath.Join(workspaceRoot, "operator")
 
 	if os.Getenv("SKIP_OPERATOR_IMAGE_BUILD") == "" {
-		t.Log("building operator image")
+		t.Logf("%s building operator image", formattedTime())
 
 		cmd := exec.CommandContext(
 			t.Context(), "make", "-C", operatorDir, "build-ttl.sh", "USE_CHAINGUARD=0",
@@ -253,7 +252,7 @@ func newTestingSpinner(t *testing.T) *spinner.MessageWriter {
 		spinner.WithWriter(func(format string, args ...any) (int, error) {
 			// discard the output
 			out := fmt.Sprintf(format, args...)
-			t.Log("[spinner]", strings.TrimSpace(out))
+			t.Logf("%s [spinner] %s", formattedTime(), strings.TrimSpace(out))
 			return len(out), nil
 		}),
 		spinner.WithTTY(false),
@@ -271,4 +270,8 @@ func (h *logrusHook) Levels() []logrus.Level {
 func (h *logrusHook) Fire(entry *logrus.Entry) error {
 	h.writer.Write([]byte(entry.Message + "\n"))
 	return nil
+}
+
+func formattedTime() string {
+	return time.Now().Format("2006-01-02 15:04:05")
 }

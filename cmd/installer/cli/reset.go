@@ -127,11 +127,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 					}
 
 					// try and leave etcd cluster
-					err = currentHost.leaveEtcdcluster()
-					if !checkErrPrompt(assumeYes, force, err) {
-						return err
-					}
-
+					currentHost.leaveEtcdcluster()
 				}
 			}
 
@@ -329,27 +325,56 @@ type etcdMembers struct {
 }
 
 // leaveEtcdcluster uses k0s to attempt to leave the etcd cluster
-func (h *hostInfo) leaveEtcdcluster() error {
+func (h *hostInfo) leaveEtcdcluster() {
+	// Try to list members with retries
+	var memberlist etcdMembers
+	var out string
+	var err error
 
-	// if we're the only etcd member we don't need to leave the cluster
-	out, err := helpers.RunCommand(k0sBinPath, "etcd", "member-list")
-	if err != nil {
-		return err
+	// Retry member list up to 3 times
+	for i := 0; i < 3; i++ {
+		out, err = helpers.RunCommand(k0sBinPath, "etcd", "member-list")
+		if err == nil {
+			err = json.Unmarshal([]byte(out), &memberlist)
+			if err == nil {
+				break
+			}
+		}
+		if i < 2 { // Don't sleep on last attempt
+			time.Sleep(2 * time.Second)
+		}
 	}
-	memberlist := etcdMembers{}
-	err = json.Unmarshal([]byte(out), &memberlist)
+
 	if err != nil {
-		return err
+		logrus.Warnf("Unable to list etcd members, continuing with reset: %v", err)
+		return
 	}
+
+	// If we're the only member, no need to leave
 	if len(memberlist.Members) == 1 && memberlist.Members[h.Hostname] != "" {
-		return nil
+		return
 	}
 
-	out, err = helpers.RunCommand(k0sBinPath, "etcd", "leave")
-	if err != nil {
-		return fmt.Errorf("unable to leave etcd cluster: %w, %s", err, out)
+	// Attempt to leave the cluster with retries
+	for i := 0; i < 3; i++ {
+		out, err = helpers.RunCommand(k0sBinPath, "etcd", "leave")
+		if err == nil {
+			return
+		}
+
+		// Check if the error is due to etcd being stopped
+		if strings.Contains(err.Error(), "etcdserver: server stopped") {
+			logrus.Warnf("Etcd server is stopped, continuing with reset")
+			return
+		}
+
+		if i < 2 { // Don't sleep on last attempt
+			time.Sleep(2 * time.Second)
+		}
 	}
-	return nil
+
+	// If we get here, we failed to leave after retries
+	logrus.Warnf("Unable to leave etcd cluster after retries (this is often normal during reset): %v, %s", err, out)
 }
 
 var (

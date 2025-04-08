@@ -159,6 +159,29 @@ func CreateUpgradeJob(
 					},
 				},
 				Spec: corev1.PodSpec{
+					// The upgrade job can fail if scheduled on a node that hasn't been upgraded yet.
+					// Without this affinity, the job might get scheduled on non-upgraded nodes repeatedly,
+					// potentially hitting the backoff limit (6) and causing the upgrade to fail.
+					// By preferring control plane nodes, which typically get upgraded first in the sequence,
+					// we increase the likelihood of successful scheduling while still allowing fallback to
+					// other nodes if necessary.
+					Affinity: &corev1.Affinity{
+						NodeAffinity: &corev1.NodeAffinity{
+							PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
+								{
+									Weight: 100,
+									Preference: corev1.NodeSelectorTerm{
+										MatchExpressions: []corev1.NodeSelectorRequirement{
+											{
+												Key:      "node-role.kubernetes.io/control-plane",
+												Operator: corev1.NodeSelectorOpExists,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 					RestartPolicy:      corev1.RestartPolicyNever,
 					ServiceAccountName: runtimeconfig.KotsadmServiceAccount,
 					Volumes: []corev1.Volume{

@@ -211,6 +211,37 @@ func GetLatestGitHubTag(ctx context.Context, owner, repo string) (string, error)
 	return tags[0].GetName(), nil
 }
 
+// GetLatestKotsHelmTag returns the correct tag from the kots-helm repository.
+// this is not quite the same as the latest tag from the kots-helm repository, as github
+// will list "v1.124.12" as being newer than "v1.124.12-build.0" and it is not in our usage.
+func GetLatestKotsHelmTag(ctx context.Context) (string, error) {
+	client := github.NewClient(nil)
+	tags, _, err := client.Repositories.ListTags(ctx, "replicatedhq", "kots-helm", &github.ListOptions{PerPage: 100})
+	if err != nil {
+		return "", fmt.Errorf("list tags: %w", err)
+	}
+	if len(tags) == 0 {
+		return "", fmt.Errorf("no tags found")
+	}
+	latestTag := tags[0].GetName()
+	logrus.Infof("latest tag: %s", latestTag)
+
+	// check to see if there is a 'build.x' tag - if so, return that
+	for _, tag := range tags {
+		logrus.Infof("checkingtag: %s", tag.GetName())
+		if !strings.HasPrefix(tag.GetName(), latestTag) {
+			// tags are sorted, so once we find a tag that doesn't have the same prefix, we can break
+			logrus.Infof("tag does not have same prefix: %s", tag.GetName())
+			break
+		}
+		if strings.Contains(tag.GetName(), "-build.") {
+			logrus.Infof("tag is a build tag, returning: %s", tag.GetName())
+			return tag.GetName(), nil
+		}
+	}
+	return latestTag, nil
+}
+
 // GetGreatestGitHubTag returns the greatest non-prerelease semver tag from a GitHub repository
 // that matches the provided constraints.
 func GetGreatestGitHubTag(ctx context.Context, owner, repo string, constrants *semver.Constraints) (string, error) {

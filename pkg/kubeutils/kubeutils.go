@@ -75,6 +75,34 @@ func (k *KubeUtils) WaitForDeployment(ctx context.Context, cli client.Client, ns
 	return nil
 }
 
+// WaitForStatefulset waits for the provided statefulset to be ready.
+func (k *KubeUtils) WaitForStatefulset(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
+	backoff := opts.GetBackoff()
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			ready, err := k.IsStatefulSetReady(ctx, cli, ns, name)
+			if err != nil {
+				lasterr = fmt.Errorf("unable to get statefulset %s status: %v", name, err)
+				return false, nil
+			}
+			return ready, nil
+		},
+	); err != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
+			return fmt.Errorf("timed out waiting for %s to statefulset: %w", name, lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for %s to statefulset", name)
+		}
+	}
+	return nil
+}
+
 // WaitForDaemonset waits for the provided daemonset to be ready.
 func (k *KubeUtils) WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
 	backoff := opts.GetBackoff()

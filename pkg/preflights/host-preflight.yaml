@@ -49,12 +49,12 @@ spec:
           proxy: '{{ .HTTPSProxy }}'
         exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") }}'
     - http:
+        # this collector does NOT use the PrivateCA because it is meant to imitate containerd pulling images,
+        # and containerd will use the system's CA bundle to verify the image's certificate
         collectorName: http-proxy-replicated-com
         get:
           url: '{{ .ProxyRegistryURL }}/v2/'
           timeout: 5s
-          tls:
-            cacert: '{{ .PrivateCA }}'
           proxy: '{{ .HTTPSProxy }}'
         exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
     - run:
@@ -443,7 +443,8 @@ spec:
                 Ensure your firewall is properly configured, and use --http-proxy,
                 --https-proxy, and --no-proxy if there is a proxy server.
                 The static IP addresses for {{ .ProxyRegistryURL }} are
-                162.159.137.43 and 162.159.138.43.
+                162.159.137.43 and 162.159.138.43. If you provided a CA certificate,
+                make sure it is trusted by the system.
           - pass:
               when: 'statusCode == 401'
               message: 'Connected to {{ .ProxyRegistryURL }}'
