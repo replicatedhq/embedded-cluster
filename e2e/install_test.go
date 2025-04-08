@@ -638,7 +638,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	})
 
 	// Download embedded-cluster on additional nodes
-	t.Logf("%s: downloading embedded-cluster %s on additional nodes", appUpgradeVersion, time.Now().Format(time.RFC3339))
+	t.Logf("%s: downloading embedded-cluster %s on additional nodes", time.Now().Format(time.RFC3339), appUpgradeVersion)
 	line = []string{"vandoor-prepare.sh", appUpgradeVersion, os.Getenv("LICENSE_ID"), "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 2: %v: %s: %s", err, stdout, stderr)
