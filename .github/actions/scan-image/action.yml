@@ -52,7 +52,7 @@ runs:
       shell: bash
       run: |
         IMAGE_NAME=$(echo "${{ inputs.image-ref }}" | cut -d':' -f1)
-        IMAGE_TAG=$(echo "${{ inputs.image-ref }}" | cut -d':' -f2)
+        IMAGE_TAG=$(echo "${{ inputs.image-ref }}" | cut -d':' -f2 | cut -d'@' -f1)
         [[ "$IMAGE_TAG" == "$IMAGE_NAME" ]] && IMAGE_TAG="latest"
         SAFE_NAME=$(echo "${IMAGE_NAME}-${IMAGE_TAG}" | sed 's/[\/:]/-/g')
         {
@@ -92,20 +92,20 @@ runs:
         fi
 
         jq --arg imageRef "${{ inputs.image-ref }}" \
-           --arg repo "${{ steps.image_details.outputs.image_name }}" \
+           --arg repo "replicatedhq/embedded-cluster" \
            --arg name "${{ steps.image_details.outputs.image_name }}" \
            --arg tag "${{ steps.image_details.outputs.image_tag }}" \
            --arg scanTime "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-           --arg digest "$(echo "${{ inputs.image-ref }}" | grep -o '@sha256:[a-f0-9]*' || true)" \
+           --arg digest "$(echo "${{ inputs.image-ref }}" | grep -o 'sha256:[a-f0-9]*' || true)" \
            '.runs[0].properties = {
-              "imageRef": $imageRef,
+              "imageRef": ($imageRef | sub("proxy\\.replicated\\.com/anonymous/replicated/"; "")),
               "repository": $repo,
               "scanTime": $scanTime,
               "imageMetadata": {
-                "name": $name,
+                "name": ($name | sub("proxy\\.replicated\\.com/anonymous/replicated/"; "")),
                 "tag": $tag,
                 "digest": ($digest | if . == "" then null else . end),
-                "repoDigest": ($imageRef | if contains("@sha256:") then . else null end),
+                "repoDigest": ($imageRef | sub("proxy\\.replicated\\.com/anonymous/replicated/"; "") | if contains("@sha256:") then . else null end),
                 "labels": {},
                 "annotations": {
                   "scanTime": $scanTime,
