@@ -136,6 +136,9 @@ func ProfileInstallFlag() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to get controller worker profile: %w", err)
 	}
+	if controllerProfile == "" {
+		return "", nil
+	}
 	return "--profile=" + controllerProfile, nil
 }
 
