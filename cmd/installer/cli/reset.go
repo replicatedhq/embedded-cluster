@@ -326,6 +326,12 @@ type etcdMembers struct {
 
 // leaveEtcdcluster uses k0s to attempt to leave the etcd cluster
 func (h *hostInfo) leaveEtcdcluster() {
+	// Check if k0s binary exists
+	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
+		logrus.Debugf("k0s binary not found at %s, skipping etcd leave", k0sBinPath)
+		return
+	}
+
 	// Try to list members with retries
 	var memberlist etcdMembers
 	var out string
@@ -383,6 +389,12 @@ var (
 
 // drainNode uses k0s to initiate a node drain
 func (h *hostInfo) drainNode() error {
+	// Check if k0s binary exists
+	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
+		logrus.Debugf("k0s binary not found at %s, skipping node drain", k0sBinPath)
+		return nil
+	}
+
 	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
 	drainArgList := []string{
 		"kubectl",
@@ -537,6 +549,29 @@ func (h *hostInfo) deleteNode(ctx context.Context) error {
 
 // stopK0s attempts to stop the k0s service
 func stopAndResetK0s(dataDir string) error {
+	// Check if k0s binary exists
+	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
+		logrus.Debugf("k0s binary not found at %s, skipping k0s stop and reset", k0sBinPath)
+		return nil
+	}
+
+	// Check if k0s services exist
+	k0sControllerExists := false
+	k0sWorkerExists := false
+
+	if out, err := helpers.RunCommand("systemctl", "list-unit-files", "k0scontroller.service"); err == nil && strings.Contains(out, "k0scontroller.service") {
+		k0sControllerExists = true
+	}
+
+	if out, err := helpers.RunCommand("systemctl", "list-unit-files", "k0sworker.service"); err == nil && strings.Contains(out, "k0sworker.service") {
+		k0sWorkerExists = true
+	}
+
+	if !k0sControllerExists && !k0sWorkerExists {
+		logrus.Debugf("No k0s services found, skipping k0s stop and reset")
+		return nil
+	}
+
 	out, err := helpers.RunCommand(k0sBinPath, "stop")
 	if err != nil {
 		return fmt.Errorf("could not stop k0s service: %w, %s", err, out)
