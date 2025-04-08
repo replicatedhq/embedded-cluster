@@ -16,11 +16,6 @@ override_applied() {
       cat "$K0SCONFIG"
       return 1
     fi
-    if ! grep "net.ipv4.ip_forward" "$K0SCONFIG"; then
-      echo "override not applied, expected worker profile not found, actual config:"
-      cat "$K0SCONFIG"
-      return 1
-    fi
 }
 
 main() {

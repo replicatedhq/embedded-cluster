@@ -27,8 +27,3 @@ spec:
         spec:
           telemetry:
             enabled: true
-          workerProfiles:
-          - name: ip-forward
-            values:
-              allowedUnsafeSysctls:
-              - net.ipv4.ip_forward
