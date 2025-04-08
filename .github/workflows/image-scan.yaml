@@ -134,7 +134,8 @@ jobs:
       - uses: ./.github/actions/scan-image
         with:
           image-ref: '${{ matrix.image }}'
-          upload-sarif: ${{ github.ref == 'refs/heads/main' }}
+          upload-sarif: true
+          output-file: 'results.sarif'
       - name: Save SARIF Temp Test
         uses: actions/upload-artifact@v4
         with:
