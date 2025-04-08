@@ -101,10 +101,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			// if there is an error (numControllerNodes == 0), drain anyway to be safe
 			if currentHost.Status.Role != "controller" || numControllerNodes != 1 {
 				logrus.Info("Draining node...")
-				err = currentHost.drainNode()
-				if !checkErrPrompt(assumeYes, force, err) {
-					return err
-				}
+				currentHost.drainNode()
 
 				// remove node from cluster
 				logrus.Info("Removing node from cluster...")
@@ -388,11 +385,11 @@ var (
 )
 
 // drainNode uses k0s to initiate a node drain
-func (h *hostInfo) drainNode() error {
+func (h *hostInfo) drainNode() {
 	// Check if k0s binary exists
 	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
 		logrus.Debugf("k0s binary not found at %s, skipping node drain", k0sBinPath)
-		return nil
+		return
 	}
 
 	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
@@ -407,11 +404,12 @@ func (h *hostInfo) drainNode() error {
 	out, err := helpers.RunCommand(k0sBinPath, drainArgList...)
 	if err != nil {
 		if notFoundRegex.Match([]byte(out + err.Error())) {
-			return nil
+			return
 		}
-		return fmt.Errorf("could not drain node: %w, %s", err, out)
+		// Log the error but continue with reset
+		logrus.Warnf("Node drain failed (continuing with reset anyway): %v, %s", err, out)
+		return
 	}
-	return nil
 }
 
 // configureKubernetesClient optimistically sets up a client to use for kubernetes api calls
