@@ -556,7 +556,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:      t,
-		Nodes:  2,
+		Nodes:  4,
 		Distro: "debian-bookworm",
 		K0sDir: "/var/lib/k0s",
 	})
@@ -637,6 +637,60 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		withEnv: withEnv,
 	})
 
+	// Download embedded-cluster on additional nodes
+	t.Logf("%s: downloading embedded-cluster %s on additional nodes", appUpgradeVersion, time.Now().Format(time.RFC3339))
+	line = []string{"vandoor-prepare.sh", appUpgradeVersion, os.Getenv("LICENSE_ID"), "false"}
+	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
+		t.Fatalf("fail to download embedded-cluster on node 2: %v: %s: %s", err, stdout, stderr)
+	}
+	if stdout, stderr, err := tc.RunCommandOnNode(3, line); err != nil {
+		t.Fatalf("fail to download embedded-cluster on node 3: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// Join second controller node
+	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
+	stdout, stderr, err = tc.RunPlaywrightTest("get-join-controller-command")
+	if err != nil {
+		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+	}
+	controllerCommand, err := findJoinCommandInOutput(stdout)
+	if err != nil {
+		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
+	}
+	t.Log("controller join token command:", controllerCommand)
+	t.Logf("%s: joining node 2 to the cluster as a controller", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(2, strings.Split(controllerCommand, " ")); err != nil {
+		t.Fatalf("fail to join node 2 as a controller: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// Join second worker node
+	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
+	stdout, stderr, err = tc.RunPlaywrightTest("get-join-worker-command")
+	if err != nil {
+		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+	}
+	workerCommand, err := findJoinCommandInOutput(stdout)
+	if err != nil {
+		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
+	}
+	t.Log("worker join token command:", workerCommand)
+
+	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(3, strings.Split(workerCommand, " ")); err != nil {
+		t.Fatalf("fail to join node 3 as a worker: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// wait for all nodes to report as ready
+	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
+	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "4"}, withEnv)
+	if err != nil {
+		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// Check worker profiles for the joined nodes
+	checkWorkerProfile(t, tc, 2)
+	checkWorkerProfile(t, tc, 3)
+
 	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
@@ -651,6 +705,13 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	// wait for all nodes to report as ready after upgrade
+	t.Logf("%s: waiting for all nodes to be ready after upgrade", time.Now().Format(time.RFC3339))
+	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "4"}, withEnv)
+	if err != nil {
+		t.Fatalf("fail to wait for ready nodes after upgrade: %v: %s: %s", err, stdout, stderr)
+	}
+
 	// use upgraded binaries to run the reset command
 	// TODO: this is a temporary workaround and should eventually be a feature of EC
 
@@ -660,16 +721,28 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to download embedded-cluster version %s on node 0: %v: %s: %s", appUpgradeVersion, err, stdout, stderr)
 	}
 
-	t.Logf("%s: downloading embedded-cluster %s on worker node", time.Now().Format(time.RFC3339), appUpgradeVersion)
+	t.Logf("%s: downloading embedded-cluster %s on worker node 1", time.Now().Format(time.RFC3339), appUpgradeVersion)
 	line = []string{"vandoor-prepare.sh", appUpgradeVersion, os.Getenv("LICENSE_ID"), "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster version %s on worker node: %v: %s: %s", appUpgradeVersion, err, stdout, stderr)
 	}
 
-	t.Logf("%s: resetting worker node", time.Now().Format(time.RFC3339))
+	t.Logf("%s: resetting worker node 1", time.Now().Format(time.RFC3339))
 	line = []string{"reset-installation.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
 		t.Fatalf("fail to reset worker node: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: resetting worker node 3", time.Now().Format(time.RFC3339))
+	line = []string{"reset-installation.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(3, line, withEnv); err != nil {
+		t.Fatalf("fail to reset worker node: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: resetting controller node 2", time.Now().Format(time.RFC3339))
+	line = []string{"reset-installation.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(2, line, withEnv); err != nil {
+		t.Fatalf("fail to reset controller node: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: resetting node 0", time.Now().Format(time.RFC3339))
