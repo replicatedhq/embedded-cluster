@@ -105,17 +105,13 @@ runs:
                 "name": ($name | sub("proxy\\.replicated\\.com/anonymous/replicated/"; "")),
                 "tag": $tag,
                 "digest": ($digest | if . == "" then null else . end),
-                "repoDigest": ($imageRef | sub("proxy\\.replicated\\.com/anonymous/replicated/"; "") | if contains("@sha256:") then . else null end),
+                "repoDigest": ($name | sub("proxy\\.replicated\\.com/anonymous/replicated/"; "") | . + "@" + ($digest | if . == "" then null else . end)),
                 "labels": {},
                 "annotations": {
                   "scanTime": $scanTime,
                   "tool": "grype",
                   "toolVersion": "latest"
                 }
-              },
-              "partialFingerprints": {
-                "scanTargetFingerprint": ($imageRef | sub("@sha256:[a-f0-9]+$"; "")),
-                "scanTimeFingerprint": $scanTime
               }
             }' ${{ inputs.output-file }} > enriched-results.sarif
 
