@@ -76,7 +76,7 @@ func Test_signalHandler_Signal(t *testing.T) {
 	// Verify cleanup was called with the expected error
 	assert.True(t, cleanupCalled, "Cleanup function should have been called")
 	assert.Equal(t, syscall.SIGINT, cleanupSignal, "Cleanup should be called with SIGINT")
-	assert.Equal(t, 128+int(syscall.SIGINT), exitCode, "Exit code should be 128 + signal number")
+	assert.Equal(t, 1, exitCode, "Exit code should be 1")
 }
 
 func Test_signalHandler_ContextDone(t *testing.T) {

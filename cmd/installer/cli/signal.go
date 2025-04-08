@@ -29,12 +29,8 @@ func signalHandler(ctx context.Context, cancel context.CancelFunc, cleanupFuncs 
 			// Cancel the context after cleanup functions run
 			cancel()
 
-			// Exit with code 128 + signal number (Unix convention)
-			signum := 0
-			if sigVal, ok := sig.(syscall.Signal); ok {
-				signum = int(sigVal)
-			}
-			osExit(128 + signum)
+			// Exit after cleanup
+			osExit(1)
 		case <-ctx.Done():
 			// Context was canceled elsewhere, do nothing
 			return
