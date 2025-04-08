@@ -181,3 +181,22 @@ func ReportPreflightsFailed(ctx context.Context, baseURL string, clusterID uuid.
 	}
 	go Send(ctx, baseURL, ev)
 }
+
+// ReportSignalAborted reports that a process was terminated by a signal.
+func ReportSignalAborted(ctx context.Context, baseURL string, clusterID uuid.UUID, signal os.Signal, entryCommand string) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		logrus.Warnf("unable to get hostname: %s", err)
+		hostname = "unknown"
+	}
+
+	ev := types.SignalAborted{
+		ClusterID:    clusterID,
+		Version:      versions.Version,
+		NodeName:     hostname,
+		SignalName:   signal.String(),
+		EventType:    "SignalAborted",
+		EntryCommand: entryCommand,
+	}
+	go Send(ctx, baseURL, ev)
+}

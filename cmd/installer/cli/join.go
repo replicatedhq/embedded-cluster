@@ -75,8 +75,8 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			metricsReporter.ReportJoinStarted(ctx)
 
 			// Setup signal handler with the metrics reporter cleanup function
-			signalHandler(ctx, cancel, func(ctx context.Context, err error) {
-				metricsReporter.ReportJoinFailed(ctx, err)
+			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
+				metricsReporter.ReportSignalAborted(ctx, sig)
 			})
 
 			if err := runJoin(cmd.Context(), name, flags, jcmd, metricsReporter); err != nil {
