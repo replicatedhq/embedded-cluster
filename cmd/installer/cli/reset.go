@@ -131,8 +131,8 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			// reset
 			logrus.Infof("Resetting node...")
 			err = stopAndResetK0s(runtimeconfig.EmbeddedClusterK0sSubDir())
-			if !checkErrPrompt(assumeYes, force, err) {
-				return err
+			if err != nil {
+				logrus.Warnf("Failed to stop and reset k0s (continuing with reset anyway): %v", err)
 			}
 
 			logrus.Debugf("Resetting firewalld...")
