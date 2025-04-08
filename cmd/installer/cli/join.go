@@ -46,6 +46,8 @@ type JoinCmdFlags struct {
 func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	var flags JoinCmdFlags
 
+	ctx, cancel := context.WithCancel(ctx)
+
 	cmd := &cobra.Command{
 		Use:   "join <url> <token>",
 		Short: fmt.Sprintf("Join %s", name),
@@ -61,6 +63,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
 			runtimeconfig.Cleanup()
+			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logrus.Debugf("fetching join token remotely")
@@ -70,6 +73,12 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			}
 			metricsReporter := NewJoinReporter(jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, cmd.CalledAs())
 			metricsReporter.ReportJoinStarted(ctx)
+
+			// Setup signal handler with the metrics reporter cleanup function
+			signalHandler(ctx, cancel, func(ctx context.Context, err error) {
+				metricsReporter.ReportJoinFailed(ctx, err)
+			})
+
 			if err := runJoin(cmd.Context(), name, flags, jcmd, metricsReporter); err != nil {
 				metricsReporter.ReportJoinFailed(ctx, err)
 				return err

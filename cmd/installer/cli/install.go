@@ -82,6 +82,8 @@ type InstallCmdFlags struct {
 func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	var flags InstallCmdFlags
 
+	ctx, cancel := context.WithCancel(ctx)
+
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: fmt.Sprintf("Install %s", name),
@@ -94,6 +96,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
 			runtimeconfig.Cleanup()
+			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clusterID := metrics.ClusterID()
@@ -101,6 +104,12 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				replicatedAppURL(), flags.license.Spec.LicenseID, clusterID, cmd.CalledAs(),
 			)
 			metricsReporter.ReportInstallationStarted(ctx)
+
+			// Setup signal handler with the metrics reporter cleanup function
+			signalHandler(ctx, cancel, func(ctx context.Context, err error) {
+				metricsReporter.ReportInstallationFailed(ctx, err)
+			})
+
 			if err := runInstall(cmd.Context(), name, flags, metricsReporter); err != nil {
 				metricsReporter.ReportInstallationFailed(ctx, err)
 				return err
