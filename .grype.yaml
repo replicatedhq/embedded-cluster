@@ -1,0 +1,27 @@
+# Grype configuration file
+# See: https://github.com/anchore/grype#configuration
+
+# Ignore rules for vulnerabilities
+# Each rule can specify criteria for vulnerabilities to ignore
+ignore:
+  # Ignore CVE-2023-47108 which has been accepted upstream in Kubernetes
+  # Reference: https://github.com/kubernetes/kubernetes/pull/121842
+  # This vulnerability is not in the code path and has been fixed upstream
+  - vulnerability: CVE-2023-47108
+    # You can add additional criteria if needed:
+    # fix-state: fixed  # since it's fixed upstream
+    # package:
+    #   type: go  # if you want to specifically target Go packages
+    #   name: k8s.io/kubernetes  # if you want to target specific k8s packages
+
+# Default configuration options below
+# Uncomment and modify as needed
+
+# output: table
+# fail-on-severity: medium
+# file: ""
+# exclude: []
+# db:
+#   cache-dir: ""
+#   update-url: "https://grype.anchore.io/databases"
+#   auto-update: true 
