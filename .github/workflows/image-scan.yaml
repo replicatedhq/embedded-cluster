@@ -134,7 +134,8 @@ jobs:
       - uses: ./.github/actions/scan-image
         with:
           image-ref: '${{ matrix.image }}'
-          upload-sarif: ${{ github.ref == 'refs/heads/main' }}
+          # upload-sarif: ${{ github.ref == 'refs/heads/main' }}
+          upload-sarif: 'true'
           fail-build: 'false'
           severity-cutoff: 'medium'
           output-file: 'results.sarif'
