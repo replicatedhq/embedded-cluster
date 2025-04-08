@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"os"
 
 	"github.com/google/uuid"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -40,6 +41,10 @@ func (r *InstallReporter) ReportPreflightsFailed(ctx context.Context, output pre
 	metrics.ReportPreflightsFailed(ctx, r.baseURL, r.clusterID, output, bypassed, r.cmd)
 }
 
+func (r *InstallReporter) ReportSignalAborted(ctx context.Context, signal os.Signal) {
+	metrics.ReportSignalAborted(ctx, r.baseURL, r.clusterID, signal, r.cmd)
+}
+
 type JoinReporter struct {
 	baseURL   string
 	clusterID uuid.UUID
@@ -68,4 +73,8 @@ func (r *JoinReporter) ReportJoinFailed(ctx context.Context, err error) {
 
 func (r *JoinReporter) ReportPreflightsFailed(ctx context.Context, output preflightstypes.Output, bypassed bool) {
 	metrics.ReportPreflightsFailed(ctx, r.baseURL, r.clusterID, output, bypassed, r.cmd)
+}
+
+func (r *JoinReporter) ReportSignalAborted(ctx context.Context, signal os.Signal) {
+	metrics.ReportSignalAborted(ctx, r.baseURL, r.clusterID, signal, r.cmd)
 }
