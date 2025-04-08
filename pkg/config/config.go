@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -170,6 +171,7 @@ func nodeLabels() []string {
 	for k, v := range controllerLabels() {
 		labels = append(labels, fmt.Sprintf("%s=%s", k, v))
 	}
+	sort.Strings(labels)
 	return labels
 }
 
