@@ -74,6 +74,7 @@ type Reporter struct {
 	executionID  string
 	baseURL      string
 	clusterID    uuid.UUID
+	hostname     string
 	command      string
 	commandFlags []string
 	didExit      bool
@@ -85,6 +86,7 @@ func NewReporter(executionID string, baseURL string, clusterID uuid.UUID, comman
 		executionID:  executionID,
 		baseURL:      baseURL,
 		clusterID:    clusterID,
+		hostname:     getHostname(),
 		command:      command,
 		commandFlags: redactFlags(commandFlags),
 	}
@@ -96,7 +98,7 @@ func (r *Reporter) newBaseEvent(eventType string, reason string, isExitEvent boo
 		ExecutionID:  r.executionID,
 		ClusterID:    r.clusterID,
 		Version:      versions.Version,
-		Hostname:     getHostname(),
+		Hostname:     r.hostname,
 		EntryCommand: r.command,
 		Flags:        strings.Join(r.commandFlags, " "),
 		IsExitEvent:  isExitEvent,
