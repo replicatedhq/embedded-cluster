@@ -159,11 +159,7 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 				}
 				return nil
 			}
-			confirmed, err := prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false)
-			if err != nil {
-				return fmt.Errorf("failed to get confirmation: %w", err)
-			}
-			if confirmed {
+			if !prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
 				if opts.MetricsReporter != nil {
 					opts.MetricsReporter.ReportPreflightsBypassed(ctx, *output)
 				}
@@ -205,11 +201,7 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 		pb.Close()
 		output.PrintTableWithoutInfo()
 
-		confirmed, err := prompts.New().Confirm("Do you want to continue?", false)
-		if err != nil {
-			return fmt.Errorf("failed to get confirmation: %w", err)
-		}
-		if !confirmed {
+		if !prompts.New().Confirm("Do you want to continue?", false) {
 			if opts.MetricsReporter != nil {
 				opts.MetricsReporter.ReportPreflightsFailed(ctx, *output)
 			}
