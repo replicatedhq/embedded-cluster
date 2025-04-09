@@ -2,7 +2,7 @@ import { Page, Expect } from '@playwright/test';
 import { vaidateAppAndClusterReady } from '.';
 
 export const deployApp = async (page: Page, expect: Expect) => {
-  await expect(page.getByText('Optionally add nodes to the cluster'),).toBeVisible();
+  await expect(page.getByText('Add nodes to the cluster'),).toBeVisible();
   await expect(page.locator('.react-prism.language-bash')).toBeVisible();
   const joinCommand = await page.locator('.react-prism.language-bash').first().textContent();
   await expect(joinCommand).toContain('sudo');
