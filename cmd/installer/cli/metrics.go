@@ -10,11 +10,11 @@ import (
 )
 
 type InstallReporter struct {
-	licenseID string
 	reporter  *metrics.Reporter
+	licenseID string
 }
 
-func NewInstallReporter(baseURL string, licenseID string, clusterID uuid.UUID, cmd string) *InstallReporter {
+func NewInstallReporter(baseURL string, clusterID uuid.UUID, cmd string, licenseID string) *InstallReporter {
 	executionID := uuid.New().String()
 	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd)
 	return &InstallReporter{
