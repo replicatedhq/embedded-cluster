@@ -25,6 +25,7 @@ spec:
       valueType: String
   isDisasterRecoverySupported: true
   isEmbeddedClusterDownloadEnabled: true
+  isEmbeddedClusterMultinodeEnabled: true
   isKotsInstallEnabled: true
   isNewKotsUiEnabled: true
   isSnapshotSupported: true

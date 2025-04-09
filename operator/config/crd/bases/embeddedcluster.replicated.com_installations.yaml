@@ -330,6 +330,8 @@ spec:
                 properties:
                   isDisasterRecoverySupported:
                     type: boolean
+                  isMultinodeEnabled:
+                    type: boolean
                 type: object
               localArtifactMirror:
                 description: LocalArtifactMirrorSpec holds the local artifact mirror
