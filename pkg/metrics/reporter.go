@@ -71,6 +71,7 @@ func SetClusterID(id uuid.UUID) {
 
 // Reporter provides methods for reporting various events.
 type Reporter struct {
+	version      string
 	executionID  string
 	baseURL      string
 	clusterID    uuid.UUID
@@ -83,6 +84,7 @@ type Reporter struct {
 // NewReporter creates a new Reporter with the given parameters.
 func NewReporter(executionID string, baseURL string, clusterID uuid.UUID, command string, commandFlags []string) *Reporter {
 	return &Reporter{
+		version:      versions.Version,
 		executionID:  executionID,
 		baseURL:      baseURL,
 		clusterID:    clusterID,
@@ -97,7 +99,7 @@ func (r *Reporter) newBaseEvent(eventType string, reason string, isExitEvent boo
 	return types.BaseEvent{
 		ExecutionID:  r.executionID,
 		ClusterID:    r.clusterID,
-		Version:      versions.Version,
+		Version:      r.version,
 		Hostname:     r.hostname,
 		EntryCommand: r.command,
 		Flags:        strings.Join(r.commandFlags, " "),
