@@ -159,7 +159,7 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 				}
 				return nil
 			}
-			if !prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
+			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
 				if opts.MetricsReporter != nil {
 					opts.MetricsReporter.ReportPreflightsBypassed(ctx, *output)
 				}
