@@ -1,8 +1,6 @@
 package types
 
 import (
-	"strings"
-
 	"github.com/google/uuid"
 )
 
@@ -20,24 +18,18 @@ type BaseEvent struct {
 	ClusterID uuid.UUID `json:"clusterID"`
 	// Version is the version of the embedded-cluster software
 	Version string `json:"version"`
+	// Hostname is the hostname of the server
+	Hostname string `json:"hostname"`
 	// EntryCommand is the main command being executed (e.g. "install", "join")
 	EntryCommand string `json:"entryCommand"`
 	// Flags contains the command-line flags passed to the command
 	Flags string `json:"flags"`
+	// EventType is the type of event
+	EventType string `json:"eventType"`
+	// Reason is the reason for the event
+	Reason string `json:"reason"`
 	// IsExitEvent is true if the command indicates this is the end of the execution
 	IsExitEvent bool `json:"isExitEvent"`
-}
-
-// NewBaseEvent creates a new BaseEvent with the given parameters.
-func NewBaseEvent(executionID string, clusterID uuid.UUID, version, entryCommand string, flags []string, isExitEvent bool) BaseEvent {
-	return BaseEvent{
-		ExecutionID:  executionID,
-		ClusterID:    clusterID,
-		Version:      version,
-		EntryCommand: entryCommand,
-		Flags:        strings.Join(flags, " "),
-		IsExitEvent:  isExitEvent,
-	}
 }
 
 // InstallationStarted event is send back home when the installation starts.
@@ -68,7 +60,6 @@ func (e InstallationSucceeded) Title() string {
 // InstallationFailed event is send back home when the installation fails.
 type InstallationFailed struct {
 	BaseEvent `json:",inline"`
-	Reason    string `json:"reason"`
 }
 
 // Title returns the name of the event.
@@ -102,7 +93,6 @@ func (e JoinSucceeded) Title() string {
 type JoinFailed struct {
 	BaseEvent `json:",inline"`
 	NodeName  string `json:"nodeName"`
-	Reason    string `json:"reason"`
 }
 
 // Title returns the name of the event.
@@ -115,7 +105,6 @@ type PreflightsFailed struct {
 	BaseEvent       `json:",inline"`
 	NodeName        string `json:"nodeName"`
 	PreflightOutput string `json:"preflightOutput"`
-	EventType       string `json:"eventType"`
 }
 
 // Title returns the name of the event.
@@ -129,7 +118,6 @@ type PreflightsBypassed struct {
 	BaseEvent       `json:",inline"`
 	NodeName        string `json:"nodeName"`
 	PreflightOutput string `json:"preflightOutput"`
-	EventType       string `json:"eventType"`
 }
 
 // Title returns the name of the event.
@@ -140,10 +128,7 @@ func (e PreflightsBypassed) Title() string {
 
 // SignalAborted event is sent back home when a process is terminated by a signal.
 type SignalAborted struct {
-	BaseEvent  `json:",inline"`
-	NodeName   string `json:"nodeName"`
-	SignalName string `json:"signalName"`
-	EventType  string `json:"eventType"`
+	BaseEvent `json:",inline"`
 }
 
 // Title returns the name of the event.

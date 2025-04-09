@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -90,8 +91,18 @@ func NewReporter(executionID string, baseURL string, clusterID uuid.UUID, comman
 }
 
 // newBaseEvent creates a BaseEvent using the Reporter's fields.
-func (r *Reporter) newBaseEvent(isExitEvent bool) types.BaseEvent {
-	return types.NewBaseEvent(r.executionID, r.clusterID, versions.Version, r.command, r.commandFlags, isExitEvent)
+func (r *Reporter) newBaseEvent(eventType string, reason string, isExitEvent bool) types.BaseEvent {
+	return types.BaseEvent{
+		ExecutionID:  r.executionID,
+		ClusterID:    r.clusterID,
+		Version:      versions.Version,
+		Hostname:     getHostname(),
+		EntryCommand: r.command,
+		Flags:        strings.Join(r.commandFlags, " "),
+		IsExitEvent:  isExitEvent,
+		Reason:       reason,
+		EventType:    eventType,
+	}
 }
 
 // ReportInstallationStarted reports that the installation has started.
@@ -104,7 +115,7 @@ func (r *Reporter) ReportInstallationStarted(ctx context.Context, licenseID stri
 	}
 
 	Send(ctx, r.baseURL, types.InstallationStarted{
-		BaseEvent:    r.newBaseEvent(false),
+		BaseEvent:    r.newBaseEvent(types.InstallationStarted{}.Title(), "", false),
 		BinaryName:   runtimeconfig.BinaryName(),
 		Type:         "centralized",
 		LicenseID:    licenseID,
@@ -116,7 +127,7 @@ func (r *Reporter) ReportInstallationStarted(ctx context.Context, licenseID stri
 // ReportInstallationSucceeded reports that the installation has succeeded.
 func (r *Reporter) ReportInstallationSucceeded(ctx context.Context) {
 	Send(ctx, r.baseURL, types.InstallationSucceeded{
-		BaseEvent: r.newBaseEvent(true),
+		BaseEvent: r.newBaseEvent(types.InstallationSucceeded{}.Title(), "", true),
 	})
 }
 
@@ -126,15 +137,14 @@ func (r *Reporter) ReportInstallationFailed(ctx context.Context, err error) {
 		return
 	}
 	Send(ctx, r.baseURL, types.InstallationFailed{
-		BaseEvent: r.newBaseEvent(true),
-		Reason:    err.Error(),
+		BaseEvent: r.newBaseEvent(types.InstallationFailed{}.Title(), err.Error(), true),
 	})
 }
 
 // ReportJoinStarted reports that a join has started.
 func (r *Reporter) ReportJoinStarted(ctx context.Context) {
 	Send(ctx, r.baseURL, types.JoinStarted{
-		BaseEvent: r.newBaseEvent(false),
+		BaseEvent: r.newBaseEvent(types.JoinStarted{}.Title(), "", false),
 		NodeName:  getHostname(),
 	})
 }
@@ -142,7 +152,7 @@ func (r *Reporter) ReportJoinStarted(ctx context.Context) {
 // ReportJoinSucceeded reports that a join has finished successfully.
 func (r *Reporter) ReportJoinSucceeded(ctx context.Context) {
 	Send(ctx, r.baseURL, types.JoinSucceeded{
-		BaseEvent: r.newBaseEvent(true),
+		BaseEvent: r.newBaseEvent(types.JoinSucceeded{}.Title(), "", true),
 		NodeName:  getHostname(),
 	})
 }
@@ -153,9 +163,8 @@ func (r *Reporter) ReportJoinFailed(ctx context.Context, err error) {
 		return
 	}
 	Send(ctx, r.baseURL, types.JoinFailed{
-		BaseEvent: r.newBaseEvent(true),
+		BaseEvent: r.newBaseEvent(types.JoinFailed{}.Title(), err.Error(), true),
 		NodeName:  getHostname(),
-		Reason:    err.Error(),
 	})
 }
 
@@ -168,10 +177,9 @@ func (r *Reporter) ReportPreflightsFailed(ctx context.Context, output preflights
 	}
 
 	ev := types.PreflightsFailed{
-		BaseEvent:       r.newBaseEvent(true),
+		BaseEvent:       r.newBaseEvent("PreflightsFailed", "", true),
 		NodeName:        getHostname(),
 		PreflightOutput: string(outputJSON),
-		EventType:       "PreflightsFailed",
 	}
 	go Send(ctx, r.baseURL, ev)
 }
@@ -185,10 +193,9 @@ func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output prefligh
 	}
 
 	ev := types.PreflightsBypassed{
-		BaseEvent:       r.newBaseEvent(false),
+		BaseEvent:       r.newBaseEvent("PreflightsBypassed", "", false),
 		NodeName:        getHostname(),
 		PreflightOutput: string(outputJSON),
-		EventType:       "PreflightsBypassed",
 	}
 	go Send(ctx, r.baseURL, ev)
 }
@@ -196,10 +203,7 @@ func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output prefligh
 // ReportSignalAborted reports that a process was terminated by a signal.
 func (r *Reporter) ReportSignalAborted(ctx context.Context, signal os.Signal) {
 	ev := types.SignalAborted{
-		BaseEvent:  r.newBaseEvent(true),
-		NodeName:   getHostname(),
-		SignalName: signal.String(),
-		EventType:  "SignalAborted",
+		BaseEvent: r.newBaseEvent("SignalAborted", signal.String(), true),
 	}
 	go Send(ctx, r.baseURL, ev)
 }

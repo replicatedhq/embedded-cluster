@@ -56,8 +56,8 @@ func TestSend(t *testing.T) {
 					Version:      "1.2.3",
 					EntryCommand: "install",
 					Flags:        "--foo --bar --baz",
+					Reason:       "foo",
 				},
-				Reason: "foo",
 			},
 		},
 		{
@@ -95,9 +95,9 @@ func TestSend(t *testing.T) {
 					Version:      "1.2.3",
 					EntryCommand: "join",
 					Flags:        "--foo --bar --baz",
+					Reason:       "bar",
 				},
 				NodeName: "foo",
-				Reason:   "bar",
 			},
 		},
 	} {
