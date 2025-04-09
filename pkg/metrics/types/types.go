@@ -10,16 +10,33 @@ type Event interface {
 	Title() string
 }
 
-// InstallationStarted event is send back home when the installation starts.
-type InstallationStarted struct {
+// BaseEvent contains common fields shared by all events.
+type BaseEvent struct {
+	ExecutionID  string    `json:"executionID"`
 	ClusterID    uuid.UUID `json:"clusterID"`
 	Version      string    `json:"version"`
-	Flags        string    `json:"flags"`
-	BinaryName   string    `json:"binaryName"`
-	Type         string    `json:"type"`
-	LicenseID    string    `json:"licenseID"`
-	AppChannelID string    `json:"appChannelID"`
-	AppVersion   string    `json:"appVersion"`
+	EntryCommand string    `json:"entryCommand"`
+}
+
+// NewBaseEvent creates a new BaseEvent with the given parameters.
+func NewBaseEvent(executionID string, clusterID uuid.UUID, version, entryCommand string) BaseEvent {
+	return BaseEvent{
+		ExecutionID:  executionID,
+		ClusterID:    clusterID,
+		Version:      version,
+		EntryCommand: entryCommand,
+	}
+}
+
+// InstallationStarted event is send back home when the installation starts.
+type InstallationStarted struct {
+	BaseEvent    `json:",inline"`
+	Flags        string `json:"flags"`
+	BinaryName   string `json:"binaryName"`
+	Type         string `json:"type"`
+	LicenseID    string `json:"licenseID"`
+	AppChannelID string `json:"appChannelID"`
+	AppVersion   string `json:"appVersion"`
 }
 
 // Title returns the name of the event.
@@ -29,8 +46,8 @@ func (e InstallationStarted) Title() string {
 
 // InstallationSucceeded event is send back home when the installation finishes.
 type InstallationSucceeded struct {
-	ClusterID uuid.UUID `json:"clusterID"`
-	Version   string    `json:"version"`
+	BaseEvent `json:",inline"`
+	Reason    string `json:"reason"`
 }
 
 // Title returns the name of the event.
@@ -40,9 +57,8 @@ func (e InstallationSucceeded) Title() string {
 
 // InstallationFailed event is send back home when the installation fails.
 type InstallationFailed struct {
-	ClusterID uuid.UUID `json:"clusterID"`
-	Version   string    `json:"version"`
-	Reason    string    `json:"reason"`
+	BaseEvent `json:",inline"`
+	Reason    string `json:"reason"`
 }
 
 // Title returns the name of the event.
@@ -52,9 +68,8 @@ func (e InstallationFailed) Title() string {
 
 // JoinStarted event is send back home when a node join starts.
 type JoinStarted struct {
-	ClusterID uuid.UUID `json:"clusterID"`
-	Version   string    `json:"version"`
-	NodeName  string    `json:"nodeName"`
+	BaseEvent `json:",inline"`
+	NodeName  string `json:"nodeName"`
 }
 
 // Title returns the name of the event.
@@ -63,7 +78,11 @@ func (e JoinStarted) Title() string {
 }
 
 // JoinSucceeded event is send back home when a node join succeeds.
-type JoinSucceeded JoinStarted
+type JoinSucceeded struct {
+	BaseEvent `json:",inline"`
+	NodeName  string `json:"nodeName"`
+	Reason    string `json:"reason"`
+}
 
 // Title returns the name of the event.
 func (e JoinSucceeded) Title() string {
@@ -72,10 +91,9 @@ func (e JoinSucceeded) Title() string {
 
 // JoinFailed event is send back home when a node join fails.
 type JoinFailed struct {
-	ClusterID uuid.UUID `json:"clusterID"`
-	Version   string    `json:"version"`
-	NodeName  string    `json:"nodeName"`
-	Reason    string    `json:"reason"`
+	BaseEvent `json:",inline"`
+	NodeName  string `json:"nodeName"`
+	Reason    string `json:"reason"`
 }
 
 // Title returns the name of the event.
@@ -83,14 +101,13 @@ func (e JoinFailed) Title() string {
 	return "JoinFailed"
 }
 
-// PreflightsFailed event is send back home when the preflights failed but were bypassed.
+// PreflightsFailed event is send back home when the preflights failed.
 type PreflightsFailed struct {
-	ClusterID       uuid.UUID `json:"clusterID"`
-	Version         string    `json:"version"`
-	NodeName        string    `json:"nodeName"`
-	PreflightOutput string    `json:"preflightOutput"`
-	EventType       string    `json:"eventType"`
-	EntryCommand    string    `json:"entryCommand"`
+	BaseEvent       `json:",inline"`
+	NodeName        string `json:"nodeName"`
+	PreflightOutput string `json:"preflightOutput"`
+	EventType       string `json:"eventType"`
+	Reason          string `json:"reason"`
 }
 
 // Title returns the name of the event.
@@ -99,14 +116,27 @@ func (e PreflightsFailed) Title() string {
 	return "GenericEvent"
 }
 
+// PreflightsBypassed event is send back home when the preflights failed but were bypassed.
+type PreflightsBypassed struct {
+	BaseEvent       `json:",inline"`
+	NodeName        string `json:"nodeName"`
+	PreflightOutput string `json:"preflightOutput"`
+	EventType       string `json:"eventType"`
+	Reason          string `json:"reason"`
+}
+
+// Title returns the name of the event.
+func (e PreflightsBypassed) Title() string {
+	// GenericEvents are added to the events table, but do not update the cluster status
+	return "GenericEvent"
+}
+
 // SignalAborted event is sent back home when a process is terminated by a signal.
 type SignalAborted struct {
-	ClusterID    uuid.UUID `json:"clusterID"`
-	Version      string    `json:"version"`
-	NodeName     string    `json:"nodeName"`
-	SignalName   string    `json:"signalName"`
-	EventType    string    `json:"eventType"`
-	EntryCommand string    `json:"entryCommand"`
+	BaseEvent  `json:",inline"`
+	NodeName   string `json:"nodeName"`
+	SignalName string `json:"signalName"`
+	EventType  string `json:"eventType"`
 }
 
 // Title returns the name of the event.

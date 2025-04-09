@@ -69,8 +69,31 @@ func SetClusterID(id uuid.UUID) {
 	clusterID = &id
 }
 
+// Reporter provides methods for reporting various events.
+type Reporter struct {
+	executionID  string
+	baseURL      string
+	clusterID    uuid.UUID
+	entryCommand string
+}
+
+// NewReporter creates a new Reporter with the given parameters.
+func NewReporter(executionID string, baseURL string, clusterID uuid.UUID, entryCommand string) *Reporter {
+	return &Reporter{
+		executionID:  executionID,
+		baseURL:      baseURL,
+		clusterID:    clusterID,
+		entryCommand: entryCommand,
+	}
+}
+
+// newBaseEvent creates a BaseEvent using the Reporter's fields.
+func (r *Reporter) newBaseEvent() types.BaseEvent {
+	return types.NewBaseEvent(r.executionID, r.clusterID, versions.Version, r.entryCommand)
+}
+
 // ReportInstallationStarted reports that the installation has started.
-func ReportInstallationStarted(ctx context.Context, baseURL string, licenseID string, clusterID uuid.UUID) {
+func (r *Reporter) ReportInstallationStarted(ctx context.Context, licenseID string) {
 	rel := release.GetChannelRelease()
 	appChannel, appVersion := "", ""
 	if rel != nil {
@@ -78,9 +101,8 @@ func ReportInstallationStarted(ctx context.Context, baseURL string, licenseID st
 		appVersion = rel.VersionLabel
 	}
 
-	Send(ctx, baseURL, types.InstallationStarted{
-		ClusterID:    clusterID,
-		Version:      versions.Version,
+	Send(ctx, r.baseURL, types.InstallationStarted{
+		BaseEvent:    r.newBaseEvent(),
 		Flags:        strings.Join(redactFlags(os.Args[1:]), " "),
 		BinaryName:   runtimeconfig.BinaryName(),
 		Type:         "centralized",
@@ -91,80 +113,53 @@ func ReportInstallationStarted(ctx context.Context, baseURL string, licenseID st
 }
 
 // ReportInstallationSucceeded reports that the installation has succeeded.
-func ReportInstallationSucceeded(ctx context.Context, baseURL string, clusterID uuid.UUID) {
-	Send(ctx, baseURL, types.InstallationSucceeded{ClusterID: clusterID, Version: versions.Version})
+func (r *Reporter) ReportInstallationSucceeded(ctx context.Context) {
+	Send(ctx, r.baseURL, types.InstallationSucceeded{
+		BaseEvent: r.newBaseEvent(),
+	})
 }
 
 // ReportInstallationFailed reports that the installation has failed.
-func ReportInstallationFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, err error) {
+func (r *Reporter) ReportInstallationFailed(ctx context.Context, err error) {
 	if errors.As(err, &ErrorNoFail{}) {
 		return
 	}
-	Send(ctx, baseURL, types.InstallationFailed{
-		ClusterID: clusterID,
-		Version:   versions.Version,
+	Send(ctx, r.baseURL, types.InstallationFailed{
+		BaseEvent: r.newBaseEvent(),
 		Reason:    err.Error(),
 	})
 }
 
 // ReportJoinStarted reports that a join has started.
-func ReportJoinStarted(ctx context.Context, baseURL string, clusterID uuid.UUID) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		logrus.Warnf("unable to get hostname: %s", err)
-		hostname = "unknown"
-	}
-	Send(ctx, baseURL, types.JoinStarted{
-		ClusterID: clusterID,
-		Version:   versions.Version,
-		NodeName:  hostname,
+func (r *Reporter) ReportJoinStarted(ctx context.Context) {
+	Send(ctx, r.baseURL, types.JoinStarted{
+		BaseEvent: r.newBaseEvent(),
+		NodeName:  getHostname(),
 	})
 }
 
 // ReportJoinSucceeded reports that a join has finished successfully.
-func ReportJoinSucceeded(ctx context.Context, baseURL string, clusterID uuid.UUID) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		logrus.Warnf("unable to get hostname: %s", err)
-		hostname = "unknown"
-	}
-	Send(ctx, baseURL, types.JoinSucceeded{
-		ClusterID: clusterID,
-		Version:   versions.Version,
-		NodeName:  hostname,
+func (r *Reporter) ReportJoinSucceeded(ctx context.Context) {
+	Send(ctx, r.baseURL, types.JoinSucceeded{
+		BaseEvent: r.newBaseEvent(),
+		NodeName:  getHostname(),
 	})
 }
 
 // ReportJoinFailed reports that a join has failed.
-func ReportJoinFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, err error) {
+func (r *Reporter) ReportJoinFailed(ctx context.Context, err error) {
 	if errors.As(err, &ErrorNoFail{}) {
 		return
 	}
-	hostname, _ := os.Hostname()
-	if hostname == "" {
-		hostname = "unknown"
-	}
-	Send(ctx, baseURL, types.JoinFailed{
-		ClusterID: clusterID,
-		Version:   versions.Version,
-		NodeName:  hostname,
+	Send(ctx, r.baseURL, types.JoinFailed{
+		BaseEvent: r.newBaseEvent(),
+		NodeName:  getHostname(),
 		Reason:    err.Error(),
 	})
 }
 
-// ReportPreflightsFailed reports that the preflights failed but were bypassed.
-func ReportPreflightsFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, output preflightstypes.Output, bypassed bool, entryCommand string) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		logrus.Warnf("unable to get hostname: %s", err)
-		hostname = "unknown"
-	}
-
-	eventType := "PreflightsFailed"
-	if bypassed {
-		eventType = "PreflightsBypassed"
-	}
-
+// ReportPreflightsFailed reports that the preflights failed.
+func (r *Reporter) ReportPreflightsFailed(ctx context.Context, output preflightstypes.Output) {
 	outputJSON, err := json.Marshal(output)
 	if err != nil {
 		logrus.Warnf("unable to marshal preflight output: %s", err)
@@ -172,31 +167,48 @@ func ReportPreflightsFailed(ctx context.Context, baseURL string, clusterID uuid.
 	}
 
 	ev := types.PreflightsFailed{
-		ClusterID:       clusterID,
-		Version:         versions.Version,
-		NodeName:        hostname,
+		BaseEvent:       r.newBaseEvent(),
+		NodeName:        getHostname(),
 		PreflightOutput: string(outputJSON),
-		EventType:       eventType,
-		EntryCommand:    entryCommand,
+		EventType:       "PreflightsFailed",
 	}
-	go Send(ctx, baseURL, ev)
+	go Send(ctx, r.baseURL, ev)
+}
+
+// ReportPreflightsBypassed reports that the preflights failed but were bypassed.
+func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output preflightstypes.Output) {
+	outputJSON, err := json.Marshal(output)
+	if err != nil {
+		logrus.Warnf("unable to marshal preflight output: %s", err)
+		return
+	}
+
+	ev := types.PreflightsBypassed{
+		BaseEvent:       r.newBaseEvent(),
+		NodeName:        getHostname(),
+		PreflightOutput: string(outputJSON),
+		EventType:       "PreflightsBypassed",
+	}
+	go Send(ctx, r.baseURL, ev)
 }
 
 // ReportSignalAborted reports that a process was terminated by a signal.
-func ReportSignalAborted(ctx context.Context, baseURL string, clusterID uuid.UUID, signal os.Signal, entryCommand string) {
+func (r *Reporter) ReportSignalAborted(ctx context.Context, signal os.Signal) {
+	ev := types.SignalAborted{
+		BaseEvent:  r.newBaseEvent(),
+		NodeName:   getHostname(),
+		SignalName: signal.String(),
+		EventType:  "SignalAborted",
+	}
+	go Send(ctx, r.baseURL, ev)
+}
+
+// getHostname returns the hostname or "unknown" if there's an error.
+func getHostname() string {
 	hostname, err := os.Hostname()
 	if err != nil {
 		logrus.Warnf("unable to get hostname: %s", err)
 		hostname = "unknown"
 	}
-
-	ev := types.SignalAborted{
-		ClusterID:    clusterID,
-		Version:      versions.Version,
-		NodeName:     hostname,
-		SignalName:   signal.String(),
-		EventType:    "SignalAborted",
-		EntryCommand: entryCommand,
-	}
-	go Send(ctx, baseURL, ev)
+	return hostname
 }

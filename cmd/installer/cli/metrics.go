@@ -10,71 +10,75 @@ import (
 )
 
 type InstallReporter struct {
-	baseURL   string
 	licenseID string
-	clusterID uuid.UUID
-	cmd       string
+	reporter  *metrics.Reporter
 }
 
 func NewInstallReporter(baseURL string, licenseID string, clusterID uuid.UUID, cmd string) *InstallReporter {
+	executionID := uuid.New().String()
+	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd)
 	return &InstallReporter{
-		baseURL:   baseURL,
 		licenseID: licenseID,
-		clusterID: clusterID,
-		cmd:       cmd,
+		reporter:  reporter,
 	}
 }
 
 func (r *InstallReporter) ReportInstallationStarted(ctx context.Context) {
-	metrics.ReportInstallationStarted(ctx, r.baseURL, r.licenseID, r.clusterID)
+	r.reporter.ReportInstallationStarted(ctx, r.licenseID)
 }
 
 func (r *InstallReporter) ReportInstallationSucceeded(ctx context.Context) {
-	metrics.ReportInstallationSucceeded(ctx, r.baseURL, r.clusterID)
+	r.reporter.ReportInstallationSucceeded(ctx)
 }
 
 func (r *InstallReporter) ReportInstallationFailed(ctx context.Context, err error) {
-	metrics.ReportInstallationFailed(ctx, r.baseURL, r.clusterID, err)
+	r.reporter.ReportInstallationFailed(ctx, err)
 }
 
-func (r *InstallReporter) ReportPreflightsFailed(ctx context.Context, output preflightstypes.Output, bypassed bool) {
-	metrics.ReportPreflightsFailed(ctx, r.baseURL, r.clusterID, output, bypassed, r.cmd)
+func (r *InstallReporter) ReportPreflightsFailed(ctx context.Context, output preflightstypes.Output) {
+	r.reporter.ReportPreflightsFailed(ctx, output)
 }
 
-func (r *InstallReporter) ReportSignalAborted(ctx context.Context, signal os.Signal) {
-	metrics.ReportSignalAborted(ctx, r.baseURL, r.clusterID, signal, r.cmd)
+func (r *InstallReporter) ReportPreflightsBypassed(ctx context.Context, output preflightstypes.Output) {
+	r.reporter.ReportPreflightsBypassed(ctx, output)
+}
+
+func (r *InstallReporter) ReportSignalAborted(ctx context.Context, sig os.Signal) {
+	r.reporter.ReportSignalAborted(ctx, sig)
 }
 
 type JoinReporter struct {
-	baseURL   string
-	clusterID uuid.UUID
-	cmd       string
+	reporter *metrics.Reporter
 }
 
 func NewJoinReporter(baseURL string, clusterID uuid.UUID, cmd string) *JoinReporter {
+	executionID := uuid.New().String()
+	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd)
 	return &JoinReporter{
-		baseURL:   baseURL,
-		clusterID: clusterID,
-		cmd:       cmd,
+		reporter: reporter,
 	}
 }
 
 func (r *JoinReporter) ReportJoinStarted(ctx context.Context) {
-	metrics.ReportJoinStarted(ctx, r.baseURL, r.clusterID)
+	r.reporter.ReportJoinStarted(ctx)
 }
 
 func (r *JoinReporter) ReportJoinSucceeded(ctx context.Context) {
-	metrics.ReportJoinSucceeded(ctx, r.baseURL, r.clusterID)
+	r.reporter.ReportJoinSucceeded(ctx)
 }
 
 func (r *JoinReporter) ReportJoinFailed(ctx context.Context, err error) {
-	metrics.ReportJoinFailed(ctx, r.baseURL, r.clusterID, err)
+	r.reporter.ReportJoinFailed(ctx, err)
 }
 
-func (r *JoinReporter) ReportPreflightsFailed(ctx context.Context, output preflightstypes.Output, bypassed bool) {
-	metrics.ReportPreflightsFailed(ctx, r.baseURL, r.clusterID, output, bypassed, r.cmd)
+func (r *JoinReporter) ReportPreflightsFailed(ctx context.Context, output preflightstypes.Output) {
+	r.reporter.ReportPreflightsFailed(ctx, output)
 }
 
-func (r *JoinReporter) ReportSignalAborted(ctx context.Context, signal os.Signal) {
-	metrics.ReportSignalAborted(ctx, r.baseURL, r.clusterID, signal, r.cmd)
+func (r *JoinReporter) ReportPreflightsBypassed(ctx context.Context, output preflightstypes.Output) {
+	r.reporter.ReportPreflightsBypassed(ctx, output)
+}
+
+func (r *JoinReporter) ReportSignalAborted(ctx context.Context, sig os.Signal) {
+	r.reporter.ReportSignalAborted(ctx, sig)
 }

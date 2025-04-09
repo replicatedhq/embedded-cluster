@@ -51,7 +51,9 @@ func TestReportInstallationStarted(t *testing.T) {
 			defer func() { os.Args = originalArgs }()
 			os.Args = append([]string{os.Args[0]}, test.OSArgs...)
 
-			ReportInstallationStarted(context.Background(), server.URL, "license-id", ClusterID())
+			clusterID := ClusterID()
+			reporter := NewReporter("test-execution-id", server.URL, clusterID, "install")
+			reporter.ReportInstallationStarted(context.Background(), "license-id")
 		})
 	}
 }

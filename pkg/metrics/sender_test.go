@@ -23,8 +23,12 @@ func TestSend(t *testing.T) {
 		{
 			name: "InstallationStarted",
 			event: types.InstallationStarted{
-				ClusterID:  uuid.New(),
-				Version:    "1.2.3",
+				BaseEvent: types.BaseEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    uuid.New(),
+					Version:      "1.2.3",
+					EntryCommand: "install",
+				},
 				Flags:      "foo",
 				BinaryName: "bar",
 				Type:       "baz",
@@ -34,36 +38,61 @@ func TestSend(t *testing.T) {
 		{
 			name: "InstallationSucceeded",
 			event: types.InstallationSucceeded{
-				ClusterID: uuid.New(),
+				BaseEvent: types.BaseEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    uuid.New(),
+					Version:      "1.2.3",
+					EntryCommand: "install",
+				},
 			},
 		},
 		{
 			name: "InstallationFailed",
 			event: types.InstallationFailed{
-				ClusterID: uuid.New(),
-				Reason:    "foo",
+				BaseEvent: types.BaseEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    uuid.New(),
+					Version:      "1.2.3",
+					EntryCommand: "install",
+				},
+				Reason: "foo",
 			},
 		},
 		{
 			name: "JoinStarted",
 			event: types.JoinStarted{
-				ClusterID: uuid.New(),
-				NodeName:  "foo",
+				BaseEvent: types.BaseEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    uuid.New(),
+					Version:      "1.2.3",
+					EntryCommand: "join",
+				},
+				NodeName: "foo",
 			},
 		},
 		{
 			name: "JoinSucceeded",
 			event: types.JoinSucceeded{
-				ClusterID: uuid.New(),
-				NodeName:  "foo",
+				BaseEvent: types.BaseEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    uuid.New(),
+					Version:      "1.2.3",
+					EntryCommand: "join",
+				},
+				NodeName: "foo",
 			},
 		},
 		{
 			name: "JoinFailed",
 			event: types.JoinFailed{
-				ClusterID: uuid.New(),
-				NodeName:  "foo",
-				Reason:    "bar",
+				BaseEvent: types.BaseEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    uuid.New(),
+					Version:      "1.2.3",
+					EntryCommand: "join",
+				},
+				NodeName: "foo",
+				Reason:   "bar",
 			},
 		},
 	} {
