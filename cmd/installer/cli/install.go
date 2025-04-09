@@ -101,7 +101,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clusterID := metrics.ClusterID()
 			metricsReporter := NewInstallReporter(
-				replicatedAppURL(), clusterID, cmd.CalledAs(), flagsToStringSlice(cmd), flags.license.Spec.LicenseID,
+				replicatedAppURL(), clusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()), flags.license.Spec.LicenseID,
 			)
 			metricsReporter.ReportInstallationStarted(ctx)
 

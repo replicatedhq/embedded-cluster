@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
-	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
@@ -85,11 +84,11 @@ func (r *JoinReporter) ReportSignalAborted(ctx context.Context, sig os.Signal) {
 	r.reporter.ReportSignalAborted(ctx, sig)
 }
 
-// flagsToStringSlice converts a Cobra command's flags into a string slice for metrics reporting.
+// flagsToStringSlice converts a pflag.FlagSet's flags into a string slice for metrics reporting.
 // It only includes flags that have been explicitly set by the user.
-func flagsToStringSlice(cmd *cobra.Command) []string {
+func flagsToStringSlice(flags *pflag.FlagSet) []string {
 	var result []string
-	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+	flags.VisitAll(func(f *pflag.Flag) {
 		if f.Changed {
 			if f.Value.Type() == "bool" {
 				// For boolean flags, check the actual value
