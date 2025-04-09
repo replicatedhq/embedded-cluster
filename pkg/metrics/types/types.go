@@ -98,3 +98,19 @@ func (e PreflightsFailed) Title() string {
 	// GenericEvents are added to the events table, but do not update the cluster status
 	return "GenericEvent"
 }
+
+// SignalAborted event is sent back home when a process is terminated by a signal.
+type SignalAborted struct {
+	ClusterID    uuid.UUID `json:"clusterID"`
+	Version      string    `json:"version"`
+	NodeName     string    `json:"nodeName"`
+	SignalName   string    `json:"signalName"`
+	EventType    string    `json:"eventType"`
+	EntryCommand string    `json:"entryCommand"`
+}
+
+// Title returns the name of the event.
+func (e SignalAborted) Title() string {
+	// GenericEvents are added to the events table, but do not update the cluster status
+	return "GenericEvent"
+}

@@ -106,8 +106,8 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			metricsReporter.ReportInstallationStarted(ctx)
 
 			// Setup signal handler with the metrics reporter cleanup function
-			signalHandler(ctx, cancel, func(ctx context.Context, err error) {
-				metricsReporter.ReportInstallationFailed(ctx, err)
+			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
+				metricsReporter.ReportSignalAborted(ctx, sig)
 			})
 
 			if err := runInstall(cmd.Context(), name, flags, metricsReporter); err != nil {
