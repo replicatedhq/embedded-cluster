@@ -19,8 +19,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var clusterIDMut sync.Mutex
-var clusterID *uuid.UUID
+var _clusterIDMut sync.Mutex
+var _clusterID *uuid.UUID
 
 // ErrorNoFail is an error that is excluded from metrics failures.
 type ErrorNoFail struct {
@@ -53,20 +53,20 @@ func License(licenseFlag string) *kotsv1beta1.License {
 
 // ClusterID returns the cluster id. This is unique per 'install', but will be stored in the cluster and used by any future 'join' commands.
 func ClusterID() uuid.UUID {
-	clusterIDMut.Lock()
-	defer clusterIDMut.Unlock()
-	if clusterID != nil {
-		return *clusterID
+	_clusterIDMut.Lock()
+	defer _clusterIDMut.Unlock()
+	if _clusterID != nil {
+		return *_clusterID
 	}
 	id := uuid.New()
-	clusterID = &id
+	_clusterID = &id
 	return id
 }
 
 func SetClusterID(id uuid.UUID) {
-	clusterIDMut.Lock()
-	defer clusterIDMut.Unlock()
-	clusterID = &id
+	_clusterIDMut.Lock()
+	defer _clusterIDMut.Unlock()
+	_clusterID = &id
 }
 
 // Reporter provides methods for reporting various events.
