@@ -71,25 +71,27 @@ func SetClusterID(id uuid.UUID) {
 
 // Reporter provides methods for reporting various events.
 type Reporter struct {
-	executionID  string
-	baseURL      string
-	clusterID    uuid.UUID
-	entryCommand string
+	executionID string
+	baseURL     string
+	clusterID   uuid.UUID
+	command     string
+	commandArgs []string
 }
 
 // NewReporter creates a new Reporter with the given parameters.
-func NewReporter(executionID string, baseURL string, clusterID uuid.UUID, entryCommand string) *Reporter {
+func NewReporter(executionID string, baseURL string, clusterID uuid.UUID, command string, commandArgs []string) *Reporter {
 	return &Reporter{
-		executionID:  executionID,
-		baseURL:      baseURL,
-		clusterID:    clusterID,
-		entryCommand: entryCommand,
+		executionID: executionID,
+		baseURL:     baseURL,
+		clusterID:   clusterID,
+		command:     command,
+		commandArgs: redactFlags(commandArgs),
 	}
 }
 
 // newBaseEvent creates a BaseEvent using the Reporter's fields.
 func (r *Reporter) newBaseEvent() types.BaseEvent {
-	return types.NewBaseEvent(r.executionID, r.clusterID, versions.Version, r.entryCommand)
+	return types.NewBaseEvent(r.executionID, r.clusterID, versions.Version, r.command, r.commandArgs)
 }
 
 // ReportInstallationStarted reports that the installation has started.

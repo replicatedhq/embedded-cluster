@@ -1,6 +1,8 @@
 package types
 
 import (
+	"strings"
+
 	"github.com/google/uuid"
 )
 
@@ -16,15 +18,17 @@ type BaseEvent struct {
 	ClusterID    uuid.UUID `json:"clusterID"`
 	Version      string    `json:"version"`
 	EntryCommand string    `json:"entryCommand"`
+	CommandArgs  string    `json:"commandArgs"`
 }
 
 // NewBaseEvent creates a new BaseEvent with the given parameters.
-func NewBaseEvent(executionID string, clusterID uuid.UUID, version, entryCommand string) BaseEvent {
+func NewBaseEvent(executionID string, clusterID uuid.UUID, version, entryCommand string, commandArgs []string) BaseEvent {
 	return BaseEvent{
 		ExecutionID:  executionID,
 		ClusterID:    clusterID,
 		Version:      version,
 		EntryCommand: entryCommand,
+		CommandArgs:  strings.Join(commandArgs, " "),
 	}
 }
 

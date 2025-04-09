@@ -71,7 +71,9 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
-			metricsReporter := NewJoinReporter(jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, cmd.CalledAs())
+			metricsReporter := NewJoinReporter(
+				jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, cmd.CalledAs(), os.Args[2+len(args):],
+			)
 			metricsReporter.ReportJoinStarted(ctx)
 
 			// Setup signal handler with the metrics reporter cleanup function
