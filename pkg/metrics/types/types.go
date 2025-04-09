@@ -47,7 +47,6 @@ func (e InstallationStarted) Title() string {
 // InstallationSucceeded event is send back home when the installation finishes.
 type InstallationSucceeded struct {
 	BaseEvent `json:",inline"`
-	Reason    string `json:"reason"`
 }
 
 // Title returns the name of the event.
@@ -81,7 +80,6 @@ func (e JoinStarted) Title() string {
 type JoinSucceeded struct {
 	BaseEvent `json:",inline"`
 	NodeName  string `json:"nodeName"`
-	Reason    string `json:"reason"`
 }
 
 // Title returns the name of the event.
@@ -107,7 +105,6 @@ type PreflightsFailed struct {
 	NodeName        string `json:"nodeName"`
 	PreflightOutput string `json:"preflightOutput"`
 	EventType       string `json:"eventType"`
-	Reason          string `json:"reason"`
 }
 
 // Title returns the name of the event.
@@ -122,7 +119,6 @@ type PreflightsBypassed struct {
 	NodeName        string `json:"nodeName"`
 	PreflightOutput string `json:"preflightOutput"`
 	EventType       string `json:"eventType"`
-	Reason          string `json:"reason"`
 }
 
 // Title returns the name of the event.
