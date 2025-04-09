@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -71,27 +70,28 @@ func SetClusterID(id uuid.UUID) {
 
 // Reporter provides methods for reporting various events.
 type Reporter struct {
-	executionID string
-	baseURL     string
-	clusterID   uuid.UUID
-	command     string
-	commandArgs []string
+	executionID  string
+	baseURL      string
+	clusterID    uuid.UUID
+	command      string
+	commandFlags []string
+	didExit      bool
 }
 
 // NewReporter creates a new Reporter with the given parameters.
-func NewReporter(executionID string, baseURL string, clusterID uuid.UUID, command string, commandArgs []string) *Reporter {
+func NewReporter(executionID string, baseURL string, clusterID uuid.UUID, command string, commandFlags []string) *Reporter {
 	return &Reporter{
-		executionID: executionID,
-		baseURL:     baseURL,
-		clusterID:   clusterID,
-		command:     command,
-		commandArgs: redactFlags(commandArgs),
+		executionID:  executionID,
+		baseURL:      baseURL,
+		clusterID:    clusterID,
+		command:      command,
+		commandFlags: redactFlags(commandFlags),
 	}
 }
 
 // newBaseEvent creates a BaseEvent using the Reporter's fields.
-func (r *Reporter) newBaseEvent() types.BaseEvent {
-	return types.NewBaseEvent(r.executionID, r.clusterID, versions.Version, r.command, r.commandArgs)
+func (r *Reporter) newBaseEvent(isExitEvent bool) types.BaseEvent {
+	return types.NewBaseEvent(r.executionID, r.clusterID, versions.Version, r.command, r.commandFlags, isExitEvent)
 }
 
 // ReportInstallationStarted reports that the installation has started.
@@ -104,8 +104,7 @@ func (r *Reporter) ReportInstallationStarted(ctx context.Context, licenseID stri
 	}
 
 	Send(ctx, r.baseURL, types.InstallationStarted{
-		BaseEvent:    r.newBaseEvent(),
-		Flags:        strings.Join(redactFlags(os.Args[1:]), " "),
+		BaseEvent:    r.newBaseEvent(false),
 		BinaryName:   runtimeconfig.BinaryName(),
 		Type:         "centralized",
 		LicenseID:    licenseID,
@@ -117,7 +116,7 @@ func (r *Reporter) ReportInstallationStarted(ctx context.Context, licenseID stri
 // ReportInstallationSucceeded reports that the installation has succeeded.
 func (r *Reporter) ReportInstallationSucceeded(ctx context.Context) {
 	Send(ctx, r.baseURL, types.InstallationSucceeded{
-		BaseEvent: r.newBaseEvent(),
+		BaseEvent: r.newBaseEvent(true),
 	})
 }
 
@@ -127,7 +126,7 @@ func (r *Reporter) ReportInstallationFailed(ctx context.Context, err error) {
 		return
 	}
 	Send(ctx, r.baseURL, types.InstallationFailed{
-		BaseEvent: r.newBaseEvent(),
+		BaseEvent: r.newBaseEvent(true),
 		Reason:    err.Error(),
 	})
 }
@@ -135,7 +134,7 @@ func (r *Reporter) ReportInstallationFailed(ctx context.Context, err error) {
 // ReportJoinStarted reports that a join has started.
 func (r *Reporter) ReportJoinStarted(ctx context.Context) {
 	Send(ctx, r.baseURL, types.JoinStarted{
-		BaseEvent: r.newBaseEvent(),
+		BaseEvent: r.newBaseEvent(false),
 		NodeName:  getHostname(),
 	})
 }
@@ -143,7 +142,7 @@ func (r *Reporter) ReportJoinStarted(ctx context.Context) {
 // ReportJoinSucceeded reports that a join has finished successfully.
 func (r *Reporter) ReportJoinSucceeded(ctx context.Context) {
 	Send(ctx, r.baseURL, types.JoinSucceeded{
-		BaseEvent: r.newBaseEvent(),
+		BaseEvent: r.newBaseEvent(true),
 		NodeName:  getHostname(),
 	})
 }
@@ -154,7 +153,7 @@ func (r *Reporter) ReportJoinFailed(ctx context.Context, err error) {
 		return
 	}
 	Send(ctx, r.baseURL, types.JoinFailed{
-		BaseEvent: r.newBaseEvent(),
+		BaseEvent: r.newBaseEvent(true),
 		NodeName:  getHostname(),
 		Reason:    err.Error(),
 	})
@@ -169,7 +168,7 @@ func (r *Reporter) ReportPreflightsFailed(ctx context.Context, output preflights
 	}
 
 	ev := types.PreflightsFailed{
-		BaseEvent:       r.newBaseEvent(),
+		BaseEvent:       r.newBaseEvent(true),
 		NodeName:        getHostname(),
 		PreflightOutput: string(outputJSON),
 		EventType:       "PreflightsFailed",
@@ -186,7 +185,7 @@ func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output prefligh
 	}
 
 	ev := types.PreflightsBypassed{
-		BaseEvent:       r.newBaseEvent(),
+		BaseEvent:       r.newBaseEvent(false),
 		NodeName:        getHostname(),
 		PreflightOutput: string(outputJSON),
 		EventType:       "PreflightsBypassed",
@@ -197,7 +196,7 @@ func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output prefligh
 // ReportSignalAborted reports that a process was terminated by a signal.
 func (r *Reporter) ReportSignalAborted(ctx context.Context, signal os.Signal) {
 	ev := types.SignalAborted{
-		BaseEvent:  r.newBaseEvent(),
+		BaseEvent:  r.newBaseEvent(true),
 		NodeName:   getHostname(),
 		SignalName: signal.String(),
 		EventType:  "SignalAborted",

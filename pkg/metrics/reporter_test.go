@@ -32,10 +32,7 @@ func TestReportInstallationStarted(t *testing.T) {
 				req.NoError(err)
 				err = json.Unmarshal(decoded["event"], &event)
 				req.NoError(err)
-				req.Equal("install -l ./license.yaml --admin-console-password ***** --skip-host-preflights --http-proxy ***** --https-proxy=***** --admin-console-port 8080", event.Flags)
-
-				req.Equal("install", event.EntryCommand)
-				req.Equal("-l ./license.yaml --admin-console-password ***** --skip-host-preflights --http-proxy ***** --https-proxy=***** --admin-console-port 8080", event.CommandArgs)
+				req.Equal("-l ./license.yaml --admin-console-password ***** --skip-host-preflights --http-proxy ***** --https-proxy=***** --admin-console-port 8080", event.Flags)
 			},
 		},
 	} {

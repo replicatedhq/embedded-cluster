@@ -14,28 +14,35 @@ type Event interface {
 
 // BaseEvent contains common fields shared by all events.
 type BaseEvent struct {
-	ExecutionID  string    `json:"executionID"`
-	ClusterID    uuid.UUID `json:"clusterID"`
-	Version      string    `json:"version"`
-	EntryCommand string    `json:"entryCommand"`
-	CommandArgs  string    `json:"commandArgs"`
+	// ExecutionID is a unique identifier for the current execution
+	ExecutionID string `json:"executionID"`
+	// ClusterID is the unique identifier of the cluster
+	ClusterID uuid.UUID `json:"clusterID"`
+	// Version is the version of the embedded-cluster software
+	Version string `json:"version"`
+	// EntryCommand is the main command being executed (e.g. "install", "join")
+	EntryCommand string `json:"entryCommand"`
+	// Flags contains the command-line flags passed to the command
+	Flags string `json:"flags"`
+	// IsExitEvent is true if the command indicates this is the end of the execution
+	IsExitEvent bool `json:"isExitEvent"`
 }
 
 // NewBaseEvent creates a new BaseEvent with the given parameters.
-func NewBaseEvent(executionID string, clusterID uuid.UUID, version, entryCommand string, commandArgs []string) BaseEvent {
+func NewBaseEvent(executionID string, clusterID uuid.UUID, version, entryCommand string, flags []string, isExitEvent bool) BaseEvent {
 	return BaseEvent{
 		ExecutionID:  executionID,
 		ClusterID:    clusterID,
 		Version:      version,
 		EntryCommand: entryCommand,
-		CommandArgs:  strings.Join(commandArgs, " "),
+		Flags:        strings.Join(flags, " "),
+		IsExitEvent:  isExitEvent,
 	}
 }
 
 // InstallationStarted event is send back home when the installation starts.
 type InstallationStarted struct {
 	BaseEvent    `json:",inline"`
-	Flags        string `json:"flags"`
 	BinaryName   string `json:"binaryName"`
 	Type         string `json:"type"`
 	LicenseID    string `json:"licenseID"`
