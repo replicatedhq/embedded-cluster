@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type InstallReporter struct {
@@ -51,9 +53,9 @@ type JoinReporter struct {
 	reporter *metrics.Reporter
 }
 
-func NewJoinReporter(baseURL string, clusterID uuid.UUID, cmd string, args []string) *JoinReporter {
+func NewJoinReporter(baseURL string, clusterID uuid.UUID, cmd string, flags []string) *JoinReporter {
 	executionID := uuid.New().String()
-	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd, args)
+	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd, flags)
 	return &JoinReporter{
 		reporter: reporter,
 	}
@@ -81,4 +83,25 @@ func (r *JoinReporter) ReportPreflightsBypassed(ctx context.Context, output pref
 
 func (r *JoinReporter) ReportSignalAborted(ctx context.Context, sig os.Signal) {
 	r.reporter.ReportSignalAborted(ctx, sig)
+}
+
+// flagsToStringSlice converts a Cobra command's flags into a string slice for metrics reporting.
+// It only includes flags that have been explicitly set by the user.
+func flagsToStringSlice(cmd *cobra.Command) []string {
+	var result []string
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		if f.Changed {
+			if f.Value.Type() == "bool" {
+				// For boolean flags, check the actual value
+				if f.Value.String() == "true" {
+					result = append(result, "--"+f.Name)
+				} else {
+					result = append(result, "--"+f.Name+"=false")
+				}
+			} else {
+				result = append(result, "--"+f.Name, f.Value.String())
+			}
+		}
+	})
+	return result
 }

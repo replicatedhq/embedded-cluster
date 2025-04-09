@@ -78,7 +78,6 @@ type Reporter struct {
 	hostname     string
 	command      string
 	commandFlags []string
-	didExit      bool
 }
 
 // NewReporter creates a new Reporter with the given parameters.
