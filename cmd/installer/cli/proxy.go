@@ -13,6 +13,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NetworkLookup defines the interface for network lookups
+type NetworkLookup interface {
+	FirstValidIPNet(networkInterface string) (*net.IPNet, error)
+}
+
+type defaultNetworkLookup struct{}
+
+func (d *defaultNetworkLookup) FirstValidIPNet(networkInterface string) (*net.IPNet, error) {
+	return netutils.FirstValidIPNet(networkInterface)
+}
+
+var defaultNetworkLookupImpl NetworkLookup = &defaultNetworkLookup{}
+
+func getNetworkIPNet(networkInterface string, lookup NetworkLookup) (*net.IPNet, error) {
+	if lookup == nil {
+		lookup = defaultNetworkLookupImpl
+	}
+	return lookup.FirstValidIPNet(networkInterface)
+}
+
 func addProxyFlags(cmd *cobra.Command) error {
 	cmd.Flags().String("http-proxy", "", "HTTP proxy to use for the installation (overrides http_proxy/HTTP_PROXY environment variables)")
 	cmd.Flags().String("https-proxy", "", "HTTPS proxy to use for the installation (overrides https_proxy/HTTPS_PROXY environment variables)")
@@ -25,11 +45,6 @@ func parseProxyFlags(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
 	p, err := getProxySpec(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get proxy spec from flags: %w", err)
-	}
-
-	p, err = includeLocalIPInNoProxy(cmd, p)
-	if err != nil {
-		return nil, fmt.Errorf("unable to include local IP in no proxy: %w", err)
 	}
 	setProxyEnv(p)
 
@@ -88,7 +103,9 @@ func getProxySpec(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
 	proxy.HTTPProxy = httpProxy
 	proxy.HTTPSProxy = httpsProxy
 	proxy.ProvidedNoProxy = noProxy
-	if err := combineNoProxySuppliedValuesAndDefaults(cmd, proxy); err != nil {
+
+	// Now that we have all no-proxy entries (from flags/env), merge in defaults
+	if err := combineNoProxySuppliedValuesAndDefaults(cmd, proxy, nil); err != nil {
 		return nil, fmt.Errorf("unable to combine no-proxy supplied values and defaults: %w", err)
 	}
 
@@ -98,63 +115,54 @@ func getProxySpec(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
 	return proxy, nil
 }
 
-func combineNoProxySuppliedValuesAndDefaults(cmd *cobra.Command, proxy *ecv1beta1.ProxySpec) error {
-	if proxy.ProvidedNoProxy == "" {
+func combineNoProxySuppliedValuesAndDefaults(cmd *cobra.Command, proxy *ecv1beta1.ProxySpec, lookup NetworkLookup) error {
+	if proxy.ProvidedNoProxy == "" && proxy.HTTPProxy == "" && proxy.HTTPSProxy == "" {
 		return nil
 	}
-	noProxy := strings.Split(proxy.ProvidedNoProxy, ",")
-	if len(noProxy) > 0 || proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
-		noProxy = append(runtimeconfig.DefaultNoProxy, noProxy...)
-		cidrCfg, err := getCIDRConfig(cmd)
-		if err != nil {
-			return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
-		}
-		noProxy = append(noProxy, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR)
-		proxy.NoProxy = strings.Join(noProxy, ",")
-	}
-	return nil
-}
 
-func includeLocalIPInNoProxy(cmd *cobra.Command, proxy *ecv1beta1.ProxySpec) (*ecv1beta1.ProxySpec, error) {
-	if proxy != nil && (proxy.HTTPProxy != "" || proxy.HTTPSProxy != "") {
-		// if there is a proxy set, then there needs to be a no proxy set
-		// if it is not set, prompt with a default (the local IP or subnet)
-		// if it is set, we need to check that it covers the local IP
+	// Start with runtime defaults
+	noProxy := runtimeconfig.DefaultNoProxy
+
+	// Add pod and service CIDRs
+	cidrCfg, err := getCIDRConfig(cmd)
+	if err != nil {
+		return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+	}
+	noProxy = append(noProxy, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR)
+
+	// Add user-provided no-proxy values
+	if proxy.ProvidedNoProxy != "" {
+		noProxy = append(noProxy, strings.Split(proxy.ProvidedNoProxy, ",")...)
+	}
+
+	// If we have a proxy set, ensure the local IP is in the no-proxy list
+	if proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
 		networkInterfaceFlag, err := cmd.Flags().GetString("network-interface")
 		if err != nil {
-			return nil, fmt.Errorf("unable to get network-interface flag: %w", err)
+			return fmt.Errorf("unable to get network-interface flag: %w", err)
 		}
 
-		ipnet, err := netutils.FirstValidIPNet(networkInterfaceFlag)
+		ipnet, err := getNetworkIPNet(networkInterfaceFlag, lookup)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get first valid ip net: %w", err)
+			return fmt.Errorf("failed to get first valid ip net: %w", err)
 		}
 		cleanIPNet, err := cleanCIDR(ipnet)
 		if err != nil {
-			return nil, fmt.Errorf("failed to clean subnet: %w", err)
+			return fmt.Errorf("failed to clean subnet: %w", err)
 		}
-		if proxy.ProvidedNoProxy == "" {
-			logrus.Infof("--no-proxy was not set. Adding the network interface's subnet (%q) to the no-proxy list.", cleanIPNet)
-			proxy.ProvidedNoProxy = cleanIPNet
-			if err := combineNoProxySuppliedValuesAndDefaults(cmd, proxy); err != nil {
-				return nil, fmt.Errorf("unable to combine no-proxy supplied values and defaults: %w", err)
-			}
-			return proxy, nil
-		} else {
-			isValid, err := validateNoProxy(proxy.NoProxy, ipnet.IP.String())
-			if err != nil {
-				return nil, fmt.Errorf("failed to validate no-proxy: %w", err)
-			} else if !isValid {
-				logrus.Infof("The node IP (%q) is not included in the provided no-proxy list (%q). Adding the network interface's subnet (%q) to the no-proxy list.", ipnet.IP.String(), proxy.ProvidedNoProxy, cleanIPNet)
-				proxy.ProvidedNoProxy = cleanIPNet
-				if err := combineNoProxySuppliedValuesAndDefaults(cmd, proxy); err != nil {
-					return nil, fmt.Errorf("unable to combine no-proxy supplied values and defaults: %w", err)
-				}
-				return proxy, nil
-			}
+
+		// Check if the local IP is already covered by any of the no-proxy entries
+		isValid, err := validateNoProxy(strings.Join(noProxy, ","), ipnet.IP.String())
+		if err != nil {
+			return fmt.Errorf("failed to validate no-proxy: %w", err)
+		} else if !isValid {
+			logrus.Infof("The node IP (%q) is not included in the no-proxy list. Adding the network interface's subnet (%q).", ipnet.IP.String(), cleanIPNet)
+			noProxy = append(noProxy, cleanIPNet)
 		}
 	}
-	return proxy, nil
+
+	proxy.NoProxy = strings.Join(noProxy, ",")
+	return nil
 }
 
 // setProxyEnv sets the HTTP_PROXY, HTTPS_PROXY, and NO_PROXY environment variables based on the provided ProxySpec.
@@ -176,6 +184,11 @@ func setProxyEnv(proxy *ecv1beta1.ProxySpec) {
 
 func validateNoProxy(newNoProxy string, localIP string) (bool, error) {
 	foundLocal := false
+	localIPParsed := net.ParseIP(localIP)
+	if localIPParsed == nil {
+		return false, fmt.Errorf("failed to parse local IP %q", localIP)
+	}
+
 	for _, oneEntry := range strings.Split(newNoProxy, ",") {
 		if oneEntry == localIP {
 			foundLocal = true
@@ -184,7 +197,7 @@ func validateNoProxy(newNoProxy string, localIP string) (bool, error) {
 			if err != nil {
 				return false, fmt.Errorf("failed to parse CIDR within no-proxy: %w", err)
 			}
-			if ipnet.Contains(net.ParseIP(localIP)) {
+			if ipnet.Contains(localIPParsed) {
 				foundLocal = true
 			}
 		}

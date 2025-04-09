@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"net"
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -8,6 +9,14 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
+
+// Mock network interface for testing
+type mockNetworkLookup struct{}
+
+func (m *mockNetworkLookup) FirstValidIPNet(networkInterface string) (*net.IPNet, error) {
+	_, ipnet, _ := net.ParseCIDR("192.168.1.0/24")
+	return ipnet, nil
+}
 
 func Test_getProxySpecFromFlags(t *testing.T) {
 	tests := []struct {
@@ -33,7 +42,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				HTTPProxy:       "http://lower-proxy",
 				HTTPSProxy:      "https://lower-proxy",
 				ProvidedNoProxy: "lower-no-proxy-1,lower-no-proxy-2",
-				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,lower-no-proxy-1,lower-no-proxy-2,10.244.0.0/17,10.244.128.0/17",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,10.244.0.0/17,10.244.128.0/17,lower-no-proxy-1,lower-no-proxy-2,192.168.1.0/24",
 			},
 		},
 		{
@@ -47,7 +56,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				HTTPProxy:       "http://upper-proxy",
 				HTTPSProxy:      "https://upper-proxy",
 				ProvidedNoProxy: "upper-no-proxy-1,upper-no-proxy-2",
-				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,upper-no-proxy-1,upper-no-proxy-2,10.244.0.0/17,10.244.128.0/17",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,10.244.0.0/17,10.244.128.0/17,upper-no-proxy-1,upper-no-proxy-2,192.168.1.0/24",
 			},
 		},
 		{
@@ -64,7 +73,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				HTTPProxy:       "http://lower-proxy",
 				HTTPSProxy:      "https://lower-proxy",
 				ProvidedNoProxy: "lower-no-proxy-1,lower-no-proxy-2",
-				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,lower-no-proxy-1,lower-no-proxy-2,10.244.0.0/17,10.244.128.0/17",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,10.244.0.0/17,10.244.128.0/17,lower-no-proxy-1,lower-no-proxy-2,192.168.1.0/24",
 			},
 		},
 		{
@@ -85,7 +94,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				HTTPProxy:       "http://flag-proxy",
 				HTTPSProxy:      "https://flag-proxy",
 				ProvidedNoProxy: "flag-no-proxy-1,flag-no-proxy-2",
-				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,flag-no-proxy-1,flag-no-proxy-2,10.244.0.0/17,10.244.128.0/17",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,10.244.0.0/17,10.244.128.0/17,flag-no-proxy-1,flag-no-proxy-2,192.168.1.0/24",
 			},
 		},
 		{
@@ -102,7 +111,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				HTTPProxy:       "http://flag-proxy",
 				HTTPSProxy:      "https://flag-proxy",
 				ProvidedNoProxy: "flag-no-proxy-1,flag-no-proxy-2",
-				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,flag-no-proxy-1,flag-no-proxy-2,1.1.1.1/24,2.2.2.2/24",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,1.1.1.1/24,2.2.2.2/24,flag-no-proxy-1,flag-no-proxy-2,192.168.1.0/24",
 			},
 		},
 		{
@@ -118,7 +127,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				HTTPProxy:       "http://flag-proxy",
 				HTTPSProxy:      "https://flag-proxy",
 				ProvidedNoProxy: "flag-no-proxy-1,flag-no-proxy-2",
-				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,flag-no-proxy-1,flag-no-proxy-2,10.0.0.0/17,10.0.128.0/17",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,10.0.0.0/17,10.0.128.0/17,flag-no-proxy-1,flag-no-proxy-2,192.168.1.0/24",
 			},
 		},
 		{
@@ -135,7 +144,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				HTTPProxy:       "http://lower-proxy",
 				HTTPSProxy:      "https://flag-proxy",
 				ProvidedNoProxy: "lower-no-proxy-1,lower-no-proxy-2",
-				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,lower-no-proxy-1,lower-no-proxy-2,10.244.0.0/17,10.244.128.0/17",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,10.244.0.0/17,10.244.128.0/17,lower-no-proxy-1,lower-no-proxy-2,192.168.1.0/24",
 			},
 		},
 	}
@@ -144,11 +153,15 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 			cmd := &cobra.Command{}
 			addCIDRFlags(cmd)
 			addProxyFlags(cmd)
+			cmd.Flags().String("network-interface", "", "The network interface to use for the cluster")
 
 			flagSet := cmd.Flags()
 			if tt.init != nil {
 				tt.init(t, flagSet)
 			}
+
+			// Override the network lookup with our mock
+			defaultNetworkLookupImpl = &mockNetworkLookup{}
 
 			got, err := getProxySpec(cmd)
 			assert.NoError(t, err, "unexpected error received")
