@@ -8,11 +8,29 @@ ignore:
   # Reference: https://github.com/kubernetes/kubernetes/pull/121842
   # This vulnerability is not in the code path and has been fixed upstream
   - vulnerability: CVE-2023-47108
-    # You can add additional criteria if needed:
-    # fix-state: fixed  # since it's fixed upstream
-    # package:
-    #   type: go  # if you want to specifically target Go packages
-    #   name: k8s.io/kubernetes  # if you want to target specific k8s packages
+
+# Match Trivy's configuration
+fail-on-severity: medium  # Equivalent to Trivy's CRITICAL,HIGH,MEDIUM setting
+output: table  # Default output format (will be overridden by action for SARIF)
+
+# Database configuration
+db:
+  auto-update: true  # Ensure vulnerability database is up to date, like Trivy
+
+# Search configuration to match Trivy's behavior
+search:
+  scope: "squashed"  # Similar to Trivy's default behavior
+  indexed-archives: true
+  unindexed-archives: true  # Ensure we don't miss vulnerabilities in archives
+
+# Registry configuration (similar to Trivy's behavior)
+registry:
+  insecure-skip-tls-verify: false
+  insecure-use-http: false
+
+# Logging configuration
+log:
+  level: "warn"  # Similar to Trivy's default
 
 # Default configuration options below
 # Uncomment and modify as needed
