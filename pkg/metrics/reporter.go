@@ -93,9 +93,9 @@ func NewReporter(executionID string, baseURL string, clusterID uuid.UUID, comman
 	}
 }
 
-// newBaseEvent creates a BaseEvent using the Reporter's fields.
-func (r *Reporter) newBaseEvent(eventType string, reason string, isExitEvent bool) types.BaseEvent {
-	return types.BaseEvent{
+// newGenericEvent creates a GenericEvent using the Reporter's fields.
+func (r *Reporter) newGenericEvent(eventType string, reason string, isExitEvent bool) types.GenericEvent {
+	return types.GenericEvent{
 		ExecutionID:  r.executionID,
 		ClusterID:    r.clusterID,
 		Version:      r.version,
@@ -118,7 +118,7 @@ func (r *Reporter) ReportInstallationStarted(ctx context.Context, licenseID stri
 	}
 
 	Send(ctx, r.baseURL, types.InstallationStarted{
-		BaseEvent:    r.newBaseEvent(types.InstallationStarted{}.Title(), "", false),
+		GenericEvent: r.newGenericEvent(types.EventTypeInstallationStarted, "", false),
 		BinaryName:   runtimeconfig.BinaryName(),
 		Type:         "centralized",
 		LicenseID:    licenseID,
@@ -130,7 +130,7 @@ func (r *Reporter) ReportInstallationStarted(ctx context.Context, licenseID stri
 // ReportInstallationSucceeded reports that the installation has succeeded.
 func (r *Reporter) ReportInstallationSucceeded(ctx context.Context) {
 	Send(ctx, r.baseURL, types.InstallationSucceeded{
-		BaseEvent: r.newBaseEvent(types.InstallationSucceeded{}.Title(), "", true),
+		GenericEvent: r.newGenericEvent(types.EventTypeInstallationSucceeded, "", true),
 	})
 }
 
@@ -140,23 +140,23 @@ func (r *Reporter) ReportInstallationFailed(ctx context.Context, err error) {
 		return
 	}
 	Send(ctx, r.baseURL, types.InstallationFailed{
-		BaseEvent: r.newBaseEvent(types.InstallationFailed{}.Title(), err.Error(), true),
+		GenericEvent: r.newGenericEvent(types.EventTypeInstallationFailed, err.Error(), true),
 	})
 }
 
 // ReportJoinStarted reports that a join has started.
 func (r *Reporter) ReportJoinStarted(ctx context.Context) {
 	Send(ctx, r.baseURL, types.JoinStarted{
-		BaseEvent: r.newBaseEvent(types.JoinStarted{}.Title(), "", false),
-		NodeName:  getHostname(),
+		GenericEvent: r.newGenericEvent(types.EventTypeJoinStarted, "", false),
+		NodeName:     getHostname(),
 	})
 }
 
 // ReportJoinSucceeded reports that a join has finished successfully.
 func (r *Reporter) ReportJoinSucceeded(ctx context.Context) {
 	Send(ctx, r.baseURL, types.JoinSucceeded{
-		BaseEvent: r.newBaseEvent(types.JoinSucceeded{}.Title(), "", true),
-		NodeName:  getHostname(),
+		GenericEvent: r.newGenericEvent(types.EventTypeJoinSucceeded, "", true),
+		NodeName:     getHostname(),
 	})
 }
 
@@ -166,8 +166,8 @@ func (r *Reporter) ReportJoinFailed(ctx context.Context, err error) {
 		return
 	}
 	Send(ctx, r.baseURL, types.JoinFailed{
-		BaseEvent: r.newBaseEvent(types.JoinFailed{}.Title(), err.Error(), true),
-		NodeName:  getHostname(),
+		GenericEvent: r.newGenericEvent(types.EventTypeJoinFailed, err.Error(), true),
+		NodeName:     getHostname(),
 	})
 }
 
@@ -180,7 +180,7 @@ func (r *Reporter) ReportPreflightsFailed(ctx context.Context, output preflights
 	}
 
 	ev := types.PreflightsFailed{
-		BaseEvent:       r.newBaseEvent("PreflightsFailed", "", true),
+		GenericEvent:    r.newGenericEvent(types.EventTypePreflightsFailed, "", true),
 		NodeName:        getHostname(),
 		PreflightOutput: string(outputJSON),
 	}
@@ -196,7 +196,7 @@ func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output prefligh
 	}
 
 	ev := types.PreflightsBypassed{
-		BaseEvent:       r.newBaseEvent("PreflightsBypassed", "", false),
+		GenericEvent:    r.newGenericEvent(types.EventTypePreflightsBypassed, "", false),
 		NodeName:        getHostname(),
 		PreflightOutput: string(outputJSON),
 	}
@@ -205,9 +205,7 @@ func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output prefligh
 
 // ReportSignalAborted reports that a process was terminated by a signal.
 func (r *Reporter) ReportSignalAborted(ctx context.Context, signal os.Signal) {
-	ev := types.SignalAborted{
-		BaseEvent: r.newBaseEvent("SignalAborted", signal.String(), true),
-	}
+	ev := r.newGenericEvent(types.EventTypeSignalAborted, signal.String(), true)
 	go Send(ctx, r.baseURL, ev)
 }
 

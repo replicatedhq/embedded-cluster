@@ -23,7 +23,7 @@ func TestSend(t *testing.T) {
 		{
 			name: "InstallationStarted",
 			event: types.InstallationStarted{
-				BaseEvent: types.BaseEvent{
+				GenericEvent: types.GenericEvent{
 					ExecutionID:  "test-id",
 					ClusterID:    uuid.New(),
 					Version:      "1.2.3",
@@ -38,7 +38,7 @@ func TestSend(t *testing.T) {
 		{
 			name: "InstallationSucceeded",
 			event: types.InstallationSucceeded{
-				BaseEvent: types.BaseEvent{
+				GenericEvent: types.GenericEvent{
 					ExecutionID:  "test-id",
 					ClusterID:    uuid.New(),
 					Version:      "1.2.3",
@@ -50,7 +50,7 @@ func TestSend(t *testing.T) {
 		{
 			name: "InstallationFailed",
 			event: types.InstallationFailed{
-				BaseEvent: types.BaseEvent{
+				GenericEvent: types.GenericEvent{
 					ExecutionID:  "test-id",
 					ClusterID:    uuid.New(),
 					Version:      "1.2.3",
@@ -63,7 +63,7 @@ func TestSend(t *testing.T) {
 		{
 			name: "JoinStarted",
 			event: types.JoinStarted{
-				BaseEvent: types.BaseEvent{
+				GenericEvent: types.GenericEvent{
 					ExecutionID:  "test-id",
 					ClusterID:    uuid.New(),
 					Version:      "1.2.3",
@@ -76,7 +76,7 @@ func TestSend(t *testing.T) {
 		{
 			name: "JoinSucceeded",
 			event: types.JoinSucceeded{
-				BaseEvent: types.BaseEvent{
+				GenericEvent: types.GenericEvent{
 					ExecutionID:  "test-id",
 					ClusterID:    uuid.New(),
 					Version:      "1.2.3",
@@ -89,7 +89,7 @@ func TestSend(t *testing.T) {
 		{
 			name: "JoinFailed",
 			event: types.JoinFailed{
-				BaseEvent: types.BaseEvent{
+				GenericEvent: types.GenericEvent{
 					ExecutionID:  "test-id",
 					ClusterID:    uuid.New(),
 					Version:      "1.2.3",
