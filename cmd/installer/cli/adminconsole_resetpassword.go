@@ -43,7 +43,7 @@ func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Comma
 					}
 					promptB, err := prompts.New().Password("Confirm the Admin Console password:")
 					if err != nil {
-						return fmt.Errorf("failed to get password: %w", err)
+						return fmt.Errorf("failed to get password confirmation: %w", err)
 					}
 
 					if validateAdminConsolePassword(promptA, promptB) {
