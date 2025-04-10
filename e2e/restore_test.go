@@ -33,7 +33,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bookworm",
-		LicensePath:  "snapshot-license.yaml",
+		LicensePath:  "licenses/snapshot-license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -131,7 +131,7 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 
 	appVersion := fmt.Sprintf("appver-%s-legacydr", os.Getenv("SHORT_SHA"))
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", appVersion, os.Getenv("SNAPSHOT_LICENSE_ID"), "false"}
+	line := []string{"vandoor-prepare.sh", appVersion, SnapshotLicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -216,7 +216,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		Nodes:               1,
 		Image:               "debian/12",
 		WithProxy:           true,
-		LicensePath:         "snapshot-license.yaml",
+		LicensePath:         "licenses/snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -316,7 +316,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bookworm",
-		LicensePath:  "snapshot-license.yaml",
+		LicensePath:  "licenses/snapshot-license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -370,7 +370,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_SNAPSHOT_LICENSE_ID"})
+	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	requiredEnvVars := []string{
 		"DR_AWS_S3_ENDPOINT",
@@ -392,9 +392,9 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, AirgapSnapshotLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapSnapshotLicenseID)
 		},
 	)
 
@@ -533,7 +533,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		T:            t,
 		Nodes:        3,
 		Distro:       "debian-bookworm",
-		LicensePath:  "snapshot-license.yaml",
+		LicensePath:  "licenses/snapshot-license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -676,9 +676,9 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, AirgapSnapshotLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapSnapshotLicenseID)
 		},
 	)
 
