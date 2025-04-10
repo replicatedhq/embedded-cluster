@@ -435,9 +435,9 @@ func ensureAdminConsolePassword(flags *InstallCmdFlags) error {
 			logrus.Infof("\nThe Admin Console password is set to %q.", "password")
 			flags.adminConsolePassword = "password"
 		} else {
+			logrus.Info("")
 			maxTries := 3
 			for i := 0; i < maxTries; i++ {
-				logrus.Info("")
 				promptA := prompts.New().Password(fmt.Sprintf("Set the Admin Console password (minimum %d characters):", minAdminPasswordLength))
 				promptB := prompts.New().Password("Confirm the Admin Console password:")
 
@@ -795,7 +795,7 @@ const minAdminPasswordLength = 6
 
 func validateAdminConsolePassword(password, passwordCheck string) bool {
 	if password != passwordCheck {
-		logrus.Errorf("Passwords don't match. Please try again.")
+		logrus.Errorf("Passwords don't match. Please try again.\n")
 		return false
 	}
 	if len(password) < minAdminPasswordLength {
