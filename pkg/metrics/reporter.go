@@ -184,7 +184,7 @@ func (r *Reporter) ReportPreflightsFailed(ctx context.Context, output preflights
 		NodeName:        getHostname(),
 		PreflightOutput: string(outputJSON),
 	}
-	go Send(ctx, r.baseURL, ev)
+	Send(ctx, r.baseURL, ev)
 }
 
 // ReportPreflightsBypassed reports that the preflights failed but were bypassed.
@@ -200,13 +200,13 @@ func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output prefligh
 		NodeName:        getHostname(),
 		PreflightOutput: string(outputJSON),
 	}
-	go Send(ctx, r.baseURL, ev)
+	Send(ctx, r.baseURL, ev)
 }
 
 // ReportSignalAborted reports that a process was terminated by a signal.
 func (r *Reporter) ReportSignalAborted(ctx context.Context, signal os.Signal) {
 	ev := r.newGenericEvent(types.EventTypeSignalAborted, signal.String(), true)
-	go Send(ctx, r.baseURL, ev)
+	Send(ctx, r.baseURL, ev)
 }
 
 // getHostname returns the hostname or "unknown" if there's an error.
