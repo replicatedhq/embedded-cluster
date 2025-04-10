@@ -37,8 +37,14 @@ func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Comma
 			} else {
 				maxTries := 3
 				for i := 0; i < maxTries; i++ {
-					promptA := prompts.New().Password(fmt.Sprintf("Set the Admin Console password (minimum %d characters):", minAdminPasswordLength))
-					promptB := prompts.New().Password("Confirm the Admin Console password:")
+					promptA, err := prompts.New().Password(fmt.Sprintf("Set the Admin Console password (minimum %d characters):", minAdminPasswordLength))
+					if err != nil {
+						return fmt.Errorf("failed to get password: %w", err)
+					}
+					promptB, err := prompts.New().Password("Confirm the Admin Console password:")
+					if err != nil {
+						return fmt.Errorf("failed to get password: %w", err)
+					}
 
 					if validateAdminConsolePassword(promptA, promptB) {
 						password = promptA

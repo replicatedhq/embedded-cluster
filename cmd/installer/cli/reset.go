@@ -72,8 +72,14 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 
 			logrus.Warn("This will remove this node from the cluster and completely reset it, removing all data stored on the node.")
 			logrus.Warn("This node will also reboot. Do not reset another node until this is complete.")
-			if !force && !assumeYes && !prompts.New().Confirm("Do you want to continue?", false) {
-				return fmt.Errorf("Aborting")
+			if !force && !assumeYes {
+				confirmed, err := prompts.New().Confirm("Do you want to continue?", false)
+				if err != nil {
+					return fmt.Errorf("failed to get confirmation: %w", err)
+				}
+				if !confirmed {
+					return fmt.Errorf("Aborting")
+				}
 			}
 
 			// populate options struct with host information
@@ -234,7 +240,12 @@ func checkErrPrompt(noPrompt bool, force bool, err error) bool {
 		return false
 	}
 	logrus.Info("Continuing may leave the cluster in an unexpected state.")
-	return prompts.New().Confirm("Do you want to continue anyway?", false)
+	confirmed, err := prompts.New().Confirm("Do you want to continue anyway?", false)
+	if err != nil {
+		logrus.Errorf("failed to get confirmation: %v", err)
+		return false
+	}
+	return confirmed
 }
 
 // maybePrintHAWarning prints a warning message when the user is running a reset a node
