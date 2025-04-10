@@ -18,8 +18,8 @@ import (
 
 func TestServeCmd(t *testing.T) {
 	// Create temporary directory for test
-	dataDir, err := os.MkdirTemp(t.TempDir(), "lam-test-*")
-	require.NoError(t, err)
+	dataDir := t.TempDir()
+	t.Setenv("TMPDIR", dataDir) // hack as the cli sets TMPDIR, this will reset it after the test
 
 	// Detect a free port
 	listener, err := net.Listen("tcp", ":0")

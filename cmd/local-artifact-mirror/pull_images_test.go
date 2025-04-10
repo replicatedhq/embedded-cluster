@@ -21,12 +21,12 @@ import (
 
 func TestPullImagesCmd(t *testing.T) {
 	// Create temporary directory for test
-	dataDir, err := os.MkdirTemp(t.TempDir(), "pull-images-test-*")
-	require.NoError(t, err)
+	dataDir := t.TempDir()
+	t.Setenv("TMPDIR", dataDir) // hack as the cli sets TMPDIR, this will reset it after the test
 
 	// Create a fake client with test Installation
 	scheme := runtime.NewScheme()
-	err = ecv1beta1.AddToScheme(scheme)
+	err := ecv1beta1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	// Create a test Installation
@@ -74,8 +74,7 @@ func TestPullImagesCmd(t *testing.T) {
 			mock: func() *mockPuller {
 				m := &mockPuller{}
 				// Create a test artifact file
-				artifactDir, err := os.MkdirTemp(t.TempDir(), "artifact-test-*")
-				require.NoError(t, err)
+				artifactDir := t.TempDir()
 				m.On("PullArtifact", mock.Anything, mock.Anything, "registry.example.com/images:latest").
 					Once().
 					Run(func(args mock.Arguments) {
@@ -95,7 +94,7 @@ func TestPullImagesCmd(t *testing.T) {
 			mock: func() *mockPuller {
 				m := &mockPuller{}
 				// Create a test artifact file
-				artifactDir, err := os.MkdirTemp(t.TempDir(), "artifact-test-*")
+				artifactDir := t.TempDir()
 				require.NoError(t, err)
 				m.On("PullArtifact", mock.Anything, mock.Anything, "registry.example.com/images:latest").
 					Once().
@@ -134,8 +133,7 @@ func TestPullImagesCmd(t *testing.T) {
 			mock: func() *mockPuller {
 				m := &mockPuller{}
 				// Create another dir for failed pulls
-				emptyDir, err := os.MkdirTemp(t.TempDir(), "empty-test-*")
-				require.NoError(t, err)
+				emptyDir := t.TempDir()
 				m.On("PullArtifact", mock.Anything, mock.Anything, "registry.example.com/images:latest").
 					Once().
 					Return(emptyDir, nil)
