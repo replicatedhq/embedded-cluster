@@ -121,28 +121,28 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 
 // applyUnsupportedOverrides applies overrides to the k0s configuration. Applies the
 // overrides embedded into the binary and then the ones provided by the user (--overrides).
-func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, overrides string) (*k0sv1beta1.ClusterConfig, error) {
+func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, endUserOverridesPath string) (*k0sv1beta1.ClusterConfig, error) {
 	embcfg := release.GetEmbeddedClusterConfig()
 	if embcfg != nil {
 		// Apply vendor k0s overrides
-		overrides := embcfg.Spec.UnsupportedOverrides.K0s
+		vendorOverrides := embcfg.Spec.UnsupportedOverrides.K0s
 		var err error
-		cfg, err = config.PatchK0sConfig(cfg, overrides)
+		cfg, err = config.PatchK0sConfig(cfg, vendorOverrides)
 		if err != nil {
 			return nil, fmt.Errorf("unable to patch k0s config: %w", err)
 		}
 	}
 
-	eucfg, err := helpers.ParseEndUserConfig(overrides)
+	eucfg, err := helpers.ParseEndUserConfig(endUserOverridesPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to process overrides file: %w", err)
 	}
 
 	if eucfg != nil {
 		// Apply end user k0s overrides
-		overrides := eucfg.Spec.UnsupportedOverrides.K0s
+		endUserOverrides := eucfg.Spec.UnsupportedOverrides.K0s
 		var err error
-		cfg, err = config.PatchK0sConfig(cfg, overrides)
+		cfg, err = config.PatchK0sConfig(cfg, endUserOverrides)
 		if err != nil {
 			return nil, fmt.Errorf("unable to apply overrides: %w", err)
 		}
