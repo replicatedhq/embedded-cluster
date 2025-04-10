@@ -43,8 +43,6 @@ func ServeCmd(cli *CLI) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			port := cli.V.GetInt("port")
 
-			fmt.Println("PORT", port)
-
 			handler := http.NewServeMux()
 
 			fileServer := http.FileServer(http.Dir(runtimeconfig.EmbeddedClusterHomeDirectory()))
