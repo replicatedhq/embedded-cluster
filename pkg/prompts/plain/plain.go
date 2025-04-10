@@ -57,7 +57,7 @@ func (p Plain) Confirm(msg string, defvalue bool) (bool, error) {
 		fmt.Fprintf(p.out, "%s %s: ", msg, options)
 		input, err := reader.ReadString('\n')
 		if err != nil {
-			return false, fmt.Errorf("unable to read input: %w", err)
+			return false, fmt.Errorf("read input: %w", err)
 		}
 		input = strings.ToLower(strings.TrimSpace(input))
 		switch input {
@@ -78,7 +78,7 @@ func (p Plain) PressEnter(msg string) error {
 	fmt.Fprintf(p.out, "%s ", msg)
 	reader := bufio.NewReader(p.in)
 	if _, err := reader.ReadString('\n'); err != nil {
-		return fmt.Errorf("unable to read input: %w", err)
+		return fmt.Errorf("read input: %w", err)
 	}
 	return nil
 }
@@ -100,7 +100,7 @@ func (p Plain) Select(msg string, options []string, _ string) (string, error) {
 		fmt.Fprintf(p.out, "Type one of the options above: ")
 		input, err := reader.ReadString('\n')
 		if err != nil {
-			return "", fmt.Errorf("unable to read input: %w", err)
+			return "", fmt.Errorf("read input: %w", err)
 		}
 		input = strings.TrimSuffix(input, "\n")
 		for _, option := range options {
@@ -120,7 +120,7 @@ func (p Plain) Input(msg string, defvalue string, required bool) (string, error)
 	for {
 		fmt.Fprintf(p.out, "%s ", msg)
 		if input, err := reader.ReadString('\n'); err != nil {
-			return "", fmt.Errorf("unable to read input: %w", err)
+			return "", fmt.Errorf("read input: %w", err)
 		} else if !required || input != "" {
 			return strings.TrimSuffix(input, "\n"), nil
 		}

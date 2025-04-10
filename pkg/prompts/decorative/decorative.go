@@ -2,8 +2,6 @@
 package decorative
 
 import (
-	"fmt"
-
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/sirupsen/logrus"
 )
@@ -21,7 +19,7 @@ func (d Decorative) Confirm(msg string, defvalue bool) (bool, error) {
 	var response bool
 	var confirm = &survey.Confirm{Message: msg, Default: defvalue}
 	if err := survey.AskOne(confirm, &response); err != nil {
-		return false, fmt.Errorf("unable to confirm: %w", err)
+		return false, err
 	}
 	return response, nil
 }
@@ -31,7 +29,7 @@ func (d Decorative) PressEnter(msg string) error {
 	var i string
 	in := &survey.Input{Message: msg}
 	if err := survey.AskOne(in, &i); err != nil {
-		return fmt.Errorf("unable to ask for input: %w", err)
+		return err
 	}
 	return nil
 }
@@ -42,7 +40,7 @@ func (d Decorative) Password(msg string) (string, error) {
 	for pass == "" {
 		question := &survey.Password{Message: msg}
 		if err := survey.AskOne(question, &pass); err != nil {
-			return "", fmt.Errorf("unable to ask for input: %w", err)
+			return "", err
 		} else if pass == "" {
 			logrus.Error("Password cannot be empty")
 		}
@@ -59,7 +57,7 @@ func (d Decorative) Select(msg string, options []string, defvalue string) (strin
 	}
 	var response string
 	if err := survey.AskOne(question, &response); err != nil {
-		return "", fmt.Errorf("unable to ask for input: %w", err)
+		return "", err
 	}
 	return response, nil
 }
@@ -71,7 +69,7 @@ func (d Decorative) Input(msg string, defvalue string, required bool) (string, e
 	for response == "" {
 		question := &survey.Input{Message: msg, Default: defvalue}
 		if err := survey.AskOne(question, &response); err != nil {
-			return "", fmt.Errorf("unable to ask for input: %w", err)
+			return "", err
 		} else if !required || response != "" {
 			break
 		}
