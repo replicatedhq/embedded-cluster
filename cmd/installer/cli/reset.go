@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AlecAivazis/survey/v2/terminal"
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/k0sproject/k0s/pkg/etcd"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
@@ -241,7 +242,9 @@ func checkErrPrompt(noPrompt bool, force bool, err error) bool {
 	}
 	logrus.Info("Continuing may leave the cluster in an unexpected state.")
 	confirmed, err := prompts.New().Confirm("Do you want to continue anyway?", false)
-	if err != nil {
+	if errors.Is(err, terminal.InterruptErr) {
+		panic(err)
+	} else if err != nil {
 		logrus.Errorf("failed to get confirmation: %v", err)
 		return false
 	}

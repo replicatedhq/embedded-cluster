@@ -142,7 +142,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store
 	if state != ecRestoreStateNew {
 		shouldResume, err := prompts.New().Confirm("A previous restore operation was detected. Would you like to resume?", true)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get confirmation: %w", err)
 		}
 		logrus.Info("")
 		if !shouldResume {
@@ -352,7 +352,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		logrus.Info("Enter information to configure access to your backup storage location.\n")
 
 		if err := promptForS3BackupStore(s3Store); err != nil {
-			return err
+			return fmt.Errorf("failed to prompt for backup store: %w", err)
 		}
 	}
 	s3Store.prefix = strings.TrimPrefix(s3Store.prefix, "/")
@@ -1590,7 +1590,7 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkI
 	for {
 		p, err := prompts.New().Input("Type 'continue' when you are done adding nodes:", "", false)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get confirmation: %w", err)
 		}
 		if p != "continue" {
 			logrus.Info("Please type 'continue' to proceed")

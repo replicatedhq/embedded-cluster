@@ -84,7 +84,6 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
 					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
-					return err
 				} else {
 					metricsReporter.ReportJoinFailed(ctx, err)
 				}
