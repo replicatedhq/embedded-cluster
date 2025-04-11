@@ -26,6 +26,7 @@ type InstallOptions struct {
 	PrivateCAs              []string
 	ServiceCIDR             string
 	DisasterRecoveryEnabled bool
+	IsMultiNodeEnabled      bool
 	EmbeddedConfigSpec      *ecv1beta1.ConfigSpec
 	EndUserConfigSpec       *ecv1beta1.ConfigSpec
 	KotsInstaller           adminconsole.KotsInstaller
@@ -95,6 +96,7 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		Password:                 opts.AdminConsolePwd,
 		PrivateCAs:               opts.PrivateCAs,
 		KotsInstaller:            opts.KotsInstaller,
+		IsMultiNodeEnabled:       opts.IsMultiNodeEnabled,
 		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
 		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
 		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,

@@ -33,7 +33,7 @@ func TestProxiedEnvironment(t *testing.T) {
 		Nodes:               4,
 		WithProxy:           true,
 		Image:               "debian/12",
-		LicensePath:         "license.yaml",
+		LicensePath:         "licenses/license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -124,7 +124,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		Nodes:               4,
 		WithProxy:           true,
 		Image:               "debian/12",
-		LicensePath:         "license.yaml",
+		LicensePath:         "licenses/license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -225,7 +225,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 		WithProxy:           true,
 		Image:               "debian/12",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-		LicensePath:         "license.yaml",
+		LicensePath:         "licenses/license.yaml",
 	})
 	defer tc.Cleanup()
 

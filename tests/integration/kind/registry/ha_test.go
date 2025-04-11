@@ -97,21 +97,24 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		HighAvailability: false,
 	})
 
-	cfgSpec := &ecv1beta1.ConfigSpec{
-		Domains: ecv1beta1.Domains{
-			ProxyRegistryDomain: "proxy.replicated.com",
+	inSpec := ecv1beta1.InstallationSpec{
+		AirGap: true,
+		Config: &ecv1beta1.ConfigSpec{
+			Domains: ecv1beta1.Domains{
+				ProxyRegistryDomain: "proxy.replicated.com",
+			},
 		},
 	}
 
-	enableHAAndCancelContextOnMessage(t, kcli, kclient, hcli, cfgSpec,
+	enableHAAndCancelContextOnMessage(t, kcli, kclient, hcli, inSpec,
 		regexp.MustCompile(`StatefulSet is ready: seaweedfs`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, kcli, kclient, hcli, cfgSpec,
+	enableHAAndCancelContextOnMessage(t, kcli, kclient, hcli, inSpec,
 		regexp.MustCompile(`Migrating data for high availability \(`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, kcli, kclient, hcli, cfgSpec,
+	enableHAAndCancelContextOnMessage(t, kcli, kclient, hcli, inSpec,
 		regexp.MustCompile(`Updating the Admin Console for high availability`),
 	)
 
@@ -123,7 +126,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	loading := newTestingSpinner(t)
 	func() {
 		defer loading.Close()
-		err = addons.EnableHA(ctx, kcli, kclient, hcli, true, "10.96.0.0/12", nil, cfgSpec, loading)
+		err = addons.EnableHA(ctx, kcli, kclient, hcli, "10.96.0.0/12", inSpec, loading)
 		require.NoError(t, err)
 	}()
 
@@ -139,7 +142,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 func enableHAAndCancelContextOnMessage(
 	t *testing.T, kcli client.Client, kclient kubernetes.Interface, hcli helm.Client,
-	cfgSpec *ecv1beta1.ConfigSpec,
+	inSpec ecv1beta1.InstallationSpec,
 	re *regexp.Regexp,
 ) {
 	canEnable, reason, err := addons.CanEnableHA(t.Context(), kcli)
@@ -185,7 +188,7 @@ func enableHAAndCancelContextOnMessage(
 	defer loading.Close()
 
 	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
-	err = addons.EnableHA(ctx, kcli, kclient, hcli, true, "10.96.0.0/12", nil, cfgSpec, loading)
+	err = addons.EnableHA(ctx, kcli, kclient, hcli, "10.96.0.0/12", inSpec, loading)
 	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
 	t.Logf("%s cancelled context and got error: %v", formattedTime(), err)
 }

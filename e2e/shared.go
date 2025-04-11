@@ -11,6 +11,15 @@ import (
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
 )
 
+const (
+	// License IDs used for e2e tests
+	LicenseID                  = "2cQCFfBxG7gXDmq1yAgPSM4OViF"
+	AirgapLicenseID            = "2eAqdricgviUeki42j02nIn1ayl"
+	SnapshotLicenseID          = "2fSe1CXtMOX9jNgHTe00mvqO502"
+	AirgapSnapshotLicenseID    = "2gEzHseTJQ4z2Axwj7KK9RYt4oT"
+	MultiNodeDisabledLicenseID = "2vYEhmeVXsoDDoNB51uzBzCpang"
+)
+
 type installOptions struct {
 	viaCLI                  bool
 	version                 string

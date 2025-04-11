@@ -15,7 +15,7 @@ func TestMultiNodeReset(t *testing.T) {
 		T:            t,
 		Nodes:        4,
 		Distro:       "debian-bookworm",
-		LicensePath:  "license.yaml",
+		LicensePath:  "licenses/license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()

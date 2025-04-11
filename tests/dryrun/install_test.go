@@ -72,6 +72,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
+		"isMultiNodeEnabled": true,
 		"kurlProxy.nodePort": float64(30000),
 	})
 	assertHelmValuePrefixes(t, adminConsoleOpts.Values, map[string]string{
