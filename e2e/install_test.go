@@ -648,16 +648,14 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	}
 
 	// Join the additional nodes to the cluster
-	t.Logf("%s: joining controller node 2 to the cluster after upgrade", time.Now().Format(time.RFC3339))
+	t.Logf("%s: joining additional controller and worker node to the cluster after upgrade", time.Now().Format(time.RFC3339))
 	joinControllerNode(t, tc, 2)
-	t.Logf("%s: joining worker node 3 to the cluster after upgrade", time.Now().Format(time.RFC3339))
 	joinWorkerNode(t, tc, 3)
 
-	t.Logf("%s: waiting for all nodes to be ready after joining additional nodes", time.Now().Format(time.RFC3339))
-	waitForNodes(t, tc, 4, nil)
+	// wait for all nodes to report as ready
+	waitForNodes(t, tc, 4, withEnv)
 
 	// Check worker profiles for the joined nodes
-	t.Logf("%s: checking worker profiles for the joined nodes", time.Now().Format(time.RFC3339))
 	checkWorkerProfile(t, tc, 2)
 	checkWorkerProfile(t, tc, 3)
 
@@ -676,8 +674,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	}
 
 	// wait for all nodes to report as ready after upgrade
-	t.Logf("%s: waiting for all nodes to be ready after upgrade", time.Now().Format(time.RFC3339))
-	waitForNodes(t, tc, 4, nil)
+	waitForNodes(t, tc, 4, withEnv)
 
 	// use upgraded binaries to run the reset command
 	// TODO: this is a temporary workaround and should eventually be a feature of EC
