@@ -132,12 +132,20 @@ func testDefaultInstallationImpl(t *testing.T) {
 		validate func(string)
 	}{
 		{
-			title:    "InstallationStarted",
-			validate: func(payload string) {},
+			title: "InstallationStarted",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"entryCommand":"install"`)
+				assert.Regexp(t, `"flags":"--license .+/license.yaml --yes"`, payload)
+				assert.Contains(t, payload, `"isExitEvent":false`)
+				assert.Contains(t, payload, `"eventType":"InstallationStarted"`)
+			},
 		},
 		{
-			title:    "InstallationSucceeded",
-			validate: func(payload string) {},
+			title: "InstallationSucceeded",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":true`)
+				assert.Contains(t, payload, `"eventType":"InstallationSucceeded"`)
+			},
 		},
 	})
 

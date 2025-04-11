@@ -32,7 +32,7 @@ func TestReportInstallationStarted(t *testing.T) {
 				req.NoError(err)
 				err = json.Unmarshal(decoded["event"], &event)
 				req.NoError(err)
-				req.Equal("install -l ./license.yaml --admin-console-password ***** --skip-host-preflights --http-proxy ***** --https-proxy=***** --admin-console-port 8080", event.Flags)
+				req.Equal("-l ./license.yaml --admin-console-password ***** --skip-host-preflights --http-proxy ***** --https-proxy=***** --admin-console-port 8080", event.Flags)
 			},
 		},
 	} {
@@ -51,7 +51,9 @@ func TestReportInstallationStarted(t *testing.T) {
 			defer func() { os.Args = originalArgs }()
 			os.Args = append([]string{os.Args[0]}, test.OSArgs...)
 
-			ReportInstallationStarted(context.Background(), server.URL, "license-id", ClusterID())
+			clusterID := ClusterID()
+			reporter := NewReporter("test-execution-id", server.URL, clusterID, "install", test.OSArgs[1:])
+			reporter.ReportInstallationStarted(context.Background(), "license-id")
 		})
 	}
 }

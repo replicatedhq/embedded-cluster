@@ -23,9 +23,13 @@ func TestSend(t *testing.T) {
 		{
 			name: "InstallationStarted",
 			event: types.InstallationStarted{
-				ClusterID:  uuid.New(),
-				Version:    "1.2.3",
-				Flags:      "foo",
+				GenericEvent: types.GenericEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    uuid.New(),
+					Version:      "1.2.3",
+					EntryCommand: "install",
+					Flags:        "--foo --bar --baz",
+				},
 				BinaryName: "bar",
 				Type:       "baz",
 				LicenseID:  "qux",
@@ -34,36 +38,66 @@ func TestSend(t *testing.T) {
 		{
 			name: "InstallationSucceeded",
 			event: types.InstallationSucceeded{
-				ClusterID: uuid.New(),
+				GenericEvent: types.GenericEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    uuid.New(),
+					Version:      "1.2.3",
+					EntryCommand: "install",
+					Flags:        "--foo --bar --baz",
+				},
 			},
 		},
 		{
 			name: "InstallationFailed",
 			event: types.InstallationFailed{
-				ClusterID: uuid.New(),
-				Reason:    "foo",
+				GenericEvent: types.GenericEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    uuid.New(),
+					Version:      "1.2.3",
+					EntryCommand: "install",
+					Flags:        "--foo --bar --baz",
+					Reason:       "foo",
+				},
 			},
 		},
 		{
 			name: "JoinStarted",
 			event: types.JoinStarted{
-				ClusterID: uuid.New(),
-				NodeName:  "foo",
+				GenericEvent: types.GenericEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    uuid.New(),
+					Version:      "1.2.3",
+					EntryCommand: "join",
+					Flags:        "--foo --bar --baz",
+				},
+				NodeName: "foo",
 			},
 		},
 		{
 			name: "JoinSucceeded",
 			event: types.JoinSucceeded{
-				ClusterID: uuid.New(),
-				NodeName:  "foo",
+				GenericEvent: types.GenericEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    uuid.New(),
+					Version:      "1.2.3",
+					EntryCommand: "join",
+					Flags:        "--foo --bar --baz",
+				},
+				NodeName: "foo",
 			},
 		},
 		{
 			name: "JoinFailed",
 			event: types.JoinFailed{
-				ClusterID: uuid.New(),
-				NodeName:  "foo",
-				Reason:    "bar",
+				GenericEvent: types.GenericEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    uuid.New(),
+					Version:      "1.2.3",
+					EntryCommand: "join",
+					Flags:        "--foo --bar --baz",
+					Reason:       "bar",
+				},
+				NodeName: "foo",
 			},
 		},
 	} {
