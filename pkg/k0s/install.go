@@ -127,7 +127,7 @@ func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, endUserOverridesPa
 		// Apply vendor k0s overrides
 		vendorOverrides := embcfg.Spec.UnsupportedOverrides.K0s
 		var err error
-		cfg, err = config.PatchK0sConfig(cfg, vendorOverrides)
+		cfg, err = config.PatchK0sConfig(cfg, vendorOverrides, false)
 		if err != nil {
 			return nil, fmt.Errorf("unable to patch k0s config: %w", err)
 		}
@@ -142,7 +142,7 @@ func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, endUserOverridesPa
 		// Apply end user k0s overrides
 		endUserOverrides := eucfg.Spec.UnsupportedOverrides.K0s
 		var err error
-		cfg, err = config.PatchK0sConfig(cfg, endUserOverrides)
+		cfg, err = config.PatchK0sConfig(cfg, endUserOverrides, false)
 		if err != nil {
 			return nil, fmt.Errorf("unable to apply overrides: %w", err)
 		}
@@ -169,7 +169,7 @@ func PatchK0sConfig(path string, patch string) error {
 			return fmt.Errorf("unable to unmarshal node config: %w", err)
 		}
 	}
-	result, err := config.PatchK0sConfig(finalcfg.DeepCopy(), patch)
+	result, err := config.PatchK0sConfig(finalcfg.DeepCopy(), patch, false)
 	if err != nil {
 		return fmt.Errorf("unable to patch node config: %w", err)
 	}

@@ -205,12 +205,12 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 	// Apply unsupported overrides from the installation
 	if (in.Spec.Config != nil && in.Spec.Config.UnsupportedOverrides.K0s != "") || in.Spec.EndUserK0sConfigOverrides != "" {
 
-		newCfg, err := config.PatchK0sConfig(&currentCfg, in.Spec.Config.UnsupportedOverrides.K0s)
+		newCfg, err := config.PatchK0sConfig(&currentCfg, in.Spec.Config.UnsupportedOverrides.K0s, true)
 		if err != nil {
 			return fmt.Errorf("apply vendor unsupported overrides: %w", err)
 		}
 
-		newCfg, err = config.PatchK0sConfig(newCfg, in.Spec.EndUserK0sConfigOverrides)
+		newCfg, err = config.PatchK0sConfig(newCfg, in.Spec.EndUserK0sConfigOverrides, true)
 		if err != nil {
 			return fmt.Errorf("apply end user unsupported overrides: %w", err)
 		}

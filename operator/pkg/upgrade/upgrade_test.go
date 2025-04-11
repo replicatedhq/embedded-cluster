@@ -213,6 +213,66 @@ config:
 				assert.Contains(t, updatedConfig.Spec.Images.CoreDNS.Image, "registry.com/")
 			},
 		},
+		{
+			name: "immutable fields are not changed by unsupported overrides",
+			currentConfig: &k0sv1beta1.ClusterConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "k0s",
+					Namespace: "kube-system",
+				},
+				Spec: &k0sv1beta1.ClusterSpec{
+					Network: &k0sv1beta1.Network{
+						ServiceCIDR: "10.96.0.0/12",
+					},
+					Storage: &k0sv1beta1.StorageSpec{
+						Type: "abc",
+					},
+					API: &k0sv1beta1.APISpec{
+						Address: "192.168.1.1",
+					},
+				},
+			},
+			installation: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					Config: &ecv1beta1.ConfigSpec{
+						Domains: ecv1beta1.Domains{
+							ProxyRegistryDomain: "registry.com",
+						},
+					},
+					EndUserK0sConfigOverrides: `
+config:
+  metadata:
+    name: foo
+  spec:
+    api:
+      address: 111.111.111.111
+    storage:
+      type: local
+    workerProfiles:
+    - name: another-profile
+      values:
+        allowedUnsafeSysctls:
+        - net.ipv4.ip_forward
+`,
+				},
+			},
+			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {
+				// Verify that the unsupported override was applied to the worker profiles
+				require.Len(t, updatedConfig.Spec.WorkerProfiles, 1)
+				assert.Equal(t, "another-profile", updatedConfig.Spec.WorkerProfiles[0].Name)
+				assert.Equal(t, &runtime.RawExtension{Raw: []byte(`{"allowedUnsafeSysctls":["net.ipv4.ip_forward"]}`)}, updatedConfig.Spec.WorkerProfiles[0].Config)
+
+				// Verify that the immutable fields are not changed
+				assert.Equal(t, "k0s", updatedConfig.Name)
+				assert.Equal(t, "192.168.1.1", updatedConfig.Spec.API.Address)
+				assert.Equal(t, "abc", updatedConfig.Spec.Storage.Type)
+
+				// Verify that other changes were not made
+				assert.Equal(t, "10.96.0.0/12", updatedConfig.Spec.Network.ServiceCIDR)
+				// Verify that supported changes (like image registries) are still applied
+				assert.Contains(t, updatedConfig.Spec.Images.CoreDNS.Image, "registry.com/")
+			},
+		},
 	}
 
 	for _, tt := range tests {
