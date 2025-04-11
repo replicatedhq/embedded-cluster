@@ -8,6 +8,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/AlecAivazis/survey/v2/terminal"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -82,7 +83,12 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			})
 
 			if err := runJoin(cmd.Context(), name, flags, jcmd, metricsReporter); err != nil {
-				metricsReporter.ReportJoinFailed(ctx, err)
+				// Check if this is an interrupt error from the terminal
+				if errors.Is(err, terminal.InterruptErr) {
+					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+				} else {
+					metricsReporter.ReportJoinFailed(ctx, err)
+				}
 				return err
 			}
 
@@ -535,7 +541,10 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 			logrus.Info("When high availability is enabled, you must maintain at least three nodes.")
 			logrus.Info("")
 		}
-		shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", false)
+		shouldEnableHA, err := prompts.New().Confirm("Do you want to enable high availability?", false)
+		if err != nil {
+			return fmt.Errorf("failed to get confirmation: %w", err)
+		}
 		if !shouldEnableHA {
 			return nil
 		}
