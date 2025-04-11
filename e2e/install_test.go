@@ -1581,6 +1581,11 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		},
 	)
 
+	// Use an alternate data directory
+	withEnv := map[string]string{
+		"EMBEDDED_CLUSTER_BASE_DIR": "/var/lib/ec",
+	}
+
 	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                        t,
 		Nodes:                    2,
@@ -1591,7 +1596,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		AirgapUpgrade2BundlePath: airgapUpgrade2BundlePath,
 		LowercaseNodeNames:       true,
 	})
-	defer tc.Cleanup()
+	defer tc.Cleanup(withEnv)
 
 	// install "curl" dependency on node 0 for app version checks.
 	tc.InstallTestDependenciesDebian(t, 0, true)
@@ -1615,13 +1620,13 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: preparing embedded cluster airgap files on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-prepare.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", initialVersion, "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+	line = []string{"single-node-airgap-install.sh", initialVersion, "--local-artifact-mirror-port", "50001", "--data-dir", "/var/lib/ec"} // choose an alternate lam port
+	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	// remove the airgap bundle and binary after installation
@@ -1634,7 +1639,10 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.SetupPlaywright(withEnv); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -1653,11 +1661,11 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	// join the worker node
 	t.Logf("%s: preparing embedded cluster airgap files on worker node", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-prepare.sh"}
-	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
 		t.Fatalf("fail to prepare airgap files on worker node: %v", err)
 	}
 	t.Logf("%s: joining worker node to the cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunCommandOnNode(1, strings.Split(workerCommand, " ")); err != nil {
+	if _, _, err := tc.RunCommandOnNode(1, strings.Split(workerCommand, " "), withEnv); err != nil {
 		t.Fatalf("fail to join worker node to the cluster: %v", err)
 	}
 	// remove the airgap bundle and binary after joining
@@ -1669,10 +1677,14 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to remove embedded-cluster binary on worker node: %v", err)
 	}
+	line = []string{"rm", "/var/lib/ec/bin/embedded-cluster"}
+	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[1], err)
+	}
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, _, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "2"})
+	stdout, _, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "2"}, withEnv)
 	if err != nil {
 		t.Log(stdout)
 		t.Fatalf("fail to wait for ready nodes: %v", err)
@@ -1680,13 +1692,13 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-update.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to run airgap update: %v", err)
 	}
 	// remove the airgap bundle and binary after upgrade
@@ -1709,13 +1721,13 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-installation-state.sh", appUpgradeVersion, k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: running second airgap update", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-update2.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to run airgap update: %v", err)
 	}
 	// remove the airgap bundle and binary after upgrade
@@ -1738,7 +1750,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: checking installation state after second upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
