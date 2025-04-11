@@ -43,10 +43,11 @@ func parseTestsYAML[T any](t *testing.T, prefix string) map[string]T {
 
 func TestPatchK0sConfig(t *testing.T) {
 	type test struct {
-		Name     string
-		Config   string `yaml:"config"`
-		Override string `yaml:"override"`
-		Expected string `yaml:"expected"`
+		Name                   string
+		Config                 string `yaml:"config"`
+		Override               string `yaml:"override"`
+		Expected               string `yaml:"expected"`
+		RespectImmutableFields bool   `yaml:"respectImmutableFields"`
 	}
 
 	for tname, tt := range parseTestsYAML[test](t, "override-") {
@@ -57,7 +58,7 @@ func TestPatchK0sConfig(t *testing.T) {
 			err := k8syaml.Unmarshal([]byte(tt.Config), &config)
 			req.NoError(err)
 
-			result, err := PatchK0sConfig(&config, tt.Override)
+			result, err := PatchK0sConfig(&config, tt.Override, tt.RespectImmutableFields)
 			req.NoError(err)
 
 			var expected k0sconfig.ClusterConfig
@@ -71,16 +72,17 @@ func TestPatchK0sConfig(t *testing.T) {
 
 func Test_extractK0sConfigPatch(t *testing.T) {
 	type test struct {
-		Name     string
-		Override string `yaml:"override"`
-		Expected string `yaml:"expected"`
+		Name                   string
+		Override               string `yaml:"override"`
+		Expected               string `yaml:"expected"`
+		RespectImmutableFields bool   `yaml:"respectImmutableFields"`
 	}
 
 	for tname, tt := range parseTestsYAML[test](t, "extract-") {
 		t.Run(tname, func(t *testing.T) {
 			req := require.New(t)
 
-			extracted, err := extractK0sConfigPatch(tt.Override)
+			extracted, err := extractK0sConfigPatch(tt.Override, tt.RespectImmutableFields)
 			req.NoError(err)
 
 			var actual map[string]interface{}

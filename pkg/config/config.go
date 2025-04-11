@@ -46,7 +46,7 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 }
 
 // extractK0sConfigPatch extracts the k0s config portion of the provided patch.
-func extractK0sConfigPatch(raw string) (string, error) {
+func extractK0sConfigPatch(raw string, respectImmutableFields bool) (string, error) {
 	type PatchBody struct {
 		Config map[string]interface{} `yaml:"config"`
 	}
@@ -54,6 +54,11 @@ func extractK0sConfigPatch(raw string) (string, error) {
 	if err := yaml.Unmarshal([]byte(raw), &body); err != nil {
 		return "", fmt.Errorf("unable to unmarshal patch body: %w", err)
 	}
+
+	if respectImmutableFields {
+		body.Config = removeImmutableFields(body.Config)
+	}
+
 	data, err := yaml.Marshal(body.Config)
 	if err != nil {
 		return "", fmt.Errorf("unable to marshal patch body: %w", err)
@@ -64,11 +69,11 @@ func extractK0sConfigPatch(raw string) (string, error) {
 // PatchK0sConfig patches a K0s config with the provided patch. Returns the patched config,
 // patch is expected to be a YAML encoded k0s configuration. We marshal the original config
 // and the patch into JSON and apply the latter as a merge patch to the former.
-func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.ClusterConfig, error) {
+func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string, respectImmutableFields bool) (*k0sconfig.ClusterConfig, error) {
 	if patch == "" {
 		return config, nil
 	}
-	patch, err := extractK0sConfigPatch(patch)
+	patch, err := extractK0sConfigPatch(patch, respectImmutableFields)
 	if err != nil {
 		return nil, fmt.Errorf("unable to extract k0s config patch: %w", err)
 	}
@@ -240,4 +245,23 @@ func AdditionalRepositories() []k0sconfig.Repository {
 		}
 	}
 	return []k0sconfig.Repository{}
+}
+
+// removeImmutableFields removes the immutable fields from the patch.
+// 'Immutable fields' are things that should not be changed in the k0s cluster config after installation,
+// such as the cluster name, the spec.api object, and the spec.storage object.
+func removeImmutableFields(patch map[string]interface{}) map[string]interface{} {
+	delete(patch, "metadata")
+
+	// handle "spec" subkeys
+	spec, ok := patch["spec"].(map[interface{}]interface{})
+	if !ok {
+		return patch
+	}
+
+	delete(spec, "api")
+	delete(spec, "storage")
+	patch["spec"] = spec
+
+	return patch
 }
