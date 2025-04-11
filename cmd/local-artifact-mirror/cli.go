@@ -32,7 +32,7 @@ func NewCLI(name string) *CLI {
 
 func (cli *CLI) init() {
 	cli.V.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	cli.V.SetEnvPrefix("LOCAL_ARTIFACT_MIRROR")
+	cli.V.SetEnvPrefix("REPLICATED")
 	cli.V.AutomaticEnv()
 }
 
