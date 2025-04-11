@@ -647,49 +647,17 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to download embedded-cluster on node 3: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// Join second controller node
-	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunPlaywrightTest("get-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	controllerCommand, err := findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Log("controller join token command:", controllerCommand)
-	t.Logf("%s: joining node 2 to the cluster as a controller", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(2, strings.Split(controllerCommand, " ")); err != nil {
-		t.Fatalf("fail to join node 2 as a controller: %v: %s: %s", err, stdout, stderr)
-	}
-
-	// Join second worker node
-	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunPlaywrightTest("get-join-worker-command")
-	if err != nil {
-		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	workerCommand, err := findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Log("worker join token command:", workerCommand)
-
-	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(3, strings.Split(workerCommand, " ")); err != nil {
-		t.Fatalf("fail to join node 3 as a worker: %v: %s: %s", err, stdout, stderr)
-	}
-
-	// wait for all nodes to report as ready
-	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "4"}, withEnv)
-	if err != nil {
-		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
-	}
-
+	// Join the additional nodes to the cluster
+	t.Logf("%s: joining controller node 2 to the cluster after upgrade", time.Now().Format(time.RFC3339))
+	joinControllerNode(t, tc, 2)
+	t.Logf("%s: joining worker node 3 to the cluster after upgrade", time.Now().Format(time.RFC3339))
+	joinWorkerNode(t, tc, 3)
 	// Check worker profiles for the joined nodes
 	checkWorkerProfile(t, tc, 2)
 	checkWorkerProfile(t, tc, 3)
+
+	// wait for the nodes to report as ready.
+	waitForNodes(t, tc, 4, nil)
 
 	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -707,10 +675,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 
 	// wait for all nodes to report as ready after upgrade
 	t.Logf("%s: waiting for all nodes to be ready after upgrade", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "4"}, withEnv)
-	if err != nil {
-		t.Fatalf("fail to wait for ready nodes after upgrade: %v: %s: %s", err, stdout, stderr)
-	}
+	waitForNodes(t, tc, 4, nil)
 
 	// use upgraded binaries to run the reset command
 	// TODO: this is a temporary workaround and should eventually be a feature of EC
