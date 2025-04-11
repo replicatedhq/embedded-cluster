@@ -652,12 +652,14 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	joinControllerNode(t, tc, 2)
 	t.Logf("%s: joining worker node 3 to the cluster after upgrade", time.Now().Format(time.RFC3339))
 	joinWorkerNode(t, tc, 3)
+
+	t.Logf("%s: waiting for all nodes to be ready after joining additional nodes", time.Now().Format(time.RFC3339))
+	waitForNodes(t, tc, 4, nil)
+
 	// Check worker profiles for the joined nodes
+	t.Logf("%s: checking worker profiles for the joined nodes", time.Now().Format(time.RFC3339))
 	checkWorkerProfile(t, tc, 2)
 	checkWorkerProfile(t, tc, 3)
-
-	// wait for the nodes to report as ready.
-	waitForNodes(t, tc, 4, nil)
 
 	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
