@@ -24,7 +24,7 @@ spec:
       valueType: String
   isDisasterRecoverySupported: true
   isEmbeddedClusterDownloadEnabled: true
-  isEmbeddedClusterMultinodeEnabled: true
+  isEmbeddedClusterMultiNodeEnabled: true
   isKotsInstallEnabled: true
   isNewKotsUiEnabled: true
   licenseID: 2fSe1CXtMOX9jNgHTe00mvqO502

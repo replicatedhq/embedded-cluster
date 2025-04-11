@@ -23,7 +23,7 @@ spec:
       value: ""
       valueType: String
   isEmbeddedClusterDownloadEnabled: true
-  isEmbeddedClusterMultinodeEnabled: true
+  isEmbeddedClusterMultiNodeEnabled: true
   isKotsInstallEnabled: true
   isNewKotsUiEnabled: true
   licenseID: 2cQCFfBxG7gXDmq1yAgPSM4OViF

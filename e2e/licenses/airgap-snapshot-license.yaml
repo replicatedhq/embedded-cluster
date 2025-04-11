@@ -25,7 +25,7 @@ spec:
   isAirgapSupported: true
   isDisasterRecoverySupported: true
   isEmbeddedClusterDownloadEnabled: true
-  isEmbeddedClusterMultinodeEnabled: true
+  isEmbeddedClusterMultiNodeEnabled: true
   isKotsInstallEnabled: true
   isNewKotsUiEnabled: true
   licenseID: 2gEzHseTJQ4z2Axwj7KK9RYt4oT

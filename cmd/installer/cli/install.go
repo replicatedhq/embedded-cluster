@@ -370,7 +370,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		PrivateCAs:              flags.privateCAs,
 		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
 		DisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
-		IsMultinodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultinodeEnabled,
+		IsMultiNodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec:      embCfgSpec,
 		EndUserConfigSpec:       euCfgSpec,
 		KotsInstaller: func(msg *spinner.MessageWriter) error {
@@ -1043,7 +1043,7 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCm
 			BinaryName:                runtimeconfig.BinaryName(),
 			LicenseInfo: &ecv1beta1.LicenseInfo{
 				IsDisasterRecoverySupported: license.Spec.IsDisasterRecoverySupported,
-				IsMultinodeEnabled:          license.Spec.IsEmbeddedClusterMultinodeEnabled,
+				IsMultiNodeEnabled:          license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 			},
 		},
 	}

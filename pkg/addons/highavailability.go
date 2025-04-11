@@ -3,6 +3,8 @@ package addons
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -21,7 +23,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
 )
 
 // CanEnableHA checks if high availability can be enabled in the cluster.
@@ -245,7 +246,7 @@ func EnableAdminConsoleHA(ctx context.Context, kcli client.Client, hcli helm.Cli
 		IsHA:                     true,
 		Proxy:                    proxy,
 		ServiceCIDR:              serviceCIDR,
-		IsMultinodeEnabled:       licenseInfo != nil && licenseInfo.IsMultinodeEnabled,
+		IsMultiNodeEnabled:       licenseInfo != nil && licenseInfo.IsMultiNodeEnabled,
 		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
 		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
 		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,

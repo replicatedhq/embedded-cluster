@@ -22,7 +22,7 @@ type AdminConsole struct {
 	Password                 string
 	PrivateCAs               []string
 	KotsInstaller            KotsInstaller
-	IsMultinodeEnabled       bool
+	IsMultiNodeEnabled       bool
 	ReplicatedAppDomain      string
 	ProxyRegistryDomain      string
 	ReplicatedRegistryDomain string

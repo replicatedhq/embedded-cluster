@@ -107,7 +107,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		IsHA:                     in.Spec.HighAvailability,
 		Proxy:                    in.Spec.Proxy,
 		ServiceCIDR:              serviceCIDR,
-		IsMultinodeEnabled:       in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultinodeEnabled,
+		IsMultiNodeEnabled:       in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
 		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
 		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
 		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,

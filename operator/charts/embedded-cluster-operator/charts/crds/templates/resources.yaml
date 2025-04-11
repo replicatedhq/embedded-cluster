@@ -556,7 +556,7 @@ spec:
                 properties:
                   isDisasterRecoverySupported:
                     type: boolean
-                  isMultinodeEnabled:
+                  isMultiNodeEnabled:
                     type: boolean
                 type: object
               localArtifactMirror:

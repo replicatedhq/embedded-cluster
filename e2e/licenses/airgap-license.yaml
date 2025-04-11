@@ -24,7 +24,7 @@ spec:
       valueType: String
   isAirgapSupported: true
   isEmbeddedClusterDownloadEnabled: true
-  isEmbeddedClusterMultinodeEnabled: true
+  isEmbeddedClusterMultiNodeEnabled: true
   isKotsInstallEnabled: true
   isNewKotsUiEnabled: true
   licenseID: 2eAqdricgviUeki42j02nIn1ayl
