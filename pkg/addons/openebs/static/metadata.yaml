@@ -11,8 +11,8 @@ images:
     kubectl:
         repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
         tag:
-            amd64: 1.32.3-r4-amd64@sha256:1d102ccf3b62f27a4e4b60c88ef7a4e3c76441e76229081bad18deb7fd387853
-            arm64: 1.32.3-r4-arm64@sha256:e1be0e310e9b27cbfe83b691b07468be926968f22a2a183f2558970528c9dd4e
+            amd64: 1.32.3-r5-amd64@sha256:5554b7c26279c054d0f8db0da4dbabfa6d559a162877fa32bbd290ba83bdac01
+            arm64: 1.32.3-r5-arm64@sha256:cbee63ebfc743d5486f852f21c25409b5a2e732df33624c96be8089c88480484
     openebs-linux-utils:
         repo: proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils
         tag:
