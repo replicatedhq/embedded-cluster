@@ -6,11 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
-	"strings"
 	"syscall"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func main() {
@@ -27,41 +23,11 @@ func main() {
 	InitAndExecute(ctx, name)
 }
 
-func RootCmd(ctx context.Context, v *viper.Viper, name string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   name,
-		Short: "Run or pull data for the local artifact mirror",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			v.BindPFlags(cmd.Flags())
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			os.Exit(1)
-			return nil
-		},
-	}
-
-	cobra.OnInitialize(func() {
-		initConfig(v)
-	})
-
-	cmd.AddCommand(ServeCmd(ctx, v))
-	cmd.AddCommand(PullCmd(ctx, v))
-
-	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-
-	return cmd
-}
-
 func InitAndExecute(ctx context.Context, name string) {
-	v := viper.GetViper()
-	if err := RootCmd(ctx, v, name).Execute(); err != nil {
+	cli := NewCLI(name)
+	err := RootCmd(cli).ExecuteContext(ctx)
+	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-}
-
-func initConfig(v *viper.Viper) {
-	v.SetEnvPrefix("REPLICATED")
-	v.AutomaticEnv()
 }
