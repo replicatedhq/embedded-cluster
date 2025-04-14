@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 )
 
@@ -45,7 +46,7 @@ func (c *Kotsadm) setResponse(resp interface{}, err error, methodName string, ar
 }
 
 // SetGetJoinTokenResponse sets the response for the GetJoinToken method, based on the provided baseURL and shortToken.
-func (c *Kotsadm) SetGetJoinTokenResponse(baseURL, shortToken string, resp *kotsadm.JoinCommandResponse, err error) {
+func (c *Kotsadm) SetGetJoinTokenResponse(baseURL, shortToken string, resp *join.JoinCommandResponse, err error) {
 	mockErr := c.setResponse(resp, err, "GetJoinToken", baseURL, shortToken)
 	if mockErr != nil {
 		panic(mockErr)
@@ -54,10 +55,10 @@ func (c *Kotsadm) SetGetJoinTokenResponse(baseURL, shortToken string, resp *kots
 
 // GetJoinToken issues a request to the kots api to get the actual join command
 // based on the short token provided by the user.
-func (c *Kotsadm) GetJoinToken(ctx context.Context, baseURL, shortToken string) (*kotsadm.JoinCommandResponse, error) {
+func (c *Kotsadm) GetJoinToken(ctx context.Context, baseURL, shortToken string) (*join.JoinCommandResponse, error) {
 	key := strings.Join([]string{"GetJoinToken", baseURL, shortToken}, ":")
 	if handler, ok := c.mockHandlers[key]; ok {
-		return handler.resp.(*kotsadm.JoinCommandResponse), handler.err
+		return handler.resp.(*join.JoinCommandResponse), handler.err
 	} else {
 		return nil, fmt.Errorf("no response set for GetJoinToken, baseURL: %s, shortToken: %s", baseURL, shortToken)
 	}
