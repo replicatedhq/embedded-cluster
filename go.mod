@@ -24,7 +24,6 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.15.0
 	github.com/jedib0t/go-pretty/v6 v6.6.7
-	github.com/k0sproject/dig v0.4.0
 	github.com/k0sproject/k0s v1.30.10-0.20250117153350-dcf3c22bb568
 	github.com/ohler55/ojg v1.26.2
 	github.com/onsi/ginkgo/v2 v2.23.3
@@ -193,6 +192,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.1-0.20220621161143-b0104c826a24 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
+	github.com/k0sproject/dig v0.4.0 // indirect
 	github.com/k0sproject/version v0.6.0 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect

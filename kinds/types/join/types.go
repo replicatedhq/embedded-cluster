@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/k0sproject/dig"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // JoinCommandResponse is the response from the kots api we use to fetch the k0s join token.
