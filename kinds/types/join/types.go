@@ -15,6 +15,7 @@ type JoinCommandResponse struct {
 	K0sToken               string                     `json:"k0sToken"`
 	ClusterID              uuid.UUID                  `json:"clusterID"`
 	EmbeddedClusterVersion string                     `json:"embeddedClusterVersion"`
+	AppVersionLabel        string                     `json:"appVersionLabel"`
 	AirgapRegistryAddress  string                     `json:"airgapRegistryAddress"`
 	TCPConnectionsRequired []string                   `json:"tcpConnectionsRequired"`
 	InstallationSpec       ecv1beta1.InstallationSpec `json:"installationSpec,omitempty"`

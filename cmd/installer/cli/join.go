@@ -24,6 +24,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -260,6 +261,14 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinComm
 		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
 		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
 		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
+	}
+
+	// if the application version is set, check to make sure that it matches the version we are running
+	channelRelease := release.GetChannelRelease()
+	if jcmd.AppVersionLabel != "" && channelRelease != nil {
+		if jcmd.AppVersionLabel != channelRelease.VersionLabel {
+			return fmt.Errorf("embedded cluster application version mismatch - this binary is compiled for app version %q, but the cluster is running version %q", channelRelease.VersionLabel, jcmd.AppVersionLabel)
+		}
 	}
 
 	// check to make sure the version returned by the join token is the same as the one we are running
