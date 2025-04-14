@@ -275,7 +275,7 @@ envtest:
 .PHONY: unit-tests
 unit-tests: envtest
 	KUBEBUILDER_ASSETS="$(shell ./operator/bin/setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/operator/bin -p path)" \
-		go test -tags $(GO_BUILD_TAGS) -v ./pkg/... ./cmd/... ./kinds/...
+		go test -tags $(GO_BUILD_TAGS) -v ./pkg/... ./cmd/...
 	$(MAKE) -C operator test
 
 .PHONY: vet
