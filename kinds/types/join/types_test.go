@@ -1,4 +1,4 @@
-package kotsadm
+package join
 
 import (
 	"embed"
