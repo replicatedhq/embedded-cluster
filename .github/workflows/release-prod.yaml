@@ -603,7 +603,7 @@ jobs:
   # this job will validate that all the tests passed
   validate-release-success:
     name: Validate success
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs:
       - e2e
       - e2e-docker

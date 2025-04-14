@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/gosimple/slug"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
@@ -101,17 +102,22 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clusterID := metrics.ClusterID()
 			metricsReporter := NewInstallReporter(
-				replicatedAppURL(), flags.license.Spec.LicenseID, clusterID, cmd.CalledAs(),
+				replicatedAppURL(), clusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()), flags.license.Spec.LicenseID,
 			)
 			metricsReporter.ReportInstallationStarted(ctx)
 
 			// Setup signal handler with the metrics reporter cleanup function
-			signalHandler(ctx, cancel, func(ctx context.Context, err error) {
-				metricsReporter.ReportInstallationFailed(ctx, err)
+			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
+				metricsReporter.ReportSignalAborted(ctx, sig)
 			})
 
 			if err := runInstall(cmd.Context(), name, flags, metricsReporter); err != nil {
-				metricsReporter.ReportInstallationFailed(ctx, err)
+				// Check if this is an interrupt error from the terminal
+				if errors.Is(err, terminal.InterruptErr) {
+					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+				} else {
+					metricsReporter.ReportInstallationFailed(ctx, err)
+				}
 				return err
 			}
 			metricsReporter.ReportInstallationSucceeded(ctx)
@@ -459,8 +465,15 @@ func ensureAdminConsolePassword(flags *InstallCmdFlags) error {
 		} else {
 			maxTries := 3
 			for i := 0; i < maxTries; i++ {
-				promptA := prompts.New().Password(fmt.Sprintf("Set the Admin Console password (minimum %d characters):", minAdminPasswordLength))
-				promptB := prompts.New().Password("Confirm the Admin Console password:")
+				promptA, err := prompts.New().Password(fmt.Sprintf("Set the Admin Console password (minimum %d characters):", minAdminPasswordLength))
+				if err != nil {
+					return fmt.Errorf("failed to get password: %w", err)
+				}
+
+				promptB, err := prompts.New().Password("Confirm the Admin Console password:")
+				if err != nil {
+					return fmt.Errorf("failed to get password confirmation: %w", err)
+				}
 
 				if validateAdminConsolePassword(promptA, promptB) {
 					flags.adminConsolePassword = promptA
@@ -562,7 +575,11 @@ func verifyChannelRelease(cmdName string, isAirgap bool, assumeYes bool) error {
 	if channelRelease != nil && channelRelease.Airgap && !isAirgap && !assumeYes {
 		logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
 		logrus.Warnf("If you continue, the %s will not use an air gap bundle and will connect to the internet.", cmdName)
-		if !prompts.New().Confirm(fmt.Sprintf("Do you want to proceed with an online %s?", cmdName), false) {
+		confirmed, err := prompts.New().Confirm(fmt.Sprintf("Do you want to proceed with an online %s?", cmdName), false)
+		if err != nil {
+			return fmt.Errorf("failed to get confirmation: %w", err)
+		}
+		if !confirmed {
 			// TODO: send aborted metrics event
 			return NewErrorNothingElseToAdd(errors.New("user aborted: air gap bundle downloaded but flag not provided"))
 		}
@@ -766,7 +783,11 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 	}
 
 	text := fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel)
-	if !prompt.Confirm(text, true) {
+	confirmed, err := prompt.Confirm(text, true)
+	if err != nil {
+		return fmt.Errorf("failed to get confirmation: %w", err)
+	}
+	if !confirmed {
 		// TODO: send aborted metrics event
 		return NewErrorNothingElseToAdd(errors.New("user aborted: app not up-to-date"))
 	}

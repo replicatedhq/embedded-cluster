@@ -1,0 +1,45 @@
+# Grype configuration file
+# See: https://github.com/anchore/grype#configuration
+
+# Ignore rules for vulnerabilities
+# Each rule can specify criteria for vulnerabilities to ignore
+ignore:
+  # Ignore CVE-2023-47108 which has been accepted upstream in Kubernetes
+  # Reference: https://github.com/kubernetes/kubernetes/pull/121842
+  # This vulnerability is not in the code path and has been fixed upstream
+  - vulnerability: CVE-2023-47108
+
+# Match Trivy's configuration
+fail-on-severity: medium  # Equivalent to Trivy's CRITICAL,HIGH,MEDIUM setting
+output: table  # Default output format (will be overridden by action for SARIF)
+
+# Database configuration
+db:
+  auto-update: true  # Ensure vulnerability database is up to date, like Trivy
+
+# Search configuration to match Trivy's behavior
+search:
+  scope: "squashed"  # Similar to Trivy's default behavior
+  indexed-archives: true
+  unindexed-archives: true  # Ensure we don't miss vulnerabilities in archives
+
+# Registry configuration (similar to Trivy's behavior)
+registry:
+  insecure-skip-tls-verify: false
+  insecure-use-http: false
+
+# Logging configuration
+log:
+  level: "warn"  # Similar to Trivy's default
+
+# Default configuration options below
+# Uncomment and modify as needed
+
+# output: table
+# fail-on-severity: medium
+# file: ""
+# exclude: []
+# db:
+#   cache-dir: ""
+#   update-url: "https://grype.anchore.io/databases"
+#   auto-update: true 

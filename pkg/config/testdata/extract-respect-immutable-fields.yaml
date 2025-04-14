@@ -1,0 +1,20 @@
+respectImmutableFields: true
+override: |-
+  config:
+    metadata:
+      name: foo
+    spec:
+      test:
+      - one
+      - two
+      emptyObject: {}
+      api:
+        address: 111.111.111.111
+      storage:
+        type: local
+expected: |-
+  spec:
+    test:
+    - one
+    - two
+    emptyObject: {}

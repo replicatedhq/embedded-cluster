@@ -26,10 +26,9 @@ func TestJoinControllerNode(t *testing.T) {
 		EmbeddedClusterVersion: "v0.0.0",
 		ClusterID:              clusterID,
 		InstallationSpec: ecv1beta1.InstallationSpec{
-			ClusterID: clusterID.String(),
-			Config: &ecv1beta1.ConfigSpec{
-				UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{},
-			},
+			ClusterID:      clusterID.String(),
+			MetricsBaseURL: "https://testing.com",
+			Config:         &ecv1beta1.ConfigSpec{UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{}},
 			Network: &ecv1beta1.NetworkSpec{
 				PodCIDR:     "10.2.0.0/17",
 				ServiceCIDR: "10.2.128.0/17",
@@ -177,6 +176,29 @@ func TestJoinControllerNode(t *testing.T) {
 
 	assert.Equal(t, "10.2.0.0/17", k0sConfig.Spec.Network.PodCIDR)
 	assert.Equal(t, "10.2.128.0/17", k0sConfig.Spec.Network.ServiceCIDR)
+
+	// --- validate metrics --- //
+	assertMetrics(t, dr.Metrics, []struct {
+		title    string
+		validate func(string)
+	}{
+		{
+			title: "JoinStarted",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"entryCommand":"join"`)
+				assert.Regexp(t, `"flags":"--yes"`, payload)
+				assert.Contains(t, payload, `"isExitEvent":false`)
+				assert.Contains(t, payload, `"eventType":"JoinStarted"`)
+			},
+		},
+		{
+			title: "JoinSucceeded",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":true`)
+				assert.Contains(t, payload, `"eventType":"JoinSucceeded"`)
+			},
+		},
+	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

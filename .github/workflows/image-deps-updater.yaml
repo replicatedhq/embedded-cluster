@@ -26,7 +26,7 @@ on:
 
 jobs:
   compile-buildtools:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -48,7 +48,7 @@ jobs:
         path: output/bin/buildtools
 
   update-addon-images:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [compile-buildtools]
     strategy:
       fail-fast: false
