@@ -23,18 +23,18 @@ type mockClient struct {
 	secret  *corev1.Secret
 }
 
-func (m *mockClient) Get(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-	switch obj.(type) {
+func (m *mockClient) Get(ctx context.Context, key types.NamespacedName, input client.Object, opts ...client.GetOption) error {
+	switch obj := input.(type) {
 	case *corev1.Service:
 		if m.service == nil {
 			return fmt.Errorf("service not found")
 		}
-		*obj.(*corev1.Service) = *m.service
+		*obj = *m.service
 	case *corev1.Secret:
 		if m.secret == nil {
 			return fmt.Errorf("secret not found")
 		}
-		*obj.(*corev1.Secret) = *m.secret
+		*obj = *m.secret
 	}
 	return nil
 }

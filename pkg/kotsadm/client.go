@@ -58,9 +58,6 @@ func (c *Client) GetJoinCommand(ctx context.Context, cli client.Client, roles []
 	if err != nil {
 		return "", fmt.Errorf("unable to get kotsadm service: %w", err)
 	}
-	if svc == nil {
-		return "", fmt.Errorf("kotsadm service was nil")
-	}
 	kotsadmIP := svc.Spec.ClusterIP
 	if kotsadmIP == "" {
 		return "", fmt.Errorf("kotsadm service ip was empty")
