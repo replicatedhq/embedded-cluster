@@ -150,6 +150,8 @@ jobs:
 
       - uses: oras-project/setup-oras@v1
 
+      - uses: imjasonh/setup-crane@v0.4
+
       - name: Download buildtools artifact
         uses: actions/download-artifact@v4
         with:

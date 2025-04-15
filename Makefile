@@ -17,7 +17,7 @@ PREVIOUS_K0S_GO_VERSION ?= v1.29.9+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.117.0
 
-KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
 KOTS_BINARY_URL_OVERRIDE = ttl.sh/salah/kots.tar.gz:24h
 # If KOTS_BINARY_FILE_OVERRIDE is set, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
@@ -166,10 +166,8 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz \
-		"https://github.com/replicatedhq/kots/releases/download/$(call split-hyphen,$*,1)/kots_$(OS)_$(call split-hyphen,$*,2).tar.gz"
-	tar -xzf output/tmp/kots.tar.gz -C output/tmp
-	mv output/tmp/kots $@
+	crane export kotsadm/kotsadm:$(call split-hyphen,$*,1) --platform linux/$(call split-hyphen,$*,2) - | tar -Oxf - kots > $@
+	chmod +x $@
 	touch $@
 
 .PHONY: output/bins/kubectl-kots-override

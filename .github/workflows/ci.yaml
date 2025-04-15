@@ -176,6 +176,8 @@ jobs:
 
       - uses: oras-project/setup-oras@v1
 
+      - uses: imjasonh/setup-crane@v0.4
+
       - name: Install dagger
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
@@ -247,6 +249,8 @@ jobs:
           cache-dependency-path: "**/*.sum"
 
       - uses: oras-project/setup-oras@v1
+
+      - uses: imjasonh/setup-crane@v0.4
 
       - name: Install dagger
         run: |
@@ -354,6 +358,8 @@ jobs:
           cache-dependency-path: "**/*.sum"
 
       - uses: oras-project/setup-oras@v1
+
+      - uses: imjasonh/setup-crane@v0.4
 
       - name: Install dagger
         run: |
