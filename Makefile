@@ -68,6 +68,7 @@ export PATH := $(shell pwd)/bin:$(PATH)
 default: build-ttl.sh
 
 split-hyphen = $(word $2,$(subst -, ,$1))
+split-underscore = $(word $2,$(subst _, ,$1))
 random-string = $(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)
 
 .PHONY: cmd/installer/goods/bins/k0s
@@ -158,15 +159,15 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 	elif [ "$(KOTS_BINARY_FILE_OVERRIDE)" != "" ]; then \
 		cp $(KOTS_BINARY_FILE_OVERRIDE) $@ ; \
 	else \
-		$(MAKE) output/bins/kubectl-kots ; \
-		cp output/bins/kubectl-kots $@ ; \
+		$(MAKE) output/bins/kubectl-kots-$(KOTS_VERSION)_$(ARCH) ; \
+		cp output/bins/kubectl-kots-$(KOTS_VERSION)_$(ARCH) $@ ; \
 	fi
 	touch $@
 
-output/bins/kubectl-kots:
+output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	crane export kotsadm/kotsadm:$(KOTS_VERSION) --platform linux/$(ARCH) - | tar -Oxf - kots > $@
+	crane export kotsadm/kotsadm:$(call split-underscore,$*,1) --platform linux/$(call split-underscore,$*,2) - | tar -Oxf - kots > $@
 	chmod +x $@
 	touch $@
 
