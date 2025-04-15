@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -99,7 +100,6 @@ func (c *Client) GetJoinCommand(ctx context.Context, cli client.Client, roles []
 	if err != nil {
 		return "", fmt.Errorf("failed to execute request: %w", err)
 	}
-
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
@@ -116,6 +116,7 @@ func (c *Client) GetJoinCommand(ctx context.Context, cli client.Client, roles []
 	}
 	cmd := commandResponse{}
 	if err := json.Unmarshal(fullResponse, &cmd); err != nil {
+		logrus.Debugf("failed to decode response %q: %v", string(fullResponse), err)
 		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
