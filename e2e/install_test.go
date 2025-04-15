@@ -27,7 +27,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distro:       "ubuntu-jammy",
-		LicensePath:  "license.yaml",
+		LicensePath:  "licenses/multi-node-disabled-license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -36,18 +36,21 @@ func TestSingleNodeInstallation(t *testing.T) {
 		adminConsolePort: "30002",
 	})
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	isMultiNodeEnabled := "false"
+	testArgs := []string{isMultiNodeEnabled}
+
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkInstallationState(t, tc)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
+	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
@@ -78,7 +81,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distro:       "almalinux-8",
-		LicensePath:  "license.yaml",
+		LicensePath:  "licenses/multi-node-disabled-license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -97,7 +100,10 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	isMultiNodeEnabled := "false"
+	testArgs := []string{isMultiNodeEnabled}
+
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -110,11 +116,11 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
+	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
@@ -141,25 +147,28 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bookworm",
-		LicensePath:  "license.yaml",
+		LicensePath:  "licenses/multi-node-disabled-license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
 
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	isMultiNodeEnabled := "false"
+	testArgs := []string{isMultiNodeEnabled}
+
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkInstallationState(t, tc)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
+	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
@@ -180,25 +189,28 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bullseye",
-		LicensePath:  "license.yaml",
+		LicensePath:  "licenses/multi-node-disabled-license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
 
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	isMultiNodeEnabled := "false"
+	testArgs := []string{isMultiNodeEnabled}
+
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkInstallationState(t, tc)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
+	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
@@ -219,7 +231,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distro:       "centos-9",
-		LicensePath:  "license.yaml",
+		LicensePath:  "licenses/multi-node-disabled-license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -232,18 +244,21 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	isMultiNodeEnabled := "false"
+	testArgs := []string{isMultiNodeEnabled}
+
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkInstallationState(t, tc)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
+	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
@@ -274,7 +289,7 @@ func TestHostPreflightCustomSpec(t *testing.T) {
 	}
 
 	t.Logf("%s: downloading failing-preflights embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-failing-preflights", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
+	line = []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-failing-preflights", os.Getenv("SHORT_SHA")), LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -292,7 +307,7 @@ func TestHostPreflightCustomSpec(t *testing.T) {
 	}
 
 	t.Logf("%s: downloading warning-preflights embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-warning-preflights", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
+	line = []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-warning-preflights", os.Getenv("SHORT_SHA")), LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -315,7 +330,7 @@ func TestHostPreflightInBuiltSpec(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distro:       "centos-9",
-		LicensePath:  "license.yaml",
+		LicensePath:  "licenses/license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -337,7 +352,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		T:            t,
 		Nodes:        4,
 		Distro:       "debian-bookworm",
-		LicensePath:  "license.yaml",
+		LicensePath:  "licenses/license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -391,7 +406,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -435,7 +450,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
-	line := []string{"vandoor-prepare.sh", initialVersion, os.Getenv("LICENSE_ID"), "false"}
+	line := []string{"vandoor-prepare.sh", initialVersion, LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -504,7 +519,7 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 
 	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", initialVersion, os.Getenv("LICENSE_ID"), "false"}
+	line := []string{"vandoor-prepare.sh", initialVersion, LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -565,13 +580,13 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	appVer := fmt.Sprintf("appver-%s-1.8.0-k8s-1.28", os.Getenv("SHORT_SHA"))
 
 	t.Logf("%s: downloading embedded-cluster %s on node 0", appVer, time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", appVer, os.Getenv("LICENSE_ID"), "false"}
+	line := []string{"vandoor-prepare.sh", appVer, LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: downloading embedded-cluster %s on worker node", appVer, time.Now().Format(time.RFC3339))
-	line = []string{"vandoor-prepare.sh", appVer, os.Getenv("LICENSE_ID"), "false"}
+	line = []string{"vandoor-prepare.sh", appVer, LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -639,7 +654,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 
 	// Download embedded-cluster on additional nodes
 	t.Logf("%s: downloading embedded-cluster %s on additional nodes", time.Now().Format(time.RFC3339), appUpgradeVersion)
-	line = []string{"vandoor-prepare.sh", appUpgradeVersion, os.Getenv("LICENSE_ID"), "false"}
+	line = []string{"vandoor-prepare.sh", appUpgradeVersion, LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 2: %v: %s: %s", err, stdout, stderr)
 	}
@@ -680,13 +695,13 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	// TODO: this is a temporary workaround and should eventually be a feature of EC
 
 	t.Logf("%s: downloading embedded-cluster %s on node 0", time.Now().Format(time.RFC3339), appUpgradeVersion)
-	line = []string{"vandoor-prepare.sh", appUpgradeVersion, os.Getenv("LICENSE_ID"), "false"}
+	line = []string{"vandoor-prepare.sh", appUpgradeVersion, LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster version %s on node 0: %v: %s: %s", appUpgradeVersion, err, stdout, stderr)
 	}
 
 	t.Logf("%s: downloading embedded-cluster %s on worker node 1", time.Now().Format(time.RFC3339), appUpgradeVersion)
-	line = []string{"vandoor-prepare.sh", appUpgradeVersion, os.Getenv("LICENSE_ID"), "false"}
+	line = []string{"vandoor-prepare.sh", appUpgradeVersion, LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster version %s on worker node: %v: %s: %s", appUpgradeVersion, err, stdout, stderr)
 	}
@@ -727,7 +742,7 @@ func TestResetAndReinstall(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bookworm",
-		LicensePath:  "license.yaml",
+		LicensePath:  "licenses/license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -767,7 +782,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 
 	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
 	airgapBundlePath := "/tmp/airgap-bundle.tar.gz"
-	err := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+	err := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapBundlePath, AirgapLicenseID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -853,7 +868,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	defer tc.Cleanup(withEnv)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-pre-minio-removal", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID")}
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-pre-minio-removal", os.Getenv("SHORT_SHA")), LicenseID}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -888,7 +903,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
+	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
@@ -896,9 +911,9 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, AirgapLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapLicenseID)
 		},
 	)
 
@@ -981,7 +996,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
+	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
@@ -989,9 +1004,9 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, AirgapLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapLicenseID)
 		},
 	)
 
@@ -1090,7 +1105,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 func TestAirgapUpgradeFromEC18(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
+	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	withEnv := map[string]string{"KUBECONFIG": "/var/lib/k0s/pki/admin.conf"}
 
@@ -1102,11 +1117,11 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 	airgapUpgrade2BundlePath := "/tmp/airgap-upgrade2-bundle.tar.gz"
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, appVer, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, appVer, airgapInstallBundlePath, AirgapLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgrade2BundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgrade2BundlePath, AirgapLicenseID)
 		},
 	)
 
@@ -1300,16 +1315,16 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
+	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, AirgapLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapLicenseID)
 		},
 	)
 
@@ -1454,7 +1469,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
+	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
@@ -1462,9 +1477,9 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, AirgapLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapLicenseID)
 		},
 	)
 
@@ -1601,7 +1616,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
+	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
@@ -1610,11 +1625,11 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, AirgapLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgrade2BundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgrade2BundlePath, AirgapLicenseID)
 		},
 	)
 
@@ -1790,7 +1805,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 		T:                      t,
 		Nodes:                  4,
 		Distro:                 "debian-bookworm",
-		LicensePath:            "license.yaml",
+		LicensePath:            "licenses/license.yaml",
 		ECBinaryPath:           "../output/bin/embedded-cluster",
 		SupportBundleNodeIndex: 2,
 	})
@@ -1878,9 +1893,9 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, AirgapLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapLicenseID)
 		},
 	)
 
@@ -2018,7 +2033,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA", "SNAPSHOT_LICENSE_ID"})
+	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:      t,
@@ -2028,7 +2043,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), os.Getenv("SNAPSHOT_LICENSE_ID"), "false"}
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), SnapshotLicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -2074,7 +2089,7 @@ func TestCustomCIDR(t *testing.T) {
 		T:            t,
 		Nodes:        4,
 		Distro:       "debian-bookworm",
-		LicensePath:  "license.yaml",
+		LicensePath:  "licenses/license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -2131,7 +2146,7 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bookworm",
-		LicensePath:  "license.yaml",
+		LicensePath:  "licenses/license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -2163,7 +2178,7 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
+	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
@@ -2171,9 +2186,9 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, AirgapLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapLicenseID)
 		},
 	)
 
@@ -2301,7 +2316,7 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "ubuntu/jammy",
-		LicensePath:         "license.yaml",
+		LicensePath:         "licenses/license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	}
 	tc := lxd.NewCluster(input)
@@ -2359,7 +2374,7 @@ func TestInstallWithConfigValues(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distro:       "almalinux-8",
-		LicensePath:  "license.yaml",
+		LicensePath:  "licenses/license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -2433,7 +2448,7 @@ spec:
 func TestSingleNodeAirgapUpgradeConfigValues(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
+	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
@@ -2441,9 +2456,9 @@ func TestSingleNodeAirgapUpgradeConfigValues(t *testing.T) {
 	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, AirgapLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapLicenseID)
 		},
 	)
 

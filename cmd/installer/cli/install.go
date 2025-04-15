@@ -318,12 +318,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	disasterRecoveryEnabled, err := helpers.DisasterRecoveryEnabled(flags.license)
-	if err != nil {
-		return fmt.Errorf("unable to check if disaster recovery is enabled: %w", err)
-	}
-
-	in, err := recordInstallation(ctx, kcli, flags, k0sCfg, disasterRecoveryEnabled)
+	in, err := recordInstallation(ctx, kcli, flags, k0sCfg, flags.license)
 	if err != nil {
 		return fmt.Errorf("unable to record installation: %w", err)
 	}
@@ -380,7 +375,8 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		Proxy:                   flags.proxy,
 		PrivateCAs:              flags.privateCAs,
 		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
-		DisasterRecoveryEnabled: disasterRecoveryEnabled,
+		DisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
+		IsMultiNodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec:      embCfgSpec,
 		EndUserConfigSpec:       euCfgSpec,
 		KotsInstaller: func(msg *spinner.MessageWriter) error {
@@ -1020,7 +1016,7 @@ func waitForNode(ctx context.Context) error {
 	return nil
 }
 
-func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, disasterRecoveryEnabled bool) (*ecv1beta1.Installation, error) {
+func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, license *kotsv1beta1.License) (*ecv1beta1.Installation, error) {
 	// ensure that the embedded-cluster namespace exists
 	if err := createECNamespace(ctx, kcli); err != nil {
 		return nil, fmt.Errorf("create embedded-cluster namespace: %w", err)
@@ -1067,7 +1063,8 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCm
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                runtimeconfig.BinaryName(),
 			LicenseInfo: &ecv1beta1.LicenseInfo{
-				IsDisasterRecoverySupported: disasterRecoveryEnabled,
+				IsDisasterRecoverySupported: license.Spec.IsDisasterRecoverySupported,
+				IsMultiNodeEnabled:          license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 			},
 		},
 	}

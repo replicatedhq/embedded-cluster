@@ -7,24 +7,6 @@ inputs:
   is-large-runner:
     description: 'Whether the test is running on a large runner'
     required: true
-  airgap-license-id:
-    description: 'airgap-enabled license id to use for e2e tests'
-    required: true
-  snapshot-license-id:
-    description: 'snapshot-enabled license id to use for e2e tests'
-    required: true
-  snapshot-license:
-    description: 'snapshot-enabled license (b64) to use for e2e tests'
-    required: true
-  license-id:
-    description: 'license id to use for e2e tests'
-    required: true
-  airgap-snapshot-license-id:
-    description: 'airgap-snapshot-enabled license id to use for e2e tests'
-    required: true
-  license:
-    description: 'license (b64) to use for e2e tests'
-    required: true
   dr-aws-access-key-id:
     description: 'Disaster Recovery AWS Access Key ID'
     required: true
@@ -96,12 +78,6 @@ runs:
     run: |
       export SHORT_SHA=${{ inputs.version-specifier }}
       echo "${SHORT_SHA}"
-      export LICENSE_ID=${{ inputs.license-id }}
-      export AIRGAP_LICENSE_ID=${{ inputs.airgap-license-id }}
-      export SNAPSHOT_LICENSE_ID=${{ inputs.snapshot-license-id }}
-      export AIRGAP_SNAPSHOT_LICENSE_ID=${{ inputs.airgap-snapshot-license-id }}
-      echo "${{ inputs.license }}" | base64 --decode > e2e/license.yaml
-      echo "${{ inputs.snapshot-license }}" | base64 --decode > e2e/snapshot-license.yaml
       export DR_AWS_S3_ENDPOINT=https://s3.amazonaws.com
       export DR_AWS_S3_REGION=us-east-1
       export DR_AWS_S3_BUCKET=kots-testim-snapshots
