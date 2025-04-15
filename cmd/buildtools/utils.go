@@ -234,6 +234,10 @@ func GetLatestKotsHelmTag(ctx context.Context) (string, error) {
 			logrus.Infof("tag does not have same prefix: %s", tag.GetName())
 			break
 		}
+		if strings.Contains(tag.GetName(), "-ec.") {
+			logrus.Infof("tag is a ec tag, returning: %s", tag.GetName())
+			return tag.GetName(), nil
+		}
 		if strings.Contains(tag.GetName(), "-build.") {
 			logrus.Infof("tag is a build tag, returning: %s", tag.GetName())
 			return tag.GetName(), nil

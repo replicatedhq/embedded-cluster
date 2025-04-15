@@ -150,6 +150,8 @@ jobs:
 
       - uses: oras-project/setup-oras@v1
 
+      - uses: imjasonh/setup-crane@v0.4
+
       - name: Download buildtools artifact
         uses: actions/download-artifact@v4
         with:
@@ -427,7 +429,8 @@ jobs:
           path: output/bin
       - name: Download current binary
         env:
-          LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
+          # staging ci license id
+          LICENSE_ID: 2cQCFfBxG7gXDmq1yAgPSM4OViF
         run: |
           export APP_VERSION="appver-${{ github.ref_name }}"
           curl --retry 5 --retry-all-errors -fL -o embedded-cluster-smoke-test-staging-app-ci.tgz "https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/ci/${APP_VERSION}" -H "Authorization: $LICENSE_ID"
@@ -514,17 +517,9 @@ jobs:
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
       - name: Free up runner disk space
         uses: ./.github/actions/free-disk-space
-      - name: Write license files
-        run: |
-          echo "${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}" | base64 --decode > e2e/license.yaml
-          echo "${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE }}" | base64 --decode > e2e/snapshot-license.yaml
       - name: Run test
         env:
           SHORT_SHA: ${{ github.ref_name }}
-          LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
-          AIRGAP_LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
-          SNAPSHOT_LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
-          AIRGAP_SNAPSHOT_LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_SNAPSHOT_LICENSE_ID }}
           DR_AWS_S3_ENDPOINT: https://s3.amazonaws.com
           DR_AWS_S3_REGION: us-east-1
           DR_AWS_S3_BUCKET: kots-testim-snapshots
@@ -598,12 +593,6 @@ jobs:
         with:
           test-name: '${{ matrix.test }}'
           is-large-runner: ${{ matrix.runner == 'embedded-cluster-2' }}
-          airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
-          snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
-          snapshot-license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE }}
-          airgap-snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_SNAPSHOT_LICENSE_ID }}
-          license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
-          license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           version-specifier: ${{ github.ref_name }}

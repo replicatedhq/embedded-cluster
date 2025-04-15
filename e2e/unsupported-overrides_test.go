@@ -20,7 +20,7 @@ func TestUnsupportedOverrides(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-unsupported-overrides", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-unsupported-overrides", os.Getenv("SHORT_SHA")), LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
