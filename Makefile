@@ -7,7 +7,7 @@ ARCH ?= $(shell go env GOARCH)
 
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
-ADMIN_CONSOLE_IMAGE_OVERRIDE = ttl.sh/salah/kotsadm:24h
+ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
 K0S_VERSION = v1.30.9+k0s.0
@@ -19,7 +19,7 @@ TROUBLESHOOT_VERSION = v0.117.0
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
-KOTS_BINARY_URL_OVERRIDE = ttl.sh/salah/kots.tar.gz:24h
+KOTS_BINARY_URL_OVERRIDE =
 # If KOTS_BINARY_FILE_OVERRIDE is set, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
 # For dev env, build the kots binary in the kots repo with "make kots-linux-arm64" and set this to "../kots/bin/kots"
 KOTS_BINARY_FILE_OVERRIDE =
