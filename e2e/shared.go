@@ -45,6 +45,7 @@ type joinOptions struct {
 	isAirgap   bool
 	isHA       bool
 	isRestore  bool
+	isCMX      bool
 	keepAssets bool
 	withEnv    map[string]string
 }
@@ -155,6 +156,11 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 	t.Logf("%s: joining node %d to the cluster as a controller%s", time.Now().Format(time.RFC3339), node,
 		map[bool]string{true: " in ha mode", false: ""}[opts.isHA])
 
+	if opts.isCMX {
+		// TODO: remove once CMX no longer requires the tailscale0 interface
+		command = strings.Replace(command, "join", "join --network-interface tailscale0", 1)
+	}
+
 	var joinCommand []string
 	if opts.isHA {
 		if _, ok := tc.(*docker.Cluster); ok {
@@ -208,6 +214,11 @@ func joinWorkerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts 
 		if _, _, err := tc.RunCommandOnNode(node, []string{"airgap-prepare.sh"}); err != nil {
 			t.Fatalf("fail to prepare airgap files on node %d: %v", node, err)
 		}
+	}
+
+	if opts.isCMX {
+		// TODO: remove once CMX no longer requires the tailscale0 interface
+		command = strings.Replace(command, "join", "join --network-interface tailscale0", 1)
 	}
 
 	t.Logf("%s: joining node %d to the cluster as a worker", time.Now().Format(time.RFC3339), node)

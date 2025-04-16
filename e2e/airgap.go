@@ -41,7 +41,7 @@ func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, li
 		}
 		time.Sleep(1 * time.Minute)
 	}
-	return fmt.Errorf("failed to download airgap bundle for version %s after 5 attempts", versionLabel)
+	return fmt.Errorf("failed to download airgap bundle for version %s after 20 attempts", versionLabel)
 }
 
 func maybeDownloadAirgapBundle(versionLabel string, destPath string, licenseID string) (int64, error) {
@@ -95,7 +95,7 @@ func downloadAirgapBundleOnNode(t *testing.T, tc cluster.Cluster, node int, vers
 		}
 		time.Sleep(1 * time.Minute)
 	}
-	return fmt.Errorf("failed to download airgap bundle for version %s after 5 attempts", versionLabel)
+	return fmt.Errorf("failed to download airgap bundle for version %s after 20 attempts", versionLabel)
 }
 
 func maybeDownloadAirgapBundleOnNode(tc cluster.Cluster, node int, versionLabel string, destPath string, licenseID string) (float64, error) {

@@ -1865,15 +1865,15 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	}
 
 	// join a worker
-	joinWorkerNodeWithOptions(t, tc, 1, joinOptions{isAirgap: true})
+	joinWorkerNodeWithOptions(t, tc, 1, joinOptions{isAirgap: true, isCMX: true})
 	checkWorkerProfile(t, tc, 1)
 
 	// join a controller
-	joinControllerNodeWithOptions(t, tc, 2, joinOptions{isAirgap: true})
+	joinControllerNodeWithOptions(t, tc, 2, joinOptions{isAirgap: true, isCMX: true})
 	checkWorkerProfile(t, tc, 2)
 
 	// join another controller in HA mode
-	joinControllerNodeWithOptions(t, tc, 3, joinOptions{isAirgap: true, isHA: true})
+	joinControllerNodeWithOptions(t, tc, 3, joinOptions{isAirgap: true, isHA: true, isCMX: true})
 	checkWorkerProfile(t, tc, 3)
 
 	// wait for the nodes to report as ready.

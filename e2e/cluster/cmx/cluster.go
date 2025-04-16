@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 )
 
 type ClusterInput struct {
@@ -47,32 +48,40 @@ func NewCluster(in *ClusterInput) *Cluster {
 	c := &Cluster{t: in.T, supportBundleNodeIndex: in.SupportBundleNodeIndex}
 	c.Nodes = make([]Node, in.Nodes)
 
-	network, err := NewNetwork()
+	network, err := NewNetwork(in)
 	if err != nil {
 		in.T.Fatalf("failed to create network: %v", err)
 	}
 	c.network = network
 
-	var wg sync.WaitGroup
-	wg.Add(in.Nodes)
+	g := new(errgroup.Group)
 	var mu sync.Mutex
 
 	for i := range c.Nodes {
-		go func(i int) {
-			defer wg.Done()
-			node := NewNode(in, i, network.ID)
-			mu.Lock()
-			c.Nodes[i] = node
-			mu.Unlock()
+		func(i int) {
+			g.Go(func() error {
+				node, err := NewNode(in, i, network.ID)
+				if err != nil {
+					return fmt.Errorf("failed to create node %d: %w", i, err)
+				}
+				mu.Lock()
+				c.Nodes[i] = *node
+				mu.Unlock()
+				return nil
+			})
 		}(i)
 	}
 
-	wg.Wait()
+	if err := g.Wait(); err != nil {
+		in.T.Fatalf("failed to create nodes: %v", err)
+	}
+
 	return c
 }
 
-func NewNetwork() (*Network, error) {
+func NewNetwork(in *ClusterInput) (*Network, error) {
 	name := fmt.Sprintf("ec-e2e-%s", uuid.New().String())
+	in.T.Logf("creating network %s", name)
 
 	// Create network
 	output, err := exec.Command("replicated", "network", "create", "--name", name, "--wait", "2m").CombinedOutput()
@@ -102,9 +111,9 @@ func NewNetwork() (*Network, error) {
 	return nil, fmt.Errorf("could not find network %s", name)
 }
 
-func NewNode(in *ClusterInput, index int, networkID string) Node {
-	in.T.Logf("creating node%d", index)
+func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 	nodeName := fmt.Sprintf("node%d", index)
+	in.T.Logf("creating node %s", nodeName)
 
 	cmd := exec.Command("replicated", "vm", "create",
 		"--name", nodeName,
@@ -115,45 +124,45 @@ func NewNode(in *ClusterInput, index int, networkID string) Node {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		in.T.Fatalf("failed to create node %s: %v: %s", nodeName, err, string(output))
+		return nil, fmt.Errorf("failed to create node %s: %v: %s", nodeName, err, string(output))
 	}
 
-	nodeID := getNodeIDByName(in.T, nodeName)
-	if nodeID == "" {
-		in.T.Fatalf("failed to get node ID for %s", nodeName)
+	nodeID, err := getNodeIDByName(in.T, nodeName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get node ID for %s: %v", nodeName, err)
 	}
 
 	sshEndpoint, err := getSSHEndpoint(nodeID)
 	if err != nil {
-		in.T.Fatalf("failed to get ssh endpoint for node %s: %v", nodeName, err)
+		return nil, fmt.Errorf("failed to get ssh endpoint for node %s: %v", nodeName, err)
 	}
 
-	node := Node{
+	node := &Node{
 		ID:          nodeID,
 		Name:        nodeName,
 		sshEndpoint: sshEndpoint,
 	}
 
 	in.T.Logf("ensuring assets dir on node %s", node.Name)
-	if err := ensureAssetsDir(node); err != nil {
-		in.T.Fatalf("failed to ensure assets dir on node %s: %v", node.Name, err)
+	if err := ensureAssetsDir(*node); err != nil {
+		return nil, fmt.Errorf("failed to ensure assets dir on node %s: %v", node.Name, err)
 	}
 
 	in.T.Logf("copying scripts to node %s", node.Name)
-	if err := copyScriptsToNode(node); err != nil {
-		in.T.Fatalf("failed to copy scripts to node %s: %v", node.Name, err)
+	if err := copyScriptsToNode(*node); err != nil {
+		return nil, fmt.Errorf("failed to copy scripts to node %s: %v", node.Name, err)
 	}
 
 	if index == 0 {
 		in.T.Logf("exposing port 30003 on node %s", node.Name)
-		hostname, err := exposePort(node, "30003")
+		hostname, err := exposePort(*node, "30003")
 		if err != nil {
-			in.T.Fatalf("failed to expose port: %v", err)
+			return nil, fmt.Errorf("failed to expose port: %v", err)
 		}
 		node.adminConsoleURL = fmt.Sprintf("http://%s", hostname)
 	}
 
-	return node
+	return node, nil
 }
 
 func ensureAssetsDir(node Node) error {
@@ -199,26 +208,25 @@ func copyScriptsToNode(node Node) error {
 	return nil
 }
 
-func getNodeIDByName(t *testing.T, name string) string {
+func getNodeIDByName(t *testing.T, name string) (string, error) {
 	cmd := exec.Command("replicated", "vm", "ls", "--output", "json")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("failed to list nodes: %v: %s", err, string(output))
+		return "", fmt.Errorf("failed to list nodes: %v: %s", err, string(output))
 	}
 
 	var nodes []Node
 	if err := json.Unmarshal(output, &nodes); err != nil {
-		t.Fatalf("failed to unmarshal nodes: %v: %s", err, string(output))
+		return "", fmt.Errorf("failed to unmarshal nodes: %v: %s", err, string(output))
 	}
 
 	for _, node := range nodes {
 		if node.Name == name {
-			return node.ID
+			return node.ID, nil
 		}
 	}
 
-	t.Fatalf("node %s not found", name)
-	return ""
+	return "", fmt.Errorf("node %s not found", name)
 }
 
 func getSSHEndpoint(nodeID string) (string, error) {
