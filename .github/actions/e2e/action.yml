@@ -28,6 +28,9 @@ inputs:
   cmx-api-token:
     description: 'the token used to access the replicated api for cmx'
     required: false # this is only needed for cmx-based tests
+  cmx-ssh-private-key:
+    description: 'the private key used to access the cmx nodes'
+    required: false # this is only needed for cmx-based tests
   upgrade-target-ec-version:
     description: 'the embedded cluster version to expect after upgrades complete'
     required: false # this is only set by post-release testing
@@ -76,6 +79,13 @@ runs:
     with:
       go-version-file: go.mod
       cache-dependency-path: "**/*.sum"
+  - name: Setup SSH for CMX
+    if: ${{ inputs.cmx-ssh-private-key != '' }}
+    shell: bash
+    run: |
+      mkdir -p ~/.ssh
+      echo "${{ inputs.cmx-ssh-private-key }}" > ~/.ssh/id_ed25519
+      chmod 600 ~/.ssh/id_ed25519
   - name: E2E
     shell: bash
     run: |
