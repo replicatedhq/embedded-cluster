@@ -768,6 +768,7 @@ jobs:
           k0s-version-previous: ${{ needs.build-previous-k0s.outputs.k0s_version }}
           k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
           version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
+          cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
 
   e2e-main:
     name: E2E (on merge)

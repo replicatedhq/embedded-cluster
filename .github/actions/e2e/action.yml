@@ -25,6 +25,9 @@ inputs:
   version-specifier:
     description: 'the git sha or tag used to generate application version strings'
     required: true
+  cmx-api-token:
+    description: 'the token used to access the replicated api for cmx'
+    required: false # this is only needed for cmx-based tests
   upgrade-target-ec-version:
     description: 'the embedded cluster version to expect after upgrades complete'
     required: false # this is only set by post-release testing
@@ -78,6 +81,7 @@ runs:
     run: |
       export SHORT_SHA=${{ inputs.version-specifier }}
       echo "${SHORT_SHA}"
+      export REPLICATED_API_TOKEN=${{ inputs.cmx-api-token }}
       export DR_AWS_S3_ENDPOINT=https://s3.amazonaws.com
       export DR_AWS_S3_REGION=us-east-1
       export DR_AWS_S3_BUCKET=kots-testim-snapshots
