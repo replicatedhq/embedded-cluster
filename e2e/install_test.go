@@ -760,9 +760,9 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Logf("%s: airgapping node 0", time.Now().Format(time.RFC3339))
-	if err := tc.AirgapNode(0); err != nil {
-		t.Fatalf("failed to airgap node 0: %v", err)
+	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
+	if err := tc.Airgap(); err != nil {
+		t.Fatalf("failed to airgap cluster: %v", err)
 	}
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
@@ -884,9 +884,9 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 		},
 	)
 
-	t.Logf("%s: airgapping node 0", time.Now().Format(time.RFC3339))
-	if err := tc.AirgapNode(0); err != nil {
-		t.Fatalf("failed to airgap node 0: %v", err)
+	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
+	if err := tc.Airgap(); err != nil {
+		t.Fatalf("failed to airgap cluster: %v", err)
 	}
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
@@ -1835,18 +1835,10 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		t.Fatalf("fail to install expect package on node 3: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: airgapping nodes", time.Now().Format(time.RFC3339))
-	runInParallel(t,
-		func(t *testing.T) error {
-			return tc.AirgapNode(0)
-		}, func(t *testing.T) error {
-			return tc.AirgapNode(1)
-		}, func(t *testing.T) error {
-			return tc.AirgapNode(2)
-		}, func(t *testing.T) error {
-			return tc.AirgapNode(3)
-		},
-	)
+	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
+	if err := tc.Airgap(); err != nil {
+		t.Fatalf("failed to airgap cluster: %v", err)
+	}
 
 	t.Logf("%s: preparing embedded cluster airgap files on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}

@@ -84,6 +84,7 @@ runs:
       cache-dependency-path: "**/*.sum"
   - name: Install replicated CLI for CMX
     if: ${{ inputs.cmx-api-token != '' }}
+    shell: bash
     env:
       GH_TOKEN: ${{ inputs.github-token }}
     run: |

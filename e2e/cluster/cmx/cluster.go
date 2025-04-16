@@ -11,7 +11,24 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
+
+type ClusterInput struct {
+	T                      *testing.T
+	Nodes                  int
+	Distro                 string
+	SupportBundleNodeIndex int
+}
+
+type Cluster struct {
+	Nodes []Node
+
+	t                      *testing.T
+	network                *Network `json:"-"`
+	supportBundleNodeIndex int
+}
 
 type Node struct {
 	ID   string `json:"id"`
@@ -21,23 +38,20 @@ type Node struct {
 	adminConsoleURL string `json:"-"`
 }
 
-type Cluster struct {
-	Nodes []Node
-
-	T                      *testing.T
-	SupportBundleNodeIndex int
-}
-
-type ClusterInput struct {
-	T                      *testing.T
-	Nodes                  int
-	Distro                 string
-	SupportBundleNodeIndex int
+type Network struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 func NewCluster(in *ClusterInput) *Cluster {
-	c := &Cluster{T: in.T, SupportBundleNodeIndex: in.SupportBundleNodeIndex}
+	c := &Cluster{t: in.T, supportBundleNodeIndex: in.SupportBundleNodeIndex}
 	c.Nodes = make([]Node, in.Nodes)
+
+	network, err := NewNetwork()
+	if err != nil {
+		in.T.Fatalf("failed to create network: %v", err)
+	}
+	c.network = network
 
 	var wg sync.WaitGroup
 	wg.Add(in.Nodes)
@@ -46,7 +60,7 @@ func NewCluster(in *ClusterInput) *Cluster {
 	for i := range c.Nodes {
 		go func(i int) {
 			defer wg.Done()
-			node := NewNode(in, i)
+			node := NewNode(in, i, network.ID)
 			mu.Lock()
 			c.Nodes[i] = node
 			mu.Unlock()
@@ -57,7 +71,38 @@ func NewCluster(in *ClusterInput) *Cluster {
 	return c
 }
 
-func NewNode(in *ClusterInput, index int) Node {
+func NewNetwork() (*Network, error) {
+	name := fmt.Sprintf("ec-e2e-%s", uuid.New().String())
+
+	// Create network
+	output, err := exec.Command("replicated", "network", "create", "--name", name, "--wait", "2m").CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create network %s: %v: %s", name, err, string(output))
+	}
+
+	// Get networks
+	output, err = exec.Command("replicated", "network", "ls", "-ojson").CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list networks: %v: %s", err, string(output))
+	}
+
+	// Parse JSON output
+	var networks []Network
+	if err := json.Unmarshal(output, &networks); err != nil {
+		return nil, fmt.Errorf("failed to parse networks output: %v", err)
+	}
+
+	// Find network we just created
+	for _, network := range networks {
+		if network.Name == name {
+			return &network, nil
+		}
+	}
+
+	return nil, fmt.Errorf("could not find network %s", name)
+}
+
+func NewNode(in *ClusterInput, index int, networkID string) Node {
 	in.T.Logf("creating node%d", index)
 	nodeName := fmt.Sprintf("node%d", index)
 
@@ -65,6 +110,7 @@ func NewNode(in *ClusterInput, index int) Node {
 		"--name", nodeName,
 		"--distribution", strings.Split(in.Distro, "/")[0],
 		"--version", strings.Split(in.Distro, "/")[1],
+		"--network", networkID,
 		"--wait", "2m")
 
 	output, err := cmd.CombinedOutput()
@@ -184,47 +230,21 @@ func getSSHEndpoint(nodeID string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-func (c *Cluster) AirgapNode(node int) error {
-	// Get networks
-	cmd := exec.Command("replicated", "network", "ls", "-ojson")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to list networks: %v: %s", err, string(output))
-	}
-
-	// Parse JSON output
-	var networks []struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
-	}
-	if err := json.Unmarshal(output, &networks); err != nil {
-		return fmt.Errorf("failed to parse networks output: %v", err)
-	}
-
-	// Find network ID for the node
-	var networkID string
-	for _, network := range networks {
-		if network.Name == c.Nodes[node].Name {
-			networkID = network.ID
-			break
-		}
-	}
-	if networkID == "" {
-		return fmt.Errorf("could not find network ID for node %s", c.Nodes[node].Name)
-	}
-
+func (c *Cluster) Airgap() error {
 	// Update network policy to airgap
-	cmd = exec.Command("replicated", "network", "update", "policy",
-		"--id", networkID,
+	cmd := exec.Command("replicated", "network", "update", "policy",
+		"--id", c.network.ID,
 		"--policy=airgap")
-	output, err = cmd.CombinedOutput()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to update network policy: %v: %s", err, string(output))
 	}
 
-	// Wait until the node is airgapped
-	if err := c.waitUntilAirgapped(node); err != nil {
-		return fmt.Errorf("failed to wait until node is airgapped: %v", err)
+	// Wait until the nodes are airgapped
+	for node := range c.Nodes {
+		if err := c.waitUntilAirgapped(node); err != nil {
+			return fmt.Errorf("failed to wait until node %d is airgapped: %v", node, err)
+		}
 	}
 
 	return nil
@@ -241,10 +261,10 @@ func (c *Cluster) waitUntilAirgapped(node int) error {
 		case <-tick:
 			_, _, err := c.RunCommandOnNode(node, []string{"curl", "--connect-timeout", "5", "www.google.com"})
 			if err != nil {
-				c.T.Logf("node is airgapped successfully")
+				c.t.Logf("node %d is airgapped successfully", node)
 				return nil
 			}
-			c.T.Logf("node is not airgapped yet")
+			c.t.Logf("node %d is not airgapped yet", node)
 		}
 	}
 }
@@ -260,7 +280,7 @@ func (c *Cluster) Destroy() {
 		cmd := exec.Command("replicated", "vm", "rm", node.ID)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			c.T.Logf("failed to destroy node %s: %v: %s", node.Name, err, string(output))
+			c.t.Logf("failed to destroy node %s: %v: %s", node.Name, err, string(output))
 		}
 	}
 }
@@ -303,12 +323,12 @@ func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (st
 }
 
 func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
-	c.T.Logf("%s: bypassing kurl-proxy", time.Now().Format(time.RFC3339))
+	c.t.Logf("%s: bypassing kurl-proxy", time.Now().Format(time.RFC3339))
 	_, stderr, err := c.RunCommandOnNode(0, []string{"bypass-kurl-proxy.sh"}, envs...)
 	if err != nil {
 		return fmt.Errorf("fail to bypass kurl-proxy: %v: %s", err, string(stderr))
 	}
-	c.T.Logf("%s: installing playwright", time.Now().Format(time.RFC3339))
+	c.t.Logf("%s: installing playwright", time.Now().Format(time.RFC3339))
 	cmd := exec.Command("sh", "-c", "cd playwright && npm ci && npx playwright install --with-deps")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -318,7 +338,7 @@ func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
 }
 
 func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, string, error) {
-	c.T.Logf("%s: running playwright test %s", time.Now().Format(time.RFC3339), testName)
+	c.t.Logf("%s: running playwright test %s", time.Now().Format(time.RFC3339), testName)
 	cmdArgs := []string{testName}
 	cmdArgs = append(cmdArgs, args...)
 	cmd := exec.Command("scripts/playwright.sh", cmdArgs...)
@@ -342,35 +362,35 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 	for i := range c.Nodes {
 		go func(i int, wg *sync.WaitGroup) {
 			defer wg.Done()
-			c.T.Logf("%s: generating host support bundle from node %d", time.Now().Format(time.RFC3339), i)
+			c.t.Logf("%s: generating host support bundle from node %d", time.Now().Format(time.RFC3339), i)
 			if stdout, stderr, err := c.RunCommandOnNode(i, []string{"collect-support-bundle-host.sh"}, envs...); err != nil {
-				c.T.Logf("stdout: %s", stdout)
-				c.T.Logf("stderr: %s", stderr)
-				c.T.Logf("fail to generate support from node %d bundle: %v", i, err)
+				c.t.Logf("stdout: %s", stdout)
+				c.t.Logf("stderr: %s", stderr)
+				c.t.Logf("fail to generate support from node %d bundle: %v", i, err)
 				return
 			}
 
-			c.T.Logf("%s: copying host support bundle from node %d to local machine", time.Now().Format(time.RFC3339), i)
+			c.t.Logf("%s: copying host support bundle from node %d to local machine", time.Now().Format(time.RFC3339), i)
 			src := "host.tar.gz"
 			dst := fmt.Sprintf("support-bundle-host-%d.tar.gz", i)
 			if err := copyFileFromNode(c.Nodes[i], src, dst); err != nil {
-				c.T.Logf("fail to copy support bundle from node %d: %v", i, err)
+				c.t.Logf("fail to copy support bundle from node %d: %v", i, err)
 				return
 			}
 		}(i, &wg)
 	}
 
-	c.T.Logf("%s: generating cluster support bundle from node %d", time.Now().Format(time.RFC3339), c.SupportBundleNodeIndex)
-	if stdout, stderr, err := c.RunCommandOnNode(c.SupportBundleNodeIndex, []string{"collect-support-bundle-cluster.sh"}, envs...); err != nil {
-		c.T.Logf("stdout: %s", stdout)
-		c.T.Logf("stderr: %s", stderr)
-		c.T.Logf("fail to generate cluster support from node %d bundle: %v", c.SupportBundleNodeIndex, err)
+	c.t.Logf("%s: generating cluster support bundle from node %d", time.Now().Format(time.RFC3339), c.supportBundleNodeIndex)
+	if stdout, stderr, err := c.RunCommandOnNode(c.supportBundleNodeIndex, []string{"collect-support-bundle-cluster.sh"}, envs...); err != nil {
+		c.t.Logf("stdout: %s", stdout)
+		c.t.Logf("stderr: %s", stderr)
+		c.t.Logf("fail to generate cluster support from node %d bundle: %v", c.supportBundleNodeIndex, err)
 	} else {
-		c.T.Logf("%s: copying cluster support bundle from node %d to local machine", time.Now().Format(time.RFC3339), c.SupportBundleNodeIndex)
+		c.t.Logf("%s: copying cluster support bundle from node %d to local machine", time.Now().Format(time.RFC3339), c.supportBundleNodeIndex)
 		src := "cluster.tar.gz"
 		dst := "support-bundle-cluster.tar.gz"
-		if err := copyFileFromNode(c.Nodes[c.SupportBundleNodeIndex], src, dst); err != nil {
-			c.T.Logf("fail to copy cluster support bundle from node %d: %v", c.SupportBundleNodeIndex, err)
+		if err := copyFileFromNode(c.Nodes[c.supportBundleNodeIndex], src, dst); err != nil {
+			c.t.Logf("fail to copy cluster support bundle from node %d: %v", c.supportBundleNodeIndex, err)
 		}
 	}
 
@@ -378,11 +398,11 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 }
 
 func (c *Cluster) copyPlaywrightReport() {
-	c.T.Logf("%s: compressing playwright report", time.Now().Format(time.RFC3339))
+	c.t.Logf("%s: compressing playwright report", time.Now().Format(time.RFC3339))
 	cmd := exec.Command("tar", "-czf", "playwright-report.tar.gz", "-C", "./playwright/playwright-report", ".")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		c.T.Logf("fail to compress playwright report: %v: %s", err, string(out))
+		c.t.Logf("fail to compress playwright report: %v: %s", err, string(out))
 	}
 }
 
