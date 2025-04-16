@@ -103,11 +103,7 @@ func TestProxiedEnvironment(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
-	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v", err)
-	}
+	checkPostUpgradeState(t, tc)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -205,11 +201,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
-	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v", err)
-	}
+	checkPostUpgradeState(t, tc)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

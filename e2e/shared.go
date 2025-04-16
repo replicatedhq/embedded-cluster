@@ -49,6 +49,13 @@ type joinOptions struct {
 	withEnv    map[string]string
 }
 
+type postUpgradeStateOptions struct {
+	node           int
+	k8sVersion     string
+	upgradeVersion string
+	withEnv        map[string]string
+}
+
 func installSingleNode(t *testing.T, tc cluster.Cluster) {
 	installSingleNodeWithOptions(t, tc, installOptions{})
 }
@@ -234,5 +241,30 @@ func checkWorkerProfile(t *testing.T, tc cluster.Cluster, node int) {
 	line := []string{"check-worker-profile.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
 		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}
+
+func checkPostUpgradeState(t *testing.T, tc cluster.Cluster) {
+	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{})
+}
+
+func checkPostUpgradeStateWithOptions(t *testing.T, tc cluster.Cluster, opts postUpgradeStateOptions) {
+	line := []string{"check-postupgrade-state.sh"}
+
+	if opts.k8sVersion != "" {
+		line = append(line, opts.k8sVersion)
+	} else {
+		line = append(line, k8sVersion())
+	}
+
+	if opts.upgradeVersion != "" {
+		line = append(line, opts.upgradeVersion)
+	} else {
+		line = append(line, ecUpgradeTargetVersion())
+	}
+
+	t.Logf("%s: checking installation state after upgrade on node %d", time.Now().Format(time.RFC3339), opts.node)
+	if stdout, stderr, err := tc.RunCommandOnNode(opts.node, line, opts.withEnv); err != nil {
+		t.Fatalf("fail to check postupgrade state on node %d: %v: %s: %s", opts.node, err, stdout, stderr)
 	}
 }

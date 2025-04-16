@@ -25,6 +25,9 @@ inputs:
   version-specifier:
     description: 'the git sha or tag used to generate application version strings'
     required: true
+  github-token:
+    description: 'the ci github token used to install the replicated cli'
+    required: false # this is only needed for cmx-based tests
   cmx-api-token:
     description: 'the token used to access the replicated api for cmx'
     required: false # this is only needed for cmx-based tests
@@ -79,6 +82,14 @@ runs:
     with:
       go-version-file: go.mod
       cache-dependency-path: "**/*.sum"
+  - name: Install replicated CLI for CMX
+    if: ${{ inputs.cmx-api-token != '' }}
+    env:
+      GH_TOKEN: ${{ inputs.github-token }}
+    run: |
+      gh release download --repo replicatedhq/replicated --pattern '*_linux_amd64.tar.gz' --output /tmp/replicated.tar.gz --clobber
+      tar -xzf /tmp/replicated.tar.gz -C /tmp
+      mv /tmp/replicated /usr/local/bin/replicated
   - name: Setup SSH for CMX
     if: ${{ inputs.cmx-ssh-private-key != '' }}
     shell: bash

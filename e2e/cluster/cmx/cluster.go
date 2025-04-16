@@ -189,7 +189,7 @@ func (c *Cluster) AirgapNode(node int) error {
 	cmd := exec.Command("replicated", "network", "ls", "-ojson")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		c.T.Fatalf("failed to list networks: %v: %s", err, string(output))
+		return fmt.Errorf("failed to list networks: %v: %s", err, string(output))
 	}
 
 	// Parse JSON output
@@ -198,7 +198,7 @@ func (c *Cluster) AirgapNode(node int) error {
 		Name string `json:"name"`
 	}
 	if err := json.Unmarshal(output, &networks); err != nil {
-		c.T.Fatalf("failed to parse networks output: %v", err)
+		return fmt.Errorf("failed to parse networks output: %v", err)
 	}
 
 	// Find network ID for the node
@@ -210,7 +210,7 @@ func (c *Cluster) AirgapNode(node int) error {
 		}
 	}
 	if networkID == "" {
-		c.T.Fatalf("could not find network ID for node %s", c.Nodes[node].Name)
+		return fmt.Errorf("could not find network ID for node %s", c.Nodes[node].Name)
 	}
 
 	// Update network policy to airgap
@@ -219,12 +219,12 @@ func (c *Cluster) AirgapNode(node int) error {
 		"--policy=airgap")
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		c.T.Fatalf("failed to update network policy: %v: %s", err, string(output))
+		return fmt.Errorf("failed to update network policy: %v: %s", err, string(output))
 	}
 
 	// Wait until the node is airgapped
 	if err := c.waitUntilAirgapped(node); err != nil {
-		c.T.Fatalf("failed to wait until node is airgapped: %v", err)
+		return fmt.Errorf("failed to wait until node is airgapped: %v", err)
 	}
 
 	return nil
