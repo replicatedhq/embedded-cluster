@@ -254,7 +254,7 @@ func getSSHEndpoint(t *testing.T, nodeID string) (string, error) {
 		}
 
 		t.Logf("failed to get SSH endpoint for node %s with error %q, retrying", nodeID, err)
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 	}
 	return "", fmt.Errorf("failed to get SSH endpoint for node %s after 5 attempts", nodeID)
 }
