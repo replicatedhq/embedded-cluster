@@ -773,11 +773,9 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA"), "--network-interface", "tailscale0"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
-	}
+	installSingleNodeWithOptions(t, tc, installOptions{
+		networkInterface: "tailscale0",
+	})
 
 	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
@@ -798,11 +796,9 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA"), "--network-interface", "tailscale0"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
-	}
+	installSingleNodeWithOptions(t, tc, installOptions{
+		networkInterface: "tailscale0",
+	})
 
 	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
@@ -897,11 +893,11 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", initialVersion, "--network-interface", "tailscale0", "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
-	}
+	installSingleNodeWithOptions(t, tc, installOptions{
+		version:                 initialVersion,
+		localArtifactMirrorPort: "50001", // choose an alternate lam port
+		networkInterface:        "tailscale0",
+	})
 
 	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
