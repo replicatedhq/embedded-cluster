@@ -120,6 +120,7 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 	in.T.Logf("creating node %s", nodeName)
 
 	args := []string{
+		"vm", "create",
 		"--name", nodeName,
 		"--network", networkID,
 		"--wait", "2m",
