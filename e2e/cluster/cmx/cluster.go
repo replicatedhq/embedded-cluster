@@ -299,7 +299,7 @@ func (c *Cluster) RunCommandOnNode(node int, line []string, envs ...map[string]s
 
 func runCommandOnNode(node Node, line []string, envs ...map[string]string) (string, string, error) {
 	line = append([]string{"sudo"}, line...)
-	cmd := exec.Command("ssh", "-o", "StrictHostKeyChecking=no", node.sshEndpoint, strings.Join(line, " "))
+	cmd := exec.Command("ssh", append(sshArgs(), node.sshEndpoint, strings.Join(line, " "))...)
 
 	for _, env := range envs {
 		for k, v := range env {
@@ -443,7 +443,7 @@ func exposePort(node Node, port string) (string, error) {
 func copyFileToNode(node Node, src, dst string) error {
 	scpEndpoint := strings.Replace(node.sshEndpoint, "ssh://", "scp://", 1)
 
-	cmd := exec.Command("scp", "-o", "StrictHostKeyChecking=no", src, fmt.Sprintf("%s/%s", scpEndpoint, dst))
+	cmd := exec.Command("scp", append(sshArgs(), src, fmt.Sprintf("%s/%s", scpEndpoint, dst))...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to copy file to node: %v: %s", err, string(output))
@@ -454,10 +454,18 @@ func copyFileToNode(node Node, src, dst string) error {
 func copyFileFromNode(node Node, src, dst string) error {
 	scpEndpoint := strings.Replace(node.sshEndpoint, "ssh://", "scp://", 1)
 
-	cmd := exec.Command("scp", "-o", "StrictHostKeyChecking=no", fmt.Sprintf("%s/%s", scpEndpoint, src), dst)
+	cmd := exec.Command("scp", append(sshArgs(), fmt.Sprintf("%s/%s", scpEndpoint, src), dst)...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to copy file from node: %v: %s", err, string(output))
 	}
 	return nil
+}
+
+func sshArgs() []string {
+	return []string{
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "ServerAliveInterval=30",
+		"-o", "ServerAliveCountMax=10",
+	}
 }
