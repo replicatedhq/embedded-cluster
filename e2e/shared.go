@@ -21,10 +21,12 @@ const (
 )
 
 type installOptions struct {
+	isAirgap                bool
 	viaCLI                  bool
 	version                 string
 	adminConsolePort        string
 	localArtifactMirrorPort string
+	cidr                    string
 	podCidr                 string
 	serviceCidr             string
 	httpProxy               string
@@ -63,8 +65,13 @@ func installSingleNode(t *testing.T, tc cluster.Cluster) {
 }
 
 func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts installOptions) {
-	line := []string{"single-node-install.sh"}
+	line := []string{}
 
+	if opts.isAirgap {
+		line = []string{"single-node-airgap-install.sh"}
+	} else {
+		line = []string{"single-node-install.sh"}
+	}
 	if opts.viaCLI {
 		line = append(line, "cli")
 	} else {
@@ -80,6 +87,9 @@ func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts install
 	}
 	if opts.localArtifactMirrorPort != "" {
 		line = append(line, "--local-artifact-mirror-port", opts.localArtifactMirrorPort)
+	}
+	if opts.cidr != "" {
+		line = append(line, "--cidr", opts.cidr)
 	}
 	if opts.podCidr != "" {
 		line = append(line, "--pod-cidr", opts.podCidr)
