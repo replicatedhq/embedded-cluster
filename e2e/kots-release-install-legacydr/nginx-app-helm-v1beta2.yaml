@@ -32,7 +32,7 @@ spec:
       enabled: true
       image:
         registry: repl{{ HasLocalRegistry | ternary LocalRegistryHost "ec-e2e-proxy.testcluster.net" }}
-        repository: repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app/registry.staging.replicated.com/library" }}/replicated-sdk-image
+        repository: repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "anonymous/registry.replicated.com/library" }}/replicated-sdk-image
       imagePullSecrets:
         - name: '{{repl ImagePullSecretName }}'
   builder:
