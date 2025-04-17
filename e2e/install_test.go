@@ -2369,14 +2369,11 @@ spec:
       value: %s
 `, hostname, password)
 	configValuesFileB64 := base64.StdEncoding.EncodeToString([]byte(configValuesFileContent))
+
 	t.Logf("%s: creating config values file", time.Now().Format(time.RFC3339))
-	_, _, err := tc.RunCommandOnNode(0, []string{"mkdir", "-p", "/assets"})
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sh", "-c", fmt.Sprintf("'echo %s | base64 -d > /assets/config-values.yaml'", configValuesFileB64)})
 	if err != nil {
-		t.Fatalf("fail to create config values file directory: %v", err)
-	}
-	_, _, err = tc.RunCommandOnNode(0, []string{"sh", "-c", "echo '" + configValuesFileB64 + "' | base64 -d > /assets/config-values.yaml"})
-	if err != nil {
-		t.Fatalf("fail to create config values file: %v", err)
+		t.Fatalf("fail to create config values file: %v: %s: %s", err, stdout, stderr)
 	}
 
 	installSingleNodeWithOptions(t, tc, installOptions{
