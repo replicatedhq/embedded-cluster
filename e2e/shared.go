@@ -68,9 +68,9 @@ func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts install
 	line := []string{}
 
 	if opts.isAirgap {
-		line = []string{"single-node-airgap-install.sh"}
+		line = append(line, "single-node-airgap-install.sh")
 	} else {
-		line = []string{"single-node-install.sh"}
+		line = append(line, "single-node-install.sh")
 	}
 	if opts.viaCLI {
 		line = append(line, "cli")

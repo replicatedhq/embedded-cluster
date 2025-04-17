@@ -148,7 +148,7 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 		return nil, fmt.Errorf("failed to get node ID for %s: %v", nodeName, err)
 	}
 
-	sshEndpoint, err := getSSHEndpoint(nodeID)
+	sshEndpoint, err := getSSHEndpoint(in.T, nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ssh endpoint for node %s: %v", nodeName, err)
 	}
@@ -245,13 +245,18 @@ func getNodeIDByName(t *testing.T, name string) (string, error) {
 	return "", fmt.Errorf("node %s not found", name)
 }
 
-func getSSHEndpoint(nodeID string) (string, error) {
-	cmd := exec.Command("replicated", "vm", "ssh-endpoint", nodeID)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("failed to get SSH endpoint for node %s: %v: %s", nodeID, err, string(output))
+func getSSHEndpoint(t *testing.T, nodeID string) (string, error) {
+	for range 5 {
+		cmd := exec.Command("replicated", "vm", "ssh-endpoint", nodeID)
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			return strings.TrimSpace(string(output)), nil
+		}
+
+		t.Logf("failed to get SSH endpoint for node %s with error %q, retrying", nodeID, err)
+		time.Sleep(5 * time.Second)
 	}
-	return strings.TrimSpace(string(output)), nil
+	return "", fmt.Errorf("failed to get SSH endpoint for node %s after 5 attempts", nodeID)
 }
 
 func (c *Cluster) Airgap() error {
