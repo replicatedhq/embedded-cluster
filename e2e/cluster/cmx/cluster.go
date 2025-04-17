@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -19,7 +20,10 @@ import (
 type ClusterInput struct {
 	T                      *testing.T
 	Nodes                  int
-	Distro                 string
+	Distribution           string
+	Version                string
+	InstanceType           string
+	DiskSize               int
 	SupportBundleNodeIndex int
 }
 
@@ -115,14 +119,25 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 	nodeName := fmt.Sprintf("node%d", index)
 	in.T.Logf("creating node %s", nodeName)
 
-	cmd := exec.Command("replicated", "vm", "create",
+	args := []string{
 		"--name", nodeName,
-		"--distribution", strings.Split(in.Distro, "/")[0],
-		"--version", strings.Split(in.Distro, "/")[1],
 		"--network", networkID,
-		"--wait", "2m")
+		"--wait", "2m",
+	}
+	if in.Distribution != "" {
+		args = append(args, "--distribution", in.Distribution)
+	}
+	if in.Version != "" {
+		args = append(args, "--version", in.Version)
+	}
+	if in.InstanceType != "" {
+		args = append(args, "--instance-type", in.InstanceType)
+	}
+	if in.DiskSize != 0 {
+		args = append(args, "--disk", strconv.Itoa(in.DiskSize))
+	}
 
-	output, err := cmd.CombinedOutput()
+	output, err := exec.Command("replicated", args...).CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create node %s: %v: %s", nodeName, err, string(output))
 	}
