@@ -280,8 +280,8 @@ func (c *Cluster) Airgap() error {
 }
 
 func (c *Cluster) waitUntilAirgapped(node int) error {
-	timeout := time.After(1 * time.Minute)
-	tick := time.Tick(1 * time.Second)
+	timeout := time.After(2 * time.Minute)
+	tick := time.Tick(5 * time.Second)
 
 	for {
 		select {
