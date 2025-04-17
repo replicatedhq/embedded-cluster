@@ -773,7 +773,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA"), "--network-interface", "tailscale0"}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -798,7 +798,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	time.Sleep(30 * time.Second)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA"), "--network-interface", "tailscale0"}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -896,7 +896,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", initialVersion, "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
+	line = []string{"single-node-airgap-install.sh", initialVersion, "--network-interface", "tailscale0", "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -1847,7 +1847,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA"), "--network-interface", "tailscale0"}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}

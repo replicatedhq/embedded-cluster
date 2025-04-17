@@ -144,7 +144,6 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 	if err != nil {
 		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
 	}
-	t.Log("controller join token command:", command)
 
 	if opts.isAirgap && !opts.isRestore { // skip airgap prepare for restore as it's already done on the initial installation
 		t.Logf("%s: preparing embedded cluster airgap files on node %d", time.Now().Format(time.RFC3339), node)
@@ -152,9 +151,6 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 			t.Fatalf("fail to prepare airgap files on node %d: %v", node, err)
 		}
 	}
-
-	t.Logf("%s: joining node %d to the cluster as a controller%s", time.Now().Format(time.RFC3339), node,
-		map[bool]string{true: " in ha mode", false: ""}[opts.isHA])
 
 	if opts.isCMX {
 		// TODO: remove once CMX no longer requires the tailscale0 interface
@@ -174,6 +170,9 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 		command = strings.Replace(command, "join", "join --no-ha", 1) // bypass prompt
 		joinCommand = strings.Split(command, " ")
 	}
+
+	t.Logf("%s: joining node %d to the cluster as a controller%s: %s", time.Now().Format(time.RFC3339), node,
+		map[bool]string{true: " in ha mode", false: ""}[opts.isHA], strings.Join(joinCommand, " "))
 
 	if stdout, stderr, err := tc.RunCommandOnNode(node, joinCommand, opts.withEnv); err != nil {
 		t.Fatalf("fail to join node %d as a controller%s: %v: %s: %s",
@@ -207,7 +206,6 @@ func joinWorkerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts 
 	if err != nil {
 		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
 	}
-	t.Log("worker join token command:", command)
 
 	if opts.isAirgap {
 		t.Logf("%s: preparing embedded cluster airgap files on node %d", time.Now().Format(time.RFC3339), node)
@@ -221,7 +219,7 @@ func joinWorkerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts 
 		command = strings.Replace(command, "join", "join --network-interface tailscale0", 1)
 	}
 
-	t.Logf("%s: joining node %d to the cluster as a worker", time.Now().Format(time.RFC3339), node)
+	t.Logf("%s: joining node %d to the cluster as a worker: %s", time.Now().Format(time.RFC3339), node, command)
 	if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Split(command, " ")); err != nil {
 		t.Fatalf("fail to join node %d to the cluster as a worker: %v: %s: %s", node, err, stdout, stderr)
 	}
