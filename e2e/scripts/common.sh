@@ -484,7 +484,7 @@ validate_worker_profile() {
 # check that the 'join print-command returns a command that contains 'sudo' and 'join'
 check_join_command() {
     output=$(embedded-cluster join print-command)
-    if ! echo "$output" | grep -q "sudo" | grep -q "join"; then
+    if ! echo "$output" | grep "sudo" | grep -q "join"; then
         echo "join command does not contain 'sudo' or 'join'"
         echo "$output"
         exit 1
