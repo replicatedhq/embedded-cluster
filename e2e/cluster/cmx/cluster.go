@@ -88,7 +88,7 @@ func NewNetwork(in *ClusterInput) (*Network, error) {
 	in.T.Logf("creating network %s", name)
 
 	// Create network
-	output, err := exec.Command("replicated", "network", "create", "--name", name, "--wait", "2m").CombinedOutput()
+	output, err := exec.Command("replicated", "network", "create", "--name", name, "--wait", "5m").CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create network %s: %v: %s", name, err, string(output))
 	}
@@ -123,7 +123,7 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 		"vm", "create",
 		"--name", nodeName,
 		"--network", networkID,
-		"--wait", "2m",
+		"--wait", "5m",
 	}
 	if in.Distribution != "" {
 		args = append(args, "--distribution", in.Distribution)
@@ -216,7 +216,7 @@ func copyScriptsToNode(node Node) error {
 	}
 
 	// Clean up the archive on the node
-	_, stderr, err = runCommandOnNode(node, []string{"rm", "/tmp/scripts.tgz"})
+	_, stderr, err = runCommandOnNode(node, []string{"rm", "-f", "/tmp/scripts.tgz"})
 	if err != nil {
 		return fmt.Errorf("failed to clean up scripts archive: %v: %s", err, stderr)
 	}
@@ -245,18 +245,13 @@ func getNodeIDByName(t *testing.T, name string) (string, error) {
 	return "", fmt.Errorf("node %s not found", name)
 }
 
-func getSSHEndpoint(t *testing.T, nodeID string) (string, error) {
-	for range 5 {
-		cmd := exec.Command("replicated", "vm", "ssh-endpoint", nodeID)
-		output, err := cmd.CombinedOutput()
-		if err == nil {
-			return strings.TrimSpace(string(output)), nil
-		}
-
-		t.Logf("failed to get SSH endpoint for node %s with error %q, retrying", nodeID, err)
-		time.Sleep(10 * time.Second)
+func getSSHEndpoint(nodeID string) (string, error) {
+	cmd := exec.Command("replicated", "vm", "ssh-endpoint", nodeID)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to get SSH endpoint for node %s: %v: %s", nodeID, err, string(output))
 	}
-	return "", fmt.Errorf("failed to get SSH endpoint for node %s after 5 attempts", nodeID)
+	return strings.TrimSpace(string(output)), nil
 }
 
 func (c *Cluster) Airgap() error {
