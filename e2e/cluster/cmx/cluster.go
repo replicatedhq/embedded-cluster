@@ -143,7 +143,7 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 		return nil, fmt.Errorf("failed to create node %s: %v: %s", nodeName, err, string(output))
 	}
 
-	nodeID, err := getNodeIDByName(in.T, nodeName)
+	nodeID, err := getNodeIDByName(nodeName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node ID for %s: %v", nodeName, err)
 	}
@@ -224,7 +224,7 @@ func copyScriptsToNode(node Node) error {
 	return nil
 }
 
-func getNodeIDByName(t *testing.T, name string) (string, error) {
+func getNodeIDByName(name string) (string, error) {
 	cmd := exec.Command("replicated", "vm", "ls", "--output", "json")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
