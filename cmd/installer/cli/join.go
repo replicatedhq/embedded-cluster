@@ -104,6 +104,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	}
 
 	cmd.AddCommand(JoinRunPreflightsCmd(ctx, name))
+	cmd.AddCommand(JoinPrintCommandCmd(ctx, name))
 
 	return cmd
 }
