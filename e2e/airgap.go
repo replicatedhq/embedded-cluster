@@ -85,17 +85,17 @@ func downloadAirgapBundleOnNode(t *testing.T, tc cluster.Cluster, node int, vers
 		size, err := maybeDownloadAirgapBundleOnNode(tc, node, versionLabel, destPath, licenseID)
 		if err != nil {
 			// when we deploy the api to staging it interrupts the download
-			t.Logf("failed to download airgap bundle for version %s with error %q, retrying", versionLabel, err)
+			t.Logf("failed to download airgap bundle for version %s on node %d with error %q, retrying", versionLabel, node, err)
 		} else {
 			if size > 1 { // more than a GB
-				t.Logf("downloaded airgap bundle to %s (%.1f GB)", destPath, size)
+				t.Logf("downloaded airgap bundle on node %d to %s (%.1f GB)", node, destPath, size)
 				return nil
 			}
-			t.Logf("downloaded airgap bundle to %s (%.1f GB), retrying as it is less than 1GB", destPath, size)
+			t.Logf("downloaded airgap bundle on node %d to %s (%.1f GB), retrying as it is less than 1GB", node, destPath, size)
 		}
 		time.Sleep(1 * time.Minute)
 	}
-	return fmt.Errorf("failed to download airgap bundle for version %s after 20 attempts", versionLabel)
+	return fmt.Errorf("failed to download airgap bundle for version %s on node %d after 20 attempts", versionLabel, node)
 }
 
 func maybeDownloadAirgapBundleOnNode(tc cluster.Cluster, node int, versionLabel string, destPath string, licenseID string) (float64, error) {

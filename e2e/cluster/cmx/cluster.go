@@ -131,10 +131,14 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 		return nil, fmt.Errorf("failed to create node %s: %v: %s", nodeName, err, string(output))
 	}
 
-	var node Node
-	if err := json.Unmarshal(output, &node); err != nil {
+	var nodes []Node
+	if err := json.Unmarshal(output, &nodes); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal node: %v: %s", err, string(output))
 	}
+	if len(nodes) != 1 {
+		return nil, fmt.Errorf("expected 1 node, got %d", len(nodes))
+	}
+	node := nodes[0]
 
 	sshEndpoint, err := getSSHEndpoint(node.ID)
 	if err != nil {
