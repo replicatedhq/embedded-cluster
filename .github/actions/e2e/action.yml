@@ -25,6 +25,15 @@ inputs:
   version-specifier:
     description: 'the git sha or tag used to generate application version strings'
     required: true
+  github-token:
+    description: 'the ci github token used to install the replicated cli'
+    required: false # this is only needed for cmx-based tests
+  cmx-api-token:
+    description: 'the token used to access the replicated api for cmx'
+    required: false # this is only needed for cmx-based tests
+  cmx-ssh-private-key:
+    description: 'the private key used to access the cmx nodes'
+    required: false # this is only needed for cmx-based tests
   upgrade-target-ec-version:
     description: 'the embedded cluster version to expect after upgrades complete'
     required: false # this is only set by post-release testing
@@ -73,11 +82,28 @@ runs:
     with:
       go-version-file: go.mod
       cache-dependency-path: "**/*.sum"
+  - name: Install replicated CLI for CMX
+    if: ${{ inputs.cmx-api-token != '' }}
+    shell: bash
+    env:
+      GH_TOKEN: ${{ inputs.github-token }}
+    run: |
+      gh release download --repo replicatedhq/replicated --pattern '*_linux_amd64.tar.gz' --output /tmp/replicated.tar.gz --clobber
+      tar -xzf /tmp/replicated.tar.gz -C /tmp
+      mv /tmp/replicated /usr/local/bin/replicated
+  - name: Setup SSH for CMX
+    if: ${{ inputs.cmx-ssh-private-key != '' }}
+    shell: bash
+    run: |
+      mkdir -p ~/.ssh
+      echo "${{ inputs.cmx-ssh-private-key }}" > ~/.ssh/id_ed25519
+      chmod 600 ~/.ssh/id_ed25519
   - name: E2E
     shell: bash
     run: |
       export SHORT_SHA=${{ inputs.version-specifier }}
       echo "${SHORT_SHA}"
+      export REPLICATED_API_TOKEN=${{ inputs.cmx-api-token }}
       export DR_AWS_S3_ENDPOINT=https://s3.amazonaws.com
       export DR_AWS_S3_REGION=us-east-1
       export DR_AWS_S3_BUCKET=kots-testim-snapshots

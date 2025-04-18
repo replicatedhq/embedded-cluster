@@ -21,10 +21,12 @@ const (
 )
 
 type installOptions struct {
+	isAirgap                bool
 	viaCLI                  bool
 	version                 string
 	adminConsolePort        string
 	localArtifactMirrorPort string
+	cidr                    string
 	podCidr                 string
 	serviceCidr             string
 	httpProxy               string
@@ -32,6 +34,7 @@ type installOptions struct {
 	noProxy                 string
 	privateCA               string
 	configValuesFile        string
+	networkInterface        string
 	withEnv                 map[string]string
 }
 
@@ -45,8 +48,16 @@ type joinOptions struct {
 	isAirgap   bool
 	isHA       bool
 	isRestore  bool
+	isCMX      bool
 	keepAssets bool
 	withEnv    map[string]string
+}
+
+type postUpgradeStateOptions struct {
+	node           int
+	k8sVersion     string
+	upgradeVersion string
+	withEnv        map[string]string
 }
 
 func installSingleNode(t *testing.T, tc cluster.Cluster) {
@@ -54,8 +65,13 @@ func installSingleNode(t *testing.T, tc cluster.Cluster) {
 }
 
 func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts installOptions) {
-	line := []string{"single-node-install.sh"}
+	line := []string{}
 
+	if opts.isAirgap {
+		line = append(line, "single-node-airgap-install.sh")
+	} else {
+		line = append(line, "single-node-install.sh")
+	}
 	if opts.viaCLI {
 		line = append(line, "cli")
 	} else {
@@ -71,6 +87,9 @@ func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts install
 	}
 	if opts.localArtifactMirrorPort != "" {
 		line = append(line, "--local-artifact-mirror-port", opts.localArtifactMirrorPort)
+	}
+	if opts.cidr != "" {
+		line = append(line, "--cidr", opts.cidr)
 	}
 	if opts.podCidr != "" {
 		line = append(line, "--pod-cidr", opts.podCidr)
@@ -92,6 +111,9 @@ func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts install
 	}
 	if opts.configValuesFile != "" {
 		line = append(line, "--config-values", opts.configValuesFile)
+	}
+	if opts.networkInterface != "" {
+		line = append(line, "--network-interface", opts.networkInterface)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
@@ -136,7 +158,6 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 	if err != nil {
 		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
 	}
-	t.Log("controller join token command:", command)
 
 	if opts.isAirgap && !opts.isRestore { // skip airgap prepare for restore as it's already done on the initial installation
 		t.Logf("%s: preparing embedded cluster airgap files on node %d", time.Now().Format(time.RFC3339), node)
@@ -145,8 +166,10 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 		}
 	}
 
-	t.Logf("%s: joining node %d to the cluster as a controller%s", time.Now().Format(time.RFC3339), node,
-		map[bool]string{true: " in ha mode", false: ""}[opts.isHA])
+	if opts.isCMX {
+		// TODO: remove once CMX no longer requires the tailscale0 interface
+		command = strings.Replace(command, "join", "join --network-interface tailscale0", 1)
+	}
 
 	var joinCommand []string
 	if opts.isHA {
@@ -161,6 +184,9 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 		command = strings.Replace(command, "join", "join --no-ha", 1) // bypass prompt
 		joinCommand = strings.Split(command, " ")
 	}
+
+	t.Logf("%s: joining node %d to the cluster as a controller%s: %s", time.Now().Format(time.RFC3339), node,
+		map[bool]string{true: " in ha mode", false: ""}[opts.isHA], strings.Join(joinCommand, " "))
 
 	if stdout, stderr, err := tc.RunCommandOnNode(node, joinCommand, opts.withEnv); err != nil {
 		t.Fatalf("fail to join node %d as a controller%s: %v: %s: %s",
@@ -194,7 +220,6 @@ func joinWorkerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts 
 	if err != nil {
 		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
 	}
-	t.Log("worker join token command:", command)
 
 	if opts.isAirgap {
 		t.Logf("%s: preparing embedded cluster airgap files on node %d", time.Now().Format(time.RFC3339), node)
@@ -203,7 +228,12 @@ func joinWorkerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts 
 		}
 	}
 
-	t.Logf("%s: joining node %d to the cluster as a worker", time.Now().Format(time.RFC3339), node)
+	if opts.isCMX {
+		// TODO: remove once CMX no longer requires the tailscale0 interface
+		command = strings.Replace(command, "join", "join --network-interface tailscale0", 1)
+	}
+
+	t.Logf("%s: joining node %d to the cluster as a worker: %s", time.Now().Format(time.RFC3339), node, command)
 	if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Split(command, " ")); err != nil {
 		t.Fatalf("fail to join node %d to the cluster as a worker: %v: %s: %s", node, err, stdout, stderr)
 	}
@@ -234,5 +264,30 @@ func checkWorkerProfile(t *testing.T, tc cluster.Cluster, node int) {
 	line := []string{"check-worker-profile.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
 		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}
+
+func checkPostUpgradeState(t *testing.T, tc cluster.Cluster) {
+	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{})
+}
+
+func checkPostUpgradeStateWithOptions(t *testing.T, tc cluster.Cluster, opts postUpgradeStateOptions) {
+	line := []string{"check-postupgrade-state.sh"}
+
+	if opts.k8sVersion != "" {
+		line = append(line, opts.k8sVersion)
+	} else {
+		line = append(line, k8sVersion())
+	}
+
+	if opts.upgradeVersion != "" {
+		line = append(line, opts.upgradeVersion)
+	} else {
+		line = append(line, ecUpgradeTargetVersion())
+	}
+
+	t.Logf("%s: checking installation state after upgrade on node %d", time.Now().Format(time.RFC3339), opts.node)
+	if stdout, stderr, err := tc.RunCommandOnNode(opts.node, line, opts.withEnv); err != nil {
+		t.Fatalf("fail to check postupgrade state on node %d: %v: %s: %s", opts.node, err, stdout, stderr)
 	}
 }

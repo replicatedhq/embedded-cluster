@@ -4,8 +4,19 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+)
+
+const (
+	AirgapInstallBundlePath  = "/assets/ec-release.tgz"
+	AirgapUpgradeBundlePath  = "/assets/ec-release-upgrade.tgz"
+	AirgapUpgrade2BundlePath = "/assets/ec-release-upgrade2.tgz"
 )
 
 // downloadAirgapBundle downloads the airgap bundle for the given version to the destination path.
@@ -30,7 +41,7 @@ func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, li
 		}
 		time.Sleep(1 * time.Minute)
 	}
-	return fmt.Errorf("failed to download airgap bundle for version %s after 5 attempts", versionLabel)
+	return fmt.Errorf("failed to download airgap bundle for version %s after 20 attempts", versionLabel)
 }
 
 func maybeDownloadAirgapBundle(versionLabel string, destPath string, licenseID string) (int64, error) {
@@ -66,5 +77,54 @@ func maybeDownloadAirgapBundle(versionLabel string, destPath string, licenseID s
 		return 0, fmt.Errorf("failed to write response to temporary file: %w", err)
 	}
 
+	return size, nil
+}
+
+func downloadAirgapBundleOnNode(t *testing.T, tc cluster.Cluster, node int, versionLabel string, destPath string, licenseID string) error {
+	for range 20 {
+		size, err := maybeDownloadAirgapBundleOnNode(tc, node, versionLabel, destPath, licenseID)
+		if err != nil {
+			// when we deploy the api to staging it interrupts the download
+			t.Logf("failed to download airgap bundle for version %s on node %d with error %q, retrying", versionLabel, node, err)
+		} else {
+			if size > 1 { // more than a GB
+				t.Logf("downloaded airgap bundle on node %d to %s (%.1f GB)", node, destPath, size)
+				return nil
+			}
+			t.Logf("downloaded airgap bundle on node %d to %s (%.1f GB), retrying as it is less than 1GB", node, destPath, size)
+		}
+		time.Sleep(1 * time.Minute)
+	}
+	return fmt.Errorf("failed to download airgap bundle for version %s on node %d after 20 attempts", versionLabel, node)
+}
+
+func maybeDownloadAirgapBundleOnNode(tc cluster.Cluster, node int, versionLabel string, destPath string, licenseID string) (float64, error) {
+	// download airgap bundle
+	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", versionLabel)
+
+	stdout, stderr, err := tc.RunCommandOnNode(node, []string{"curl", "-f", "-H", fmt.Sprintf("'Authorization: %s'", licenseID), "-L", airgapURL, "-o", destPath})
+	if err != nil {
+		return 0, fmt.Errorf("failed to download airgap bundle: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// get the size of the file on the node
+	stdout, stderr, err = tc.RunCommandOnNode(node, []string{"du", "-h", destPath, "|", "awk", "'{print $1}'"})
+	if err != nil {
+		return 0, fmt.Errorf("failed to check file size: %v: %s: %s", err, stdout, stderr)
+	}
+
+	sizeStr := strings.TrimSpace(stdout)
+
+	// match only if the size is in gigabytes
+	re := regexp.MustCompile(`(?i)^([\d.]+)G$`)
+	matches := re.FindStringSubmatch(sizeStr)
+	if matches == nil {
+		return 0, fmt.Errorf("file size is not in gigabytes: %s", sizeStr)
+	}
+
+	size, err := strconv.ParseFloat(matches[1], 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse numeric value: %w", err)
+	}
 	return size, nil
 }
