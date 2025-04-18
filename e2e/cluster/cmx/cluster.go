@@ -148,7 +148,7 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 		return nil, fmt.Errorf("failed to get node ID for %s: %v", nodeName, err)
 	}
 
-	sshEndpoint, err := getSSHEndpoint(in.T, nodeID)
+	sshEndpoint, err := getSSHEndpoint(nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ssh endpoint for node %s: %v", nodeName, err)
 	}
