@@ -51,6 +51,12 @@ main() {
     # if this is the current version in CI
     if echo "$version" | grep -qvE "(pre-minio-removal|1.8.0-k8s|previous-stable)" ; then
         validate_data_dirs
+    fi
+
+    # do not run this test with previous versions of the embedded-cluster binary - the command is new
+    # this check is different than the one above as we don't want to run it even after we have upgraded the cluster,
+    # as that doesn't upgrade the embedded-cluster binary on this node
+    if embedded-cluster version | grep -qvE "(pre-minio-removal|1.8.0-k8s|previous-stable)"  ; then
         check_join_command
     fi
 
