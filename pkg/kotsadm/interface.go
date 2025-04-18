@@ -3,6 +3,7 @@ package kotsadm
 import (
 	"context"
 
+	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -19,15 +20,15 @@ func Set(kotsadm ClientInterface) {
 }
 
 type ClientInterface interface {
-	GetJoinToken(ctx context.Context, baseURL, shortToken string) (*JoinCommandResponse, error)
 	GetJoinCommand(ctx context.Context, cli client.Client, roles []string) (string, error)
+	GetJoinToken(ctx context.Context, baseURL, shortToken string) (*join.JoinCommandResponse, error)
 }
 
 // Convenience functions
 
 // GetJoinToken is a helper function that issues a request to the kots api to get the actual join command
 // based on the short token provided by the user.
-func GetJoinToken(ctx context.Context, baseURL, shortToken string) (*JoinCommandResponse, error) {
+func GetJoinToken(ctx context.Context, baseURL, shortToken string) (*join.JoinCommandResponse, error) {
 	return _kotsadm.GetJoinToken(ctx, baseURL, shortToken)
 }
 

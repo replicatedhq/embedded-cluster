@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -23,7 +24,7 @@ type Client struct{}
 
 // GetJoinToken issues a request to the kots api to get the actual join command
 // based on the short token provided by the user.
-func (c *Client) GetJoinToken(ctx context.Context, baseURL, shortToken string) (*JoinCommandResponse, error) {
+func (c *Client) GetJoinToken(ctx context.Context, baseURL, shortToken string) (*join.JoinCommandResponse, error) {
 	url := fmt.Sprintf("https://%s/api/v1/embedded-cluster/join?token=%s", baseURL, shortToken)
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
@@ -42,7 +43,7 @@ func (c *Client) GetJoinToken(ctx context.Context, baseURL, shortToken string) (
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-	var command JoinCommandResponse
+	var command join.JoinCommandResponse
 	if err := json.NewDecoder(resp.Body).Decode(&command); err != nil {
 		return nil, fmt.Errorf("unable to decode response: %w", err)
 	}

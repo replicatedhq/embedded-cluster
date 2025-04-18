@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
-	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,7 +20,7 @@ import (
 
 func TestJoinControllerNode(t *testing.T) {
 	clusterID := uuid.New()
-	jcmd := &kotsadm.JoinCommandResponse{
+	jcmd := &join.JoinCommandResponse{
 		K0sJoinCommand:         "/usr/local/bin/k0s install controller --enable-worker --no-taints --labels kots.io/embedded-cluster-role=total-1,kots.io/embedded-cluster-role-0=controller-test,controller-label=controller-label-value",
 		K0sToken:               "some-k0s-token",
 		EmbeddedClusterVersion: "v0.0.0",
@@ -209,7 +209,7 @@ func TestJoinRunPreflights(t *testing.T) {
 		Kotsadm: dryrun.NewKotsadm(),
 	}
 	clusterID := uuid.New()
-	jcmd := &kotsadm.JoinCommandResponse{
+	jcmd := &join.JoinCommandResponse{
 		K0sJoinCommand:         "/usr/local/bin/k0s install controller --enable-worker --no-taints --labels kots.io/embedded-cluster-role=total-1,kots.io/embedded-cluster-role-0=controller-test,controller-label=controller-label-value",
 		K0sToken:               "some-k0s-token",
 		EmbeddedClusterVersion: "v0.0.0",
@@ -234,7 +234,7 @@ func TestJoinWorkerNode(t *testing.T) {
 		Kotsadm: dryrun.NewKotsadm(),
 	}
 	clusterID := uuid.New()
-	jcmd := &kotsadm.JoinCommandResponse{
+	jcmd := &join.JoinCommandResponse{
 		K0sJoinCommand:         "/usr/local/bin/k0s install worker --no-taints --labels kots.io/embedded-cluster-role=total-1,kots.io/embedded-cluster-role-0=worker-test,worker-label=worker-label-value",
 		K0sToken:               "some-k0s-token",
 		EmbeddedClusterVersion: "v0.0.0",

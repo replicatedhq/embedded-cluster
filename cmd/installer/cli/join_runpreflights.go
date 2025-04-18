@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
@@ -53,7 +54,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm.JoinCommandResponse) error {
+func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse) error {
 	if err := runJoinVerifyAndPrompt(name, flags, jcmd); err != nil {
 		return err
 	}
@@ -91,7 +92,7 @@ func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, 
 	return nil
 }
 
-func runJoinPreflights(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, flags JoinCmdFlags, cidrCfg *CIDRConfig, metricsReported preflights.MetricsReporter) error {
+func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flags JoinCmdFlags, cidrCfg *CIDRConfig, metricsReported preflights.MetricsReporter) error {
 	nodeIP, err := netutils.FirstValidAddress(flags.networkInterface)
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
