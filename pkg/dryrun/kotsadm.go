@@ -8,7 +8,6 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ kotsadm.ClientInterface = (*Kotsadm)(nil)
@@ -63,8 +62,4 @@ func (c *Kotsadm) GetJoinToken(ctx context.Context, baseURL, shortToken string) 
 	} else {
 		return nil, fmt.Errorf("no response set for GetJoinToken, baseURL: %s, shortToken: %s", baseURL, shortToken)
 	}
-}
-
-func (c *Kotsadm) GetJoinCommand(ctx context.Context, cli client.Client, roles []string) (string, error) {
-	return "join", nil
 }
