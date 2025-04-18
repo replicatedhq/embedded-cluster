@@ -358,7 +358,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	defer tc.Cleanup()
 
 	installSingleNode(t, tc)
-	checkWorkerProfile(t, tc, 0)
+	checkNodeState(t, tc, 0)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
@@ -366,7 +366,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 
 	// join a controller node
 	joinControllerNode(t, tc, 1)
-	checkWorkerProfile(t, tc, 1)
+	checkNodeState(t, tc, 1)
 
 	// XXX If we are too aggressive joining nodes we can see the following error being
 	// thrown by kotsadm on its log (and we get a 500 back):
@@ -379,11 +379,11 @@ func TestMultiNodeInstallation(t *testing.T) {
 
 	// join another controller node
 	joinControllerNode(t, tc, 2)
-	checkWorkerProfile(t, tc, 2)
+	checkNodeState(t, tc, 2)
 
 	// join a worker node
 	joinWorkerNode(t, tc, 3)
-	checkWorkerProfile(t, tc, 3)
+	checkNodeState(t, tc, 3)
 
 	// wait for the nodes to report as ready.
 	waitForNodes(t, tc, 4, nil)
@@ -579,19 +579,19 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 
 	appVer := fmt.Sprintf("appver-%s-1.8.0-k8s-1.28", os.Getenv("SHORT_SHA"))
 
-	t.Logf("%s: downloading embedded-cluster %s on node 0", appVer, time.Now().Format(time.RFC3339))
+	t.Logf("%s: downloading embedded-cluster %s on node 0", time.Now().Format(time.RFC3339), appVer)
 	line := []string{"vandoor-prepare.sh", appVer, LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: downloading embedded-cluster %s on worker node", appVer, time.Now().Format(time.RFC3339))
+	t.Logf("%s: downloading embedded-cluster %s on worker node", time.Now().Format(time.RFC3339), appVer)
 	line = []string{"vandoor-prepare.sh", appVer, LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: installing embedded-cluster %s on node 0", appVer, time.Now().Format(time.RFC3339))
+	t.Logf("%s: installing embedded-cluster %s on node 0", time.Now().Format(time.RFC3339), appVer)
 	line = []string{"single-node-install.sh", "ui", appVer}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
@@ -671,8 +671,8 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	waitForNodes(t, tc, 4, withEnv)
 
 	// Check worker profiles for the joined nodes
-	checkWorkerProfile(t, tc, 2)
-	checkWorkerProfile(t, tc, 3)
+	checkNodeState(t, tc, 2)
+	checkNodeState(t, tc, 3)
 
 	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -1933,7 +1933,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	checkWorkerProfile(t, tc, 0)
+	checkNodeState(t, tc, 0)
 
 	// remove artifacts after installation to save space
 	line = []string{"rm", "/assets/release.airgap"}
@@ -1954,15 +1954,15 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 
 	// join a worker
 	joinWorkerNodeWithOptions(t, tc, 1, joinOptions{isAirgap: true})
-	checkWorkerProfile(t, tc, 1)
+	checkNodeState(t, tc, 1)
 
 	// join a controller
 	joinControllerNodeWithOptions(t, tc, 2, joinOptions{isAirgap: true})
-	checkWorkerProfile(t, tc, 2)
+	checkNodeState(t, tc, 2)
 
 	// join another controller in HA mode
 	joinControllerNodeWithOptions(t, tc, 3, joinOptions{isAirgap: true, isHA: true})
-	checkWorkerProfile(t, tc, 3)
+	checkNodeState(t, tc, 3)
 
 	// wait for the nodes to report as ready.
 	waitForNodes(t, tc, 4, nil)
