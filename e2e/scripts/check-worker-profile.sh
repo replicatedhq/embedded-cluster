@@ -6,7 +6,6 @@ DIR=/usr/local/bin
 
 main() {
     validate_worker_profile
-    check_join_command
 }
 
 main "$@"

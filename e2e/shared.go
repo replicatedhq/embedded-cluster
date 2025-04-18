@@ -229,10 +229,18 @@ func waitForNodes(t *testing.T, tc cluster.Cluster, nodes int, envs map[string]s
 	}
 }
 
-func checkNodeState(t *testing.T, tc cluster.Cluster, node int) {
-	t.Logf("checking node state on node %d", node)
-	line := []string{"check-node-state.sh"}
+func checkWorkerProfile(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("checking worker profile on node %d", node)
+	line := []string{"check-worker-profile.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
 		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}
+
+func checkNodeJoinCommand(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("node join command generation on node %d", node)
+	line := []string{"check-node-join-command.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+		t.Fatalf("fail to check if node join command is generated successfully on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
 }

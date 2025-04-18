@@ -44,6 +44,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 	}
 
 	checkInstallationState(t, tc)
+	checkNodeJoinCommand(t, tc, 0)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -108,6 +109,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	}
 
 	checkInstallationState(t, tc)
+	checkNodeJoinCommand(t, tc, 0)
 
 	t.Logf("%s: validating firewalld", time.Now().Format(time.RFC3339))
 	line = []string{"firewalld-validate.sh"}
@@ -162,6 +164,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	}
 
 	checkInstallationState(t, tc)
+	checkNodeJoinCommand(t, tc, 0)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -204,6 +207,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 	}
 
 	checkInstallationState(t, tc)
+	checkNodeJoinCommand(t, tc, 0)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -252,6 +256,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	}
 
 	checkInstallationState(t, tc)
+	checkNodeJoinCommand(t, tc, 0)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -358,7 +363,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	defer tc.Cleanup()
 
 	installSingleNode(t, tc)
-	checkNodeState(t, tc, 0)
+	checkWorkerProfile(t, tc, 0)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
@@ -366,7 +371,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 
 	// join a controller node
 	joinControllerNode(t, tc, 1)
-	checkNodeState(t, tc, 1)
+	checkWorkerProfile(t, tc, 1)
 
 	// XXX If we are too aggressive joining nodes we can see the following error being
 	// thrown by kotsadm on its log (and we get a 500 back):
@@ -379,11 +384,11 @@ func TestMultiNodeInstallation(t *testing.T) {
 
 	// join another controller node
 	joinControllerNode(t, tc, 2)
-	checkNodeState(t, tc, 2)
+	checkWorkerProfile(t, tc, 2)
 
 	// join a worker node
 	joinWorkerNode(t, tc, 3)
-	checkNodeState(t, tc, 3)
+	checkWorkerProfile(t, tc, 3)
 
 	// wait for the nodes to report as ready.
 	waitForNodes(t, tc, 4, nil)
@@ -671,8 +676,8 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	waitForNodes(t, tc, 4, withEnv)
 
 	// Check worker profiles for the joined nodes
-	checkNodeState(t, tc, 2)
-	checkNodeState(t, tc, 3)
+	checkWorkerProfile(t, tc, 2)
+	checkWorkerProfile(t, tc, 3)
 
 	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -824,6 +829,8 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	checkNodeJoinCommand(t, tc, 0)
+
 	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
 	line = []string{"reset-installation.sh"}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
@@ -964,6 +971,8 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
+
+	checkNodeJoinCommand(t, tc, 0)
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-update.sh"}
@@ -1933,7 +1942,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	checkNodeState(t, tc, 0)
+	checkWorkerProfile(t, tc, 0)
 
 	// remove artifacts after installation to save space
 	line = []string{"rm", "/assets/release.airgap"}
@@ -1954,15 +1963,15 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 
 	// join a worker
 	joinWorkerNodeWithOptions(t, tc, 1, joinOptions{isAirgap: true})
-	checkNodeState(t, tc, 1)
+	checkWorkerProfile(t, tc, 1)
 
 	// join a controller
 	joinControllerNodeWithOptions(t, tc, 2, joinOptions{isAirgap: true})
-	checkNodeState(t, tc, 2)
+	checkWorkerProfile(t, tc, 2)
 
 	// join another controller in HA mode
 	joinControllerNodeWithOptions(t, tc, 3, joinOptions{isAirgap: true, isHA: true})
-	checkNodeState(t, tc, 3)
+	checkWorkerProfile(t, tc, 3)
 
 	// wait for the nodes to report as ready.
 	waitForNodes(t, tc, 4, nil)
