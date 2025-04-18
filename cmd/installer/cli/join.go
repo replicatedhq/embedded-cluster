@@ -11,6 +11,7 @@ import (
 	"github.com/AlecAivazis/survey/v2/terminal"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
@@ -23,6 +24,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -140,7 +142,7 @@ func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
 	return nil
 }
 
-func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm.JoinCommandResponse, metricsReporter preflights.MetricsReporter) error {
+func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse, metricsReporter preflights.MetricsReporter) error {
 	// both controller and worker nodes will have 'worker' in the join command
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if !isWorker {
@@ -223,7 +225,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *kotsadm
 	return nil
 }
 
-func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *kotsadm.JoinCommandResponse) error {
+func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "join a node")
 	if err != nil {
@@ -261,6 +263,14 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *kotsadm.JoinC
 		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
 	}
 
+	// if the application version is set, check to make sure that it matches the version we are running
+	channelRelease := release.GetChannelRelease()
+	if jcmd.AppVersionLabel != "" && channelRelease != nil {
+		if jcmd.AppVersionLabel != channelRelease.VersionLabel {
+			return fmt.Errorf("embedded cluster application version mismatch - this binary is compiled for app version %q, but the cluster is running version %q", channelRelease.VersionLabel, jcmd.AppVersionLabel)
+		}
+	}
+
 	// check to make sure the version returned by the join token is the same as the one we are running
 	if strings.TrimPrefix(jcmd.EmbeddedClusterVersion, "v") != strings.TrimPrefix(versions.Version, "v") {
 		return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
@@ -283,7 +293,7 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *kotsadm.JoinC
 	return nil
 }
 
-func getJoinCIDRConfig(jcmd *kotsadm.JoinCommandResponse) (*CIDRConfig, error) {
+func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*CIDRConfig, error) {
 	podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
 	if err != nil {
 		return nil, fmt.Errorf("unable to split default network CIDR: %w", err)
@@ -304,7 +314,7 @@ func getJoinCIDRConfig(jcmd *kotsadm.JoinCommandResponse) (*CIDRConfig, error) {
 	}, nil
 }
 
-func installAndJoinCluster(ctx context.Context, jcmd *kotsadm.JoinCommandResponse, name string, flags JoinCmdFlags, isWorker bool) error {
+func installAndJoinCluster(ctx context.Context, jcmd *join.JoinCommandResponse, name string, flags JoinCmdFlags, isWorker bool) error {
 	logrus.Debugf("saving token to disk")
 	if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 		return fmt.Errorf("unable to save token to disk: %w", err)
@@ -375,7 +385,7 @@ func installK0sBinary() error {
 	return nil
 }
 
-func applyNetworkConfiguration(networkInterface string, jcmd *kotsadm.JoinCommandResponse) error {
+func applyNetworkConfiguration(networkInterface string, jcmd *join.JoinCommandResponse) error {
 	if jcmd.InstallationSpec.Network != nil {
 		domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
 		clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
@@ -410,7 +420,7 @@ func applyNetworkConfiguration(networkInterface string, jcmd *kotsadm.JoinComman
 }
 
 // startAndWaitForK0s starts the k0s service and waits for the node to be ready.
-func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinCommandResponse) error {
+func startAndWaitForK0s(ctx context.Context, name string, jcmd *join.JoinCommandResponse) error {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", name)
@@ -431,7 +441,7 @@ func startAndWaitForK0s(ctx context.Context, name string, jcmd *kotsadm.JoinComm
 
 // applyJoinConfigurationOverrides applies both config overrides received from the kots api.
 // Applies first the EmbeddedOverrides and then the EndUserOverrides.
-func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
+func applyJoinConfigurationOverrides(jcmd *join.JoinCommandResponse) error {
 	patch, err := jcmd.EmbeddedOverrides()
 	if err != nil {
 		return fmt.Errorf("unable to get embedded overrides: %w", err)
@@ -513,7 +523,7 @@ func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string,
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, serviceCIDR string, jcmd *kotsadm.JoinCommandResponse) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, serviceCIDR string, jcmd *join.JoinCommandResponse) error {
 	if flags.noHA {
 		logrus.Debug("--no-ha flag provided, skipping high availability")
 		return nil
