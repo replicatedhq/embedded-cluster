@@ -2,6 +2,7 @@ package kotscli
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"regexp"
