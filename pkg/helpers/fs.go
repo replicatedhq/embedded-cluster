@@ -31,11 +31,11 @@ func (e *MultiError) ErrorOrNil() error {
 func MoveFile(src, dst string) error {
 	srcinfo, err := os.Stat(src)
 	if err != nil {
-		return fmt.Errorf("stat %s: %s", src, err)
+		return err
 	}
 
 	if srcinfo.IsDir() {
-		return fmt.Errorf("move directory %s", src)
+		return fmt.Errorf("cannot move directory %s", src)
 	}
 
 	srcfp, err := os.Open(src)

@@ -1,60 +1,41 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/tgzutils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // helmChartsCommand pulls helm charts from the registry running in the cluster and
 // stores them locally. This command is used during cluster upgrades when we want to
 // fetch the most up to date helm charts. Helm charts are stored in a tarball file
 // in the default location.
-func PullHelmChartsCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
+func PullHelmChartsCmd(cli *CLI) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "helmcharts <installation-name>",
+		Use:   "helmcharts INSTALLATION",
 		Short: "Pull Helm chart artifacts for an airgap installation",
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			v.BindPFlag("data-dir", cmd.Flags().Lookup("data-dir"))
-
-			if len(args) != 1 {
-				return errors.New("expected installation name as argument")
-			}
-			return nil
-		},
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			v := viper.GetViper()
+			ctx := cmd.Context()
 
-			dataDir := v.GetString("data-dir")
-
-			// Support for older env vars
-			flag := cmd.Flags().Lookup("data-dir")
-			if flag == nil || !flag.Changed {
-				if os.Getenv("LOCAL_ARTIFACT_MIRROR_DATA_DIR") != "" {
-					dataDir = os.Getenv("LOCAL_ARTIFACT_MIRROR_DATA_DIR")
-				}
+			kcli, err := cli.KCLIGetter()
+			if err != nil {
+				return fmt.Errorf("unable to create kube client: %w", err)
 			}
 
-			runtimeconfig.SetDataDir(dataDir)
-			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
-
-			in, err := fetchAndValidateInstallation(ctx, args[0])
+			in, err := fetchAndValidateInstallation(ctx, kcli, args[0])
 			if err != nil {
 				return err
 			}
 
 			from := in.Spec.Artifacts.HelmCharts
 			logrus.Infof("fetching helm charts artifact from %s", from)
-			location, err := pullArtifact(ctx, from)
+			location, err := cli.PullArtifact(ctx, kcli, from)
 			if err != nil {
 				return fmt.Errorf("unable to fetch artifact: %w", err)
 			}
@@ -74,9 +55,6 @@ func PullHelmChartsCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
 			return nil
 		},
 	}
-
-	cmd.Flags().String("data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
-	cmd.MarkFlagRequired("data-dir")
 
 	return cmd
 }

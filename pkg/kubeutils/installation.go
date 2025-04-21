@@ -270,7 +270,7 @@ func lessThanK0s115(ver *semver.Version) bool {
 // it will set the annotation and update the installation object with the old location of the data
 // directories.
 func MaybeOverrideInstallationDataDirs(in ecv1beta1.Installation, previous *ecv1beta1.Installation) (ecv1beta1.Installation, bool, error) {
-	if previous != nil {
+	if previous != nil && previous.Spec.Config != nil && previous.Spec.Config.Version != "" {
 		ver, err := semver.NewVersion(previous.Spec.Config.Version)
 		if err != nil {
 			return in, false, fmt.Errorf("parse version: %w", err)
