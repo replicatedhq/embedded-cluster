@@ -293,11 +293,9 @@ func TestHostPreflightCustomSpec(t *testing.T) {
 		t.Fatalf("fail to install dependencies on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: downloading failing-preflights embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-failing-preflights", os.Getenv("SHORT_SHA")), LicenseID, "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+		version: fmt.Sprintf("appver-%s-failing-preflights", os.Getenv("SHORT_SHA")),
+	})
 
 	t.Logf("%s: moving embedded-cluster to /usr/local/bin/embedded-cluster-failing-preflights", time.Now().Format(time.RFC3339))
 	line = []string{"mv", "/usr/local/bin/embedded-cluster", "/usr/local/bin/embedded-cluster-failing-preflights"}
@@ -311,11 +309,9 @@ func TestHostPreflightCustomSpec(t *testing.T) {
 		t.Fatalf("fail to remove /assets/license.yaml on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: downloading warning-preflights embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-warning-preflights", os.Getenv("SHORT_SHA")), LicenseID, "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+		version: fmt.Sprintf("appver-%s-warning-preflights", os.Getenv("SHORT_SHA")),
+	})
 
 	t.Logf("%s: running embedded-cluster preflights on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"embedded-preflight.sh"}
@@ -410,12 +406,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), LicenseID, "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
-
+	downloadECRelease(t, tc, 0)
 	installSingleNode(t, tc)
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
@@ -433,7 +424,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	line := []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -453,18 +444,15 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
-	line := []string{"vandoor-prepare.sh", initialVersion, LicenseID, "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui", initialVersion}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+		version: initialVersion,
+	})
+
+	installSingleNodeWithOptions(t, tc, installOptions{
+		version: initialVersion,
+	})
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
@@ -484,7 +472,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	}
 
 	t.Logf("%s: re-installing kots cli on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"install-kots-cli.sh"}
+	line := []string{"install-kots-cli.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install kots cli on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -523,17 +511,14 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 	defer tc.Cleanup()
 
 	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
-	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", initialVersion, LicenseID, "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui", initialVersion}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+		version: initialVersion,
+	})
+
+	installSingleNodeWithOptions(t, tc, installOptions{
+		version: initialVersion,
+	})
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
@@ -553,7 +538,7 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	line := []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -584,23 +569,18 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 
 	appVer := fmt.Sprintf("appver-%s-1.8.0-k8s-1.28", os.Getenv("SHORT_SHA"))
 
-	t.Logf("%s: downloading embedded-cluster %s on node 0", time.Now().Format(time.RFC3339), appVer)
-	line := []string{"vandoor-prepare.sh", appVer, LicenseID, "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+		version: appVer,
+	})
 
-	t.Logf("%s: downloading embedded-cluster %s on worker node", time.Now().Format(time.RFC3339), appVer)
-	line = []string{"vandoor-prepare.sh", appVer, LicenseID, "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	downloadECReleaseWithOptions(t, tc, 1, downloadECReleaseOptions{
+		version: appVer,
+	})
 
-	t.Logf("%s: installing embedded-cluster %s on node 0", time.Now().Format(time.RFC3339), appVer)
-	line = []string{"single-node-install.sh", "ui", appVer}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNodeWithOptions(t, tc, installOptions{
+		version: appVer,
+		withEnv: withEnv,
+	})
 
 	if err := tc.SetupPlaywright(withEnv); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
@@ -647,7 +627,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: re-installing kots cli on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"install-kots-cli.sh"}
+	line := []string{"install-kots-cli.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install kots cli on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -658,17 +638,14 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	})
 
 	// Download embedded-cluster on additional nodes
-	t.Logf("%s: downloading embedded-cluster %s on additional nodes", time.Now().Format(time.RFC3339), appUpgradeVersion)
-	line = []string{"vandoor-prepare.sh", appUpgradeVersion, LicenseID, "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 2: %v: %s: %s", err, stdout, stderr)
-	}
-	if stdout, stderr, err := tc.RunCommandOnNode(3, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 3: %v: %s: %s", err, stdout, stderr)
-	}
+	downloadECReleaseWithOptions(t, tc, 2, downloadECReleaseOptions{
+		version: appUpgradeVersion,
+	})
+	downloadECReleaseWithOptions(t, tc, 3, downloadECReleaseOptions{
+		version: appUpgradeVersion,
+	})
 
 	// Join the additional nodes to the cluster
-	t.Logf("%s: joining additional controller and worker node to the cluster after upgrade", time.Now().Format(time.RFC3339))
 	joinControllerNode(t, tc, 2)
 	joinWorkerNode(t, tc, 3)
 
@@ -699,41 +676,28 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	// use upgraded binaries to run the reset command
 	// TODO: this is a temporary workaround and should eventually be a feature of EC
 
-	t.Logf("%s: downloading embedded-cluster %s on node 0", time.Now().Format(time.RFC3339), appUpgradeVersion)
-	line = []string{"vandoor-prepare.sh", appUpgradeVersion, LicenseID, "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster version %s on node 0: %v: %s: %s", appUpgradeVersion, err, stdout, stderr)
-	}
+	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+		version: appUpgradeVersion,
+	})
+	downloadECReleaseWithOptions(t, tc, 1, downloadECReleaseOptions{
+		version: appUpgradeVersion,
+	})
 
-	t.Logf("%s: downloading embedded-cluster %s on worker node 1", time.Now().Format(time.RFC3339), appUpgradeVersion)
-	line = []string{"vandoor-prepare.sh", appUpgradeVersion, LicenseID, "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster version %s on worker node: %v: %s: %s", appUpgradeVersion, err, stdout, stderr)
-	}
+	resetInstallationWithOptions(t, tc, 1, resetInstallationOptions{
+		withEnv: withEnv,
+	})
 
-	t.Logf("%s: resetting worker node 1", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
-		t.Fatalf("fail to reset worker node: %v: %s: %s", err, stdout, stderr)
-	}
+	resetInstallationWithOptions(t, tc, 3, resetInstallationOptions{
+		withEnv: withEnv,
+	})
 
-	t.Logf("%s: resetting worker node 3", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(3, line, withEnv); err != nil {
-		t.Fatalf("fail to reset worker node: %v: %s: %s", err, stdout, stderr)
-	}
+	resetInstallationWithOptions(t, tc, 2, resetInstallationOptions{
+		withEnv: withEnv,
+	})
 
-	t.Logf("%s: resetting controller node 2", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(2, line, withEnv); err != nil {
-		t.Fatalf("fail to reset controller node: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: resetting node 0", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to reset node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	resetInstallationWithOptions(t, tc, 0, resetInstallationOptions{
+		withEnv: withEnv,
+	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -759,12 +723,7 @@ func TestResetAndReinstall(t *testing.T) {
 	}
 
 	checkInstallationState(t, tc)
-
-	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line := []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
-	}
+	resetInstallation(t, tc, 0)
 
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
@@ -830,12 +789,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	}
 
 	checkNodeJoinCommand(t, tc, 0)
-
-	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v", err)
-	}
+	resetInstallation(t, tc, 0)
 
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
@@ -874,14 +828,12 @@ func TestOldVersionUpgrade(t *testing.T) {
 	})
 	defer tc.Cleanup(withEnv)
 
-	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-pre-minio-removal", os.Getenv("SHORT_SHA")), LicenseID}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+		version: fmt.Sprintf("appver-%s-pre-minio-removal", os.Getenv("SHORT_SHA")),
+	})
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"pre-minio-removal-install.sh", "cli"}
+	line := []string{"pre-minio-removal-install.sh", "cli"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -2051,11 +2003,10 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), SnapshotLicenseID, "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+		version:   fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")),
+		licenseID: SnapshotLicenseID,
+	})
 
 	installSingleNode(t, tc)
 
@@ -2066,7 +2017,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	checkInstallationState(t, tc)
 
 	t.Logf("%s: ensuring velero is installed", time.Now().Format(time.RFC3339))
-	line = []string{"check-velero-state.sh", os.Getenv("SHORT_SHA")}
+	line := []string{"check-velero-state.sh", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check velero state: %v: %s: %s", err, stdout, stderr)
 	}

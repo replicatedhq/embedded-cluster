@@ -49,6 +49,16 @@ type joinOptions struct {
 	withEnv    map[string]string
 }
 
+type downloadECReleaseOptions struct {
+	version   string
+	licenseID string
+}
+
+type resetInstallationOptions struct {
+	force   bool
+	withEnv map[string]string
+}
+
 func installSingleNode(t *testing.T, tc cluster.Cluster) {
 	installSingleNodeWithOptions(t, tc, installOptions{})
 }
@@ -243,4 +253,50 @@ func checkNodeJoinCommand(t *testing.T, tc cluster.Cluster, node int) {
 	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
 		t.Fatalf("fail to check if node join command is generated successfully on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
+}
+
+func downloadECRelease(t *testing.T, tc cluster.Cluster, node int) {
+	downloadECReleaseWithOptions(t, tc, node, downloadECReleaseOptions{})
+}
+
+func downloadECReleaseWithOptions(t *testing.T, tc cluster.Cluster, node int, opts downloadECReleaseOptions) {
+	t.Logf("%s: downloading embedded cluster release on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"vandoor-prepare.sh"}
+
+	if opts.version != "" {
+		line = append(line, opts.version)
+	} else {
+		line = append(line, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")))
+	}
+	if opts.licenseID != "" {
+		line = append(line, opts.licenseID)
+	} else {
+		line = append(line, LicenseID)
+	}
+
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+		t.Fatalf("fail to download embedded cluster release on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}
+
+func resetInstallation(t *testing.T, tc cluster.Cluster, node int) {
+	resetInstallationWithOptions(t, tc, node, resetInstallationOptions{})
+}
+
+func resetInstallationWithOptions(t *testing.T, tc cluster.Cluster, node int, opts resetInstallationOptions) {
+	if err := resetInstallationWithError(t, tc, node, opts); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func resetInstallationWithError(t *testing.T, tc cluster.Cluster, node int, opts resetInstallationOptions) error {
+	t.Logf("%s: resetting the installation on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"reset-installation.sh"}
+	if opts.force {
+		line = append(line, "--force")
+	}
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
+		return fmt.Errorf("fail to reset the installation on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+	return nil
 }
