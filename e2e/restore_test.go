@@ -50,17 +50,13 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line := []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
-	}
+	resetInstallation(t, tc, 0)
 
 	// wait for the cluster nodes to reboot
 	tc.WaitForReady()
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
-	line = append([]string{"restore-installation.exp"}, testArgs...)
+	line := append([]string{"restore-installation.exp"}, testArgs...)
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to restore the installation: %v: %s: %s", err, stdout, stderr)
 	}
@@ -130,11 +126,11 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	defer tc.Cleanup()
 
 	appVersion := fmt.Sprintf("appver-%s-legacydr", os.Getenv("SHORT_SHA"))
-	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", appVersion, SnapshotLicenseID, "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+
+	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+		version:   appVersion,
+		licenseID: SnapshotLicenseID,
+	})
 
 	installSingleNode(t, tc)
 
@@ -153,17 +149,13 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
-	}
+	resetInstallation(t, tc, 0)
 
 	// wait for the cluster nodes to reboot
 	tc.WaitForReady()
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
-	line = append([]string{"restore-installation.exp"}, testArgs...)
+	line := append([]string{"restore-installation.exp"}, testArgs...)
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to restore the installation: %v: %s: %s", err, stdout, stderr)
 	}
@@ -257,11 +249,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
 
-	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v", err)
-	}
+	resetInstallation(t, tc, 0)
 
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
@@ -333,17 +321,13 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line := []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
-	}
+	resetInstallation(t, tc, 0)
 
 	// wait for the cluster nodes to reboot
 	tc.WaitForReady()
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
-	line = append([]string{"resume-restore.exp"}, testArgs...)
+	line := append([]string{"resume-restore.exp"}, testArgs...)
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to restore the installation: %v: %s: %s", err, stdout, stderr)
 	}
@@ -447,11 +431,8 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Log(stdout)
 		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v", err)
-	}
+
+	resetInstallation(t, tc, 0)
 
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
@@ -566,26 +547,17 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	// reset the cluster
 	runInParallel(t,
 		func(t *testing.T) error {
-			t.Logf("%s: resetting the installation on node 2", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force"}
-			if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
-				return fmt.Errorf("fail to reset the installation on node 2: %v: %s: %s", err, stdout, stderr)
-			}
-			return nil
+			return resetInstallationWithError(t, tc, 2, resetInstallationOptions{
+				force: true,
+			})
 		}, func(t *testing.T) error {
-			t.Logf("%s: resetting the installation on node 1", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force"}
-			if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
-				return fmt.Errorf("fail to reset the installation on node 1: %v: %s: %s", err, stdout, stderr)
-			}
-			return nil
+			return resetInstallationWithError(t, tc, 1, resetInstallationOptions{
+				force: true,
+			})
 		}, func(t *testing.T) error {
-			t.Logf("%s: resetting the installation on node 0", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force"}
-			if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-				return fmt.Errorf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
-			}
-			return nil
+			return resetInstallationWithError(t, tc, 0, resetInstallationOptions{
+				force: true,
+			})
 		},
 	)
 
@@ -757,26 +729,20 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	// reset the cluster
 	runInParallel(t,
 		func(t *testing.T) error {
-			t.Logf("%s: resetting the installation on node 2", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force"}
-			if _, _, err := tc.RunCommandOnNode(2, line, withEnv); err != nil {
-				return fmt.Errorf("fail to reset the installation on node 2: %v", err)
-			}
-			return nil
+			return resetInstallationWithError(t, tc, 2, resetInstallationOptions{
+				force:   true,
+				withEnv: withEnv,
+			})
 		}, func(t *testing.T) error {
-			t.Logf("%s: resetting the installation on node 1", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force"}
-			if _, _, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
-				return fmt.Errorf("fail to reset the installation on node 1: %v", err)
-			}
-			return nil
+			return resetInstallationWithError(t, tc, 1, resetInstallationOptions{
+				force:   true,
+				withEnv: withEnv,
+			})
 		}, func(t *testing.T) error {
-			t.Logf("%s: resetting the installation on node 0", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force"}
-			if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-				return fmt.Errorf("fail to reset the installation on node 0: %v", err)
-			}
-			return nil
+			return resetInstallationWithError(t, tc, 0, resetInstallationOptions{
+				force:   true,
+				withEnv: withEnv,
+			})
 		},
 	)
 
