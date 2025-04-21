@@ -17,9 +17,10 @@ func Install(ctx context.Context, hcli helm.Client) error {
 	}
 
 	loading := spinner.Start()
-	defer loading.Close()
+	loading.Infof("Installing additional components")
 
 	if err := addRepos(hcli, config.AdditionalRepositories()); err != nil {
+		loading.ErrorClosef("Failed to install additional components")
 		return errors.Wrap(err, "add additional helm repositories")
 	}
 
@@ -29,15 +30,18 @@ func Install(ctx context.Context, hcli helm.Client) error {
 		return sorted[i].Order < sorted[j].Order
 	})
 
-	for _, ext := range sorted {
-		loading.Infof("Installing %s", ext.Name)
+	numExtensions := len(sorted)
+
+	for i, ext := range sorted {
+		loading.Infof("Installing additional components (%d/%d)", i+1, numExtensions)
 
 		if err := install(ctx, hcli, ext); err != nil {
+			loading.ErrorClosef("Failed to install additional components")
 			return errors.Wrapf(err, "install extension %s", ext.Name)
 		}
 	}
 
-	loading.Infof("Extensions installed!")
+	loading.Closef("Additional components installed")
 
 	return nil
 }
