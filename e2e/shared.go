@@ -236,3 +236,11 @@ func checkWorkerProfile(t *testing.T, tc cluster.Cluster, node int) {
 		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
 }
+
+func checkNodeJoinCommand(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("node join command generation on node %d", node)
+	line := []string{"check-node-join-command.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+		t.Fatalf("fail to check if node join command is generated successfully on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}

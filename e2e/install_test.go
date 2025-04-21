@@ -44,6 +44,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 	}
 
 	checkInstallationState(t, tc)
+	checkNodeJoinCommand(t, tc, 0)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -108,6 +109,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	}
 
 	checkInstallationState(t, tc)
+	checkNodeJoinCommand(t, tc, 0)
 
 	t.Logf("%s: validating firewalld", time.Now().Format(time.RFC3339))
 	line = []string{"firewalld-validate.sh"}
@@ -162,6 +164,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	}
 
 	checkInstallationState(t, tc)
+	checkNodeJoinCommand(t, tc, 0)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -204,6 +207,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 	}
 
 	checkInstallationState(t, tc)
+	checkNodeJoinCommand(t, tc, 0)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -252,6 +256,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	}
 
 	checkInstallationState(t, tc)
+	checkNodeJoinCommand(t, tc, 0)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -579,19 +584,19 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 
 	appVer := fmt.Sprintf("appver-%s-1.8.0-k8s-1.28", os.Getenv("SHORT_SHA"))
 
-	t.Logf("%s: downloading embedded-cluster %s on node 0", appVer, time.Now().Format(time.RFC3339))
+	t.Logf("%s: downloading embedded-cluster %s on node 0", time.Now().Format(time.RFC3339), appVer)
 	line := []string{"vandoor-prepare.sh", appVer, LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: downloading embedded-cluster %s on worker node", appVer, time.Now().Format(time.RFC3339))
+	t.Logf("%s: downloading embedded-cluster %s on worker node", time.Now().Format(time.RFC3339), appVer)
 	line = []string{"vandoor-prepare.sh", appVer, LicenseID, "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: installing embedded-cluster %s on node 0", appVer, time.Now().Format(time.RFC3339))
+	t.Logf("%s: installing embedded-cluster %s on node 0", time.Now().Format(time.RFC3339), appVer)
 	line = []string{"single-node-install.sh", "ui", appVer}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
@@ -824,6 +829,8 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	checkNodeJoinCommand(t, tc, 0)
+
 	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
 	line = []string{"reset-installation.sh"}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
@@ -964,6 +971,8 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
+
+	checkNodeJoinCommand(t, tc, 0)
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-update.sh"}

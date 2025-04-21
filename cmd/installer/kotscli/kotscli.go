@@ -1,6 +1,8 @@
 package kotscli
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -299,4 +301,28 @@ func KotsOutputLineBreaker() spinner.LineBreakerFn {
 		}
 		return false, ""
 	}
+}
+
+func GetJoinCommand(ctx context.Context) (string, error) {
+	materializer := goods.NewMaterializer()
+	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
+	if err != nil {
+		return "", fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	outBuffer := bytes.NewBuffer(nil)
+	runCommandOptions := helpers.RunCommandOptions{
+		Context: ctx,
+		Env:     map[string]string{"KUBECONFIG": runtimeconfig.PathToKubeConfig()},
+		Stdin:   strings.NewReader(""),
+		Stdout:  outBuffer,
+	}
+
+	resetArgs := []string{"get", "join-command", "-n", "kotsadm"}
+	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, resetArgs...); err != nil {
+		return "", fmt.Errorf("unable to get join command: %w", err)
+	}
+
+	return outBuffer.String(), nil
 }
