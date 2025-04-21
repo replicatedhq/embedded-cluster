@@ -156,7 +156,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 		"----------------------------------------------\n" +
 		"Visit the Admin Console to deploy this update.\n" +
 		"----------------------------------------------" +
-		"\033[0m")
+		"\033[0m\n")
 	return nil
 }
 

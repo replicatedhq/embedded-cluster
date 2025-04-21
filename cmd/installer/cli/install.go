@@ -1304,29 +1304,31 @@ func copyLicenseFileToDataDir(licenseFile, dataDir string) error {
 
 func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) error {
 	adminConsoleURL := getAdminConsoleURL(networkInterface, runtimeconfig.AdminConsolePort())
-	successColor := "\033[32m"
-	resetColor := "\033[39m" // Reset color only, keep other formatting
-	resetFormatting := "\033[0m"
 
-	message := fmt.Sprintf("Visit the Admin Console to configure and install %s:\n\n%s%s%s",
-		license.Spec.AppSlug, successColor, adminConsoleURL, resetColor)
+	// Create the message content
+	message := fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)
 
-	// Calculate the length of the longest line
-	lines := strings.Split(message, "\n")
-	maxLength := 0
-	for _, line := range lines {
-		// Strip ANSI color codes for length calculation
-		cleanLine := strings.ReplaceAll(strings.ReplaceAll(line, successColor, ""), resetColor, "")
-		if len(cleanLine) > maxLength {
-			maxLength = len(cleanLine)
-		}
+	// Determine the length of the longest line
+	longestLine := len(message)
+	if len(adminConsoleURL) > longestLine {
+		longestLine = len(adminConsoleURL)
 	}
 
-	// Create divider line
-	divider := strings.Repeat("-", maxLength)
+	// Create the divider line
+	divider := strings.Repeat("-", longestLine)
 
-	bold := "\033[1m"
-	logrus.Infof("\n%s%s\n%s\n%s%s", bold, divider, message, divider, resetFormatting)
+	// ANSI escape codes
+	boldStart := "\033[1m"
+	boldEnd := "\033[0m"
+	greenStart := "\033[32m"
+	greenEnd := "\033[0m"
+
+	// Print the box in bold
+	logrus.Infof("\n%s%s%s", boldStart, divider, boldEnd)
+	logrus.Infof("%s%s%s", boldStart, message, boldEnd)
+	logrus.Infof("%s%s%s", boldStart, "", boldEnd)
+	logrus.Infof("%s%s%s%s%s", boldStart, greenStart, adminConsoleURL, greenEnd, boldEnd)
+	logrus.Infof("%s%s%s\n", boldStart, divider, boldEnd)
 
 	return nil
 }
