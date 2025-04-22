@@ -137,58 +137,37 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 }
 
 // fetchBinaryWithLicense downloads the binary from the Replicated app using basic auth with license ID
-func fetchBinaryWithLicense(url, licenseID, binaryName string) (string, error) {
-	// Create HTTP request with basic auth
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func fetchBinaryWithLicense(url, licenseID, binaryName string) (string, error) { // Create a temporary directory to store the binary
+	tmpdir, err := os.MkdirTemp("", "lam-artifact-*")
 	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
+		return "", fmt.Errorf("create temp dir: %w", err)
 	}
+	logrus.Debugf("Created temporary directory %s for binary download", tmpdir)
 
 	logrus.Debugf("Requesting release tarball from %s using license ID auth", url)
-
-	// Set basic auth with license ID
-	req.SetBasicAuth(licenseID, "")
-
-	// Make the request
-	resp, err := http.DefaultClient.Do(req)
+	body, err := doBinaryRequest(url, licenseID)
 	if err != nil {
-		return "", fmt.Errorf("HTTP request failed: %w", err)
+		_ = os.RemoveAll(tmpdir)
+		return "", fmt.Errorf("create request: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		// Read response body for error details
-		body, readErr := io.ReadAll(resp.Body)
-		if readErr == nil && len(body) > 0 {
-			return "", fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
-		}
-
-		return "", fmt.Errorf("API request failed with status %d", resp.StatusCode)
-	}
+	defer body.Close()
 
 	logrus.Debugf("Successfully received tarball, extracting contents")
 
 	// Stream extraction directly from response body
-	gzr, err := gzip.NewReader(resp.Body)
+	gzr, err := gzip.NewReader(body)
 	if err != nil {
+		_ = os.RemoveAll(tmpdir)
 		return "", fmt.Errorf("create gzip reader: %w", err)
 	}
 	defer gzr.Close()
 
 	tr := tar.NewReader(gzr)
 
-	// Create a temporary directory to store the binary
-	tmpdir, err := os.MkdirTemp("", "lam-artifact-*")
-	if err != nil {
-		return "", fmt.Errorf("create temp dir: %w", err)
-	}
-
-	logrus.Debugf("Created temporary directory %s for binary download", tmpdir)
-
 	// Copy the binary to the expected location
 	destPath := filepath.Join(tmpdir, EmbeddedClusterBinaryArtifactName)
 
-	if err := extractTarball(tr, binaryName, destPath); err != nil {
+	if err := extractBinaryFromTarball(tr, binaryName, destPath); err != nil {
 		_ = os.RemoveAll(tmpdir)
 		return "", fmt.Errorf("extract tarball: %w", err)
 	}
@@ -196,7 +175,37 @@ func fetchBinaryWithLicense(url, licenseID, binaryName string) (string, error) {
 	return tmpdir, nil
 }
 
-func extractTarball(tr *tar.Reader, binaryName string, destPath string) error {
+func doBinaryRequest(url, licenseID string) (io.ReadCloser, error) {
+	// Create HTTP request with basic auth
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	// Set basic auth with license ID
+	req.SetBasicAuth(licenseID, "")
+
+	// Make the request
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP request failed: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		// Read response body for error details
+		body, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if readErr == nil && len(body) > 0 {
+			return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		}
+
+		return nil, fmt.Errorf("API request failed with status %d", resp.StatusCode)
+	}
+
+	return resp.Body, nil
+}
+
+func extractBinaryFromTarball(tr *tar.Reader, binaryName string, destPath string) error {
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
