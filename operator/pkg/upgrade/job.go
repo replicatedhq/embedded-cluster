@@ -49,25 +49,24 @@ func CreateUpgradeJob(
 		return nil
 	}
 
+	if localArtifactMirrorImage == "" {
+		return fmt.Errorf("local artifact mirror image is required")
+	}
+
+	err = metadata.CopyVersionMetadataToCluster(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("copy version metadata to cluster: %w", err)
+	}
+
+	err = distributeArtifacts(ctx, cli, in, localArtifactMirrorImage)
+	if err != nil {
+		return fmt.Errorf("distribute artifacts: %w", err)
+	}
+
 	pullPolicy := corev1.PullIfNotPresent
 	if in.Spec.AirGap {
-		// in airgap installations we need to copy the artifacts to the nodes and then autopilot
-		// will copy the images to the cluster so we can start the new operator.
-
-		if localArtifactMirrorImage == "" {
-			return fmt.Errorf("local artifact mirror image is required for airgap installations")
-		}
-
-		err = metadata.CopyVersionMetadataToCluster(ctx, cli, in)
-		if err != nil {
-			return fmt.Errorf("copy version metadata to cluster: %w", err)
-		}
-
-		err = airgapDistributeArtifacts(ctx, cli, in, localArtifactMirrorImage)
-		if err != nil {
-			return fmt.Errorf("airgap distribute artifacts: %w", err)
-		}
-
+		// in airgap installations autopilot will copy the images to the cluster so we can start
+		// the new operator.
 		pullPolicy = corev1.PullNever
 	}
 
@@ -276,25 +275,27 @@ func operatorImageName(ctx context.Context, cli client.Client, in *ecv1beta1.Ins
 	return "", fmt.Errorf("no embedded-cluster-operator image found in release metadata")
 }
 
-func airgapDistributeArtifacts(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, localArtifactMirrorImage string) error {
-	// in airgap installations let's make sure all assets have been copied to nodes.
+func distributeArtifacts(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, localArtifactMirrorImage string) error {
+	// let's make sure all assets have been copied to nodes.
 	// this may take some time so we only move forward when 'ready'.
-	err := ensureAirgapArtifactsOnNodes(ctx, cli, in, localArtifactMirrorImage)
+	err := ensureArtifactsOnNodes(ctx, cli, in, localArtifactMirrorImage)
 	if err != nil {
-		return fmt.Errorf("ensure airgap artifacts: %w", err)
+		return fmt.Errorf("ensure artifacts: %w", err)
 	}
 
-	// once all assets are in place we can create the autopilot plan to push the images to
-	// containerd.
-	err = ensureAirgapArtifactsInCluster(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("autopilot copy airgap artifacts: %w", err)
+	if in.Spec.AirGap {
+		// once all assets are in place we can create the autopilot plan to push the images to
+		// containerd.
+		err := ensureAirgapArtifactsInCluster(ctx, cli, in)
+		if err != nil {
+			return fmt.Errorf("autopilot copy airgap artifacts: %w", err)
+		}
 	}
 
 	return nil
 }
 
-func ensureAirgapArtifactsOnNodes(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, localArtifactMirrorImage string) error {
+func ensureArtifactsOnNodes(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, localArtifactMirrorImage string) error {
 	log := controllerruntime.LoggerFrom(ctx)
 
 	log.Info("Placing artifacts on nodes...")

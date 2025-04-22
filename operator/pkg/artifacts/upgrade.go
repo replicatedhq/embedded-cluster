@@ -105,7 +105,7 @@ func EnsureArtifactsJobForNodes(ctx context.Context, cli client.Client, in *clus
 	}
 
 	// generate a hash of the current config so we can detect config changes.
-	cfghash, err := HashForAirgapConfig(in)
+	cfghash, err := hashForAirgapConfig(in)
 	if err != nil {
 		return fmt.Errorf("hash airgap config: %w", err)
 	}
@@ -128,7 +128,7 @@ func ListArtifactsJobForNodes(ctx context.Context, cli client.Client, in *cluste
 	}
 
 	// generate a hash of the current config so we can detect config changes.
-	cfghash, err := HashForAirgapConfig(in)
+	cfghash, err := hashForAirgapConfig(in)
 	if err != nil {
 		return nil, fmt.Errorf("hash airgap config: %w", err)
 	}
@@ -164,9 +164,13 @@ func ListArtifactsJobForNodes(ctx context.Context, cli client.Client, in *cluste
 	return jobs, nil
 }
 
-// HashForAirgapConfig generates a hash for the airgap configuration. We can use this to detect config changes between
+// hashForAirgapConfig generates a hash for the airgap configuration. We can use this to detect config changes between
 // different reconcile cycles.
-func HashForAirgapConfig(in *clusterv1beta1.Installation) (string, error) {
+func hashForAirgapConfig(in *clusterv1beta1.Installation) (string, error) {
+	if !in.Spec.AirGap {
+		return "", nil
+	}
+
 	data, err := json.Marshal(in.Spec.Artifacts)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal artifacts location: %w", err)
@@ -201,7 +205,7 @@ func ensureArtifactsJobForNode(ctx context.Context, cli client.Client, in *clust
 }
 
 func getArtifactJobForNode(cli client.Client, in *clusterv1beta1.Installation, node corev1.Node, localArtifactMirrorImage string) (*batchv1.Job, error) {
-	hash, err := HashForAirgapConfig(in)
+	hash, err := hashForAirgapConfig(in)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash airgap config: %w", err)
 	}
