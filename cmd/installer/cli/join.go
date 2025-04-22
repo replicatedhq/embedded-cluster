@@ -329,7 +329,7 @@ func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *
 	return cidrCfg, nil
 }
 
-func getJoinCIDRConfig(jcmd *kotsadm.JoinCommandResponse) (*CIDRConfig, error) {
+func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*CIDRConfig, error) {
 	podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
 	if err != nil {
 		return nil, fmt.Errorf("unable to split default network CIDR: %w", err)
