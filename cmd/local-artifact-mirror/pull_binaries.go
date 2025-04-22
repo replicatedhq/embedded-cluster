@@ -137,7 +137,8 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 }
 
 // fetchBinaryWithLicense downloads the binary from the Replicated app using basic auth with license ID
-func fetchBinaryWithLicense(url, licenseID, binaryName string) (string, error) { // Create a temporary directory to store the binary
+func fetchBinaryWithLicense(url, licenseID, binaryName string) (string, error) {
+	// Create a temporary directory to store the binary
 	tmpdir, err := os.MkdirTemp("", "lam-artifact-*")
 	if err != nil {
 		return "", fmt.Errorf("create temp dir: %w", err)
