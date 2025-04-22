@@ -46,10 +46,8 @@ func fetchAndValidateInstallation(ctx context.Context, kcli client.Client, iname
 		}
 	}
 
-	if !in.Spec.AirGap {
-		return nil, fmt.Errorf("installation is not airgapped")
-	} else if in.Spec.Artifacts == nil {
-		return nil, fmt.Errorf("installation has no artifacts")
+	if in.Spec.AirGap && in.Spec.Artifacts == nil {
+		return nil, fmt.Errorf("airgap installation has no artifacts")
 	}
 
 	return in, nil

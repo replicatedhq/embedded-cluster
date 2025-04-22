@@ -2,14 +2,18 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"path"
 	"syscall"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 func main() {
+	logrus.SetOutput(os.Stdout)
+
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
@@ -20,14 +24,7 @@ func main() {
 	// we do this before calling cli.InitAndExecute so that it is set before the process forks
 	_ = syscall.Umask(0o022)
 
-	InitAndExecute(ctx, name)
-}
-
-func InitAndExecute(ctx context.Context, name string) {
 	cli := NewCLI(name)
 	err := RootCmd(cli).ExecuteContext(ctx)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	cobra.CheckErr(err)
 }

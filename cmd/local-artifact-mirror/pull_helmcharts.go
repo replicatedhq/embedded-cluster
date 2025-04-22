@@ -33,6 +33,10 @@ func PullHelmChartsCmd(cli *CLI) *cobra.Command {
 				return err
 			}
 
+			if !in.Spec.AirGap {
+				return fmt.Errorf("pulling helm charts is not supported for online installations")
+			}
+
 			from := in.Spec.Artifacts.HelmCharts
 			logrus.Infof("fetching helm charts artifact from %s", from)
 			location, err := cli.PullArtifact(ctx, kcli, from)

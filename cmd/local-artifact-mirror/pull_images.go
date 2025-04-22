@@ -33,6 +33,10 @@ func PullImagesCmd(cli *CLI) *cobra.Command {
 				return err
 			}
 
+			if !in.Spec.AirGap {
+				return fmt.Errorf("pulling images is not supported for online installations")
+			}
+
 			from := in.Spec.Artifacts.Images
 			logrus.Infof("fetching images artifact from %s", from)
 			location, err := cli.PullArtifact(ctx, kcli, from)
