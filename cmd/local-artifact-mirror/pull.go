@@ -37,7 +37,7 @@ func PullCmd(cli *CLI) *cobra.Command {
 
 // fetchAndValidateInstallation fetches an Installation object from its name or directly decodes it
 // and checks if it is valid for an airgap cluster deployment.
-func fetchAndValidateInstallation(ctx context.Context, kcli client.Client, iname string) (*ecv1beta1.Installation, error) {
+func fetchAndValidateInstallation(ctx context.Context, kcli client.Client, iname string, isAirgap bool) (*ecv1beta1.Installation, error) {
 	in, err := decodeInstallation(ctx, iname)
 	if err != nil {
 		in, err = kubeutils.GetInstallation(ctx, kcli, iname)
@@ -46,10 +46,12 @@ func fetchAndValidateInstallation(ctx context.Context, kcli client.Client, iname
 		}
 	}
 
-	if !in.Spec.AirGap {
-		return nil, fmt.Errorf("installation is not airgapped")
-	} else if in.Spec.Artifacts == nil {
-		return nil, fmt.Errorf("installation has no artifacts")
+	if isAirgap {
+		if !in.Spec.AirGap {
+			return nil, fmt.Errorf("installation is not airgapped")
+		} else if in.Spec.Artifacts == nil {
+			return nil, fmt.Errorf("installation has no artifacts")
+		}
 	}
 
 	return in, nil

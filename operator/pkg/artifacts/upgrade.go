@@ -176,7 +176,7 @@ func HashForAirgapConfig(in *clusterv1beta1.Installation) (string, error) {
 }
 
 func ensureArtifactsJobForNode(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, node corev1.Node, localArtifactMirrorImage, cfghash string) (*batchv1.Job, error) {
-	job, err := getArtifactJobForNode(ctx, cli, in, node, localArtifactMirrorImage)
+	job, err := getArtifactJobForNode(cli, in, node, localArtifactMirrorImage)
 	if err != nil {
 		return nil, fmt.Errorf("get job for node: %w", err)
 	}
@@ -200,7 +200,7 @@ func ensureArtifactsJobForNode(ctx context.Context, cli client.Client, in *clust
 	return job, nil
 }
 
-func getArtifactJobForNode(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, node corev1.Node, localArtifactMirrorImage string) (*batchv1.Job, error) {
+func getArtifactJobForNode(cli client.Client, in *clusterv1beta1.Installation, node corev1.Node, localArtifactMirrorImage string) (*batchv1.Job, error) {
 	hash, err := HashForAirgapConfig(in)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash airgap config: %w", err)

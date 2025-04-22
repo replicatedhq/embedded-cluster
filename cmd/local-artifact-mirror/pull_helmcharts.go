@@ -28,7 +28,7 @@ func PullHelmChartsCmd(cli *CLI) *cobra.Command {
 				return fmt.Errorf("unable to create kube client: %w", err)
 			}
 
-			in, err := fetchAndValidateInstallation(ctx, kcli, args[0])
+			in, err := fetchAndValidateInstallation(ctx, kcli, args[0], true)
 			if err != nil {
 				return err
 			}
