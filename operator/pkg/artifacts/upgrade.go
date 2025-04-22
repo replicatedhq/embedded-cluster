@@ -95,7 +95,7 @@ var copyArtifactsJob = &batchv1.Job{
 // This is done by creating a job for each node in the cluster, which will pull the
 // artifacts from the internal registry.
 func EnsureArtifactsJobForNodes(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
-	if in.Spec.Artifacts == nil {
+	if in.Spec.AirGap && in.Spec.Artifacts == nil {
 		return fmt.Errorf("no artifacts location defined")
 	}
 

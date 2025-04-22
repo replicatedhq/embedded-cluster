@@ -57,7 +57,7 @@ func TestCreateUpgradeJob_NodeAffinity(t *testing.T) {
 		Build()
 
 	// Call the function under test
-	err := CreateUpgradeJob(context.Background(), cli, installation, "", "1.2.2")
+	err := CreateUpgradeJob(context.Background(), cli, installation, "replicated/lam:1.0.0", "1.2.2")
 	require.NoError(t, err)
 
 	// Get the job that was created

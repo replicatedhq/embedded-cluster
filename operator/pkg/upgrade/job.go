@@ -300,14 +300,16 @@ func ensureArtifactsOnNodes(ctx context.Context, cli client.Client, in *ecv1beta
 
 	log.Info("Placing artifacts on nodes...")
 
-	op, err := artifacts.EnsureRegistrySecretInECNamespace(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("ensure registry secret in ec namespace: %w", err)
-	} else if op != controllerutil.OperationResultNone {
-		log.Info("Registry credentials secret changed", "operation", op)
+	if in.Spec.AirGap {
+		op, err := artifacts.EnsureRegistrySecretInECNamespace(ctx, cli, in)
+		if err != nil {
+			return fmt.Errorf("ensure registry secret in ec namespace: %w", err)
+		} else if op != controllerutil.OperationResultNone {
+			log.Info("Registry credentials secret changed", "operation", op)
+		}
 	}
 
-	err = artifacts.EnsureArtifactsJobForNodes(ctx, cli, in, localArtifactMirrorImage)
+	err := artifacts.EnsureArtifactsJobForNodes(ctx, cli, in, localArtifactMirrorImage)
 	if err != nil {
 		return fmt.Errorf("ensure artifacts job for nodes: %w", err)
 	}
