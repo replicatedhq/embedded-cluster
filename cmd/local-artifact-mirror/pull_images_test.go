@@ -151,7 +151,7 @@ func TestPullImagesCmd(t *testing.T) {
 				m := &mockPuller{}
 				return m
 			}(),
-			expectedError: "installation is not airgapped",
+			expectedError: "pulling images is not supported for online installations",
 		},
 	}
 
