@@ -34,7 +34,7 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 		Short: "Pull binaries artifacts for online or airgap installations",
 		Args:  cobra.ExactArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			// If license-id is set, app-slug and channel-slug are required
+			// If license-id is set, app-slug, channel-slug, and app-version are required
 			if licenseID != "" {
 				if appSlug == "" {
 					return fmt.Errorf("--app-slug is required when --license-id is set")
