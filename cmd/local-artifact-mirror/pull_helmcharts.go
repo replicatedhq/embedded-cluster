@@ -28,9 +28,13 @@ func PullHelmChartsCmd(cli *CLI) *cobra.Command {
 				return fmt.Errorf("unable to create kube client: %w", err)
 			}
 
-			in, err := fetchAndValidateInstallation(ctx, kcli, args[0], true)
+			in, err := fetchAndValidateInstallation(ctx, kcli, args[0])
 			if err != nil {
 				return err
+			}
+
+			if !in.Spec.AirGap {
+				return fmt.Errorf("pulling helm charts is not supported for online installations")
 			}
 
 			from := in.Spec.Artifacts.HelmCharts

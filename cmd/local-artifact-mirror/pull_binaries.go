@@ -56,14 +56,17 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 				return fmt.Errorf("unable to create kube client: %w", err)
 			}
 
-			isAirgap := licenseID == ""
-			in, err := fetchAndValidateInstallation(ctx, kcli, args[0], isAirgap)
+			in, err := fetchAndValidateInstallation(ctx, kcli, args[0])
 			if err != nil {
 				return err
 			}
 
+			if !in.Spec.AirGap && licenseID == "" {
+				return fmt.Errorf("license ID is required for online installations")
+			}
+
 			var location string
-			if !isAirgap {
+			if !in.Spec.AirGap {
 				// For online, fetch from Replicated app using license ID
 				u := releaseURL(in.Spec.MetricsBaseURL, appSlug, channelSlug, appVersion)
 				logrus.Infof("fetching embedded cluster binary from %s using license ID", u)
