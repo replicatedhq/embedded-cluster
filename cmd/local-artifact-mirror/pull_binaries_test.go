@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,24 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-)
-
-var (
-	testBinaryContent = []byte(`#!/bin/bash
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    '--data-dir')
-       shift
-       echo "--data-dir = $1"
-       echo "Hello, world!" > "$1/some-file"
-       exit 0
-       ;;
-  esac
-  shift
-done
-echo "did not find --data-dir"
-exit 1
-`)
 )
 
 func TestPullBinariesCmd_Online(t *testing.T) {
@@ -61,6 +44,10 @@ func TestPullBinariesCmd_Online(t *testing.T) {
 		var buf bytes.Buffer
 		gzWriter := gzip.NewWriter(&buf)
 		tarWriter := tar.NewWriter(gzWriter)
+
+		testBinaryContent := []byte(fmt.Sprintf(`#!/bin/bash
+printf "Hello, world!" > "%s/some-file"
+`, dataDir))
 
 		// Add the test binary to the archive with the expected name
 		header := &tar.Header{
@@ -177,7 +164,7 @@ func TestPullBinariesCmd_Online(t *testing.T) {
 				// Verify file content
 				content, err := os.ReadFile(expectedDst)
 				assert.NoError(t, err)
-				assert.Equal(t, "Hello, world!\n", string(content))
+				assert.Equal(t, "Hello, world!", string(content))
 			}
 		})
 	}
