@@ -72,8 +72,9 @@ func testDefaultInstallationImpl(t *testing.T) {
 	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
-		"isMultiNodeEnabled": true,
-		"kurlProxy.nodePort": float64(30000),
+		"isMultiNodeEnabled":     true,
+		"kurlProxy.nodePort":     float64(30000),
+		"embeddedClusterDataDir": "/var/lib/embedded-cluster",
 	})
 	assertHelmValuePrefixes(t, adminConsoleOpts.Values, map[string]string{
 		"images.kotsadm":    "fake-replicated-proxy.test.net/anonymous",
@@ -232,6 +233,9 @@ func TestCustomDataDir(t *testing.T) {
 	assert.Equal(t, "Install", hcli.Calls[3].Method)
 	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
+	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
+		"embeddedClusterDataDir": "/custom/data/dir",
+	})
 
 	// --- validate os env --- //
 	assertEnv(t, dr.OSEnv, map[string]string{
