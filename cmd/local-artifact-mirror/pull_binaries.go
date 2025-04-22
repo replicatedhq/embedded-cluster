@@ -63,7 +63,7 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 			}
 
 			var location string
-			if licenseID != "" {
+			if !isAirgap {
 				// For online, fetch from Replicated app using license ID
 				u := releaseURL(in.Spec.MetricsBaseURL, appSlug, channelSlug, appVersion)
 				logrus.Infof("fetching embedded cluster binary from %s using license ID", u)
