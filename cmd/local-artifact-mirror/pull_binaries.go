@@ -137,25 +137,11 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 }
 
 // fetchBinaryWithLicense downloads the binary from the Replicated app using basic auth with license ID
-func fetchBinaryWithLicense(url, licenseID, binaryName string) (tmpdir string, err error) {
-	defer func() {
-		if err != nil && tmpdir != "" {
-			_ = os.RemoveAll(tmpdir)
-		}
-	}()
-
-	// Create a temporary directory to store the binary
-	tmpdir, err = os.MkdirTemp("", "lam-artifact-*")
-	if err != nil {
-		return tmpdir, fmt.Errorf("create temp dir: %w", err)
-	}
-
-	logrus.Debugf("Created temporary directory %s for binary download", tmpdir)
-
+func fetchBinaryWithLicense(url, licenseID, binaryName string) (string, error) {
 	// Create HTTP request with basic auth
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return tmpdir, fmt.Errorf("create request: %w", err)
+		return "", fmt.Errorf("create request: %w", err)
 	}
 
 	logrus.Debugf("Requesting release tarball from %s using license ID auth", url)
@@ -166,7 +152,7 @@ func fetchBinaryWithLicense(url, licenseID, binaryName string) (tmpdir string, e
 	// Make the request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return tmpdir, fmt.Errorf("HTTP request failed: %w", err)
+		return "", fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -174,10 +160,10 @@ func fetchBinaryWithLicense(url, licenseID, binaryName string) (tmpdir string, e
 		// Read response body for error details
 		body, readErr := io.ReadAll(resp.Body)
 		if readErr == nil && len(body) > 0 {
-			return tmpdir, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+			return "", fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
 		}
 
-		return tmpdir, fmt.Errorf("API request failed with status %d", resp.StatusCode)
+		return "", fmt.Errorf("API request failed with status %d", resp.StatusCode)
 	}
 
 	logrus.Debugf("Successfully received tarball, extracting contents")
@@ -185,18 +171,38 @@ func fetchBinaryWithLicense(url, licenseID, binaryName string) (tmpdir string, e
 	// Stream extraction directly from response body
 	gzr, err := gzip.NewReader(resp.Body)
 	if err != nil {
-		return tmpdir, fmt.Errorf("create gzip reader: %w", err)
+		return "", fmt.Errorf("create gzip reader: %w", err)
 	}
 	defer gzr.Close()
 
 	tr := tar.NewReader(gzr)
 
+	// Create a temporary directory to store the binary
+	tmpdir, err := os.MkdirTemp("", "lam-artifact-*")
+	if err != nil {
+		return "", fmt.Errorf("create temp dir: %w", err)
+	}
+
+	logrus.Debugf("Created temporary directory %s for binary download", tmpdir)
+
+	// Copy the binary to the expected location
+	destPath := filepath.Join(tmpdir, EmbeddedClusterBinaryArtifactName)
+
+	if err := extractTarball(tr, binaryName, destPath); err != nil {
+		_ = os.RemoveAll(tmpdir)
+		return "", fmt.Errorf("extract tarball: %w", err)
+	}
+
+	return tmpdir, nil
+}
+
+func extractTarball(tr *tar.Reader, binaryName string, destPath string) error {
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
-			return tmpdir, fmt.Errorf("could not find binary file (%s) in extracted contents", binaryName)
+			return fmt.Errorf("could not find binary file (%s) in extracted contents", binaryName)
 		} else if err != nil {
-			return tmpdir, err
+			return err
 		}
 
 		// Skip non-regular files or files that don't match the expected binary name
@@ -207,21 +213,18 @@ func fetchBinaryWithLicense(url, licenseID, binaryName string) (tmpdir string, e
 
 		logrus.Infof("Found binary %s", header.Name)
 
-		// Copy the binary to the expected location
-		destPath := filepath.Join(tmpdir, EmbeddedClusterBinaryArtifactName)
-
 		outFile, err := os.Create(destPath)
 		if err != nil {
-			return tmpdir, fmt.Errorf("create output file: %w", err)
+			return fmt.Errorf("create output file: %w", err)
 		}
 		defer outFile.Close()
 
 		if _, err := io.Copy(outFile, tr); err != nil {
-			return tmpdir, fmt.Errorf("stream binary to file: %w", err)
+			return fmt.Errorf("stream binary to file: %w", err)
 		}
 
 		logrus.Debugf("Successfully extracted binary to %s", destPath)
-		return tmpdir, nil
+		return nil
 	}
 }
 
