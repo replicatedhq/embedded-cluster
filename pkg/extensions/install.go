@@ -41,7 +41,7 @@ func Install(ctx context.Context, hcli helm.Client) error {
 		}
 	}
 
-	loading.Closef("Additional components installed")
+	loading.Closef("Additional components are ready")
 
 	return nil
 }

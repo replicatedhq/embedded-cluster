@@ -22,6 +22,10 @@ expect {
       puts "\n\nFailed to find introduction."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding introduction."
+      exit 1
+    }
 }
 
 expect {
@@ -30,6 +34,10 @@ expect {
     }
     timeout {
       puts "\n\nFailed to find 'S3 endpoint' prompt."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'S3 endpoint' prompt."
       exit 1
     }
 }
@@ -42,6 +50,10 @@ expect {
       puts "\n\nFailed to find 'Region' prompt."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'Region' prompt."
+      exit 1
+    }
 }
 
 expect {
@@ -50,6 +62,10 @@ expect {
     }
     timeout {
       puts "\n\nFailed to find 'Bucket' prompt."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'Bucket' prompt."
       exit 1
     }
 }
@@ -62,6 +78,10 @@ expect {
       puts "\n\nFailed to find 'Prefix' prompt."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'Prefix' prompt."
+      exit 1
+    }
 }
 
 expect {
@@ -70,6 +90,10 @@ expect {
     }
     timeout {
       puts "\n\nFailed to find 'Access key ID' prompt."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'Access key ID' prompt."
       exit 1
     }
 }
@@ -82,12 +106,20 @@ expect {
       puts "\n\nFailed to find 'Secret access key' prompt."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'Secret access key' prompt."
+      exit 1
+    }
 }
 
 expect {
     -timeout 300 "Velero is ready" {}
     timeout {
       puts "\n\nFailed to wait for Velero to be ready."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before Velero was ready."
       exit 1
     }
 }
@@ -98,12 +130,20 @@ expect {
       puts "\n\nFailed to configure backup storage location."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before backup storage location was configured."
+      exit 1
+    }
 }
 
 expect {
     -timeout 30 "Found 1 restorable backup!" {}
     timeout {
       puts "\n\nFailed to find a restorable backup."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding a restorable backup."
       exit 1
     }
 }
@@ -116,12 +156,20 @@ expect {
       puts "\n\nFailed to find 'Restore from backup' prompt."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'Restore from backup' prompt."
+      exit 1
+    }
 }
 
 expect {
     "Aborting restore..." {}
     timeout {
       puts "\n\nFailed to find 'aborting restore' prompt."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'aborting restore' prompt."
       exit 1
     }
 }
@@ -144,12 +192,20 @@ expect {
       puts "\n\nFailed to find 'previous restore operation was detected' prompt."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'previous restore operation was detected' prompt."
+      exit 1
+    }
 }
 
 expect {
     -timeout 30 "Found 1 restorable backup!" {}
     timeout {
       puts "\n\nFailed to find a restorable backup."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding a restorable backup."
       exit 1
     }
 }
@@ -162,6 +218,10 @@ expect {
       puts "\n\nFailed to find 'Restore from backup' prompt."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'Restore from backup' prompt."
+      exit 1
+    }
 }
 
 
@@ -169,6 +229,10 @@ expect {
     "Restoring cluster state" {}
     timeout {
       puts "\n\nFailed to find 'restoring cluster state' spinner."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'restoring cluster state' spinner."
       exit 1
     }
 }
@@ -184,6 +248,10 @@ expect {
       puts "\n\nFailed to find 'previous restore operation was detected' prompt."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'previous restore operation was detected' prompt."
+      exit 1
+    }
 }
 
 expect {
@@ -192,12 +260,20 @@ expect {
       puts "\n\nFailed to find 'resuming restore from backup' message."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'resuming restore from backup' message."
+      exit 1
+    }
 }
 
 expect {
     "Restoring cluster state" {}
     timeout {
       puts "\n\nFailed to find 'restoring cluster state' spinner."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'restoring cluster state' spinner."
       exit 1
     }
 }
@@ -208,12 +284,20 @@ expect {
       puts "\n\nFailed to restore cluster state."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before cluster state was restored."
+      exit 1
+    }
 }
 
 expect {
     "Restoring the Admin Console" {}
     timeout {
       puts "\n\nFailed to find 'restoring the admin console' spinner."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'restoring the admin console' spinner."
       exit 1
     }
 }
@@ -229,6 +313,10 @@ expect {
       puts "\n\nFailed to find 'previous restore operation was detected' prompt."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'previous restore operation was detected' prompt."
+      exit 1
+    }
 }
 
 expect {
@@ -237,12 +325,20 @@ expect {
       puts "\n\nFailed to find 'resuming restore from backup' message."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'resuming restore from backup' message."
+      exit 1
+    }
 }
 
 expect {
     "Restoring the Admin Console" {}
     timeout {
       puts "\n\nFailed to find 'restoring the admin console' spinner."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'restoring the admin console' spinner."
       exit 1
     }
 }
@@ -253,12 +349,20 @@ expect {
       puts "\n\nFailed to restore admin console."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before admin console was restored."
+      exit 1
+    }
 }
 
 expect {
     "Visit the Admin Console if you need to add nodes to the cluster" {}
     timeout {
       puts "\n\nFailed to find admin console URL."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding admin console URL."
       exit 1
     }
 }
@@ -269,6 +373,10 @@ expect {
     }
     timeout {
       puts "\n\nFailed to find 'done adding nodes' prompt."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'done adding nodes' prompt."
       exit 1
     }
 }
@@ -284,12 +392,20 @@ expect {
       puts "\n\nFailed to find 'previous restore operation was detected' prompt."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'previous restore operation was detected' prompt."
+      exit 1
+    }
 }
 
 expect {
     "Resuming restore from backup" {}
     timeout {
       puts "\n\nFailed to find 'resuming restore from backup' message."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'resuming restore from backup' message."
       exit 1
     }
 }
@@ -300,6 +416,10 @@ expect {
       puts "\n\nFailed to find admin console URL."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding admin console URL."
+      exit 1
+    }
 }
 
 expect {
@@ -308,6 +428,10 @@ expect {
     }
     timeout {
       puts "\n\nFailed to find 'done adding nodes' prompt."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'done adding nodes' prompt."
       exit 1
     }
 }
@@ -320,6 +444,10 @@ expect {
       puts "\n\nFailed to find 'type continue to proceed' prompt."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'type continue to proceed' prompt."
+      exit 1
+    }
 }
 
 expect {
@@ -328,12 +456,20 @@ expect {
       puts "\n\nFailed to wait for nodes."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before all nodes were ready."
+      exit 1
+    }
 }
 
 expect {
     "Restoring embedded cluster operator" {}
     timeout {
       puts "\n\nFailed to find 'restoring embedded cluster operator' spinner."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'restoring embedded cluster operator' spinner."
       exit 1
     }
 }
@@ -349,6 +485,10 @@ expect {
       puts "\n\nFailed to find 'previous restore operation was detected' prompt."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'previous restore operation was detected' prompt."
+      exit 1
+    }
 }
 
 expect {
@@ -357,12 +497,20 @@ expect {
       puts "\n\nFailed to find 'resuming restore from backup' message."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'resuming restore from backup' message."
+      exit 1
+    }
 }
 
 expect {
     "Restoring embedded cluster operator" {}
     timeout {
       puts "\n\nFailed to find 'restoring embedded cluster operator' spinner."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'restoring embedded cluster operator' spinner."
       exit 1
     }
 }
@@ -373,12 +521,20 @@ expect {
       puts "\n\nFailed to restore embedded cluster operator."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before embedded cluster operator was restored."
+      exit 1
+    }
 }
 
 expect {
-    -timeout 240 "Extensions installed!" {}
+    -timeout 240 "Additional components are ready" {}
     timeout {
-      puts "\n\nFailed to find 'extensions installed' spinner."
+      puts "\n\nFailed to find 'additional components are ready' spinner."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'additional components are ready' spinner."
       exit 1
     }
 }
@@ -387,6 +543,10 @@ expect {
     "Restoring application" {}
     timeout {
       puts "\n\nFailed to find 'restoring application' spinner."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'restoring application' spinner."
       exit 1
     }
 }
@@ -402,12 +562,20 @@ expect {
       puts "\n\nFailed to find 'previous restore operation was detected' prompt."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'previous restore operation was detected' prompt."
+      exit 1
+    }
 }
 
 expect {
     "Resuming restore from backup" {}
     timeout {
       puts "\n\nFailed to find 'resuming restore from backup' message."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before finding 'resuming restore from backup' message."
       exit 1
     }
 }
@@ -418,6 +586,10 @@ expect {
       puts "\n\nFailed to find 'restoring application' spinner."
       exit 1
     }
+    eof {
+      puts "\n\nProcess terminated before finding 'restoring application' spinner."
+      exit 1
+    }
 }
 
 expect {
@@ -426,6 +598,10 @@ expect {
     }
     timeout {
       puts "\n\nFailed to restore application."
+      exit 1
+    }
+    eof {
+      puts "\n\nProcess terminated before application was restored."
       exit 1
     }
 }
