@@ -71,7 +71,7 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 				u := releaseURL(in.Spec.MetricsBaseURL, appSlug, channelSlug, appVersion)
 				logrus.Infof("fetching embedded cluster binary from %s using license ID", u)
 
-				location, err = fetchBinaryWithLicense(u, licenseID, in.Spec.BinaryName)
+				location, err = fetchBinaryWithLicense(u, licenseID, appSlug)
 				if err != nil {
 					return fmt.Errorf("unable to fetch binary from Replicated app: %w", err)
 				}
@@ -107,7 +107,7 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 
 			logrus.Infof("binary file size: %d bytes", binInfo.Size())
 
-			namedBin := filepath.Join(location, in.Spec.BinaryName)
+			namedBin := filepath.Join(location, appSlug)
 			if err := os.Rename(bin, namedBin); err != nil {
 				return fmt.Errorf("unable to rename binary: %w", err)
 			}

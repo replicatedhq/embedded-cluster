@@ -357,6 +357,13 @@ func ensureArtifactsOnNodes(
 	}
 
 	log.Info("Artifacts placed on nodes")
+
+	// cleanup the jobs and the secret created by EnsureArtifactsJobForNodes
+	if err := artifacts.CleanupArtifactsJobsForNodes(ctx, cli); err != nil {
+		log.Error(err, "Failed to cleanup artifacts jobs")
+		// don't return an error here as it's not critical
+	}
+
 	return nil
 }
 

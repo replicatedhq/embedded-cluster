@@ -14,11 +14,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"go.uber.org/multierr"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,6 +26,7 @@ import (
 
 const ecNamespace = "embedded-cluster"
 const copyArtifactsJobPrefix = "copy-artifacts-"
+const licenseIDSecretName = "embedded-cluster-license-id"
 
 const (
 	// InstallationNameAnnotation is the annotation we keep in the autopilot plan so we can
@@ -85,7 +86,7 @@ var copyArtifactsJobCommandOnline = []string{
 	"-ex",
 	"-c",
 	"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster " +
-		"--license-id $LICENSE_ID --app-slug $APP_SLUG --channel-slug $CHANNEL_SLUG --app-version $APP_VERSION " +
+		"--app-slug $APP_SLUG --channel-slug $CHANNEL_SLUG --app-version $APP_VERSION " +
 		"$INSTALLATION_DATA; \n" +
 		"echo 'done'",
 }
@@ -112,6 +113,11 @@ func EnsureArtifactsJobForNodes(
 ) error {
 	if in.Spec.AirGap && in.Spec.Artifacts == nil {
 		return fmt.Errorf("no artifacts location defined")
+	}
+
+	// Ensure license ID secret exists
+	if err := ensureLicenseIDSecret(ctx, cli, licenseID); err != nil {
+		return fmt.Errorf("ensure license ID secret: %w", err)
 	}
 
 	var nodes corev1.NodeList
@@ -151,7 +157,7 @@ func ListArtifactsJobForNodes(ctx context.Context, cli client.Client, in *cluste
 	jobs := map[string]*batchv1.Job{}
 
 	for _, node := range nodes.Items {
-		nsn := types.NamespacedName{
+		nsn := client.ObjectKey{
 			Name:      util.NameWithLengthLimit(copyArtifactsJobPrefix, node.Name),
 			Namespace: ecNamespace,
 		}
@@ -179,6 +185,28 @@ func ListArtifactsJobForNodes(ctx context.Context, cli client.Client, in *cluste
 	return jobs, nil
 }
 
+// CleanupArtifactsJobsForNodes deletes the jobs and the secret created by
+// EnsureArtifactsJobForNodes.
+func CleanupArtifactsJobsForNodes(ctx context.Context, cli client.Client) (finalErr error) {
+	var nodes corev1.NodeList
+	if err := cli.List(ctx, &nodes); err != nil {
+		finalErr = multierr.Append(finalErr, fmt.Errorf("list nodes: %w", err))
+	}
+
+	for _, node := range nodes.Items {
+		err := deleteArtifactsJobForNode(ctx, cli, node)
+		if err != nil {
+			finalErr = multierr.Append(finalErr, fmt.Errorf("delete job for node %s: %w", node.Name, err))
+		}
+	}
+	err := deleteLicenseIDSecret(ctx, cli)
+	if err != nil {
+		finalErr = multierr.Append(finalErr, fmt.Errorf("delete license ID secret: %w", err))
+	}
+
+	return finalErr
+}
+
 // hashForAirgapConfig generates a hash for the airgap configuration. We can use this to detect config changes between
 // different reconcile cycles.
 func hashForAirgapConfig(in *clusterv1beta1.Installation) (string, error) {
@@ -200,7 +228,7 @@ func ensureArtifactsJobForNode(
 	localArtifactMirrorImage, licenseID, appSlug, channelSlug, appVersion string,
 	cfghash string,
 ) (*batchv1.Job, error) {
-	job, err := getArtifactJobForNode(cli, in, node, localArtifactMirrorImage, licenseID, appSlug, channelSlug, appVersion)
+	job, err := getArtifactJobForNode(cli, in, node, localArtifactMirrorImage, appSlug, channelSlug, appVersion)
 	if err != nil {
 		return nil, fmt.Errorf("get job for node: %w", err)
 	}
@@ -227,7 +255,7 @@ func ensureArtifactsJobForNode(
 func getArtifactJobForNode(
 	cli client.Client, in *clusterv1beta1.Installation,
 	node corev1.Node,
-	localArtifactMirrorImage, licenseID, appSlug, channelSlug, appVersion string,
+	localArtifactMirrorImage, appSlug, channelSlug, appVersion string,
 ) (*batchv1.Job, error) {
 	hash, err := hashForAirgapConfig(in)
 	if err != nil {
@@ -255,7 +283,12 @@ func getArtifactJobForNode(
 		job.Spec.Template.Spec.Containers[0].Env,
 		corev1.EnvVar{Name: "INSTALLATION", Value: in.Name},
 		corev1.EnvVar{Name: "INSTALLATION_DATA", Value: inDataEncoded},
-		corev1.EnvVar{Name: "LICENSE_ID", Value: licenseID}, // TODO: this is secret
+		corev1.EnvVar{Name: "LOCAL_ARTIFACT_MIRROR_LICENSE_ID", ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: licenseIDSecretName},
+				Key:                  "LICENSE_ID",
+			},
+		}},
 		corev1.EnvVar{Name: "APP_SLUG", Value: appSlug},
 		corev1.EnvVar{Name: "CHANNEL_SLUG", Value: channelSlug},
 		corev1.EnvVar{Name: "APP_VERSION", Value: appVersion},
@@ -272,6 +305,17 @@ func getArtifactJobForNode(
 	}
 
 	return job, nil
+}
+
+// deleteArtifactsJobForNode deletes the artifacts job for a given node.
+func deleteArtifactsJobForNode(ctx context.Context, cli client.Client, node corev1.Node) error {
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      util.NameWithLengthLimit(copyArtifactsJobPrefix, node.Name),
+			Namespace: ecNamespace,
+		},
+	}
+	return client.IgnoreNotFound(cli.Delete(ctx, job))
 }
 
 // CreateAutopilotAirgapPlanCommand creates the plan to execute an aigrap upgrade in all nodes. The
@@ -323,4 +367,41 @@ func applyArtifactsJobAnnotations(annotations map[string]string, in *clusterv1be
 	annotations[InstallationNameAnnotation] = in.Name
 	annotations[ArtifactsConfigHashAnnotation] = hash
 	return annotations
+}
+
+// ensureLicenseIDSecret deletes the secret if it exists and creates a new one
+func ensureLicenseIDSecret(ctx context.Context, cli client.Client, licenseID string) error {
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      licenseIDSecretName,
+			Namespace: ecNamespace,
+			Labels:    applyECOperatorLabels(nil, "license"),
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"LICENSE_ID": []byte(licenseID),
+		},
+	}
+	// delete the secret if it exists
+	err := client.IgnoreNotFound(cli.Delete(ctx, secret))
+	if err != nil {
+		return fmt.Errorf("delete secret: %w", err)
+	}
+
+	return cli.Create(ctx, secret)
+}
+
+// deleteLicenseIDSecret deletes the license ID secret
+func deleteLicenseIDSecret(ctx context.Context, cli client.Client) error {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      licenseIDSecretName,
+			Namespace: ecNamespace,
+		},
+	}
+	return client.IgnoreNotFound(cli.Delete(ctx, secret))
 }
