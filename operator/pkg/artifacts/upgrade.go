@@ -84,8 +84,8 @@ var copyArtifactsJobCommandOnline = []string{
 	"/bin/sh",
 	"-ex",
 	"-c",
-	"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster \\ \n" +
-		"--license-id $LICENSE_ID --app-slug $APP_SLUG --channel-slug $CHANNEL_SLUG --app-version $APP_VERSION \\ \n" +
+	"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster " +
+		"--license-id $LICENSE_ID --app-slug $APP_SLUG --channel-slug $CHANNEL_SLUG --app-version $APP_VERSION " +
 		"$INSTALLATION_DATA; \n" +
 		"echo 'done'",
 }
