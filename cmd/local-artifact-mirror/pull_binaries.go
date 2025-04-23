@@ -31,18 +31,6 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			cli.bindFlags(cmd.Flags())
 
-			// If license-id is set, app-slug, channel-slug, and app-version are required
-			if cli.V.GetString("license-id") != "" {
-				if cli.V.GetString("app-slug") == "" {
-					return fmt.Errorf("--app-slug is required when --license-id is set")
-				}
-				if cli.V.GetString("channel-slug") == "" {
-					return fmt.Errorf("--channel-slug is required when --license-id is set")
-				}
-				if cli.V.GetString("app-version") == "" {
-					return fmt.Errorf("--app-version is required when --license-id is set")
-				}
-			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -63,8 +51,10 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 			channelSlug := cli.V.GetString("channel-slug")
 			appVersion := cli.V.GetString("app-version")
 
-			if !in.Spec.AirGap && licenseID == "" {
-				return fmt.Errorf("license ID is required for online installations")
+			if !in.Spec.AirGap {
+				if licenseID == "" || appSlug == "" || channelSlug == "" || appVersion == "" {
+					return fmt.Errorf("--license-id, --app-slug, --channel-slug, and --app-version are required for online installations")
+				}
 			}
 
 			var location string
