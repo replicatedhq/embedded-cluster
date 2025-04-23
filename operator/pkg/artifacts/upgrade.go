@@ -73,17 +73,6 @@ var copyArtifactsJob = &batchv1.Job{
 								ReadOnly:  false,
 							},
 						},
-						Command: []string{
-							"/bin/sh",
-							"-ex",
-							"-c",
-							"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster $INSTALLATION_DATA\n" +
-								"/usr/local/bin/local-artifact-mirror pull images --data-dir /embedded-cluster $INSTALLATION_DATA\n" +
-								"/usr/local/bin/local-artifact-mirror pull helmcharts --data-dir /embedded-cluster $INSTALLATION_DATA\n" +
-								"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade\n" +
-								"rm /embedded-cluster/images/images-amd64-* || true\n" +
-								"echo 'done'",
-						},
 					},
 				},
 			},
@@ -91,10 +80,30 @@ var copyArtifactsJob = &batchv1.Job{
 	},
 }
 
+var copyArtifactsJobCommandOnline = []string{
+	"/bin/sh",
+	"-ex",
+	"-c",
+	"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster --license-id $LICENSE_ID $INSTALLATION_DATA\n" +
+		"echo 'done'",
+}
+
+var copyArtifactsJobCommandAirgap = []string{
+	"/bin/sh",
+	"-ex",
+	"-c",
+	"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster $INSTALLATION_DATA\n" +
+		"/usr/local/bin/local-artifact-mirror pull images --data-dir /embedded-cluster $INSTALLATION_DATA\n" +
+		"/usr/local/bin/local-artifact-mirror pull helmcharts --data-dir /embedded-cluster $INSTALLATION_DATA\n" +
+		"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade\n" +
+		"rm /embedded-cluster/images/images-amd64-* || true\n" +
+		"echo 'done'",
+}
+
 // EnsureArtifactsJobForNodes copies the installation artifacts to the nodes in the cluster.
 // This is done by creating a job for each node in the cluster, which will pull the
 // artifacts from the internal registry.
-func EnsureArtifactsJobForNodes(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
+func EnsureArtifactsJobForNodes(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string, licenseID string) error {
 	if in.Spec.AirGap && in.Spec.Artifacts == nil {
 		return fmt.Errorf("no artifacts location defined")
 	}
@@ -111,7 +120,7 @@ func EnsureArtifactsJobForNodes(ctx context.Context, cli client.Client, in *clus
 	}
 
 	for _, node := range nodes.Items {
-		_, err := ensureArtifactsJobForNode(ctx, cli, in, node, localArtifactMirrorImage, cfghash)
+		_, err := ensureArtifactsJobForNode(ctx, cli, in, node, localArtifactMirrorImage, licenseID, cfghash)
 		if err != nil {
 			return fmt.Errorf("ensure artifacts job for node: %w", err)
 		}
@@ -179,8 +188,8 @@ func hashForAirgapConfig(in *clusterv1beta1.Installation) (string, error) {
 	return hash[:10], nil
 }
 
-func ensureArtifactsJobForNode(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, node corev1.Node, localArtifactMirrorImage, cfghash string) (*batchv1.Job, error) {
-	job, err := getArtifactJobForNode(cli, in, node, localArtifactMirrorImage)
+func ensureArtifactsJobForNode(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, node corev1.Node, localArtifactMirrorImage, licenseID, cfghash string) (*batchv1.Job, error) {
+	job, err := getArtifactJobForNode(cli, in, node, localArtifactMirrorImage, licenseID)
 	if err != nil {
 		return nil, fmt.Errorf("get job for node: %w", err)
 	}
@@ -204,7 +213,7 @@ func ensureArtifactsJobForNode(ctx context.Context, cli client.Client, in *clust
 	return job, nil
 }
 
-func getArtifactJobForNode(cli client.Client, in *clusterv1beta1.Installation, node corev1.Node, localArtifactMirrorImage string) (*batchv1.Job, error) {
+func getArtifactJobForNode(cli client.Client, in *clusterv1beta1.Installation, node corev1.Node, localArtifactMirrorImage, licenseID string) (*batchv1.Job, error) {
 	hash, err := hashForAirgapConfig(in)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash airgap config: %w", err)
@@ -222,10 +231,16 @@ func getArtifactJobForNode(cli client.Client, in *clusterv1beta1.Installation, n
 	job.ObjectMeta.Annotations = applyArtifactsJobAnnotations(job.GetAnnotations(), in, hash)
 	job.Spec.Template.Spec.NodeName = node.Name
 	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = runtimeconfig.EmbeddedClusterHomeDirectory()
+	if in.Spec.AirGap {
+		job.Spec.Template.Spec.Containers[0].Command = copyArtifactsJobCommandAirgap
+	} else {
+		job.Spec.Template.Spec.Containers[0].Command = copyArtifactsJobCommandOnline
+	}
 	job.Spec.Template.Spec.Containers[0].Env = append(
 		job.Spec.Template.Spec.Containers[0].Env,
 		corev1.EnvVar{Name: "INSTALLATION", Value: in.Name},
 		corev1.EnvVar{Name: "INSTALLATION_DATA", Value: inDataEncoded},
+		corev1.EnvVar{Name: "LICENSE_ID", Value: licenseID}, // TODO: this is secret
 	)
 
 	job.Spec.Template.Spec.Containers[0].Image = localArtifactMirrorImage

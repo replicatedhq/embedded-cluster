@@ -49,6 +49,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 	type args struct {
 		in                       *clusterv1beta1.Installation
 		localArtifactMirrorImage string
+		licenseID                string
 	}
 	tests := []struct {
 		name            string
@@ -93,6 +94,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 					},
 				},
 				localArtifactMirrorImage: "local-artifact-mirror",
+				licenseID:                "abcd1234",
 			},
 			wantErr: false,
 			assertRuntime: func(t *testing.T, cli client.Client, in *clusterv1beta1.Installation) {
@@ -252,7 +254,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 				}()
 			}
 
-			if err := EnsureArtifactsJobForNodes(ctx, cli, tt.args.in, tt.args.localArtifactMirrorImage); (err != nil) != tt.wantErr {
+			if err := EnsureArtifactsJobForNodes(ctx, cli, tt.args.in, tt.args.localArtifactMirrorImage, tt.args.licenseID); (err != nil) != tt.wantErr {
 				t.Errorf("EnsureArtifactsJobForNodes() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}

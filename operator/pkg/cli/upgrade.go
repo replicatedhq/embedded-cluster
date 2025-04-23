@@ -18,7 +18,7 @@ import (
 // UpgradeCmd returns a cobra command for creating a job to upgrade the embedded cluster operator.
 // It is called by KOTS admin console and will preposition images before creating a job to truly upgrade the cluster.
 func UpgradeCmd() *cobra.Command {
-	var installationFile, localArtifactMirrorImage string
+	var installationFile, localArtifactMirrorImage, licenseID string
 
 	var installation *ecv1beta1.Installation
 
@@ -60,7 +60,7 @@ func UpgradeCmd() *cobra.Command {
 
 			err = upgrade.CreateUpgradeJob(
 				cmd.Context(), cli,
-				installation, localArtifactMirrorImage, previousInstallation.Spec.Config.Version,
+				installation, localArtifactMirrorImage, licenseID, previousInstallation.Spec.Config.Version,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
@@ -74,6 +74,7 @@ func UpgradeCmd() *cobra.Command {
 
 	// TODO(upgrade): local-artifact-mirror-image should be included in the installation object
 	cmd.Flags().StringVar(&localArtifactMirrorImage, "local-artifact-mirror-image", "", "Local artifact mirror image")
+	cmd.Flags().StringVar(&licenseID, "license-id", "", "License ID")
 
 	cmd.Flags().StringVar(&installationFile, "installation", "", "Path to the installation file")
 	err := cmd.MarkFlagRequired("installation")

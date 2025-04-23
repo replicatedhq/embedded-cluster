@@ -187,7 +187,7 @@ func doBinaryRequest(url, licenseID string) (io.ReadCloser, error) {
 	}
 
 	// Set basic auth with license ID
-	req.SetBasicAuth(licenseID, "")
+	req.SetBasicAuth(licenseID, licenseID)
 
 	// Make the request
 	resp, err := http.DefaultClient.Do(req)
