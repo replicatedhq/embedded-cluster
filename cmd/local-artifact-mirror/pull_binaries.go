@@ -24,25 +24,22 @@ import (
 // Without these flags, it will fetch the binary from the artifact path in the installation
 // spec (airgap mode).
 func PullBinariesCmd(cli *CLI) *cobra.Command {
-	var licenseID string
-	var appSlug string
-	var channelSlug string
-	var appVersion string
-
 	cmd := &cobra.Command{
 		Use:   "binaries INSTALLATION",
 		Short: "Pull binaries artifacts for online or airgap installations",
 		Args:  cobra.ExactArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
+			cli.bindFlags(cmd.Flags())
+
 			// If license-id is set, app-slug, channel-slug, and app-version are required
-			if licenseID != "" {
-				if appSlug == "" {
+			if cli.V.GetString("license-id") != "" {
+				if cli.V.GetString("app-slug") == "" {
 					return fmt.Errorf("--app-slug is required when --license-id is set")
 				}
-				if channelSlug == "" {
+				if cli.V.GetString("channel-slug") == "" {
 					return fmt.Errorf("--channel-slug is required when --license-id is set")
 				}
-				if appVersion == "" {
+				if cli.V.GetString("app-version") == "" {
 					return fmt.Errorf("--app-version is required when --license-id is set")
 				}
 			}
@@ -60,6 +57,11 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			licenseID := cli.V.GetString("license-id")
+			appSlug := cli.V.GetString("app-slug")
+			channelSlug := cli.V.GetString("channel-slug")
+			appVersion := cli.V.GetString("app-version")
 
 			if !in.Spec.AirGap && licenseID == "" {
 				return fmt.Errorf("license ID is required for online installations")
@@ -131,10 +133,10 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&licenseID, "license-id", "", "License ID to use for fetching binary from Replicated app")
-	cmd.Flags().StringVar(&appSlug, "app-slug", "", "Application slug (required when using --license-id)")
-	cmd.Flags().StringVar(&channelSlug, "channel-slug", "", "Channel slug (required when using --license-id)")
-	cmd.Flags().StringVar(&appVersion, "app-version", "", "Application version (required when using --license-id)")
+	cmd.Flags().String("license-id", "", "License ID to use for fetching binary from Replicated app")
+	cmd.Flags().String("app-slug", "", "Application slug (required when using --license-id)")
+	cmd.Flags().String("channel-slug", "", "Channel slug (required when using --license-id)")
+	cmd.Flags().String("app-version", "", "Application version (required when using --license-id)")
 
 	return cmd
 }
