@@ -53,7 +53,7 @@ func TestReportInstallationStarted(t *testing.T) {
 
 			clusterID := ClusterID()
 			reporter := NewReporter("test-execution-id", server.URL, clusterID, "install", test.OSArgs[1:])
-			reporter.ReportInstallationStarted(context.Background(), "license-id")
+			reporter.ReportInstallationStarted(context.Background(), "license-id", "app-slug")
 		})
 	}
 }

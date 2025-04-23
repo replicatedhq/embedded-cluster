@@ -13,7 +13,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
 	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
@@ -109,7 +108,7 @@ func (r *Reporter) newGenericEvent(eventType string, reason string, isExitEvent 
 }
 
 // ReportInstallationStarted reports that the installation has started.
-func (r *Reporter) ReportInstallationStarted(ctx context.Context, licenseID string) {
+func (r *Reporter) ReportInstallationStarted(ctx context.Context, licenseID string, appSlug string) {
 	rel := release.GetChannelRelease()
 	appChannel, appVersion := "", ""
 	if rel != nil {
@@ -119,7 +118,7 @@ func (r *Reporter) ReportInstallationStarted(ctx context.Context, licenseID stri
 
 	Send(ctx, r.baseURL, types.InstallationStarted{
 		GenericEvent: r.newGenericEvent(types.EventTypeInstallationStarted, "", false),
-		BinaryName:   runtimeconfig.BinaryName(),
+		BinaryName:   appSlug,
 		Type:         "centralized",
 		LicenseID:    licenseID,
 		AppChannelID: appChannel,
