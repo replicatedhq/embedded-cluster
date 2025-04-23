@@ -123,10 +123,10 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("license-id", "", "License ID to use for fetching binary from Replicated app")
-	cmd.Flags().String("app-slug", "", "Application slug (required when using --license-id)")
-	cmd.Flags().String("channel-slug", "", "Channel slug (required when using --license-id)")
-	cmd.Flags().String("app-version", "", "Application version (required when using --license-id)")
+	cmd.Flags().String("license-id", "", "License ID to use for authentication with replicated.app (required for online installations)")
+	cmd.Flags().String("app-slug", "", "Application slug for fetching binary from replicated.app (required for online installations)")
+	cmd.Flags().String("channel-slug", "", "Channel slug for fetching binary from replicated.app (required for online installations)")
+	cmd.Flags().String("app-version", "", "Application version for fetching binary from replicated.app (required for online installations)")
 
 	return cmd
 }
