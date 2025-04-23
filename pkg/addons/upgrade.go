@@ -73,7 +73,6 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		Proxy:                 in.Spec.Proxy,
 		ChartLocationOverride: ecoChartLocation,
 		ChartVersionOverride:  ecoChartVersion,
-		BinaryNameOverride:    in.Spec.BinaryName,
 		ImageRepoOverride:     ecoImageRepo,
 		ImageTagOverride:      ecoImageTag,
 		UtilsImageOverride:    ecoUtilsImage,

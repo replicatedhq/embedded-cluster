@@ -16,7 +16,6 @@ type EmbeddedClusterOperator struct {
 	Proxy                 *ecv1beta1.ProxySpec
 	ChartLocationOverride string
 	ChartVersionOverride  string
-	BinaryNameOverride    string
 	ImageRepoOverride     string
 	ImageTagOverride      string
 	UtilsImageOverride    string
