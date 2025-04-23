@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"strings"
 
 	autopilotv1beta2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -132,7 +133,7 @@ func EnsureArtifactsJobForNodes(
 	}
 
 	for _, node := range nodes.Items {
-		_, err := ensureArtifactsJobForNode(ctx, cli, in, node, localArtifactMirrorImage, licenseID, appSlug, channelSlug, appVersion, cfghash)
+		_, err := ensureArtifactsJobForNode(ctx, cli, in, node, localArtifactMirrorImage, appSlug, channelSlug, appVersion, cfghash)
 		if err != nil {
 			return fmt.Errorf("ensure artifacts job for node: %w", err)
 		}
@@ -225,7 +226,7 @@ func hashForAirgapConfig(in *clusterv1beta1.Installation) (string, error) {
 func ensureArtifactsJobForNode(
 	ctx context.Context, cli client.Client, in *clusterv1beta1.Installation,
 	node corev1.Node,
-	localArtifactMirrorImage, licenseID, appSlug, channelSlug, appVersion string,
+	localArtifactMirrorImage, appSlug, channelSlug, appVersion string,
 	cfghash string,
 ) (*batchv1.Job, error) {
 	job, err := getArtifactJobForNode(cli, in, node, localArtifactMirrorImage, appSlug, channelSlug, appVersion)
@@ -304,6 +305,12 @@ func getArtifactJobForNode(
 		)
 	}
 
+	if !in.Spec.AirGap && in.Spec.Config != nil && in.Spec.Config.Domains.ProxyRegistryDomain != "" {
+		localArtifactMirrorImage = strings.Replace(
+			localArtifactMirrorImage,
+			"proxy.replicated.com", in.Spec.Config.Domains.ProxyRegistryDomain, 1,
+		)
+	}
 	job.Spec.Template.Spec.Containers[0].Image = localArtifactMirrorImage
 	job.Spec.Template.Spec.ImagePullSecrets = append(job.Spec.Template.Spec.ImagePullSecrets, GetRegistryImagePullSecret())
 

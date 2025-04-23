@@ -99,7 +99,7 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 
 			logrus.Infof("binary file size: %d bytes", binInfo.Size())
 
-			namedBin := filepath.Join(location, appSlug)
+			namedBin := filepath.Join(location, in.Spec.BinaryName)
 			if err := os.Rename(bin, namedBin); err != nil {
 				return fmt.Errorf("unable to rename binary: %w", err)
 			}
