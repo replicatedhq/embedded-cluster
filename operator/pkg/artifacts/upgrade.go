@@ -133,7 +133,9 @@ func EnsureArtifactsJobForNodes(
 	}
 
 	for _, node := range nodes.Items {
-		_, err := ensureArtifactsJobForNode(ctx, cli, in, node, localArtifactMirrorImage, appSlug, channelSlug, appVersion, cfghash)
+		_, err := ensureArtifactsJobForNode(
+			ctx, cli, in, node, localArtifactMirrorImage, appSlug, channelSlug, appVersion, cfghash,
+		)
 		if err != nil {
 			return fmt.Errorf("ensure artifacts job for node: %w", err)
 		}
