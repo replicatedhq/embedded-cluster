@@ -19,10 +19,9 @@ import (
 // joins as well as cluster upgrades when we want to fetch the most up to date binaries. The
 // binaries are stored in the /usr/local/bin directory and they overwrite the existing binaries.
 //
-// When using --license-id flag along with --app-slug and --channel-slug, the command will
-// fetch the binary directly from the Replicated app endpoint (online mode).
-// Without these flags, it will fetch the binary from the artifact path in the installation
-// spec (airgap mode).
+// When using --license-id flag along with --app-slug and --channel-id, the command will fetch the
+// binary directly from the Replicated app endpoint (online mode). Without these flags, it will
+// fetch the binary from the artifact path in the installation spec (airgap mode).
 func PullBinariesCmd(cli *CLI) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "binaries INSTALLATION",
@@ -48,19 +47,19 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 
 			licenseID := cli.V.GetString("license-id")
 			appSlug := cli.V.GetString("app-slug")
-			channelSlug := cli.V.GetString("channel-slug")
+			channelID := cli.V.GetString("channel-id")
 			appVersion := cli.V.GetString("app-version")
 
 			if !in.Spec.AirGap {
-				if licenseID == "" || appSlug == "" || channelSlug == "" || appVersion == "" {
-					return fmt.Errorf("--license-id, --app-slug, --channel-slug, and --app-version are required for online installations")
+				if licenseID == "" || appSlug == "" || channelID == "" || appVersion == "" {
+					return fmt.Errorf("--license-id, --app-slug, --channel-id, and --app-version are required for online installations")
 				}
 			}
 
 			var location string
 			if !in.Spec.AirGap {
 				// For online, fetch from Replicated app using license ID
-				u := releaseURL(in.Spec.MetricsBaseURL, appSlug, channelSlug, appVersion)
+				u := releaseURL(in.Spec.MetricsBaseURL, appSlug, channelID, appVersion)
 				logrus.Infof("fetching embedded cluster binary from %s using license ID", u)
 
 				location, err = fetchBinaryWithLicense(u, licenseID, appSlug)
@@ -125,7 +124,7 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 
 	cmd.Flags().String("license-id", "", "License ID to use for authentication with replicated.app (required for online installations)")
 	cmd.Flags().String("app-slug", "", "Application slug for fetching binary from replicated.app (required for online installations)")
-	cmd.Flags().String("channel-slug", "", "Channel slug for fetching binary from replicated.app (required for online installations)")
+	cmd.Flags().String("channel-id", "", "Channel ID for fetching binary from replicated.app (required for online installations)")
 	cmd.Flags().String("app-version", "", "Application version for fetching binary from replicated.app (required for online installations)")
 
 	return cmd
@@ -233,6 +232,6 @@ func extractBinaryFromTarball(tr *tar.Reader, binaryName string, destPath string
 	}
 }
 
-func releaseURL(metricsBaseURL, appSlug, channelSlug, appVersion string) string {
-	return fmt.Sprintf("%s/embedded/%s/%s/%s", metricsBaseURL, appSlug, channelSlug, appVersion)
+func releaseURL(metricsBaseURL, appSlug, channelID, appVersion string) string {
+	return fmt.Sprintf("%s/embedded/%s/%s/%s", metricsBaseURL, appSlug, channelID, appVersion)
 }

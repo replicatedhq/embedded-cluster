@@ -125,7 +125,7 @@ func TestPullBinariesCmd_Online(t *testing.T) {
 				"test-installation",
 				"--license-id", "valid-license",
 				"--app-slug", "my-app",
-				"--channel-slug", "stable",
+				"--channel-id", "123",
 				"--app-version", "1.0.0",
 			},
 			setupEnv: func(t *testing.T) {
