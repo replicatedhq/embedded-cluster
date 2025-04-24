@@ -334,7 +334,7 @@ func deleteArtifactsJobForNode(ctx context.Context, cli client.Client, node core
 			Namespace: ecNamespace,
 		},
 	}
-	return client.IgnoreNotFound(cli.Delete(ctx, job))
+	return client.IgnoreNotFound(cli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground)))
 }
 
 // CreateAutopilotAirgapPlanCommand creates the plan to execute an aigrap upgrade in all nodes. The
