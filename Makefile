@@ -18,7 +18,7 @@ K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.117.0
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
-KOTS_VERSION = v1.0.0-ethan-20250423-2
+KOTS_VERSION = v1.0.0-ethan-20250424-1
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
 KOTS_BINARY_URL_OVERRIDE = https://repldev-ethan-test.s3.amazonaws.com/kots-amd64.tar.gz
 # If KOTS_BINARY_FILE_OVERRIDE is set, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
