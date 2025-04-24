@@ -78,6 +78,12 @@ var copyArtifactsJob = &batchv1.Job{
 				Containers: []corev1.Container{
 					{
 						Name: "embedded-cluster-updater",
+						Env: []corev1.EnvVar{
+							{
+								Name:  "SSL_CERT_DIR",
+								Value: "/certs",
+							},
+						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "host",
