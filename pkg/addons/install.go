@@ -72,6 +72,7 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 			IsAirgap:            opts.IsAirgap,
 			Proxy:               opts.Proxy,
+			PrivateCAs:          opts.PrivateCAs,
 		},
 	}
 

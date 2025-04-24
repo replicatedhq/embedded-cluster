@@ -63,6 +63,16 @@ var copyArtifactsJob = &batchv1.Job{
 							},
 						},
 					},
+					{
+						Name: "private-cas",
+						VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: "private-cas",
+								},
+							},
+						},
+					},
 				},
 				RestartPolicy: corev1.RestartPolicyNever,
 				Containers: []corev1.Container{
@@ -73,6 +83,11 @@ var copyArtifactsJob = &batchv1.Job{
 								Name:      "host",
 								MountPath: "/embedded-cluster",
 								ReadOnly:  false,
+							},
+							{
+								Name:      "private-cas",
+								MountPath: "/certs",
+								ReadOnly:  true,
 							},
 						},
 					},
