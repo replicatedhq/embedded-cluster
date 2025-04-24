@@ -75,16 +75,22 @@ func UpgradeCmd() *cobra.Command {
 
 	// TODO(upgrade): local-artifact-mirror-image should be included in the installation object
 	cmd.Flags().StringVar(&localArtifactMirrorImage, "local-artifact-mirror-image", "", "Local artifact mirror image")
+	err := cmd.MarkFlagRequired("local-artifact-mirror-image")
+	if err != nil {
+		panic(err)
+	}
+
+	cmd.Flags().StringVar(&installationFile, "installation", "", "Path to the installation file")
+	err = cmd.MarkFlagRequired("installation")
+	if err != nil {
+		panic(err)
+	}
+
+	// For online upgrades
 	cmd.Flags().StringVar(&licenseID, "license-id", "", "License ID for online upgrades")
 	cmd.Flags().StringVar(&appSlug, "app-slug", "", "App slug for online upgrades")
 	cmd.Flags().StringVar(&channelSlug, "channel-slug", "", "Channel slug for online upgrades")
 	cmd.Flags().StringVar(&appVersion, "app-version", "", "App version for online upgrades")
-
-	cmd.Flags().StringVar(&installationFile, "installation", "", "Path to the installation file")
-	err := cmd.MarkFlagRequired("installation")
-	if err != nil {
-		panic(err)
-	}
 
 	return cmd
 }
