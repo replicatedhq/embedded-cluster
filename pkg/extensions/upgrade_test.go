@@ -170,6 +170,10 @@ func TestUpgrade(t *testing.T) {
 				helmCli := &helm.MockClient{}
 				mock.InOrder(
 					helmCli.
+						On("ReleaseExists", mock.Anything, "test-ns", "test-chart").
+						Once().
+						Return(true, nil),
+					helmCli.
 						On("Upgrade", mock.Anything, helm.UpgradeOptions{
 							ReleaseName:  "test-chart",
 							ChartPath:    "test/chart",
@@ -177,6 +181,76 @@ func TestUpgrade(t *testing.T) {
 							Values:       map[string]interface{}{"abc": "xyz"},
 							Namespace:    "test-ns",
 							Force:        true,
+						}).
+						Once().
+						Return(nil, nil),
+				)
+				return helmCli
+			},
+			validateIn: func(t *testing.T, in *ecv1beta1.Installation) {
+				assert.Len(t, in.Status.Conditions, 1, "expected 1 condition")
+				assert.Equal(t, "test-ns-test-chart", in.Status.Conditions[0].Type, "expected condition type")
+				assert.Equal(t, metav1.ConditionTrue, in.Status.Conditions[0].Status, "expected condition status")
+				assert.Equal(t, "Upgraded", in.Status.Conditions[0].Reason, "expected condition reason")
+			},
+			wantErr: false,
+		},
+		{
+			name: "install if release does not exist during upgrade",
+			prev: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					Config: &ecv1beta1.ConfigSpec{
+						Extensions: ecv1beta1.Extensions{
+							Helm: &ecv1beta1.Helm{
+								Charts: []ecv1beta1.Chart{
+									{
+										Name:      "test-chart",
+										ChartName: "test/chart",
+										Version:   "1.0.0",
+										Values:    "abc: def",
+										TargetNS:  "test-ns",
+										Order:     1,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			in: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					Config: &ecv1beta1.ConfigSpec{
+						Extensions: ecv1beta1.Extensions{
+							Helm: &ecv1beta1.Helm{
+								Charts: []ecv1beta1.Chart{
+									{
+										Name:      "test-chart",
+										ChartName: "test/chart",
+										Version:   "2.0.0",
+										Values:    "abc: xyz",
+										TargetNS:  "test-ns",
+										Order:     1,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMockHelmCli: func(t *testing.T) *helm.MockClient {
+				helmCli := &helm.MockClient{}
+				mock.InOrder(
+					helmCli.
+						On("ReleaseExists", mock.Anything, "test-ns", "test-chart").
+						Once().
+						Return(false, nil),
+					helmCli.
+						On("Install", mock.Anything, helm.InstallOptions{
+							ReleaseName:  "test-chart",
+							ChartPath:    "test/chart",
+							ChartVersion: "2.0.0",
+							Values:       map[string]interface{}{"abc": "xyz"},
+							Namespace:    "test-ns",
 						}).
 						Once().
 						Return(nil, nil),
@@ -470,6 +544,10 @@ func TestUpgrade(t *testing.T) {
 						}).
 						Once().
 						Return(nil, nil),
+					helmCli.
+						On("ReleaseExists", mockCtx, "test-ns1", "test-upgrade1").
+						Once().
+						Return(true, nil),
 					helmCli.On("Upgrade", mockCtx, helm.UpgradeOptions{
 						ReleaseName:  "test-upgrade1",
 						ChartPath:    "test/upgrade1",

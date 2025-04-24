@@ -93,6 +93,17 @@ func handleExtensionInstall(ctx context.Context, kcli client.Client, hcli helm.C
 
 func handleExtensionUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) error {
 	return handleExtension(ctx, kcli, in, ext, actionUpgrade, func() error {
+		exists, err := hcli.ReleaseExists(ctx, ext.TargetNS, ext.Name)
+		if err != nil {
+			return errors.Wrap(err, "check if release exists")
+		}
+		if !exists {
+			slog.Info("Extension does not exist, installing instead of upgrading", "name", ext.Name)
+			if err := install(ctx, hcli, ext); err != nil {
+				return errors.Wrap(err, "install")
+			}
+			return nil
+		}
 		if err := upgrade(ctx, hcli, ext); err != nil {
 			return errors.Wrap(err, "upgrade")
 		}
