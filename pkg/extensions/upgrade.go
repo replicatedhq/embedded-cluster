@@ -139,7 +139,7 @@ func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Inst
 	slogArgs := slogArgs(ext, action)
 
 	if extensionAlreadyProcessed(in, ext) {
-		slog.Info("Extension already processed!", slogArgs...)
+		slog.Info("Extension already processed", slogArgs...)
 		return nil
 	}
 
@@ -165,7 +165,7 @@ func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Inst
 		return errors.Wrap(err, "mark extension as processed")
 	}
 
-	slog.Info("Extension is ready!", slogArgs...)
+	slog.Info("Extension is ready", slogArgs...)
 
 	return nil
 }

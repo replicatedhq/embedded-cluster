@@ -107,19 +107,18 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 		return nil
 	}
 
-	pb := spinner.Start()
+	spinner := spinner.Start()
 
 	if opts.SkipHostPreflights {
-		pb.Infof("Host preflights skipped")
-		pb.Close()
+		spinner.Closef("Host preflights skipped")
 		return nil
 	}
 
-	pb.Infof("Running host preflights")
+	spinner.Infof("Running host preflights")
 
 	output, stderr, err := Run(ctx, hpf, opts.Proxy)
 	if err != nil {
-		pb.CloseWithError()
+		spinner.ErrorClosef("Failed to run host preflights")
 		return fmt.Errorf("host preflights failed to run: %w", err)
 	}
 	if stderr != "" {
@@ -144,12 +143,11 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 		}
 
 		if output.HasWarn() {
-			pb.Errorf("%d host %s failed and %d warned", len(output.Fail), s, len(output.Warn))
+			spinner.ErrorClosef("%d host %s failed and %d warned", len(output.Fail), s, len(output.Warn))
 		} else {
-			pb.Errorf("%d host %s failed", len(output.Fail), s)
+			spinner.ErrorClosef("%d host %s failed", len(output.Fail), s)
 		}
 
-		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
 
 		if opts.IgnoreHostPreflights {
@@ -172,9 +170,9 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 		}
 
 		if len(output.Fail)+len(output.Warn) > 1 {
-			logrus.Info("Please address these issues and try again.")
+			logrus.Info("\n\033[1mPlease address these issues and try again.\033[0m\n")
 		} else {
-			logrus.Info("Please address this issue and try again.")
+			logrus.Info("\n\033[1mPlease address this issue and try again.\033[0m\n")
 		}
 
 		if opts.MetricsReporter != nil {
@@ -190,11 +188,11 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 			s = "preflight"
 		}
 
-		pb.Warnf("%d host %s warned", len(output.Warn), s)
+		spinner.Warnf("%d host %s warned", len(output.Warn), s)
+		spinner.Close()
 		if opts.AssumeYes {
 			// We have warnings but we are not in interactive mode
 			// so we just print the warnings and continue
-			pb.Close()
 			output.PrintTableWithoutInfo()
 			if opts.MetricsReporter != nil {
 				opts.MetricsReporter.ReportPreflightsBypassed(ctx, *output)
@@ -202,7 +200,6 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 			return nil
 		}
 
-		pb.Close()
 		output.PrintTableWithoutInfo()
 
 		confirmed, err := prompts.New().Confirm("Do you want to continue?", false)
