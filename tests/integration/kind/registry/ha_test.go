@@ -40,14 +40,26 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 	clusterName := util.GenerateClusterName(t)
 
-	opts := &util.KindClusterOptions{
+	kindConfig := util.NewKindClusterConfig(t, clusterName, &util.KindClusterOptions{
 		NumControlPlaneNodes: 3,
-	}
-	kindConfig := util.NewKindClusterConfig(t, clusterName, opts)
+	})
 
 	kindConfig.Nodes[0].ExtraPortMappings = append(kindConfig.Nodes[0].ExtraPortMappings, kind.PortMapping{
 		ContainerPort: 30500,
 	})
+
+	// data and k0s directories are required for the admin console addon
+	ecDataDirMount := kind.Mount{
+		HostPath:      util.TempDirForHostMount(t, "data-dir-*"),
+		ContainerPath: "/var/lib/embedded-cluster",
+	}
+	k0sDirMount := kind.Mount{
+		HostPath:      util.TempDirForHostMount(t, "k0s-dir-*"),
+		ContainerPath: "/var/lib/embedded-cluster/k0s",
+	}
+	kindConfig.Nodes[0].ExtraMounts = append(kindConfig.Nodes[0].ExtraMounts, ecDataDirMount, k0sDirMount)
+	kindConfig.Nodes[1].ExtraMounts = append(kindConfig.Nodes[1].ExtraMounts, ecDataDirMount, k0sDirMount)
+	kindConfig.Nodes[2].ExtraMounts = append(kindConfig.Nodes[2].ExtraMounts, ecDataDirMount, k0sDirMount)
 
 	kubeconfig := util.SetupKindClusterFromConfig(t, kindConfig)
 
