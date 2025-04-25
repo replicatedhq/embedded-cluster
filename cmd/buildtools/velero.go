@@ -17,6 +17,7 @@ import (
 
 // From: https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/2dd6bcb3f57b0ba3aa3f0cea262c60f917940720/README.md#compatibility
 var veleroPluginForAWSCompatibility = map[string]*semver.Constraints{
+	"1.16": mustParseSemverConstraints(">=1.12,<1.13"),
 	"1.15": mustParseSemverConstraints(">=1.11,<1.12"),
 	"1.14": mustParseSemverConstraints(">=1.10,<1.11"),
 	"1.13": mustParseSemverConstraints(">=1.9,<1.10"),
