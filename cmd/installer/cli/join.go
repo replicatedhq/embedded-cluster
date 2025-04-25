@@ -116,10 +116,6 @@ func preRunJoin(flags *JoinCmdFlags) error {
 
 	flags.isAirgap = flags.airgapBundle != ""
 
-	// set the umask to 022 so that we can create files/directories with 755 permissions
-	// this does not return an error - it returns the previous umask
-	_ = syscall.Umask(0o022)
-
 	return nil
 }
 
@@ -147,41 +143,16 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.Jo
 	// both controller and worker nodes will have 'worker' in the join command
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if !isWorker {
-		logrus.Warnf("Do not join another node until this join is complete.")
+		logrus.Warn("\nDo not join another node until this node has joined successfully.")
 	}
 
 	if err := runJoinVerifyAndPrompt(name, flags, jcmd); err != nil {
 		return err
 	}
 
-	logrus.Debugf("materializing %s binaries", name)
-	if err := materializeFiles(flags.airgapBundle); err != nil {
-		return err
-	}
-
-	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
-		logrus.Debugf("unable to configure sysctl: %v", err)
-	}
-
-	logrus.Debugf("configuring kernel modules")
-	if err := configutils.ConfigureKernelModules(); err != nil {
-		logrus.Debugf("unable to configure kernel modules: %v", err)
-	}
-
-	logrus.Debugf("configuring network manager")
-	if err := configureNetworkManager(ctx); err != nil {
-		return fmt.Errorf("unable to configure network manager: %w", err)
-	}
-
-	cidrCfg, err := getJoinCIDRConfig(jcmd)
+	cidrCfg, err := initializeJoin(ctx, name, flags, jcmd)
 	if err != nil {
-		return fmt.Errorf("unable to get join CIDR config: %w", err)
-	}
-
-	logrus.Debugf("configuring firewalld")
-	if err := configureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
-		logrus.Debugf("unable to configure firewalld: %v", err)
+		return fmt.Errorf("unable to initialize join: %w", err)
 	}
 
 	logrus.Debugf("running join preflights")
@@ -193,26 +164,35 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.Jo
 	}
 
 	logrus.Debugf("installing and joining cluster")
+	loading := spinner.Start()
+	loading.Infof("Installing node")
 	if err := installAndJoinCluster(ctx, jcmd, name, flags, isWorker); err != nil {
+		loading.ErrorClosef("Failed to install node")
 		return err
 	}
 
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
+		loading.ErrorClosef("Failed to install node")
 		return fmt.Errorf("unable to get kube client: %w", err)
 	}
 
 	hostname, err := os.Hostname()
 	if err != nil {
+		loading.ErrorClosef("Failed to install node")
 		return fmt.Errorf("unable to get hostname: %w", err)
 	}
 
 	logrus.Debugf("waiting for node to join cluster")
+	loading.Infof("Waiting for node")
 	nodename := strings.ToLower(hostname)
 	if err := waitForNodeToJoin(ctx, kcli, nodename, isWorker); err != nil {
+		loading.ErrorClosef("Node failed to become ready")
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
+	loading.Closef("Node is ready")
+	logrus.Infof("\nNode joined the cluster successfully.\n")
 	if isWorker {
 		logrus.Debugf("worker node join finished")
 		return nil
@@ -285,13 +265,68 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinComm
 	}
 
 	if !proxyOK {
-		logrus.Errorf("This node's IP address %s is not included in the no-proxy list (%s).", localIP, jcmd.InstallationSpec.Proxy.NoProxy)
-		logrus.Infof(`The no-proxy list cannot easily be modified after initial installation.`)
+		logrus.Errorf("\nThis node's IP address %s is not included in the no-proxy list (%s).", localIP, jcmd.InstallationSpec.Proxy.NoProxy)
+		logrus.Infof(`The no-proxy list cannot easily be modified after installing.`)
 		logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
 		return NewErrorNothingElseToAdd(errors.New("node ip address not included in no-proxy list"))
 	}
 
 	return nil
+}
+
+func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse) (cidrCfg *CIDRConfig, err error) {
+	logrus.Info("")
+	spinner := spinner.Start()
+	spinner.Infof("Initializing")
+	defer func() {
+		if err != nil {
+			spinner.ErrorClosef("Initialization failed")
+		} else {
+			spinner.Closef("Initialization complete")
+		}
+	}()
+
+	// set the umask to 022 so that we can create files/directories with 755 permissions
+	// this does not return an error - it returns the previous umask
+	_ = syscall.Umask(0o022)
+
+	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
+		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
+		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
+	}
+
+	logrus.Debugf("materializing %s binaries", name)
+	if err := materializeFiles(flags.airgapBundle); err != nil {
+		return nil, err
+	}
+
+	logrus.Debugf("configuring sysctl")
+	if err := configutils.ConfigureSysctl(); err != nil {
+		logrus.Debugf("unable to configure sysctl: %v", err)
+	}
+
+	logrus.Debugf("configuring kernel modules")
+	if err := configutils.ConfigureKernelModules(); err != nil {
+		logrus.Debugf("unable to configure kernel modules: %v", err)
+	}
+
+	logrus.Debugf("configuring network manager")
+	if err := configureNetworkManager(ctx); err != nil {
+		return nil, fmt.Errorf("unable to configure network manager: %w", err)
+	}
+
+	cidrCfg, err = getJoinCIDRConfig(jcmd)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get join CIDR config: %w", err)
+	}
+
+	logrus.Debugf("configuring firewalld")
+	if err := configureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
+		logrus.Debugf("unable to configure firewalld: %v", err)
+	}
+
+	return cidrCfg, nil
 }
 
 func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*CIDRConfig, error) {
@@ -422,21 +457,16 @@ func applyNetworkConfiguration(networkInterface string, jcmd *join.JoinCommandRe
 
 // startAndWaitForK0s starts the k0s service and waits for the node to be ready.
 func startAndWaitForK0s(ctx context.Context, name string, jcmd *join.JoinCommandResponse) error {
-	loading := spinner.Start()
-	defer loading.Close()
-	loading.Infof("Installing %s node", name)
 	logrus.Debugf("starting %s service", name)
 	if _, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath(), "start"); err != nil {
 		return fmt.Errorf("unable to start service: %w", err)
 	}
 
-	loading.Infof("Waiting for %s node to be ready", name)
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
-	loading.Infof("Node installation finished!")
 	return nil
 }
 
@@ -514,13 +544,9 @@ func runK0sInstallCommand(networkInterface string, fullcmd string, profile strin
 }
 
 func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string, isWorker bool) error {
-	loading := spinner.Start()
-	defer loading.Close()
-	loading.Infof("Waiting for node to join the cluster")
 	if err := kubeutils.WaitForNode(ctx, kcli, hostname, isWorker); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
-	loading.Infof("Node has joined the cluster!")
 	return nil
 }
 
@@ -537,21 +563,19 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 	if !canEnableHA {
 		return nil
 	}
+
+	if config.HasCustomRoles() {
+		controllerRoleName := config.GetControllerRoleName()
+		logrus.Infof("High availability can be enabled once you have three or more %s nodes.", controllerRoleName)
+		logrus.Info("Enabling it will replicate data across cluster nodes.")
+		logrus.Infof("After HA is enabled, you must maintain at least three %s nodes.\n", controllerRoleName)
+	} else {
+		logrus.Info("High availability can be enabled once you have three or more nodes.")
+		logrus.Info("Enabling it will replicate data across cluster nodes.")
+		logrus.Info("After HA is enabled, you must maintain at least three nodes.\n")
+	}
+
 	if !flags.assumeYes {
-		if config.HasCustomRoles() {
-			controllerRoleName := config.GetControllerRoleName()
-			logrus.Info("")
-			logrus.Infof("You can enable high availability for clusters with three or more %s nodes.", controllerRoleName)
-			logrus.Infof("Data will be migrated so it is replicated across cluster nodes.")
-			logrus.Infof("When high availability is enabled, you must maintain at least three %s nodes.", controllerRoleName)
-			logrus.Info("")
-		} else {
-			logrus.Info("")
-			logrus.Info("You can enable high availability for clusters with three or more nodes.")
-			logrus.Info("Data will be migrated so it is replicated across cluster nodes.")
-			logrus.Info("When high availability is enabled, you must maintain at least three nodes.")
-			logrus.Info("")
-		}
 		shouldEnableHA, err := prompts.New().Confirm("Do you want to enable high availability?", false)
 		if err != nil {
 			return fmt.Errorf("failed to get confirmation: %w", err)
