@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func Test_upgradeEnsureCAConfigmap(t *testing.T) {
+func TestUpgradeEnsureCAConfigmap(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupObjects   []runtime.Object
@@ -87,7 +87,7 @@ func Test_upgradeEnsureCAConfigmap(t *testing.T) {
 			cli := builder.Build()
 
 			// Call the function under test
-			err := upgradeEnsureCAConfigmap(context.Background(), cli)
+			err := UpgradeEnsureCAConfigmap(context.Background(), cli)
 
 			// Check error expectations
 			if tt.expectError {
