@@ -639,7 +639,7 @@ func joinDetermineBestNetworkInterface(joinAddress string) (string, error) {
 		if err != nil {
 			logrus.Warnf("Failed to find interface containing IP %s: %v", node0IP, err)
 			logrus.Warnf("Falling back to default behavior")
-		} else {
+		} else if iface != nil {
 			return iface.Name, nil
 		}
 	}

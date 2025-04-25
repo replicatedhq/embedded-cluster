@@ -75,7 +75,7 @@ func FirstInterfaceContainingIP(ip string) (*net.Interface, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("no interface containing IP %s found", ip)
+	return nil, nil
 }
 
 // listValidInterfaces returns a list of valid network interfaces for the node.
