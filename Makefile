@@ -19,7 +19,7 @@ TROUBLESHOOT_VERSION = v0.119.0
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
-KOTS_BINARY_URL_OVERRIDE = https://repldev-ethan-test.s3.amazonaws.com/kots-amd64.tar.gz
+KOTS_BINARY_URL_OVERRIDE =
 # If KOTS_BINARY_FILE_OVERRIDE is set, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
 # For dev env, build the kots binary in the kots repo with "make kots-linux-arm64" and set this to "../kots/bin/kots"
 KOTS_BINARY_FILE_OVERRIDE =
