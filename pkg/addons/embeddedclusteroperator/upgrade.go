@@ -13,7 +13,7 @@ import (
 )
 
 func (e *EmbeddedClusterOperator) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string) error {
-	err := upgradeEnsureCAConfigmap(ctx, kcli)
+	err := UpgradeEnsureCAConfigmap(ctx, kcli)
 	if err != nil {
 		return errors.Wrap(err, "ensure CA configmap")
 	}
@@ -51,10 +51,10 @@ func (e *EmbeddedClusterOperator) Upgrade(ctx context.Context, kcli client.Clien
 	return nil
 }
 
-// upgradeEnsureCAConfigmap ensures that the CA configmap exists in the embedded-cluster namespace,
-// as it is needed for the copy artifacts job and did not exist in the previous versions of
+// UpgradeEnsureCAConfigmap ensures that the CA configmap exists in the embedded-cluster namespace.
+// This is needed for the copy artifacts job and did not exist in the previous versions of
 // Embedded Cluster.
-func upgradeEnsureCAConfigmap(ctx context.Context, kcli client.Client) error {
+func UpgradeEnsureCAConfigmap(ctx context.Context, kcli client.Client) error {
 	var cm corev1.ConfigMap
 	err := kcli.Get(ctx, client.ObjectKey{
 		Namespace: runtimeconfig.KotsadmNamespace,
