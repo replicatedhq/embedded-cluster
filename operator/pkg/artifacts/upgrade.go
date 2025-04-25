@@ -71,6 +71,7 @@ var copyArtifactsJob = &batchv1.Job{
 								LocalObjectReference: corev1.LocalObjectReference{
 									Name: "private-cas",
 								},
+								Optional: ptr.To[bool](true),
 							},
 						},
 					},
