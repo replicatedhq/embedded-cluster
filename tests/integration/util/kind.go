@@ -3,7 +3,6 @@ package util
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,7 +19,6 @@ type KindClusterOptions struct {
 	NumControlPlaneNodes int
 	NumWorkerNodes       int
 	ExposedPorts         []int32
-	ECDataDir            string
 }
 
 type KindExposedPorts map[string]string
@@ -127,24 +125,6 @@ func NewKindClusterConfig(t *testing.T, name string, opts *KindClusterOptions) k
 		ContainerPath: "/etc/containerd/certs.d/10.96.0.11_5000_/hosts.toml",
 	}
 
-	// data and k0s directories are required for the admin console addon
-	ecHostDataDir := TempDirForHostMount(t, "data-dir-*")
-	k0sHostDir := TempDirForHostMount(t, "k0s-dir-*")
-
-	ecKindDataDir := "/var/lib/embedded-cluster"
-	if opts != nil && opts.ECDataDir != "" {
-		ecKindDataDir = opts.ECDataDir
-	}
-
-	ecDataDirMount := kind.Mount{
-		HostPath:      ecHostDataDir,
-		ContainerPath: ecKindDataDir,
-	}
-	k0sDirMount := kind.Mount{
-		HostPath:      k0sHostDir,
-		ContainerPath: fmt.Sprintf("%s/k0s", ecKindDataDir),
-	}
-
 	config := kind.Cluster{
 		APIVersion: "kind.x-k8s.io/v1alpha4",
 		Kind:       "Cluster",
@@ -179,7 +159,7 @@ func NewKindClusterConfig(t *testing.T, name string, opts *KindClusterOptions) k
 	for i := range numControllerNodes {
 		node := kind.Node{
 			Role:        "control-plane",
-			ExtraMounts: []kind.Mount{hostMount, ecDataDirMount, k0sDirMount},
+			ExtraMounts: []kind.Mount{hostMount},
 		}
 		if numWorkerNodes == 0 && i == 0 {
 			node.ExtraPortMappings = portMappings
@@ -189,7 +169,7 @@ func NewKindClusterConfig(t *testing.T, name string, opts *KindClusterOptions) k
 	for i := range numWorkerNodes {
 		node := kind.Node{
 			Role:        "worker",
-			ExtraMounts: []kind.Mount{hostMount, ecDataDirMount, k0sDirMount},
+			ExtraMounts: []kind.Mount{hostMount},
 		}
 		if i == 0 {
 			node.ExtraPortMappings = portMappings
