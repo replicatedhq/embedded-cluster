@@ -48,7 +48,7 @@ func installEnsureCAConfigmap(ctx context.Context, kcli client.Client, privateCA
 }
 
 func ensureCAConfigmap(ctx context.Context, cli client.Client, cas map[string]string) error {
-	kotsCAConfigmap := corev1.ConfigMap{
+	ecoCAConfigmap := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
 			APIVersion: "v1",
@@ -61,9 +61,9 @@ func ensureCAConfigmap(ctx context.Context, cli client.Client, cas map[string]st
 		Data: cas,
 	}
 
-	err := cli.Create(ctx, &kotsCAConfigmap)
+	err := cli.Create(ctx, &ecoCAConfigmap)
 	if client.IgnoreAlreadyExists(err) != nil {
-		return errors.Wrap(err, "create kotsadm-private-cas configmap")
+		return errors.Wrap(err, "create private-cas configmap")
 	}
 
 	return nil
