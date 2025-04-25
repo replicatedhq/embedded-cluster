@@ -13,6 +13,7 @@ import (
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"go.uber.org/multierr"
@@ -140,6 +141,11 @@ func EnsureArtifactsJobForNodes(
 	// Ensure license ID secret exists
 	if err := ensureLicenseIDSecret(ctx, cli, licenseID); err != nil {
 		return fmt.Errorf("ensure license ID secret: %w", err)
+	}
+
+	// Ensure CA configmap exists
+	if err := embeddedclusteroperator.UpgradeEnsureCAConfigmap(ctx, cli); err != nil {
+		return fmt.Errorf("ensure CA configmap: %w", err)
 	}
 
 	var nodes corev1.NodeList
