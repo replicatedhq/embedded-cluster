@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"strings"
 	"syscall"
@@ -57,7 +56,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 		Short: fmt.Sprintf("Join %s", name),
 		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunJoin(&flags, args[0]); err != nil {
+			if err := preRunJoin(&flags); err != nil {
 				return err
 			}
 
@@ -110,7 +109,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func preRunJoin(flags *JoinCmdFlags, joinAddress string) error {
+func preRunJoin(flags *JoinCmdFlags) error {
 	if os.Getuid() != 0 {
 		return fmt.Errorf("join command must be run as root")
 	}
@@ -119,7 +118,7 @@ func preRunJoin(flags *JoinCmdFlags, joinAddress string) error {
 
 	// if a network interface flag was not provided, attempt to discover it
 	if flags.networkInterface == "" {
-		autoInterface, err := joinDetermineBestNetworkInterface(joinAddress)
+		autoInterface, err := determineBestNetworkInterface()
 		if err == nil {
 			flags.networkInterface = autoInterface
 		}
@@ -626,24 +625,4 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 		jcmd.InstallationSpec,
 		loading,
 	)
-}
-
-func joinDetermineBestNetworkInterface(joinAddress string) (string, error) {
-	// Try to use the interface that contains the ip address from the join command
-	node0IP, _, err := net.SplitHostPort(joinAddress)
-	if err != nil {
-		logrus.Warnf("Failed to split join address %s host and port: %v", joinAddress, err)
-		logrus.Warnf("Falling back to default behavior")
-	} else {
-		iface, err := netutils.FirstInterfaceContainingIP(node0IP)
-		if err != nil {
-			logrus.Warnf("Failed to find interface containing IP %s: %v", node0IP, err)
-			logrus.Warnf("Falling back to default behavior")
-		} else if iface != nil {
-			return iface.Name, nil
-		}
-	}
-
-	// If no matching interface was found, fall back to the default behavior
-	return determineBestNetworkInterface()
 }
