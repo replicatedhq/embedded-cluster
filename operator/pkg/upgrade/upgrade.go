@@ -39,6 +39,10 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1b
 		return fmt.Errorf("override installation data dirs: %w", err)
 	}
 
+	// In case the previous version was < 1.15, update the runtime config after we override the
+	// installation data dirs from the previous installation.
+	runtimeconfig.Set(in.Spec.RuntimeConfig)
+
 	err = upgradeK0s(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)

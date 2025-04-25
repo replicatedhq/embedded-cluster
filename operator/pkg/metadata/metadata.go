@@ -51,7 +51,7 @@ func CopyVersionMetadataToCluster(ctx context.Context, cli client.Client, in *v1
 		}
 		cm.Data = map[string]string{"metadata.json": string(data)}
 	} else {
-		data, err := getRemoteMetadataOnline(ctx, cli, in)
+		data, err := getRemoteMetadataOnline(ctx, in)
 		if err != nil {
 			return fmt.Errorf("get remote metadata online: %w", err)
 		}
@@ -104,7 +104,7 @@ func pullArtifact(ctx context.Context, cli client.Client, from string) (string, 
 	return "", err
 }
 
-func getRemoteMetadataOnline(ctx context.Context, cli client.Client, in *v1beta1.Installation) ([]byte, error) {
+func getRemoteMetadataOnline(ctx context.Context, in *v1beta1.Installation) ([]byte, error) {
 	var metadataURL string
 	if in.Spec.Config.MetadataOverrideURL != "" {
 		metadataURL = in.Spec.Config.MetadataOverrideURL
@@ -117,7 +117,12 @@ func getRemoteMetadataOnline(ctx context.Context, cli client.Client, in *v1beta1
 		)
 	}
 
-	resp, err := http.Get(metadataURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("new request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("http get %s: %w", metadataURL, err)
 	}

@@ -13,19 +13,21 @@ import (
 type InstallReporter struct {
 	reporter  *metrics.Reporter
 	licenseID string
+	appSlug   string
 }
 
-func NewInstallReporter(baseURL string, clusterID uuid.UUID, cmd string, args []string, licenseID string) *InstallReporter {
+func NewInstallReporter(baseURL string, clusterID uuid.UUID, cmd string, args []string, licenseID string, appSlug string) *InstallReporter {
 	executionID := uuid.New().String()
 	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd, args)
 	return &InstallReporter{
 		licenseID: licenseID,
+		appSlug:   appSlug,
 		reporter:  reporter,
 	}
 }
 
 func (r *InstallReporter) ReportInstallationStarted(ctx context.Context) {
-	r.reporter.ReportInstallationStarted(ctx, r.licenseID)
+	r.reporter.ReportInstallationStarted(ctx, r.licenseID, r.appSlug)
 }
 
 func (r *InstallReporter) ReportInstallationSucceeded(ctx context.Context) {

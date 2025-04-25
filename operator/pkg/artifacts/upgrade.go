@@ -7,18 +7,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"strings"
 
 	autopilotv1beta2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"go.uber.org/multierr"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,6 +28,7 @@ import (
 
 const ecNamespace = "embedded-cluster"
 const copyArtifactsJobPrefix = "copy-artifacts-"
+const licenseIDSecretName = "embedded-cluster-license-id"
 
 const (
 	// InstallationNameAnnotation is the annotation we keep in the autopilot plan so we can
@@ -61,28 +64,39 @@ var copyArtifactsJob = &batchv1.Job{
 							},
 						},
 					},
+					{
+						Name: "private-cas",
+						VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: "private-cas",
+								},
+								Optional: ptr.To[bool](true),
+							},
+						},
+					},
 				},
 				RestartPolicy: corev1.RestartPolicyNever,
 				Containers: []corev1.Container{
 					{
 						Name: "embedded-cluster-updater",
+						Env: []corev1.EnvVar{
+							{
+								Name:  "SSL_CERT_DIR",
+								Value: "/certs",
+							},
+						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "host",
 								MountPath: "/embedded-cluster",
 								ReadOnly:  false,
 							},
-						},
-						Command: []string{
-							"/bin/sh",
-							"-ex",
-							"-c",
-							"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster $INSTALLATION_DATA\n" +
-								"/usr/local/bin/local-artifact-mirror pull images --data-dir /embedded-cluster $INSTALLATION_DATA\n" +
-								"/usr/local/bin/local-artifact-mirror pull helmcharts --data-dir /embedded-cluster $INSTALLATION_DATA\n" +
-								"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade\n" +
-								"rm /embedded-cluster/images/images-amd64-* || true\n" +
-								"echo 'done'",
+							{
+								Name:      "private-cas",
+								MountPath: "/certs",
+								ReadOnly:  true,
+							},
 						},
 					},
 				},
@@ -91,12 +105,48 @@ var copyArtifactsJob = &batchv1.Job{
 	},
 }
 
+var copyArtifactsJobCommandOnline = []string{
+	"/bin/sh",
+	"-ex",
+	"-c",
+	"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster " +
+		"--app-slug $APP_SLUG --channel-id $CHANNEL_ID --app-version $APP_VERSION " +
+		"$INSTALLATION_DATA; \n" +
+		"echo 'done'",
+}
+
+var copyArtifactsJobCommandAirgap = []string{
+	"/bin/sh",
+	"-ex",
+	"-c",
+	"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster $INSTALLATION_DATA; \n" +
+		"/usr/local/bin/local-artifact-mirror pull images --data-dir /embedded-cluster $INSTALLATION_DATA; \n" +
+		"/usr/local/bin/local-artifact-mirror pull helmcharts --data-dir /embedded-cluster $INSTALLATION_DATA; \n" +
+		"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade; \n" +
+		"rm /embedded-cluster/images/images-amd64-* || true; \n" +
+		"echo 'done'",
+}
+
 // EnsureArtifactsJobForNodes copies the installation artifacts to the nodes in the cluster.
 // This is done by creating a job for each node in the cluster, which will pull the
 // artifacts from the internal registry.
-func EnsureArtifactsJobForNodes(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
-	if in.Spec.Artifacts == nil {
+func EnsureArtifactsJobForNodes(
+	ctx context.Context, cli client.Client,
+	in *clusterv1beta1.Installation,
+	localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion string,
+) error {
+	if in.Spec.AirGap && in.Spec.Artifacts == nil {
 		return fmt.Errorf("no artifacts location defined")
+	}
+
+	// Ensure license ID secret exists
+	if err := ensureLicenseIDSecret(ctx, cli, licenseID); err != nil {
+		return fmt.Errorf("ensure license ID secret: %w", err)
+	}
+
+	// Ensure CA configmap exists
+	if err := embeddedclusteroperator.UpgradeEnsureCAConfigmap(ctx, cli); err != nil {
+		return fmt.Errorf("ensure CA configmap: %w", err)
 	}
 
 	var nodes corev1.NodeList
@@ -105,13 +155,15 @@ func EnsureArtifactsJobForNodes(ctx context.Context, cli client.Client, in *clus
 	}
 
 	// generate a hash of the current config so we can detect config changes.
-	cfghash, err := HashForAirgapConfig(in)
+	cfghash, err := hashForAirgapConfig(in)
 	if err != nil {
 		return fmt.Errorf("hash airgap config: %w", err)
 	}
 
 	for _, node := range nodes.Items {
-		_, err := ensureArtifactsJobForNode(ctx, cli, in, node, localArtifactMirrorImage, cfghash)
+		_, err := ensureArtifactsJobForNode(
+			ctx, cli, in, node, localArtifactMirrorImage, appSlug, channelID, appVersion, cfghash,
+		)
 		if err != nil {
 			return fmt.Errorf("ensure artifacts job for node: %w", err)
 		}
@@ -128,7 +180,7 @@ func ListArtifactsJobForNodes(ctx context.Context, cli client.Client, in *cluste
 	}
 
 	// generate a hash of the current config so we can detect config changes.
-	cfghash, err := HashForAirgapConfig(in)
+	cfghash, err := hashForAirgapConfig(in)
 	if err != nil {
 		return nil, fmt.Errorf("hash airgap config: %w", err)
 	}
@@ -136,7 +188,7 @@ func ListArtifactsJobForNodes(ctx context.Context, cli client.Client, in *cluste
 	jobs := map[string]*batchv1.Job{}
 
 	for _, node := range nodes.Items {
-		nsn := types.NamespacedName{
+		nsn := client.ObjectKey{
 			Name:      util.NameWithLengthLimit(copyArtifactsJobPrefix, node.Name),
 			Namespace: ecNamespace,
 		}
@@ -164,9 +216,35 @@ func ListArtifactsJobForNodes(ctx context.Context, cli client.Client, in *cluste
 	return jobs, nil
 }
 
-// HashForAirgapConfig generates a hash for the airgap configuration. We can use this to detect config changes between
+// CleanupArtifactsJobsForNodes deletes the jobs and the secret created by
+// EnsureArtifactsJobForNodes.
+func CleanupArtifactsJobsForNodes(ctx context.Context, cli client.Client) (finalErr error) {
+	var nodes corev1.NodeList
+	if err := cli.List(ctx, &nodes); err != nil {
+		finalErr = multierr.Append(finalErr, fmt.Errorf("list nodes: %w", err))
+	}
+
+	for _, node := range nodes.Items {
+		err := deleteArtifactsJobForNode(ctx, cli, node)
+		if err != nil {
+			finalErr = multierr.Append(finalErr, fmt.Errorf("delete job for node %s: %w", node.Name, err))
+		}
+	}
+	err := deleteLicenseIDSecret(ctx, cli)
+	if err != nil {
+		finalErr = multierr.Append(finalErr, fmt.Errorf("delete license ID secret: %w", err))
+	}
+
+	return finalErr
+}
+
+// hashForAirgapConfig generates a hash for the airgap configuration. We can use this to detect config changes between
 // different reconcile cycles.
-func HashForAirgapConfig(in *clusterv1beta1.Installation) (string, error) {
+func hashForAirgapConfig(in *clusterv1beta1.Installation) (string, error) {
+	if !in.Spec.AirGap {
+		return "", nil
+	}
+
 	data, err := json.Marshal(in.Spec.Artifacts)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal artifacts location: %w", err)
@@ -175,8 +253,13 @@ func HashForAirgapConfig(in *clusterv1beta1.Installation) (string, error) {
 	return hash[:10], nil
 }
 
-func ensureArtifactsJobForNode(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, node corev1.Node, localArtifactMirrorImage, cfghash string) (*batchv1.Job, error) {
-	job, err := getArtifactJobForNode(cli, in, node, localArtifactMirrorImage)
+func ensureArtifactsJobForNode(
+	ctx context.Context, cli client.Client, in *clusterv1beta1.Installation,
+	node corev1.Node,
+	localArtifactMirrorImage, appSlug, channelID, appVersion string,
+	cfghash string,
+) (*batchv1.Job, error) {
+	job, err := getArtifactJobForNode(cli, in, node, localArtifactMirrorImage, appSlug, channelID, appVersion)
 	if err != nil {
 		return nil, fmt.Errorf("get job for node: %w", err)
 	}
@@ -200,8 +283,12 @@ func ensureArtifactsJobForNode(ctx context.Context, cli client.Client, in *clust
 	return job, nil
 }
 
-func getArtifactJobForNode(cli client.Client, in *clusterv1beta1.Installation, node corev1.Node, localArtifactMirrorImage string) (*batchv1.Job, error) {
-	hash, err := HashForAirgapConfig(in)
+func getArtifactJobForNode(
+	cli client.Client, in *clusterv1beta1.Installation,
+	node corev1.Node,
+	localArtifactMirrorImage, appSlug, channelID, appVersion string,
+) (*batchv1.Job, error) {
+	hash, err := hashForAirgapConfig(in)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash airgap config: %w", err)
 	}
@@ -218,12 +305,42 @@ func getArtifactJobForNode(cli client.Client, in *clusterv1beta1.Installation, n
 	job.ObjectMeta.Annotations = applyArtifactsJobAnnotations(job.GetAnnotations(), in, hash)
 	job.Spec.Template.Spec.NodeName = node.Name
 	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = runtimeconfig.EmbeddedClusterHomeDirectory()
+	if in.Spec.AirGap {
+		job.Spec.Template.Spec.Containers[0].Command = copyArtifactsJobCommandAirgap
+	} else {
+		job.Spec.Template.Spec.Containers[0].Command = copyArtifactsJobCommandOnline
+	}
 	job.Spec.Template.Spec.Containers[0].Env = append(
 		job.Spec.Template.Spec.Containers[0].Env,
 		corev1.EnvVar{Name: "INSTALLATION", Value: in.Name},
 		corev1.EnvVar{Name: "INSTALLATION_DATA", Value: inDataEncoded},
+		corev1.EnvVar{Name: "LOCAL_ARTIFACT_MIRROR_LICENSE_ID", ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: licenseIDSecretName},
+				Key:                  "LICENSE_ID",
+			},
+		}},
+		corev1.EnvVar{Name: "APP_SLUG", Value: appSlug},
+		corev1.EnvVar{Name: "CHANNEL_ID", Value: channelID},
+		corev1.EnvVar{Name: "APP_VERSION", Value: appVersion},
 	)
 
+	// Add proxy environment variables if proxy is configured
+	if in.Spec.Proxy != nil {
+		job.Spec.Template.Spec.Containers[0].Env = append(
+			job.Spec.Template.Spec.Containers[0].Env,
+			corev1.EnvVar{Name: "HTTP_PROXY", Value: in.Spec.Proxy.HTTPProxy},
+			corev1.EnvVar{Name: "HTTPS_PROXY", Value: in.Spec.Proxy.HTTPSProxy},
+			corev1.EnvVar{Name: "NO_PROXY", Value: in.Spec.Proxy.NoProxy},
+		)
+	}
+
+	if !in.Spec.AirGap && in.Spec.Config != nil && in.Spec.Config.Domains.ProxyRegistryDomain != "" {
+		localArtifactMirrorImage = strings.Replace(
+			localArtifactMirrorImage,
+			"proxy.replicated.com", in.Spec.Config.Domains.ProxyRegistryDomain, 1,
+		)
+	}
 	job.Spec.Template.Spec.Containers[0].Image = localArtifactMirrorImage
 	job.Spec.Template.Spec.ImagePullSecrets = append(job.Spec.Template.Spec.ImagePullSecrets, GetRegistryImagePullSecret())
 
@@ -235,6 +352,17 @@ func getArtifactJobForNode(cli client.Client, in *clusterv1beta1.Installation, n
 	}
 
 	return job, nil
+}
+
+// deleteArtifactsJobForNode deletes the artifacts job for a given node.
+func deleteArtifactsJobForNode(ctx context.Context, cli client.Client, node corev1.Node) error {
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      util.NameWithLengthLimit(copyArtifactsJobPrefix, node.Name),
+			Namespace: ecNamespace,
+		},
+	}
+	return client.IgnoreNotFound(cli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground)))
 }
 
 // CreateAutopilotAirgapPlanCommand creates the plan to execute an aigrap upgrade in all nodes. The
@@ -286,4 +414,41 @@ func applyArtifactsJobAnnotations(annotations map[string]string, in *clusterv1be
 	annotations[InstallationNameAnnotation] = in.Name
 	annotations[ArtifactsConfigHashAnnotation] = hash
 	return annotations
+}
+
+// ensureLicenseIDSecret deletes the secret if it exists and creates a new one
+func ensureLicenseIDSecret(ctx context.Context, cli client.Client, licenseID string) error {
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      licenseIDSecretName,
+			Namespace: ecNamespace,
+			Labels:    applyECOperatorLabels(nil, "license"),
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"LICENSE_ID": []byte(licenseID),
+		},
+	}
+	// delete the secret if it exists
+	err := client.IgnoreNotFound(cli.Delete(ctx, secret))
+	if err != nil {
+		return fmt.Errorf("delete secret: %w", err)
+	}
+
+	return cli.Create(ctx, secret)
+}
+
+// deleteLicenseIDSecret deletes the license ID secret
+func deleteLicenseIDSecret(ctx context.Context, cli client.Client) error {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      licenseIDSecretName,
+			Namespace: ecNamespace,
+		},
+	}
+	return client.IgnoreNotFound(cli.Delete(ctx, secret))
 }

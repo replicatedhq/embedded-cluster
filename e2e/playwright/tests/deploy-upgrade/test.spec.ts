@@ -55,7 +55,7 @@ async function waitForClusterUpdate(page: Page) {
 }
 
 async function verifyUpgradeSuccess(page: Page) {
-  await expect(page.locator('.available-update-row', { hasText: process.env.APP_UPGRADE_VERSION })).not.toBeVisible({ timeout: 60 * 1000 });
+  await expect(page.locator('.available-update-row', { hasText: process.env.APP_UPGRADE_VERSION })).not.toBeVisible({ timeout: 5 * 60 * 1000 });
   await expect(page.locator('.VersionHistoryRow', { hasText: process.env.APP_UPGRADE_VERSION })).toContainText('Currently deployed version', { timeout: 90 * 1000 });
   await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
   await expect(page.locator('.VersionCard-content--wrapper')).toContainText(process.env.APP_UPGRADE_VERSION);

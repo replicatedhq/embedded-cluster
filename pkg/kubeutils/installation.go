@@ -258,17 +258,17 @@ var (
 	oldVersionSchemeRegex = regexp.MustCompile(`.*\+ec\.[0-9]+`)
 )
 
-func lessThanK0s115(ver *semver.Version) bool {
+func lessThanECVersion115(ver *semver.Version) bool {
 	if oldVersionSchemeRegex.MatchString(ver.Original()) {
 		return true
 	}
 	return ver.LessThan(version115)
 }
 
-// MaybeOverrideInstallationDataDirs checks if the previous installation is less than 1.15.0 that
-// didn't store the location of the data directories in the installation object. If it is not set,
-// it will set the annotation and update the installation object with the old location of the data
-// directories.
+// MaybeOverrideInstallationDataDirs checks if the previous installation is less than EC version
+// 1.15.0 that didn't store the location of the data directories in the installation object. If it
+// is not set, it will set the annotation and update the installation object with the old location
+// of the data directories.
 func MaybeOverrideInstallationDataDirs(in ecv1beta1.Installation, previous *ecv1beta1.Installation) (ecv1beta1.Installation, bool, error) {
 	if previous != nil && previous.Spec.Config != nil && previous.Spec.Config.Version != "" {
 		ver, err := semver.NewVersion(previous.Spec.Config.Version)
@@ -276,7 +276,7 @@ func MaybeOverrideInstallationDataDirs(in ecv1beta1.Installation, previous *ecv1
 			return in, false, fmt.Errorf("parse version: %w", err)
 		}
 
-		if lessThanK0s115(ver) {
+		if lessThanECVersion115(ver) {
 			didUpdate := false
 
 			if in.Spec.RuntimeConfig == nil {
