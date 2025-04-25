@@ -220,8 +220,8 @@ func runHostPreflights(ctx context.Context, hpf *v1beta2.HostPreflightSpec, opts
 	}
 
 	// No failures or warnings
-	pb.Infof("Host preflights passed")
-	pb.Close()
+	spinner.Infof("Host preflights passed")
+	spinner.Close()
 
 	return nil
 }
