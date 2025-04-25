@@ -552,7 +552,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 			logrus.Info("When high availability is enabled, you must maintain at least three nodes.")
 			logrus.Info("")
 		}
-		shouldEnableHA, err := prompts.New().Confirm("Do you want to enable high availability?", false)
+		shouldEnableHA, err := prompts.New().Confirm("Do you want to enable high availability?", true)
 		if err != nil {
 			return fmt.Errorf("failed to get confirmation: %w", err)
 		}
