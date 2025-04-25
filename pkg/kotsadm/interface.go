@@ -19,13 +19,13 @@ func Set(kotsadm ClientInterface) {
 }
 
 type ClientInterface interface {
-	GetJoinToken(ctx context.Context, baseURL, shortToken string) (*join.JoinCommandResponse, error)
+	GetJoinToken(ctx context.Context, address, shortToken string) (*join.JoinCommandResponse, error)
 }
 
 // Convenience functions
 
 // GetJoinToken is a helper function that issues a request to the kots api to get the actual join command
 // based on the short token provided by the user.
-func GetJoinToken(ctx context.Context, baseURL, shortToken string) (*join.JoinCommandResponse, error) {
-	return _kotsadm.GetJoinToken(ctx, baseURL, shortToken)
+func GetJoinToken(ctx context.Context, address, shortToken string) (*join.JoinCommandResponse, error) {
+	return _kotsadm.GetJoinToken(ctx, address, shortToken)
 }

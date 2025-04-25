@@ -41,6 +41,43 @@ func FirstValidIPNet(networkInterface string) (*net.IPNet, error) {
 	return nil, fmt.Errorf("interface %s not found or is not valid. The following interfaces were detected: %s", networkInterface, strings.Join(ifNames, ", "))
 }
 
+func FirstInterfaceContainingIP(ip string) (*net.Interface, error) {
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return nil, fmt.Errorf("invalid IP address: %s", ip)
+	}
+
+	// Get all valid interfaces on the node
+	interfaces, err := listValidInterfaces()
+	if err != nil {
+		return nil, fmt.Errorf("list valid interfaces: %w", err)
+	}
+
+	// Check each interface for a subnet that contains node0IP
+	for _, iface := range interfaces {
+		// Skip interfaces that are down, loopback, etc.
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok {
+				// Check if this subnet contains the node0IP
+				if ipnet.Contains(parsedIP) {
+					return &iface, nil
+				}
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no interface containing IP %s found", ip)
+}
+
 // listValidInterfaces returns a list of valid network interfaces for the node.
 func listValidInterfaces() ([]net.Interface, error) {
 	ifs, err := net.Interfaces()
