@@ -2,6 +2,7 @@ package dryrun
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -19,6 +20,14 @@ import (
 )
 
 func TestJoinControllerNode(t *testing.T) {
+	testJoinControllerNodeImpl(t, false)
+}
+
+func TestJoinAirgapControllerNode(t *testing.T) {
+	testJoinControllerNodeImpl(t, true)
+}
+
+func testJoinControllerNodeImpl(t *testing.T, isAirgap bool) {
 	clusterID := uuid.New()
 	jcmd := &join.JoinCommandResponse{
 		K0sJoinCommand:         "/usr/local/bin/k0s install controller --enable-worker --no-taints --labels kots.io/embedded-cluster-role=total-1,kots.io/embedded-cluster-role-0=controller-test,controller-label=controller-label-value",
@@ -29,6 +38,7 @@ func TestJoinControllerNode(t *testing.T) {
 			ClusterID:      clusterID.String(),
 			MetricsBaseURL: "https://testing.com",
 			Config:         &ecv1beta1.ConfigSpec{UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{}},
+			AirGap:         isAirgap,
 			Network: &ecv1beta1.NetworkSpec{
 				PodCIDR:     "10.2.0.0/17",
 				ServiceCIDR: "10.2.128.0/17",
@@ -47,6 +57,22 @@ func TestJoinControllerNode(t *testing.T) {
 	})
 
 	kotsadm.SetGetJoinTokenResponse("10.0.0.1", "some-token", jcmd, nil)
+
+	if isAirgap {
+		// make sure k0s images file does not exist before join
+		_, err := os.ReadFile("/var/lib/embedded-cluster/k0s/images/ec-images-amd64.tar")
+		require.ErrorIs(t, err, os.ErrNotExist)
+
+		testK0sImagesPath := filepath.Join(t.TempDir(), "ec-images-amd64.tar")
+		err = os.WriteFile(testK0sImagesPath, []byte("fake-k0s-images-file-content"), 0644)
+		require.NoError(t, err)
+
+		testK0sImagesFile, err := os.Open(testK0sImagesPath)
+		require.NoError(t, err)
+		defer testK0sImagesFile.Close()
+
+		kotsadm.SetGetK0sImagesFileResponse("10.0.0.1", testK0sImagesFile, nil)
+	}
 
 	kubeClient, err := kubeUtils.KubeClient()
 	require.NoError(t, err)
@@ -68,6 +94,13 @@ func TestJoinControllerNode(t *testing.T) {
 	}, &ctrlclient.CreateOptions{})
 
 	dr := dryrunJoin(t, "10.0.0.1", "some-token")
+
+	// --- validate k0s images file (if airgap) --- //
+	if isAirgap {
+		content, err := os.ReadFile("/var/lib/embedded-cluster/k0s/images/ec-images-amd64.tar")
+		require.NoError(t, err)
+		assert.Equal(t, "fake-k0s-images-file-content", string(content))
+	}
 
 	// --- validate host preflight spec --- //
 	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {

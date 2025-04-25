@@ -3,15 +3,17 @@ package airgap
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
-const K0sImagePath = "images/images-amd64.tar"
+const K0sImagePath = "images/ec-images-amd64.tar"
 
 // MaterializeAirgap places the airgap image bundle for k0s and the embedded cluster charts on disk.
 // - image bundle should be located at 'images-amd64.tar' within the embedded-cluster directory within the airgap bundle.
@@ -56,6 +58,20 @@ func MaterializeAirgap(airgapReader io.Reader) error {
 			return nil
 		}
 	}
+}
+
+// FetchAndWriteK0sImages fetches the k0s images from the KOTS API and writes them to the k0s images directory
+func FetchAndWriteK0sImages(ctx context.Context, kotsAPIAddress string) error {
+	f, err := kotsadm.GetK0sImagesFile(ctx, kotsAPIAddress)
+	if err != nil {
+		return fmt.Errorf("failed to get k0s images file: %w", err)
+	}
+	defer f.Close()
+
+	if err := writeOneFile(f, filepath.Join(runtimeconfig.EmbeddedClusterK0sSubDir(), K0sImagePath), 0644); err != nil {
+		return fmt.Errorf("failed to write k0s images file: %w", err)
+	}
+	return nil
 }
 
 func writeOneFile(reader io.Reader, path string, mode int64) error {

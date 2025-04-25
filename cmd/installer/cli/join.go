@@ -10,6 +10,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2/terminal"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -27,6 +28,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -36,8 +38,6 @@ import (
 )
 
 type JoinCmdFlags struct {
-	airgapBundle         string
-	isAirgap             bool
 	noHA                 bool
 	networkInterface     string
 	assumeYes            bool
@@ -59,8 +59,6 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			if err := preRunJoin(&flags); err != nil {
 				return err
 			}
-
-			flags.isAirgap = flags.airgapBundle != ""
 
 			return nil
 		},
@@ -84,7 +82,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				metricsReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runJoin(cmd.Context(), name, flags, jcmd, metricsReporter); err != nil {
+			if err := runJoin(cmd.Context(), name, flags, jcmd, args[0], metricsReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
 					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
@@ -114,8 +112,6 @@ func preRunJoin(flags *JoinCmdFlags) error {
 		return fmt.Errorf("join command must be run as root")
 	}
 
-	flags.isAirgap = flags.airgapBundle != ""
-
 	// if a network interface flag was not provided, attempt to discover it
 	if flags.networkInterface == "" {
 		autoInterface, err := determineBestNetworkInterface()
@@ -128,7 +124,11 @@ func preRunJoin(flags *JoinCmdFlags) error {
 }
 
 func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
-	cmd.Flags().StringVar(&flags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
+	cmd.Flags().String("airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
+	if err := cmd.Flags().MarkDeprecated("airgap-bundle", "This flag is deprecated (ignored) and will be removed in a future version. The cluster will automatically determine if it's in airgap mode and fetch the necessary artifacts from other nodes."); err != nil {
+		return err
+	}
+
 	cmd.Flags().StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
 	cmd.Flags().BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
 	cmd.Flags().BoolVar(&flags.noHA, "no-ha", false, "Do not prompt for or enable high availability.")
@@ -147,7 +147,7 @@ func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
 	return nil
 }
 
-func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse, metricsReporter preflights.MetricsReporter) error {
+func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse, kotsAPIAddress string, metricsReporter preflights.MetricsReporter) error {
 	// both controller and worker nodes will have 'worker' in the join command
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if !isWorker {
@@ -158,7 +158,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.Jo
 		return err
 	}
 
-	cidrCfg, err := initializeJoin(ctx, name, flags, jcmd)
+	cidrCfg, err := initializeJoin(ctx, name, jcmd, kotsAPIAddress)
 	if err != nil {
 		return fmt.Errorf("unable to initialize join: %w", err)
 	}
@@ -221,18 +221,6 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinComm
 		return err
 	}
 
-	err = verifyChannelRelease("join", flags.isAirgap, flags.assumeYes)
-	if err != nil {
-		return err
-	}
-
-	if flags.isAirgap {
-		logrus.Debugf("checking airgap bundle matches binary")
-		if err := checkAirgapMatches(flags.airgapBundle); err != nil {
-			return err // we want the user to see the error message without a prefix
-		}
-	}
-
 	runtimeconfig.Set(jcmd.InstallationSpec.RuntimeConfig)
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if isWorker {
@@ -282,7 +270,7 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinComm
 	return nil
 }
 
-func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse) (cidrCfg *CIDRConfig, err error) {
+func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResponse, kotsAPIAddress string) (cidrCfg *CIDRConfig, err error) {
 	logrus.Info("")
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
@@ -305,8 +293,8 @@ func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *
 	}
 
 	logrus.Debugf("materializing %s binaries", name)
-	if err := materializeFiles(flags.airgapBundle); err != nil {
-		return nil, err
+	if err := materializeFilesForJoin(ctx, jcmd, kotsAPIAddress); err != nil {
+		return nil, fmt.Errorf("failed to materialize files: %w", err)
 	}
 
 	logrus.Debugf("configuring sysctl")
@@ -335,6 +323,24 @@ func initializeJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *
 	}
 
 	return cidrCfg, nil
+}
+
+func materializeFilesForJoin(ctx context.Context, jcmd *join.JoinCommandResponse, kotsAPIAddress string) error {
+	materializer := goods.NewMaterializer()
+	if err := materializer.Materialize(); err != nil {
+		return fmt.Errorf("materialize binaries: %w", err)
+	}
+	if err := support.MaterializeSupportBundleSpec(); err != nil {
+		return fmt.Errorf("materialize support bundle spec: %w", err)
+	}
+
+	if jcmd.InstallationSpec.AirGap {
+		if err := airgap.FetchAndWriteK0sImages(ctx, kotsAPIAddress); err != nil {
+			return fmt.Errorf("failed to fetch k0s images: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*CIDRConfig, error) {
@@ -400,7 +406,7 @@ func installAndJoinCluster(ctx context.Context, jcmd *join.JoinCommandResponse, 
 		return fmt.Errorf("unable to join node to cluster: %w", err)
 	}
 
-	if err := startAndWaitForK0s(ctx, name, jcmd); err != nil {
+	if err := startAndWaitForK0s(name); err != nil {
 		return err
 	}
 
@@ -464,7 +470,7 @@ func applyNetworkConfiguration(networkInterface string, jcmd *join.JoinCommandRe
 }
 
 // startAndWaitForK0s starts the k0s service and waits for the node to be ready.
-func startAndWaitForK0s(ctx context.Context, name string, jcmd *join.JoinCommandResponse) error {
+func startAndWaitForK0s(name string) error {
 	logrus.Debugf("starting %s service", name)
 	if _, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath(), "start"); err != nil {
 		return fmt.Errorf("unable to start service: %w", err)
@@ -600,7 +606,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 	}
 
 	airgapChartsPath := ""
-	if flags.isAirgap {
+	if jcmd.InstallationSpec.AirGap {
 		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
 	}
 	hcli, err := helm.NewClient(helm.HelmOptions{
