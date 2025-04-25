@@ -40,3 +40,56 @@ func FirstValidIPNet(networkInterface string) (*net.IPNet, error) {
 	}
 	return nil, fmt.Errorf("interface %s not found or is not valid. The following interfaces were detected: %s", networkInterface, strings.Join(ifNames, ", "))
 }
+
+// listValidInterfaces returns a list of valid network interfaces for the node.
+func listValidInterfaces() ([]net.Interface, error) {
+	ifs, err := net.Interfaces()
+	if err != nil {
+		return nil, fmt.Errorf("list network interfaces: %w", err)
+	}
+	validIfs := []net.Interface{}
+	for _, i := range ifs {
+		if !isValidInterface(i) {
+			continue
+		}
+		validIfs = append(validIfs, i)
+	}
+	return validIfs, nil
+}
+
+func isValidInterface(i net.Interface) bool {
+	switch {
+	case i.Name == "vxlan.calico":
+		return false
+	case i.Name == "kube-bridge":
+		return false
+	case i.Name == "dummyvip0":
+		return false
+	case strings.HasPrefix(i.Name, "veth"):
+		return false
+	case strings.HasPrefix(i.Name, "cali"):
+		return false
+	}
+	return hasValidIPNet(i)
+}
+
+func hasValidIPNet(i net.Interface) bool {
+	ipnet, err := firstValidIPNet(i)
+	return err == nil && ipnet != nil
+}
+
+func firstValidIPNet(i net.Interface) (*net.IPNet, error) {
+	addresses, err := i.Addrs()
+	if err != nil {
+		return nil, fmt.Errorf("get addresses: %w", err)
+	}
+	for _, a := range addresses {
+		// check the address type and skip if loopback
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("could not find any non-local, non podnetwork ipv4 addresses")
+}
