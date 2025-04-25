@@ -5,7 +5,7 @@ include ../common.mk
 OS ?= linux
 ARCH ?= $(shell go env GOARCH)
 
-ADMIN_CONSOLE_IMAGE_OVERRIDE = proxy.replicated.com/anonymous/ttl.sh/ethan/kotsadm:24h
+ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
 
