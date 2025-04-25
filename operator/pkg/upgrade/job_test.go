@@ -60,7 +60,7 @@ func TestCreateUpgradeJob_NodeAffinity(t *testing.T) {
 	err := CreateUpgradeJob(
 		context.Background(), cli, installation,
 		"registry.example.com/local-artifact-mirror:1.2.3",
-		"license-id", "app-slug", "channel-slug", testVersion,
+		"license-id", "app-slug", "channel-id", testVersion,
 		"1.2.2",
 	)
 	require.NoError(t, err)

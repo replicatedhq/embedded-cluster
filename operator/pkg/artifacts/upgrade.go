@@ -108,7 +108,7 @@ var copyArtifactsJobCommandOnline = []string{
 	"-ex",
 	"-c",
 	"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster " +
-		"--app-slug $APP_SLUG --channel-slug $CHANNEL_SLUG --app-version $APP_VERSION " +
+		"--app-slug $APP_SLUG --channel-id $CHANNEL_ID --app-version $APP_VERSION " +
 		"$INSTALLATION_DATA; \n" +
 		"echo 'done'",
 }
@@ -131,7 +131,7 @@ var copyArtifactsJobCommandAirgap = []string{
 func EnsureArtifactsJobForNodes(
 	ctx context.Context, cli client.Client,
 	in *clusterv1beta1.Installation,
-	localArtifactMirrorImage, licenseID, appSlug, channelSlug, appVersion string,
+	localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion string,
 ) error {
 	if in.Spec.AirGap && in.Spec.Artifacts == nil {
 		return fmt.Errorf("no artifacts location defined")
@@ -155,7 +155,7 @@ func EnsureArtifactsJobForNodes(
 
 	for _, node := range nodes.Items {
 		_, err := ensureArtifactsJobForNode(
-			ctx, cli, in, node, localArtifactMirrorImage, appSlug, channelSlug, appVersion, cfghash,
+			ctx, cli, in, node, localArtifactMirrorImage, appSlug, channelID, appVersion, cfghash,
 		)
 		if err != nil {
 			return fmt.Errorf("ensure artifacts job for node: %w", err)
@@ -249,10 +249,10 @@ func hashForAirgapConfig(in *clusterv1beta1.Installation) (string, error) {
 func ensureArtifactsJobForNode(
 	ctx context.Context, cli client.Client, in *clusterv1beta1.Installation,
 	node corev1.Node,
-	localArtifactMirrorImage, appSlug, channelSlug, appVersion string,
+	localArtifactMirrorImage, appSlug, channelID, appVersion string,
 	cfghash string,
 ) (*batchv1.Job, error) {
-	job, err := getArtifactJobForNode(cli, in, node, localArtifactMirrorImage, appSlug, channelSlug, appVersion)
+	job, err := getArtifactJobForNode(cli, in, node, localArtifactMirrorImage, appSlug, channelID, appVersion)
 	if err != nil {
 		return nil, fmt.Errorf("get job for node: %w", err)
 	}
@@ -279,7 +279,7 @@ func ensureArtifactsJobForNode(
 func getArtifactJobForNode(
 	cli client.Client, in *clusterv1beta1.Installation,
 	node corev1.Node,
-	localArtifactMirrorImage, appSlug, channelSlug, appVersion string,
+	localArtifactMirrorImage, appSlug, channelID, appVersion string,
 ) (*batchv1.Job, error) {
 	hash, err := hashForAirgapConfig(in)
 	if err != nil {
@@ -314,7 +314,7 @@ func getArtifactJobForNode(
 			},
 		}},
 		corev1.EnvVar{Name: "APP_SLUG", Value: appSlug},
-		corev1.EnvVar{Name: "CHANNEL_SLUG", Value: channelSlug},
+		corev1.EnvVar{Name: "CHANNEL_ID", Value: channelID},
 		corev1.EnvVar{Name: "APP_VERSION", Value: appVersion},
 	)
 

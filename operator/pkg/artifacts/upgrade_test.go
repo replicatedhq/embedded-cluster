@@ -51,7 +51,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 		localArtifactMirrorImage string
 		licenseID                string
 		appSlug                  string
-		channelSlug              string
+		channelID                string
 		appVersion               string
 	}
 	tests := []struct {
@@ -99,7 +99,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 				localArtifactMirrorImage: "local-artifact-mirror",
 				licenseID:                "abcd1234",
 				appSlug:                  "app-slug",
-				channelSlug:              "channel-slug",
+				channelID:                "channel-id",
 				appVersion:               "1.0.0",
 			},
 			wantErr: false,
@@ -265,7 +265,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 				tt.args.localArtifactMirrorImage,
 				tt.args.licenseID,
 				tt.args.appSlug,
-				tt.args.channelSlug,
+				tt.args.channelID,
 				tt.args.appVersion,
 			); (err != nil) != tt.wantErr {
 				t.Errorf("EnsureArtifactsJobForNodes() error = %v, wantErr %v", err, tt.wantErr)

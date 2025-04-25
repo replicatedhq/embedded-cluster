@@ -40,7 +40,7 @@ const (
 // spec and the upgrade job is created. The upgrade job will update the cluster version, and then update the operator chart.
 func CreateUpgradeJob(
 	ctx context.Context, cli client.Client, in *ecv1beta1.Installation,
-	localArtifactMirrorImage, licenseID, appSlug, channelSlug, appVersion string,
+	localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion string,
 	previousInstallVersion string,
 ) error {
 	// check if the job already exists - if it does, we've already rolled out images and can return now
@@ -59,7 +59,7 @@ func CreateUpgradeJob(
 		return fmt.Errorf("copy version metadata to cluster: %w", err)
 	}
 
-	err = distributeArtifacts(ctx, cli, in, localArtifactMirrorImage, licenseID, appSlug, channelSlug, appVersion)
+	err = distributeArtifacts(ctx, cli, in, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion)
 	if err != nil {
 		return fmt.Errorf("distribute artifacts: %w", err)
 	}
@@ -278,11 +278,11 @@ func operatorImageName(ctx context.Context, cli client.Client, in *ecv1beta1.Ins
 
 func distributeArtifacts(
 	ctx context.Context, cli client.Client, in *ecv1beta1.Installation,
-	localArtifactMirrorImage, licenseID, appSlug, channelSlug, appVersion string,
+	localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion string,
 ) error {
 	// let's make sure all assets have been copied to nodes.
 	// this may take some time so we only move forward when 'ready'.
-	err := ensureArtifactsOnNodes(ctx, cli, in, localArtifactMirrorImage, licenseID, appSlug, channelSlug, appVersion)
+	err := ensureArtifactsOnNodes(ctx, cli, in, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion)
 	if err != nil {
 		return fmt.Errorf("ensure artifacts: %w", err)
 	}
@@ -301,7 +301,7 @@ func distributeArtifacts(
 
 func ensureArtifactsOnNodes(
 	ctx context.Context, cli client.Client, in *ecv1beta1.Installation,
-	localArtifactMirrorImage, licenseID, appSlug, channelSlug, appVersion string,
+	localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion string,
 ) error {
 	log := controllerruntime.LoggerFrom(ctx)
 
@@ -316,7 +316,7 @@ func ensureArtifactsOnNodes(
 		}
 	}
 
-	err := artifacts.EnsureArtifactsJobForNodes(ctx, cli, in, localArtifactMirrorImage, licenseID, appSlug, channelSlug, appVersion)
+	err := artifacts.EnsureArtifactsJobForNodes(ctx, cli, in, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion)
 	if err != nil {
 		return fmt.Errorf("ensure artifacts job for nodes: %w", err)
 	}
