@@ -127,13 +127,9 @@ func NewKindClusterConfig(t *testing.T, name string, opts *KindClusterOptions) k
 		ContainerPath: "/etc/containerd/certs.d/10.96.0.11_5000_/hosts.toml",
 	}
 
-	// ensure data and k0s directories exist (required for admin console addon)
-	ecHostDataDir := "/tmp/embedded-cluster-data-dir"
-	k0sHostDir := fmt.Sprintf("%s/k0s", ecHostDataDir)
-
-	if err := os.MkdirAll(k0sHostDir, 0755); err != nil {
-		t.Logf("failed to create host ec and k0s directories: %s", err)
-	}
+	// data and k0s directories are required for the admin console addon
+	ecHostDataDir := TempDirForHostMount(t, "data-dir-*")
+	k0sHostDir := TempDirForHostMount(t, "k0s-dir-*")
 
 	ecKindDataDir := "/var/lib/embedded-cluster"
 	if opts != nil && opts.ECDataDir != "" {

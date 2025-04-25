@@ -20,7 +20,7 @@ func WriteTempFile(t *testing.T, pattern string, data []byte, perm os.FileMode) 
 
 // TempDirForHostMount is needed because of test failure "cleanup: unlinkat ...: permission denied"
 func TempDirForHostMount(t *testing.T, pattern string) string {
-	dir, err := os.MkdirTemp("", "")
+	dir, err := os.MkdirTemp("", pattern)
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %s", err)
 	}
