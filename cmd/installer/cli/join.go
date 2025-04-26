@@ -116,6 +116,14 @@ func preRunJoin(flags *JoinCmdFlags) error {
 
 	flags.isAirgap = flags.airgapBundle != ""
 
+	// if a network interface flag was not provided, attempt to discover it
+	if flags.networkInterface == "" {
+		autoInterface, err := determineBestNetworkInterface()
+		if err == nil {
+			flags.networkInterface = autoInterface
+		}
+	}
+
 	return nil
 }
 
