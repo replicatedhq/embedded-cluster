@@ -24,6 +24,7 @@ func MaterializeAirgap(airgapReader io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("failed to decompress airgap file: %w", err)
 	}
+	defer ungzip.Close()
 
 	// iterate through tarball
 	tarreader := tar.NewReader(ungzip)
@@ -117,6 +118,7 @@ func writeChartFiles(reader io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("failed to decompress airgap file: %w", err)
 	}
+	defer ungzip.Close()
 
 	// iterate through tarball
 	tarreader := tar.NewReader(ungzip)

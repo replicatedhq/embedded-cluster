@@ -21,6 +21,7 @@ func Decompress(tgz, dst string) error {
 	if err != nil {
 		return fmt.Errorf("unable to create gzip reader: %v", err)
 	}
+	defer gzreader.Close()
 
 	tarreader := tar.NewReader(gzreader)
 	for {
