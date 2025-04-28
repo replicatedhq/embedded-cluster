@@ -39,7 +39,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
-			if err := runJoinRunPreflights(cmd.Context(), name, flags, jcmd); err != nil {
+			if err := runJoinRunPreflights(cmd.Context(), name, flags, jcmd, args[0]); err != nil {
 				return err
 			}
 
@@ -54,14 +54,14 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse) error {
+func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse, kotsAPIAddress string) error {
 	if err := runJoinVerifyAndPrompt(name, flags, jcmd); err != nil {
 		return err
 	}
 
 	logrus.Debugf("materializing %s binaries", name)
-	if err := materializeFiles(flags.airgapBundle); err != nil {
-		return err
+	if err := materializeFilesForJoin(ctx, jcmd, kotsAPIAddress); err != nil {
+		return fmt.Errorf("failed to materialize files: %w", err)
 	}
 
 	logrus.Debugf("configuring sysctl")
@@ -107,7 +107,7 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		PodCIDR:                cidrCfg.PodCIDR,
 		ServiceCIDR:            cidrCfg.ServiceCIDR,
 		NodeIP:                 nodeIP,
-		IsAirgap:               flags.isAirgap,
+		IsAirgap:               jcmd.InstallationSpec.AirGap,
 		SkipHostPreflights:     flags.skipHostPreflights,
 		IgnoreHostPreflights:   flags.ignoreHostPreflights,
 		AssumeYes:              flags.assumeYes,
