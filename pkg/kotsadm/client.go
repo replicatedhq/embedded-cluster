@@ -66,3 +66,26 @@ func (c *Client) GetK0sImagesFile(ctx context.Context, kotsAPIAddress string) (i
 	}
 	return resp.Body, nil
 }
+
+// GetECCharts fetches the helm charts file from the KOTS API.
+// caller is responsible for closing the response body.
+func (c *Client) GetECCharts(ctx context.Context, kotsAPIAddress string) (io.ReadCloser, error) {
+	url := fmt.Sprintf("http://%s/api/v1/embedded-cluster/charts", kotsAPIAddress)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create request: %w", err)
+	}
+
+	// this will generally be a self-signed certificate created by kurl-proxy
+	insecureClient := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
+	resp, err := insecureClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch charts: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code fetching charts: %d", resp.StatusCode)
+	}
+	return resp.Body, nil
+}

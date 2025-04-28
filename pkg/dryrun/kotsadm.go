@@ -82,3 +82,21 @@ func (c *Kotsadm) GetK0sImagesFile(ctx context.Context, kotsAPIAddress string) (
 		return nil, fmt.Errorf("no response set for GetK0sImagesFile, kotsAPIAddress: %s", kotsAPIAddress)
 	}
 }
+
+func (c *Kotsadm) SetGetECChartsResponse(kotsAPIAddress string, resp io.ReadCloser, err error) {
+	mockErr := c.setResponse(resp, err, "GetECCharts", kotsAPIAddress)
+	if mockErr != nil {
+		panic(mockErr)
+	}
+}
+
+// GetECCharts fetches the Helm charts file from the KOTS API.
+// caller is responsible for closing the response body.
+func (c *Kotsadm) GetECCharts(ctx context.Context, kotsAPIAddress string) (io.ReadCloser, error) {
+	key := strings.Join([]string{"GetECCharts", kotsAPIAddress}, ":")
+	if handler, ok := c.mockHandlers[key]; ok {
+		return handler.resp.(io.ReadCloser), handler.err
+	} else {
+		return nil, fmt.Errorf("no response set for GetECCharts, kotsAPIAddress: %s", kotsAPIAddress)
+	}
+}

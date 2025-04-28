@@ -60,16 +60,29 @@ func MaterializeAirgap(airgapReader io.Reader) error {
 	}
 }
 
-// FetchAndWriteK0sImages fetches the k0s images from the KOTS API and writes them to the k0s images directory
-func FetchAndWriteK0sImages(ctx context.Context, kotsAPIAddress string) error {
-	f, err := kotsadm.GetK0sImagesFile(ctx, kotsAPIAddress)
+// FetchAndWriteArtifacts fetches the k0s images and Helm charts from the KOTS API
+// and writes them to the appropriate directories
+func FetchAndWriteArtifacts(ctx context.Context, kotsAPIAddress string) error {
+	// Fetch and write k0s images
+	imagesFile, err := kotsadm.GetK0sImagesFile(ctx, kotsAPIAddress)
 	if err != nil {
 		return fmt.Errorf("failed to get k0s images file: %w", err)
 	}
-	defer f.Close()
+	defer imagesFile.Close()
 
-	if err := writeOneFile(f, filepath.Join(runtimeconfig.EmbeddedClusterK0sSubDir(), K0sImagePath), 0644); err != nil {
+	if err := writeOneFile(imagesFile, filepath.Join(runtimeconfig.EmbeddedClusterK0sSubDir(), K0sImagePath), 0644); err != nil {
 		return fmt.Errorf("failed to write k0s images file: %w", err)
+	}
+
+	// Fetch and write Helm charts
+	chartsTGZ, err := kotsadm.GetECCharts(ctx, kotsAPIAddress)
+	if err != nil {
+		return fmt.Errorf("failed to get ec charts: %w", err)
+	}
+	defer chartsTGZ.Close()
+
+	if err := writeChartFiles(chartsTGZ); err != nil {
+		return fmt.Errorf("failed to write chart files: %w", err)
 	}
 	return nil
 }

@@ -335,8 +335,8 @@ func materializeFilesForJoin(ctx context.Context, jcmd *join.JoinCommandResponse
 	}
 
 	if jcmd.InstallationSpec.AirGap {
-		if err := airgap.FetchAndWriteK0sImages(ctx, kotsAPIAddress); err != nil {
-			return fmt.Errorf("failed to fetch k0s images: %w", err)
+		if err := airgap.FetchAndWriteArtifacts(ctx, kotsAPIAddress); err != nil {
+			return fmt.Errorf("failed to fetch artifacts: %w", err)
 		}
 	}
 

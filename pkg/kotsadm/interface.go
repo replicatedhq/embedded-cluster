@@ -22,6 +22,7 @@ func Set(kotsadm ClientInterface) {
 type ClientInterface interface {
 	GetJoinToken(ctx context.Context, kotsAPIAddress, shortToken string) (*join.JoinCommandResponse, error)
 	GetK0sImagesFile(ctx context.Context, kotsAPIAddress string) (io.ReadCloser, error)
+	GetECCharts(ctx context.Context, kotsAPIAddress string) (io.ReadCloser, error)
 }
 
 // Convenience functions
@@ -36,4 +37,10 @@ func GetJoinToken(ctx context.Context, kotsAPIAddress, shortToken string) (*join
 // caller is responsible for closing the response body.
 func GetK0sImagesFile(ctx context.Context, kotsAPIAddress string) (io.ReadCloser, error) {
 	return _kotsadm.GetK0sImagesFile(ctx, kotsAPIAddress)
+}
+
+// GetECCharts is a helper function that fetches the Helm charts file from the KOTS API.
+// caller is responsible for closing the response body.
+func GetECCharts(ctx context.Context, kotsAPIAddress string) (io.ReadCloser, error) {
+	return _kotsadm.GetECCharts(ctx, kotsAPIAddress)
 }
