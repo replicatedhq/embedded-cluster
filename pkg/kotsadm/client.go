@@ -34,6 +34,7 @@ func (c *Client) GetJoinToken(ctx context.Context, kotsAPIAddress, shortToken st
 		return nil, fmt.Errorf("unable to get join token: %w", err)
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
@@ -62,6 +63,7 @@ func (c *Client) GetK0sImagesFile(ctx context.Context, kotsAPIAddress string) (i
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("unexpected status code fetching k0s images: %d", resp.StatusCode)
 	}
 	return resp.Body, nil
@@ -85,6 +87,7 @@ func (c *Client) GetECCharts(ctx context.Context, kotsAPIAddress string) (io.Rea
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("unexpected status code fetching charts: %d", resp.StatusCode)
 	}
 	return resp.Body, nil
