@@ -576,7 +576,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 	}
 
 	if !flags.assumeYes {
-		shouldEnableHA, err := prompts.New().Confirm("Do you want to enable high availability?", false)
+		shouldEnableHA, err := prompts.New().Confirm("Do you want to enable high availability?", true)
 		if err != nil {
 			return fmt.Errorf("failed to get confirmation: %w", err)
 		}
