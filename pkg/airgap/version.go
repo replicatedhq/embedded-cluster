@@ -5,9 +5,9 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"sigs.k8s.io/yaml"
 
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"sigs.k8s.io/yaml"
 )
 
 // ChannelReleaseMetadata returns the appSlug, channelID, and versionLabel of the airgap bundle
@@ -19,6 +19,7 @@ func ChannelReleaseMetadata(reader io.Reader) (appSlug, channelID, versionLabel 
 		err = fmt.Errorf("failed to decompress airgap file: %w", err)
 		return
 	}
+	defer ungzip.Close()
 
 	// iterate through tarball
 	tarreader := tar.NewReader(ungzip)
