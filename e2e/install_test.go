@@ -2209,7 +2209,7 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	t.Log("controller join token command:", controllerCommand)
 
 	// bypass ha prompt
-	controllerCommand = strings.Replace(controllerCommand, "join", "join --no-ha", 1)
+	controllerCommand = strings.Replace(controllerCommand, " join ", " join --no-ha ", 1)
 
 	// join the controller nodes
 	joinCommandsSequence := [][]string{

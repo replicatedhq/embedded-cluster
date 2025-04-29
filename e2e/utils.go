@@ -36,9 +36,9 @@ func findJoinCommandInOutput(stdout string) (string, error) {
 	}
 	// trim down the "./" and the "sudo" command as those are not needed. we run as
 	// root and the embedded-cluster binary is on the PATH.
-	command := strings.TrimPrefix(r.Command, "sudo ./")
+	command := strings.Replace(r.Command, "sudo ./", "", 1)
 	// replace the airgap bundle path (if any) with the local path.
-	command = strings.ReplaceAll(command, "embedded-cluster.airgap", "/assets/release.airgap")
+	command = strings.Replace(command, "embedded-cluster.airgap", "/assets/release.airgap", 1)
 	return command, nil
 }
 
