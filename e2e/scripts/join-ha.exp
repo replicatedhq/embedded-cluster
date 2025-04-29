@@ -5,7 +5,7 @@ source /usr/local/bin/env.exp
 set join_command [lindex $argv 0]
 set join_preflights_command [regsub -all {join} $join_command {join run-preflights}]
 
-spawn {*}$join_preflights_command
+spawn sh -c [join $join_preflights_command " "]
 
 expect {
     -timeout 120 "Host preflights completed successfully" {}
@@ -15,7 +15,7 @@ expect {
     }
 }
 
-spawn {*}$join_command
+spawn sh -c [join $join_command " "]
 
 expect {
     -timeout 240 "Node joined the cluster successfully." {}
