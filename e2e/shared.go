@@ -169,7 +169,7 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 	commands[len(commands)-1] = joinCommand
 
 	for _, command := range commands {
-		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Split(command, " "), opts.withEnv); err != nil {
+		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Fields(command), opts.withEnv); err != nil {
 			t.Fatalf("fail to join node %d as a controller%s: %v: %s: %s",
 				node, map[bool]string{true: " in ha mode", false: ""}[opts.isHA], err, stdout, stderr)
 		}
@@ -194,8 +194,8 @@ func joinWorkerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts 
 
 	t.Logf("%s: joining node %d to the cluster as a worker", time.Now().Format(time.RFC3339), node)
 	for _, command := range commands {
-		t.Logf("running join command: %s", command)
-		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Split(command, " "), opts.withEnv); err != nil {
+		t.Logf("running join command: %s: %t", command, strings.TrimSpace(command) == command)
+		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Fields(command), opts.withEnv); err != nil {
 			t.Fatalf("fail to join node %d to the cluster as a worker: %v: %s: %s", node, err, stdout, stderr)
 		}
 	}
