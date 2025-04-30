@@ -18,7 +18,7 @@ func RequireEnvVars(t *testing.T, envVars []string) {
 	}
 }
 
-var commandsOutputRegex = regexp.MustCompile(`{"commands":"[^"]*"}`)
+var commandsOutputRegex = regexp.MustCompile(`{"commands":\[.*?\]}`)
 var commandOutputRegex = regexp.MustCompile(`{"command":"[^"]*"}`) // legacy / old versions
 
 // findJoinCommandsInOutput parses the output of the playwright.sh script and returns the join commands.
