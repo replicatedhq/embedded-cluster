@@ -27,7 +27,6 @@ func findJoinCommandsInOutput(stdout string) ([]string, error) {
 	if output == "" {
 		return nil, fmt.Errorf("failed to find the join commands in the output: %s", stdout)
 	}
-	fmt.Println("+++++++ findJoinCommandsInOutput output:", output)
 	var r struct {
 		Commands []string `json:"commands"`
 	}
@@ -35,10 +34,8 @@ func findJoinCommandsInOutput(stdout string) ([]string, error) {
 		return nil, fmt.Errorf("failed to parse node join response: %v", err)
 	}
 	for i := range r.Commands {
-		fmt.Println("+++++++ findJoinCommandsInOutput command:", r.Commands[i])
-		// trim down the "./" and the "sudo" command as those are not needed. we run as
-		// root and the embedded-cluster binary is on the PATH.
-		r.Commands[i] = strings.Replace(r.Commands[i], "sudo ./", "", 1)
+		// trim down the "sudo" command as we are running as root
+		r.Commands[i] = strings.Replace(r.Commands[i], "sudo ", "", 1)
 	}
 	return r.Commands, nil
 }
