@@ -194,6 +194,7 @@ func joinWorkerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts 
 
 	t.Logf("%s: joining node %d to the cluster as a worker", time.Now().Format(time.RFC3339), node)
 	for _, command := range commands {
+		t.Logf("running join command: %s", command)
 		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Split(command, " "), opts.withEnv); err != nil {
 			t.Fatalf("fail to join node %d to the cluster as a worker: %v: %s: %s", node, err, stdout, stderr)
 		}
