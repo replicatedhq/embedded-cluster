@@ -53,7 +53,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "join <url> <token>",
-		Short: fmt.Sprintf("Join %s", name),
+		Short: fmt.Sprintf("Join a node to the %s cluster", name),
 		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunJoin(&flags); err != nil {

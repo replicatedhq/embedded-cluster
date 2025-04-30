@@ -50,7 +50,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "reset",
-		Short: "Remove %s from the current node",
+		Short: fmt.Sprintf("Remove %s from the current node", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("reset command must be run as root")
