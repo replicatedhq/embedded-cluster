@@ -157,7 +157,7 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 	lines := [][]string{}
 	for i, command := range commands {
 		if i < len(commands)-1 {
-			lines = append(lines, []string{command})
+			lines = append(lines, strings.Fields(command))
 			continue
 		}
 		// this is the join command
