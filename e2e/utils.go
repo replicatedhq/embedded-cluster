@@ -18,10 +18,26 @@ func RequireEnvVars(t *testing.T, envVars []string) {
 	}
 }
 
-var commandOutputRegex = regexp.MustCompile(`{"command":"[^"]*"}`)
+var commandsOutputRegex = regexp.MustCompile(`{"commands":\[.*?\]}`)
+var commandOutputRegex = regexp.MustCompile(`{"command":"[^"]*"}`) // legacy / old versions
 
-type nodeJoinResponse struct {
-	Command string `json:"command"`
+// findJoinCommandsInOutput parses the output of the playwright.sh script and returns the join commands.
+func findJoinCommandsInOutput(stdout string) ([]string, error) {
+	output := commandsOutputRegex.FindString(stdout)
+	if output == "" {
+		return nil, fmt.Errorf("failed to find the join commands in the output: %s", stdout)
+	}
+	var r struct {
+		Commands []string `json:"commands"`
+	}
+	if err := json.Unmarshal([]byte(output), &r); err != nil {
+		return nil, fmt.Errorf("failed to parse node join response: %v", err)
+	}
+	for i := range r.Commands {
+		// trim down the "sudo" command as we are running as root
+		r.Commands[i] = strings.Replace(r.Commands[i], "sudo ", "", 1)
+	}
+	return r.Commands, nil
 }
 
 // findJoinCommandInOutput parses the output of the playwright.sh script and returns the join command.
@@ -30,15 +46,17 @@ func findJoinCommandInOutput(stdout string) (string, error) {
 	if output == "" {
 		return "", fmt.Errorf("failed to find the join command in the output: %s", stdout)
 	}
-	var r nodeJoinResponse
+	var r struct {
+		Command string `json:"command"`
+	}
 	if err := json.Unmarshal([]byte(output), &r); err != nil {
 		return "", fmt.Errorf("failed to parse node join response: %v", err)
 	}
 	// trim down the "./" and the "sudo" command as those are not needed. we run as
 	// root and the embedded-cluster binary is on the PATH.
-	command := strings.TrimPrefix(r.Command, "sudo ./")
+	command := strings.Replace(r.Command, "sudo ./", "", 1)
 	// replace the airgap bundle path (if any) with the local path.
-	command = strings.ReplaceAll(command, "embedded-cluster.airgap", "/assets/release.airgap")
+	command = strings.Replace(command, "embedded-cluster.airgap", "/assets/release.airgap", 1)
 	return command, nil
 }
 

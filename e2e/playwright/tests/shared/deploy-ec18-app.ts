@@ -1,7 +1,7 @@
 import { Page, Expect } from '@playwright/test';
 import { vaidateAppAndClusterReady } from '.';
 
-export const deployEC18AppVersion = async (page: Page, expect: Expect) => {
+export const deployEC18App = async (page: Page, expect: Expect) => {
   await expect(page.getByRole('button', { name: 'Add node', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.locator('h3')).toContainText('The First Config Group');
