@@ -169,10 +169,10 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 				joinCommand = []string{"join-ha.exp", command}
 			}
 		} else if opts.isRestore {
-			joinCommand = strings.Split(command, " ") // do not pass --no-ha as there should not be a prompt during a restore
+			joinCommand = strings.Fields(command) // do not pass --no-ha as there should not be a prompt during a restore
 		} else {
 			command = strings.Replace(command, "join", "join --no-ha", 1) // bypass prompt
-			joinCommand = strings.Split(command, " ")
+			joinCommand = strings.Fields(command)
 		}
 		lines = append(lines, joinCommand)
 	}
