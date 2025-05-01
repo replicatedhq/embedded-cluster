@@ -155,6 +155,8 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 		map[bool]string{true: " in ha mode", false: ""}[opts.isHA])
 
 	joinCommand := commands[len(commands)-1]
+	t.Logf("++++ number of commands: %d\n", len(commands))
+	t.Logf("++++ join command before: %s\n", joinCommand)
 	if opts.isHA {
 		if _, ok := tc.(*docker.Cluster); ok {
 			joinCommand = fmt.Sprintf("join-ha.exp '%s'", joinCommand)
@@ -166,6 +168,7 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 	} else {
 		joinCommand = strings.Replace(joinCommand, "join", "join --no-ha", 1) // bypass prompt
 	}
+	t.Logf("++++ join command after: %s\n", joinCommand)
 	commands[len(commands)-1] = joinCommand
 
 	for _, command := range commands {
@@ -175,6 +178,7 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 		} else {
 			line = strings.Fields(command)
 		}
+		t.Logf("++++ running join command line: %s\n", line)
 		if stdout, stderr, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
 			t.Fatalf("fail to join node %d as a controller%s: %v: %s: %s",
 				node, map[bool]string{true: " in ha mode", false: ""}[opts.isHA], err, stdout, stderr)

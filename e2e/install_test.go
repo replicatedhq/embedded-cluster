@@ -1583,8 +1583,8 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	if err := tc.SetupPlaywright(withEnv); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if _, _, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if _, _, err := tc.RunPlaywrightTest("deploy-ec23-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-ec23-app: %v", err)
 	}
 
 	// generate worker node join command.
@@ -1602,11 +1602,11 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	// join the worker node
 	t.Logf("%s: preparing embedded cluster airgap files on worker node", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-prepare.sh"}
-	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
 		t.Fatalf("fail to prepare airgap files on worker node: %v", err)
 	}
 	t.Logf("%s: joining worker node to the cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunCommandOnNode(1, strings.Split(workerCommand, " ")); err != nil {
+	if _, _, err := tc.RunCommandOnNode(1, strings.Split(workerCommand, " "), withEnv); err != nil {
 		t.Fatalf("fail to join worker node to the cluster: %v", err)
 	}
 	// remove artifacts after joining to save space
@@ -1618,7 +1618,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to remove embedded-cluster binary on worker node: %v", err)
 	}
-	line = []string{"rm", "/var/lib/embedded-cluster/bin/embedded-cluster"}
+	line = []string{"rm", "/var/lib/ec/bin/embedded-cluster"}
 	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
 	}
