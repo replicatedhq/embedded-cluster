@@ -169,7 +169,7 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 	commands[len(commands)-1] = joinCommand
 
 	for _, command := range commands {
-		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Fields(command), opts.withEnv); err != nil {
+		if stdout, stderr, err := tc.RunCommandOnNode(node, []string{command}, opts.withEnv); err != nil {
 			t.Fatalf("fail to join node %d as a controller%s: %v: %s: %s",
 				node, map[bool]string{true: " in ha mode", false: ""}[opts.isHA], err, stdout, stderr)
 		}
