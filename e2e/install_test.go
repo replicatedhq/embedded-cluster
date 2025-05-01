@@ -1336,10 +1336,6 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
 	}
-	line = []string{"rm", "/var/lib/embedded-cluster/bin/embedded-cluster"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
-	}
 
 	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)

@@ -154,31 +154,30 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 	t.Logf("%s: joining node %d to the cluster as a controller%s", time.Now().Format(time.RFC3339), node,
 		map[bool]string{true: " in ha mode", false: ""}[opts.isHA])
 
-	joinCommand := commands[len(commands)-1]
-	t.Logf("++++ number of commands: %d\n", len(commands))
-	t.Logf("++++ join command before: %s\n", joinCommand)
-	if opts.isHA {
-		if _, ok := tc.(*docker.Cluster); ok {
-			joinCommand = fmt.Sprintf("join-ha.exp '%s'", joinCommand)
-		} else {
-			joinCommand = fmt.Sprintf("join-ha.exp %s", joinCommand)
+	lines := [][]string{}
+	for i, command := range commands {
+		if i < len(commands)-1 {
+			lines = append(lines, []string{command})
+			continue
 		}
-	} else if opts.isRestore {
-		// do not pass --no-ha as there should not be a prompt during a restore
-	} else {
-		joinCommand = strings.Replace(joinCommand, "join", "join --no-ha", 1) // bypass prompt
+		// this is the join command
+		var joinCommand []string
+		if opts.isHA {
+			if _, ok := tc.(*docker.Cluster); ok {
+				joinCommand = []string{"join-ha.exp", fmt.Sprintf("'%s'", command)}
+			} else {
+				joinCommand = []string{"join-ha.exp", command}
+			}
+		} else if opts.isRestore {
+			joinCommand = strings.Split(command, " ") // do not pass --no-ha as there should not be a prompt during a restore
+		} else {
+			command = strings.Replace(command, "join", "join --no-ha", 1) // bypass prompt
+			joinCommand = strings.Split(command, " ")
+		}
+		lines = append(lines, joinCommand)
 	}
-	t.Logf("++++ join command after: %s\n", joinCommand)
-	commands[len(commands)-1] = joinCommand
 
-	for _, command := range commands {
-		var line []string
-		if _, ok := tc.(*docker.Cluster); ok {
-			line = []string{command}
-		} else {
-			line = strings.Fields(command)
-		}
-		t.Logf("++++ running join command line: %s\n", line)
+	for _, line := range lines {
 		if stdout, stderr, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
 			t.Fatalf("fail to join node %d as a controller%s: %v: %s: %s",
 				node, map[bool]string{true: " in ha mode", false: ""}[opts.isHA], err, stdout, stderr)
