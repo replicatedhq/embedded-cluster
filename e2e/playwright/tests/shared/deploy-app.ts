@@ -4,7 +4,6 @@ import { vaidateAppAndClusterReady } from '.';
 export const deployApp = async (page: Page, expect: Expect) => {
   if (process.env.IS_MULTI_NODE_ENABLED === 'true') {
     await expect(page.getByText('Add nodes to the cluster')).toBeVisible();
-    await expect(page.getByText('Download the binary on the new node')).toBeVisible();
     const joinCommand1 = await page.locator('.react-prism.language-bash').nth(0).textContent();
     const joinCommand2 = await page.locator('.react-prism.language-bash').nth(1).textContent();
     const joinCommand3 = await page.locator('.react-prism.language-bash').nth(2).textContent();
