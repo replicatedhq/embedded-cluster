@@ -1587,8 +1587,41 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
-	// join a worker
-	joinWorkerNodeWithOptions(t, tc, 1, joinOptions{withEnv: withEnv})
+	// generate worker node join command.
+	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := tc.RunPlaywrightTest("get-ec23-join-worker-command")
+	if err != nil {
+		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+	}
+	workerCommand, err := findJoinCommandInOutput(stdout)
+	if err != nil {
+		t.Fatalf("fail to find the join command in the output: %v", err)
+	}
+	t.Log("worker join token command:", workerCommand)
+
+	// join the worker node
+	t.Logf("%s: preparing embedded cluster airgap files on worker node", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-prepare.sh"}
+	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on worker node: %v", err)
+	}
+	t.Logf("%s: joining worker node to the cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := tc.RunCommandOnNode(1, strings.Split(workerCommand, " ")); err != nil {
+		t.Fatalf("fail to join worker node to the cluster: %v", err)
+	}
+	// remove artifacts after joining to save space
+	line = []string{"rm", "/assets/release.airgap"}
+	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on worker node: %v", err)
+	}
+	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
+	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster binary on worker node: %v", err)
+	}
+	line = []string{"rm", "/var/lib/embedded-cluster/bin/embedded-cluster"}
+	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
+	}
 
 	// wait for the nodes to report as ready.
 	waitForNodes(t, tc, 2, withEnv)
