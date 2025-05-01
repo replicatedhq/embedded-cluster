@@ -454,8 +454,8 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 		version: initialVersion,
 	})
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-ec23-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-ec23-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
@@ -468,7 +468,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: re-installing kots cli on node 0", time.Now().Format(time.RFC3339))
@@ -486,7 +486,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: upgrading cluster a second time", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after second upgrade", time.Now().Format(time.RFC3339))
@@ -585,8 +585,8 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	if err := tc.SetupPlaywright(withEnv); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-ec18-app-version"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-ec18-app-version: %v: %s: %s", err, stdout, stderr)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-ec18-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-ec18-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
@@ -1138,8 +1138,8 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 	if err := tc.SetupPlaywright(withEnv); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if _, _, err := tc.RunPlaywrightTest("deploy-ec18-app-version"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-ec18-app-version: %v", err)
+	if _, _, err := tc.RunPlaywrightTest("deploy-ec18-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-ec18-app: %v", err)
 	}
 
 	// generate worker node join command.
