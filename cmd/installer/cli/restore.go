@@ -92,7 +92,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "restore",
-		Short: fmt.Sprintf("Restore a %s cluster", name),
+		Short: fmt.Sprintf("Restore %s from a backup", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall(cmd, &flags); err != nil {
 				return err
@@ -140,7 +140,10 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store
 	logrus.Debugf("restore state is: %q", state)
 
 	if state != ecRestoreStateNew {
-		shouldResume := prompts.New().Confirm("A previous restore operation was detected. Would you like to resume?", true)
+		shouldResume, err := prompts.New().Confirm("A previous restore operation was detected. Would you like to resume?", true)
+		if err != nil {
+			return fmt.Errorf("failed to get confirmation: %w", err)
+		}
 		logrus.Info("")
 		if !shouldResume {
 			state = ecRestoreStateNew
@@ -348,7 +351,9 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", name)
 		logrus.Info("Enter information to configure access to your backup storage location.\n")
 
-		promptForS3BackupStore(s3Store)
+		if err := promptForS3BackupStore(s3Store); err != nil {
+			return fmt.Errorf("failed to prompt for backup store: %w", err)
+		}
 	}
 	s3Store.prefix = strings.TrimPrefix(s3Store.prefix, "/")
 
@@ -479,7 +484,10 @@ func runRestoreStepConfirmBackup(ctx context.Context, flags InstallCmdFlags) (*d
 
 	logrus.Info("")
 	completionTimestamp := backupToRestore.GetCompletionTimestamp().Format("2006-01-02 15:04:05 UTC")
-	shouldRestore := prompts.New().Confirm(fmt.Sprintf("Restore from backup %q (%s)?", backupToRestore.GetName(), completionTimestamp), true)
+	shouldRestore, err := prompts.New().Confirm(fmt.Sprintf("Restore from backup %q (%s)?", backupToRestore.GetName(), completionTimestamp), true)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to get confirmation: %w", err)
+	}
 	logrus.Info("")
 	if !shouldRestore {
 		logrus.Infof("Aborting restore...")
@@ -571,7 +579,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	}
 	defer hcli.Close()
 
-	err = addons.EnableAdminConsoleHA(ctx, kcli, hcli, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config)
+	err = addons.EnableAdminConsoleHA(ctx, kcli, hcli, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config, in.Spec.LicenseInfo)
 	if err != nil {
 		return err
 	}
@@ -866,22 +874,51 @@ func s3BackupStoreHasData(store *s3BackupStore) bool {
 }
 
 // promptForS3BackupStore prompts the user for S3 backup store configuration.
-func promptForS3BackupStore(store *s3BackupStore) {
+func promptForS3BackupStore(store *s3BackupStore) error {
 	for {
-		store.endpoint = strings.TrimSpace(prompts.New().Input("S3 endpoint:", store.endpoint, true))
+		input, err := prompts.New().Input("S3 endpoint:", store.endpoint, true)
+		if err != nil {
+			return fmt.Errorf("failed to get input: %w", err)
+		}
+		store.endpoint = strings.TrimSpace(input)
 		if strings.HasPrefix(store.endpoint, "http://") || strings.HasPrefix(store.endpoint, "https://") {
 			break
 		}
 		logrus.Info("Endpoint must start with http:// or https://")
 	}
 
-	store.region = strings.TrimSpace(prompts.New().Input("Region:", store.region, true))
-	store.bucket = strings.TrimSpace(prompts.New().Input("Bucket:", store.bucket, true))
-	store.prefix = strings.TrimSpace(prompts.New().Input("Prefix (press Enter to skip):", store.prefix, false))
-	store.accessKeyID = strings.TrimSpace(prompts.New().Input("Access key ID:", store.accessKeyID, true))
-	store.secretAccessKey = strings.TrimSpace(prompts.New().Password("Secret access key:"))
+	input, err := prompts.New().Input("Region:", store.region, true)
+	if err != nil {
+		return fmt.Errorf("failed to get input: %w", err)
+	}
+	store.region = strings.TrimSpace(input)
+
+	input, err = prompts.New().Input("Bucket:", store.bucket, true)
+	if err != nil {
+		return fmt.Errorf("failed to get input: %w", err)
+	}
+	store.bucket = strings.TrimSpace(input)
+
+	input, err = prompts.New().Input("Prefix (press Enter to skip):", store.prefix, false)
+	if err != nil {
+		return fmt.Errorf("failed to get input: %w", err)
+	}
+	store.prefix = strings.TrimSpace(input)
+
+	input, err = prompts.New().Input("Access key ID:", store.accessKeyID, true)
+	if err != nil {
+		return fmt.Errorf("failed to get input: %w", err)
+	}
+	store.accessKeyID = strings.TrimSpace(input)
+
+	password, err := prompts.New().Password("Secret access key:")
+	if err != nil {
+		return fmt.Errorf("failed to get password: %w", err)
+	}
+	store.secretAccessKey = strings.TrimSpace(password)
 
 	logrus.Info("")
+	return nil
 }
 
 // validateS3BackupStore validates the S3 backup store configuration.
@@ -1551,7 +1588,10 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkI
 	logrus.Info(joinNodesMsg)
 
 	for {
-		p := prompts.New().Input("Type 'continue' when you are done adding nodes:", "", false)
+		p, err := prompts.New().Input("Type 'continue' when you are done adding nodes:", "", false)
+		if err != nil {
+			return fmt.Errorf("failed to get confirmation: %w", err)
+		}
 		if p != "continue" {
 			logrus.Info("Please type 'continue' to proceed")
 			continue

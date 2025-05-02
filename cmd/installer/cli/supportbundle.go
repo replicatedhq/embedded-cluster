@@ -20,7 +20,7 @@ import (
 func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "support-bundle",
-		Short: "Generate a support bundle for the embedded-cluster",
+		Short: "Generate a support bundle",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("support-bundle command must be run as root")
@@ -81,15 +81,13 @@ func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 				supportBundle,
 				arguments...,
 			); err != nil {
-				spin.Infof("Failed to generate support bundle")
-				spin.CloseWithError()
+				spin.ErrorClosef("Failed to generate support bundle")
 				io.Copy(os.Stdout, stdout)
 				io.Copy(os.Stderr, stderr)
 				return NewErrorNothingElseToAdd(errors.New("failed to generate support bundle"))
 			}
 
-			spin.Infof("Support bundle saved at %s", destination)
-			spin.Close()
+			spin.Closef("Support bundle saved at %s", destination)
 			return nil
 		},
 	}

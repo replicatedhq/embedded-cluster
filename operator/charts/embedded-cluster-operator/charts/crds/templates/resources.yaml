@@ -556,6 +556,8 @@ spec:
                 properties:
                   isDisasterRecoverySupported:
                     type: boolean
+                  isMultiNodeEnabled:
+                    type: boolean
                 type: object
               localArtifactMirror:
                 description: LocalArtifactMirrorSpec holds the local artifact mirror configuration.

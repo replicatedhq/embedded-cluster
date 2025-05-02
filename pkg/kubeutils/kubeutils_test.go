@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Masterminds/semver/v3"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -180,46 +179,6 @@ func TestGetPreviousInstallation(t *testing.T) {
 			}
 			req.NoError(err)
 			req.Equal(tt.want, got)
-		})
-	}
-}
-
-func Test_lessThanK0s115(t *testing.T) {
-	type args struct {
-		ver *semver.Version
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "less than 1.15",
-			args: args{
-				ver: semver.MustParse("1.14.0+k8s-1.29-49-gf92daca6"),
-			},
-			want: true,
-		},
-		{
-			name: "greater than or equal to 1.15",
-			args: args{
-				ver: semver.MustParse("1.15.0+k8s-1.29-49-gf92daca6"),
-			},
-			want: false,
-		},
-		{
-			name: "old version scheme",
-			args: args{
-				ver: semver.MustParse("1.28.7+ec.0"),
-			},
-			want: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := lessThanK0s115(tt.args.ver); got != tt.want {
-				t.Errorf("lessThanK0s115() = %v, want %v", got, tt.want)
-			}
 		})
 	}
 }

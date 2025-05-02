@@ -18,7 +18,7 @@ import (
 // UpgradeCmd returns a cobra command for creating a job to upgrade the embedded cluster operator.
 // It is called by KOTS admin console and will preposition images before creating a job to truly upgrade the cluster.
 func UpgradeCmd() *cobra.Command {
-	var installationFile, localArtifactMirrorImage string
+	var installationFile, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion string
 
 	var installation *ecv1beta1.Installation
 
@@ -59,8 +59,9 @@ func UpgradeCmd() *cobra.Command {
 			}
 
 			err = upgrade.CreateUpgradeJob(
-				cmd.Context(), cli,
-				installation, localArtifactMirrorImage, previousInstallation.Spec.Config.Version,
+				cmd.Context(), cli, installation,
+				localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion,
+				previousInstallation.Spec.Config.Version,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
@@ -74,12 +75,22 @@ func UpgradeCmd() *cobra.Command {
 
 	// TODO(upgrade): local-artifact-mirror-image should be included in the installation object
 	cmd.Flags().StringVar(&localArtifactMirrorImage, "local-artifact-mirror-image", "", "Local artifact mirror image")
-
-	cmd.Flags().StringVar(&installationFile, "installation", "", "Path to the installation file")
-	err := cmd.MarkFlagRequired("installation")
+	err := cmd.MarkFlagRequired("local-artifact-mirror-image")
 	if err != nil {
 		panic(err)
 	}
+
+	cmd.Flags().StringVar(&installationFile, "installation", "", "Path to the installation file")
+	err = cmd.MarkFlagRequired("installation")
+	if err != nil {
+		panic(err)
+	}
+
+	// For online upgrades
+	cmd.Flags().StringVar(&licenseID, "license-id", "", "License ID for online upgrades")
+	cmd.Flags().StringVar(&appSlug, "app-slug", "", "App slug for online upgrades")
+	cmd.Flags().StringVar(&channelID, "channel-id", "", "Channel ID for online upgrades")
+	cmd.Flags().StringVar(&appVersion, "app-version", "", "App version for online upgrades")
 
 	return cmd
 }

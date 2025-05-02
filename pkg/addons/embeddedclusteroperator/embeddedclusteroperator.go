@@ -14,9 +14,9 @@ import (
 type EmbeddedClusterOperator struct {
 	IsAirgap              bool
 	Proxy                 *ecv1beta1.ProxySpec
+	PrivateCAs            []string
 	ChartLocationOverride string
 	ChartVersionOverride  string
-	BinaryNameOverride    string
 	ImageRepoOverride     string
 	ImageTagOverride      string
 	UtilsImageOverride    string

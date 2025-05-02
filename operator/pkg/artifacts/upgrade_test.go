@@ -49,6 +49,10 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 	type args struct {
 		in                       *clusterv1beta1.Installation
 		localArtifactMirrorImage string
+		licenseID                string
+		appSlug                  string
+		channelID                string
+		appVersion               string
 	}
 	tests := []struct {
 		name            string
@@ -83,6 +87,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 						Name: "test-installation",
 					},
 					Spec: clusterv1beta1.InstallationSpec{
+						AirGap: true,
 						Artifacts: &clusterv1beta1.ArtifactsLocation{
 							Images:                  "images",
 							HelmCharts:              "helm-charts",
@@ -92,10 +97,14 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 					},
 				},
 				localArtifactMirrorImage: "local-artifact-mirror",
+				licenseID:                "abcd1234",
+				appSlug:                  "app-slug",
+				channelID:                "channel-id",
+				appVersion:               "1.0.0",
 			},
 			wantErr: false,
 			assertRuntime: func(t *testing.T, cli client.Client, in *clusterv1beta1.Installation) {
-				artifactsHash, err := HashForAirgapConfig(in)
+				artifactsHash, err := hashForAirgapConfig(in)
 				require.NoError(t, err)
 
 				job := &batchv1.Job{}
@@ -186,6 +195,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 						Name: "test-installation",
 					},
 					Spec: clusterv1beta1.InstallationSpec{
+						AirGap: true,
 						Artifacts: &clusterv1beta1.ArtifactsLocation{
 							Images:                  "images",
 							HelmCharts:              "helm-charts",
@@ -199,7 +209,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 			modifyRuntime: removeJobFinalizers,
 			wantErr:       false,
 			assertRuntime: func(t *testing.T, cli client.Client, in *clusterv1beta1.Installation) {
-				artifactsHash, err := HashForAirgapConfig(in)
+				artifactsHash, err := hashForAirgapConfig(in)
 				require.NoError(t, err)
 
 				job := &batchv1.Job{}
@@ -250,7 +260,14 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 				}()
 			}
 
-			if err := EnsureArtifactsJobForNodes(ctx, cli, tt.args.in, tt.args.localArtifactMirrorImage); (err != nil) != tt.wantErr {
+			if err := EnsureArtifactsJobForNodes(
+				ctx, cli, tt.args.in,
+				tt.args.localArtifactMirrorImage,
+				tt.args.licenseID,
+				tt.args.appSlug,
+				tt.args.channelID,
+				tt.args.appVersion,
+			); (err != nil) != tt.wantErr {
 				t.Errorf("EnsureArtifactsJobForNodes() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -270,6 +287,7 @@ func TestListArtifactsJobForNodes(t *testing.T) {
 			Name: "test-installation",
 		},
 		Spec: clusterv1beta1.InstallationSpec{
+			AirGap: true,
 			Artifacts: &clusterv1beta1.ArtifactsLocation{
 				Images:                  "images",
 				HelmCharts:              "helm-charts",
@@ -319,7 +337,7 @@ func TestListArtifactsJobForNodes(t *testing.T) {
 						Annotations: map[string]string{
 							InstallationNameAnnotation: "test-installation",
 							ArtifactsConfigHashAnnotation: func() string {
-								artifactsHash, err := HashForAirgapConfig(in)
+								artifactsHash, err := hashForAirgapConfig(in)
 								require.NoError(t, err)
 								return artifactsHash
 							}(),
@@ -368,7 +386,7 @@ func TestListArtifactsJobForNodes(t *testing.T) {
 			},
 			wantErr: false,
 			assertWant: func(t *testing.T, in *clusterv1beta1.Installation, want map[string]*batchv1.Job) {
-				artifactsHash, err := HashForAirgapConfig(in)
+				artifactsHash, err := hashForAirgapConfig(in)
 				require.NoError(t, err)
 
 				assert.Len(t, want, 3)

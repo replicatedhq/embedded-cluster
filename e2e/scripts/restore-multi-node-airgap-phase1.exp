@@ -9,7 +9,7 @@ set dr_aws_s3_prefix [lindex $argv 3]
 set dr_aws_access_key_id [lindex $argv 4]
 set dr_aws_secret_access_key [lindex $argv 5]
 
-spawn embedded-cluster restore --airgap-bundle /assets/release.airgap --proxy --local-artifact-mirror-port 50001 --data-dir /var/lib/ec
+spawn embedded-cluster restore --airgap-bundle /assets/release.airgap --local-artifact-mirror-port 50001 --data-dir /var/lib/ec
 
 expect {
     "Enter information to configure access to your backup storage location." {}
@@ -80,7 +80,7 @@ expect {
 }
 
 expect {
-    -timeout 300 "Velero is ready!" {}
+    -timeout 300 "Velero is ready" {}
     timeout {
       puts "\n\nFailed to wait for Velero to be ready."
       exit 1
@@ -88,7 +88,7 @@ expect {
 }
 
 expect {
-    -timeout 30 "Backup storage location configured!" {}
+    -timeout 30 "Backup storage location configured" {}
     timeout {
       puts "\n\nFailed to configure backup storage location."
       exit 1

@@ -1,9 +1,13 @@
 package dryrun
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
 	_ "embed"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -278,4 +282,32 @@ func assertHelmValuePrefixes(t *testing.T, actualValues map[string]interface{}, 
 			return
 		}
 	}
+}
+
+// createTarGzFile creates a valid tar.gz file with the given files and returns a ReadCloser
+func createTarGzFile(t *testing.T, files map[string]string) io.ReadCloser {
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gw)
+
+	// Add each file to the tarball
+	for fileName, content := range files {
+		header := &tar.Header{
+			Name: fileName,
+			Size: int64(len(content)),
+			Mode: 0644,
+		}
+		err := tw.WriteHeader(header)
+		require.NoError(t, err)
+
+		_, err = tw.Write([]byte(content))
+		require.NoError(t, err)
+	}
+
+	// Close the tar writer and gzip writer
+	require.NoError(t, tw.Close())
+	require.NoError(t, gw.Close())
+
+	// Create a ReadCloser from the buffer
+	return io.NopCloser(bytes.NewReader(buf.Bytes()))
 }

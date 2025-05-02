@@ -26,6 +26,7 @@ type InstallOptions struct {
 	PrivateCAs              []string
 	ServiceCIDR             string
 	DisasterRecoveryEnabled bool
+	IsMultiNodeEnabled      bool
 	EmbeddedConfigSpec      *ecv1beta1.ConfigSpec
 	EndUserConfigSpec       *ecv1beta1.ConfigSpec
 	KotsInstaller           adminconsole.KotsInstaller
@@ -50,11 +51,11 @@ func Install(ctx context.Context, hcli helm.Client, opts InstallOptions) error {
 		overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
 		if err := addon.Install(ctx, kcli, hcli, overrides, loading); err != nil {
-			loading.CloseWithError()
+			loading.ErrorClosef("Failed to install %s", addon.Name())
 			return errors.Wrapf(err, "install %s", addon.Name())
 		}
 
-		loading.Closef("%s is ready!", addon.Name())
+		loading.Closef("%s is ready", addon.Name())
 	}
 
 	return nil
@@ -71,6 +72,7 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 			IsAirgap:            opts.IsAirgap,
 			Proxy:               opts.Proxy,
+			PrivateCAs:          opts.PrivateCAs,
 		},
 	}
 
@@ -95,6 +97,7 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		Password:                 opts.AdminConsolePwd,
 		PrivateCAs:               opts.PrivateCAs,
 		KotsInstaller:            opts.KotsInstaller,
+		IsMultiNodeEnabled:       opts.IsMultiNodeEnabled,
 		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
 		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
 		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,

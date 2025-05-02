@@ -50,6 +50,7 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 		}
 		logrus.Infof("latest tag found: %s", latest)
 		latest = strings.TrimPrefix(latest, "v")
+		latest = strings.Split(latest, "+")[0] // trim the commit sha
 
 		current := adminconsole.Metadata
 		if current.Version == latest && !c.Bool("force") {

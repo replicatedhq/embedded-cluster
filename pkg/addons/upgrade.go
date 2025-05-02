@@ -73,7 +73,6 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		Proxy:                 in.Spec.Proxy,
 		ChartLocationOverride: ecoChartLocation,
 		ChartVersionOverride:  ecoChartVersion,
-		BinaryNameOverride:    in.Spec.BinaryName,
 		ImageRepoOverride:     ecoImageRepo,
 		ImageTagOverride:      ecoImageTag,
 		UtilsImageOverride:    ecoUtilsImage,
@@ -107,6 +106,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		IsHA:                     in.Spec.HighAvailability,
 		Proxy:                    in.Spec.Proxy,
 		ServiceCIDR:              serviceCIDR,
+		IsMultiNodeEnabled:       in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
 		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
 		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
 		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,
@@ -118,7 +118,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 func upgradeAddOn(ctx context.Context, hcli helm.Client, kcli client.Client, in *ecv1beta1.Installation, addon types.AddOn) error {
 	// check if we already processed this addon
 	if kubeutils.CheckInstallationConditionStatus(in.Status, conditionName(addon)) == metav1.ConditionTrue {
-		slog.Info(addon.Name() + " is ready!")
+		slog.Info(addon.Name() + " is ready")
 		return nil
 	}
 
@@ -146,7 +146,7 @@ func upgradeAddOn(ctx context.Context, hcli helm.Client, kcli client.Client, in 
 		return errors.Wrap(err, "set condition upgrade succeeded")
 	}
 
-	slog.Info(addon.Name() + " is ready!")
+	slog.Info(addon.Name() + " is ready")
 	return nil
 }
 

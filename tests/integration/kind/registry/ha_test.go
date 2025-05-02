@@ -40,14 +40,26 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 	clusterName := util.GenerateClusterName(t)
 
-	opts := &util.KindClusterOptions{
+	kindConfig := util.NewKindClusterConfig(t, clusterName, &util.KindClusterOptions{
 		NumControlPlaneNodes: 3,
-	}
-	kindConfig := util.NewKindClusterConfig(t, clusterName, opts)
+	})
 
 	kindConfig.Nodes[0].ExtraPortMappings = append(kindConfig.Nodes[0].ExtraPortMappings, kind.PortMapping{
 		ContainerPort: 30500,
 	})
+
+	// data and k0s directories are required for the admin console addon
+	ecDataDirMount := kind.Mount{
+		HostPath:      util.TempDirForHostMount(t, "data-dir-*"),
+		ContainerPath: "/var/lib/embedded-cluster",
+	}
+	k0sDirMount := kind.Mount{
+		HostPath:      util.TempDirForHostMount(t, "k0s-dir-*"),
+		ContainerPath: "/var/lib/embedded-cluster/k0s",
+	}
+	kindConfig.Nodes[0].ExtraMounts = append(kindConfig.Nodes[0].ExtraMounts, ecDataDirMount, k0sDirMount)
+	kindConfig.Nodes[1].ExtraMounts = append(kindConfig.Nodes[1].ExtraMounts, ecDataDirMount, k0sDirMount)
+	kindConfig.Nodes[2].ExtraMounts = append(kindConfig.Nodes[2].ExtraMounts, ecDataDirMount, k0sDirMount)
 
 	kubeconfig := util.SetupKindClusterFromConfig(t, kindConfig)
 
@@ -97,21 +109,24 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		HighAvailability: false,
 	})
 
-	cfgSpec := &ecv1beta1.ConfigSpec{
-		Domains: ecv1beta1.Domains{
-			ProxyRegistryDomain: "proxy.replicated.com",
+	inSpec := ecv1beta1.InstallationSpec{
+		AirGap: true,
+		Config: &ecv1beta1.ConfigSpec{
+			Domains: ecv1beta1.Domains{
+				ProxyRegistryDomain: "proxy.replicated.com",
+			},
 		},
 	}
 
-	enableHAAndCancelContextOnMessage(t, kcli, kclient, hcli, cfgSpec,
+	enableHAAndCancelContextOnMessage(t, kcli, kclient, hcli, inSpec,
 		regexp.MustCompile(`StatefulSet is ready: seaweedfs`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, kcli, kclient, hcli, cfgSpec,
+	enableHAAndCancelContextOnMessage(t, kcli, kclient, hcli, inSpec,
 		regexp.MustCompile(`Migrating data for high availability \(`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, kcli, kclient, hcli, cfgSpec,
+	enableHAAndCancelContextOnMessage(t, kcli, kclient, hcli, inSpec,
 		regexp.MustCompile(`Updating the Admin Console for high availability`),
 	)
 
@@ -123,7 +138,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	loading := newTestingSpinner(t)
 	func() {
 		defer loading.Close()
-		err = addons.EnableHA(ctx, kcli, kclient, hcli, true, "10.96.0.0/12", nil, cfgSpec, loading)
+		err = addons.EnableHA(ctx, kcli, kclient, hcli, "10.96.0.0/12", inSpec, loading)
 		require.NoError(t, err)
 	}()
 
@@ -139,7 +154,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 func enableHAAndCancelContextOnMessage(
 	t *testing.T, kcli client.Client, kclient kubernetes.Interface, hcli helm.Client,
-	cfgSpec *ecv1beta1.ConfigSpec,
+	inSpec ecv1beta1.InstallationSpec,
 	re *regexp.Regexp,
 ) {
 	canEnable, reason, err := addons.CanEnableHA(t.Context(), kcli)
@@ -185,7 +200,7 @@ func enableHAAndCancelContextOnMessage(
 	defer loading.Close()
 
 	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
-	err = addons.EnableHA(ctx, kcli, kclient, hcli, true, "10.96.0.0/12", nil, cfgSpec, loading)
+	err = addons.EnableHA(ctx, kcli, kclient, hcli, "10.96.0.0/12", inSpec, loading)
 	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
 	t.Logf("%s cancelled context and got error: %v", formattedTime(), err)
 }

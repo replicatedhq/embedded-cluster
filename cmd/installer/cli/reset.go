@@ -50,7 +50,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "reset",
-		Short: "Remove %s from the current node",
+		Short: fmt.Sprintf("Remove %s from the current node", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("reset command must be run as root")
@@ -72,8 +72,14 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 
 			logrus.Warn("This will remove this node from the cluster and completely reset it, removing all data stored on the node.")
 			logrus.Warn("This node will also reboot. Do not reset another node until this is complete.")
-			if !force && !assumeYes && !prompts.New().Confirm("Do you want to continue?", false) {
-				return fmt.Errorf("Aborting")
+			if !force && !assumeYes {
+				confirmed, err := prompts.New().Confirm("Do you want to continue?", false)
+				if err != nil {
+					return fmt.Errorf("failed to get confirmation: %w", err)
+				}
+				if !confirmed {
+					return fmt.Errorf("Aborting")
+				}
 			}
 
 			// populate options struct with host information
@@ -101,10 +107,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			// if there is an error (numControllerNodes == 0), drain anyway to be safe
 			if currentHost.Status.Role != "controller" || numControllerNodes != 1 {
 				logrus.Info("Draining node...")
-				err = currentHost.drainNode()
-				if !checkErrPrompt(assumeYes, force, err) {
-					return err
-				}
+				currentHost.drainNode()
 
 				// remove node from cluster
 				logrus.Info("Removing node from cluster...")
@@ -134,8 +137,8 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			// reset
 			logrus.Infof("Resetting node...")
 			err = stopAndResetK0s(runtimeconfig.EmbeddedClusterK0sSubDir())
-			if !checkErrPrompt(assumeYes, force, err) {
-				return err
+			if err != nil {
+				logrus.Warnf("Failed to stop and reset k0s (continuing with reset anyway): %v", err)
 			}
 
 			logrus.Debugf("Resetting firewalld...")
@@ -237,7 +240,12 @@ func checkErrPrompt(noPrompt bool, force bool, err error) bool {
 		return false
 	}
 	logrus.Info("Continuing may leave the cluster in an unexpected state.")
-	return prompts.New().Confirm("Do you want to continue anyway?", false)
+	confirmed, err := prompts.New().Confirm("Do you want to continue anyway?", false)
+	if err != nil {
+		logrus.Errorf("failed to get confirmation: %v", err)
+		return false
+	}
+	return confirmed
 }
 
 // maybePrintHAWarning prints a warning message when the user is running a reset a node
@@ -271,11 +279,13 @@ func maybePrintHAWarning(ctx context.Context) error {
 	if numControllerNodes == 3 {
 		if config.HasCustomRoles() {
 			controllerRoleName := config.GetControllerRoleName()
-			logrus.Warn(fmt.Sprintf("You must maintain at least three %s nodes in a high-availability cluster, but resetting this node will leave only two.", controllerRoleName))
+			logrus.Warnf("High-availability is enabled and requires at least three %s nodes.", controllerRoleName)
+			logrus.Warn("Resetting this node will leave only two.")
 			logrus.Warn("This can lead to a loss of functionality and non-recoverable failures.")
-			logrus.Warn(fmt.Sprintf("If you reset this node, re-join a third %s node as soon as possible.", controllerRoleName))
+			logrus.Warnf("If you reset this node, re-join a third %s node as soon as possible.", controllerRoleName)
 		} else {
-			logrus.Warn("You must maintain at least three nodes in a high-availability cluster, but resetting this node will leave only two.")
+			logrus.Warn("High-availability is enabled and requires at least three nodes.")
+			logrus.Warn("Resetting this node will leave only two.")
 			logrus.Warn("This can lead to a loss of functionality and non-recoverable failures.")
 			logrus.Warn("If you reset this node, re-join a third node as soon as possible.")
 		}
@@ -326,6 +336,12 @@ type etcdMembers struct {
 
 // leaveEtcdcluster uses k0s to attempt to leave the etcd cluster
 func (h *hostInfo) leaveEtcdcluster() {
+	// Check if k0s binary exists
+	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
+		logrus.Debugf("k0s binary not found at %s, skipping etcd leave", k0sBinPath)
+		return
+	}
+
 	// Try to list members with retries
 	var memberlist etcdMembers
 	var out string
@@ -382,7 +398,13 @@ var (
 )
 
 // drainNode uses k0s to initiate a node drain
-func (h *hostInfo) drainNode() error {
+func (h *hostInfo) drainNode() {
+	// Check if k0s binary exists
+	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
+		logrus.Debugf("k0s binary not found at %s, skipping node drain", k0sBinPath)
+		return
+	}
+
 	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
 	drainArgList := []string{
 		"kubectl",
@@ -395,11 +417,12 @@ func (h *hostInfo) drainNode() error {
 	out, err := helpers.RunCommand(k0sBinPath, drainArgList...)
 	if err != nil {
 		if notFoundRegex.Match([]byte(out + err.Error())) {
-			return nil
+			return
 		}
-		return fmt.Errorf("could not drain node: %w, %s", err, out)
+		// Log the error but continue with reset
+		logrus.Warnf("Node drain failed (continuing with reset anyway): %v, %s", err, out)
+		return
 	}
-	return nil
 }
 
 // configureKubernetesClient optimistically sets up a client to use for kubernetes api calls
@@ -537,6 +560,29 @@ func (h *hostInfo) deleteNode(ctx context.Context) error {
 
 // stopK0s attempts to stop the k0s service
 func stopAndResetK0s(dataDir string) error {
+	// Check if k0s binary exists
+	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
+		logrus.Debugf("k0s binary not found at %s, skipping k0s stop and reset", k0sBinPath)
+		return nil
+	}
+
+	// Check if k0s services exist
+	k0sControllerExists := false
+	k0sWorkerExists := false
+
+	if out, err := helpers.RunCommand("systemctl", "list-unit-files", "k0scontroller.service"); err == nil && strings.Contains(out, "k0scontroller.service") {
+		k0sControllerExists = true
+	}
+
+	if out, err := helpers.RunCommand("systemctl", "list-unit-files", "k0sworker.service"); err == nil && strings.Contains(out, "k0sworker.service") {
+		k0sWorkerExists = true
+	}
+
+	if !k0sControllerExists && !k0sWorkerExists {
+		logrus.Debugf("No k0s services found, skipping k0s stop and reset")
+		return nil
+	}
+
 	out, err := helpers.RunCommand(k0sBinPath, "stop")
 	if err != nil {
 		return fmt.Errorf("could not stop k0s service: %w, %s", err, out)

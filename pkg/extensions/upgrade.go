@@ -93,6 +93,17 @@ func handleExtensionInstall(ctx context.Context, kcli client.Client, hcli helm.C
 
 func handleExtensionUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) error {
 	return handleExtension(ctx, kcli, in, ext, actionUpgrade, func() error {
+		exists, err := hcli.ReleaseExists(ctx, ext.TargetNS, ext.Name)
+		if err != nil {
+			return errors.Wrap(err, "check if release exists")
+		}
+		if !exists {
+			slog.Info("Extension does not exist, installing instead of upgrading", "name", ext.Name)
+			if err := install(ctx, hcli, ext); err != nil {
+				return errors.Wrap(err, "install")
+			}
+			return nil
+		}
 		if err := upgrade(ctx, hcli, ext); err != nil {
 			return errors.Wrap(err, "upgrade")
 		}
@@ -128,7 +139,7 @@ func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Inst
 	slogArgs := slogArgs(ext, action)
 
 	if extensionAlreadyProcessed(in, ext) {
-		slog.Info("Extension already processed!", slogArgs...)
+		slog.Info("Extension already processed", slogArgs...)
 		return nil
 	}
 
@@ -154,7 +165,7 @@ func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Inst
 		return errors.Wrap(err, "mark extension as processed")
 	}
 
-	slog.Info("Extension is ready!", slogArgs...)
+	slog.Info("Extension is ready", slogArgs...)
 
 	return nil
 }

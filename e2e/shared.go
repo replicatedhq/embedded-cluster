@@ -11,6 +11,15 @@ import (
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
 )
 
+const (
+	// License IDs used for e2e tests
+	LicenseID                  = "2cQCFfBxG7gXDmq1yAgPSM4OViF"
+	AirgapLicenseID            = "2eAqdricgviUeki42j02nIn1ayl"
+	SnapshotLicenseID          = "2fSe1CXtMOX9jNgHTe00mvqO502"
+	AirgapSnapshotLicenseID    = "2gEzHseTJQ4z2Axwj7KK9RYt4oT"
+	MultiNodeDisabledLicenseID = "2vYEhmeVXsoDDoNB51uzBzCpang"
+)
+
 type installOptions struct {
 	viaCLI                  bool
 	version                 string
@@ -33,11 +42,20 @@ type installationStateOptions struct {
 }
 
 type joinOptions struct {
-	isAirgap   bool
 	isHA       bool
 	isRestore  bool
 	keepAssets bool
 	withEnv    map[string]string
+}
+
+type downloadECReleaseOptions struct {
+	version   string
+	licenseID string
+}
+
+type resetInstallationOptions struct {
+	force   bool
+	withEnv map[string]string
 }
 
 func installSingleNode(t *testing.T, tc cluster.Cluster) {
@@ -119,54 +137,50 @@ func joinControllerNode(t *testing.T, tc cluster.Cluster, node int) {
 
 func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts joinOptions) {
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-join-controller-command")
+	stdout, stderr, err := tc.RunPlaywrightTest("get-join-controller-commands")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
-	command, err := findJoinCommandInOutput(stdout)
+	commands, err := findJoinCommandsInOutput(stdout)
 	if err != nil {
 		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
 	}
-	t.Log("controller join token command:", command)
+	t.Log("controller join token command:", commands)
 
-	if opts.isAirgap && !opts.isRestore { // skip airgap prepare for restore as it's already done on the initial installation
-		t.Logf("%s: preparing embedded cluster airgap files on node %d", time.Now().Format(time.RFC3339), node)
-		if _, _, err := tc.RunCommandOnNode(node, []string{"airgap-prepare.sh"}, opts.withEnv); err != nil {
-			t.Fatalf("fail to prepare airgap files on node %d: %v", node, err)
-		}
+	if len(commands) == 0 {
+		t.Fatalf("no join commands found")
 	}
 
 	t.Logf("%s: joining node %d to the cluster as a controller%s", time.Now().Format(time.RFC3339), node,
 		map[bool]string{true: " in ha mode", false: ""}[opts.isHA])
 
-	var joinCommand []string
-	if opts.isHA {
-		if _, ok := tc.(*docker.Cluster); ok {
-			joinCommand = []string{"join-ha.exp", fmt.Sprintf("'%s'", command)}
+	lines := [][]string{}
+	for i, command := range commands {
+		if i < len(commands)-1 {
+			lines = append(lines, strings.Fields(command))
+			continue
+		}
+		// this is the join command
+		var joinCommand []string
+		if opts.isHA {
+			if _, ok := tc.(*docker.Cluster); ok {
+				joinCommand = []string{"join-ha.exp", fmt.Sprintf("'%s'", command)}
+			} else {
+				joinCommand = []string{"join-ha.exp", command}
+			}
+		} else if opts.isRestore {
+			joinCommand = strings.Fields(command) // do not pass --no-ha as there should not be a prompt during a restore
 		} else {
-			joinCommand = []string{"join-ha.exp", command}
+			command = strings.Replace(command, "join", "join --no-ha", 1) // bypass prompt
+			joinCommand = strings.Fields(command)
 		}
-	} else if opts.isRestore {
-		joinCommand = strings.Split(command, " ") // do not pass --no-ha as there should not be a prompt during a restore
-	} else {
-		command = strings.Replace(command, "join", "join --no-ha", 1) // bypass prompt
-		joinCommand = strings.Split(command, " ")
+		lines = append(lines, joinCommand)
 	}
 
-	if stdout, stderr, err := tc.RunCommandOnNode(node, joinCommand, opts.withEnv); err != nil {
-		t.Fatalf("fail to join node %d as a controller%s: %v: %s: %s",
-			node, map[bool]string{true: " in ha mode", false: ""}[opts.isHA], err, stdout, stderr)
-	}
-
-	if opts.isAirgap && !opts.keepAssets {
-		// remove the airgap bundle and binary after joining
-		line := []string{"rm", "/assets/release.airgap"}
-		if _, _, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
-			t.Fatalf("fail to remove airgap bundle on node %d: %v", node, err)
-		}
-		line = []string{"rm", "/usr/local/bin/embedded-cluster"}
-		if _, _, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
-			t.Fatalf("fail to remove embedded-cluster binary on node %d: %v", node, err)
+	for _, line := range lines {
+		if stdout, stderr, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
+			t.Fatalf("fail to join node %d as a controller%s: %v: %s: %s",
+				node, map[bool]string{true: " in ha mode", false: ""}[opts.isHA], err, stdout, stderr)
 		}
 	}
 }
@@ -177,37 +191,20 @@ func joinWorkerNode(t *testing.T, tc cluster.Cluster, node int) {
 
 func joinWorkerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts joinOptions) {
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command")
+	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-commands")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
-	command, err := findJoinCommandInOutput(stdout)
+	commands, err := findJoinCommandsInOutput(stdout)
 	if err != nil {
 		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
 	}
-	t.Log("worker join token command:", command)
-
-	if opts.isAirgap {
-		t.Logf("%s: preparing embedded cluster airgap files on node %d", time.Now().Format(time.RFC3339), node)
-		if _, _, err := tc.RunCommandOnNode(node, []string{"airgap-prepare.sh"}); err != nil {
-			t.Fatalf("fail to prepare airgap files on node %d: %v", node, err)
-		}
-	}
+	t.Log("worker join commands:", commands)
 
 	t.Logf("%s: joining node %d to the cluster as a worker", time.Now().Format(time.RFC3339), node)
-	if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node %d to the cluster as a worker: %v: %s: %s", node, err, stdout, stderr)
-	}
-
-	if opts.isAirgap && !opts.keepAssets {
-		// remove the airgap bundle and binary after joining
-		line := []string{"rm", "/assets/release.airgap"}
-		if _, _, err := tc.RunCommandOnNode(node, line); err != nil {
-			t.Fatalf("fail to remove airgap bundle on node %d: %v", node, err)
-		}
-		line = []string{"rm", "/usr/local/bin/embedded-cluster"}
-		if _, _, err := tc.RunCommandOnNode(node, line); err != nil {
-			t.Fatalf("fail to remove embedded-cluster binary on node %d: %v", node, err)
+	for _, command := range commands {
+		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Fields(command), opts.withEnv); err != nil {
+			t.Fatalf("fail to join node %d to the cluster as a worker: %v: %s: %s", node, err, stdout, stderr)
 		}
 	}
 }
@@ -226,4 +223,58 @@ func checkWorkerProfile(t *testing.T, tc cluster.Cluster, node int) {
 	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
 		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
+}
+
+func checkNodeJoinCommand(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("node join command generation on node %d", node)
+	line := []string{"check-node-join-command.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+		t.Fatalf("fail to check if node join command is generated successfully on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}
+
+func downloadECRelease(t *testing.T, tc cluster.Cluster, node int) {
+	downloadECReleaseWithOptions(t, tc, node, downloadECReleaseOptions{})
+}
+
+func downloadECReleaseWithOptions(t *testing.T, tc cluster.Cluster, node int, opts downloadECReleaseOptions) {
+	t.Logf("%s: downloading embedded cluster release on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"vandoor-prepare.sh"}
+
+	if opts.version != "" {
+		line = append(line, opts.version)
+	} else {
+		line = append(line, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")))
+	}
+	if opts.licenseID != "" {
+		line = append(line, opts.licenseID)
+	} else {
+		line = append(line, LicenseID)
+	}
+
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+		t.Fatalf("fail to download embedded cluster release on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}
+
+func resetInstallation(t *testing.T, tc cluster.Cluster, node int) {
+	resetInstallationWithOptions(t, tc, node, resetInstallationOptions{})
+}
+
+func resetInstallationWithOptions(t *testing.T, tc cluster.Cluster, node int, opts resetInstallationOptions) {
+	if err := resetInstallationWithError(t, tc, node, opts); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func resetInstallationWithError(t *testing.T, tc cluster.Cluster, node int, opts resetInstallationOptions) error {
+	t.Logf("%s: resetting the installation on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"reset-installation.sh"}
+	if opts.force {
+		line = append(line, "--force")
+	}
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
+		return fmt.Errorf("fail to reset the installation on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+	return nil
 }

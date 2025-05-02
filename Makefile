@@ -15,9 +15,9 @@ K0S_GO_VERSION = v1.29.14+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.14+k0s.0-ec.0
 PREVIOUS_K0S_GO_VERSION ?= v1.28.14+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.117.0
+TROUBLESHOOT_VERSION = v0.119.0
 
-KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
 KOTS_BINARY_URL_OVERRIDE =
 # If KOTS_BINARY_FILE_OVERRIDE is set, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
@@ -68,6 +68,7 @@ export PATH := $(shell pwd)/bin:$(PATH)
 default: build-ttl.sh
 
 split-hyphen = $(word $2,$(subst -, ,$1))
+split-underscore = $(word $2,$(subst _, ,$1))
 random-string = $(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)
 
 .PHONY: cmd/installer/goods/bins/k0s
@@ -158,18 +159,16 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 	elif [ "$(KOTS_BINARY_FILE_OVERRIDE)" != "" ]; then \
 		cp $(KOTS_BINARY_FILE_OVERRIDE) $@ ; \
 	else \
-		$(MAKE) output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) ; \
-		cp output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) $@ ; \
+		$(MAKE) output/bins/kubectl-kots-$(KOTS_VERSION)_$(ARCH) ; \
+		cp output/bins/kubectl-kots-$(KOTS_VERSION)_$(ARCH) $@ ; \
 	fi
 	touch $@
 
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz \
-		"https://github.com/replicatedhq/kots/releases/download/$(call split-hyphen,$*,1)/kots_$(OS)_$(call split-hyphen,$*,2).tar.gz"
-	tar -xzf output/tmp/kots.tar.gz -C output/tmp
-	mv output/tmp/kots $@
+	crane export kotsadm/kotsadm:$(call split-underscore,$*,1) --platform linux/$(call split-underscore,$*,2) - | tar -Oxf - kots > $@
+	chmod +x $@
 	touch $@
 
 .PHONY: output/bins/kubectl-kots-override

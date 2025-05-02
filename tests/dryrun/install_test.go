@@ -72,7 +72,10 @@ func testDefaultInstallationImpl(t *testing.T) {
 	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
-		"kurlProxy.nodePort": float64(30000),
+		"isMultiNodeEnabled":     true,
+		"kurlProxy.nodePort":     float64(30000),
+		"embeddedClusterDataDir": "/var/lib/embedded-cluster",
+		"embeddedClusterK0sDir":  "/var/lib/embedded-cluster/k0s",
 	})
 	assertHelmValuePrefixes(t, adminConsoleOpts.Values, map[string]string{
 		"images.kotsadm":    "fake-replicated-proxy.test.net/anonymous",
@@ -132,12 +135,20 @@ func testDefaultInstallationImpl(t *testing.T) {
 		validate func(string)
 	}{
 		{
-			title:    "InstallationStarted",
-			validate: func(payload string) {},
+			title: "InstallationStarted",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"entryCommand":"install"`)
+				assert.Regexp(t, `"flags":"--license .+/license.yaml --yes"`, payload)
+				assert.Contains(t, payload, `"isExitEvent":false`)
+				assert.Contains(t, payload, `"eventType":"InstallationStarted"`)
+			},
 		},
 		{
-			title:    "InstallationSucceeded",
-			validate: func(payload string) {},
+			title: "InstallationSucceeded",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":true`)
+				assert.Contains(t, payload, `"eventType":"InstallationSucceeded"`)
+			},
 		},
 	})
 
@@ -223,6 +234,10 @@ func TestCustomDataDir(t *testing.T) {
 	assert.Equal(t, "Install", hcli.Calls[3].Method)
 	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
+	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
+		"embeddedClusterDataDir": "/custom/data/dir",
+		"embeddedClusterK0sDir":  "/custom/data/dir/k0s",
+	})
 
 	// --- validate os env --- //
 	assertEnv(t, dr.OSEnv, map[string]string{

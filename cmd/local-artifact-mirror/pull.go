@@ -4,13 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,51 +22,32 @@ const (
 	HelmChartsArtifactName            = "charts.tar.gz"
 )
 
-// kubecli holds a global reference to a Kubernetes client.
-var kubecli client.Client
-
-func PullCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
+func PullCmd(cli *CLI) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pull",
 		Short: "Pull artifacts for an airgap installation",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			kc, err := kubeutils.KubeClient()
-			if err != nil {
-				return fmt.Errorf("unable to create kube client: %w", err)
-			}
-			kubecli = kc
-
-			return nil
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			os.Exit(1)
-			return nil
-		},
 	}
 
-	cmd.AddCommand(PullBinariesCmd(ctx, v))
-	cmd.AddCommand(PullImagesCmd(ctx, v))
-	cmd.AddCommand(PullHelmChartsCmd(ctx, v))
+	cmd.AddCommand(PullBinariesCmd(cli))
+	cmd.AddCommand(PullImagesCmd(cli))
+	cmd.AddCommand(PullHelmChartsCmd(cli))
 
 	return cmd
 }
 
 // fetchAndValidateInstallation fetches an Installation object from its name or directly decodes it
 // and checks if it is valid for an airgap cluster deployment.
-func fetchAndValidateInstallation(ctx context.Context, iname string) (*ecv1beta1.Installation, error) {
+func fetchAndValidateInstallation(ctx context.Context, kcli client.Client, iname string) (*ecv1beta1.Installation, error) {
 	in, err := decodeInstallation(ctx, iname)
 	if err != nil {
-		in, err = kubeutils.GetInstallation(ctx, kubecli, iname)
+		in, err = kubeutils.GetInstallation(ctx, kcli, iname)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if !in.Spec.AirGap {
-		return nil, fmt.Errorf("installation is not airgapped")
-	} else if in.Spec.Artifacts == nil {
-		return nil, fmt.Errorf("installation has no artifacts")
+	if in.Spec.AirGap && in.Spec.Artifacts == nil {
+		return nil, fmt.Errorf("airgap installation has no artifacts")
 	}
 
 	return in, nil

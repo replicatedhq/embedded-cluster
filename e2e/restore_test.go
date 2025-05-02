@@ -33,7 +33,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bookworm",
-		LicensePath:  "snapshot-license.yaml",
+		LicensePath:  "licenses/snapshot-license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -50,17 +50,13 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line := []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
-	}
+	resetInstallation(t, tc, 0)
 
 	// wait for the cluster nodes to reboot
 	tc.WaitForReady()
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
-	line = append([]string{"restore-installation.exp"}, testArgs...)
+	line := append([]string{"restore-installation.exp"}, testArgs...)
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to restore the installation: %v: %s: %s", err, stdout, stderr)
 	}
@@ -130,11 +126,11 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	defer tc.Cleanup()
 
 	appVersion := fmt.Sprintf("appver-%s-legacydr", os.Getenv("SHORT_SHA"))
-	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", appVersion, os.Getenv("SNAPSHOT_LICENSE_ID"), "false"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+
+	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+		version:   appVersion,
+		licenseID: SnapshotLicenseID,
+	})
 
 	installSingleNode(t, tc)
 
@@ -153,17 +149,13 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
-	}
+	resetInstallation(t, tc, 0)
 
 	// wait for the cluster nodes to reboot
 	tc.WaitForReady()
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
-	line = append([]string{"restore-installation.exp"}, testArgs...)
+	line := append([]string{"restore-installation.exp"}, testArgs...)
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to restore the installation: %v: %s: %s", err, stdout, stderr)
 	}
@@ -216,7 +208,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		Nodes:               1,
 		Image:               "debian/12",
 		WithProxy:           true,
-		LicensePath:         "snapshot-license.yaml",
+		LicensePath:         "licenses/snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -257,11 +249,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
 
-	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v", err)
-	}
+	resetInstallation(t, tc, 0)
 
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
@@ -316,7 +304,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bookworm",
-		LicensePath:  "snapshot-license.yaml",
+		LicensePath:  "licenses/snapshot-license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -333,17 +321,13 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line := []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
-	}
+	resetInstallation(t, tc, 0)
 
 	// wait for the cluster nodes to reboot
 	tc.WaitForReady()
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
-	line = append([]string{"resume-restore.exp"}, testArgs...)
+	line := append([]string{"resume-restore.exp"}, testArgs...)
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to restore the installation: %v: %s: %s", err, stdout, stderr)
 	}
@@ -370,7 +354,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_SNAPSHOT_LICENSE_ID"})
+	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	requiredEnvVars := []string{
 		"DR_AWS_S3_ENDPOINT",
@@ -392,9 +376,9 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, AirgapSnapshotLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapSnapshotLicenseID)
 		},
 	)
 
@@ -421,7 +405,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA"), "--proxy"}
+	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA")}
 	line = append(line, "--pod-cidr", "10.128.0.0/20")
 	line = append(line, "--service-cidr", "10.129.0.0/20")
 	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
@@ -447,11 +431,8 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Log(stdout)
 		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v", err)
-	}
+
+	resetInstallation(t, tc, 0)
 
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
@@ -533,7 +514,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		T:            t,
 		Nodes:        3,
 		Distro:       "debian-bookworm",
-		LicensePath:  "snapshot-license.yaml",
+		LicensePath:  "licenses/snapshot-license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -566,26 +547,17 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	// reset the cluster
 	runInParallel(t,
 		func(t *testing.T) error {
-			t.Logf("%s: resetting the installation on node 2", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force"}
-			if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
-				return fmt.Errorf("fail to reset the installation on node 2: %v: %s: %s", err, stdout, stderr)
-			}
-			return nil
+			return resetInstallationWithError(t, tc, 2, resetInstallationOptions{
+				force: true,
+			})
 		}, func(t *testing.T) error {
-			t.Logf("%s: resetting the installation on node 1", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force"}
-			if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
-				return fmt.Errorf("fail to reset the installation on node 1: %v: %s: %s", err, stdout, stderr)
-			}
-			return nil
+			return resetInstallationWithError(t, tc, 1, resetInstallationOptions{
+				force: true,
+			})
 		}, func(t *testing.T) error {
-			t.Logf("%s: resetting the installation on node 0", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force"}
-			if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-				return fmt.Errorf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
-			}
-			return nil
+			return resetInstallationWithError(t, tc, 0, resetInstallationOptions{
+				force: true,
+			})
 		},
 	)
 
@@ -676,9 +648,9 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, AirgapSnapshotLicenseID)
 		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapSnapshotLicenseID)
 		},
 	)
 
@@ -714,7 +686,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA"), "--proxy", "--data-dir", "/var/lib/ec"}
+	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA"), "--data-dir", "/var/lib/ec"}
 	if _, _, err := tc.RunCommandOnNode(0, line, withEnv, lxd.WithProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -728,14 +700,12 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// join a controller
 	joinControllerNodeWithOptions(t, tc, 1, joinOptions{
-		isAirgap:   true,
 		keepAssets: true,
 		withEnv:    withEnv,
 	})
 
 	// join another controller in HA mode
 	joinControllerNodeWithOptions(t, tc, 2, joinOptions{
-		isAirgap:   true,
 		isHA:       true,
 		keepAssets: true,
 		withEnv:    withEnv,
@@ -757,26 +727,20 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	// reset the cluster
 	runInParallel(t,
 		func(t *testing.T) error {
-			t.Logf("%s: resetting the installation on node 2", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force"}
-			if _, _, err := tc.RunCommandOnNode(2, line, withEnv); err != nil {
-				return fmt.Errorf("fail to reset the installation on node 2: %v", err)
-			}
-			return nil
+			return resetInstallationWithError(t, tc, 2, resetInstallationOptions{
+				force:   true,
+				withEnv: withEnv,
+			})
 		}, func(t *testing.T) error {
-			t.Logf("%s: resetting the installation on node 1", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force"}
-			if _, _, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
-				return fmt.Errorf("fail to reset the installation on node 1: %v", err)
-			}
-			return nil
+			return resetInstallationWithError(t, tc, 1, resetInstallationOptions{
+				force:   true,
+				withEnv: withEnv,
+			})
 		}, func(t *testing.T) error {
-			t.Logf("%s: resetting the installation on node 0", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force"}
-			if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-				return fmt.Errorf("fail to reset the installation on node 0: %v", err)
-			}
-			return nil
+			return resetInstallationWithError(t, tc, 0, resetInstallationOptions{
+				force:   true,
+				withEnv: withEnv,
+			})
 		},
 	)
 
@@ -821,14 +785,12 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// join a controller
 	joinControllerNodeWithOptions(t, tc, 1, joinOptions{
-		isAirgap:  true,
 		isRestore: true,
 		withEnv:   withEnv,
 	})
 
 	// join another controller in non-HA mode
 	joinControllerNodeWithOptions(t, tc, 2, joinOptions{
-		isAirgap:  true,
 		isRestore: true,
 		withEnv:   withEnv,
 	})

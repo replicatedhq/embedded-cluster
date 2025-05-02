@@ -12,7 +12,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -85,7 +84,7 @@ func createNamespace(ctx context.Context, kcli client.Client, namespace string) 
 			Name: namespace,
 		},
 	}
-	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
+	if err := kcli.Create(ctx, &ns); client.IgnoreAlreadyExists(err) != nil {
 		return err
 	}
 	return nil
@@ -147,7 +146,7 @@ func createCAConfigmap(ctx context.Context, cli client.Client, namespace string,
 		Data: cas,
 	}
 
-	if err := cli.Create(ctx, &kotsCAConfigmap); err != nil {
+	if err := cli.Create(ctx, &kotsCAConfigmap); client.IgnoreAlreadyExists(err) != nil {
 		return errors.Wrap(err, "create kotsadm-private-cas configmap")
 	}
 

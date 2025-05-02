@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/gosimple/slug"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
@@ -101,17 +102,23 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clusterID := metrics.ClusterID()
 			metricsReporter := NewInstallReporter(
-				replicatedAppURL(), flags.license.Spec.LicenseID, clusterID, cmd.CalledAs(),
+				replicatedAppURL(), clusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
+				flags.license.Spec.LicenseID, flags.license.Spec.AppSlug,
 			)
 			metricsReporter.ReportInstallationStarted(ctx)
 
 			// Setup signal handler with the metrics reporter cleanup function
-			signalHandler(ctx, cancel, func(ctx context.Context, err error) {
-				metricsReporter.ReportInstallationFailed(ctx, err)
+			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
+				metricsReporter.ReportSignalAborted(ctx, sig)
 			})
 
 			if err := runInstall(cmd.Context(), name, flags, metricsReporter); err != nil {
-				metricsReporter.ReportInstallationFailed(ctx, err)
+				// Check if this is an interrupt error from the terminal
+				if errors.Is(err, terminal.InterruptErr) {
+					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+				} else {
+					metricsReporter.ReportInstallationFailed(ctx, err)
+				}
 				return err
 			}
 			metricsReporter.ReportInstallationSucceeded(ctx)
@@ -260,35 +267,9 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		return err
 	}
 
-	logrus.Debugf("materializing binaries")
-	if err := materializeFiles(flags.airgapBundle); err != nil {
-		return fmt.Errorf("unable to materialize files: %w", err)
-	}
-
-	logrus.Debugf("copy license file to %s", flags.dataDir)
-	if err := copyLicenseFileToDataDir(flags.licenseFile, flags.dataDir); err != nil {
-		// We have decided not to report this error
-		logrus.Warnf("Unable to copy license file to %s: %v", flags.dataDir, err)
-	}
-
-	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
-		logrus.Debugf("unable to configure sysctl: %v", err)
-	}
-
-	logrus.Debugf("configuring kernel modules")
-	if err := configutils.ConfigureKernelModules(); err != nil {
-		logrus.Debugf("unable to configure kernel modules: %v", err)
-	}
-
-	logrus.Debugf("configuring network manager")
-	if err := configureNetworkManager(ctx); err != nil {
-		return fmt.Errorf("unable to configure network manager: %w", err)
-	}
-
-	logrus.Debugf("configuring firewalld")
-	if err := configureFirewalld(ctx, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR); err != nil {
-		logrus.Debugf("unable to configure firewalld: %v", err)
+	logrus.Debug("initializing install")
+	if err := initializeInstall(ctx, flags); err != nil {
+		return fmt.Errorf("unable to initialize install: %w", err)
 	}
 
 	logrus.Debugf("running install preflights")
@@ -312,12 +293,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	disasterRecoveryEnabled, err := helpers.DisasterRecoveryEnabled(flags.license)
-	if err != nil {
-		return fmt.Errorf("unable to check if disaster recovery is enabled: %w", err)
-	}
-
-	in, err := recordInstallation(ctx, kcli, flags, k0sCfg, disasterRecoveryEnabled)
+	in, err := recordInstallation(ctx, kcli, flags, k0sCfg, flags.license)
 	if err != nil {
 		return fmt.Errorf("unable to record installation: %w", err)
 	}
@@ -374,7 +350,8 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		Proxy:                   flags.proxy,
 		PrivateCAs:              flags.privateCAs,
 		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
-		DisasterRecoveryEnabled: disasterRecoveryEnabled,
+		DisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
+		IsMultiNodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec:      embCfgSpec,
 		EndUserConfigSpec:       euCfgSpec,
 		KotsInstaller: func(msg *spinner.MessageWriter) error {
@@ -458,13 +435,21 @@ func ensureAdminConsolePassword(flags *InstallCmdFlags) error {
 	if flags.adminConsolePassword == "" {
 		// no password was provided
 		if flags.assumeYes {
-			logrus.Infof("The Admin Console password is set to %q", "password")
+			logrus.Infof("\nThe Admin Console password is set to %q.", "password")
 			flags.adminConsolePassword = "password"
 		} else {
+			logrus.Info("")
 			maxTries := 3
 			for i := 0; i < maxTries; i++ {
-				promptA := prompts.New().Password(fmt.Sprintf("Set the Admin Console password (minimum %d characters):", minAdminPasswordLength))
-				promptB := prompts.New().Password("Confirm the Admin Console password:")
+				promptA, err := prompts.New().Password(fmt.Sprintf("Set the Admin Console password (minimum %d characters):", minAdminPasswordLength))
+				if err != nil {
+					return fmt.Errorf("failed to get password: %w", err)
+				}
+
+				promptB, err := prompts.New().Password("Confirm the Admin Console password:")
+				if err != nil {
+					return fmt.Errorf("failed to get password confirmation: %w", err)
+				}
 
 				if validateAdminConsolePassword(promptA, promptB) {
 					flags.adminConsolePassword = promptA
@@ -564,9 +549,13 @@ func verifyChannelRelease(cmdName string, isAirgap bool, assumeYes bool) error {
 	channelRelease := release.GetChannelRelease()
 
 	if channelRelease != nil && channelRelease.Airgap && !isAirgap && !assumeYes {
-		logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
-		logrus.Warnf("If you continue, the %s will not use an air gap bundle and will connect to the internet.", cmdName)
-		if !prompts.New().Confirm(fmt.Sprintf("Do you want to proceed with an online %s?", cmdName), false) {
+		logrus.Warnf("\nYou downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
+		logrus.Warnf("If you continue, the %s will not use an air gap bundle and will connect to the internet.\n", cmdName)
+		confirmed, err := prompts.New().Confirm(fmt.Sprintf("Do you want to proceed with an online %s?", cmdName), false)
+		if err != nil {
+			return fmt.Errorf("failed to get confirmation: %w", err)
+		}
+		if !confirmed {
 			// TODO: send aborted metrics event
 			return NewErrorNothingElseToAdd(errors.New("user aborted: air gap bundle downloaded but flag not provided"))
 		}
@@ -580,8 +569,8 @@ func verifyNoInstallation(name string, cmdName string) error {
 		return err
 	}
 	if installed {
-		logrus.Errorf("An installation has been detected on this machine.")
-		logrus.Infof("If you want to %s, you need to remove the existing installation first.", cmdName)
+		logrus.Errorf("\nAn installation is detected on this machine.")
+		logrus.Infof("To %s, you must first remove the existing installation.", cmdName)
 		logrus.Infof("You can do this by running the following command:")
 		logrus.Infof("\n  sudo ./%s reset\n", name)
 		return NewErrorNothingElseToAdd(errors.New("previous installation detected"))
@@ -589,11 +578,48 @@ func verifyNoInstallation(name string, cmdName string) error {
 	return nil
 }
 
-func materializeFiles(airgapBundle string) error {
-	mat := spinner.Start()
-	defer mat.Close()
-	mat.Infof("Materializing files")
+func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
+	logrus.Info("")
+	spinner := spinner.Start()
+	spinner.Infof("Initializing")
 
+	if err := materializeFiles(flags.airgapBundle); err != nil {
+		spinner.ErrorClosef("Initialization failed")
+		return fmt.Errorf("unable to materialize files: %w", err)
+	}
+
+	logrus.Debugf("copy license file to %s", flags.dataDir)
+	if err := copyLicenseFileToDataDir(flags.licenseFile, flags.dataDir); err != nil {
+		// We have decided not to report this error
+		logrus.Warnf("Unable to copy license file to %s: %v", flags.dataDir, err)
+	}
+
+	logrus.Debugf("configuring sysctl")
+	if err := configutils.ConfigureSysctl(); err != nil {
+		logrus.Debugf("unable to configure sysctl: %v", err)
+	}
+
+	logrus.Debugf("configuring kernel modules")
+	if err := configutils.ConfigureKernelModules(); err != nil {
+		logrus.Debugf("unable to configure kernel modules: %v", err)
+	}
+
+	logrus.Debugf("configuring network manager")
+	if err := configureNetworkManager(ctx); err != nil {
+		spinner.ErrorClosef("Initialization failed")
+		return fmt.Errorf("unable to configure network manager: %w", err)
+	}
+
+	logrus.Debugf("configuring firewalld")
+	if err := configureFirewalld(ctx, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR); err != nil {
+		logrus.Debugf("unable to configure firewalld: %v", err)
+	}
+
+	spinner.Closef("Initialization complete")
+	return nil
+}
+
+func materializeFiles(airgapBundle string) error {
 	materializer := goods.NewMaterializer()
 	if err := materializer.Materialize(); err != nil {
 		return fmt.Errorf("materialize binaries: %w", err)
@@ -603,8 +629,6 @@ func materializeFiles(airgapBundle string) error {
 	}
 
 	if airgapBundle != "" {
-		mat.Infof("Materializing air gap installation files")
-
 		// read file from path
 		rawfile, err := os.Open(airgapBundle)
 		if err != nil {
@@ -618,44 +642,45 @@ func materializeFiles(airgapBundle string) error {
 		}
 	}
 
-	mat.Infof("Host files materialized!")
-
 	return nil
 }
 
 func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
-	defer loading.Close()
-	loading.Infof("Installing %s node", runtimeconfig.BinaryName())
+	loading.Infof("Installing node")
 	logrus.Debugf("creating k0s configuration file")
 
 	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides, mutate)
 	if err != nil {
+		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 	logrus.Debugf("creating systemd unit files")
 	if err := createSystemdUnitFiles(ctx, false, proxy); err != nil {
+		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
 	logrus.Debugf("installing k0s")
 	if err := k0s.Install(networkInterface); err != nil {
+		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
 
-	loading.Infof("Waiting for %s node to be ready", runtimeconfig.BinaryName())
-
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
+		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("wait for k0s: %w", err)
 	}
 
+	loading.Infof("Waiting for node")
 	logrus.Debugf("waiting for node to be ready")
 	if err := waitForNode(ctx); err != nil {
+		loading.ErrorClosef("Node failed to become ready")
 		return nil, fmt.Errorf("wait for node: %w", err)
 	}
 
-	loading.Infof("Node installation finished!")
+	loading.Closef("Node is ready")
 	return cfg, nil
 }
 
@@ -755,9 +780,9 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 
 	apiURL := replicatedAppURL()
 	releaseURL := fmt.Sprintf("%s/embedded/%s/%s", apiURL, channelRelease.AppSlug, channelRelease.ChannelSlug)
-	logrus.Warnf("A newer version %s is available.", currentRelease.VersionLabel)
+	logrus.Warnf("\nA newer version %s is available.", currentRelease.VersionLabel)
 	logrus.Infof(
-		"To download it, run:\n  curl -fL \"%s\" \\\n    -H \"Authorization: %s\" \\\n    -o %s-%s.tgz",
+		"To download it, run:\n  curl -fL \"%s\" \\\n    -H \"Authorization: %s\" \\\n    -o %s-%s.tgz\n",
 		releaseURL,
 		license.Spec.LicenseID,
 		channelRelease.AppSlug,
@@ -770,7 +795,11 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 	}
 
 	text := fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel)
-	if !prompt.Confirm(text, true) {
+	confirmed, err := prompt.Confirm(text, true)
+	if err != nil {
+		return fmt.Errorf("failed to get confirmation: %w", err)
+	}
+	if !confirmed {
 		// TODO: send aborted metrics event
 		return NewErrorNothingElseToAdd(errors.New("user aborted: app not up-to-date"))
 	}
@@ -785,11 +814,11 @@ const minAdminPasswordLength = 6
 
 func validateAdminConsolePassword(password, passwordCheck string) bool {
 	if password != passwordCheck {
-		logrus.Errorf("Passwords don't match. Please try again.")
+		logrus.Errorf("Passwords don't match. Please try again.\n")
 		return false
 	}
 	if len(password) < minAdminPasswordLength {
-		logrus.Errorf("Password must have more than %d characters. Please try again.", minAdminPasswordLength)
+		logrus.Errorf("Password must have more than %d characters. Please try again.\n", minAdminPasswordLength)
 		return false
 	}
 	return true
@@ -895,7 +924,7 @@ func installAndEnableLocalArtifactMirror(ctx context.Context) error {
 	if err := waitForLocalArtifactMirror(ctx); err != nil {
 		return fmt.Errorf("unable to wait for the local artifact mirror: %w", err)
 	}
-	logrus.Debugf("Local artifact mirror started!")
+	logrus.Debugf("Local artifact mirror started")
 	return nil
 }
 
@@ -999,7 +1028,7 @@ func waitForNode(ctx context.Context) error {
 	return nil
 }
 
-func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, disasterRecoveryEnabled bool) (*ecv1beta1.Installation, error) {
+func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, license *kotsv1beta1.License) (*ecv1beta1.Installation, error) {
 	// ensure that the embedded-cluster namespace exists
 	if err := createECNamespace(ctx, kcli); err != nil {
 		return nil, fmt.Errorf("create embedded-cluster namespace: %w", err)
@@ -1046,7 +1075,8 @@ func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCm
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                runtimeconfig.BinaryName(),
 			LicenseInfo: &ecv1beta1.LicenseInfo{
-				IsDisasterRecoverySupported: disasterRecoveryEnabled,
+				IsDisasterRecoverySupported: license.Spec.IsDisasterRecoverySupported,
+				IsMultiNodeEnabled:          license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 			},
 		},
 	}
@@ -1276,19 +1306,30 @@ func copyLicenseFileToDataDir(licenseFile, dataDir string) error {
 func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) error {
 	adminConsoleURL := getAdminConsoleURL(networkInterface, runtimeconfig.AdminConsolePort())
 
-	successColor := "\033[32m"
-	colorReset := "\033[0m"
-	var successMessage string
-	if license != nil {
-		successMessage = fmt.Sprintf("Visit the Admin Console to configure and install %s: %s%s%s",
-			license.Spec.AppSlug, successColor, adminConsoleURL, colorReset,
-		)
-	} else {
-		successMessage = fmt.Sprintf("Visit the Admin Console to configure and install your application: %s%s%s",
-			successColor, adminConsoleURL, colorReset,
-		)
+	// Create the message content
+	message := fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)
+
+	// Determine the length of the longest line
+	longestLine := len(message)
+	if len(adminConsoleURL) > longestLine {
+		longestLine = len(adminConsoleURL)
 	}
-	logrus.Info(successMessage)
+
+	// Create the divider line
+	divider := strings.Repeat("-", longestLine)
+
+	// ANSI escape codes
+	boldStart := "\033[1m"
+	boldEnd := "\033[0m"
+	greenStart := "\033[32m"
+	greenEnd := "\033[0m"
+
+	// Print the box in bold
+	logrus.Infof("\n%s%s%s", boldStart, divider, boldEnd)
+	logrus.Infof("%s%s%s", boldStart, message, boldEnd)
+	logrus.Infof("%s%s%s", boldStart, "", boldEnd)
+	logrus.Infof("%s%s%s%s%s", boldStart, greenStart, adminConsoleURL, greenEnd, boldEnd)
+	logrus.Infof("%s%s%s\n", boldStart, divider, boldEnd)
 
 	return nil
 }

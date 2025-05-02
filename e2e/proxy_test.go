@@ -33,7 +33,7 @@ func TestProxiedEnvironment(t *testing.T) {
 		Nodes:               4,
 		WithProxy:           true,
 		Image:               "debian/12",
-		LicensePath:         "license.yaml",
+		LicensePath:         "licenses/license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -124,7 +124,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		Nodes:               4,
 		WithProxy:           true,
 		Image:               "debian/12",
-		LicensePath:         "license.yaml",
+		LicensePath:         "licenses/license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
@@ -225,7 +225,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 		WithProxy:           true,
 		Image:               "debian/12",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-		LicensePath:         "license.yaml",
+		LicensePath:         "licenses/license.yaml",
 	})
 	defer tc.Cleanup()
 
@@ -294,6 +294,20 @@ func TestInstallWithMITMProxy(t *testing.T) {
 
 	// check the installation state
 	checkInstallationState(t, tc)
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

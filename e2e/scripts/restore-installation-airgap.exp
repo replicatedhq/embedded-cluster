@@ -20,7 +20,7 @@ if {$num_args > 6} {
   set additional_args [lrange $argv 6 end]
 }
 
-set cmd [concat embedded-cluster restore --airgap-bundle /assets/release.airgap --proxy $additional_args]
+set cmd [concat embedded-cluster restore --airgap-bundle /assets/release.airgap $additional_args]
 eval spawn $cmd
 
 expect {
@@ -92,7 +92,7 @@ expect {
 }
 
 expect {
-    -timeout 300 "Velero is ready!" {}
+    -timeout 300 "Velero is ready" {}
     timeout {
       puts "\n\nFailed to wait for Velero to be ready."
       exit 1
@@ -100,7 +100,7 @@ expect {
 }
 
 expect {
-    -timeout 30 "Backup storage location configured!" {}
+    -timeout 30 "Backup storage location configured" {}
     timeout {
       puts "\n\nFailed to configure backup storage location."
       exit 1

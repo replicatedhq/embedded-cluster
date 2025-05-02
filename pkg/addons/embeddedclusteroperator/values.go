@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -26,12 +25,6 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, kcli c
 	copiedValues, err := helm.UnmarshalValues(marshalled)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshal helm values")
-	}
-
-	if e.BinaryNameOverride != "" {
-		copiedValues["embeddedBinaryName"] = e.BinaryNameOverride
-	} else {
-		copiedValues["embeddedBinaryName"] = runtimeconfig.BinaryName()
 	}
 
 	if e.ImageRepoOverride != "" {

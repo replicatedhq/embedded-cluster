@@ -124,9 +124,10 @@ function kotsbin() {
         echo "KOTS_BINARY_FILE_OVERRIDE is set to '${kots_file_override}', using that source"
         tar -czvf "build/kots_linux_${ARCH}.tar.gz" -C $(dirname "${kots_file_override}") $(basename "${kots_file_override}")
     else
-        # download the kots binary from github
-        echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_${ARCH}.tar.gz"
-        curl --retry 5 --retry-all-errors -fL -o "build/kots_linux_${ARCH}.tar.gz" "https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_${ARCH}.tar.gz"
+        echo "extracting kots binary from kotsadm image"
+        crane export "kotsadm/kotsadm:${kots_version}" --platform "linux/${ARCH}" - | tar -Oxf - kots > build/kots
+        chmod +x build/kots
+        tar -czvf "build/kots_linux_${ARCH}.tar.gz" -C build kots
     fi
 
     # upload the binary to the bucket
