@@ -292,14 +292,14 @@ func (c *Cluster) RunCommandOnNode(node int, line []string, envs ...map[string]s
 
 func runCommandOnNode(node Node, line []string, envs ...map[string]string) (string, string, error) {
 	line = append([]string{"sudo"}, line...)
-	cmd := exec.Command("ssh", append(sshArgs(), node.sshEndpoint, strings.Join(line, " "))...)
 
 	for _, env := range envs {
 		for k, v := range env {
-			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+			line = append([]string{fmt.Sprintf("%s=%s", k, v)}, line...)
 		}
 	}
 
+	cmd := exec.Command("ssh", append(sshArgs(), node.sshEndpoint, strings.Join(line, " "))...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
