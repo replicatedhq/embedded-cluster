@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
 )
 
 const (
@@ -79,11 +79,12 @@ func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts install
 		line = append(line, "single-node-airgap-install.sh")
 	} else {
 		line = append(line, "single-node-install.sh")
-	}
-	if opts.viaCLI {
-		line = append(line, "cli")
-	} else {
-		line = append(line, "ui")
+		// the cli/ui option is currently only applicable for online installs
+		if opts.viaCLI {
+			line = append(line, "cli")
+		} else {
+			line = append(line, "ui")
+		}
 	}
 	if opts.version != "" {
 		line = append(line, opts.version)
@@ -187,10 +188,10 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 		// this is the join command
 		var joinCommand []string
 		if opts.isHA {
-			if _, ok := tc.(*docker.Cluster); ok {
-				joinCommand = []string{"join-ha.exp", fmt.Sprintf("'%s'", command)}
-			} else {
+			if _, ok := tc.(*lxd.Cluster); ok {
 				joinCommand = []string{"join-ha.exp", command}
+			} else {
+				joinCommand = []string{"join-ha.exp", fmt.Sprintf("'%s'", command)}
 			}
 		} else if opts.isRestore {
 			joinCommand = strings.Fields(command) // do not pass --no-ha as there should not be a prompt during a restore

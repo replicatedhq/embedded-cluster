@@ -537,7 +537,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	}
 
 	// reset the cluster
-	runInParallelOffset(t, time.Second*15,
+	runInParallelOffset(t, time.Second*30,
 		func(t *testing.T) error {
 			return resetInstallationWithError(t, tc, 2, resetInstallationOptions{
 				force: true,
@@ -711,7 +711,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	// reset the cluster
-	runInParallelOffset(t, time.Second*15,
+	runInParallelOffset(t, time.Second*30,
 		func(t *testing.T) error {
 			return resetInstallationWithError(t, tc, 2, resetInstallationOptions{
 				force:   true,
