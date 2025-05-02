@@ -287,21 +287,19 @@ func resetInstallation(t *testing.T, tc cluster.Cluster, node int) {
 }
 
 func resetInstallationWithOptions(t *testing.T, tc cluster.Cluster, node int, opts resetInstallationOptions) {
-	if err := resetInstallationWithError(t, tc, node, opts); err != nil {
-		t.Fatal(err)
+	stdout, stderr, err := resetInstallationWithError(t, tc, node, opts)
+	if err != nil {
+		t.Fatalf("fail to reset the installation on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
 }
 
-func resetInstallationWithError(t *testing.T, tc cluster.Cluster, node int, opts resetInstallationOptions) error {
+func resetInstallationWithError(t *testing.T, tc cluster.Cluster, node int, opts resetInstallationOptions) (string, string, error) {
 	t.Logf("%s: resetting the installation on node %d", time.Now().Format(time.RFC3339), node)
 	line := []string{"reset-installation.sh"}
 	if opts.force {
 		line = append(line, "--force")
 	}
-	if stdout, stderr, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
-		return fmt.Errorf("fail to reset the installation on node %d: %v: %s: %s", node, err, stdout, stderr)
-	}
-	return nil
+	return tc.RunCommandOnNode(node, line, opts.withEnv)
 }
 
 func checkPostUpgradeState(t *testing.T, tc cluster.Cluster) {

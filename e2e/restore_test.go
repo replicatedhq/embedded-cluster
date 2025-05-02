@@ -539,17 +539,23 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	// reset the cluster
 	runInParallelOffset(t, time.Second*30,
 		func(t *testing.T) error {
-			return resetInstallationWithError(t, tc, 2, resetInstallationOptions{
-				force: true,
-			})
+			stdout, stderr, err := resetInstallationWithError(t, tc, 2, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 2: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
 		}, func(t *testing.T) error {
-			return resetInstallationWithError(t, tc, 1, resetInstallationOptions{
-				force: true,
-			})
+			stdout, stderr, err := resetInstallationWithError(t, tc, 1, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 1: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
 		}, func(t *testing.T) error {
-			return resetInstallationWithError(t, tc, 0, resetInstallationOptions{
-				force: true,
-			})
+			stdout, stderr, err := resetInstallationWithError(t, tc, 0, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
 		},
 	)
 
@@ -713,20 +719,23 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	// reset the cluster
 	runInParallelOffset(t, time.Second*30,
 		func(t *testing.T) error {
-			return resetInstallationWithError(t, tc, 2, resetInstallationOptions{
-				force:   true,
-				withEnv: withEnv,
-			})
+			stdout, stderr, err := resetInstallationWithError(t, tc, 2, resetInstallationOptions{force: true, withEnv: withEnv})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 2: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
 		}, func(t *testing.T) error {
-			return resetInstallationWithError(t, tc, 1, resetInstallationOptions{
-				force:   true,
-				withEnv: withEnv,
-			})
+			stdout, stderr, err := resetInstallationWithError(t, tc, 1, resetInstallationOptions{force: true, withEnv: withEnv})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 1: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
 		}, func(t *testing.T) error {
-			return resetInstallationWithError(t, tc, 0, resetInstallationOptions{
-				force:   true,
-				withEnv: withEnv,
-			})
+			stdout, stderr, err := resetInstallationWithError(t, tc, 0, resetInstallationOptions{force: true, withEnv: withEnv})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
 		},
 	)
 

@@ -1599,11 +1599,9 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 
 	checkPostUpgradeState(t, tc)
 
-	bin := "embedded-cluster"
-	t.Logf("%s: resetting controller node 0 with bin %q", time.Now().Format(time.RFC3339), bin)
-	stdout, stderr, err := tc.RunCommandOnNode(0, []string{bin, "reset", "--yes"})
+	stdout, stderr, err := resetInstallationWithError(t, tc, 0, resetInstallationOptions{})
 	if err != nil {
-		t.Fatalf("fail to remove controller node 0 %s: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 	if !strings.Contains(stdout, "You must maintain at least three controller-test nodes in a high-availability cluster") {
 		t.Errorf("reset output does not contain the ha warning")
