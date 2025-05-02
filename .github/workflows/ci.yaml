@@ -739,8 +739,6 @@ jobs:
           - TestMultiNodeAirgapUpgradePreviousStable
           - TestAirgapUpgradeFromEC18
           - TestMultiNodeAirgapHAInstallation
-          # TODO NOW: remove this
-          - TestFiveNodesAirgapUpgrade
         include:
           - test: TestSingleNodeAirgapDisasterRecovery
             runner: embedded-cluster-2
