@@ -1009,6 +1009,10 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, upgrade2Version, AirgapUpgrade2BundlePath, AirgapLicenseID)
 		},
+		// versions < 2.4.0 required getting the binary from replicated.app
+		func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 1, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
+		},
 	)
 
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
@@ -1323,6 +1327,11 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, upgrade2Version, AirgapUpgrade2BundlePath, AirgapLicenseID)
 		},
+		// TODO (@salah): remove this once we release 2.4.0 as it becomes the "previous stable"
+		// versions < 2.4.0 required getting the binary from replicated.app
+		func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 1, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
+		},
 	)
 
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
@@ -1351,7 +1360,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-ec23-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// TODO (@salah): use shared join function once we release 2.4.0 as it beomces the "previous stable"
+	// TODO (@salah): use shared join function once we release 2.4.0 as it becomes the "previous stable"
 	// generate worker node join command.
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
 	stdout, stderr, err := tc.RunPlaywrightTest("get-ec23-join-worker-command")
@@ -1603,9 +1612,8 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
 	}
-	if !strings.Contains(stdout, "You must maintain at least three controller-test nodes in a high-availability cluster") {
-		t.Errorf("reset output does not contain the ha warning")
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
+	if !strings.Contains(stdout, "High-availability is enabled and requires at least three controller-test nodes") {
+		t.Logf("reset output does not contain the ha warning: stdout: %s\nstderr: %s", stdout, stderr)
 	}
 
 	stdout, stderr, err = tc.RunCommandOnNode(2, []string{"check-nodes-removed.sh", "3"})
