@@ -537,7 +537,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	}
 
 	// reset the cluster
-	runInParallel(t,
+	runInParallelOffset(t, time.Second*15,
 		func(t *testing.T) error {
 			return resetInstallationWithError(t, tc, 2, resetInstallationOptions{
 				force: true,
@@ -688,15 +688,13 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// join a controller
 	joinControllerNodeWithOptions(t, tc, 1, joinOptions{
-		keepAssets: true,
-		withEnv:    withEnv,
+		withEnv: withEnv,
 	})
 
 	// join another controller in HA mode
 	joinControllerNodeWithOptions(t, tc, 2, joinOptions{
-		isHA:       true,
-		keepAssets: true,
-		withEnv:    withEnv,
+		isHA:    true,
+		withEnv: withEnv,
 	})
 
 	// wait for the nodes to report as ready.
@@ -713,7 +711,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	// reset the cluster
-	runInParallel(t,
+	runInParallelOffset(t, time.Second*15,
 		func(t *testing.T) error {
 			return resetInstallationWithError(t, tc, 2, resetInstallationOptions{
 				force:   true,

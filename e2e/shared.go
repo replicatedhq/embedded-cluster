@@ -46,10 +46,9 @@ type installationStateOptions struct {
 }
 
 type joinOptions struct {
-	isHA       bool
-	isRestore  bool
-	keepAssets bool
-	withEnv    map[string]string
+	isHA      bool
+	isRestore bool
+	withEnv   map[string]string
 }
 
 type downloadECReleaseOptions struct {
