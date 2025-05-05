@@ -1077,6 +1077,11 @@ func (c *Cluster) RunCommandOnNode(node int, line []string, envs ...map[string]s
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	if err := Run(ctx, c.T, *cmd); err != nil {
+		// check if this is a reset-installation command that resulted in exit code 143
+		// as this is expected behavior when the node reboots and the api connection is lost
+		if strings.Contains(err.Error(), "143") && strings.Contains(strings.Join(line, " "), "reset-installation") {
+			return stdout.String(), stderr.String(), nil
+		}
 		c.T.Logf("stdout:\n%s", stdout.String())
 		c.T.Logf("stderr:\n%s", stderr.String())
 		return stdout.String(), stderr.String(), err
