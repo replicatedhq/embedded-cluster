@@ -766,7 +766,6 @@ jobs:
           version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
-          cmx-ssh-private-key: ${{ secrets.CMX_SSH_PRIVATE_KEY }}
 
   e2e-main:
     name: E2E (on merge)
