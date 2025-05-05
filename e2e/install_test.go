@@ -1565,11 +1565,12 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	tc := cmx.NewCluster(&cmx.ClusterInput{
-		T:            t,
-		Nodes:        4,
-		Distribution: "ubuntu",
-		Version:      "22.04",
-		InstanceType: "r1.medium",
+		T:                      t,
+		Nodes:                  4,
+		Distribution:           "ubuntu",
+		Version:                "22.04",
+		InstanceType:           "r1.medium",
+		SupportBundleNodeIndex: 2,
 	})
 	defer tc.Cleanup()
 
