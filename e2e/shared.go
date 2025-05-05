@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
 )
 
 const (
@@ -21,10 +21,12 @@ const (
 )
 
 type installOptions struct {
+	isAirgap                bool
 	viaCLI                  bool
 	version                 string
 	adminConsolePort        string
 	localArtifactMirrorPort string
+	cidr                    string
 	podCidr                 string
 	serviceCidr             string
 	httpProxy               string
@@ -32,6 +34,8 @@ type installOptions struct {
 	noProxy                 string
 	privateCA               string
 	configValuesFile        string
+	networkInterface        string
+	dataDir                 string
 	withEnv                 map[string]string
 }
 
@@ -42,10 +46,9 @@ type installationStateOptions struct {
 }
 
 type joinOptions struct {
-	isHA       bool
-	isRestore  bool
-	keepAssets bool
-	withEnv    map[string]string
+	isHA      bool
+	isRestore bool
+	withEnv   map[string]string
 }
 
 type downloadECReleaseOptions struct {
@@ -58,17 +61,30 @@ type resetInstallationOptions struct {
 	withEnv map[string]string
 }
 
+type postUpgradeStateOptions struct {
+	node           int
+	k8sVersion     string
+	upgradeVersion string
+	withEnv        map[string]string
+}
+
 func installSingleNode(t *testing.T, tc cluster.Cluster) {
 	installSingleNodeWithOptions(t, tc, installOptions{})
 }
 
 func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts installOptions) {
-	line := []string{"single-node-install.sh"}
+	line := []string{}
 
-	if opts.viaCLI {
-		line = append(line, "cli")
+	if opts.isAirgap {
+		line = append(line, "single-node-airgap-install.sh")
 	} else {
-		line = append(line, "ui")
+		line = append(line, "single-node-install.sh")
+		// the cli/ui option is currently only applicable for online installs
+		if opts.viaCLI {
+			line = append(line, "cli")
+		} else {
+			line = append(line, "ui")
+		}
 	}
 	if opts.version != "" {
 		line = append(line, opts.version)
@@ -80,6 +96,9 @@ func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts install
 	}
 	if opts.localArtifactMirrorPort != "" {
 		line = append(line, "--local-artifact-mirror-port", opts.localArtifactMirrorPort)
+	}
+	if opts.cidr != "" {
+		line = append(line, "--cidr", opts.cidr)
 	}
 	if opts.podCidr != "" {
 		line = append(line, "--pod-cidr", opts.podCidr)
@@ -101,6 +120,12 @@ func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts install
 	}
 	if opts.configValuesFile != "" {
 		line = append(line, "--config-values", opts.configValuesFile)
+	}
+	if opts.networkInterface != "" {
+		line = append(line, "--network-interface", opts.networkInterface)
+	}
+	if opts.dataDir != "" {
+		line = append(line, "--data-dir", opts.dataDir)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
@@ -145,7 +170,7 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 	if err != nil {
 		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
 	}
-	t.Log("controller join token command:", commands)
+	t.Log("controller join token commands:", commands)
 
 	if len(commands) == 0 {
 		t.Fatalf("no join commands found")
@@ -163,10 +188,10 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 		// this is the join command
 		var joinCommand []string
 		if opts.isHA {
-			if _, ok := tc.(*docker.Cluster); ok {
-				joinCommand = []string{"join-ha.exp", fmt.Sprintf("'%s'", command)}
-			} else {
+			if _, ok := tc.(*lxd.Cluster); ok {
 				joinCommand = []string{"join-ha.exp", command}
+			} else {
+				joinCommand = []string{"join-ha.exp", fmt.Sprintf("'%s'", command)}
 			}
 		} else if opts.isRestore {
 			joinCommand = strings.Fields(command) // do not pass --no-ha as there should not be a prompt during a restore
@@ -262,19 +287,42 @@ func resetInstallation(t *testing.T, tc cluster.Cluster, node int) {
 }
 
 func resetInstallationWithOptions(t *testing.T, tc cluster.Cluster, node int, opts resetInstallationOptions) {
-	if err := resetInstallationWithError(t, tc, node, opts); err != nil {
-		t.Fatal(err)
+	stdout, stderr, err := resetInstallationWithError(t, tc, node, opts)
+	if err != nil {
+		t.Fatalf("fail to reset the installation on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
 }
 
-func resetInstallationWithError(t *testing.T, tc cluster.Cluster, node int, opts resetInstallationOptions) error {
+func resetInstallationWithError(t *testing.T, tc cluster.Cluster, node int, opts resetInstallationOptions) (string, string, error) {
 	t.Logf("%s: resetting the installation on node %d", time.Now().Format(time.RFC3339), node)
 	line := []string{"reset-installation.sh"}
 	if opts.force {
 		line = append(line, "--force")
 	}
-	if stdout, stderr, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
-		return fmt.Errorf("fail to reset the installation on node %d: %v: %s: %s", node, err, stdout, stderr)
+	return tc.RunCommandOnNode(node, line, opts.withEnv)
+}
+
+func checkPostUpgradeState(t *testing.T, tc cluster.Cluster) {
+	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{})
+}
+
+func checkPostUpgradeStateWithOptions(t *testing.T, tc cluster.Cluster, opts postUpgradeStateOptions) {
+	line := []string{"check-postupgrade-state.sh"}
+
+	if opts.k8sVersion != "" {
+		line = append(line, opts.k8sVersion)
+	} else {
+		line = append(line, k8sVersion())
 	}
-	return nil
+
+	if opts.upgradeVersion != "" {
+		line = append(line, opts.upgradeVersion)
+	} else {
+		line = append(line, ecUpgradeTargetVersion())
+	}
+
+	t.Logf("%s: checking installation state after upgrade on node %d", time.Now().Format(time.RFC3339), opts.node)
+	if stdout, stderr, err := tc.RunCommandOnNode(opts.node, line, opts.withEnv); err != nil {
+		t.Fatalf("fail to check postupgrade state on node %d: %v: %s: %s", opts.node, err, stdout, stderr)
+	}
 }

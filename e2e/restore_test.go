@@ -91,11 +91,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkPostUpgradeState(t, tc)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -483,11 +479,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
-	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v", err)
-	}
+	checkPostUpgradeState(t, tc)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -545,19 +537,25 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	}
 
 	// reset the cluster
-	runInParallel(t,
+	runInParallelOffset(t, time.Second*30,
 		func(t *testing.T) error {
-			return resetInstallationWithError(t, tc, 2, resetInstallationOptions{
-				force: true,
-			})
+			stdout, stderr, err := resetInstallationWithError(t, tc, 2, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 2: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
 		}, func(t *testing.T) error {
-			return resetInstallationWithError(t, tc, 1, resetInstallationOptions{
-				force: true,
-			})
+			stdout, stderr, err := resetInstallationWithError(t, tc, 1, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 1: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
 		}, func(t *testing.T) error {
-			return resetInstallationWithError(t, tc, 0, resetInstallationOptions{
-				force: true,
-			})
+			stdout, stderr, err := resetInstallationWithError(t, tc, 0, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
 		},
 	)
 
@@ -616,11 +614,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkPostUpgradeState(t, tc)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -700,15 +694,13 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// join a controller
 	joinControllerNodeWithOptions(t, tc, 1, joinOptions{
-		keepAssets: true,
-		withEnv:    withEnv,
+		withEnv: withEnv,
 	})
 
 	// join another controller in HA mode
 	joinControllerNodeWithOptions(t, tc, 2, joinOptions{
-		isHA:       true,
-		keepAssets: true,
-		withEnv:    withEnv,
+		isHA:    true,
+		withEnv: withEnv,
 	})
 
 	// wait for the nodes to report as ready.
@@ -725,24 +717,9 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	// reset the cluster
-	runInParallel(t,
-		func(t *testing.T) error {
-			return resetInstallationWithError(t, tc, 2, resetInstallationOptions{
-				force:   true,
-				withEnv: withEnv,
-			})
-		}, func(t *testing.T) error {
-			return resetInstallationWithError(t, tc, 1, resetInstallationOptions{
-				force:   true,
-				withEnv: withEnv,
-			})
-		}, func(t *testing.T) error {
-			return resetInstallationWithError(t, tc, 0, resetInstallationOptions{
-				force:   true,
-				withEnv: withEnv,
-			})
-		},
-	)
+	resetInstallationWithOptions(t, tc, 2, resetInstallationOptions{force: true, withEnv: withEnv})
+	resetInstallationWithOptions(t, tc, 1, resetInstallationOptions{force: true, withEnv: withEnv})
+	resetInstallationWithOptions(t, tc, 0, resetInstallationOptions{force: true, withEnv: withEnv})
 
 	// wait for reboot
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
@@ -843,11 +820,9 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
+		withEnv: withEnv,
+	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
