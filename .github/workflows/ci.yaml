@@ -703,6 +703,14 @@ jobs:
           EXPECT_K0S_VERSION_PREVIOUS_STABLE: ${{ needs.find-previous-stable.outputs.k0s_version }}
         run: |
           make e2e-test TEST_NAME=${{ matrix.test }}
+      - name: Setup upterm session
+        if: ${{ !cancelled() }}
+        uses: lhotari/action-upterm@v1
+        with:
+          ## limits ssh access and adds the ssh public key for the user which triggered the workflow
+          limit-access-to-actor: true
+          ## limits ssh access and adds the ssh public keys of the listed GitHub users
+          limit-access-to-users: emosbaugh
       - name: Troubleshoot
         if: ${{ !cancelled() }}
         uses: ./.github/actions/e2e-troubleshoot
