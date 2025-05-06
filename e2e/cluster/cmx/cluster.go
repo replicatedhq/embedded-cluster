@@ -68,6 +68,7 @@ func NewCluster(in *ClusterInput) *Cluster {
 				if err != nil {
 					return fmt.Errorf("failed to create node %d: %w", i, err)
 				}
+				in.T.Logf("Node created with ID %s", node.ID)
 				mu.Lock()
 				c.Nodes[i] = *node
 				mu.Unlock()
@@ -99,7 +100,9 @@ func NewNetwork(in *ClusterInput) (*Network, error) {
 	if len(networks) != 1 {
 		return nil, fmt.Errorf("expected 1 network, got %d", len(networks))
 	}
-	return &networks[0], nil
+	network := &networks[0]
+	in.T.Logf("Network created with ID %s", network.ID)
+	return network, nil
 }
 
 func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
