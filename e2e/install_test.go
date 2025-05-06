@@ -1562,6 +1562,8 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	t.Parallel()
 
+	// chage
+
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	tc := cmx.NewCluster(&cmx.ClusterInput{
