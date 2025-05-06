@@ -68,7 +68,7 @@ func NewCluster(in *ClusterInput) *Cluster {
 				if err != nil {
 					return fmt.Errorf("failed to create node %d: %w", i, err)
 				}
-				in.T.Logf("node%s created with ID %s", i, node.ID)
+				in.T.Logf("node%d created with ID %s", i, node.ID)
 				mu.Lock()
 				c.Nodes[i] = *node
 				mu.Unlock()
