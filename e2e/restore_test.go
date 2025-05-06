@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
 )
@@ -15,12 +17,12 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	t.Parallel()
 
 	requiredEnvVars := []string{
-		"DR_AWS_S3_ENDPOINT",
-		"DR_AWS_S3_REGION",
-		"DR_AWS_S3_BUCKET",
-		"DR_AWS_S3_PREFIX",
-		"DR_AWS_ACCESS_KEY_ID",
-		"DR_AWS_SECRET_ACCESS_KEY",
+		"DR_S3_ENDPOINT",
+		"DR_S3_REGION",
+		"DR_S3_BUCKET",
+		"DR_S3_PREFIX",
+		"DR_ACCESS_KEY_ID",
+		"DR_SECRET_ACCESS_KEY",
 	}
 	RequireEnvVars(t, requiredEnvVars)
 
@@ -100,12 +102,12 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	t.Parallel()
 
 	requiredEnvVars := []string{
-		"DR_AWS_S3_ENDPOINT",
-		"DR_AWS_S3_REGION",
-		"DR_AWS_S3_BUCKET",
-		"DR_AWS_S3_PREFIX",
-		"DR_AWS_ACCESS_KEY_ID",
-		"DR_AWS_SECRET_ACCESS_KEY",
+		"DR_S3_ENDPOINT",
+		"DR_S3_REGION",
+		"DR_S3_BUCKET",
+		"DR_S3_PREFIX",
+		"DR_ACCESS_KEY_ID",
+		"DR_SECRET_ACCESS_KEY",
 	}
 	RequireEnvVars(t, requiredEnvVars)
 
@@ -185,12 +187,12 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	}
 
 	requiredEnvVars := []string{
-		"DR_AWS_S3_ENDPOINT",
-		"DR_AWS_S3_REGION",
-		"DR_AWS_S3_BUCKET",
-		"DR_AWS_S3_PREFIX",
-		"DR_AWS_ACCESS_KEY_ID",
-		"DR_AWS_SECRET_ACCESS_KEY",
+		"DR_S3_ENDPOINT",
+		"DR_S3_REGION",
+		"DR_S3_BUCKET",
+		"DR_S3_PREFIX",
+		"DR_ACCESS_KEY_ID",
+		"DR_SECRET_ACCESS_KEY",
 	}
 	RequireEnvVars(t, requiredEnvVars)
 
@@ -282,12 +284,12 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	t.Parallel()
 
 	requiredEnvVars := []string{
-		"DR_AWS_S3_ENDPOINT",
-		"DR_AWS_S3_REGION",
-		"DR_AWS_S3_BUCKET",
-		"DR_AWS_S3_PREFIX",
-		"DR_AWS_ACCESS_KEY_ID",
-		"DR_AWS_SECRET_ACCESS_KEY",
+		"DR_S3_ENDPOINT",
+		"DR_S3_REGION",
+		"DR_S3_BUCKET",
+		"DR_S3_PREFIX",
+		"DR_ACCESS_KEY_ID",
+		"DR_SECRET_ACCESS_KEY",
 	}
 	RequireEnvVars(t, requiredEnvVars)
 
@@ -353,12 +355,12 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	requiredEnvVars := []string{
-		"DR_AWS_S3_ENDPOINT",
-		"DR_AWS_S3_REGION",
-		"DR_AWS_S3_BUCKET",
-		"DR_AWS_S3_PREFIX_AIRGAP",
-		"DR_AWS_ACCESS_KEY_ID",
-		"DR_AWS_SECRET_ACCESS_KEY",
+		"DR_S3_ENDPOINT",
+		"DR_S3_REGION",
+		"DR_S3_BUCKET",
+		"DR_S3_PREFIX_AIRGAP",
+		"DR_ACCESS_KEY_ID",
+		"DR_SECRET_ACCESS_KEY",
 	}
 	RequireEnvVars(t, requiredEnvVars)
 
@@ -488,12 +490,12 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	t.Parallel()
 
 	requiredEnvVars := []string{
-		"DR_AWS_S3_ENDPOINT",
-		"DR_AWS_S3_REGION",
-		"DR_AWS_S3_BUCKET",
-		"DR_AWS_S3_PREFIX",
-		"DR_AWS_ACCESS_KEY_ID",
-		"DR_AWS_SECRET_ACCESS_KEY",
+		"DR_S3_ENDPOINT",
+		"DR_S3_REGION",
+		"DR_S3_BUCKET",
+		"DR_S3_PREFIX",
+		"DR_ACCESS_KEY_ID",
+		"DR_SECRET_ACCESS_KEY",
 	}
 	RequireEnvVars(t, requiredEnvVars)
 
@@ -537,7 +539,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	}
 
 	// reset the cluster
-	runInParallelOffset(t, time.Second*30,
+	runInParallel(t,
 		func(t *testing.T) error {
 			stdout, stderr, err := resetInstallationWithError(t, tc, 2, resetInstallationOptions{force: true})
 			if err != nil {
@@ -622,74 +624,73 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	t.Parallel()
 
-	requiredEnvVars := []string{
-		"DR_AWS_S3_ENDPOINT",
-		"DR_AWS_S3_REGION",
-		"DR_AWS_S3_BUCKET",
-		"DR_AWS_S3_PREFIX_AIRGAP",
-		"DR_AWS_ACCESS_KEY_ID",
-		"DR_AWS_SECRET_ACCESS_KEY",
-	}
-	RequireEnvVars(t, requiredEnvVars)
-
-	testArgs := []string{}
-	for _, envVar := range requiredEnvVars {
-		testArgs = append(testArgs, os.Getenv(envVar))
-	}
-
-	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
-	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
-	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
-	runInParallel(t,
-		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, AirgapSnapshotLicenseID)
-		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapSnapshotLicenseID)
-		},
-	)
+	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	// Use an alternate data directory
 	withEnv := map[string]string{
 		"EMBEDDED_CLUSTER_BASE_DIR": "/var/lib/ec",
 	}
 
-	tc := lxd.NewCluster(&lxd.ClusterInput{
-		T:                       t,
-		Nodes:                   3,
-		Image:                   "debian/12",
-		WithProxy:               true,
-		AirgapInstallBundlePath: airgapInstallBundlePath,
-		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
+	tc := cmx.NewCluster(&cmx.ClusterInput{
+		T:            t,
+		Nodes:        3,
+		Distribution: "ubuntu",
+		Version:      "22.04",
+		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup(withEnv)
 
-	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
-	// install "expect" dependency on node 2 as that's where the HA join command will run.
-	tc.InstallTestDependenciesDebian(t, 0, true)
-	tc.InstallTestDependenciesDebian(t, 2, true)
+	t.Logf("%s: deploying minio on node 2", time.Now().Format(time.RFC3339))
+	minio, err := tc.DeployMinio(2)
+	if err != nil {
+		t.Fatalf("failed to deploy minio on node 2: %v", err)
+	}
 
-	// delete airgap bundles once they've been copied to the nodes
-	if err := os.Remove(airgapInstallBundlePath); err != nil {
-		t.Logf("failed to remove airgap install bundle: %v", err)
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	initialVersion := fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA"))
+	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapSnapshotLicenseID)
+		},
+		func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 0, upgradeVersion, AirgapUpgradeBundlePath, AirgapSnapshotLicenseID)
+		},
+	)
+
+	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
+	t.Logf("%s: installing expect package on node 0", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"apt-get", "install", "-y", "expect"}); err != nil {
+		t.Fatalf("fail to install expect package on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+	// install "expect" dependency on node 2 as that's where the HA join command will run.
+	t.Logf("%s: installing expect package on node 2", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(2, []string{"apt-get", "install", "-y", "expect"}); err != nil {
+		t.Fatalf("fail to install expect package on node 2: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
+	if err := tc.Airgap(); err != nil {
+		t.Fatalf("failed to airgap cluster: %v", err)
 	}
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
 
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA"), "--data-dir", "/var/lib/ec"}
-	if _, _, err := tc.RunCommandOnNode(0, line, withEnv, lxd.WithProxyEnv(tc.IPs)); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
-	}
+	installSingleNodeWithOptions(t, tc, installOptions{
+		isAirgap: true,
+		dataDir:  "/var/lib/ec",
+		withEnv:  withEnv,
+	})
 
 	if err := tc.SetupPlaywright(withEnv); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if _, _, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	// join a controller
@@ -708,22 +709,57 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to check post ha state: %v", err)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+		t.Fatalf("fail to check post ha state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	if _, _, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test create-backup: %v", err)
+	// DR args to be used for backup and restore
+	drArgs := []string{
+		minio.Endpoint,
+		minio.Region,
+		minio.DefaultBucket,
+		uuid.New().String(), // prefix
+		minio.AccessKey,
+		minio.SecretKey,
+	}
+
+	// create a backup
+	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", drArgs...); err != nil {
+		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
 	// reset the cluster
-	resetInstallationWithOptions(t, tc, 2, resetInstallationOptions{force: true, withEnv: withEnv})
-	resetInstallationWithOptions(t, tc, 1, resetInstallationOptions{force: true, withEnv: withEnv})
-	resetInstallationWithOptions(t, tc, 0, resetInstallationOptions{force: true, withEnv: withEnv})
+	runInParallel(t,
+		func(t *testing.T) error {
+			stdout, stderr, err := resetInstallationWithError(t, tc, 2, resetInstallationOptions{force: true, withEnv: withEnv})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 2: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
+		}, func(t *testing.T) error {
+			stdout, stderr, err := resetInstallationWithError(t, tc, 1, resetInstallationOptions{force: true, withEnv: withEnv})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 1: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
+		}, func(t *testing.T) error {
+			stdout, stderr, err := resetInstallationWithError(t, tc, 0, resetInstallationOptions{force: true, withEnv: withEnv})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
+		},
+	)
 
 	// wait for reboot
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
-	time.Sleep(60 * time.Second)
+	tc.WaitForReboot()
+
+	// start minio
+	t.Logf("%s: starting minio on node 2 after reboot", time.Now().Format(time.RFC3339))
+	if err := tc.StartMinio(2, minio); err != nil {
+		t.Fatalf("failed to start minio: %v", err)
+	}
 
 	runInParallel(t,
 		func(t *testing.T) error {
@@ -752,9 +788,9 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// begin restoring the cluster
 	t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
-	line = append([]string{"restore-multi-node-airgap-phase1.exp"}, testArgs...)
-	if _, _, err := tc.RunCommandOnNode(0, line, withEnv, lxd.WithProxyEnv(tc.IPs)); err != nil {
-		t.Fatalf("fail to restore phase 1 of the installation: %v", err)
+	line = append([]string{"restore-multi-node-airgap-phase1.exp"}, drArgs...)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+		t.Fatalf("fail to restore phase 1 of the installation: %v: %s: %s", err, stdout, stderr)
 	}
 
 	// restore phase 1 completes when the prompt for adding nodes is reached.
@@ -777,14 +813,14 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
 	line = []string{"restore-multi-node-airgap-phase2.exp"}
-	if _, _, err := tc.RunCommandOnNode(0, line, withEnv, lxd.WithProxyEnv(tc.IPs)); err != nil {
-		t.Fatalf("fail to restore phase 2 of the installation: %v", err)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+		t.Fatalf("fail to restore phase 2 of the installation: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after restoring the high availability backup", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion(), "true"}
-	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to check post ha state: %v", err)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+		t.Fatalf("fail to check post ha state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
@@ -797,23 +833,18 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	if err := tc.SetupPlaywright(withEnv); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
-		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-update.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to run airgap update: %v", err)
-	}
-	// remove the airgap bundle after upgrade
-	line = []string{"rm", "/assets/upgrade/release.airgap"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to run airgap update: %v: %s: %s", err, stdout, stderr)
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs = []string{appUpgradeVersion}
+	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {

@@ -697,13 +697,13 @@ jobs:
       - name: Run test
         env:
           SHORT_SHA: dev-${{ needs.git-sha.outputs.git_sha }}
-          DR_AWS_S3_ENDPOINT: https://s3.amazonaws.com
-          DR_AWS_S3_REGION: us-east-1
-          DR_AWS_S3_BUCKET: kots-testim-snapshots
-          DR_AWS_S3_PREFIX: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
-          DR_AWS_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
-          DR_AWS_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
-          DR_AWS_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
+          DR_S3_ENDPOINT: https://s3.amazonaws.com
+          DR_S3_REGION: us-east-1
+          DR_S3_BUCKET: kots-testim-snapshots
+          DR_S3_PREFIX: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
+          DR_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
+          DR_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
+          DR_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
           EXPECT_K0S_VERSION_PREVIOUS: ${{ needs.build-previous-k0s.outputs.k0s_version }}
           EXPECT_K0S_VERSION_PREVIOUS_STABLE: ${{ needs.find-previous-stable.outputs.k0s_version }}

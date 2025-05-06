@@ -104,13 +104,13 @@ runs:
       export SHORT_SHA=${{ inputs.version-specifier }}
       echo "${SHORT_SHA}"
       export REPLICATED_API_TOKEN=${{ inputs.cmx-api-token }}
-      export DR_AWS_S3_ENDPOINT=https://s3.amazonaws.com
-      export DR_AWS_S3_REGION=us-east-1
-      export DR_AWS_S3_BUCKET=kots-testim-snapshots
-      export DR_AWS_S3_PREFIX=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}
-      export DR_AWS_S3_PREFIX_AIRGAP=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
-      export DR_AWS_ACCESS_KEY_ID=${{ inputs.dr-aws-access-key-id }}
-      export DR_AWS_SECRET_ACCESS_KEY=${{ inputs.dr-aws-secret-access-key }}
+      export DR_S3_ENDPOINT=https://s3.amazonaws.com
+      export DR_S3_REGION=us-east-1
+      export DR_S3_BUCKET=kots-testim-snapshots
+      export DR_S3_PREFIX=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}
+      export DR_S3_PREFIX_AIRGAP=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
+      export DR_ACCESS_KEY_ID=${{ inputs.dr-aws-access-key-id }}
+      export DR_SECRET_ACCESS_KEY=${{ inputs.dr-aws-secret-access-key }}
       export EXPECT_K0S_VERSION=${{ inputs.k0s-version }}
       export EXPECT_K0S_VERSION_PREVIOUS=${{ inputs.k0s-version-previous }}
       export EXPECT_K0S_VERSION_PREVIOUS_STABLE=${{ inputs.k0s-version-previous-stable }}
