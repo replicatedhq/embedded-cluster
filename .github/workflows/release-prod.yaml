@@ -590,11 +590,13 @@ jobs:
           is-large-runner: ${{ matrix.runner == 'embedded-cluster-2' }}
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
-          version-specifier: ${{ github.ref_name }}
-
           k0s-version: ${{ needs.get-tag.outputs.k0s_version }}
           k0s-version-previous: ${{ needs.get-tag.outputs.k0s_version }} # we do not run k8s upgrade tests on release
           k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
+          version-specifier: ${{ github.ref_name }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
+          cmx-ssh-private-key: ${{ secrets.CMX_SSH_PRIVATE_KEY }}
           upgrade-target-ec-version: ${{ github.ref_name }}
 
   # this job will validate that all the tests passed
