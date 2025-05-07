@@ -10,7 +10,6 @@ import (
 	"github.com/go-logr/logr/testr"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/charts"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/stretchr/testify/require"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -134,14 +133,4 @@ func TestEnsureInstallationCRD(t *testing.T) {
 			}
 		})
 	}
-}
-
-// mockKubeUtils is a simple mock implementation of kubeutils.KubeUtilsInterface
-type mockKubeUtils struct {
-	kubeutils.KubeUtils // Embed KubeUtils to inherit methods
-}
-
-// Override just the method we need for this test
-func (m *mockKubeUtils) WaitForCRDToBeReady(ctx context.Context, cli client.Client, name string) error {
-	return nil
 }
