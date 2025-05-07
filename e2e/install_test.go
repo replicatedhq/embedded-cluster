@@ -2085,6 +2085,8 @@ func TestSingleNodeAirgapUpgradeConfigValues(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
+	// trigger e2e run
+
 	tc := cmx.NewCluster(&cmx.ClusterInput{
 		T:            t,
 		Nodes:        1,
