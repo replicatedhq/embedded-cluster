@@ -193,7 +193,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
-          USE_CHAINGUARD: "1"
+          USE_CHAINGUARD: "0"
           UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -267,7 +267,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
-          USE_CHAINGUARD: "1"
+          USE_CHAINGUARD: "0"
           UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
@@ -376,7 +376,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
-          USE_CHAINGUARD: "1"
+          USE_CHAINGUARD: "0"
           UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
