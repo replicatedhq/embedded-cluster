@@ -624,7 +624,7 @@ jobs:
   # e2e-docker runs the e2e tests inside a docker container rather than a full VM
   e2e-docker:
     name: E2E docker # this name is used by .github/workflows/automated-prs-manager.yaml
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
       - git-sha
       - build-current
