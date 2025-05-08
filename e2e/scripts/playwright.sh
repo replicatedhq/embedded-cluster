@@ -8,7 +8,7 @@ main() {
   fi
   local test_name="$1"
 
-  if [ "$test_name" == "deploy-app" ] || [ "$test_name" == "deploy-ec23-app" ]; then
+  if [ "$test_name" == "deploy-app" ]; then
     export IS_MULTI_NODE_ENABLED="${2:-true}"
   elif [ "$test_name" == "create-backup" ]; then
     export DR_AWS_S3_ENDPOINT="$2"

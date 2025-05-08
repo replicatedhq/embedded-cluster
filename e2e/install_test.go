@@ -431,8 +431,8 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 		version: initialVersion,
 	})
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-ec23-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-ec23-app: %v: %s: %s", err, stdout, stderr)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
@@ -1372,11 +1372,6 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, upgrade2Version, AirgapUpgrade2BundlePath, AirgapLicenseID)
 		},
-		// TODO (@salah): remove this once we release 2.4.0 as it becomes the "previous stable"
-		// versions < 2.4.0 required getting the binary from replicated.app
-		func(t *testing.T) error {
-			return downloadAirgapBundleOnNode(t, tc, 1, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
-		},
 	)
 
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
@@ -1401,33 +1396,12 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	if err := tc.SetupPlaywright(withEnv); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-ec23-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-ec23-app: %v: %s: %s", err, stdout, stderr)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// TODO (@salah): use shared join function once we release 2.4.0 as it becomes the "previous stable"
-	// generate worker node join command.
-	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-ec23-join-worker-command")
-	if err != nil {
-		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	workerCommand, err := findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v", err)
-	}
-	t.Log("worker join token command:", workerCommand)
-
-	// join the worker node
-	t.Logf("%s: preparing embedded cluster airgap files on worker node", time.Now().Format(time.RFC3339))
-	line = []string{"airgap-prepare.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
-		t.Fatalf("fail to prepare airgap files on worker node: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Logf("%s: joining worker node to the cluster", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(1, strings.Split(workerCommand, " "), withEnv); err != nil {
-		t.Fatalf("fail to join worker node to the cluster: %v: %s: %s", err, stdout, stderr)
-	}
+	// join a worker
+	joinWorkerNode(t, tc, 1)
 
 	// wait for the nodes to report as ready.
 	waitForNodes(t, tc, 2, withEnv)
