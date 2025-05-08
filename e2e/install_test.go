@@ -1372,11 +1372,6 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, upgrade2Version, AirgapUpgrade2BundlePath, AirgapLicenseID)
 		},
-		// TODO (@salah): remove this once we release 2.4.0 as it becomes the "previous stable"
-		// versions < 2.4.0 required getting the binary from replicated.app
-		func(t *testing.T) error {
-			return downloadAirgapBundleOnNode(t, tc, 1, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
-		},
 	)
 
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
