@@ -5,10 +5,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 COPY kinds/go.mod kinds/go.sum ./kinds/
 COPY utils/go.mod utils/go.sum ./utils/
-
-ARG HOST_GOMODCACHE
-RUN --mount=type=bind,target="/go/pkg/mod",source=${HOST_GOMODCACHE} \
-    go mod download
+RUN --mount=type=cache,target="/go/pkg/mod" go mod download
 
 COPY common.mk common.mk
 COPY operator/ operator/
@@ -21,10 +18,8 @@ ENV VERSION=${VERSION}
 ARG K0S_VERSION
 ENV K0S_VERSION=${K0S_VERSION}
 
-ARG HOST_GOBUILDCACHE
 ENV GOCACHE=/root/.cache/go-build
-RUN --mount=type=bind,target="/root/.cache/go-build",source=${HOST_GOBUILDCACHE} \
-    make -C operator build
+RUN --mount=type=cache,target="/root/.cache/go-build" make -C operator build
 
 FROM debian:bookworm-slim
 
