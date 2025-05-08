@@ -1,3 +1,4 @@
+# DEVELOPMENT USE ONLY! THIE FILE IS NOT USED FOR DEPLOYS!
 global:
   labels: {}
 
@@ -7,12 +8,11 @@ embeddedClusterID: 123456789
 isAirgap: false
 
 image:
-  repository: ttl.sh/jgantunes/embedded-cluster-operator-image
-  tag: 2.4.0-k8s-1.30-rc0-3-g086a9-jgantunes
+  repository: replicated/embedded-cluster-operator-image-staging
+  tag: 0.0.8
   pullPolicy: IfNotPresent
 
 utilsImage: busybox:latest
-goldpingerImage: bloomberg/goldpinger:latest
 
 extraEnv: []
 #  - name: HTTP_PROXY
@@ -56,8 +56,6 @@ affinity:
           operator: In
           values:
           - linux
-        - key: node-role.kubernetes.io/control-plane
-          operator: Exists
 
 metrics:
   enabled: false
