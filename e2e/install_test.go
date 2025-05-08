@@ -22,6 +22,8 @@ import (
 func TestSingleNodeInstallation(t *testing.T) {
 	t.Parallel()
 
+	// change
+
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	tc := docker.NewCluster(&docker.ClusterInput{
