@@ -20,5 +20,8 @@ RUN cp local-artifact-mirror/bin/local-artifact-mirror-$(go env GOOS)-$(go env G
 
 FROM debian:bookworm-slim
 
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app/local-artifact-mirror/bin/local-artifact-mirror /usr/bin/local-artifact-mirror
 RUN ln -s /usr/bin/local-artifact-mirror /usr/local/bin/local-artifact-mirror
