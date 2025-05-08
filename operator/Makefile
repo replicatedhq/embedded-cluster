@@ -171,12 +171,17 @@ build-operator-image-chainguard:
 		--arch $(ARCH) \
 		export --path build/operator-package
 
+HOST_GOMODCACHE ?= $(shell pwd)/../dev/.gomodcache
+HOST_GOBUILDCACHE ?= $(shell pwd)/../dev/.gocache
+
 .PHONY: build-operator-image-dockerfile
 build-operator-image-dockerfile:
 	docker build --platform="$(OS)/$(ARCH)" \
 		-t "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))" \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg K0S_VERSION=$(K0S_VERSION) \
+		--build-arg HOST_GOMODCACHE=$(HOST_GOMODCACHE) \
+		--build-arg HOST_GOBUILDCACHE=$(HOST_GOBUILDCACHE) \
 		-f ../dev/dockerfiles/operator/Dockerfile.ttlsh ../
 	mkdir -p build
 	echo "Version $(VERSION) k0s $(K0S_VERSION)"
