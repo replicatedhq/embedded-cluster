@@ -47,7 +47,7 @@ build-local-artifact-mirror-image-chainguard:
 
 .PHONY: build-local-artifact-mirror-image-dockerfile
 build-local-artifact-mirror-image-dockerfile:
-	docker buildx build --platform="$(OS)/$(ARCH)" \
+	docker buildx build --load --platform="$(OS)/$(ARCH)" \
 		-t "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))" \
 		--cache-from "type=local,src=../dev/.dockerbuildcache,mode=max" \
 		--cache-to "type=local,dest=../dev/.dockerbuildcache,mode=max" \

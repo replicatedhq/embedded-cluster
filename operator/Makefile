@@ -173,7 +173,7 @@ build-operator-image-chainguard:
 
 .PHONY: build-operator-image-dockerfile
 build-operator-image-dockerfile:
-	docker buildx build --platform="$(OS)/$(ARCH)" \
+	docker buildx build --load --platform="$(OS)/$(ARCH)" \
 		-t "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))" \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg K0S_VERSION=$(K0S_VERSION) \
