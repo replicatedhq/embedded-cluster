@@ -33,7 +33,8 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 	cfg.Spec.Konnectivity = nil
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"
-	cfg.Spec.Telemetry.Enabled = false
+	enableTelemetry := false
+	cfg.Spec.Telemetry.Enabled = &enableTelemetry
 	if cfg.Spec.API.ExtraArgs == nil {
 		cfg.Spec.API.ExtraArgs = map[string]string{}
 	}
