@@ -39,6 +39,7 @@ type Node struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 
+	privateIP       string `json:"-"`
 	sshEndpoint     string `json:"-"`
 	adminConsoleURL string `json:"-"`
 }
@@ -66,7 +67,7 @@ func NewCluster(in *ClusterInput) *Cluster {
 			g.Go(func() error {
 				node, err := NewNode(in, i, network.ID)
 				if err != nil {
-					return fmt.Errorf("failed to create node %d: %w", i, err)
+					return fmt.Errorf("create node %d: %w", i, err)
 				}
 				in.T.Logf("node%d created with ID %s", i, node.ID)
 				mu.Lock()
@@ -88,14 +89,14 @@ func NewNetwork(in *ClusterInput) (*Network, error) {
 	name := fmt.Sprintf("ec-e2e-%s", uuid.New().String())
 	in.T.Logf("creating network %s", name)
 
-	output, err := exec.Command("replicated", "network", "create", "--name", name, "--wait", "5m", "-ojson").CombinedOutput()
+	output, err := exec.Command("replicated", "network", "create", "--name", name, "--wait", "5m", "-ojson").Output() // stderr can break json parsing
 	if err != nil {
-		return nil, fmt.Errorf("failed to create network %s: %v: %s", name, err, string(output))
+		return nil, fmt.Errorf("create network %s: %v: %s", name, err, string(output))
 	}
 
 	var networks []Network
 	if err := json.Unmarshal(output, &networks); err != nil {
-		return nil, fmt.Errorf("failed to parse networks output: %v", err)
+		return nil, fmt.Errorf("parse networks output: %v: %s", err, string(output))
 	}
 	if len(networks) != 1 {
 		return nil, fmt.Errorf("expected 1 network, got %d", len(networks))
@@ -129,14 +130,14 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 		args = append(args, "--disk", strconv.Itoa(in.DiskSize))
 	}
 
-	output, err := exec.Command("replicated", args...).CombinedOutput()
+	output, err := exec.Command("replicated", args...).Output() // stderr can break json parsing
 	if err != nil {
-		return nil, fmt.Errorf("failed to create node %s: %v: %s", nodeName, err, string(output))
+		return nil, fmt.Errorf("create node %s: %v: %s", nodeName, err, string(output))
 	}
 
 	var nodes []Node
 	if err := json.Unmarshal(output, &nodes); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal node: %v: %s", err, string(output))
+		return nil, fmt.Errorf("unmarshal node: %v: %s", err, string(output))
 	}
 	if len(nodes) != 1 {
 		return nil, fmt.Errorf("expected 1 node, got %d", len(nodes))
@@ -145,25 +146,29 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 
 	sshEndpoint, err := getSSHEndpoint(node.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get ssh endpoint for node %s: %v", nodeName, err)
+		return nil, fmt.Errorf("get ssh endpoint for node %s: %v", nodeName, err)
 	}
 	node.sshEndpoint = sshEndpoint
 
-	in.T.Logf("ensuring assets dir on node %s", node.Name)
+	privateIP, err := discoverPrivateIP(node)
+	if err != nil {
+		return nil, fmt.Errorf("discover node private IP: %v", err)
+	}
+	node.privateIP = privateIP
+
 	if err := ensureAssetsDir(node); err != nil {
-		return nil, fmt.Errorf("failed to ensure assets dir on node %s: %v", node.Name, err)
+		return nil, fmt.Errorf("ensure assets dir on node %s: %v", node.Name, err)
 	}
 
-	in.T.Logf("copying scripts to node %s", node.Name)
 	if err := copyScriptsToNode(node); err != nil {
-		return nil, fmt.Errorf("failed to copy scripts to node %s: %v", node.Name, err)
+		return nil, fmt.Errorf("copy scripts to node %s: %v", node.Name, err)
 	}
 
 	if index == 0 {
 		in.T.Logf("exposing port 30003 on node %s", node.Name)
 		hostname, err := exposePort(node, "30003")
 		if err != nil {
-			return nil, fmt.Errorf("failed to expose port: %v", err)
+			return nil, fmt.Errorf("expose port: %v", err)
 		}
 		node.adminConsoleURL = fmt.Sprintf("http://%s", hostname)
 	}
@@ -171,10 +176,25 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 	return &node, nil
 }
 
+func discoverPrivateIP(node Node) (string, error) {
+	stdout, stderr, err := runCommandOnNode(node, []string{"hostname", "-I"})
+	if err != nil {
+		return "", fmt.Errorf("get node IP: %v: %s: %s", err, stdout, stderr)
+	}
+
+	for _, ip := range strings.Fields(stdout) {
+		if strings.HasPrefix(ip, "10.") {
+			return ip, nil
+		}
+	}
+
+	return "", fmt.Errorf("find private ip starting with 10.")
+}
+
 func ensureAssetsDir(node Node) error {
 	stdout, stderr, err := runCommandOnNode(node, []string{"mkdir", "-p", "/assets"})
 	if err != nil {
-		return fmt.Errorf("failed to create directory: %v: %s: %s", err, stdout, stderr)
+		return fmt.Errorf("create directory: %v: %s: %s", err, stdout, stderr)
 	}
 	return nil
 }
@@ -183,7 +203,7 @@ func copyScriptsToNode(node Node) error {
 	// Create a temporary directory for the archive
 	tempDir, err := os.MkdirTemp("", "scripts-archive")
 	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %v", err)
+		return fmt.Errorf("create temp directory: %v", err)
 	}
 	defer os.RemoveAll(tempDir)
 
@@ -191,66 +211,51 @@ func copyScriptsToNode(node Node) error {
 	archivePath := filepath.Join(tempDir, "scripts.tgz")
 	output, err := exec.Command("tar", "-czf", archivePath, "-C", "scripts", ".").CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to create scripts archive: %v: %s", err, string(output))
+		return fmt.Errorf("create scripts archive: %v: %s", err, string(output))
 	}
 
 	// Copy the archive to the node
 	if err := copyFileToNode(node, archivePath, "/tmp/scripts.tgz"); err != nil {
-		return fmt.Errorf("failed to copy scripts archive to node: %v", err)
+		return fmt.Errorf("copy scripts archive to node: %v", err)
 	}
 
 	// Extract the archive in /usr/local/bin
 	_, stderr, err := runCommandOnNode(node, []string{"tar", "-xzf", "/tmp/scripts.tgz", "-C", "/usr/local/bin"})
 	if err != nil {
-		return fmt.Errorf("failed to extract scripts archive: %v: %s", err, stderr)
+		return fmt.Errorf("extract scripts archive: %v: %s", err, stderr)
 	}
 
 	// Clean up the archive on the node
 	_, stderr, err = runCommandOnNode(node, []string{"rm", "-f", "/tmp/scripts.tgz"})
 	if err != nil {
-		return fmt.Errorf("failed to clean up scripts archive: %v: %s", err, stderr)
+		return fmt.Errorf("clean up scripts archive: %v: %s", err, stderr)
 	}
 
 	return nil
 }
 
 func getSSHEndpoint(nodeID string) (string, error) {
-	cmd := exec.Command("replicated", "vm", "ssh-endpoint", nodeID)
-	output, err := cmd.CombinedOutput()
+	output, err := exec.Command("replicated", "vm", "ssh-endpoint", nodeID).CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("failed to get SSH endpoint for node %s: %v: %s", nodeID, err, string(output))
+		return "", fmt.Errorf("%v: %s", err, string(output))
 	}
 	return strings.TrimSpace(string(output)), nil
 }
 
 func (c *Cluster) Airgap() error {
 	// Update network policy to airgap
-	cmd := exec.Command("replicated", "network", "update", "policy",
-		"--id", c.network.ID,
-		"--policy=airgap")
-	output, err := cmd.CombinedOutput()
+	output, err := exec.Command("replicated", "network", "update", "policy", "--id", c.network.ID, "--policy=airgap").CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to update network policy: %v: %s", err, string(output))
+		return fmt.Errorf("update network policy: %v: %s", err, string(output))
 	}
 
 	// Wait until the nodes are airgapped
 	for node := range c.Nodes {
 		if err := c.waitUntilAirgapped(node); err != nil {
-			return fmt.Errorf("failed to wait until node %d is airgapped: %v", node, err)
+			return fmt.Errorf("wait until node %d is airgapped: %v", node, err)
 		}
 	}
 
-	return nil
-}
-
-func (c *Cluster) RefreshSSHEndpoints() error {
-	for i := range c.Nodes {
-		sshEndpoint, err := getSSHEndpoint(c.Nodes[i].ID)
-		if err != nil {
-			return fmt.Errorf("failed to get SSH endpoint for node %d: %v", i, err)
-		}
-		c.Nodes[i].sshEndpoint = sshEndpoint
-	}
 	return nil
 }
 
@@ -273,6 +278,39 @@ func (c *Cluster) waitUntilAirgapped(node int) error {
 	}
 }
 
+func (c *Cluster) WaitForReboot() {
+	time.Sleep(30 * time.Second)
+	for i := range c.Nodes {
+		c.refreshSSHEndpoint(i)
+		c.waitForClockSync(i)
+	}
+}
+
+func (c *Cluster) refreshSSHEndpoint(node int) {
+	sshEndpoint, err := getSSHEndpoint(c.Nodes[node].ID)
+	if err != nil {
+		c.t.Fatalf("failed to refresh ssh endpoint for node %d: %v", node, err)
+	}
+	c.Nodes[node].sshEndpoint = sshEndpoint
+}
+
+func (c *Cluster) waitForClockSync(node int) {
+	timeout := time.After(5 * time.Minute)
+	tick := time.Tick(time.Second)
+	for {
+		select {
+		case <-timeout:
+			stdout, stderr, err := c.RunCommandOnNode(node, []string{"timedatectl show -p NTP -p NTPSynchronized"})
+			c.t.Fatalf("timeout waiting for clock sync: %v: %s: %s", err, stdout, stderr)
+		case <-tick:
+			status, _, _ := c.RunCommandOnNode(node, []string{"timedatectl show -p NTP -p NTPSynchronized"})
+			if strings.Contains(status, "NTP=yes") && strings.Contains(status, "NTPSynchronized=yes") {
+				return
+			}
+		}
+	}
+}
+
 func (c *Cluster) Cleanup(envs ...map[string]string) {
 	c.generateSupportBundle(envs...)
 	c.copyPlaywrightReport()
@@ -281,8 +319,7 @@ func (c *Cluster) Cleanup(envs ...map[string]string) {
 
 func (c *Cluster) Destroy() {
 	for _, node := range c.Nodes {
-		cmd := exec.Command("replicated", "vm", "rm", node.ID)
-		output, err := cmd.CombinedOutput()
+		output, err := exec.Command("replicated", "vm", "rm", node.ID).CombinedOutput()
 		if err != nil {
 			c.t.Logf("failed to destroy node %s: %v: %s", node.Name, err, string(output))
 		}
@@ -320,7 +357,7 @@ func runCommandOnNode(node Node, line []string, envs ...map[string]string) (stri
 
 func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (string, string, error) {
 	if err := c.SetupPlaywright(); err != nil {
-		return "", "", fmt.Errorf("failed to setup playwright: %w", err)
+		return "", "", fmt.Errorf("setup playwright: %w", err)
 	}
 	return c.RunPlaywrightTest(testName, args...)
 }
@@ -329,13 +366,12 @@ func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
 	c.t.Logf("%s: bypassing kurl-proxy", time.Now().Format(time.RFC3339))
 	_, stderr, err := c.RunCommandOnNode(0, []string{"bypass-kurl-proxy.sh"}, envs...)
 	if err != nil {
-		return fmt.Errorf("fail to bypass kurl-proxy: %v: %s", err, string(stderr))
+		return fmt.Errorf("bypass kurl-proxy: %v: %s", err, string(stderr))
 	}
 	c.t.Logf("%s: installing playwright", time.Now().Format(time.RFC3339))
-	cmd := exec.Command("sh", "-c", "cd playwright && npm ci && npx playwright install --with-deps")
-	out, err := cmd.CombinedOutput()
+	output, err := exec.Command("sh", "-c", "cd playwright && npm ci && npx playwright install --with-deps").CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("fail to install playwright: %v: %s", err, string(out))
+		return fmt.Errorf("install playwright: %v: %s", err, string(output))
 	}
 	return nil
 }
@@ -353,7 +389,7 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		return stdout.String(), stderr.String(), fmt.Errorf("fail to run playwright test %s: %v", testName, err)
+		return stdout.String(), stderr.String(), fmt.Errorf("run playwright test %s: %v", testName, err)
 	}
 	return stdout.String(), stderr.String(), nil
 }
@@ -369,7 +405,7 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 			if stdout, stderr, err := c.RunCommandOnNode(i, []string{"collect-support-bundle-host.sh"}, envs...); err != nil {
 				c.t.Logf("stdout: %s", stdout)
 				c.t.Logf("stderr: %s", stderr)
-				c.t.Logf("fail to generate support from node %d bundle: %v", i, err)
+				c.t.Logf("fail to generate support bundle from node %d: %v", i, err)
 				return
 			}
 
@@ -387,7 +423,7 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 	if stdout, stderr, err := c.RunCommandOnNode(c.supportBundleNodeIndex, []string{"collect-support-bundle-cluster.sh"}, envs...); err != nil {
 		c.t.Logf("stdout: %s", stdout)
 		c.t.Logf("stderr: %s", stderr)
-		c.t.Logf("fail to generate cluster support from node %d bundle: %v", c.supportBundleNodeIndex, err)
+		c.t.Logf("fail to generate cluster support bundle from node %d: %v", c.supportBundleNodeIndex, err)
 	} else {
 		c.t.Logf("%s: copying cluster support bundle from node %d to local machine", time.Now().Format(time.RFC3339), c.supportBundleNodeIndex)
 		src := "cluster.tar.gz"
@@ -402,31 +438,28 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 
 func (c *Cluster) copyPlaywrightReport() {
 	c.t.Logf("%s: compressing playwright report", time.Now().Format(time.RFC3339))
-	cmd := exec.Command("tar", "-czf", "playwright-report.tar.gz", "-C", "./playwright/playwright-report", ".")
-	out, err := cmd.CombinedOutput()
+	output, err := exec.Command("tar", "-czf", "playwright-report.tar.gz", "-C", "./playwright/playwright-report", ".").CombinedOutput()
 	if err != nil {
-		c.t.Logf("fail to compress playwright report: %v: %s", err, string(out))
+		c.t.Logf("fail to compress playwright report: %v: %s", err, string(output))
 	}
 }
 
 func exposePort(node Node, port string) (string, error) {
-	cmd := exec.Command("replicated", "vm", "port", "expose", node.ID, "--port", port)
-	output, err := cmd.CombinedOutput()
+	output, err := exec.Command("replicated", "vm", "port", "expose", node.ID, "--port", port).CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("failed to expose port: %v: %s", err, string(output))
+		return "", fmt.Errorf("expose port: %v: %s", err, string(output))
 	}
 
-	cmd = exec.Command("replicated", "vm", "port", "ls", node.ID, "-ojson")
-	output, err = cmd.CombinedOutput()
+	output, err = exec.Command("replicated", "vm", "port", "ls", node.ID, "-ojson").Output() // stderr can break json parsing
 	if err != nil {
-		return "", fmt.Errorf("failed to get port info: %v: %s", err, string(output))
+		return "", fmt.Errorf("get port info: %v: %s", err, string(output))
 	}
 
 	var ports []struct {
 		Hostname string `json:"hostname"`
 	}
 	if err := json.Unmarshal(output, &ports); err != nil {
-		return "", fmt.Errorf("failed to unmarshal port info: %v", err)
+		return "", fmt.Errorf("unmarshal port info: %v", err)
 	}
 
 	if len(ports) == 0 {
@@ -438,10 +471,9 @@ func exposePort(node Node, port string) (string, error) {
 func copyFileToNode(node Node, src, dst string) error {
 	scpEndpoint := strings.Replace(node.sshEndpoint, "ssh://", "scp://", 1)
 
-	cmd := exec.Command("scp", append(sshArgs(), src, fmt.Sprintf("%s/%s", scpEndpoint, dst))...)
-	output, err := cmd.CombinedOutput()
+	output, err := exec.Command("scp", append(sshArgs(), src, fmt.Sprintf("%s/%s", scpEndpoint, dst))...).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to copy file to node: %v: %s", err, string(output))
+		return fmt.Errorf("copy file to node: %v: %s", err, string(output))
 	}
 	return nil
 }
@@ -449,10 +481,9 @@ func copyFileToNode(node Node, src, dst string) error {
 func copyFileFromNode(node Node, src, dst string) error {
 	scpEndpoint := strings.Replace(node.sshEndpoint, "ssh://", "scp://", 1)
 
-	cmd := exec.Command("scp", append(sshArgs(), fmt.Sprintf("%s/%s", scpEndpoint, src), dst)...)
-	output, err := cmd.CombinedOutput()
+	output, err := exec.Command("scp", append(sshArgs(), fmt.Sprintf("%s/%s", scpEndpoint, src), dst)...).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to copy file from node: %v: %s", err, string(output))
+		return fmt.Errorf("copy file from node: %v: %s", err, string(output))
 	}
 	return nil
 }

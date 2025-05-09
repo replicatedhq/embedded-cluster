@@ -697,13 +697,13 @@ jobs:
       - name: Run test
         env:
           SHORT_SHA: dev-${{ needs.git-sha.outputs.git_sha }}
-          DR_AWS_S3_ENDPOINT: https://s3.amazonaws.com
-          DR_AWS_S3_REGION: us-east-1
-          DR_AWS_S3_BUCKET: kots-testim-snapshots
-          DR_AWS_S3_PREFIX: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
-          DR_AWS_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
-          DR_AWS_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
-          DR_AWS_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
+          DR_S3_ENDPOINT: https://s3.amazonaws.com
+          DR_S3_REGION: us-east-1
+          DR_S3_BUCKET: kots-testim-snapshots
+          DR_S3_PREFIX: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
+          DR_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
+          DR_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
+          DR_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
           EXPECT_K0S_VERSION_PREVIOUS: ${{ needs.build-previous-k0s.outputs.k0s_version }}
           EXPECT_K0S_VERSION_PREVIOUS_STABLE: ${{ needs.find-previous-stable.outputs.k0s_version }}
@@ -729,29 +729,34 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestVersion
-          - TestCommandsRequireSudo
           - TestResetAndReinstallAirgap
           - TestSingleNodeAirgapUpgrade
           - TestSingleNodeAirgapUpgradeConfigValues
           - TestSingleNodeAirgapUpgradeCustomCIDR
-          - TestSingleNodeDisasterRecoveryWithProxy
-          - TestProxiedEnvironment
-          - TestProxiedCustomCIDR
-          - TestInstallWithPrivateCAs
-          - TestInstallWithMITMProxy
           - TestMultiNodeAirgapUpgrade
           - TestMultiNodeAirgapUpgradeSameK0s
           - TestMultiNodeAirgapUpgradePreviousStable
+          - TestMultiNodeAirgapHAInstallation
+          - TestSingleNodeAirgapDisasterRecovery
+          - TestMultiNodeAirgapHADisasterRecovery
         include:
           - test: TestAirgapUpgradeFromEC18
             runner: embedded-cluster-2
-          - test: TestMultiNodeAirgapHAInstallation
-            runner: embedded-cluster-2
-          - test: TestSingleNodeAirgapDisasterRecovery
-            runner: embedded-cluster-2
-          - test: TestMultiNodeAirgapHADisasterRecovery
-            runner: embedded-cluster-2
+            is-lxd: true
+          - test: TestVersion
+            is-lxd: true
+          - test: TestCommandsRequireSudo
+            is-lxd: true
+          - test: TestSingleNodeDisasterRecoveryWithProxy
+            is-lxd: true
+          - test: TestProxiedEnvironment
+            is-lxd: true
+          - test: TestProxiedCustomCIDR
+            is-lxd: true
+          - test: TestInstallWithPrivateCAs
+            is-lxd: true
+          - test: TestInstallWithMITMProxy
+            is-lxd: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -764,7 +769,7 @@ jobs:
       - uses: ./.github/actions/e2e
         with:
           test-name: '${{ matrix.test }}'
-          is-large-runner: ${{ matrix.runner == 'embedded-cluster-2' }}
+          is-lxd: '${{ matrix.is-lxd || false }}'
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.build-current.outputs.k0s_version }}
@@ -778,7 +783,7 @@ jobs:
   e2e-main:
     name: E2E (on merge)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
+    runs-on: ubuntu-22.04
     needs:
       - build-current
       - build-previous-k0s
@@ -789,9 +794,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - test: TestFiveNodesAirgapUpgrade
-            runner: embedded-cluster-2
+        test:
+          - TestFiveNodesAirgapUpgrade
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -804,7 +808,6 @@ jobs:
       - uses: ./.github/actions/e2e
         with:
           test-name: '${{ matrix.test }}'
-          is-large-runner: ${{ matrix.runner == 'embedded-cluster-2' }}
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.build-current.outputs.k0s_version }}
