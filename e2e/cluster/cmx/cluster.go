@@ -89,7 +89,7 @@ func NewNetwork(in *ClusterInput) (*Network, error) {
 	name := fmt.Sprintf("ec-e2e-%s", uuid.New().String())
 	in.T.Logf("creating network %s", name)
 
-	output, err := exec.Command("replicated", "network", "create", "--name", name, "--wait", "5m", "-ojson").CombinedOutput()
+	output, err := exec.Command("replicated", "network", "create", "--name", name, "--wait", "5m", "-ojson").Output() // stderr can break json parsing
 	if err != nil {
 		return nil, fmt.Errorf("create network %s: %v: %s", name, err, string(output))
 	}
@@ -130,7 +130,7 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 		args = append(args, "--disk", strconv.Itoa(in.DiskSize))
 	}
 
-	output, err := exec.Command("replicated", args...).CombinedOutput()
+	output, err := exec.Command("replicated", args...).Output() // stderr can break json parsing
 	if err != nil {
 		return nil, fmt.Errorf("create node %s: %v: %s", nodeName, err, string(output))
 	}
@@ -235,8 +235,7 @@ func copyScriptsToNode(node Node) error {
 }
 
 func getSSHEndpoint(nodeID string) (string, error) {
-	cmd := exec.Command("replicated", "vm", "ssh-endpoint", nodeID)
-	output, err := cmd.CombinedOutput()
+	output, err := exec.Command("replicated", "vm", "ssh-endpoint", nodeID).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%v: %s", err, string(output))
 	}
@@ -245,10 +244,7 @@ func getSSHEndpoint(nodeID string) (string, error) {
 
 func (c *Cluster) Airgap() error {
 	// Update network policy to airgap
-	cmd := exec.Command("replicated", "network", "update", "policy",
-		"--id", c.network.ID,
-		"--policy=airgap")
-	output, err := cmd.CombinedOutput()
+	output, err := exec.Command("replicated", "network", "update", "policy", "--id", c.network.ID, "--policy=airgap").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("update network policy: %v: %s", err, string(output))
 	}
@@ -323,8 +319,7 @@ func (c *Cluster) Cleanup(envs ...map[string]string) {
 
 func (c *Cluster) Destroy() {
 	for _, node := range c.Nodes {
-		cmd := exec.Command("replicated", "vm", "rm", node.ID)
-		output, err := cmd.CombinedOutput()
+		output, err := exec.Command("replicated", "vm", "rm", node.ID).CombinedOutput()
 		if err != nil {
 			c.t.Logf("failed to destroy node %s: %v: %s", node.Name, err, string(output))
 		}
@@ -374,10 +369,9 @@ func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
 		return fmt.Errorf("bypass kurl-proxy: %v: %s", err, string(stderr))
 	}
 	c.t.Logf("%s: installing playwright", time.Now().Format(time.RFC3339))
-	cmd := exec.Command("sh", "-c", "cd playwright && npm ci && npx playwright install --with-deps")
-	out, err := cmd.CombinedOutput()
+	output, err := exec.Command("sh", "-c", "cd playwright && npm ci && npx playwright install --with-deps").CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("install playwright: %v: %s", err, string(out))
+		return fmt.Errorf("install playwright: %v: %s", err, string(output))
 	}
 	return nil
 }
@@ -444,22 +438,19 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 
 func (c *Cluster) copyPlaywrightReport() {
 	c.t.Logf("%s: compressing playwright report", time.Now().Format(time.RFC3339))
-	cmd := exec.Command("tar", "-czf", "playwright-report.tar.gz", "-C", "./playwright/playwright-report", ".")
-	out, err := cmd.CombinedOutput()
+	output, err := exec.Command("tar", "-czf", "playwright-report.tar.gz", "-C", "./playwright/playwright-report", ".").CombinedOutput()
 	if err != nil {
-		c.t.Logf("fail to compress playwright report: %v: %s", err, string(out))
+		c.t.Logf("fail to compress playwright report: %v: %s", err, string(output))
 	}
 }
 
 func exposePort(node Node, port string) (string, error) {
-	cmd := exec.Command("replicated", "vm", "port", "expose", node.ID, "--port", port)
-	output, err := cmd.CombinedOutput()
+	output, err := exec.Command("replicated", "vm", "port", "expose", node.ID, "--port", port).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("expose port: %v: %s", err, string(output))
 	}
 
-	cmd = exec.Command("replicated", "vm", "port", "ls", node.ID, "-ojson")
-	output, err = cmd.CombinedOutput()
+	output, err = exec.Command("replicated", "vm", "port", "ls", node.ID, "-ojson").Output() // stderr can break json parsing
 	if err != nil {
 		return "", fmt.Errorf("get port info: %v: %s", err, string(output))
 	}
@@ -480,8 +471,7 @@ func exposePort(node Node, port string) (string, error) {
 func copyFileToNode(node Node, src, dst string) error {
 	scpEndpoint := strings.Replace(node.sshEndpoint, "ssh://", "scp://", 1)
 
-	cmd := exec.Command("scp", append(sshArgs(), src, fmt.Sprintf("%s/%s", scpEndpoint, dst))...)
-	output, err := cmd.CombinedOutput()
+	output, err := exec.Command("scp", append(sshArgs(), src, fmt.Sprintf("%s/%s", scpEndpoint, dst))...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("copy file to node: %v: %s", err, string(output))
 	}
@@ -491,8 +481,7 @@ func copyFileToNode(node Node, src, dst string) error {
 func copyFileFromNode(node Node, src, dst string) error {
 	scpEndpoint := strings.Replace(node.sshEndpoint, "ssh://", "scp://", 1)
 
-	cmd := exec.Command("scp", append(sshArgs(), fmt.Sprintf("%s/%s", scpEndpoint, src), dst)...)
-	output, err := cmd.CombinedOutput()
+	output, err := exec.Command("scp", append(sshArgs(), fmt.Sprintf("%s/%s", scpEndpoint, src), dst)...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("copy file from node: %v: %s", err, string(output))
 	}

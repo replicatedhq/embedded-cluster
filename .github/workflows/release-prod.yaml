@@ -565,6 +565,7 @@ jobs:
         include:
           - test: TestAirgapUpgradeFromEC18
             runner: embedded-cluster-2
+            is-lxd: true
           - test: TestVersion
             is-lxd: true
           - test: TestCommandsRequireSudo
