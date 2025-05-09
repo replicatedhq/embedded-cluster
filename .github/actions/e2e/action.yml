@@ -25,6 +25,10 @@ inputs:
   github-token:
     description: 'the ci github token used to install the replicated cli'
     required: false # this is only needed for cmx-based tests
+  is-lxd:
+    description: 'whether the test runs on lxd'
+    required: false
+    default: 'false'
   cmx-api-token:
     description: 'the token used to access the replicated api for cmx'
     required: false # this is only needed for cmx-based tests
@@ -39,11 +43,11 @@ runs:
   using: composite
   steps:
   - name: Local Setup
-    if: ${{ inputs.cmx-api-token == '' }}
-    uses: ./.github/actions/e2e-local-setup
+    if: ${{ inputs.is-lxd == 'true' }}
+    uses: ./.github/actions/e2e-lxd-setup
 
   - name: CMX Setup
-    if: ${{ inputs.cmx-api-token != '' }}
+    if: ${{ inputs.is-lxd == 'false' }}
     uses: ./.github/actions/e2e-cmx-setup
     with:
       github-token: ${{ inputs.github-token }}
