@@ -174,6 +174,16 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./dev/.dockerbuildcache
+          key: docker-build-cache
+
       - uses: oras-project/setup-oras@v1
 
       - uses: imjasonh/setup-crane@v0.4
@@ -193,7 +203,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
-          USE_CHAINGUARD: "1"
+          USE_CHAINGUARD: "0"
           UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -248,6 +258,16 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./dev/.dockerbuildcache
+          key: docker-build-cache
+
       - uses: oras-project/setup-oras@v1
 
       - uses: imjasonh/setup-crane@v0.4
@@ -267,7 +287,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
-          USE_CHAINGUARD: "1"
+          USE_CHAINGUARD: "0"
           UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
@@ -357,6 +377,16 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./dev/.dockerbuildcache
+          key: docker-build-cache
+
       - uses: oras-project/setup-oras@v1
 
       - uses: imjasonh/setup-crane@v0.4
@@ -376,7 +406,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
-          USE_CHAINGUARD: "1"
+          USE_CHAINGUARD: "0"
           UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
