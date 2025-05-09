@@ -33,13 +33,13 @@ func (c *Cluster) DeployMinio(node int) (*Minio, error) {
 
 	// Download minio binary
 	downloadEnvs := map[string]string{"GOBIN": "/minio/bin"}
-	downloadCmd := []string{"/usr/local/go/bin/go", "install", "github.com/minio/minio@latest"}
+	downloadCmd := []string{"/usr/local/go/bin/go", "install", "github.com/minio/minio@v0.0.0-20250507153712-6d18dba9a20d"}
 	if stdout, stderr, err := c.RunCommandOnNode(node, downloadCmd, downloadEnvs); err != nil {
 		return nil, fmt.Errorf("download minio: %v: %s: %s", err, stdout, stderr)
 	}
 
 	// Download mc binary
-	downloadCmd = []string{"/usr/local/go/bin/go", "install", "github.com/minio/mc@latest"}
+	downloadCmd = []string{"/usr/local/go/bin/go", "install", "github.com/minio/mc@v0.0.0-20250506164133-19d87ba47505"}
 	if stdout, stderr, err := c.RunCommandOnNode(node, downloadCmd, downloadEnvs); err != nil {
 		return nil, fmt.Errorf("download mc: %v: %s: %s", err, stdout, stderr)
 	}
