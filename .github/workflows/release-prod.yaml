@@ -591,7 +591,7 @@ jobs:
       - uses: ./.github/actions/e2e
         with:
           test-name: '${{ matrix.test }}'
-          is-lxd: '${{ matrix.is-lxd }}'
+          is-lxd: '${{ matrix.is-lxd || false }}'
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.get-tag.outputs.k0s_version }}
