@@ -128,6 +128,9 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 	if in.DiskSize != 0 {
 		args = append(args, "--disk", strconv.Itoa(in.DiskSize))
 	}
+	if key := os.Getenv("CMX_SSH_PUBLIC_KEY"); key != "" {
+		args = append(args, "--ssh-public-key", key)
+	}
 
 	output, err := exec.Command("replicated", args...).CombinedOutput()
 	if err != nil {

@@ -31,9 +31,6 @@ inputs:
   cmx-api-token:
     description: 'the token used to access the replicated api for cmx'
     required: false # this is only needed for cmx-based tests
-  cmx-ssh-private-key:
-    description: 'the private key used to access the cmx nodes'
-    required: false # this is only needed for cmx-based tests
   upgrade-target-ec-version:
     description: 'the embedded cluster version to expect after upgrades complete'
     required: false # this is only set by post-release testing
@@ -92,12 +89,11 @@ runs:
       tar -xzf /tmp/replicated.tar.gz -C /tmp
       mv /tmp/replicated /usr/local/bin/replicated
   - name: Setup SSH for CMX
-    if: ${{ inputs.cmx-ssh-private-key != '' }}
     shell: bash
     run: |
       mkdir -p ~/.ssh
-      echo "${{ inputs.cmx-ssh-private-key }}" > ~/.ssh/id_ed25519
-      chmod 600 ~/.ssh/id_ed25519
+      ssh-keygen -t rsa -b 4096 -C "github actions" -f ~/.ssh/id_rsa -N ""
+      chmod 600 ~/.ssh/id_rsa
   - name: E2E
     shell: bash
     run: |
@@ -115,6 +111,7 @@ runs:
       export EXPECT_K0S_VERSION_PREVIOUS=${{ inputs.k0s-version-previous }}
       export EXPECT_K0S_VERSION_PREVIOUS_STABLE=${{ inputs.k0s-version-previous-stable }}
       export EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION=${{ inputs.upgrade-target-ec-version }}
+      export CMX_SSH_PUBLIC_KEY=$(pwd)/.ssh/id_rsa.pub
       export SKIP_LXD_CLEANUP=true
       make e2e-test TEST_NAME=${{ inputs.test-name }}
   - name: Troubleshoot
