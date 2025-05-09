@@ -4,9 +4,6 @@ inputs:
   test-name:
     description: 'individual test to run'
     required: true
-  is-large-runner:
-    description: 'Whether the test is running on a large runner'
-    required: true
   dr-aws-access-key-id:
     description: 'Disaster Recovery AWS Access Key ID'
     required: true

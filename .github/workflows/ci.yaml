@@ -761,7 +761,6 @@ jobs:
       - uses: ./.github/actions/e2e
         with:
           test-name: '${{ matrix.test }}'
-          is-large-runner: ${{ matrix.runner == 'embedded-cluster-2' }}
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.build-current.outputs.k0s_version }}
@@ -775,7 +774,7 @@ jobs:
   e2e-main:
     name: E2E (on merge)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
+    runs-on: ubuntu-22.04
     needs:
       - build-current
       - build-previous-k0s
@@ -786,9 +785,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - test: TestFiveNodesAirgapUpgrade
-            runner: embedded-cluster-2
+        test:
+          - TestFiveNodesAirgapUpgrade
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -801,7 +799,6 @@ jobs:
       - uses: ./.github/actions/e2e
         with:
           test-name: '${{ matrix.test }}'
-          is-large-runner: ${{ matrix.runner == 'embedded-cluster-2' }}
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.build-current.outputs.k0s_version }}

@@ -27,8 +27,9 @@ func (c *Cluster) DeployMinio(node int) (*Minio, error) {
 
 	// Download Minio binary
 	downloadCmd := []string{
-		"curl", "-L", "https://dl.min.io/server/minio/release/linux-amd64/minio",
-		"-o", "/minio/bin/minio",
+		"wget", "--limit-rate=2m", "--continue",
+		"https://dl.min.io/server/minio/release/linux-amd64/minio",
+		"-O", "/minio/bin/minio",
 	}
 	if stdout, stderr, err := c.RunCommandOnNode(node, downloadCmd); err != nil {
 		return nil, fmt.Errorf("download minio: %v: %s: %s", err, stdout, stderr)
@@ -41,8 +42,9 @@ func (c *Cluster) DeployMinio(node int) (*Minio, error) {
 
 	// Download mc binary
 	downloadCmd = []string{
-		"curl", "-L", "https://dl.min.io/client/mc/release/linux-amd64/mc",
-		"-o", "/minio/bin/mc",
+		"wget", "--limit-rate=2m", "--continue",
+		"https://dl.min.io/client/mc/release/linux-amd64/mc",
+		"-O", "/minio/bin/mc",
 	}
 	if stdout, stderr, err := c.RunCommandOnNode(node, downloadCmd); err != nil {
 		return nil, fmt.Errorf("download mc: %v: %s: %s", err, stdout, stderr)
