@@ -99,7 +99,7 @@ func (c *Cluster) StartMinio(node int, minio *Minio) error {
 
 		line := []string{"/minio/bin/minio", "server", "/minio/data", "--address", ":9000"}
 		if stdout, stderr, err := c.RunCommandOnNode(node, line, envs); err != nil {
-			c.t.Logf("start minio server: %v: %s: %s", err, stdout, stderr)
+			c.t.Logf("minio server: %v: %s: %s", err, stdout, stderr)
 		}
 	}()
 

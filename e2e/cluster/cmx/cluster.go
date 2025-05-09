@@ -96,7 +96,7 @@ func NewNetwork(in *ClusterInput) (*Network, error) {
 
 	var networks []Network
 	if err := json.Unmarshal(output, &networks); err != nil {
-		return nil, fmt.Errorf("parse networks output: %v", err)
+		return nil, fmt.Errorf("parse networks output: %v: %s", err, string(output))
 	}
 	if len(networks) != 1 {
 		return nil, fmt.Errorf("expected 1 network, got %d", len(networks))

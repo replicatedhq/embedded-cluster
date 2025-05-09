@@ -354,98 +354,109 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	requiredEnvVars := []string{
-		"DR_S3_ENDPOINT",
-		"DR_S3_REGION",
-		"DR_S3_BUCKET",
-		"DR_S3_PREFIX_AIRGAP",
-		"DR_ACCESS_KEY_ID",
-		"DR_SECRET_ACCESS_KEY",
-	}
-	RequireEnvVars(t, requiredEnvVars)
-
-	testArgs := []string{}
-	for _, envVar := range requiredEnvVars {
-		testArgs = append(testArgs, os.Getenv(envVar))
-	}
-
-	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
-	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
-	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
-	runInParallel(t,
-		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, AirgapSnapshotLicenseID)
-		}, func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, AirgapSnapshotLicenseID)
-		},
-	)
-
-	tc := lxd.NewCluster(&lxd.ClusterInput{
-		T:                       t,
-		Nodes:                   1,
-		Image:                   "debian/12",
-		WithProxy:               true,
-		AirgapInstallBundlePath: airgapInstallBundlePath,
-		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
+	tc := cmx.NewCluster(&cmx.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distribution: "ubuntu",
+		Version:      "22.04",
+		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup()
 
-	// install "curl" dependency on node 0 for app version checks.
-	tc.InstallTestDependenciesDebian(t, 0, true)
-
-	// delete airgap bundles once they've been copied to the nodes
-	if err := os.Remove(airgapInstallBundlePath); err != nil {
-		t.Logf("failed to remove airgap install bundle: %v", err)
+	t.Logf("%s: deploying minio on node 0", time.Now().Format(time.RFC3339))
+	minio, err := tc.DeployMinio(0)
+	if err != nil {
+		t.Fatalf("failed to deploy minio on node 0: %v", err)
 	}
+
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
+	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapSnapshotLicenseID)
+		},
+		func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 0, upgradeVersion, AirgapUpgradeBundlePath, AirgapSnapshotLicenseID)
+		},
+	)
+
+	// install "expect" dependency for the restore process.
+	t.Logf("%s: installing expect package on node 0", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"apt-get", "install", "-y", "expect"}); err != nil {
+		t.Fatalf("fail to install expect package on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
+	if err := tc.Airgap(); err != nil {
+		t.Fatalf("failed to airgap cluster: %v", err)
+	}
+
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node 0: %v: %s: %s", err, stdout, stderr)
 	}
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA")}
-	line = append(line, "--pod-cidr", "10.128.0.0/20")
-	line = append(line, "--service-cidr", "10.129.0.0/20")
-	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+
+	installSingleNodeWithOptions(t, tc, installOptions{
+		isAirgap:    true,
+		podCidr:     "10.128.0.0/20",
+		serviceCidr: "10.129.0.0/20",
+	})
+
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+
+	// DR args to be used for backup and restore
+	drArgs := []string{
+		minio.Endpoint,
+		minio.Region,
+		minio.DefaultBucket,
+		uuid.New().String(), // prefix
+		minio.AccessKey,
+		minio.SecretKey,
 	}
-	if _, _, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test create-backup: %v", err)
+
+	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", drArgs...); err != nil {
+		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
+
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
-	stdout, _, err := tc.RunCommandOnNode(0, line)
-	if err != nil {
-		t.Log(stdout)
-		t.Fatalf("fail to check installation state: %v", err)
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
+
 	// ensure that the cluster is using the right IP ranges.
 	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
-	stdout, _, err = tc.RunCommandOnNode(0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
-	if err != nil {
-		t.Log(stdout)
-		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"}); err != nil {
+		t.Fatalf("fail to check addresses on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
 	resetInstallation(t, tc, 0)
 
+	// wait for reboot
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
-	time.Sleep(30 * time.Second)
+	tc.WaitForReboot()
 
-	tc.InstallTestDependenciesDebian(t, 0, true)
-	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
-	testArgs = append(testArgs, "--pod-cidr", "10.128.0.0/20", "--service-cidr", "10.129.0.0/20")
-	line = append([]string{"restore-installation-airgap.exp"}, testArgs...)
-	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
-		t.Fatalf("fail to restore the installation: %v", err)
+	// start minio
+	t.Logf("%s: starting minio on node 0 after reboot", time.Now().Format(time.RFC3339))
+	if err := tc.StartMinio(0, minio); err != nil {
+		t.Fatalf("failed to start minio: %v", err)
 	}
+
+	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
+	drArgs = append(drArgs, "--pod-cidr", "10.128.0.0/20", "--service-cidr", "10.129.0.0/20")
+	line = append([]string{"restore-installation-airgap.exp"}, drArgs...)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to restore the installation: %v: %s: %s", err, stdout, stderr)
+	}
+
 	t.Logf("%s: checking installation state after restoring app", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
@@ -458,27 +469,22 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	if err := tc.SetupPlaywright(); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
-		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-update.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to run airgap update: %v", err)
-	}
-	// remove the airgap bundle after upgrade
-	line = []string{"rm", "/assets/upgrade/release.airgap"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to run airgap update: %v: %s: %s", err, stdout, stderr)
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs = []string{appUpgradeVersion}
+	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)
@@ -640,10 +646,10 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	})
 	defer tc.Cleanup(withEnv)
 
-	t.Logf("%s: deploying minio on node 2", time.Now().Format(time.RFC3339))
-	minio, err := tc.DeployMinio(2)
+	t.Logf("%s: deploying minio on node 0", time.Now().Format(time.RFC3339))
+	minio, err := tc.DeployMinio(0)
 	if err != nil {
-		t.Fatalf("failed to deploy minio on node 2: %v", err)
+		t.Fatalf("failed to deploy minio on node 0: %v", err)
 	}
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
@@ -756,8 +762,8 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	tc.WaitForReboot()
 
 	// start minio
-	t.Logf("%s: starting minio on node 2 after reboot", time.Now().Format(time.RFC3339))
-	if err := tc.StartMinio(2, minio); err != nil {
+	t.Logf("%s: starting minio on node 0 after reboot", time.Now().Format(time.RFC3339))
+	if err := tc.StartMinio(0, minio); err != nil {
 		t.Fatalf("failed to start minio: %v", err)
 	}
 

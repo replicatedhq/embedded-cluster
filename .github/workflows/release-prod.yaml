@@ -566,14 +566,11 @@ jobs:
           - TestMultiNodeAirgapUpgrade
           - TestMultiNodeAirgapUpgradeSameK0s
           - TestMultiNodeAirgapUpgradePreviousStable
+          - TestMultiNodeAirgapHAInstallation
+          - TestSingleNodeAirgapDisasterRecovery
+          - TestMultiNodeAirgapHADisasterRecovery
         include:
           - test: TestAirgapUpgradeFromEC18
-            runner: embedded-cluster-2
-          - test: TestMultiNodeAirgapHAInstallation
-            runner: embedded-cluster-2
-          - test: TestSingleNodeAirgapDisasterRecovery
-            runner: embedded-cluster-2
-          - test: TestMultiNodeAirgapHADisasterRecovery
             runner: embedded-cluster-2
     steps:
       - name: Checkout
