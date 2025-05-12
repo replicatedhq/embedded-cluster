@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -129,7 +130,7 @@ func TestUpdateClusterConfig(t *testing.T) {
 						ServiceCIDR: "10.96.0.0/12",
 					},
 					Telemetry: &k0sv1beta1.ClusterTelemetry{
-						Enabled: true,
+						Enabled: ptr.To(true),
 					},
 				},
 			},
