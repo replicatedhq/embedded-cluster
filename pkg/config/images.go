@@ -8,7 +8,6 @@ import (
 
 	"github.com/k0sproject/k0s/pkg/airgap"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/k0sproject/k0s/pkg/constant"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"gopkg.in/yaml.v2"
 )
@@ -35,13 +34,7 @@ func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 			cfg.Spec.Images.KubeRouter.CNIInstaller.URI(),
 			cfg.Spec.Images.Konnectivity.URI():
 		default:
-			if strings.Contains(image, constant.KubePauseContainerImage) {
-				// there's a bug in GetImageURIs where it always returns the original pause image
-				// instead of the one in the config, make sure to use the one in the config.
-				images = append(images, cfg.Spec.Images.Pause.URI())
-			} else {
-				images = append(images, image)
-			}
+			images = append(images, image)
 		}
 	}
 	return images
