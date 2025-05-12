@@ -158,7 +158,7 @@ config:
 			},
 			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {
 				// Verify that the unsupported override was applied to the telemetry config
-				assert.Equal(t, false, updatedConfig.Spec.Telemetry.Enabled)
+				assert.Equal(t, false, *updatedConfig.Spec.Telemetry.Enabled)
 
 				// Verify that the unsupported override was applied to the worker profiles
 				require.Len(t, updatedConfig.Spec.WorkerProfiles, 1)
@@ -226,7 +226,7 @@ config:
 						ServiceCIDR: "10.96.0.0/12",
 					},
 					Storage: &k0sv1beta1.StorageSpec{
-						Type: "abc",
+						Type: "etcd",
 					},
 					API: &k0sv1beta1.APISpec{
 						Address: "192.168.1.1",
@@ -266,7 +266,7 @@ config:
 				// Verify that the immutable fields are not changed
 				assert.Equal(t, "k0s", updatedConfig.Name)
 				assert.Equal(t, "192.168.1.1", updatedConfig.Spec.API.Address)
-				assert.Equal(t, "abc", updatedConfig.Spec.Storage.Type)
+				assert.Equal(t, k0sv1beta1.EtcdStorageType, updatedConfig.Spec.Storage.Type)
 
 				// Verify that other changes were not made
 				assert.Equal(t, "10.96.0.0/12", updatedConfig.Spec.Network.ServiceCIDR)
