@@ -32,7 +32,8 @@ func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 		// skip these images
 		case cfg.Spec.Images.KubeRouter.CNI.URI(),
 			cfg.Spec.Images.KubeRouter.CNIInstaller.URI(),
-			cfg.Spec.Images.Konnectivity.URI():
+			cfg.Spec.Images.Konnectivity.URI(),
+			cfg.Spec.Images.PushGateway.URI():
 		default:
 			images = append(images, image)
 		}
