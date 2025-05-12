@@ -102,6 +102,11 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string, respectImmuta
 	if err := k8syaml.Unmarshal(resultYAML, &patched); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal patched config: %w", err)
 	}
+	// Fix for - https://github.com/k0sproject/k0s/pull/5834 - currently the process of unmarshaling a config with a
+	// calico config will also set a default kube-router config. We remove it here.
+	if patched.Spec.Network.Provider == "calico" {
+		patched.Spec.Network.KubeRouter = nil
+	}
 	return &patched, nil
 }
 
