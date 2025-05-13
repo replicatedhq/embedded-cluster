@@ -443,7 +443,7 @@ spec:
                 Ensure your firewall is properly configured, and use --http-proxy,
                 --https-proxy, and --no-proxy if there is a proxy server.
                 The static IP addresses for {{ .ProxyRegistryURL }} are
-                162.159.137.43 and 162.159.138.43. 
+                162.159.137.43 and 162.159.138.43.
           - pass:
               when: 'statusCode == 401'
               message: 'Connected to {{ .ProxyRegistryURL }}'
