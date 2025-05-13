@@ -17,7 +17,7 @@ import (
 
 func TestUpdateClusterConfig(t *testing.T) {
 	scheme := runtime.NewScheme()
-	require.NoError(t, k0sv1beta1.AddToScheme(scheme))
+	require.NoError(t, k0sv1beta1.Install(scheme))
 
 	tests := []struct {
 		name          string

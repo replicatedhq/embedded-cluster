@@ -16,15 +16,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-var Scheme = scheme.Scheme
-var Codecs = scheme.Codecs
-var ParameterCodec = scheme.ParameterCodec
+var (
+	Scheme         = scheme.Scheme
+	Codecs         = scheme.Codecs
+	ParameterCodec = scheme.ParameterCodec
+)
 
 func init() {
 	utilruntime.Must(embeddedclusterv1beta1.AddToScheme(Scheme))
-	utilruntime.Must(autopilotv1beta2.AddToScheme(Scheme))
-	utilruntime.Must(k0sv1beta1.AddToScheme(Scheme))
-	utilruntime.Must(k0shelmv1beta1.AddToScheme(Scheme))
+	utilruntime.Must(autopilotv1beta2.Install(Scheme))
+	utilruntime.Must(k0sv1beta1.Install(Scheme))
+	utilruntime.Must(k0shelmv1beta1.Install(Scheme))
 	utilruntime.Must(velerov1.AddToScheme(Scheme))
 }
 
