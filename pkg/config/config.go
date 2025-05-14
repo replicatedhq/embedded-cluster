@@ -34,6 +34,9 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 	cfg.Spec.Konnectivity = nil
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"
+	// We need to disable telemetry in a backwards compatible way with k0s v1.30 and v1.29
+	// See - https://github.com/k0sproject/k0s/pull/4674/files#diff-eea4a0c68e41d694c3fd23b4865a7b28bcbba61dc9c642e33c2e2f5f7f9ee05d
+	// We can drop the json.Unmarshal once we drop support for 1.30
 	err := json.Unmarshal([]byte("false"), &cfg.Spec.Telemetry.Enabled)
 	if err != nil {
 		panic(fmt.Sprintf("unable to unmarshal telemetry enabled: %v", err))
