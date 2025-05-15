@@ -105,6 +105,64 @@ func TestProxiedEnvironment(t *testing.T) {
 
 	checkPostUpgradeState(t, tc)
 
+	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// reset the cluster
+	runInParallel(t,
+		func(t *testing.T) error {
+			stdout, stderr, err := resetInstallationWithError(t, tc, 3, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 3: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
+		}, func(t *testing.T) error {
+			stdout, stderr, err := resetInstallationWithError(t, tc, 2, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 2: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
+		}, func(t *testing.T) error {
+			stdout, stderr, err := resetInstallationWithError(t, tc, 1, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 1: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
+		}, func(t *testing.T) error {
+			stdout, stderr, err := resetInstallationWithError(t, tc, 0, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
+		},
+	)
+
+	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
+	time.Sleep(30 * time.Second)
+
+	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
+	line = append([]string{"restore-installation.exp"}, testArgs...)
+	line = append(line, "--http-proxy", lxd.HTTPProxy)
+	line = append(line, "--https-proxy", lxd.HTTPProxy)
+	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
+	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
+		t.Fatalf("fail to restore the installation: %v", err)
+	}
+
+	checkInstallationState(t, tc)
+
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
+	if _, _, err := tc.SetupPlaywrightAndRunTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -217,7 +275,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 		WithProxy:           true,
 		Image:               "debian/12",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-		LicensePath:         "licenses/license.yaml",
+		LicensePath:         "licenses/snapshot-license.yaml",
 	})
 	defer tc.Cleanup()
 
@@ -299,6 +357,65 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// reset the cluster
+	runInParallel(t,
+		func(t *testing.T) error {
+			stdout, stderr, err := resetInstallationWithError(t, tc, 3, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 3: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
+		}, func(t *testing.T) error {
+			stdout, stderr, err := resetInstallationWithError(t, tc, 2, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 2: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
+		}, func(t *testing.T) error {
+			stdout, stderr, err := resetInstallationWithError(t, tc, 1, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 1: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
+		}, func(t *testing.T) error {
+			stdout, stderr, err := resetInstallationWithError(t, tc, 0, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
+		},
+	)
+
+	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
+	time.Sleep(30 * time.Second)
+
+	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
+	line = append([]string{"restore-installation.exp"}, testArgs...)
+	line = append(line, "--http-proxy", lxd.HTTPMITMProxy)
+	line = append(line, "--https-proxy", lxd.HTTPMITMProxy)
+	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
+	line = append(line, "--private-ca", "/usr/local/share/ca-certificates/proxy/ca.crt")
+	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithMITMProxyEnv(tc.IPs)); err != nil {
+		t.Fatalf("fail to restore the installation: %v", err)
+	}
+
+	checkInstallationState(t, tc)
+
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
+	if _, _, err := tc.SetupPlaywrightAndRunTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
