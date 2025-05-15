@@ -284,7 +284,7 @@ func (c *Cluster) waitUntilAirgapped(node int) error {
 func (c *Cluster) WaitForReboot() {
 	time.Sleep(30 * time.Second)
 	for i := range c.Nodes {
-		c.refreshSSHEndpoint(i)
+		// c.refreshSSHEndpoint(i)
 		c.waitForClockSync(i)
 	}
 }
