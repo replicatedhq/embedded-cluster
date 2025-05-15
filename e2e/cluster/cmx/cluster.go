@@ -91,7 +91,10 @@ func NewNetwork(in *ClusterInput) (*Network, error) {
 
 	output, err := exec.Command("replicated", "network", "create", "--name", name, "--wait", "5m", "-ojson").Output() // stderr can break json parsing
 	if err != nil {
-		return nil, fmt.Errorf("create network %s: %v: %s", name, err, string(output))
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("create network %s: %w: stderr: %s: stdout: %s", name, err, string(exitErr.Stderr), string(output))
+		}
+		return nil, fmt.Errorf("create network %s: %w: stdout: %s", name, err, string(output))
 	}
 
 	var networks []Network
@@ -135,7 +138,10 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 
 	output, err := exec.Command("replicated", args...).Output() // stderr can break json parsing
 	if err != nil {
-		return nil, fmt.Errorf("create node %s: %v: %s", nodeName, err, string(output))
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("create node %s: %w: stderr: %s: stdout: %s", nodeName, err, string(exitErr.Stderr), string(output))
+		}
+		return nil, fmt.Errorf("create node %s: %w: stdout: %s", nodeName, err, string(output))
 	}
 
 	var nodes []Node
@@ -459,7 +465,10 @@ func exposePort(node Node, port string) (string, error) {
 
 	output, err = exec.Command("replicated", "vm", "port", "ls", node.ID, "-ojson").Output() // stderr can break json parsing
 	if err != nil {
-		return "", fmt.Errorf("get port info: %v: %s", err, string(output))
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return "", fmt.Errorf("get port info: %w: stderr: %s: stdout: %s", err, string(exitErr.Stderr), string(output))
+		}
+		return "", fmt.Errorf("get port info: %w: stdout: %s", err, string(output))
 	}
 
 	var ports []struct {
