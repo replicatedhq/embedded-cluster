@@ -89,9 +89,12 @@ func NewNetwork(in *ClusterInput) (*Network, error) {
 	name := fmt.Sprintf("ec-e2e-%s", uuid.New().String())
 	in.T.Logf("creating network %s", name)
 
-	output, err := execCommand("replicated", "network", "create", "--name", name, "--wait", "5m", "-ojson")
+	output, err := exec.Command("replicated", "network", "create", "--name", name, "--wait", "5m", "-ojson").Output()
 	if err != nil {
-		return nil, fmt.Errorf("create network %s: %v: %s", name, err, string(output))
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("create network %s: %w: stderr: %s: stdout: %s", name, err, string(exitErr.Stderr), string(output))
+		}
+		return nil, fmt.Errorf("create network %s: %w: stdout: %s", name, err, string(output))
 	}
 
 	var networks []Network
@@ -133,9 +136,12 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 		args = append(args, "--ssh-public-key", key)
 	}
 
-	output, err := execCommand("replicated", args...)
+	output, err := exec.Command("replicated", args...).Output()
 	if err != nil {
-		return nil, fmt.Errorf("create node %s: %v: %s", nodeName, err, string(output))
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("create node %s: %w: stderr: %s: stdout: %s", nodeName, err, string(exitErr.Stderr), string(output))
+		}
+		return nil, fmt.Errorf("create node %s: %w: stdout: %s", nodeName, err, string(output))
 	}
 
 	var nodes []Node
@@ -181,21 +187,6 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 	}
 
 	return &node, nil
-}
-
-// execCommand executes a command and returns the stdout output. If the command fails, it returns an error with the stderr output if any exists.
-func execCommand(command string, args ...string) ([]byte, error) {
-	cmd := exec.Command(command, args...)
-	// set Stderr to nil to force err to hold its output
-	cmd.Stderr = nil
-	output, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("command %s: %w: stderr: %s: stdout: %s", cmd, err, string(exitErr.Stderr), string(output))
-		}
-		return nil, fmt.Errorf("command %s: %w: stdout: %s", cmd, err, string(output))
-	}
-	return output, nil
 }
 
 func discoverPrivateIP(node Node) (string, error) {
@@ -472,9 +463,12 @@ func exposePort(node Node, port string) (string, error) {
 		return "", fmt.Errorf("expose port: %v: %s", err, string(output))
 	}
 
-	output, err = execCommand("replicated", "vm", "port", "ls", node.ID, "-ojson")
+	output, err = exec.Command("replicated", "vm", "port", "ls", node.ID, "-ojson").Output()
 	if err != nil {
-		return "", fmt.Errorf("get port info: %v: %s", err, string(output))
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return "", fmt.Errorf("get port info: %w: stderr: %s: stdout: %s", err, string(exitErr.Stderr), string(output))
+		}
+		return "", fmt.Errorf("get port info: %w: stdout: %s", err, string(output))
 	}
 
 	var ports []struct {
