@@ -43,7 +43,7 @@ func TestProxiedEnvironment(t *testing.T) {
 		Nodes:               4,
 		WithProxy:           true,
 		Image:               "debian/12",
-		LicensePath:         "licenses/license.yaml",
+		LicensePath:         "licenses/snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
