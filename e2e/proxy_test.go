@@ -156,6 +156,12 @@ func TestProxiedEnvironment(t *testing.T) {
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
 
+	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+		version:   appUpgradeVersion,
+		licenseID: SnapshotLicenseID,
+		withEnv:   lxd.WithProxyEnv(tc.IPs),
+	})
+
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-installation.exp"}, testArgs...)
 	line = append(line, "--http-proxy", lxd.HTTPProxy)
@@ -424,6 +430,12 @@ func TestInstallWithMITMProxy(t *testing.T) {
 
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
+
+	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+		version:   appUpgradeVersion,
+		licenseID: SnapshotLicenseID,
+		withEnv:   lxd.WithProxyEnv(tc.IPs),
+	})
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-installation.exp"}, testArgs...)
