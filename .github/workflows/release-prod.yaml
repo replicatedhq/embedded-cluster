@@ -623,3 +623,38 @@ jobs:
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Validation succeeded"
+
+  generate-ec-release-notes-pr:
+    runs-on: ubuntu-latest
+    needs: [release, release-app, get-tag]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Check if tag is from main branch
+        id: check-main
+        run: |
+          # Get the commit that the tag points to
+          TAG_COMMIT=$(git rev-list -n 1 ${{ github.ref }})
+          
+          # Check if this commit is an ancestor of the main branch (or the same commit)
+          if git merge-base --is-ancestor $TAG_COMMIT origin/main; then
+            echo "Tag was created from main branch"
+            echo "is_from_main=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag was NOT created from main branch"
+            echo "is_from_main=false" >> $GITHUB_OUTPUT
+          fi
+        
+      - name: Generate EC Release Notes PR
+        if: steps.check-main.outputs.is_from_main == 'true'
+        env:
+          GIT_TAG: ${{ needs.get-tag.outputs.tag-name }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          curl -H "Authorization: token $GH_PAT" \
+            -H 'Accept: application/json' \
+            -d "{\"event_type\": \"embedded-cluster-release-notes\", \"client_payload\": {\"version\": \"${GIT_TAG}\"}}" \
+            "https://api.github.com/repos/replicatedhq/replicated-docs/dispatches"
