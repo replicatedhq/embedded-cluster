@@ -17,8 +17,9 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var flags InstallCmdFlags
 
 	cmd := &cobra.Command{
-		Use:   "run-preflights",
-		Short: "Run install host preflights",
+		Use:    "run-preflights",
+		Short:  "Run install host preflights",
+		Hidden: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall(cmd, &flags); err != nil {
 				return err
