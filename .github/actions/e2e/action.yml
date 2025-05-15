@@ -32,9 +32,6 @@ inputs:
   cmx-api-token:
     description: 'the token used to access the replicated api for cmx'
     required: false # this is only needed for cmx-based tests
-  cmx-ssh-private-key:
-    description: 'the private key used to access the cmx nodes'
-    required: false # this is only needed for cmx-based tests
   upgrade-target-ec-version:
     description: 'the embedded cluster version to expect after upgrades complete'
     required: false # this is only set by post-release testing
@@ -51,7 +48,6 @@ runs:
     uses: ./.github/actions/e2e-cmx-setup
     with:
       github-token: ${{ inputs.github-token }}
-      cmx-ssh-private-key: ${{ inputs.cmx-ssh-private-key }}
 
   - name: Setup Go
     uses: actions/setup-go@v5
@@ -76,6 +72,7 @@ runs:
       export EXPECT_K0S_VERSION_PREVIOUS=${{ inputs.k0s-version-previous }}
       export EXPECT_K0S_VERSION_PREVIOUS_STABLE=${{ inputs.k0s-version-previous-stable }}
       export EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION=${{ inputs.upgrade-target-ec-version }}
+      export CMX_SSH_PUBLIC_KEY="$HOME/.ssh/id_rsa.pub"
       export SKIP_LXD_CLEANUP=true
       make e2e-test TEST_NAME=${{ inputs.test-name }}
 

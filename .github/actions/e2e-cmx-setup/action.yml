@@ -4,9 +4,6 @@ inputs:
   github-token:
     description: 'the ci github token used to install the replicated cli'
     required: true
-  cmx-ssh-private-key:
-    description: 'the private key used to access the cmx nodes'
-    required: true
 
 runs:
   using: composite
@@ -23,5 +20,5 @@ runs:
     shell: bash
     run: |
       mkdir -p ~/.ssh
-      echo "${{ inputs.cmx-ssh-private-key }}" > ~/.ssh/id_ed25519
-      chmod 600 ~/.ssh/id_ed25519 
+      ssh-keygen -t rsa -b 4096 -C "deploy@replicated.com" -f ~/.ssh/id_rsa -N ""
+      chmod 600 ~/.ssh/id_rsa

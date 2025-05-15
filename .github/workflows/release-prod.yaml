@@ -601,7 +601,6 @@ jobs:
           version-specifier: ${{ github.ref_name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
-          cmx-ssh-private-key: ${{ secrets.CMX_SSH_PRIVATE_KEY }}
           upgrade-target-ec-version: ${{ github.ref_name }}
 
   # this job will validate that all the tests passed
