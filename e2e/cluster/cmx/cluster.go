@@ -89,7 +89,7 @@ func NewNetwork(in *ClusterInput) (*Network, error) {
 	name := fmt.Sprintf("ec-e2e-%s", uuid.New().String())
 	in.T.Logf("creating network %s", name)
 
-	output, err := exec.Command("replicated", "network", "create", "--name", name, "--wait", "5m", "-ojson").Output() // stderr can break json
+	output, err := exec.Command("replicated", "network", "create", "--name", name, "--wait", "5m", "-ojson").Output() // stderr can break json parsing
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			return nil, fmt.Errorf("create network %s: %w: stderr: %s: stdout: %s", name, err, string(exitErr.Stderr), string(output))
@@ -136,7 +136,7 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 		args = append(args, "--ssh-public-key", key)
 	}
 
-	output, err := exec.Command("replicated", args...).Output() // stderr can break json
+	output, err := exec.Command("replicated", args...).Output() // stderr can break json parsing
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			return nil, fmt.Errorf("create node %s: %w: stderr: %s: stdout: %s", nodeName, err, string(exitErr.Stderr), string(output))
@@ -463,7 +463,7 @@ func exposePort(node Node, port string) (string, error) {
 		return "", fmt.Errorf("expose port: %v: %s", err, string(output))
 	}
 
-	output, err = exec.Command("replicated", "vm", "port", "ls", node.ID, "-ojson").Output() // stderr can break json
+	output, err = exec.Command("replicated", "vm", "port", "ls", node.ID, "-ojson").Output() // stderr can break json parsing
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			return "", fmt.Errorf("get port info: %w: stderr: %s: stdout: %s", err, string(exitErr.Stderr), string(output))
