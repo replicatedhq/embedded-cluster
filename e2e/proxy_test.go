@@ -28,6 +28,16 @@ func TestProxiedEnvironment(t *testing.T) {
 		t.Skip("skipping test for k0s versions < 1.29.0")
 	}
 
+	requiredEnvVars := []string{
+		"DR_S3_ENDPOINT",
+		"DR_S3_REGION",
+		"DR_S3_BUCKET",
+		"DR_S3_PREFIX",
+		"DR_ACCESS_KEY_ID",
+		"DR_SECRET_ACCESS_KEY",
+	}
+	RequireEnvVars(t, requiredEnvVars)
+
 	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               4,
@@ -104,6 +114,11 @@ func TestProxiedEnvironment(t *testing.T) {
 	}
 
 	checkPostUpgradeState(t, tc)
+
+	testArgs = []string{}
+	for _, envVar := range requiredEnvVars {
+		testArgs = append(testArgs, os.Getenv(envVar))
+	}
 
 	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
@@ -269,6 +284,16 @@ func TestInstallWithMITMProxy(t *testing.T) {
 		t.Skip("skipping test for k0s versions < 1.29.0")
 	}
 
+	requiredEnvVars := []string{
+		"DR_S3_ENDPOINT",
+		"DR_S3_REGION",
+		"DR_S3_BUCKET",
+		"DR_S3_PREFIX",
+		"DR_ACCESS_KEY_ID",
+		"DR_SECRET_ACCESS_KEY",
+	}
+	RequireEnvVars(t, requiredEnvVars)
+
 	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               4,
@@ -357,6 +382,11 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	testArgs = []string{}
+	for _, envVar := range requiredEnvVars {
+		testArgs = append(testArgs, os.Getenv(envVar))
 	}
 
 	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
