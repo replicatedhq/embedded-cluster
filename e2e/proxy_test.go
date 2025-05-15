@@ -434,7 +434,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
 		version:   appUpgradeVersion,
 		licenseID: SnapshotLicenseID,
-		withEnv:   lxd.WithProxyEnv(tc.IPs),
+		withEnv:   lxd.WithMITMProxyEnv(tc.IPs),
 	})
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
