@@ -191,9 +191,9 @@ func execCommand(command string, args ...string) ([]byte, error) {
 	output, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("command %s: err: %w stderr: %s stdout: %s", cmd, err, string(exitErr.Stderr), string(output))
+			return nil, fmt.Errorf("command %s: %w: stderr: %s: stdout: %s", cmd, err, string(exitErr.Stderr), string(output))
 		}
-		return nil, fmt.Errorf("command %s: err: %w  stdout: %s", cmd, err, string(output))
+		return nil, fmt.Errorf("command %s: %w: stdout: %s", cmd, err, string(output))
 	}
 	return output, nil
 }
