@@ -586,3 +586,162 @@ func TestNoDomains(t *testing.T) {
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
+
+// this test is to ensure that http proxy settings are passed through correctly
+func TestHTTPProxy(t *testing.T) {
+	t.Setenv("HTTP_PROXY", "http://localhost:3128")
+	t.Setenv("HTTPS_PROXY", "http://localhost:3128")
+	t.Setenv("NO_PROXY", "localhost,127.0.0.1,10.0.0.0/8")
+
+	hostCABundle := findHostCABundle(t)
+
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dr := dryrunInstall(t, &dryrun.Client{HelmClient: hcli})
+
+	// --- validate addons --- //
+
+	// embedded cluster operator
+	assert.Equal(t, "Install", hcli.Calls[1].Method)
+	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
+
+	// NO_PROXY is calculated
+	val, err := helm.GetValue(operatorOpts.Values, "extraEnv")
+	require.NoError(t, err)
+	var noProxy string
+	for _, v := range val.([]map[string]any) {
+		if v["name"] == "NO_PROXY" {
+			noProxy = v["value"].(string)
+		}
+	}
+	assert.NotEmpty(t, noProxy)
+	assert.Contains(t, noProxy, "10.0.0.0/8")
+
+	assertHelmValues(t, operatorOpts.Values, map[string]any{
+		"extraEnv": []map[string]any{
+			{
+				"name":  "HTTP_PROXY",
+				"value": "http://localhost:3128",
+			},
+			{
+				"name":  "HTTPS_PROXY",
+				"value": "http://localhost:3128",
+			},
+			{
+				"name":  "NO_PROXY",
+				"value": noProxy,
+			},
+		},
+	})
+	// TODO: CA
+
+	// velero
+	assert.Equal(t, "Install", hcli.Calls[2].Method)
+	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "velero", veleroOpts.ReleaseName)
+	assertHelmValues(t, veleroOpts.Values, map[string]any{
+		"configuration.extraEnvVars": map[string]any{
+			"HTTPS_PROXY":  "http://localhost:3128",
+			"HTTP_PROXY":   "http://localhost:3128",
+			"NO_PROXY":     noProxy,
+			"SSL_CERT_DIR": "/certs",
+		},
+		"extraVolumes":      []string{fmt.Sprintf("hostPath:\n  path: %s\n  type: FileOrCreate\nname: host-ca-bundle\n", hostCABundle)},
+		"extraVolumeMounts": []string{"mountPath: /certs/ca-certificates.crt\nname: host-ca-bundle\n"},
+	})
+
+	// admin console
+	assert.Equal(t, "Install", hcli.Calls[3].Method)
+	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
+	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
+		"extraEnv": []map[string]any{
+			{
+				"name":  "ENABLE_IMPROVED_DR",
+				"value": "true",
+			},
+			{
+				"name":  "HTTP_PROXY",
+				"value": "http://localhost:3128",
+			},
+			{
+				"name":  "HTTPS_PROXY",
+				"value": "http://localhost:3128",
+			},
+			{
+				"name":  "NO_PROXY",
+				"value": noProxy,
+			},
+		},
+	})
+	// TODO: CA
+
+	// --- validate host preflight spec --- //
+	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {
+		match    func(*troubleshootv1beta2.HostCollect) bool
+		validate func(*troubleshootv1beta2.HostCollect)
+	}{
+		"http-replicated-app": {
+			match: func(hc *troubleshootv1beta2.HostCollect) bool {
+				return hc.HTTP != nil && hc.HTTP.CollectorName == "http-replicated-app"
+			},
+			validate: func(hc *troubleshootv1beta2.HostCollect) {
+				assert.Equal(t, "http://localhost:3128", hc.HTTP.Get.Proxy)
+			},
+		},
+		"http-proxy-replicated-com": {
+			match: func(hc *troubleshootv1beta2.HostCollect) bool {
+				return hc.HTTP != nil && hc.HTTP.CollectorName == "http-proxy-replicated-com"
+			},
+			validate: func(hc *troubleshootv1beta2.HostCollect) {
+				assert.Equal(t, "http://localhost:3128", hc.HTTP.Get.Proxy)
+			},
+		},
+	})
+
+	// --- validate cluster resources --- //
+	kcli, err := dr.KubeClient()
+	if err != nil {
+		t.Fatalf("failed to create kube client: %v", err)
+	}
+
+	// TODO: CA
+	// assertConfigMapExists(t, kcli, "private-cas", "kotsadm")
+	// assertConfigMapExists(t, kcli, "kotsadm-private-cas", "embedded-cluster")
+
+	// --- validate installation object --- //
+	in, err := kubeutils.GetLatestInstallation(context.TODO(), kcli)
+	if err != nil {
+		t.Fatalf("failed to get latest installation: %v", err)
+	}
+
+	assert.Equal(t, hostCABundle, in.Spec.RuntimeConfig.HostCABundlePath)
+}
+
+func findHostCABundle(t *testing.T) string {
+	// From https://github.com/golang/go/blob/go1.24.3/src/crypto/x509/root_linux.go
+	certFiles := []string{
+		"/etc/ssl/certs/ca-certificates.crt",                // Debian/Ubuntu/Gentoo etc.
+		"/etc/pki/tls/certs/ca-bundle.crt",                  // Fedora/RHEL 6
+		"/etc/ssl/ca-bundle.pem",                            // OpenSUSE
+		"/etc/pki/tls/cacert.pem",                           // OpenELEC
+		"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", // CentOS/RHEL 7
+		"/etc/ssl/cert.pem",                                 // Alpine Linux
+	}
+
+	for _, file := range certFiles {
+		if _, err := os.Stat(file); err == nil {
+			return file
+		}
+	}
+
+	t.Fatalf("no host CA bundle found")
+	return ""
+}
