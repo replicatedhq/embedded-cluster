@@ -25,7 +25,7 @@ type Client interface {
 	Install(ctx context.Context, opts InstallOptions) (*release.Release, error)
 	Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error)
 	Uninstall(ctx context.Context, opts UninstallOptions) error
-	Render(releaseName string, chartPath string, values map[string]interface{}, namespace string, labels map[string]string) ([][]byte, error)
+	Render(ctx context.Context, opts InstallOptions) ([][]byte, error)
 }
 
 type ClientFactory func(opts HelmOptions) (Client, error)

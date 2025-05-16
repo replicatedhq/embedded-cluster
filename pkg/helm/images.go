@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"slices"
@@ -51,7 +52,13 @@ func ExtractImagesFromChart(hcli Client, ref string, version string, values map[
 }
 
 func ExtractImagesFromLocalChart(hcli Client, name, path string, values map[string]interface{}) ([]string, error) {
-	manifests, err := hcli.Render(name, path, values, "default", nil)
+	manifests, err := hcli.Render(context.Background(), InstallOptions{
+		ReleaseName:  name,
+		ChartPath:    path,
+		ChartVersion: "1.0.0",
+		Values:       values,
+		Namespace:    "default",
+	})
 	if err != nil {
 		return nil, fmt.Errorf("render: %w", err)
 	}

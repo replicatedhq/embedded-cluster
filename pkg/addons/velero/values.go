@@ -8,8 +8,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -31,8 +29,8 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 	}
 
 	extraEnvVars := map[string]any{}
-	extraVolumes := []corev1.Volume{}
-	extraVolumeMounts := []corev1.VolumeMount{}
+	extraVolumes := []map[string]any{}
+	extraVolumeMounts := []map[string]any{}
 
 	if v.Proxy != nil {
 		extraEnvVars["HTTP_PROXY"] = v.Proxy.HTTPProxy
@@ -41,19 +39,17 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 	}
 
 	if v.HostCABundlePath != "" {
-		extraVolumes = append(extraVolumes, corev1.Volume{
-			Name: "host-ca-bundle",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: v.HostCABundlePath,
-					Type: ptr.To(corev1.HostPathFileOrCreate),
-				},
+		extraVolumes = append(extraVolumes, map[string]any{
+			"name": "host-ca-bundle",
+			"hostPath": map[string]any{
+				"path": v.HostCABundlePath,
+				"type": "FileOrCreate",
 			},
 		})
 
-		extraVolumeMounts = append(extraVolumeMounts, corev1.VolumeMount{
-			Name:      "host-ca-bundle",
-			MountPath: "/certs/ca-certificates.crt",
+		extraVolumeMounts = append(extraVolumeMounts, map[string]any{
+			"name":      "host-ca-bundle",
+			"mountPath": "/certs/ca-certificates.crt",
 		})
 
 		extraEnvVars["SSL_CERT_DIR"] = "/certs"

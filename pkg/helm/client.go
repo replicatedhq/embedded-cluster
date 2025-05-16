@@ -336,20 +336,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 		client.Timeout = 5 * time.Minute
 	}
 
-	var localPath string
-	if h.airgapPath == "" {
-		// online, pull chart from remote
-		localPath, err = h.PullByRefWithRetries(ctx, opts.ChartPath, opts.ChartVersion, 3)
-		if err != nil {
-			return nil, fmt.Errorf("pull: %w", err)
-		}
-		defer os.RemoveAll(localPath)
-	} else {
-		// airgapped, use chart from airgap path
-		localPath = filepath.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", opts.ReleaseName, opts.ChartVersion))
-	}
-
-	chartRequested, err := loader.Load(localPath)
+	chartRequested, err := h.loadChart(ctx, opts.ChartPath, opts.ReleaseName, opts.ChartVersion)
 	if err != nil {
 		return nil, fmt.Errorf("load chart: %w", err)
 	}
@@ -393,20 +380,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release
 		client.Timeout = 5 * time.Minute
 	}
 
-	var localPath string
-	if h.airgapPath == "" {
-		// online, pull chart from remote
-		localPath, err = h.PullByRefWithRetries(ctx, opts.ChartPath, opts.ChartVersion, 3)
-		if err != nil {
-			return nil, fmt.Errorf("pull: %w", err)
-		}
-		defer os.RemoveAll(localPath)
-	} else {
-		// airgapped, use chart from airgap path
-		localPath = filepath.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", opts.ReleaseName, opts.ChartVersion))
-	}
-
-	chartRequested, err := loader.Load(localPath)
+	chartRequested, err := h.loadChart(ctx, opts.ChartPath, opts.ReleaseName, opts.ChartVersion)
 	if err != nil {
 		return nil, fmt.Errorf("load chart: %w", err)
 	}
@@ -451,17 +425,24 @@ func (h *HelmClient) Uninstall(ctx context.Context, opts UninstallOptions) error
 	return nil
 }
 
-func (h *HelmClient) Render(releaseName string, chartPath string, values map[string]interface{}, namespace string, labels map[string]string) ([][]byte, error) {
+func (h *HelmClient) Render(ctx context.Context, opts InstallOptions) ([][]byte, error) {
 	cfg := &action.Configuration{}
 
 	client := action.NewInstall(cfg)
 	client.DryRun = true
-	client.ReleaseName = releaseName
+	client.ReleaseName = opts.ReleaseName
 	client.Replace = true
+	client.CreateNamespace = true
 	client.ClientOnly = true
 	client.IncludeCRDs = true
-	client.Namespace = namespace
-	client.Labels = labels
+	client.Namespace = opts.Namespace
+	client.Labels = opts.Labels
+
+	if opts.Timeout != 0 {
+		client.Timeout = opts.Timeout
+	} else {
+		client.Timeout = 5 * time.Minute
+	}
 
 	if h.kversion != nil {
 		// since ClientOnly is true we need to initialize KubeVersion otherwise resorts defaults
@@ -472,7 +453,7 @@ func (h *HelmClient) Render(releaseName string, chartPath string, values map[str
 		}
 	}
 
-	chartRequested, err := loader.Load(chartPath)
+	chartRequested, err := h.loadChart(ctx, opts.ChartPath, opts.ReleaseName, opts.ChartVersion)
 	if err != nil {
 		return nil, fmt.Errorf("load chart: %w", err)
 	}
@@ -483,7 +464,7 @@ func (h *HelmClient) Render(releaseName string, chartPath string, values map[str
 		}
 	}
 
-	cleanVals, err := cleanUpGenericMap(values)
+	cleanVals, err := cleanUpGenericMap(opts.Values)
 	if err != nil {
 		return nil, fmt.Errorf("clean up generic map: %w", err)
 	}
@@ -537,6 +518,32 @@ func (h *HelmClient) getRESTClientGetter(namespace string) genericclioptions.RES
 		cfgFlags.KubeConfig = &h.kubeconfig
 	}
 	return cfgFlags
+}
+
+func (h *HelmClient) loadChart(ctx context.Context, chartPath string, releaseName string, chartVersion string) (*chart.Chart, error) {
+	var localPath string
+	if h.airgapPath != "" {
+		// airgapped, use chart from airgap path
+		// TODO: this should just respect the chart path if it's a local path and leave it up to the caller to handle
+		localPath = filepath.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", releaseName, chartVersion))
+	} else if strings.HasPrefix(chartPath, "oci://") {
+		// online, pull chart from remote
+		var err error
+		localPath, err = h.PullByRefWithRetries(ctx, chartPath, chartVersion, 3)
+		if err != nil {
+			return nil, fmt.Errorf("pull: %w", err)
+		}
+		defer os.RemoveAll(localPath)
+	} else {
+		localPath = chartPath
+	}
+
+	chartRequested, err := loader.Load(localPath)
+	if err != nil {
+		return nil, fmt.Errorf("load chart: %w", err)
+	}
+
+	return chartRequested, nil
 }
 
 func cleanUpGenericMap(m map[string]interface{}) (map[string]interface{}, error) {
