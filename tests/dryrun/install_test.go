@@ -19,8 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 )
 
 func TestDefaultInstallation(t *testing.T) {
@@ -655,18 +653,16 @@ func TestInstall_HTTPProxy(t *testing.T) {
 			"NO_PROXY":     noProxy,
 			"SSL_CERT_DIR": "/certs",
 		},
-		"extraVolumes": []corev1.Volume{{
-			Name: "host-ca-bundle",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: hostCABundle,
-					Type: ptr.To(corev1.HostPathFileOrCreate),
-				},
+		"extraVolumes": []map[string]any{{
+			"name": "host-ca-bundle",
+			"hostPath": map[string]any{
+				"path": hostCABundle,
+				"type": "FileOrCreate",
 			},
 		}},
-		"extraVolumeMounts": []corev1.VolumeMount{{
-			MountPath: "/certs/ca-certificates.crt",
-			Name:      "host-ca-bundle",
+		"extraVolumeMounts": []map[string]any{{
+			"mountPath": "/certs/ca-certificates.crt",
+			"name":      "host-ca-bundle",
 		}},
 	})
 
