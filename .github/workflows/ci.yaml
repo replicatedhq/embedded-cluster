@@ -492,15 +492,6 @@ jobs:
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
 
-          # re-promote a release containing an old version of embedded-cluster to test upgrades
-          export APP_VERSION="appver-${SHORT_SHA}-pre-minio-removal"
-          replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
-
-          # re-promote a release containing an old version of embedded-cluster to test upgrades
-          export APP_VERSION="appver-${SHORT_SHA}-1.8.0-k8s-1.28"
-          replicated release promote 11615 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
-          replicated release promote 11615 2eAqMYG1IEtX8cwpaO1kgNV6EB3 --version "${APP_VERSION}"
-
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
           export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}-previous-stable"
@@ -650,9 +641,7 @@ jobs:
           - TestSingleNodeUpgradePreviousStable
           - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedApp
-          - TestUpgradeEC18FromReplicatedApp
           - TestResetAndReinstall
-          # - TestOldVersionUpgrade
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeInstallation
           - TestMultiNodeHAInstallation
@@ -740,9 +729,6 @@ jobs:
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
         include:
-          - test: TestAirgapUpgradeFromEC18
-            runner: embedded-cluster-2
-            is-lxd: true
           - test: TestVersion
             is-lxd: true
           - test: TestCommandsRequireSudo
