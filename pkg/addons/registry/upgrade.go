@@ -42,13 +42,15 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Cl
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	_, err = hcli.Upgrade(ctx, helm.InstallOptions{
-		ReleaseName:  releaseName,
-		ChartPath:    r.ChartLocation(),
-		ChartVersion: Metadata.Version,
-		Values:       values,
-		Namespace:    namespace,
-		Labels:       getBackupLabels(),
+	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
+		ClientOptions: helm.ClientOptions{
+			ReleaseName:  releaseName,
+			ChartPath:    r.ChartLocation(),
+			ChartVersion: Metadata.Version,
+			Values:       values,
+			Namespace:    namespace,
+			Labels:       getBackupLabels(),
+		},
 		ForceUpgrade: false,
 	})
 	if err != nil {

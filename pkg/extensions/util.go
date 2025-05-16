@@ -45,12 +45,14 @@ func install(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 	}
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
-		ReleaseName:  ext.Name,
-		ChartPath:    ext.ChartName,
-		ChartVersion: ext.Version,
-		Values:       values,
-		Namespace:    ext.TargetNS,
-		Timeout:      ext.Timeout.Duration,
+		ClientOptions: helm.ClientOptions{
+			ReleaseName:  ext.Name,
+			ChartPath:    ext.ChartName,
+			ChartVersion: ext.Version,
+			Values:       values,
+			Namespace:    ext.TargetNS,
+		},
+		Timeout: ext.Timeout.Duration,
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm install")
@@ -65,12 +67,14 @@ func upgrade(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 		return errors.Wrap(err, "unmarshal values")
 	}
 
-	opts := helm.InstallOptions{
-		ReleaseName:  ext.Name,
-		ChartPath:    ext.ChartName,
-		ChartVersion: ext.Version,
-		Values:       values,
-		Namespace:    ext.TargetNS,
+	opts := helm.UpgradeOptions{
+		ClientOptions: helm.ClientOptions{
+			ReleaseName:  ext.Name,
+			ChartPath:    ext.ChartName,
+			ChartVersion: ext.Version,
+			Values:       values,
+			Namespace:    ext.TargetNS,
+		},
 		Timeout:      ext.Timeout.Duration,
 		ForceUpgrade: true, // this was the default in k0s
 	}

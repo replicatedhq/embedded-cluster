@@ -100,14 +100,19 @@ type HelmOptions struct {
 }
 
 type InstallOptions struct {
-	ReleaseName  string
-	ChartPath    string
-	ChartVersion string
-	Values       map[string]interface{}
-	Namespace    string
-	Labels       map[string]string
+	ClientOptions
 	Timeout      time.Duration
 	ForceUpgrade bool
+}
+
+type UpgradeOptions struct {
+	ClientOptions
+	Timeout      time.Duration
+	ForceUpgrade bool
+}
+
+type RenderOptions struct {
+	ClientOptions
 }
 
 type UninstallOptions struct {
@@ -115,6 +120,15 @@ type UninstallOptions struct {
 	Namespace      string
 	Wait           bool
 	IgnoreNotFound bool
+}
+
+type ClientOptions struct {
+	ReleaseName  string
+	ChartPath    string
+	ChartVersion string
+	Values       map[string]interface{}
+	Namespace    string
+	Labels       map[string]string
 }
 
 type HelmClient struct {
@@ -326,7 +340,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 		client.Timeout = 5 * time.Minute
 	}
 
-	chartRequested, err := h.loadChart(ctx, opts)
+	chartRequested, err := h.loadChart(ctx, opts.ClientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("load chart: %w", err)
 	}
@@ -350,7 +364,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 	return release, nil
 }
 
-func (h *HelmClient) Upgrade(ctx context.Context, opts InstallOptions) (*release.Release, error) {
+func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error) {
 	cfg, err := h.getActionCfg(opts.Namespace)
 	if err != nil {
 		return nil, fmt.Errorf("get action configuration: %w", err)
@@ -370,7 +384,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts InstallOptions) (*release
 		client.Timeout = 5 * time.Minute
 	}
 
-	chartRequested, err := h.loadChart(ctx, opts)
+	chartRequested, err := h.loadChart(ctx, opts.ClientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("load chart: %w", err)
 	}
@@ -415,7 +429,7 @@ func (h *HelmClient) Uninstall(ctx context.Context, opts UninstallOptions) error
 	return nil
 }
 
-func (h *HelmClient) Render(ctx context.Context, opts InstallOptions) ([][]byte, error) {
+func (h *HelmClient) Render(ctx context.Context, opts RenderOptions) ([][]byte, error) {
 	cfg := &action.Configuration{}
 
 	client := action.NewInstall(cfg)
@@ -428,12 +442,6 @@ func (h *HelmClient) Render(ctx context.Context, opts InstallOptions) ([][]byte,
 	client.Namespace = opts.Namespace
 	client.Labels = opts.Labels
 
-	if opts.Timeout != 0 {
-		client.Timeout = opts.Timeout
-	} else {
-		client.Timeout = 5 * time.Minute
-	}
-
 	if h.kversion != nil {
 		// since ClientOnly is true we need to initialize KubeVersion otherwise resorts defaults
 		client.KubeVersion = &chartutil.KubeVersion{
@@ -443,7 +451,7 @@ func (h *HelmClient) Render(ctx context.Context, opts InstallOptions) ([][]byte,
 		}
 	}
 
-	chartRequested, err := h.loadChart(ctx, opts)
+	chartRequested, err := h.loadChart(ctx, opts.ClientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("load chart: %w", err)
 	}
@@ -510,7 +518,7 @@ func (h *HelmClient) getRESTClientGetter(namespace string) genericclioptions.RES
 	return cfgFlags
 }
 
-func (h *HelmClient) loadChart(ctx context.Context, opts InstallOptions) (*chart.Chart, error) {
+func (h *HelmClient) loadChart(ctx context.Context, opts ClientOptions) (*chart.Chart, error) {
 	var localPath string
 	if h.airgapPath != "" {
 		// airgapped, use chart from airgap path

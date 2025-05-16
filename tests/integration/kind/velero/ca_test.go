@@ -28,7 +28,7 @@ func TestVelero_HostCABundle(t *testing.T) {
 	}
 
 	veleroDeploy := util.GetDeployment(t, kubeconfig, addon.Namespace(), "velero")
-	nodeAgentDaemonSet := util.GetDaemonSet(t, kubeconfig, addon.Namespace(), "velero-node-agent")
+	nodeAgentDaemonSet := util.GetDaemonSet(t, kubeconfig, addon.Namespace(), "node-agent")
 
 	var volume *corev1.Volume
 	for _, v := range veleroDeploy.Spec.Template.Spec.Volumes {

@@ -64,11 +64,13 @@ func TestUpgrade(t *testing.T) {
 						Return(false, nil),
 					helmCli.
 						On("Install", mock.Anything, helm.InstallOptions{
-							ReleaseName:  "existing-chart",
-							ChartPath:    "test/chart",
-							ChartVersion: "1.0.0",
-							Values:       map[string]interface{}{"abc": "xyz"},
-							Namespace:    "test-ns",
+							ClientOptions: helm.ClientOptions{
+								ReleaseName:  "existing-chart",
+								ChartPath:    "test/chart",
+								ChartVersion: "1.0.0",
+								Values:       map[string]interface{}{"abc": "xyz"},
+								Namespace:    "test-ns",
+							},
 						}).
 						Once().
 						Return(nil, nil),
@@ -174,12 +176,14 @@ func TestUpgrade(t *testing.T) {
 						Once().
 						Return(true, nil),
 					helmCli.
-						On("Upgrade", mock.Anything, helm.InstallOptions{
-							ReleaseName:  "test-chart",
-							ChartPath:    "test/chart",
-							ChartVersion: "2.0.0",
-							Values:       map[string]interface{}{"abc": "xyz"},
-							Namespace:    "test-ns",
+						On("Upgrade", mock.Anything, helm.UpgradeOptions{
+							ClientOptions: helm.ClientOptions{
+								ReleaseName:  "test-chart",
+								ChartPath:    "test/chart",
+								ChartVersion: "2.0.0",
+								Values:       map[string]interface{}{"abc": "xyz"},
+								Namespace:    "test-ns",
+							},
 							ForceUpgrade: true,
 						}).
 						Once().
@@ -246,11 +250,13 @@ func TestUpgrade(t *testing.T) {
 						Return(false, nil),
 					helmCli.
 						On("Install", mock.Anything, helm.InstallOptions{
-							ReleaseName:  "test-chart",
-							ChartPath:    "test/chart",
-							ChartVersion: "2.0.0",
-							Values:       map[string]interface{}{"abc": "xyz"},
-							Namespace:    "test-ns",
+							ClientOptions: helm.ClientOptions{
+								ReleaseName:  "test-chart",
+								ChartPath:    "test/chart",
+								ChartVersion: "2.0.0",
+								Values:       map[string]interface{}{"abc": "xyz"},
+								Namespace:    "test-ns",
+							},
 						}).
 						Once().
 						Return(nil, nil),
@@ -536,11 +542,13 @@ func TestUpgrade(t *testing.T) {
 						Return(false, nil),
 					helmCli.
 						On("Install", mockCtx, helm.InstallOptions{
-							ReleaseName:  "test-new2",
-							ChartPath:    "test/new2",
-							ChartVersion: "2.0.0",
-							Values:       map[string]interface{}{"abc": "xyz"},
-							Namespace:    "test-ns2",
+							ClientOptions: helm.ClientOptions{
+								ReleaseName:  "test-new2",
+								ChartPath:    "test/new2",
+								ChartVersion: "2.0.0",
+								Values:       map[string]interface{}{"abc": "xyz"},
+								Namespace:    "test-ns2",
+							},
 						}).
 						Once().
 						Return(nil, nil),
@@ -548,12 +556,14 @@ func TestUpgrade(t *testing.T) {
 						On("ReleaseExists", mockCtx, "test-ns1", "test-upgrade1").
 						Once().
 						Return(true, nil),
-					helmCli.On("Upgrade", mockCtx, helm.InstallOptions{
-						ReleaseName:  "test-upgrade1",
-						ChartPath:    "test/upgrade1",
-						ChartVersion: "1.0.0",
-						Values:       map[string]interface{}{"abc": "xyz"},
-						Namespace:    "test-ns1",
+					helmCli.On("Upgrade", mockCtx, helm.UpgradeOptions{
+						ClientOptions: helm.ClientOptions{
+							ReleaseName:  "test-upgrade1",
+							ChartPath:    "test/upgrade1",
+							ChartVersion: "1.0.0",
+							Values:       map[string]interface{}{"abc": "xyz"},
+							Namespace:    "test-ns1",
+						},
 						ForceUpgrade: false,
 					}).
 						Once().
@@ -564,11 +574,13 @@ func TestUpgrade(t *testing.T) {
 						Return(false, nil),
 					helmCli.
 						On("Install", mockCtx, helm.InstallOptions{
-							ReleaseName:  "test-new1",
-							ChartPath:    "test/new1",
-							ChartVersion: "1.0.0",
-							Values:       map[string]interface{}{"abc": "xyz"},
-							Namespace:    "test-ns1",
+							ClientOptions: helm.ClientOptions{
+								ReleaseName:  "test-new1",
+								ChartPath:    "test/new1",
+								ChartVersion: "1.0.0",
+								Values:       map[string]interface{}{"abc": "xyz"},
+								Namespace:    "test-ns1",
+							},
 						}).
 						Once().
 						Return(nil, nil),

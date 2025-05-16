@@ -27,12 +27,14 @@ func (v *Velero) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Clie
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	_, err = hcli.Upgrade(ctx, helm.InstallOptions{
-		ReleaseName:  releaseName,
-		ChartPath:    v.ChartLocation(),
-		ChartVersion: Metadata.Version,
-		Values:       values,
-		Namespace:    namespace,
+	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
+		ClientOptions: helm.ClientOptions{
+			ReleaseName:  releaseName,
+			ChartPath:    v.ChartLocation(),
+			ChartVersion: Metadata.Version,
+			Values:       values,
+			Namespace:    namespace,
+		},
 		ForceUpgrade: false,
 	})
 	if err != nil {

@@ -23,7 +23,7 @@ func (v *Velero) Install(ctx context.Context, kcli client.Client, hcli helm.Clie
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	opts := helm.InstallOptions{
+	opts := helm.ClientOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    v.ChartLocation(),
 		ChartVersion: Metadata.Version,
@@ -32,13 +32,17 @@ func (v *Velero) Install(ctx context.Context, kcli client.Client, hcli helm.Clie
 	}
 
 	if v.DryRun {
-		manifests, err := hcli.Render(ctx, opts)
+		manifests, err := hcli.Render(ctx, helm.RenderOptions{
+			ClientOptions: opts,
+		})
 		if err != nil {
 			return errors.Wrap(err, "dry run values")
 		}
 		v.dryRunManifests = append(v.dryRunManifests, manifests...)
 	} else {
-		_, err = hcli.Install(ctx, opts)
+		_, err = hcli.Install(ctx, helm.InstallOptions{
+			ClientOptions: opts,
+		})
 		if err != nil {
 			return errors.Wrap(err, "helm install")
 		}

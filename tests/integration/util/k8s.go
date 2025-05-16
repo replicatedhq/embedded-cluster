@@ -138,6 +138,9 @@ func GetDeployment(t *testing.T, kubeconfig string, namespace string, name strin
 	)
 	out, err := cmd.Output()
 	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			t.Fatalf("failed to get deployment %s:%s: %v", namespace, name, string(exitErr.Stderr))
+		}
 		t.Fatalf("failed to get deployment %s:%s: %v", namespace, name, err)
 	}
 	var resource appsv1.Deployment
@@ -155,6 +158,9 @@ func GetDaemonSet(t *testing.T, kubeconfig string, namespace string, name string
 	)
 	out, err := cmd.Output()
 	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			t.Fatalf("failed to get daemonset %s:%s: %v", namespace, name, string(exitErr.Stderr))
+		}
 		t.Fatalf("failed to get daemonset %s:%s: %v", namespace, name, err)
 	}
 	var resource appsv1.DaemonSet
