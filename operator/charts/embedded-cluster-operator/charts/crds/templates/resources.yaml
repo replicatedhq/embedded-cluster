@@ -606,6 +606,9 @@ spec:
                       DataDir holds the data directory for the Embedded Cluster
                       (default: /var/lib/embedded-cluster).
                     type: string
+                  hostCABundlePath:
+                    description: HostCABundlePath holds the path to the CA bundle for the host.
+                    type: string
                   k0sDataDirOverride:
                     description: |-
                       K0sDataDirOverride holds the override for the data directory for K0s. By default the data
