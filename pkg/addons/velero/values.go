@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
 )
 
 func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, overrides []string) (map[string]interface{}, error) {
@@ -32,8 +31,8 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 	}
 
 	extraEnvVars := map[string]any{}
-	extraVolumes := []string{}
-	extraVolumeMounts := []string{}
+	extraVolumes := []corev1.Volume{}
+	extraVolumeMounts := []corev1.VolumeMount{}
 
 	if v.Proxy != nil {
 		extraEnvVars["HTTP_PROXY"] = v.Proxy.HTTPProxy
@@ -42,7 +41,7 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 	}
 
 	if v.HostCABundlePath != "" {
-		extraVolume, err := yaml.Marshal(corev1.Volume{
+		extraVolumes = append(extraVolumes, corev1.Volume{
 			Name: "host-ca-bundle",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
@@ -51,19 +50,11 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 				},
 			},
 		})
-		if err != nil {
-			return nil, errors.Wrap(err, "marshal extra volume")
-		}
-		extraVolumes = append(extraVolumes, string(extraVolume))
 
-		extraVolumeMount, err := yaml.Marshal(corev1.VolumeMount{
+		extraVolumeMounts = append(extraVolumeMounts, corev1.VolumeMount{
 			Name:      "host-ca-bundle",
 			MountPath: "/certs/ca-certificates.crt",
 		})
-		if err != nil {
-			return nil, errors.Wrap(err, "marshal extra volume mounts")
-		}
-		extraVolumeMounts = append(extraVolumeMounts, string(extraVolumeMount))
 
 		extraEnvVars["SSL_CERT_DIR"] = "/certs"
 	}

@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/yaml"
 )
 
 func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
@@ -24,33 +23,27 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	values, err := v.GenerateHelmValues(context.Background(), kcli, nil)
 	require.NoError(t, err, "GenerateHelmValues should not return an error")
 
-	assert.NotEmpty(t, values["extraVolumes"])
-	assert.IsType(t, []string{}, values["extraVolumes"])
-	assert.Len(t, values["extraVolumes"], 1)
-	assert.NotEmpty(t, values["extraVolumeMounts"])
-	assert.IsType(t, []string{}, values["extraVolumeMounts"])
-	assert.Len(t, values["extraVolumeMounts"], 1)
+	require.NotEmpty(t, values["extraVolumes"])
+	require.IsType(t, []corev1.Volume{}, values["extraVolumes"])
+	require.Len(t, values["extraVolumes"], 1)
 
-	var extraVolume corev1.Volume
-	err = yaml.Unmarshal([]byte(values["extraVolumes"].([]string)[0]), &extraVolume)
-	require.NoError(t, err, "Failed to unmarshal extraVolumes")
+	require.NotEmpty(t, values["extraVolumeMounts"])
+	require.IsType(t, []corev1.VolumeMount{}, values["extraVolumeMounts"])
+	require.Len(t, values["extraVolumeMounts"], 1)
 
-	assert.NotNil(t, extraVolume.HostPath)
-	assert.Equal(t, "/etc/ssl/certs/ca-certificates.crt", extraVolume.HostPath.Path)
-	assert.Equal(t, corev1.HostPathFileOrCreate, *extraVolume.HostPath.Type)
+	require.IsType(t, map[string]any{}, values["configuration"])
+	require.IsType(t, map[string]any{}, values["configuration"].(map[string]any)["extraEnvVars"])
 
-	var extraVolumeMount corev1.VolumeMount
-	err = yaml.Unmarshal([]byte(values["extraVolumeMounts"].([]string)[0]), &extraVolumeMount)
-	require.NoError(t, err, "Failed to unmarshal extraVolumeMounts")
+	extraVolume := values["extraVolumes"].([]corev1.Volume)[0]
+	if assert.NotNil(t, extraVolume.HostPath) {
+		assert.Equal(t, "/etc/ssl/certs/ca-certificates.crt", extraVolume.HostPath.Path)
+		assert.Equal(t, corev1.HostPathFileOrCreate, *extraVolume.HostPath.Type)
+	}
 
+	extraVolumeMount := values["extraVolumeMounts"].([]corev1.VolumeMount)[0]
 	assert.Equal(t, "host-ca-bundle", extraVolumeMount.Name)
 	assert.Equal(t, "/certs/ca-certificates.crt", extraVolumeMount.MountPath)
 
-	configuration, ok := values["configuration"].(map[string]any)
-	require.True(t, ok, "configuration should be a map")
-
-	extraEnvVars, ok := configuration["extraEnvVars"].(map[string]any)
-	require.True(t, ok, "extraEnvVars should be a map")
-
+	extraEnvVars := values["configuration"].(map[string]any)["extraEnvVars"].(map[string]any)
 	assert.Equal(t, "/certs", extraEnvVars["SSL_CERT_DIR"])
 }
