@@ -590,7 +590,7 @@ func TestNoDomains(t *testing.T) {
 }
 
 // this test is to ensure that http proxy settings are passed through correctly
-func TestInstallWithHTTPProxy(t *testing.T) {
+func TestInstall_HTTPProxy(t *testing.T) {
 	t.Setenv("HTTP_PROXY", "http://localhost:3128")
 	t.Setenv("HTTPS_PROXY", "http://localhost:3128")
 	t.Setenv("NO_PROXY", "localhost,127.0.0.1,10.0.0.0/8")
