@@ -105,17 +105,7 @@ func TestProxiedEnvironment(t *testing.T) {
 	// check the installation state
 	checkInstallationState(t, tc)
 
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
-
-	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
-	}
-
-	checkPostUpgradeState(t, tc)
-
-	testArgs = []string{}
+	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
 		testArgs = append(testArgs, os.Getenv(envVar))
 	}
@@ -123,6 +113,16 @@ func TestProxiedEnvironment(t *testing.T) {
 	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs = []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	checkPostUpgradeState(t, tc)
 
 	// reset the cluster
 	runInParallel(t,
@@ -155,12 +155,6 @@ func TestProxiedEnvironment(t *testing.T) {
 
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
-
-	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
-		version:   appUpgradeVersion,
-		licenseID: SnapshotLicenseID,
-		withEnv:   lxd.WithProxyEnv(tc.IPs),
-	})
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-installation.exp"}, testArgs...)
@@ -376,8 +370,17 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	// check the installation state
 	checkInstallationState(t, tc)
 
+	testArgs := []string{}
+	for _, envVar := range requiredEnvVars {
+		testArgs = append(testArgs, os.Getenv(envVar))
+	}
+
+	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
+	}
+
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
+	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
@@ -388,15 +391,6 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
-	}
-
-	testArgs = []string{}
-	for _, envVar := range requiredEnvVars {
-		testArgs = append(testArgs, os.Getenv(envVar))
-	}
-
-	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
 	// reset the cluster
@@ -430,12 +424,6 @@ func TestInstallWithMITMProxy(t *testing.T) {
 
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
-
-	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
-		version:   appUpgradeVersion,
-		licenseID: SnapshotLicenseID,
-		withEnv:   lxd.WithMITMProxyEnv(tc.IPs),
-	})
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-installation.exp"}, testArgs...)
