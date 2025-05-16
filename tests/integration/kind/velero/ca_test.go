@@ -27,26 +27,48 @@ func TestVelero_HostCABundle(t *testing.T) {
 		t.Fatalf("failed to install velero: %v", err)
 	}
 
-	deploy := util.GetDeployment(t, kubeconfig, addon.Namespace(), "velero")
+	veleroDeploy := util.GetDeployment(t, kubeconfig, addon.Namespace(), "velero")
+	nodeAgentDaemonSet := util.GetDaemonSet(t, kubeconfig, addon.Namespace(), "velero-node-agent")
 
 	var volume *corev1.Volume
-	for _, v := range deploy.Spec.Template.Spec.Volumes {
+	for _, v := range veleroDeploy.Spec.Template.Spec.Volumes {
 		if v.Name == "host-ca-bundle" {
 			volume = &v
 		}
 	}
-	if assert.NotNil(t, volume, "Volume host-ca-bundle not found") {
+	if assert.NotNil(t, volume, "Velero host-ca-bundle volume should not be nil") {
 		assert.Equal(t, volume.VolumeSource.HostPath.Path, "/etc/ssl/certs/ca-certificates.crt")
 		assert.Equal(t, volume.VolumeSource.HostPath.Type, ptr.To(corev1.HostPathFileOrCreate))
 	}
 
 	var volumeMount *corev1.VolumeMount
-	for _, v := range deploy.Spec.Template.Spec.Containers[0].VolumeMounts {
+	for _, v := range veleroDeploy.Spec.Template.Spec.Containers[0].VolumeMounts {
 		if v.Name == "host-ca-bundle" {
 			volumeMount = &v
 		}
 	}
-	if assert.NotNil(t, volumeMount, "VolumeMount host-ca-bundle not found") {
+	if assert.NotNil(t, volumeMount, "Velero host-ca-bundle volume mount should not be nil") {
+		assert.Equal(t, volumeMount.MountPath, "/certs/ca-certificates.crt")
+	}
+
+	volume = nil
+	for _, v := range nodeAgentDaemonSet.Spec.Template.Spec.Volumes {
+		if v.Name == "host-ca-bundle" {
+			volume = &v
+		}
+	}
+	if assert.NotNil(t, volume, "Velero node agent host-ca-bundle volume should not be nil") {
+		assert.Equal(t, volume.VolumeSource.HostPath.Path, "/etc/ssl/certs/ca-certificates.crt")
+		assert.Equal(t, volume.VolumeSource.HostPath.Type, ptr.To(corev1.HostPathFileOrCreate))
+	}
+
+	volumeMount = nil
+	for _, v := range nodeAgentDaemonSet.Spec.Template.Spec.Containers[0].VolumeMounts {
+		if v.Name == "host-ca-bundle" {
+			volumeMount = &v
+		}
+	}
+	if assert.NotNil(t, volumeMount, "Velero node agent host-ca-bundle volume mount should not be nil") {
 		assert.Equal(t, volumeMount.MountPath, "/certs/ca-certificates.crt")
 	}
 }

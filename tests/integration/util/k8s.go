@@ -148,6 +148,23 @@ func GetDeployment(t *testing.T, kubeconfig string, namespace string, name strin
 	return &resource
 }
 
+func GetDaemonSet(t *testing.T, kubeconfig string, namespace string, name string) *appsv1.DaemonSet {
+	cmd := exec.Command(
+		"kubectl", "--kubeconfig", kubeconfig, "get", "daemonset", name, "-n", namespace,
+		"-o", "yaml",
+	)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("failed to get daemonset %s:%s: %v", namespace, name, err)
+	}
+	var resource appsv1.DaemonSet
+	err = yaml.Unmarshal(out, &resource)
+	if err != nil {
+		t.Fatalf("failed to unmarshal daemonset %s:%s: %v", namespace, name, err)
+	}
+	return &resource
+}
+
 func WaitForStorageClass(t *testing.T, kubeconfig string, name string, timeout time.Duration) {
 	t.Logf("waiting for storageclass %s", name)
 	ctx, cancel := context.WithTimeout(t.Context(), timeout)
