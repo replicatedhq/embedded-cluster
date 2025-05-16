@@ -28,7 +28,6 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	require.IsType(t, map[string]any{}, values["configuration"].(map[string]any)["extraEnvVars"])
 
 	require.IsType(t, map[string]any{}, values["nodeAgent"])
-	require.IsType(t, map[string]any{}, values["nodeAgent"].(map[string]any)["extraEnvVars"])
 	require.IsType(t, []map[string]any{}, values["nodeAgent"].(map[string]any)["extraVolumes"])
 	require.IsType(t, []map[string]any{}, values["nodeAgent"].(map[string]any)["extraVolumeMounts"])
 
@@ -43,9 +42,6 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	assert.Equal(t, "/certs/ca-certificates.crt", extraVolumeMount["mountPath"])
 
 	extraEnvVars := values["configuration"].(map[string]any)["extraEnvVars"].(map[string]any)
-	assert.Equal(t, "/certs", extraEnvVars["SSL_CERT_DIR"])
-
-	extraEnvVars = values["nodeAgent"].(map[string]any)["extraEnvVars"].(map[string]any)
 	assert.Equal(t, "/certs", extraEnvVars["SSL_CERT_DIR"])
 
 	extraVolumes := values["nodeAgent"].(map[string]any)["extraVolumes"].([]map[string]any)

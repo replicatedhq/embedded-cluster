@@ -62,7 +62,6 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 	copiedValues["extraVolumeMounts"] = extraVolumeMounts
 
 	copiedValues["nodeAgent"] = map[string]any{
-		"extraEnvVars":      extraEnvVars,
 		"extraVolumes":      extraVolumes,
 		"extraVolumeMounts": extraVolumeMounts,
 	}
