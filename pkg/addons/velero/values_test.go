@@ -7,20 +7,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
-	// Setup
 	v := &Velero{
 		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
 	}
 
-	// Create a fake k8s client
-	kcli := fake.NewClientBuilder().Build()
-
-	// Call function under test
-	values, err := v.GenerateHelmValues(context.Background(), kcli, nil)
+	values, err := v.GenerateHelmValues(context.Background(), nil, nil)
 	require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 	require.NotEmpty(t, values["extraVolumes"])
