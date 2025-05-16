@@ -239,8 +239,16 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	flags.isAirgap = flags.airgapBundle != ""
 
 	runtimeconfig.ApplyFlags(cmd.Flags())
+
 	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig()) // this is needed for restore as well since it shares this function
 	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+
+	hostCABundlePath, err := findHostCABundle()
+	if err != nil {
+		return fmt.Errorf("unable to find host CA bundle: %w", err)
+	}
+	runtimeconfig.SetHostCABundlePath(hostCABundlePath)
+	logrus.Debugf("using host CA bundle: %s", hostCABundlePath)
 
 	if err := runtimeconfig.WriteToDisk(); err != nil {
 		return fmt.Errorf("unable to write runtime config to disk: %w", err)
@@ -256,12 +264,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 }
 
 func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
-	hostCABundle, err := findHostCABundle()
-	if err != nil {
-		return fmt.Errorf("unable to find host CA bundle: %w", err)
-	}
-	logrus.Debugf("using host CA bundle: %s", hostCABundle)
-
 	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
 		return err
 	}
@@ -351,7 +353,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		License:                 flags.license,
 		IsAirgap:                flags.airgapBundle != "",
 		Proxy:                   flags.proxy,
-		HostCABundle:            hostCABundle,
+		HostCABundlePath:        runtimeconfig.HostCABundlePath(),
 		PrivateCAs:              flags.privateCAs,
 		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
 		DisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
@@ -1032,7 +1034,10 @@ func waitForNode(ctx context.Context) error {
 	return nil
 }
 
-func recordInstallation(ctx context.Context, kcli client.Client, flags InstallCmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, license *kotsv1beta1.License) (*ecv1beta1.Installation, error) {
+func recordInstallation(
+	ctx context.Context, kcli client.Client, flags InstallCmdFlags,
+	k0sCfg *k0sv1beta1.ClusterConfig, license *kotsv1beta1.License,
+) (*ecv1beta1.Installation, error) {
 	// ensure that the embedded-cluster namespace exists
 	if err := createECNamespace(ctx, kcli); err != nil {
 		return nil, fmt.Errorf("create embedded-cluster namespace: %w", err)

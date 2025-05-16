@@ -56,6 +56,11 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		serviceCIDR = in.Spec.Network.ServiceCIDR
 	}
 
+	hostCABundlePath := ""
+	if in.Spec.RuntimeConfig != nil {
+		hostCABundlePath = in.Spec.RuntimeConfig.HostCABundlePath
+	}
+
 	// ECO's embedded (wrong) metadata values do not match the published (correct) metadata values.
 	// This is because we re-generate the metadata.yaml file _after_ building the ECO binary / image.
 	// We do that because the SHA of the image needs to be included in the metadata.yaml file.
@@ -98,6 +103,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		addOns = append(addOns, &velero.Velero{
 			Proxy:               in.Spec.Proxy,
 			ProxyRegistryDomain: domains.ProxyRegistryDomain,
+			HostCABundlePath:    hostCABundlePath,
 		})
 	}
 

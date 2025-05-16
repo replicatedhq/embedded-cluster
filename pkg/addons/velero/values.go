@@ -8,7 +8,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 )
 
 func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, overrides []string) (map[string]interface{}, error) {
@@ -28,15 +31,48 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 		return nil, errors.Wrap(err, "unmarshal helm values")
 	}
 
+	extraEnvVars := map[string]any{}
+	extraVolumes := []string{}
+	extraVolumeMounts := []string{}
+
 	if v.Proxy != nil {
-		copiedValues["configuration"] = map[string]interface{}{
-			"extraEnvVars": map[string]interface{}{
-				"HTTP_PROXY":  v.Proxy.HTTPProxy,
-				"HTTPS_PROXY": v.Proxy.HTTPSProxy,
-				"NO_PROXY":    v.Proxy.NoProxy,
-			},
-		}
+		extraEnvVars["HTTP_PROXY"] = v.Proxy.HTTPProxy
+		extraEnvVars["HTTPS_PROXY"] = v.Proxy.HTTPSProxy
+		extraEnvVars["NO_PROXY"] = v.Proxy.NoProxy
 	}
+
+	if v.HostCABundlePath != "" {
+		extraVolume, err := yaml.Marshal(corev1.Volume{
+			Name: "host-ca-bundle",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: v.HostCABundlePath,
+					Type: ptr.To(corev1.HostPathFileOrCreate),
+				},
+			},
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "marshal extra volume")
+		}
+		extraVolumes = append(extraVolumes, string(extraVolume))
+
+		extraVolumeMount, err := yaml.Marshal(corev1.VolumeMount{
+			Name:      "host-ca-bundle",
+			MountPath: "/certs/ca-certificates.crt",
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "marshal extra volume mounts")
+		}
+		extraVolumeMounts = append(extraVolumeMounts, string(extraVolumeMount))
+
+		extraEnvVars["SSL_CERT_DIR"] = "/certs"
+	}
+
+	copiedValues["configuration"] = map[string]any{
+		"extraEnvVars": extraEnvVars,
+	}
+	copiedValues["extraVolumes"] = extraVolumes
+	copiedValues["extraVolumeMounts"] = extraVolumeMounts
 
 	podVolumePath := filepath.Join(runtimeconfig.EmbeddedClusterK0sSubDir(), "kubelet/pods")
 	err = helm.SetValue(copiedValues, "nodeAgent.podVolumePath", podVolumePath)

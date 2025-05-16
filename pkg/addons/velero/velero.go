@@ -14,6 +14,7 @@ import (
 type Velero struct {
 	Proxy               *ecv1beta1.ProxySpec
 	ProxyRegistryDomain string
+	HostCABundlePath    string
 }
 
 const (
