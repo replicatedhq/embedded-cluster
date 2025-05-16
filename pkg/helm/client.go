@@ -326,7 +326,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 		client.Timeout = 5 * time.Minute
 	}
 
-	chartRequested, err := h.loadChart(ctx, opts.ChartPath, opts.ReleaseName, opts.ChartVersion)
+	chartRequested, err := h.loadChart(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("load chart: %w", err)
 	}
@@ -370,7 +370,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts InstallOptions) (*release
 		client.Timeout = 5 * time.Minute
 	}
 
-	chartRequested, err := h.loadChart(ctx, opts.ChartPath, opts.ReleaseName, opts.ChartVersion)
+	chartRequested, err := h.loadChart(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("load chart: %w", err)
 	}
@@ -443,7 +443,7 @@ func (h *HelmClient) Render(ctx context.Context, opts InstallOptions) ([][]byte,
 		}
 	}
 
-	chartRequested, err := h.loadChart(ctx, opts.ChartPath, opts.ReleaseName, opts.ChartVersion)
+	chartRequested, err := h.loadChart(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("load chart: %w", err)
 	}
@@ -510,22 +510,22 @@ func (h *HelmClient) getRESTClientGetter(namespace string) genericclioptions.RES
 	return cfgFlags
 }
 
-func (h *HelmClient) loadChart(ctx context.Context, chartPath string, releaseName string, chartVersion string) (*chart.Chart, error) {
+func (h *HelmClient) loadChart(ctx context.Context, opts InstallOptions) (*chart.Chart, error) {
 	var localPath string
 	if h.airgapPath != "" {
 		// airgapped, use chart from airgap path
 		// TODO: this should just respect the chart path if it's a local path and leave it up to the caller to handle
-		localPath = filepath.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", releaseName, chartVersion))
-	} else if strings.HasPrefix(chartPath, "oci://") {
+		localPath = filepath.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", opts.ReleaseName, opts.ChartVersion))
+	} else if strings.HasPrefix(opts.ChartPath, "oci://") {
 		// online, pull chart from remote
 		var err error
-		localPath, err = h.PullByRefWithRetries(ctx, chartPath, chartVersion, 3)
+		localPath, err = h.PullByRefWithRetries(ctx, opts.ChartPath, opts.ChartVersion, 3)
 		if err != nil {
 			return nil, fmt.Errorf("pull: %w", err)
 		}
 		defer os.RemoveAll(localPath)
 	} else {
-		localPath = chartPath
+		localPath = opts.ChartPath
 	}
 
 	chartRequested, err := loader.Load(localPath)
