@@ -85,6 +85,10 @@
                   "items": {
                     "description": "Repository describes single repository entry. Fields map to the CLI flags for the \"helm add\" command",
                     "type": "object",
+                    "required": [
+                      "name",
+                      "url"
+                    ],
                     "properties": {
                       "caFile": {
                         "description": "CA bundle file to use when verifying HTTPS-enabled servers.",
@@ -104,7 +108,8 @@
                       },
                       "name": {
                         "description": "The repository name.",
-                        "type": "string"
+                        "type": "string",
+                        "minLength": 1
                       },
                       "password": {
                         "description": "Password for Basic HTTP authentication.",
@@ -112,7 +117,8 @@
                       },
                       "url": {
                         "description": "The repository URL.",
-                        "type": "string"
+                        "type": "string",
+                        "minLength": 1
                       },
                       "username": {
                         "description": "Username for Basic HTTP authentication.",

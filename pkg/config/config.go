@@ -2,6 +2,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -33,7 +34,13 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 	cfg.Spec.Konnectivity = nil
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"
-	cfg.Spec.Telemetry.Enabled = false
+	// We need to disable telemetry in a backwards compatible way with k0s v1.30 and v1.29
+	// See - https://github.com/k0sproject/k0s/pull/4674/files#diff-eea4a0c68e41d694c3fd23b4865a7b28bcbba61dc9c642e33c2e2f5f7f9ee05d
+	// We can drop the json.Unmarshal once we drop support for 1.30
+	err := json.Unmarshal([]byte("false"), &cfg.Spec.Telemetry.Enabled)
+	if err != nil {
+		panic(fmt.Sprintf("unable to unmarshal telemetry enabled: %v", err))
+	}
 	if cfg.Spec.API.ExtraArgs == nil {
 		cfg.Spec.API.ExtraArgs = map[string]string{}
 	}
@@ -100,6 +107,11 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string, respectImmuta
 	var patched k0sconfig.ClusterConfig
 	if err := k8syaml.Unmarshal(resultYAML, &patched); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal patched config: %w", err)
+	}
+	// Fix for - https://github.com/k0sproject/k0s/pull/5834 - currently the process of unmarshaling a config with a
+	// calico config will also set a default kube-router config. We remove it here.
+	if patched.Spec.Network.Provider == "calico" {
+		patched.Spec.Network.KubeRouter = nil
 	}
 	return &patched, nil
 }

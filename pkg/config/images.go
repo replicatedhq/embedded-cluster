@@ -33,11 +33,14 @@ func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 		// skip these images
 		case cfg.Spec.Images.KubeRouter.CNI.URI(),
 			cfg.Spec.Images.KubeRouter.CNIInstaller.URI(),
-			cfg.Spec.Images.Konnectivity.URI():
+			cfg.Spec.Images.Konnectivity.URI(),
+			cfg.Spec.Images.PushGateway.URI():
 		default:
 			if strings.Contains(image, constant.KubePauseContainerImage) {
 				// there's a bug in GetImageURIs where it always returns the original pause image
 				// instead of the one in the config, make sure to use the one in the config.
+				// This has been fixed in k0s 1.31, so we can drop it once we drop support for older k0s versions
+				// https://github.com/k0sproject/k0s/pull/5520
 				images = append(images, cfg.Spec.Images.Pause.URI())
 			} else {
 				images = append(images, image)
