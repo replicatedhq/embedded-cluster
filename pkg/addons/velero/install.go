@@ -36,9 +36,7 @@ func (v *Velero) Install(ctx context.Context, kcli client.Client, hcli helm.Clie
 		if err != nil {
 			return errors.Wrap(err, "dry run values")
 		}
-		for _, manifest := range manifests {
-			v.dryRunManifests = append(v.dryRunManifests, manifest)
-		}
+		v.dryRunManifests = append(v.dryRunManifests, manifests...)
 	} else {
 		_, err = hcli.Install(ctx, opts)
 		if err != nil {
