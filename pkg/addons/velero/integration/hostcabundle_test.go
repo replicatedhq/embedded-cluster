@@ -30,32 +30,35 @@ func TestHostCABundle(t *testing.T) {
 	manifests := addon.DryRunManifests()
 	require.NotEmpty(t, manifests, "DryRunManifests should not be empty")
 
+	var deploy *appsv1.Deployment
 	for _, manifest := range manifests {
 		if strings.Contains(string(manifest), "# Source: velero/templates/deployment.yaml") {
-			var deploy *appsv1.Deployment
 			err := yaml.Unmarshal(manifest, &deploy)
 			require.NoError(t, err, "Unmarshal should not return an error")
-
-			var volume *corev1.Volume
-			for _, v := range deploy.Spec.Template.Spec.Volumes {
-				if v.Name == "host-ca-bundle" {
-					volume = &v
-				}
-			}
-			if assert.NotNil(t, volume, "Volume host-ca-bundle not found") {
-				assert.Equal(t, volume.VolumeSource.HostPath.Path, "/etc/ssl/certs/ca-certificates.crt")
-				assert.Equal(t, volume.VolumeSource.HostPath.Type, ptr.To(corev1.HostPathFileOrCreate))
-			}
-
-			var volumeMount *corev1.VolumeMount
-			for _, v := range deploy.Spec.Template.Spec.Containers[0].VolumeMounts {
-				if v.Name == "host-ca-bundle" {
-					volumeMount = &v
-				}
-			}
-			if assert.NotNil(t, volumeMount, "VolumeMount host-ca-bundle not found") {
-				assert.Equal(t, volumeMount.MountPath, "/certs/ca-certificates.crt")
-			}
+			break
 		}
+	}
+
+	require.NotNil(t, deploy, "Velero deployment not found")
+
+	var volume *corev1.Volume
+	for _, v := range deploy.Spec.Template.Spec.Volumes {
+		if v.Name == "host-ca-bundle" {
+			volume = &v
+		}
+	}
+	if assert.NotNil(t, volume, "Volume host-ca-bundle not found") {
+		assert.Equal(t, volume.VolumeSource.HostPath.Path, "/etc/ssl/certs/ca-certificates.crt")
+		assert.Equal(t, volume.VolumeSource.HostPath.Type, ptr.To(corev1.HostPathFileOrCreate))
+	}
+
+	var volumeMount *corev1.VolumeMount
+	for _, v := range deploy.Spec.Template.Spec.Containers[0].VolumeMounts {
+		if v.Name == "host-ca-bundle" {
+			volumeMount = &v
+		}
+	}
+	if assert.NotNil(t, volumeMount, "VolumeMount host-ca-bundle not found") {
+		assert.Equal(t, volumeMount.MountPath, "/certs/ca-certificates.crt")
 	}
 }
