@@ -23,6 +23,7 @@ type InstallOptions struct {
 	License                 *kotsv1beta1.License
 	IsAirgap                bool
 	Proxy                   *ecv1beta1.ProxySpec
+	HostCABundle            string
 	PrivateCAs              []string
 	ServiceCIDR             string
 	DisasterRecoveryEnabled bool

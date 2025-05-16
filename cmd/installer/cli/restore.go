@@ -364,6 +364,12 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		}
 	}
 
+	hostCABundle, err := findHostCABundle()
+	if err != nil {
+		return fmt.Errorf("unable to find host CA bundle: %w", err)
+	}
+	logrus.Debugf("using host CA bundle: %s", hostCABundle)
+
 	logrus.Debugf("configuring sysctl")
 	if err := configutils.ConfigureSysctl(); err != nil {
 		logrus.Debugf("unable to configure sysctl: %v", err)
@@ -437,6 +443,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	if err := addons.Install(ctx, hcli, addons.InstallOptions{
 		IsAirgap:           flags.airgapBundle != "",
 		Proxy:              flags.proxy,
+		HostCABundle:       hostCABundle,
 		PrivateCAs:         flags.privateCAs,
 		ServiceCIDR:        flags.cidrCfg.ServiceCIDR,
 		IsRestore:          true,

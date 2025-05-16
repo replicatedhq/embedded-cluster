@@ -259,6 +259,12 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 }
 
 func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
+	hostCABundle, err := findHostCABundle()
+	if err != nil {
+		return fmt.Errorf("unable to find host CA bundle: %w", err)
+	}
+	logrus.Debugf("using host CA bundle: %s", hostCABundle)
+
 	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
 		return err
 	}
@@ -348,6 +354,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		License:                 flags.license,
 		IsAirgap:                flags.airgapBundle != "",
 		Proxy:                   flags.proxy,
+		HostCABundle:            hostCABundle,
 		PrivateCAs:              flags.privateCAs,
 		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
 		DisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
