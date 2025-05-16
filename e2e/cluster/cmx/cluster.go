@@ -153,10 +153,6 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 	}
 	node := nodes[0]
 
-	// TODO (@salah): remove this once the bug is fixed in CMX
-	// note: the vm gets marked as ready before the services are actually running
-	time.Sleep(30 * time.Second)
-
 	sshEndpoint, err := getSSHEndpoint(node.ID)
 	if err != nil {
 		return nil, fmt.Errorf("get ssh endpoint for node %s: %v", nodeName, err)
@@ -294,7 +290,7 @@ func (c *Cluster) waitUntilAirgapped(node int) error {
 func (c *Cluster) WaitForReboot() {
 	time.Sleep(30 * time.Second)
 	for i := range c.Nodes {
-		c.refreshSSHEndpoint(i)
+		// c.refreshSSHEndpoint(i)
 		c.waitForClockSync(i)
 	}
 }
