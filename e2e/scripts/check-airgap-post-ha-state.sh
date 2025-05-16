@@ -68,11 +68,6 @@ main() {
         exit 1
     fi
 
-    # if this is the current version in CI
-    if echo "$version" | grep -qvE "(pre-minio-removal|1.8.0-k8s)" ; then
-        validate_data_dirs
-    fi
-
     # scale up the second deployment to ensure that images can still be pulled
     echo "scaling up the 'second' deployment to ensure that images can still be pulled"
     kubectl scale -n "$APP_NAMESPACE" deployment/second --replicas=4

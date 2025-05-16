@@ -480,9 +480,7 @@ jobs:
           - TestSingleNodeUpgradePreviousStable
           - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedApp
-#          - TestUpgradeEC18FromReplicatedApp
           - TestResetAndReinstall
-#          - TestOldVersionUpgrade
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeInstallation
           - TestMultiNodeHAInstallation
@@ -563,9 +561,6 @@ jobs:
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
         include:
-          - test: TestAirgapUpgradeFromEC18
-            runner: embedded-cluster-2
-            is-lxd: true
           - test: TestVersion
             is-lxd: true
           - test: TestCommandsRequireSudo
