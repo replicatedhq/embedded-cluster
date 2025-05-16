@@ -25,7 +25,7 @@ func TestHostCABundle(t *testing.T) {
 	require.NoError(t, err, "NewClient should not return an error")
 
 	err = addon.Install(context.Background(), nil, hcli, nil, nil)
-	require.NoError(t, err, "Install should not return an error")
+	require.NoError(t, err, "velero.Install should not return an error")
 
 	manifests := addon.DryRunManifests()
 	require.NotEmpty(t, manifests, "DryRunManifests should not be empty")
@@ -34,12 +34,12 @@ func TestHostCABundle(t *testing.T) {
 	for _, manifest := range manifests {
 		if strings.Contains(string(manifest), "# Source: velero/templates/deployment.yaml") {
 			err := yaml.Unmarshal(manifest, &deploy)
-			require.NoError(t, err, "Unmarshal should not return an error")
+			require.NoError(t, err, "Failed to unmarshal Velero deployment")
 			break
 		}
 	}
 
-	require.NotNil(t, deploy, "Velero deployment not found")
+	require.NotNil(t, deploy, "Velero deployment should not be nil")
 
 	var volume *corev1.Volume
 	for _, v := range deploy.Spec.Template.Spec.Volumes {
@@ -47,7 +47,7 @@ func TestHostCABundle(t *testing.T) {
 			volume = &v
 		}
 	}
-	if assert.NotNil(t, volume, "Volume host-ca-bundle not found") {
+	if assert.NotNil(t, volume, "Volume host-ca-bundle should not be nil") {
 		assert.Equal(t, volume.VolumeSource.HostPath.Path, "/etc/ssl/certs/ca-certificates.crt")
 		assert.Equal(t, volume.VolumeSource.HostPath.Type, ptr.To(corev1.HostPathFileOrCreate))
 	}
@@ -58,7 +58,7 @@ func TestHostCABundle(t *testing.T) {
 			volumeMount = &v
 		}
 	}
-	if assert.NotNil(t, volumeMount, "VolumeMount host-ca-bundle not found") {
+	if assert.NotNil(t, volumeMount, "VolumeMount host-ca-bundle should not be nil") {
 		assert.Equal(t, volumeMount.MountPath, "/certs/ca-certificates.crt")
 	}
 }

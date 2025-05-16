@@ -107,17 +107,7 @@ type InstallOptions struct {
 	Namespace    string
 	Labels       map[string]string
 	Timeout      time.Duration
-}
-
-type UpgradeOptions struct {
-	ReleaseName  string
-	ChartPath    string
-	ChartVersion string
-	Values       map[string]interface{}
-	Namespace    string
-	Labels       map[string]string
-	Timeout      time.Duration
-	Force        bool
+	ForceUpgrade bool
 }
 
 type UninstallOptions struct {
@@ -360,7 +350,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 	return release, nil
 }
 
-func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error) {
+func (h *HelmClient) Upgrade(ctx context.Context, opts InstallOptions) (*release.Release, error) {
 	cfg, err := h.getActionCfg(opts.Namespace)
 	if err != nil {
 		return nil, fmt.Errorf("get action configuration: %w", err)
@@ -372,7 +362,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release
 	client.WaitForJobs = true
 	client.Wait = true
 	client.Atomic = true
-	client.Force = opts.Force
+	client.Force = opts.ForceUpgrade
 
 	if opts.Timeout != 0 {
 		client.Timeout = opts.Timeout

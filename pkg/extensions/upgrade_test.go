@@ -174,13 +174,13 @@ func TestUpgrade(t *testing.T) {
 						Once().
 						Return(true, nil),
 					helmCli.
-						On("Upgrade", mock.Anything, helm.UpgradeOptions{
+						On("Upgrade", mock.Anything, helm.InstallOptions{
 							ReleaseName:  "test-chart",
 							ChartPath:    "test/chart",
 							ChartVersion: "2.0.0",
 							Values:       map[string]interface{}{"abc": "xyz"},
 							Namespace:    "test-ns",
-							Force:        true,
+							ForceUpgrade: true,
 						}).
 						Once().
 						Return(nil, nil),
@@ -548,13 +548,13 @@ func TestUpgrade(t *testing.T) {
 						On("ReleaseExists", mockCtx, "test-ns1", "test-upgrade1").
 						Once().
 						Return(true, nil),
-					helmCli.On("Upgrade", mockCtx, helm.UpgradeOptions{
+					helmCli.On("Upgrade", mockCtx, helm.InstallOptions{
 						ReleaseName:  "test-upgrade1",
 						ChartPath:    "test/upgrade1",
 						ChartVersion: "1.0.0",
 						Values:       map[string]interface{}{"abc": "xyz"},
 						Namespace:    "test-ns1",
-						Force:        false,
+						ForceUpgrade: false,
 					}).
 						Once().
 						Return(nil, nil),

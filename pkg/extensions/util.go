@@ -65,17 +65,17 @@ func upgrade(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 		return errors.Wrap(err, "unmarshal values")
 	}
 
-	opts := helm.UpgradeOptions{
+	opts := helm.InstallOptions{
 		ReleaseName:  ext.Name,
 		ChartPath:    ext.ChartName,
 		ChartVersion: ext.Version,
 		Values:       values,
 		Namespace:    ext.TargetNS,
 		Timeout:      ext.Timeout.Duration,
-		Force:        true, // this was the default in k0s
+		ForceUpgrade: true, // this was the default in k0s
 	}
 	if ext.ForceUpgrade != nil {
-		opts.Force = *ext.ForceUpgrade
+		opts.ForceUpgrade = *ext.ForceUpgrade
 	}
 	_, err = hcli.Upgrade(ctx, opts)
 	if err != nil {

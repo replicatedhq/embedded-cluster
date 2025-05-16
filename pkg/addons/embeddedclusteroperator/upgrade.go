@@ -35,14 +35,14 @@ func (e *EmbeddedClusterOperator) Upgrade(ctx context.Context, kcli client.Clien
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
+	_, err = hcli.Upgrade(ctx, helm.InstallOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    e.ChartLocation(),
 		ChartVersion: e.ChartVersion(),
 		Values:       values,
 		Namespace:    namespace,
 		Labels:       getBackupLabels(),
-		Force:        false,
+		ForceUpgrade: false,
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")

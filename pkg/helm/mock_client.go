@@ -71,7 +71,7 @@ func (m *MockClient) Install(ctx context.Context, opts InstallOptions) (*release
 	return args.Get(0).(*release.Release), args.Error(1)
 }
 
-func (m *MockClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error) {
+func (m *MockClient) Upgrade(ctx context.Context, opts InstallOptions) (*release.Release, error) {
 	args := m.Called(ctx, opts)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

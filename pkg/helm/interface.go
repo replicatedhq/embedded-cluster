@@ -23,7 +23,7 @@ type Client interface {
 	GetChartMetadata(chartPath string) (*chart.Metadata, error)
 	ReleaseExists(ctx context.Context, namespace string, releaseName string) (bool, error)
 	Install(ctx context.Context, opts InstallOptions) (*release.Release, error)
-	Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error)
+	Upgrade(ctx context.Context, opts InstallOptions) (*release.Release, error)
 	Uninstall(ctx context.Context, opts UninstallOptions) error
 	Render(ctx context.Context, opts InstallOptions) ([][]byte, error)
 }
