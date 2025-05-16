@@ -2,6 +2,7 @@ package upgrade
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -10,14 +11,20 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestUpdateClusterConfig(t *testing.T) {
 	scheme := runtime.NewScheme()
-	require.NoError(t, k0sv1beta1.Install(scheme))
+	//nolint:staticcheck // SA1019 we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
+	require.NoError(t, k0sv1beta1.AddToScheme(scheme))
+
+	// We need to disable telemetry in a backwards compatible way with k0s v1.30 and v1.29
+	// See - https://github.com/k0sproject/k0s/pull/4674/files#diff-eea4a0c68e41d694c3fd23b4865a7b28bcbba61dc9c642e33c2e2f5f7f9ee05d
+	// We can drop the json.Unmarshal once we drop support for 1.30
+	telemetryConfigEnabled := k0sv1beta1.ClusterTelemetry{}
+	json.Unmarshal([]byte(`true`), &telemetryConfigEnabled.Enabled)
 
 	tests := []struct {
 		name          string
@@ -129,9 +136,7 @@ func TestUpdateClusterConfig(t *testing.T) {
 					Network: &k0sv1beta1.Network{
 						ServiceCIDR: "10.96.0.0/12",
 					},
-					Telemetry: &k0sv1beta1.ClusterTelemetry{
-						Enabled: ptr.To(true),
-					},
+					Telemetry: &telemetryConfigEnabled,
 				},
 			},
 			installation: &ecv1beta1.Installation{
@@ -158,7 +163,9 @@ config:
 			},
 			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {
 				// Verify that the unsupported override was applied to the telemetry config
-				assert.Equal(t, false, *updatedConfig.Spec.Telemetry.Enabled)
+				val, err := json.Marshal(updatedConfig.Spec.Telemetry.Enabled)
+				require.NoError(t, err)
+				assert.Equal(t, "false", string(val))
 
 				// Verify that the unsupported override was applied to the worker profiles
 				require.Len(t, updatedConfig.Spec.WorkerProfiles, 1)
