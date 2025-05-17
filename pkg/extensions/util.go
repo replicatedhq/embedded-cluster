@@ -45,14 +45,12 @@ func install(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 	}
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
-		ClientOptions: helm.ClientOptions{
-			ReleaseName:  ext.Name,
-			ChartPath:    ext.ChartName,
-			ChartVersion: ext.Version,
-			Values:       values,
-			Namespace:    ext.TargetNS,
-		},
-		Timeout: ext.Timeout.Duration,
+		ReleaseName:  ext.Name,
+		ChartPath:    ext.ChartName,
+		ChartVersion: ext.Version,
+		Values:       values,
+		Namespace:    ext.TargetNS,
+		Timeout:      ext.Timeout.Duration,
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm install")
@@ -68,18 +66,16 @@ func upgrade(ctx context.Context, hcli helm.Client, ext ecv1beta1.Chart) error {
 	}
 
 	opts := helm.UpgradeOptions{
-		ClientOptions: helm.ClientOptions{
-			ReleaseName:  ext.Name,
-			ChartPath:    ext.ChartName,
-			ChartVersion: ext.Version,
-			Values:       values,
-			Namespace:    ext.TargetNS,
-		},
+		ReleaseName:  ext.Name,
+		ChartPath:    ext.ChartName,
+		ChartVersion: ext.Version,
+		Values:       values,
+		Namespace:    ext.TargetNS,
 		Timeout:      ext.Timeout.Duration,
-		ForceUpgrade: true, // this was the default in k0s
+		Force:        true, // this was the default in k0s
 	}
 	if ext.ForceUpgrade != nil {
-		opts.ForceUpgrade = *ext.ForceUpgrade
+		opts.Force = *ext.ForceUpgrade
 	}
 	_, err = hcli.Upgrade(ctx, opts)
 	if err != nil {

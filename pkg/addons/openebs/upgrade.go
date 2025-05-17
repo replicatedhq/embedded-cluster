@@ -28,14 +28,12 @@ func (o *OpenEBS) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Cli
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
-		ClientOptions: helm.ClientOptions{
-			ReleaseName:  releaseName,
-			ChartPath:    o.ChartLocation(),
-			ChartVersion: Metadata.Version,
-			Values:       values,
-			Namespace:    namespace,
-		},
-		ForceUpgrade: false,
+		ReleaseName:  releaseName,
+		ChartPath:    o.ChartLocation(),
+		ChartVersion: Metadata.Version,
+		Values:       values,
+		Namespace:    namespace,
+		Force:        false,
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")

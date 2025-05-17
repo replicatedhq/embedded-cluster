@@ -16,13 +16,11 @@ func (o *OpenEBS) Install(ctx context.Context, kcli client.Client, hcli helm.Cli
 	}
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
-		ClientOptions: helm.ClientOptions{
-			ReleaseName:  releaseName,
-			ChartPath:    o.ChartLocation(),
-			ChartVersion: Metadata.Version,
-			Values:       values,
-			Namespace:    namespace,
-		},
+		ReleaseName:  releaseName,
+		ChartPath:    o.ChartLocation(),
+		ChartVersion: Metadata.Version,
+		Values:       values,
+		Namespace:    namespace,
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm install")

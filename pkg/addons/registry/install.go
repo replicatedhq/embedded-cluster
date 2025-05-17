@@ -31,14 +31,12 @@ func (r *Registry) Install(ctx context.Context, kcli client.Client, hcli helm.Cl
 	}
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
-		ClientOptions: helm.ClientOptions{
-			ReleaseName:  releaseName,
-			ChartPath:    r.ChartLocation(),
-			ChartVersion: Metadata.Version,
-			Values:       values,
-			Namespace:    namespace,
-			Labels:       getBackupLabels(),
-		},
+		ReleaseName:  releaseName,
+		ChartPath:    r.ChartLocation(),
+		ChartVersion: Metadata.Version,
+		Values:       values,
+		Namespace:    namespace,
+		Labels:       getBackupLabels(),
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm install")

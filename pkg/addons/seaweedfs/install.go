@@ -32,14 +32,12 @@ func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli helm.C
 	}
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
-		ClientOptions: helm.ClientOptions{
-			ReleaseName:  releaseName,
-			ChartPath:    s.ChartLocation(),
-			ChartVersion: Metadata.Version,
-			Values:       values,
-			Namespace:    namespace,
-			Labels:       getBackupLabels(),
-		},
+		ReleaseName:  releaseName,
+		ChartPath:    s.ChartLocation(),
+		ChartVersion: Metadata.Version,
+		Values:       values,
+		Namespace:    namespace,
+		Labels:       getBackupLabels(),
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm install")

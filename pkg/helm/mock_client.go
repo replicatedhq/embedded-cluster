@@ -84,7 +84,7 @@ func (m *MockClient) Uninstall(ctx context.Context, opts UninstallOptions) error
 	return args.Error(0)
 }
 
-func (m *MockClient) Render(ctx context.Context, opts RenderOptions) ([][]byte, error) {
+func (m *MockClient) Render(ctx context.Context, opts InstallOptions) ([][]byte, error) {
 	args := m.Called(ctx, opts)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

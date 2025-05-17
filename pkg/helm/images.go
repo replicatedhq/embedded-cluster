@@ -42,14 +42,12 @@ func ExtractImagesFromChart(hcli Client, ref string, version string, values map[
 	parts := strings.Split(ref, "/")
 	name := parts[len(parts)-1]
 
-	manifests, err := hcli.Render(context.Background(), RenderOptions{
-		ClientOptions: ClientOptions{
-			ReleaseName:  name,
-			ChartPath:    ref,
-			ChartVersion: version,
-			Values:       values,
-			Namespace:    "default",
-		},
+	manifests, err := hcli.Render(context.Background(), InstallOptions{
+		ReleaseName:  name,
+		ChartPath:    ref,
+		ChartVersion: version,
+		Values:       values,
+		Namespace:    "default",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("render: %w", err)

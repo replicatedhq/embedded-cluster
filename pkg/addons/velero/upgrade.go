@@ -28,13 +28,11 @@ func (v *Velero) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Clie
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
-		ClientOptions: helm.ClientOptions{
-			ReleaseName:  releaseName,
-			ChartPath:    v.ChartLocation(),
-			ChartVersion: Metadata.Version,
-			Values:       values,
-			Namespace:    namespace,
-		},
+		ReleaseName:  releaseName,
+		ChartPath:    v.ChartLocation(),
+		ChartVersion: Metadata.Version,
+		Values:       values,
+		Namespace:    namespace,
 		ForceUpgrade: false,
 	})
 	if err != nil {

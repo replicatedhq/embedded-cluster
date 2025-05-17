@@ -29,15 +29,13 @@ func (s *SeaweedFS) Upgrade(ctx context.Context, kcli client.Client, hcli helm.C
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
-		ClientOptions: helm.ClientOptions{
-			ReleaseName:  releaseName,
-			ChartPath:    s.ChartLocation(),
-			ChartVersion: Metadata.Version,
-			Values:       values,
-			Namespace:    namespace,
-			Labels:       getBackupLabels(),
-		},
-		ForceUpgrade: false,
+		ReleaseName:  releaseName,
+		ChartPath:    s.ChartLocation(),
+		ChartVersion: Metadata.Version,
+		Values:       values,
+		Namespace:    namespace,
+		Labels:       getBackupLabels(),
+		Force:        false,
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")

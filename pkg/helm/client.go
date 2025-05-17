@@ -100,19 +100,24 @@ type HelmOptions struct {
 }
 
 type InstallOptions struct {
-	ClientOptions
+	ReleaseName  string
+	ChartPath    string
+	ChartVersion string
+	Values       map[string]interface{}
+	Namespace    string
+	Labels       map[string]string
 	Timeout      time.Duration
-	ForceUpgrade bool
 }
 
 type UpgradeOptions struct {
-	ClientOptions
+	ReleaseName  string
+	ChartPath    string
+	ChartVersion string
+	Values       map[string]interface{}
+	Namespace    string
+	Labels       map[string]string
 	Timeout      time.Duration
-	ForceUpgrade bool
-}
-
-type RenderOptions struct {
-	ClientOptions
+	Force        bool
 }
 
 type UninstallOptions struct {
@@ -120,15 +125,6 @@ type UninstallOptions struct {
 	Namespace      string
 	Wait           bool
 	IgnoreNotFound bool
-}
-
-type ClientOptions struct {
-	ReleaseName  string
-	ChartPath    string
-	ChartVersion string
-	Values       map[string]interface{}
-	Namespace    string
-	Labels       map[string]string
 }
 
 type HelmClient struct {
@@ -340,7 +336,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 		client.Timeout = 5 * time.Minute
 	}
 
-	chartRequested, err := h.loadChart(ctx, opts.ClientOptions)
+	chartRequested, err := h.loadChart(ctx, opts.ReleaseName, opts.ChartPath, opts.ChartVersion)
 	if err != nil {
 		return nil, fmt.Errorf("load chart: %w", err)
 	}
@@ -376,7 +372,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release
 	client.WaitForJobs = true
 	client.Wait = true
 	client.Atomic = true
-	client.Force = opts.ForceUpgrade
+	client.Force = opts.Force
 
 	if opts.Timeout != 0 {
 		client.Timeout = opts.Timeout
@@ -384,7 +380,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release
 		client.Timeout = 5 * time.Minute
 	}
 
-	chartRequested, err := h.loadChart(ctx, opts.ClientOptions)
+	chartRequested, err := h.loadChart(ctx, opts.ReleaseName, opts.ChartPath, opts.ChartVersion)
 	if err != nil {
 		return nil, fmt.Errorf("load chart: %w", err)
 	}
@@ -429,7 +425,7 @@ func (h *HelmClient) Uninstall(ctx context.Context, opts UninstallOptions) error
 	return nil
 }
 
-func (h *HelmClient) Render(ctx context.Context, opts RenderOptions) ([][]byte, error) {
+func (h *HelmClient) Render(ctx context.Context, opts InstallOptions) ([][]byte, error) {
 	cfg := &action.Configuration{}
 
 	client := action.NewInstall(cfg)
@@ -451,7 +447,7 @@ func (h *HelmClient) Render(ctx context.Context, opts RenderOptions) ([][]byte, 
 		}
 	}
 
-	chartRequested, err := h.loadChart(ctx, opts.ClientOptions)
+	chartRequested, err := h.loadChart(ctx, opts.ReleaseName, opts.ChartPath, opts.ChartVersion)
 	if err != nil {
 		return nil, fmt.Errorf("load chart: %w", err)
 	}
@@ -518,23 +514,23 @@ func (h *HelmClient) getRESTClientGetter(namespace string) genericclioptions.RES
 	return cfgFlags
 }
 
-func (h *HelmClient) loadChart(ctx context.Context, opts ClientOptions) (*chart.Chart, error) {
+func (h *HelmClient) loadChart(ctx context.Context, releaseName, chartPath, chartVersion string) (*chart.Chart, error) {
 	var localPath string
 	if h.airgapPath != "" {
 		// airgapped, use chart from airgap path
 		// TODO: this should just respect the chart path if it's a local path and leave it up to the caller to handle
-		localPath = filepath.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", opts.ReleaseName, opts.ChartVersion))
-	} else if !strings.HasPrefix(opts.ChartPath, "/") {
+		localPath = filepath.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", releaseName, chartVersion))
+	} else if !strings.HasPrefix(chartPath, "/") {
 		// Assume this is a chart from a repo if it doesn't start with a /
 		// This includes oci:// prefix
 		var err error
-		localPath, err = h.PullByRefWithRetries(ctx, opts.ChartPath, opts.ChartVersion, 3)
+		localPath, err = h.PullByRefWithRetries(ctx, chartPath, chartVersion, 3)
 		if err != nil {
 			return nil, fmt.Errorf("pull: %w", err)
 		}
 		defer os.RemoveAll(localPath)
 	} else {
-		localPath = opts.ChartPath
+		localPath = chartPath
 	}
 
 	chartRequested, err := loader.Load(localPath)

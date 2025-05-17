@@ -64,13 +64,11 @@ func TestUpgrade(t *testing.T) {
 						Return(false, nil),
 					helmCli.
 						On("Install", mock.Anything, helm.InstallOptions{
-							ClientOptions: helm.ClientOptions{
-								ReleaseName:  "existing-chart",
-								ChartPath:    "test/chart",
-								ChartVersion: "1.0.0",
-								Values:       map[string]interface{}{"abc": "xyz"},
-								Namespace:    "test-ns",
-							},
+							ReleaseName:  "existing-chart",
+							ChartPath:    "test/chart",
+							ChartVersion: "1.0.0",
+							Values:       map[string]interface{}{"abc": "xyz"},
+							Namespace:    "test-ns",
 						}).
 						Once().
 						Return(nil, nil),
@@ -177,14 +175,12 @@ func TestUpgrade(t *testing.T) {
 						Return(true, nil),
 					helmCli.
 						On("Upgrade", mock.Anything, helm.UpgradeOptions{
-							ClientOptions: helm.ClientOptions{
-								ReleaseName:  "test-chart",
-								ChartPath:    "test/chart",
-								ChartVersion: "2.0.0",
-								Values:       map[string]interface{}{"abc": "xyz"},
-								Namespace:    "test-ns",
-							},
-							ForceUpgrade: true,
+							ReleaseName:  "test-chart",
+							ChartPath:    "test/chart",
+							ChartVersion: "2.0.0",
+							Values:       map[string]interface{}{"abc": "xyz"},
+							Namespace:    "test-ns",
+							Force:        true,
 						}).
 						Once().
 						Return(nil, nil),
@@ -250,13 +246,11 @@ func TestUpgrade(t *testing.T) {
 						Return(false, nil),
 					helmCli.
 						On("Install", mock.Anything, helm.InstallOptions{
-							ClientOptions: helm.ClientOptions{
-								ReleaseName:  "test-chart",
-								ChartPath:    "test/chart",
-								ChartVersion: "2.0.0",
-								Values:       map[string]interface{}{"abc": "xyz"},
-								Namespace:    "test-ns",
-							},
+							ReleaseName:  "test-chart",
+							ChartPath:    "test/chart",
+							ChartVersion: "2.0.0",
+							Values:       map[string]interface{}{"abc": "xyz"},
+							Namespace:    "test-ns",
 						}).
 						Once().
 						Return(nil, nil),
@@ -542,13 +536,11 @@ func TestUpgrade(t *testing.T) {
 						Return(false, nil),
 					helmCli.
 						On("Install", mockCtx, helm.InstallOptions{
-							ClientOptions: helm.ClientOptions{
-								ReleaseName:  "test-new2",
-								ChartPath:    "test/new2",
-								ChartVersion: "2.0.0",
-								Values:       map[string]interface{}{"abc": "xyz"},
-								Namespace:    "test-ns2",
-							},
+							ReleaseName:  "test-new2",
+							ChartPath:    "test/new2",
+							ChartVersion: "2.0.0",
+							Values:       map[string]interface{}{"abc": "xyz"},
+							Namespace:    "test-ns2",
 						}).
 						Once().
 						Return(nil, nil),
@@ -557,14 +549,12 @@ func TestUpgrade(t *testing.T) {
 						Once().
 						Return(true, nil),
 					helmCli.On("Upgrade", mockCtx, helm.UpgradeOptions{
-						ClientOptions: helm.ClientOptions{
-							ReleaseName:  "test-upgrade1",
-							ChartPath:    "test/upgrade1",
-							ChartVersion: "1.0.0",
-							Values:       map[string]interface{}{"abc": "xyz"},
-							Namespace:    "test-ns1",
-						},
-						ForceUpgrade: false,
+						ReleaseName:  "test-upgrade1",
+						ChartPath:    "test/upgrade1",
+						ChartVersion: "1.0.0",
+						Values:       map[string]interface{}{"abc": "xyz"},
+						Namespace:    "test-ns1",
+						Force:        false,
 					}).
 						Once().
 						Return(nil, nil),
@@ -574,13 +564,11 @@ func TestUpgrade(t *testing.T) {
 						Return(false, nil),
 					helmCli.
 						On("Install", mockCtx, helm.InstallOptions{
-							ClientOptions: helm.ClientOptions{
-								ReleaseName:  "test-new1",
-								ChartPath:    "test/new1",
-								ChartVersion: "1.0.0",
-								Values:       map[string]interface{}{"abc": "xyz"},
-								Namespace:    "test-ns1",
-							},
+							ReleaseName:  "test-new1",
+							ChartPath:    "test/new1",
+							ChartVersion: "1.0.0",
+							Values:       map[string]interface{}{"abc": "xyz"},
+							Namespace:    "test-ns1",
 						}).
 						Once().
 						Return(nil, nil),
