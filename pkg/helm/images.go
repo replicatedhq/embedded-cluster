@@ -39,24 +39,14 @@ type reducedContainer struct {
 }
 
 func ExtractImagesFromChart(hcli Client, ref string, version string, values map[string]interface{}) ([]string, error) {
-	chartPath, err := hcli.PullByRef(ref, version)
-	if err != nil {
-		return nil, fmt.Errorf("pull: %w", err)
-	}
-	defer os.RemoveAll(chartPath)
-
 	parts := strings.Split(ref, "/")
 	name := parts[len(parts)-1]
 
-	return ExtractImagesFromLocalChart(hcli, name, chartPath, values)
-}
-
-func ExtractImagesFromLocalChart(hcli Client, name, path string, values map[string]interface{}) ([]string, error) {
 	manifests, err := hcli.Render(context.Background(), RenderOptions{
 		ClientOptions: ClientOptions{
 			ReleaseName:  name,
-			ChartPath:    path,
-			ChartVersion: "1.0.0",
+			ChartPath:    ref,
+			ChartVersion: version,
 			Values:       values,
 			Namespace:    "default",
 		},

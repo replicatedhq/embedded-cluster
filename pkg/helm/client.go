@@ -524,8 +524,9 @@ func (h *HelmClient) loadChart(ctx context.Context, opts ClientOptions) (*chart.
 		// airgapped, use chart from airgap path
 		// TODO: this should just respect the chart path if it's a local path and leave it up to the caller to handle
 		localPath = filepath.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", opts.ReleaseName, opts.ChartVersion))
-	} else if strings.HasPrefix(opts.ChartPath, "oci://") {
-		// online, pull chart from remote
+	} else if !strings.HasPrefix(opts.ChartPath, "/") {
+		// Assume this is a chart from a repo if it doesn't start with a /
+		// This includes oci:// prefix
 		var err error
 		localPath, err = h.PullByRefWithRetries(ctx, opts.ChartPath, opts.ChartVersion, 3)
 		if err != nil {
@@ -538,7 +539,7 @@ func (h *HelmClient) loadChart(ctx context.Context, opts ClientOptions) (*chart.
 
 	chartRequested, err := loader.Load(localPath)
 	if err != nil {
-		return nil, fmt.Errorf("load chart: %w", err)
+		return nil, fmt.Errorf("load: %w", err)
 	}
 
 	return chartRequested, nil
