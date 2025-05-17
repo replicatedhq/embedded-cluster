@@ -10,8 +10,8 @@ main() {
     local license_id=
     license_id="$2"
 
-    echo "downloading from https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/${app_version_label}"
-    retry 5 curl --retry 5 --retry-all-errors -fL -o ec-release.tgz "https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/${app_version_label}" -H "Authorization: ${license_id}"
+    echo "downloading from https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/ci/${app_version_label}"
+    retry 5 curl --retry 5 --retry-all-errors -fL -o ec-release.tgz "https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/ci/${app_version_label}" -H "Authorization: ${license_id}"
     tar xzf ec-release.tgz
 
     mkdir -p /assets

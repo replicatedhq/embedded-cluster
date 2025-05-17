@@ -84,8 +84,8 @@ func (m *MockClient) Uninstall(ctx context.Context, opts UninstallOptions) error
 	return args.Error(0)
 }
 
-func (m *MockClient) Render(releaseName string, chartPath string, values map[string]interface{}, namespace string, labels map[string]string) ([][]byte, error) {
-	args := m.Called(releaseName, chartPath, values, namespace, labels)
+func (m *MockClient) Render(ctx context.Context, opts InstallOptions) ([][]byte, error) {
+	args := m.Called(ctx, opts)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

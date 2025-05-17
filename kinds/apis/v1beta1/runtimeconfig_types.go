@@ -22,6 +22,8 @@ type RuntimeConfigSpec struct {
 	// OpenEBSDataDirOverride holds the override for the data directory for the OpenEBS storage
 	// provisioner. By default the data will be stored in a subdirectory of DataDir.
 	OpenEBSDataDirOverride string `json:"openEBSDataDirOverride,omitempty"`
+	// HostCABundlePath holds the path to the CA bundle for the host.
+	HostCABundlePath string `json:"hostCABundlePath,omitempty"`
 
 	// AdminConsole holds the Admin Console configuration.
 	AdminConsole AdminConsoleSpec `json:"adminConsole,omitempty"`

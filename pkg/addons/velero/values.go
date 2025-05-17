@@ -28,14 +28,42 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 		return nil, errors.Wrap(err, "unmarshal helm values")
 	}
 
+	extraEnvVars := map[string]any{}
+	extraVolumes := []map[string]any{}
+	extraVolumeMounts := []map[string]any{}
+
 	if v.Proxy != nil {
-		copiedValues["configuration"] = map[string]interface{}{
-			"extraEnvVars": map[string]interface{}{
-				"HTTP_PROXY":  v.Proxy.HTTPProxy,
-				"HTTPS_PROXY": v.Proxy.HTTPSProxy,
-				"NO_PROXY":    v.Proxy.NoProxy,
+		extraEnvVars["HTTP_PROXY"] = v.Proxy.HTTPProxy
+		extraEnvVars["HTTPS_PROXY"] = v.Proxy.HTTPSProxy
+		extraEnvVars["NO_PROXY"] = v.Proxy.NoProxy
+	}
+
+	if v.HostCABundlePath != "" {
+		extraVolumes = append(extraVolumes, map[string]any{
+			"name": "host-ca-bundle",
+			"hostPath": map[string]any{
+				"path": v.HostCABundlePath,
+				"type": "FileOrCreate",
 			},
-		}
+		})
+
+		extraVolumeMounts = append(extraVolumeMounts, map[string]any{
+			"name":      "host-ca-bundle",
+			"mountPath": "/certs/ca-certificates.crt",
+		})
+
+		extraEnvVars["SSL_CERT_DIR"] = "/certs"
+	}
+
+	copiedValues["configuration"] = map[string]any{
+		"extraEnvVars": extraEnvVars,
+	}
+	copiedValues["extraVolumes"] = extraVolumes
+	copiedValues["extraVolumeMounts"] = extraVolumeMounts
+
+	copiedValues["nodeAgent"] = map[string]any{
+		"extraVolumes":      extraVolumes,
+		"extraVolumeMounts": extraVolumeMounts,
 	}
 
 	podVolumePath := filepath.Join(runtimeconfig.EmbeddedClusterK0sSubDir(), "kubelet/pods")

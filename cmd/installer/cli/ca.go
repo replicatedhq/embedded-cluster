@@ -36,6 +36,8 @@ func findHostCABundle() (string, error) {
 
 	// Check each file in the order of preference returning the first found
 	for _, file := range certFiles {
+		// Ignore all errors to replicate the behavior of the Go standard library
+		// https://github.com/golang/go/blob/go1.24.3/src/crypto/x509/root_unix.go#L47-L81
 		if _, err := os.Stat(file); err == nil {
 			return file, nil
 		}
