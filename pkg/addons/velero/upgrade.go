@@ -33,7 +33,7 @@ func (v *Velero) Upgrade(ctx context.Context, kcli client.Client, hcli helm.Clie
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,
-		ForceUpgrade: false,
+		Force:        false,
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")

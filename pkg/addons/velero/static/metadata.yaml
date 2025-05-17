@@ -9,22 +9,22 @@ version: 8.5.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero
 images:
     kubectl:
-        repo: proxy.replicated.com/anonymous/ttl.sh/replicated/ec-kubectl
+        repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
         tag:
-            amd64: 1.33.1-r0-amd64@sha256:4a4d223dad57a0aa34755eedd47847f5d18d2c0a8818d03f3a70089f7531f6ce
-            arm64: 1.33.1-r0-arm64@sha256:412fc9d229d11f8a8e117c82a28be494e1ce59af08b955e733971daf5d25b815
+            amd64: 1.32.3-r3-amd64@sha256:c1baa5cda8cc804b3f133a9584d7c86b8ce36fce4ea1343bb7ea0fd75346dfd5
+            arm64: 1.32.3-r3-arm64@sha256:ba990c2bb2b53160fd67b59ca5ef9abac3bf6de4fa9b4870bcb2847941922728
     velero:
-        repo: proxy.replicated.com/anonymous/ttl.sh/replicated/ec-velero
+        repo: proxy.replicated.com/anonymous/replicated/ec-velero
         tag:
-            amd64: 1.15.2-r7-amd64@sha256:01022d28a3bf1042c6cb346b265b293c840cc851bbf7046773792feea0384201
-            arm64: 1.15.2-r7-arm64@sha256:f8d0bf76764a3fae79573872f6d88df248a54483b70e2aeff050000f36d8cc8e
+            amd64: 1.15.2-r6-amd64@sha256:32ca045a727e43e6d6cf3254bef0cbb63374488341126da25991fc90eb1287e3
+            arm64: 1.15.2-r6-arm64@sha256:6aeb84e030f832a07fab2bd01b9978df1e98372acab85e6904200747c2db4dae
     velero-plugin-for-aws:
-        repo: proxy.replicated.com/anonymous/ttl.sh/replicated/ec-velero-plugin-for-aws
+        repo: proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws
         tag:
-            amd64: 1.11.1-r32-amd64@sha256:a1a8e20dbd295f382e4e2e94237001b8961e332f90eebc1f88d0b115e09599a2
-            arm64: 1.11.1-r32-arm64@sha256:9b25b9bf490b40db48db3a497a563a807a66184f5c6253eb24b85531f8602b95
+            amd64: 1.11.1-r32-amd64@sha256:b8cbba5e8845987d69eb2b762aa73a908094b3e254da1683d1a1a45adcf7b0cb
+            arm64: 1.11.1-r32-arm64@sha256:235bf95f4ccf535b4e8f65b7b85d1c6e8f9a3e28824bb161853a5ce6f185d05d
     velero-restore-helper:
-        repo: proxy.replicated.com/anonymous/ttl.sh/replicated/ec-velero-restore-helper
+        repo: proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper
         tag:
-            amd64: 1.15.2-r7-amd64@sha256:30bc6935e5340c193cbba5245372e8ad19efb711a2cd91a1e614f083db5a98aa
-            arm64: 1.15.2-r7-arm64@sha256:614b435f4b5da3550e1d3fecc92bf9a126b04c7744da461209f14bb41f9ff66b
+            amd64: 1.15.2-r6-amd64@sha256:1d90587150f72a8be26c47bcdfa564bd9427c26e13be9d1f54f9870f0e64ef5d
+            arm64: 1.15.2-r6-arm64@sha256:39e0420802c57684fb6d3656aa82234e3b38e10223c148b715015f4181acef1a
