@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -11,18 +12,22 @@ import (
 func TestLocalArtifactMirror(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA"})
+	RequireEnvVars(t, []string{
+		"APP_INSTALL_VERSION",
+		"EC_BINARY_PATH",
+	})
 
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bookworm",
 		LicensePath:  "licenses/license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
 
 	installSingleNodeWithOptions(t, tc, installOptions{
+		version:                 os.Getenv("APP_INSTALL_VERSION"),
 		localArtifactMirrorPort: "50001",
 	})
 

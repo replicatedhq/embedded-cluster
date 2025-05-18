@@ -29,22 +29,28 @@ func TestProxiedEnvironment(t *testing.T) {
 	}
 
 	requiredEnvVars := []string{
+		"APP_INSTALL_VERSION",
+		"APP_UPGRADE_VERSION",
+		"K0S_INSTALL_VERSION",
+		"K0S_UPGRADE_VERSION",
+		"EC_UPGRADE_VERSION",
 		"DR_S3_ENDPOINT",
 		"DR_S3_REGION",
 		"DR_S3_BUCKET",
 		"DR_S3_PREFIX",
 		"DR_ACCESS_KEY_ID",
 		"DR_SECRET_ACCESS_KEY",
+		"EC_BINARY_PATH",
 	}
 	RequireEnvVars(t, requiredEnvVars)
 
 	tc := lxd.NewCluster(&lxd.ClusterInput{
-		T:                   t,
-		Nodes:               4,
-		WithProxy:           true,
-		Image:               "debian/12",
-		LicensePath:         "licenses/snapshot-license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+		T:            t,
+		Nodes:        4,
+		WithProxy:    true,
+		Image:        "debian/12",
+		LicensePath:  "licenses/snapshot-license.yaml",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
 	t.Log("Proxied infrastructure created")
@@ -72,6 +78,7 @@ func TestProxiedEnvironment(t *testing.T) {
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	installSingleNodeWithOptions(t, tc, installOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
 		httpProxy:  lxd.HTTPProxy,
 		httpsProxy: lxd.HTTPProxy,
 		withEnv:    lxd.WithProxyEnv(tc.IPs),
@@ -103,25 +110,33 @@ func TestProxiedEnvironment(t *testing.T) {
 	waitForNodes(t, tc, 4, nil)
 
 	// check the installation state
-	checkInstallationState(t, tc)
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
+		k8sVersion: os.Getenv("K0S_INSTALL_VERSION"),
+	})
 
-	testArgs := []string{}
-	for _, envVar := range requiredEnvVars {
-		testArgs = append(testArgs, os.Getenv(envVar))
+	testArgs := []string{
+		os.Getenv("DR_S3_ENDPOINT"),
+		os.Getenv("DR_S3_REGION"),
+		os.Getenv("DR_S3_BUCKET"),
+		os.Getenv("DR_S3_PREFIX"),
+		os.Getenv("DR_ACCESS_KEY_ID"),
+		os.Getenv("DR_SECRET_ACCESS_KEY"),
 	}
 
 	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", appUpgradeVersion); err != nil {
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", os.Getenv("APP_UPGRADE_VERSION")); err != nil {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
-	checkPostUpgradeState(t, tc)
+	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
+		ecVersion:  os.Getenv("EC_UPGRADE_VERSION"),
+		k8sVersion: os.Getenv("K0S_UPGRADE_VERSION"),
+	})
 
 	// reset the cluster
 	runInParallel(t,
@@ -187,13 +202,22 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		t.Skip("skipping test for k0s versions < 1.29.0")
 	}
 
+	RequireEnvVars(t, []string{
+		"APP_INSTALL_VERSION",
+		"APP_UPGRADE_VERSION",
+		"K0S_INSTALL_VERSION",
+		"K0S_UPGRADE_VERSION",
+		"EC_UPGRADE_VERSION",
+		"EC_BINARY_PATH",
+	})
+
 	tc := lxd.NewCluster(&lxd.ClusterInput{
-		T:                   t,
-		Nodes:               4,
-		WithProxy:           true,
-		Image:               "debian/12",
-		LicensePath:         "licenses/license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+		T:            t,
+		Nodes:        4,
+		WithProxy:    true,
+		Image:        "debian/12",
+		LicensePath:  "licenses/license.yaml",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
 	t.Log("Proxied infrastructure created")
@@ -221,6 +245,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	installSingleNodeWithOptions(t, tc, installOptions{
+		version:     os.Getenv("APP_INSTALL_VERSION"),
 		httpProxy:   lxd.HTTPProxy,
 		httpsProxy:  lxd.HTTPProxy,
 		noProxy:     strings.Join(tc.IPs, ","),
@@ -255,7 +280,10 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	waitForNodes(t, tc, 4, nil)
 
 	// check the installation state
-	checkInstallationState(t, tc)
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
+		k8sVersion: os.Getenv("K0S_INSTALL_VERSION"),
+	})
 
 	// ensure that the cluster is using the right IP ranges.
 	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
@@ -265,14 +293,18 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
 	}
 
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion := os.Getenv("APP_UPGRADE_VERSION")
+	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", appUpgradeVersion); err != nil {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
-	checkPostUpgradeState(t, tc)
+	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
+		ecVersion:  os.Getenv("EC_UPGRADE_VERSION"),
+		k8sVersion: os.Getenv("K0S_UPGRADE_VERSION"),
+	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -283,22 +315,28 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	}
 
 	requiredEnvVars := []string{
+		"APP_INSTALL_VERSION",
+		"APP_UPGRADE_VERSION",
+		"K0S_INSTALL_VERSION",
+		"K0S_UPGRADE_VERSION",
+		"EC_UPGRADE_VERSION",
 		"DR_S3_ENDPOINT",
 		"DR_S3_REGION",
 		"DR_S3_BUCKET",
 		"DR_S3_PREFIX",
 		"DR_ACCESS_KEY_ID",
 		"DR_SECRET_ACCESS_KEY",
+		"EC_BINARY_PATH",
 	}
 	RequireEnvVars(t, requiredEnvVars)
 
 	tc := lxd.NewCluster(&lxd.ClusterInput{
-		T:                   t,
-		Nodes:               4,
-		WithProxy:           true,
-		Image:               "debian/12",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-		LicensePath:         "licenses/snapshot-license.yaml",
+		T:            t,
+		Nodes:        4,
+		WithProxy:    true,
+		Image:        "debian/12",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
+		LicensePath:  "licenses/snapshot-license.yaml",
 	})
 	defer tc.Cleanup()
 
@@ -335,6 +373,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	installSingleNodeWithOptions(t, tc, installOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
 		httpProxy:  lxd.HTTPMITMProxy,
 		httpsProxy: lxd.HTTPMITMProxy,
 		withEnv:    lxd.WithMITMProxyEnv(tc.IPs),
@@ -365,18 +404,23 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	waitForNodes(t, tc, 4, nil)
 
 	// check the installation state
-	checkInstallationState(t, tc)
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
+		k8sVersion: os.Getenv("K0S_INSTALL_VERSION"),
+	})
 
-	testArgs := []string{}
-	for _, envVar := range requiredEnvVars {
-		testArgs = append(testArgs, os.Getenv(envVar))
+	testArgs := []string{
+		os.Getenv("DR_S3_ENDPOINT"),
+		os.Getenv("DR_S3_REGION"),
+		os.Getenv("DR_S3_BUCKET"),
+		os.Getenv("DR_S3_PREFIX"),
+		os.Getenv("DR_ACCESS_KEY_ID"),
+		os.Getenv("DR_SECRET_ACCESS_KEY"),
 	}
 
 	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
-
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", appUpgradeVersion); err != nil {
@@ -384,7 +428,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
+	line = []string{"check-postupgrade-state.sh", os.Getenv("K0S_UPGRADE_VERSION"), os.Getenv("EC_UPGRADE_VERSION")}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}

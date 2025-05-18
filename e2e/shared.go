@@ -62,10 +62,10 @@ type resetInstallationOptions struct {
 }
 
 type postUpgradeStateOptions struct {
-	node           int
-	k8sVersion     string
-	upgradeVersion string
-	withEnv        map[string]string
+	node       int
+	k8sVersion string
+	ecVersion  string
+	withEnv    map[string]string
 }
 
 func installSingleNode(t *testing.T, tc cluster.Cluster) {
@@ -312,8 +312,8 @@ func checkPostUpgradeStateWithOptions(t *testing.T, tc cluster.Cluster, opts pos
 		line = append(line, k8sVersion())
 	}
 
-	if opts.upgradeVersion != "" {
-		line = append(line, opts.upgradeVersion)
+	if opts.ecVersion != "" {
+		line = append(line, opts.ecVersion)
 	} else {
 		line = append(line, ecUpgradeTargetVersion())
 	}

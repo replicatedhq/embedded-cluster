@@ -343,8 +343,8 @@ ensure_node_config() {
 
 ensure_nodes_match_kube_version() {
     local version="$1"
-    if kubectl get nodes -o jsonpath='{.items[*].status.nodeInfo.kubeletVersion}' | grep -v "$version"; then
-        echo "Node kubelet version does not match expected version $version"
+    if kubectl get nodes -o jsonpath='{.items[*].status.nodeInfo.kubeletVersion}' | grep -v "${version%%+*}"; then
+        echo "Node kubelet version does not match expected version ${version%%+*}"
         kubectl get nodes -o jsonpath='{.items[*].status.nodeInfo.kubeletVersion}'
         kubectl get nodes
         return 1

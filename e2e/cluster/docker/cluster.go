@@ -24,7 +24,6 @@ type ClusterInput struct {
 	Distro                 string
 	LicensePath            string
 	ECBinaryPath           string
-	ECReleaseBuilderPath   string
 	K0sDir                 string
 	SupportBundleNodeIndex int
 }
@@ -61,10 +60,6 @@ func NewNode(in *ClusterInput, name string) *Container {
 	if in.ECBinaryPath != "" {
 		in.T.Logf("using embedded cluster binary %s", in.ECBinaryPath)
 		c = c.WithECBinary(in.ECBinaryPath)
-	}
-	if in.ECReleaseBuilderPath != "" {
-		in.T.Logf("using embedded cluster release builder %s", in.ECReleaseBuilderPath)
-		c = c.WithECReleaseBuilder(in.ECReleaseBuilderPath)
 	}
 	if in.LicensePath != "" {
 		in.T.Logf("using license %s", in.LicensePath)
