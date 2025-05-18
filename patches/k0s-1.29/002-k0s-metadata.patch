@@ -1,0 +1,15 @@
+diff --git a/pkg/config/static/metadata.yaml b/pkg/config/static/metadata.yaml
+index f22170da..7a7968f2 100644
+--- a/pkg/config/static/metadata.yaml
++++ b/pkg/config/static/metadata.yaml
+@@ -34,8 +34,8 @@ images:
+     kube-proxy:
+         repo: proxy.replicated.com/anonymous/registry.k8s.io/kube-proxy
+         tag:
+-            amd64: v1.30.11-amd64@sha256:1fe6b17f5be77fc56dc78a19d6043cf149f83c4fbbb444f8253dbb9a1987b4a3
+-            arm64: v1.30.11-arm64@sha256:cb38d5d2afd4b5b7ea12bd37eac4453572005922929ac48d355a11fb8c66177b
++            amd64: v1.29.15-amd64@sha256:f6074f465fb3700456dccc5915340df4b59a7960c591693182fbd297cbe72b53
++            arm64: v1.29.15-arm64@sha256:7e55d1d0d2c095cecd55022878b8e64d88176157c6ed49a89e2ced129d26465e
+     metrics-server:
+         repo: proxy.replicated.com/anonymous/replicated/ec-metrics-server
+         tag:

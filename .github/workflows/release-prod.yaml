@@ -391,42 +391,13 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
-  embedded-cluster-release-builder:
-    name: Build embedded-cluster-release-builder
-    runs-on: ubuntu-latest
-    needs:
-      - get-tag
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
-      - name: Compile embedded-cluster-release-builder
-        run: |
-          make output/bin/embedded-cluster-release-builder
-      - name: Upload embedded-cluster-release-builder artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: embedded-cluster-release-builder
-          path: |
-            output/bin/embedded-cluster-release-builder
-
   download-current:
     name: Download the current release binary
     runs-on: ubuntu-latest
     needs:
       - release-app
       - get-tag
-      - embedded-cluster-release-builder
     steps:
-      - name: Download embedded-cluster-release-builder
-        uses: actions/download-artifact@v4
-        with:
-          name: embedded-cluster-release-builder
-          path: output/bin
       - name: Download current binary
         env:
           # staging ci license id
@@ -451,7 +422,6 @@ jobs:
           path: |
             output/bin/embedded-cluster
             output/bin/embedded-cluster-original
-            output/bin/embedded-cluster-release-builder
 
   # e2e-docker runs the e2e tests inside a docker container rather than a full VM
   e2e-docker:
@@ -528,7 +498,7 @@ jobs:
           EXPECT_K0S_VERSION: ${{ needs.get-tag.outputs.k0s_version }}
           EXPECT_K0S_VERSION_PREVIOUS: ${{ needs.get-tag.outputs.k0s_version }}
           EXPECT_K0S_VERSION_PREVIOUS_STABLE: ${{ needs.find-previous-stable.outputs.k0s_version }}
-          EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION: ${{ github.ref_name }}
+          EC_UPGRADE_VERSION: ${{ github.ref_name }}
         run: |
           make e2e-test TEST_NAME=${{ matrix.test }}
       - name: Troubleshoot

@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -11,16 +12,26 @@ import (
 // for controllers and one join token for worker nodes. Joins the nodes and then waits
 // for them to report ready and resets two of the nodes.
 func TestMultiNodeReset(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{
+		"APP_INSTALL_VERSION",
+		"K0S_INSTALL_VERSION",
+		"EC_BINARY_PATH",
+	})
+
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:            t,
 		Nodes:        4,
 		Distro:       "debian-bookworm",
 		LicensePath:  "licenses/license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
 
-	installSingleNode(t, tc)
+	installSingleNodeWithOptions(t, tc, installOptions{
+		version: os.Getenv("APP_INSTALL_VERSION"),
+	})
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
@@ -47,7 +58,10 @@ func TestMultiNodeReset(t *testing.T) {
 	// wait for the nodes to report as ready.
 	waitForNodes(t, tc, 4, nil)
 
-	checkInstallationState(t, tc)
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
+		k8sVersion: os.Getenv("K0S_INSTALL_VERSION"),
+	})
 
 	bin := "embedded-cluster"
 	// reset worker node
@@ -70,7 +84,10 @@ func TestMultiNodeReset(t *testing.T) {
 		t.Fatalf("fail to check nodes removed: %v: %s: %s", err, stdout, stderr)
 	}
 
-	checkInstallationState(t, tc)
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
+		k8sVersion: os.Getenv("K0S_INSTALL_VERSION"),
+	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

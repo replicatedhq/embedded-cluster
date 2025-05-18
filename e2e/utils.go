@@ -88,8 +88,8 @@ func k8sVersionPreviousStable() string {
 }
 
 func ecUpgradeTargetVersion() string {
-	if os.Getenv("EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION") != "" {
-		return os.Getenv("EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION") // use the env var if set
+	if os.Getenv("EC_UPGRADE_VERSION") != "" {
+		return os.Getenv("EC_UPGRADE_VERSION") // use the env var if set
 	}
 	return "-upgrade" // default to requiring an upgrade suffix
 }

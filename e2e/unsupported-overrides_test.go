@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -12,6 +11,10 @@ import (
 func TestUnsupportedOverrides(t *testing.T) {
 	t.Parallel()
 
+	RequireEnvVars(t, []string{
+		"APP_INSTALL_VERSION",
+	})
+
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:      t,
 		Nodes:  1,
@@ -20,7 +23,7 @@ func TestUnsupportedOverrides(t *testing.T) {
 	defer tc.Cleanup()
 
 	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
-		version: fmt.Sprintf("appver-%s-unsupported-overrides", os.Getenv("SHORT_SHA")),
+		version: os.Getenv("APP_INSTALL_VERSION"),
 	})
 
 	t.Logf("%s: installing embedded-cluster with unsupported overrides on node 0", time.Now().Format(time.RFC3339))
