@@ -337,7 +337,8 @@ list-distros:
 .PHONY: create-node%
 create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
-create-node%: K0S_DATA_DIR = /var/lib/embedded-cluster/k0s
+create-node%: GUIDED_EXPERIENCE_NODE_PORT = 30080
+create-node%: K0S_DATA_DIR = /var/lib/ec/k0s
 create-node%:
 	@docker run -d \
 		--name node$* \
@@ -348,6 +349,7 @@ create-node%:
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
+		$(if $(filter node0,node$*),-p $(GUIDED_EXPERIENCE_NODE_PORT):$(GUIDED_EXPERIENCE_NODE_PORT)) \
 		$(if $(filter node0,node$*),-p 30003:30003) \
 		replicated/ec-distro:$(DISTRO)
 

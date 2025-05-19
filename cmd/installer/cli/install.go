@@ -71,7 +71,8 @@ type InstallCmdFlags struct {
 
 	networkInterface string
 
-	guidedExperience bool
+	guidedExperience     bool
+	guidedExperiencePort int
 
 	license *kotsv1beta1.License
 	proxy   *ecv1beta1.ProxySpec
@@ -171,6 +172,10 @@ func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	// Experimental flag to run the installer in guided experience mode
 	cmd.Flags().BoolVar(&flags.guidedExperience, "guided-experience", true, "Run the installer in guided experience mode")
 	if err := cmd.Flags().MarkHidden("guided-experience"); err != nil {
+		return err
+	}
+	cmd.Flags().IntVar(&flags.guidedExperiencePort, "guided-experience-port", 30080, "Port on which the guided experience will be served")
+	if err := cmd.Flags().MarkHidden("guided-experience-port"); err != nil {
 		return err
 	}
 
@@ -278,19 +283,14 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	}
 
 	if flags.guidedExperience {
-		api, err := NewAPI(ctx, flags.adminConsolePort)
+		api, err := NewAPI(ctx, flags, metricsReporter)
 		if err != nil {
 			return fmt.Errorf("unable to create API: %w", err)
 		}
 
-		errCh := make(chan error)
-		go func() {
-			errCh <- api.Run(ctx)
-		}()
+		logrus.Infof("Click here to visit the guided experience: http://localhost:%d", flags.guidedExperiencePort)
 
-		logrus.Infof("Click here to visit the guided experience: http://localhost:%d", api.Port)
-
-		err = <-errCh
+		err = api.Run(ctx)
 		if err != nil {
 			return fmt.Errorf("API error: %w", err)
 		}
@@ -304,6 +304,16 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 }
 
 func reallyRunInstall(ctx context.Context, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
+	if err := materializeFiles(flags.airgapBundle); err != nil {
+		return fmt.Errorf("unable to materialize files: %w", err)
+	}
+
+	logrus.Debugf("copy license file to %s", flags.dataDir)
+	if err := copyLicenseFileToDataDir(flags.licenseFile, flags.dataDir); err != nil {
+		// We have decided not to report this error
+		logrus.Warnf("Unable to copy license file to %s: %v", flags.dataDir, err)
+	}
+
 	hostCABundle, err := findHostCABundle()
 	if err != nil {
 		return fmt.Errorf("unable to find host CA bundle: %w", err)
@@ -621,17 +631,6 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
 	logrus.Info("")
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
-
-	if err := materializeFiles(flags.airgapBundle); err != nil {
-		spinner.ErrorClosef("Initialization failed")
-		return fmt.Errorf("unable to materialize files: %w", err)
-	}
-
-	logrus.Debugf("copy license file to %s", flags.dataDir)
-	if err := copyLicenseFileToDataDir(flags.licenseFile, flags.dataDir); err != nil {
-		// We have decided not to report this error
-		logrus.Warnf("Unable to copy license file to %s: %v", flags.dataDir, err)
-	}
 
 	logrus.Debugf("configuring sysctl")
 	if err := configutils.ConfigureSysctl(); err != nil {
