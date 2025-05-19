@@ -9,20 +9,23 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/cli/installui"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/sirupsen/logrus"
 )
 
 type API struct {
 	installFlags    InstallCmdFlags
 	metricsReporter preflights.MetricsReporter
 
-	isInstalling     bool
-	isInstallSuccess bool
-	installError     error
+	isInstalling bool
+
+	shutdownCh chan struct{}
+	server     *http.Server
 }
 
 // ClusterSetupRequest represents the JSON request for cluster setup
@@ -31,7 +34,11 @@ type ClusterSetupRequest struct {
 }
 
 func NewAPI(ctx context.Context, installFlags InstallCmdFlags, metricsReporter preflights.MetricsReporter) (*API, error) {
-	return &API{installFlags: installFlags, metricsReporter: metricsReporter}, nil
+	return &API{
+		installFlags:    installFlags,
+		metricsReporter: metricsReporter,
+		shutdownCh:      make(chan struct{}),
+	}, nil
 }
 
 func (a *API) Run(ctx context.Context) error {
@@ -95,7 +102,27 @@ func (a *API) Run(ctx context.Context) error {
 		}
 	}, up))
 
-	return http.ListenAndServe(fmt.Sprintf(":%d", a.installFlags.guidedExperiencePort), mux)
+	// Create a server that can be shut down
+	a.server = &http.Server{
+		Addr:    fmt.Sprintf(":%d", a.installFlags.guidedExperiencePort),
+		Handler: mux,
+	}
+
+	// Start the server in a goroutine
+	go func() {
+		if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logrus.Errorf("HTTP server error: %v", err)
+		}
+	}()
+
+	// Wait for shutdown signal
+	<-a.shutdownCh
+
+	// Shutdown the server with a timeout
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return a.server.Shutdown(shutdownCtx)
 }
 
 type ClusterConfig struct {
@@ -176,21 +203,16 @@ func (a *API) postInstallCluster(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !a.isInstallSuccess && a.installError == nil {
-		a.isInstalling = true
-		defer func() {
-			a.isInstalling = false
-		}()
+	a.isInstalling = true
 
-		err := reallyRunInstall(context.Background(), a.installFlags, a.metricsReporter)
-		if err != nil {
-			a.installError = err
-		}
-		a.isInstallSuccess = true
-	}
+	defer func() {
+		// Signal to shut down the server after we've processed the request
+		close(a.shutdownCh)
+	}()
 
-	if a.installError != nil {
-		http.Error(w, a.installError.Error(), http.StatusInternalServerError)
+	err := reallyRunInstall(context.Background(), a.installFlags, a.metricsReporter)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
