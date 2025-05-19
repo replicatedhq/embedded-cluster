@@ -71,6 +71,8 @@ type InstallCmdFlags struct {
 
 	networkInterface string
 
+	guidedExperience bool
+
 	license *kotsv1beta1.License
 	proxy   *ecv1beta1.ProxySpec
 	cidrCfg *CIDRConfig
@@ -166,6 +168,12 @@ func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	}
 	cmd.Flags().BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
 
+	// Experimental flag to run the installer in guided experience mode
+	cmd.Flags().BoolVar(&flags.guidedExperience, "guided-experience", true, "Run the installer in guided experience mode")
+	if err := cmd.Flags().MarkHidden("guided-experience"); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -256,12 +264,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 }
 
 func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
-	hostCABundle, err := findHostCABundle()
-	if err != nil {
-		return fmt.Errorf("unable to find host CA bundle: %w", err)
-	}
-	logrus.Debugf("using host CA bundle: %s", hostCABundle)
-
 	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
 		return err
 	}
@@ -274,6 +276,39 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	if err := initializeInstall(ctx, flags); err != nil {
 		return fmt.Errorf("unable to initialize install: %w", err)
 	}
+
+	if flags.guidedExperience {
+		api, err := NewAPI(ctx, flags.adminConsolePort)
+		if err != nil {
+			return fmt.Errorf("unable to create API: %w", err)
+		}
+
+		errCh := make(chan error)
+		go func() {
+			errCh <- api.Run(ctx)
+		}()
+
+		logrus.Infof("Click here to visit the guided experience: http://localhost:%d", api.Port)
+
+		err = <-errCh
+		if err != nil {
+			return fmt.Errorf("API error: %w", err)
+		}
+
+		logrus.Infof("Install success")
+
+		return nil
+	}
+
+	return reallyRunInstall(ctx, flags, metricsReporter)
+}
+
+func reallyRunInstall(ctx context.Context, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
+	hostCABundle, err := findHostCABundle()
+	if err != nil {
+		return fmt.Errorf("unable to find host CA bundle: %w", err)
+	}
+	logrus.Debugf("using host CA bundle: %s", hostCABundle)
 
 	logrus.Debugf("running install preflights")
 	if err := runInstallPreflights(ctx, flags, metricsReporter); err != nil {
