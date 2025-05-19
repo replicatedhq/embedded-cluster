@@ -175,16 +175,17 @@ func (a *API) postInstallCluster(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.isInstalling = true
-	defer func() {
-		a.isInstalling = false
-	}()
-
 	if !a.isInstallSuccess && a.installError == nil {
+		a.isInstalling = true
+		defer func() {
+			a.isInstalling = false
+		}()
+
 		err := reallyRunInstall(context.Background(), a.installFlags, a.metricsReporter)
 		if err != nil {
 			a.installError = err
 		}
+		a.isInstallSuccess = true
 	}
 
 	if a.installError != nil {

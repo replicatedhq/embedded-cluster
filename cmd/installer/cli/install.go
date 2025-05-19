@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -288,7 +290,9 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 			return fmt.Errorf("unable to create API: %w", err)
 		}
 
-		logrus.Infof("Click here to visit the guided experience: http://localhost:%d", flags.guidedExperiencePort)
+		ipaddr := getPublicAddress(flags.networkInterface)
+		address := net.JoinHostPort(ipaddr, strconv.Itoa(flags.guidedExperiencePort))
+		logrus.Infof("Click here to visit the guided experience: http://%s", address)
 
 		err = api.Run(ctx)
 		if err != nil {
@@ -1338,6 +1342,14 @@ func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) 
 }
 
 func getAdminConsoleURL(networkInterface string, port int) string {
+	ipaddr := getPublicAddress(networkInterface)
+	return fmt.Sprintf("http://%s", net.JoinHostPort(ipaddr, strconv.Itoa(port)))
+}
+
+func getPublicAddress(networkInterface string) string {
+	if os.Getenv("EC_PUBLIC_ADDRESS") != "" {
+		return os.Getenv("EC_PUBLIC_ADDRESS")
+	}
 	ipaddr := runtimeconfig.TryDiscoverPublicIP()
 	if ipaddr == "" {
 		var err error
@@ -1347,7 +1359,7 @@ func getAdminConsoleURL(networkInterface string, port int) string {
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
-	return fmt.Sprintf("http://%s:%v", ipaddr, port)
+	return ipaddr
 }
 
 // logKubernetesErrors prints errors that may be related to k8s not coming up that manifest as

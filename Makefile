@@ -351,6 +351,7 @@ create-node%:
 		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
 		$(if $(filter node0,node$*),-p $(GUIDED_EXPERIENCE_NODE_PORT):$(GUIDED_EXPERIENCE_NODE_PORT)) \
 		$(if $(filter node0,node$*),-p 30003:30003) \
+		-e EC_PUBLIC_ADDRESS=localhost \
 		replicated/ec-distro:$(DISTRO)
 
 	@$(MAKE) ssh-node$*
