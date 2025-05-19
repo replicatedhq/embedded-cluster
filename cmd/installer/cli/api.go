@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/cli/installui"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -36,8 +37,8 @@ func NewAPI(ctx context.Context, installFlags InstallCmdFlags, metricsReporter p
 func (a *API) Run(ctx context.Context) error {
 	mux := http.NewServeMux()
 
-	// uiFs := http.FileServer(http.FS(installui.Fs()))
-	uiFs := http.FileServer(http.FS(os.DirFS("./cmd/installer/cli/installui/dist")))
+	uiFs := http.FileServer(http.FS(installui.Fs()))
+	// uiFs := http.FileServer(http.FS(os.DirFS("./cmd/installer/cli/installui/dist")))
 	mux.Handle("/", uiFs)
 
 	up := userProvider{
