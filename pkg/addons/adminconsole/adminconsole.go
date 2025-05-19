@@ -26,6 +26,7 @@ type AdminConsole struct {
 	ReplicatedAppDomain      string
 	ProxyRegistryDomain      string
 	ReplicatedRegistryDomain string
+	HostCABundlePath         string
 }
 
 type KotsInstaller func(msg *spinner.MessageWriter) error
