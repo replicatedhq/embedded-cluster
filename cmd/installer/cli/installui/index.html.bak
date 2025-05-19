@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embedded Cluster Installer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-container {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #0366d6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0256b9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Embedded Cluster Configuration</h1>
+    
+    <div class="form-container">
+        <form id="installer-form">
+            <div class="form-group">
+                <label for="data-directory">Data Directory:</label>
+                <input type="text" id="data-directory" name="data-directory" placeholder="Enter path to data directory">
+            </div>
+            
+            <button type="submit">Continue</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('installer-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const dataDirectory = document.getElementById('data-directory').value;
+            
+            // Create the JSON payload
+            const payload = {
+                dataDirectory: dataDirectory
+            };
+            
+            // Send the POST request
+            fetch('/api/cluster-setup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    alert('Network response was not ok');
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert('Success:', data);
+                // Handle successful response here
+            })
+            .catch(error => {
+                alert('Error:', error);
+                // Handle error here
+            });
+        });
+    </script>
+</body>
+</html>
