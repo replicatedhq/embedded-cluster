@@ -27,6 +27,13 @@ type AdminConsole struct {
 	ProxyRegistryDomain      string
 	ReplicatedRegistryDomain string
 	HostCABundlePath         string
+
+	// DryRun is a flag to enable dry-run mode for Admin Console.
+	// If true, Admin Console will only render the helm template and additional manifests, but not install
+	// the release.
+	DryRun bool
+
+	dryRunManifests [][]byte
 }
 
 type KotsInstaller func(msg *spinner.MessageWriter) error
@@ -110,4 +117,9 @@ func (a *AdminConsole) ChartLocation() string {
 		chartName = strings.Replace(chartName, "proxy.replicated.com", a.ProxyRegistryDomain, 1)
 	}
 	return chartName
+}
+
+// DryRunManifests returns the manifests generated during a dry run.
+func (a *AdminConsole) DryRunManifests() [][]byte {
+	return a.dryRunManifests
 }
