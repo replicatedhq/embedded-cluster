@@ -298,7 +298,7 @@ spec:
   - run:
       collectorName: "ps-detect-antivirus-and-security-tools"
       command: "sh"
-      args: [-c, "ps -ef | grep -E 'clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon' | grep -v grep"]
+      args: [-c, "ps -ef | grep -E 'clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp' | grep -v grep"]
   - filesystemPerformance:
         collectorName: filesystem-write-latency-etcd
         timeout: 5m
