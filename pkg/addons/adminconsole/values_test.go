@@ -17,47 +17,43 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, nil)
 		require.NoError(t, err, "GenerateHelmValues should not return an error")
 
-		// Verify extraVolumes
-		require.Contains(t, values, "extraVolumes", "Should have extraVolumes key")
-		extraVolumes, ok := values["extraVolumes"].([]map[string]interface{})
-		require.True(t, ok, "extraVolumes should be a slice of maps")
-		require.Len(t, extraVolumes, 1, "Should have one volume")
+		// Verify structure types
+		require.NotEmpty(t, values["extraVolumes"])
+		require.IsType(t, []map[string]interface{}{}, values["extraVolumes"])
+		require.Len(t, values["extraVolumes"].([]map[string]interface{}), 1)
+
+		require.NotEmpty(t, values["extraVolumeMounts"])
+		require.IsType(t, []map[string]interface{}{}, values["extraVolumeMounts"])
+		require.Len(t, values["extraVolumeMounts"].([]map[string]interface{}), 1)
+
+		require.NotEmpty(t, values["extraEnv"])
+		require.IsType(t, []map[string]interface{}{}, values["extraEnv"])
 
 		// Verify volume configuration
-		volume := extraVolumes[0]
-		assert.Equal(t, "host-ca-bundle", volume["name"], "Volume name should be host-ca-bundle")
-
-		hostPath, ok := volume["hostPath"].(map[string]interface{})
-		require.True(t, ok, "hostPath should be a map")
-		assert.Equal(t, "/etc/ssl/certs/ca-certificates.crt", hostPath["path"], "Path should match HostCABundlePath")
-		assert.Equal(t, "FileOrCreate", hostPath["type"], "Type should be FileOrCreate")
-
-		// Verify extraVolumeMounts
-		require.Contains(t, values, "extraVolumeMounts", "Should have extraVolumeMounts key")
-		extraVolumeMounts, ok := values["extraVolumeMounts"].([]map[string]interface{})
-		require.True(t, ok, "extraVolumeMounts should be a slice of maps")
-		require.Len(t, extraVolumeMounts, 1, "Should have one volume mount")
+		extraVolume := values["extraVolumes"].([]map[string]interface{})[0]
+		assert.Equal(t, "host-ca-bundle", extraVolume["name"])
+		if assert.NotNil(t, extraVolume["hostPath"]) {
+			hostPath := extraVolume["hostPath"].(map[string]interface{})
+			assert.Equal(t, "/etc/ssl/certs/ca-certificates.crt", hostPath["path"])
+			assert.Equal(t, "FileOrCreate", hostPath["type"])
+		}
 
 		// Verify volume mount configuration
-		volumeMount := extraVolumeMounts[0]
-		assert.Equal(t, "host-ca-bundle", volumeMount["name"], "Volume mount name should be host-ca-bundle")
-		assert.Equal(t, "/certs/ca-certificates.crt", volumeMount["mountPath"], "Mount path should be /certs/ca-certificates.crt")
+		extraVolumeMount := values["extraVolumeMounts"].([]map[string]interface{})[0]
+		assert.Equal(t, "host-ca-bundle", extraVolumeMount["name"])
+		assert.Equal(t, "/certs/ca-certificates.crt", extraVolumeMount["mountPath"])
 
-		// Verify extraEnv
-		require.Contains(t, values, "extraEnv", "Should have extraEnv key")
-		extraEnv, ok := values["extraEnv"].([]map[string]interface{})
-		require.True(t, ok, "extraEnv should be a slice of maps")
-
-		// Find SSL_CERT_DIR environment variable
+		// Verify SSL_CERT_DIR environment variable
+		extraEnv := values["extraEnv"].([]map[string]interface{})
 		var foundSSLCertDir bool
 		for _, env := range extraEnv {
 			if env["name"] == "SSL_CERT_DIR" {
 				foundSSLCertDir = true
-				assert.Equal(t, "/certs", env["value"], "SSL_CERT_DIR should be set to /certs")
+				assert.Equal(t, "/certs", env["value"])
 				break
 			}
 		}
-		assert.True(t, foundSSLCertDir, "Should have SSL_CERT_DIR environment variable")
+		assert.True(t, foundSSLCertDir, "SSL_CERT_DIR environment variable should be set")
 	})
 
 	t.Run("without host CA bundle path", func(t *testing.T) {
@@ -68,25 +64,19 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, nil)
 		require.NoError(t, err, "GenerateHelmValues should not return an error")
 
-		// Verify extraVolumes is empty
-		require.Contains(t, values, "extraVolumes", "Should have extraVolumes key")
-		extraVolumes, ok := values["extraVolumes"].([]map[string]interface{})
-		require.True(t, ok, "extraVolumes should be a slice of maps")
-		assert.Empty(t, extraVolumes, "Should have no volumes")
+		// Verify structure types
+		require.IsType(t, []map[string]interface{}{}, values["extraVolumes"])
+		require.Len(t, values["extraVolumes"].([]map[string]interface{}), 0)
 
-		// Verify extraVolumeMounts is empty
-		require.Contains(t, values, "extraVolumeMounts", "Should have extraVolumeMounts key")
-		extraVolumeMounts, ok := values["extraVolumeMounts"].([]map[string]interface{})
-		require.True(t, ok, "extraVolumeMounts should be a slice of maps")
-		assert.Empty(t, extraVolumeMounts, "Should have no volume mounts")
+		require.IsType(t, []map[string]interface{}{}, values["extraVolumeMounts"])
+		require.Len(t, values["extraVolumeMounts"].([]map[string]interface{}), 0)
 
-		// Verify SSL_CERT_DIR is not in extraEnv
-		require.Contains(t, values, "extraEnv", "Should have extraEnv key")
-		extraEnv, ok := values["extraEnv"].([]map[string]interface{})
-		require.True(t, ok, "extraEnv should be a slice of maps")
+		require.IsType(t, []map[string]interface{}{}, values["extraEnv"])
 
+		// Verify SSL_CERT_DIR is not present in any environment variable
+		extraEnv := values["extraEnv"].([]map[string]interface{})
 		for _, env := range extraEnv {
-			assert.NotEqual(t, "SSL_CERT_DIR", env["name"], "Should not have SSL_CERT_DIR environment variable")
+			assert.NotEqual(t, "SSL_CERT_DIR", env["name"], "SSL_CERT_DIR environment variable should not be set")
 		}
 	})
 }
