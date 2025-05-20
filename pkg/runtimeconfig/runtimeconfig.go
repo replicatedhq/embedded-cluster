@@ -245,21 +245,5 @@ func ApplyFlags(flags *pflag.FlagSet) error {
 		SetAdminConsolePort(ap)
 	}
 
-	if err := validate(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func validate() error {
-	lamPort := LocalArtifactMirrorPort()
-	acPort := AdminConsolePort()
-
-	if lamPort != 0 && acPort != 0 {
-		if lamPort == acPort {
-			return fmt.Errorf("local artifact mirror port cannot be the same as admin console port")
-		}
-	}
 	return nil
 }

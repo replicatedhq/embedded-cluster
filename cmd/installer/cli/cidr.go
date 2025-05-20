@@ -6,7 +6,6 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/api/console"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/spf13/cobra"
 )
 
@@ -27,16 +26,6 @@ func addCIDRFlags(cmd *cobra.Command) error {
 func validateCIDRFlags(cmd *cobra.Command) error {
 	if cmd.Flags().Changed("cidr") && (cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr")) {
 		return fmt.Errorf("--cidr can't be used with --pod-cidr or --service-cidr")
-	}
-
-	cidr, err := cmd.Flags().GetString("cidr")
-	if err != nil {
-		return fmt.Errorf("unable to get cidr flag: %w", err)
-	}
-
-	// TODO NOW: move this to api
-	if err := netutils.ValidateCIDR(cidr, 16, true); err != nil {
-		return err
 	}
 
 	return nil
@@ -74,9 +63,3 @@ func parseCIDRFlags(cmd *cobra.Command, consoleConfig *console.Config) error {
 	consoleConfig.GlobalCIDR = globalCIDR
 	return nil
 }
-
-// TODO NOW: move this to api
-// podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(globalCIDR)
-// if err != nil {
-// 	return nil, fmt.Errorf("unable to split cidr flag: %w", err)
-// }

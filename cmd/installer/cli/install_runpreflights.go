@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 
 	"github.com/replicatedhq/embedded-cluster/api/console"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
@@ -51,7 +52,26 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runInstallRunPreflights(ctx context.Context, name string, consoleConfig console.Config, cliFlags installCmdFlags) error {
+func runInstallRunPreflights(ctx context.Context, name string, inConsoleConfig console.Config, cliFlags installCmdFlags) error {
+	listener, err := net.Listen("tcp", ":30080")
+	if err != nil {
+		return fmt.Errorf("unable to create listener: %w", err)
+	}
+	go runInstallAPI(ctx, listener)
+
+	if err := waitForInstallAPI(ctx, listener.Addr().String()); err != nil {
+		return fmt.Errorf("unable to wait for install API: %w", err)
+	}
+
+	consoleConfig, err := initializeConsoleAPIConfig(inConsoleConfig, listener.Addr().String())
+	if err != nil {
+		return fmt.Errorf("unable to initialize console API config: %w", err)
+	}
+
+	return doRunInstallRunPreflights(ctx, name, *consoleConfig, cliFlags)
+}
+
+func doRunInstallRunPreflights(ctx context.Context, name string, consoleConfig console.Config, cliFlags installCmdFlags) error {
 	if err := runInstallVerifyAndPrompt(ctx, name, consoleConfig, cliFlags); err != nil {
 		return err
 	}

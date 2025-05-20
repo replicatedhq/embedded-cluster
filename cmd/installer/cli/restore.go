@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -168,11 +169,32 @@ func addRestoreCmdFlags(cmd *cobra.Command, cliFlags *installCmdFlags) error {
 	return nil
 }
 
-func runRestore(ctx context.Context, name string, consoleConfig console.Config, cliFlags installCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
+func runRestore(ctx context.Context, name string, inConsoleConfig console.Config, cliFlags installCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
+	listener, err := net.Listen("tcp", ":30080")
+	if err != nil {
+		return fmt.Errorf("unable to create listener: %w", err)
+	}
+
+	apiCtx, apiCancel := context.WithCancel(ctx)
+	defer apiCancel()
+	go runInstallAPI(apiCtx, listener)
+
+	if err := waitForInstallAPI(ctx, listener.Addr().String()); err != nil {
+		return fmt.Errorf("unable to wait for install API: %w", err)
+	}
+
+	consoleConfig, err := initializeConsoleAPIConfig(inConsoleConfig, listener.Addr().String())
+	if err != nil {
+		return fmt.Errorf("unable to initialize console API config: %w", err)
+	}
+
+	return doRestore(ctx, name, *consoleConfig, cliFlags, s3Store, skipStoreValidation)
+}
+
+func doRestore(ctx context.Context, name string, consoleConfig console.Config, cliFlags installCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
 	isAirgap := cliFlags.airgapBundle != ""
 
-	err := verifyChannelRelease("restore", isAirgap, cliFlags.assumeYes)
-	if err != nil {
+	if err := verifyChannelRelease("restore", isAirgap, cliFlags.assumeYes); err != nil {
 		return err
 	}
 

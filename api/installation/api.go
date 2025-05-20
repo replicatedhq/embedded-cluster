@@ -4,13 +4,21 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/replicatedhq/embedded-cluster/api"
+	"github.com/sirupsen/logrus"
 )
 
 type API struct {
+	logger *logrus.Logger
 }
 
-func NewAPI() *API {
-	return &API{}
+func NewAPI(logger *logrus.Logger) *API {
+	if logger == nil {
+		logger = api.NewDiscardLogger()
+	}
+	return &API{
+		logger: logger,
+	}
 }
 
 func (c *API) RegisterRoutes(router *mux.Router) {

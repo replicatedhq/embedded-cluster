@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gosimple/slug"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/console"
 	consoleclient "github.com/replicatedhq/embedded-cluster/api/console/client"
 	"github.com/replicatedhq/embedded-cluster/api/installation"
@@ -84,6 +85,9 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		Short: fmt.Sprintf("Install %s", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall(cmd, &consoleConfig, &cliFlags); err != nil {
+				return err
+			}
+			if err := ensureAdminConsolePassword(&consoleConfig, &cliFlags); err != nil {
 				return err
 			}
 
@@ -201,14 +205,6 @@ func preRunInstall(cmd *cobra.Command, consoleConfig *console.Config, cliFlags *
 		return fmt.Errorf("unable to parse cidr flags: %w", err)
 	}
 
-	// if a network interface flag was not provided, attempt to discover it
-	if consoleConfig.NetworkInterface == "" {
-		autoInterface, err := determineBestNetworkInterface()
-		if err == nil {
-			consoleConfig.NetworkInterface = autoInterface
-		}
-	}
-
 	// license file can be empty for restore
 	if cliFlags.licenseFile != "" {
 		// validate the the license is indeed a license file
@@ -230,34 +226,17 @@ func preRunInstall(cmd *cobra.Command, consoleConfig *console.Config, cliFlags *
 		}
 	}
 
-	runtimeconfig.ApplyFlags(cmd.Flags())
-
-	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig()) // this is needed for restore as well since it shares this function
-	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
-
-	hostCABundlePath, err := findHostCABundle()
-	if err != nil {
-		return fmt.Errorf("unable to find host CA bundle: %w", err)
-	}
-	runtimeconfig.SetHostCABundlePath(hostCABundlePath)
-	logrus.Debugf("using host CA bundle: %s", hostCABundlePath)
-
-	if err := runtimeconfig.WriteToDisk(); err != nil {
-		return fmt.Errorf("unable to write runtime config to disk: %w", err)
-	}
-
-	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
-		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
-		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
-		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
-	}
-
 	return nil
 }
 
 func runInstallAPI(ctx context.Context, listener net.Listener) error {
-	consoleAPI := console.NewAPI()
-	installationAPI := installation.NewAPI()
+	logger, err := api.NewLogger()
+	if err != nil {
+		logrus.Warnf("Unable to setup API logging: %v", err)
+	}
+
+	consoleAPI := console.NewAPI(logger)
+	installationAPI := installation.NewAPI(logger)
 
 	router := mux.NewRouter()
 	consoleAPI.RegisterRoutes(router.PathPrefix("/api/console").Subrouter())
@@ -308,14 +287,11 @@ func initializeConsoleAPIConfig(in console.Config, addr string) (*console.Config
 	if err != nil {
 		return nil, fmt.Errorf("upsert config: %w", err)
 	}
+
 	return consoleConfig, nil
 }
 
 func runInstall(ctx context.Context, name string, inConsoleConfig console.Config, cliFlags installCmdFlags, metricsReporter preflights.MetricsReporter) error {
-	if err := ensureAdminConsolePassword(&inConsoleConfig, &cliFlags); err != nil {
-		return err
-	}
-
 	listener, err := net.Listen("tcp", ":30080")
 	if err != nil {
 		return fmt.Errorf("unable to create listener: %w", err)
