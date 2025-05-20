@@ -21,7 +21,7 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/api/console"
 	consoleclient "github.com/replicatedhq/embedded-cluster/api/console/client"
-	"github.com/replicatedhq/embedded-cluster/api/install"
+	"github.com/replicatedhq/embedded-cluster/api/installation"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -120,7 +120,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
-	if err := addConsoleConfigFlags(cmd, &consoleConfig); err != nil {
+	if err := addInstallConsoleConfigFlags(cmd, &consoleConfig); err != nil {
 		panic(err)
 	}
 	if err := addInstallCmdFlags(cmd, &cliFlags); err != nil {
@@ -132,11 +132,16 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func addConsoleConfigFlags(cmd *cobra.Command, consoleConfig *console.Config) error {
+func addInstallConsoleConfigFlags(cmd *cobra.Command, consoleConfig *console.Config) error {
 	cmd.Flags().StringVar(&consoleConfig.DataDirectory, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	cmd.Flags().IntVar(&consoleConfig.LocalArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&consoleConfig.NetworkInterface, "network-interface", "", "The network interface to use for the cluster")
+
 	cmd.Flags().StringVar(&consoleConfig.Overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
+	if err := cmd.Flags().MarkHidden("overrides"); err != nil {
+		return err
+	}
+
 	cmd.Flags().StringVar(&consoleConfig.AdminConsolePassword, "admin-console-password", "", "Password for the Admin Console")
 	cmd.Flags().IntVar(&consoleConfig.AdminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
 
@@ -147,42 +152,32 @@ func addConsoleConfigFlags(cmd *cobra.Command, consoleConfig *console.Config) er
 		return err
 	}
 
-	if err := cmd.Flags().MarkHidden("overrides"); err != nil {
-		return err
-	}
 	return nil
 }
 
 func addInstallCmdFlags(cmd *cobra.Command, cliFlags *installCmdFlags) error {
 	cmd.Flags().StringVar(&cliFlags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
-	cmd.Flags().BoolVarP(&cliFlags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
-	cmd.Flags().StringSliceVar(&cliFlags.privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
-	cmd.Flags().BoolVar(&cliFlags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
-	cmd.Flags().BoolVar(&cliFlags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
-	cmd.Flags().StringVarP(&cliFlags.licenseFile, "license", "l", "", "Path to the license file")
-	cmd.Flags().StringVar(&cliFlags.configValues, "config-values", "", "Path to the config values to use when installing")
 
+	cmd.Flags().BoolVarP(&cliFlags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
+	cmd.Flags().StringSliceVar(&cliFlags.privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
+
+	cmd.Flags().BoolVar(&cliFlags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
 	if err := cmd.Flags().MarkHidden("skip-host-preflights"); err != nil {
 		return err
 	}
 	if err := cmd.Flags().MarkDeprecated("skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead."); err != nil {
 		return err
 	}
+
+	cmd.Flags().BoolVar(&cliFlags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
+
+	cmd.Flags().StringVarP(&cliFlags.licenseFile, "license", "l", "", "Path to the license file")
 	if err := cmd.MarkFlagRequired("license"); err != nil {
 		return err
 	}
-	return nil
-}
 
-func addInstallAdminConsoleFlags(cmd *cobra.Command, consoleConfig *console.Config, cliFlags *installCmdFlags) error {
-	cmd.Flags().StringVar(&consoleConfig.AdminConsolePassword, "admin-console-password", "", "Password for the Admin Console")
-	cmd.Flags().IntVar(&consoleConfig.AdminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
-	cmd.Flags().StringVarP(&cliFlags.licenseFile, "license", "l", "", "Path to the license file")
-	if err := cmd.MarkFlagRequired("license"); err != nil {
-		panic(err)
-	}
 	cmd.Flags().StringVar(&cliFlags.configValues, "config-values", "", "Path to the config values to use when installing")
 
 	return nil
@@ -262,11 +257,11 @@ func preRunInstall(cmd *cobra.Command, consoleConfig *console.Config, cliFlags *
 
 func runInstallAPI(ctx context.Context, listener net.Listener) error {
 	consoleAPI := console.NewAPI()
-	installAPI := install.NewAPI()
+	installationAPI := installation.NewAPI()
 
 	router := mux.NewRouter()
 	consoleAPI.RegisterRoutes(router.PathPrefix("/api/console").Subrouter())
-	installAPI.RegisterRoutes(router.PathPrefix("/api/install").Subrouter())
+	installationAPI.RegisterRoutes(router.PathPrefix("/api/installation").Subrouter())
 
 	webFs := http.FileServer(http.FS(web.Fs()))
 	router.Handle("/", webFs)

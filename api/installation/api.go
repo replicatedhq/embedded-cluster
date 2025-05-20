@@ -1,4 +1,4 @@
-package install
+package installation
 
 import (
 	"net/http"

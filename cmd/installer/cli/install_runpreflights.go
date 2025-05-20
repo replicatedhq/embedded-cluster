@@ -41,7 +41,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
-	if err := addConsoleConfigFlags(cmd, &consoleConfig); err != nil {
+	if err := addInstallConsoleConfigFlags(cmd, &consoleConfig); err != nil {
 		panic(err)
 	}
 	if err := addInstallCmdFlags(cmd, &cliFlags); err != nil {
