@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -526,4 +527,23 @@ versionLabel: testversion
 			}
 		})
 	}
+}
+
+func Test_runInstallAPI(t *testing.T) {
+	listener, err := net.Listen("tcp", ":0")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = listener.Close()
+	})
+
+	go runInstallAPI(context.Background(), listener)
+
+	err = waitForInstallAPI(context.Background(), listener.Addr().String())
+	require.NoError(t, err)
+
+	resp, err := http.Get("http://" + listener.Addr().String() + "/api/install/health")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }

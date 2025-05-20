@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/replicatedhq/embedded-cluster/api/console"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
@@ -82,11 +83,11 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsReported preflights.MetricsReporter) error {
+func runInstallPreflights(ctx context.Context, consoleConfig console.Config, cliFlags CLIFlags, metricsReported preflights.MetricsReporter) error {
 	replicatedAppURL := replicatedAppURL()
 	proxyRegistryURL := proxyRegistryURL()
 
-	nodeIP, err := netutils.FirstValidAddress(flags.networkInterface)
+	nodeIP, err := netutils.FirstValidAddress(consoleConfig.NetworkInterface)
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
@@ -96,14 +97,14 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsRep
 		ProxyRegistryURL:     proxyRegistryURL,
 		Proxy:                flags.proxy,
 		PodCIDR:              flags.cidrCfg.PodCIDR,
-		ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
-		GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
+		ServiceCIDR:          cliFlags.cidrCfg.ServiceCIDR,
+		GlobalCIDR:           cliFlags.cidrCfg.GlobalCIDR,
 		NodeIP:               nodeIP,
-		PrivateCAs:           flags.privateCAs,
-		IsAirgap:             flags.isAirgap,
-		SkipHostPreflights:   flags.skipHostPreflights,
-		IgnoreHostPreflights: flags.ignoreHostPreflights,
-		AssumeYes:            flags.assumeYes,
+		PrivateCAs:           cliFlags.privateCAs,
+		IsAirgap:             cliFlags.airgapBundle != "",
+		SkipHostPreflights:   cliFlags.skipHostPreflights,
+		IgnoreHostPreflights: cliFlags.ignoreHostPreflights,
+		AssumeYes:            cliFlags.assumeYes,
 		MetricsReporter:      metricsReported,
 	}); err != nil {
 		return err

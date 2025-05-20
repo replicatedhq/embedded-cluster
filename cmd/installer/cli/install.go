@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -14,8 +16,12 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2/terminal"
+	"github.com/gorilla/mux"
 	"github.com/gosimple/slug"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/api/console"
+	consoleclient "github.com/replicatedhq/embedded-cluster/api/console/client"
+	"github.com/replicatedhq/embedded-cluster/api/install"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -44,6 +50,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -57,20 +64,25 @@ import (
 type InstallCmdFlags struct {
 	adminConsolePassword    string
 	adminConsolePort        int
-	airgapBundle            string
-	isAirgap                bool
 	dataDir                 string
-	licenseFile             string
+	networkInterface        string
 	localArtifactMirrorPort int
-	assumeYes               bool
 	overrides               string
-	privateCAs              []string
-	skipHostPreflights      bool
-	ignoreHostPreflights    bool
-	configValues            string
 
-	networkInterface string
+	cliFlags CLIFlags
+}
 
+type CLIFlags struct {
+	configValues         string
+	privateCAs           []string
+	skipHostPreflights   bool
+	ignoreHostPreflights bool
+	airgapBundle         string
+	assumeYes            bool
+	licenseFile          string
+}
+
+type TODOConfig struct {
 	license *kotsv1beta1.License
 	proxy   *ecv1beta1.ProxySpec
 	cidrCfg *CIDRConfig
@@ -136,11 +148,11 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 }
 
 func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
-	cmd.Flags().StringVar(&flags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
+	cmd.Flags().StringVar(&flags.cliFlags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
 	cmd.Flags().StringVar(&flags.dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	cmd.Flags().IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
-	cmd.Flags().BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
+	cmd.Flags().BoolVarP(&flags.cliFlags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	cmd.Flags().StringVar(&flags.overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
@@ -148,7 +160,7 @@ func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		return err
 	}
 
-	cmd.Flags().StringSliceVar(&flags.privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
+	cmd.Flags().StringSliceVar(&flags.cliFlags.privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
 
 	if err := addProxyFlags(cmd); err != nil {
 		return err
@@ -157,14 +169,14 @@ func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		return err
 	}
 
-	cmd.Flags().BoolVar(&flags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
+	cmd.Flags().BoolVar(&flags.cliFlags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
 	if err := cmd.Flags().MarkHidden("skip-host-preflights"); err != nil {
 		return err
 	}
 	if err := cmd.Flags().MarkDeprecated("skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead."); err != nil {
 		return err
 	}
-	cmd.Flags().BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
+	cmd.Flags().BoolVar(&flags.cliFlags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
 
 	return nil
 }
@@ -172,11 +184,11 @@ func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	cmd.Flags().StringVar(&flags.adminConsolePassword, "admin-console-password", "", "Password for the Admin Console")
 	cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
-	cmd.Flags().StringVarP(&flags.licenseFile, "license", "l", "", "Path to the license file")
+	cmd.Flags().StringVarP(&flags.cliFlags.licenseFile, "license", "l", "", "Path to the license file")
 	if err := cmd.MarkFlagRequired("license"); err != nil {
 		panic(err)
 	}
-	cmd.Flags().StringVar(&flags.configValues, "config-values", "", "Path to the config values to use when installing")
+	cmd.Flags().StringVar(&flags.cliFlags.configValues, "config-values", "", "Path to the config values to use when installing")
 
 	return nil
 }
@@ -216,9 +228,9 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	}
 
 	// license file can be empty for restore
-	if flags.licenseFile != "" {
+	if flags.cliFlags.licenseFile != "" {
 		// validate the the license is indeed a license file
-		l, err := helpers.ParseLicense(flags.licenseFile)
+		l, err := helpers.ParseLicense(flags.cliFlags.licenseFile)
 		if err != nil {
 			if err == helpers.ErrNotALicenseFile {
 				return fmt.Errorf("license file is not a valid license file")
@@ -229,14 +241,12 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		flags.license = l
 	}
 
-	if flags.configValues != "" {
-		err := configutils.ValidateKotsConfigValues(flags.configValues)
+	if flags.cliFlags.configValues != "" {
+		err := configutils.ValidateKotsConfigValues(flags.cliFlags.configValues)
 		if err != nil {
 			return fmt.Errorf("config values file is not valid: %w", err)
 		}
 	}
-
-	flags.isAirgap = flags.airgapBundle != ""
 
 	runtimeconfig.ApplyFlags(cmd.Flags())
 
@@ -263,17 +273,110 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	return nil
 }
 
-func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
-	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
-		return err
+func runInstallAPI(ctx context.Context, listener net.Listener) error {
+	consoleAPI := console.NewAPI()
+	installAPI := install.NewAPI()
+
+	router := mux.NewRouter()
+	consoleAPI.RegisterRoutes(router.PathPrefix("/api/console").Subrouter())
+	installAPI.RegisterRoutes(router.PathPrefix("/api/install").Subrouter())
+
+	webFs := http.FileServer(http.FS(web.Fs()))
+	router.Handle("/", webFs)
+
+	router.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	server := &http.Server{
+		Addr:    listener.Addr().String(),
+		Handler: router,
 	}
 
+	go func() {
+		<-ctx.Done()
+		server.Shutdown(context.Background())
+	}()
+
+	return server.ListenAndServe()
+}
+
+func waitForInstallAPI(ctx context.Context, addr string) error {
+	timeout := time.After(10 * time.Second)
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("install API did not start in time")
+		case <-time.Tick(1 * time.Second):
+			resp, err := http.Get(fmt.Sprintf("http://%s/health", addr))
+			if err != nil {
+				return fmt.Errorf("unable to connect to install API: %w", err)
+			}
+			if resp.StatusCode == http.StatusOK {
+				return nil
+			}
+		}
+	}
+}
+
+func initializeConsoleAPIConfig(flags InstallCmdFlags, addr string) (*console.Config, error) {
+	in := console.Config{
+		AdminConsolePassword:    flags.adminConsolePassword,
+		AdminConsolePort:        flags.adminConsolePort,
+		DataDirectory:           flags.dataDir,
+		LocalArtifactMirrorPort: flags.localArtifactMirrorPort,
+		NetworkInterface:        flags.networkInterface,
+		HTTPProxy:               flags.HTTPProxy,
+		HTTPSProxy:              flags.proxy.HTTPSProxy,
+		NoProxy:                 flags.proxy.NoProxy,
+		PodCIDR:                 flags.cidrCfg.PodCIDR,
+		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
+		Overrides:               flags.overrides,
+	}
+	if flags.cidrCfg.GlobalCIDR != nil {
+		in.GlobalCIDR = *flags.cidrCfg.GlobalCIDR
+	}
+
+	consoleClient := consoleclient.NewClient(fmt.Sprintf("http://%s/api/console", addr))
+
+	consoleConfig, err := consoleClient.UpsertConfig(in)
+	if err != nil {
+		return nil, fmt.Errorf("upsert config: %w", err)
+	}
+
+	return consoleConfig, nil
+}
+
+func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
 	if err := ensureAdminConsolePassword(&flags); err != nil {
 		return err
 	}
 
+	listener, err := net.Listen("tcp", ":30080")
+	if err != nil {
+		return fmt.Errorf("unable to create listener: %w", err)
+	}
+	go runInstallAPI(ctx, listener)
+
+	if err := waitForInstallAPI(ctx, listener.Addr().String()); err != nil {
+		return fmt.Errorf("unable to wait for install API: %w", err)
+	}
+
+	consoleConfig, err := initializeConsoleAPIConfig(flags, listener.Addr().String())
+	if err != nil {
+		return fmt.Errorf("unable to initialize console API config: %w", err)
+	}
+
+	return doInstall(ctx, name, *consoleConfig, flags.cliFlags, metricsReporter)
+}
+
+func doInstall(ctx context.Context, name string, consoleConfig console.Config, cliFlags CLIFlags, metricsReporter preflights.MetricsReporter) error {
+	if err := runInstallVerifyAndPrompt(ctx, name, consoleConfig, cliFlags); err != nil {
+		return err
+	}
+
 	logrus.Debug("initializing install")
-	if err := initializeInstall(ctx, flags); err != nil {
+	if err := initializeInstall(ctx, consoleConfig, cliFlags); err != nil {
 		return fmt.Errorf("unable to initialize install: %w", err)
 	}
 
@@ -285,7 +388,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		return fmt.Errorf("unable to run install preflights: %w", err)
 	}
 
-	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, nil)
+	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.cliFlags.airgapBundle, flags.proxy, flags.cidrCfg, consoleConfig.Overrides, nil)
 	if err != nil {
 		return fmt.Errorf("unable to install cluster: %w", err)
 	}
@@ -354,7 +457,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		IsAirgap:                flags.airgapBundle != "",
 		Proxy:                   flags.proxy,
 		HostCABundlePath:        runtimeconfig.HostCABundlePath(),
-		PrivateCAs:              flags.privateCAs,
+		PrivateCAs:              cliFlags.privateCAs,
 		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
 		DisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
 		IsMultiNodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
@@ -365,8 +468,8 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 				AppSlug:               flags.license.Spec.AppSlug,
 				LicenseFile:           flags.licenseFile,
 				Namespace:             runtimeconfig.KotsadmNamespace,
-				AirgapBundle:          flags.airgapBundle,
-				ConfigValuesFile:      flags.configValues,
+				AirgapBundle:          cliFlags.airgapBundle,
+				ConfigValuesFile:      cliFlags.configValues,
 				ReplicatedAppEndpoint: replicatedAppURL(),
 			}
 			return kotscli.Install(opts, msg)
@@ -388,39 +491,42 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		logrus.Warnf("Unable to create host support bundle: %v", err)
 	}
 
-	if err := printSuccessMessage(flags.license, flags.networkInterface); err != nil {
+	if err := printSuccessMessage(flags.license, consoleConfig.NetworkInterface); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *InstallCmdFlags) error {
+func runInstallVerifyAndPrompt(ctx context.Context, name string, consoleConfig console.Config, cliFlags CLIFlags) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "reinstall")
 	if err != nil {
 		return err
 	}
 
-	err = verifyChannelRelease("installation", flags.isAirgap, flags.assumeYes)
+	isAirgap := cliFlags.airgapBundle != ""
+
+	err = verifyChannelRelease("installation", isAirgap, cliFlags.assumeYes)
 	if err != nil {
 		return err
 	}
 
 	logrus.Debugf("checking license matches")
-	license, err := getLicenseFromFilepath(flags.licenseFile)
+	license, err := getLicenseFromFilepath(cliFlags.licenseFile)
 	if err != nil {
 		return err
 	}
-	if flags.isAirgap {
+
+	if isAirgap {
 		logrus.Debugf("checking airgap bundle matches binary")
-		if err := checkAirgapMatches(flags.airgapBundle); err != nil {
+		if err := checkAirgapMatches(cliFlags.airgapBundle); err != nil {
 			return err // we want the user to see the error message without a prefix
 		}
 	}
 
-	if !flags.isAirgap {
-		if err := maybePromptForAppUpdate(ctx, prompts.New(), license, flags.assumeYes); err != nil {
+	if !isAirgap {
+		if err := maybePromptForAppUpdate(ctx, prompts.New(), license, cliFlags.assumeYes); err != nil {
 			if errors.As(err, &ErrorNothingElseToAdd{}) {
 				return err
 			}
@@ -584,20 +690,20 @@ func verifyNoInstallation(name string, cmdName string) error {
 	return nil
 }
 
-func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
+func initializeInstall(ctx context.Context, consoleConfig console.Config, cliFlags CLIFlags) error {
 	logrus.Info("")
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
 
-	if err := materializeFiles(flags.airgapBundle); err != nil {
+	if err := materializeFiles(cliFlags.airgapBundle); err != nil {
 		spinner.ErrorClosef("Initialization failed")
 		return fmt.Errorf("unable to materialize files: %w", err)
 	}
 
-	logrus.Debugf("copy license file to %s", flags.dataDir)
-	if err := copyLicenseFileToDataDir(flags.licenseFile, flags.dataDir); err != nil {
+	logrus.Debugf("copy license file to %s", consoleConfig.DataDirectory)
+	if err := copyLicenseFileToDataDir(cliFlags.licenseFile, consoleConfig.DataDirectory); err != nil {
 		// We have decided not to report this error
-		logrus.Warnf("Unable to copy license file to %s: %v", flags.dataDir, err)
+		logrus.Warnf("Unable to copy license file to %s: %v", consoleConfig.DataDirectory, err)
 	}
 
 	logrus.Debugf("configuring sysctl")
@@ -1035,7 +1141,7 @@ func waitForNode(ctx context.Context) error {
 }
 
 func recordInstallation(
-	ctx context.Context, kcli client.Client, flags InstallCmdFlags,
+	ctx context.Context, kcli client.Client, consoleConfig console.Config, cliFlags CLIFlags,
 	k0sCfg *k0sv1beta1.ClusterConfig, license *kotsv1beta1.License,
 ) (*ecv1beta1.Installation, error) {
 	// ensure that the embedded-cluster namespace exists
@@ -1055,8 +1161,8 @@ func recordInstallation(
 	}
 
 	var euOverrides string
-	if flags.overrides != "" {
-		eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if consoleConfig.Overrides != "" {
+		eucfg, err := helpers.ParseEndUserConfig(consoleConfig.Overrides)
 		if err != nil {
 			return nil, fmt.Errorf("process overrides file: %w", err)
 		}
@@ -1076,8 +1182,8 @@ func recordInstallation(
 		Spec: ecv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),
 			MetricsBaseURL:            replicatedAppURL(),
-			AirGap:                    flags.isAirgap,
-			Proxy:                     flags.proxy,
+			AirGap:                    cliFlags.airgapBundle != "",
+			Proxy:                     cliFlags.proxy,
 			Network:                   networkSpecFromK0sConfig(k0sCfg),
 			Config:                    cfgspec,
 			RuntimeConfig:             runtimeconfig.Get(),
