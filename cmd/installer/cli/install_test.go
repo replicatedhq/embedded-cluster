@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/api/console"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -109,17 +110,19 @@ func Test_ensureAdminConsolePassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			flags := &InstallCmdFlags{
-				assumeYes:            tt.noPrompt,
-				adminConsolePassword: tt.userPassword,
+			consoleConfig := &console.Config{
+				AdminConsolePassword: tt.userPassword,
+			}
+			cliFlags := &installCmdFlags{
+				assumeYes: tt.noPrompt,
 			}
 
-			err := ensureAdminConsolePassword(flags)
+			err := ensureAdminConsolePassword(consoleConfig, cliFlags)
 			if tt.wantError {
 				req.Error(err)
 			} else {
 				req.NoError(err)
-				req.Equal(tt.wantPassword, flags.adminConsolePassword)
+				req.Equal(tt.wantPassword, consoleConfig.AdminConsolePassword)
 			}
 		})
 	}

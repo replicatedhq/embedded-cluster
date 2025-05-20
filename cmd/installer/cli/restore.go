@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/api/console"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -85,7 +86,7 @@ const (
 )
 
 func RestoreCmd(ctx context.Context, name string) *cobra.Command {
-	var flags InstallCmdFlags
+	var flags console.Config
 
 	var s3Store s3BackupStore
 	var skipStoreValidation bool
@@ -122,7 +123,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
+func runRestore(ctx context.Context, name string, flags console.Config, s3Store s3BackupStore, skipStoreValidation bool) error {
 	err := verifyChannelRelease("restore", flags.isAirgap, flags.assumeYes)
 	if err != nil {
 		return err
@@ -340,7 +341,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store
 	return nil
 }
 
-func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, s3Store *s3BackupStore, skipStoreValidation bool) error {
+func runRestoreStepNew(ctx context.Context, name string, flags console.Config, s3Store *s3BackupStore, skipStoreValidation bool) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "restore")
 	if err != nil {
@@ -462,7 +463,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	return nil
 }
 
-func runRestoreStepConfirmBackup(ctx context.Context, flags InstallCmdFlags) (*disasterrecovery.ReplicatedBackup, bool, error) {
+func runRestoreStepConfirmBackup(ctx context.Context, flags console.Config) (*disasterrecovery.ReplicatedBackup, bool, error) {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return nil, false, fmt.Errorf("unable to create kube client: %w", err)
@@ -526,7 +527,7 @@ func runRestoreAdminConsole(ctx context.Context, backupToRestore *disasterrecove
 	return nil
 }
 
-func runRestoreWaitForNodes(ctx context.Context, flags InstallCmdFlags, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+func runRestoreWaitForNodes(ctx context.Context, flags console.Config, backupToRestore *disasterrecovery.ReplicatedBackup) error {
 	logrus.Debugf("checking if backup is high availability")
 	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
 	if err != nil {
@@ -542,7 +543,7 @@ func runRestoreWaitForNodes(ctx context.Context, flags InstallCmdFlags, backupTo
 	return nil
 }
 
-func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+func runRestoreEnableAdminConsoleHA(ctx context.Context, flags console.Config, backupToRestore *disasterrecovery.ReplicatedBackup) error {
 	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
 	if err != nil {
 		return err
@@ -590,7 +591,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	return nil
 }
 
-func runRestoreSeaweedFS(ctx context.Context, flags InstallCmdFlags, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+func runRestoreSeaweedFS(ctx context.Context, flags console.Config, backupToRestore *disasterrecovery.ReplicatedBackup) error {
 	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
 	if err != nil {
 		return err
@@ -607,7 +608,7 @@ func runRestoreSeaweedFS(ctx context.Context, flags InstallCmdFlags, backupToRes
 	return nil
 }
 
-func runRestoreRegistry(ctx context.Context, flags InstallCmdFlags, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+func runRestoreRegistry(ctx context.Context, flags console.Config, backupToRestore *disasterrecovery.ReplicatedBackup) error {
 	// only restore registry in case of airgap
 	if !flags.isAirgap {
 		return nil
@@ -639,7 +640,7 @@ func runRestoreECO(ctx context.Context, backupToRestore *disasterrecovery.Replic
 	return nil
 }
 
-func runRestoreExtensions(ctx context.Context, flags InstallCmdFlags) error {
+func runRestoreExtensions(ctx context.Context, flags console.Config) error {
 	airgapChartsPath := ""
 	if flags.isAirgap {
 		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()

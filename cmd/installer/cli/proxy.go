@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/replicatedhq/embedded-cluster/api/console"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -33,10 +34,10 @@ func getNetworkIPNet(networkInterface string, lookup NetworkLookup) (*net.IPNet,
 	return lookup.FirstValidIPNet(networkInterface)
 }
 
-func addProxyFlags(cmd *cobra.Command) error {
-	cmd.Flags().String("http-proxy", "", "HTTP proxy to use for the installation (overrides http_proxy/HTTP_PROXY environment variables)")
-	cmd.Flags().String("https-proxy", "", "HTTPS proxy to use for the installation (overrides https_proxy/HTTPS_PROXY environment variables)")
-	cmd.Flags().String("no-proxy", "", "Comma-separated list of hosts for which not to use a proxy (overrides no_proxy/NO_PROXY environment variables)")
+func addProxyFlags(cmd *cobra.Command, flags *console.Config) error {
+	cmd.Flags().StringVar(&flags.httpProxy, "http-proxy", "", "HTTP proxy to use for the installation (overrides http_proxy/HTTP_PROXY environment variables)")
+	cmd.Flags().StringVar(&flags.httpsProxy, "https-proxy", "", "HTTPS proxy to use for the installation (overrides https_proxy/HTTPS_PROXY environment variables)")
+	cmd.Flags().StringVar(&flags.noProxy, "no-proxy", "", "Comma-separated list of hosts for which not to use a proxy (overrides no_proxy/NO_PROXY environment variables)")
 
 	return nil
 }

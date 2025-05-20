@@ -27,7 +27,7 @@ type PrepareAndRunOptions struct {
 	Proxy                  *ecv1beta1.ProxySpec
 	PodCIDR                string
 	ServiceCIDR            string
-	GlobalCIDR             *string
+	GlobalCIDR             string
 	NodeIP                 string
 	PrivateCAs             []string
 	IsAirgap               bool

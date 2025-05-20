@@ -15,14 +15,15 @@ import (
 )
 
 func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
-	var flags InstallCmdFlags
+	var consoleConfig console.Config
+	var cliFlags installCmdFlags
 
 	cmd := &cobra.Command{
 		Use:    "run-preflights",
 		Short:  "Run install host preflights",
 		Hidden: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &flags); err != nil {
+			if err := preRunInstall(cmd, &consoleConfig, &cliFlags); err != nil {
 				return err
 			}
 
@@ -32,7 +33,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runInstallRunPreflights(cmd.Context(), name, flags); err != nil {
+			if err := runInstallRunPreflights(cmd.Context(), name, consoleConfig, cliFlags); err != nil {
 				return err
 			}
 
@@ -40,23 +41,23 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
-	if err := addInstallFlags(cmd, &flags); err != nil {
+	if err := addConsoleConfigFlags(cmd, &consoleConfig); err != nil {
 		panic(err)
 	}
-	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {
+	if err := addInstallCmdFlags(cmd, &cliFlags); err != nil {
 		panic(err)
 	}
 
 	return cmd
 }
 
-func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdFlags) error {
-	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
+func runInstallRunPreflights(ctx context.Context, name string, consoleConfig console.Config, cliFlags installCmdFlags) error {
+	if err := runInstallVerifyAndPrompt(ctx, name, consoleConfig, cliFlags); err != nil {
 		return err
 	}
 
 	logrus.Debugf("materializing binaries")
-	if err := materializeFiles(flags.airgapBundle); err != nil {
+	if err := materializeFiles(cliFlags.airgapBundle); err != nil {
 		return fmt.Errorf("unable to materialize files: %w", err)
 	}
 
@@ -71,7 +72,7 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, nil); err != nil {
+	if err := runInstallPreflights(ctx, consoleConfig, cliFlags, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -83,7 +84,7 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, consoleConfig console.Config, cliFlags CLIFlags, metricsReported preflights.MetricsReporter) error {
+func runInstallPreflights(ctx context.Context, consoleConfig console.Config, cliFlags installCmdFlags, metricsReported preflights.MetricsReporter) error {
 	replicatedAppURL := replicatedAppURL()
 	proxyRegistryURL := proxyRegistryURL()
 
@@ -95,10 +96,10 @@ func runInstallPreflights(ctx context.Context, consoleConfig console.Config, cli
 	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
 		ReplicatedAppURL:     replicatedAppURL,
 		ProxyRegistryURL:     proxyRegistryURL,
-		Proxy:                flags.proxy,
-		PodCIDR:              flags.cidrCfg.PodCIDR,
-		ServiceCIDR:          cliFlags.cidrCfg.ServiceCIDR,
-		GlobalCIDR:           cliFlags.cidrCfg.GlobalCIDR,
+		Proxy:                consoleConfig.GetProxySpec(),
+		PodCIDR:              consoleConfig.PodCIDR,
+		ServiceCIDR:          consoleConfig.ServiceCIDR,
+		GlobalCIDR:           consoleConfig.GlobalCIDR,
 		NodeIP:               nodeIP,
 		PrivateCAs:           cliFlags.privateCAs,
 		IsAirgap:             cliFlags.airgapBundle != "",

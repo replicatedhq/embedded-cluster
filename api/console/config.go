@@ -1,6 +1,10 @@
 package console
 
-import "sync"
+import (
+	"sync"
+
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+)
 
 type Config struct {
 	AdminConsolePassword    string `json:"adminConsolePassword"`
@@ -11,10 +15,21 @@ type Config struct {
 	HTTPProxy               string `json:"httpProxy"`
 	HTTPSProxy              string `json:"httpsProxy"`
 	NoProxy                 string `json:"noProxy"`
-	GlobalCIDR              string `json:"globalCIDR"`
 	PodCIDR                 string `json:"podCIDR"`
 	ServiceCIDR             string `json:"serviceCIDR"`
+	GlobalCIDR              string `json:"globalCIDR"`
 	Overrides               string `json:"overrides"`
+}
+
+func (c *Config) GetProxySpec() *ecv1beta1.ProxySpec {
+	if c.HTTPProxy == "" && c.HTTPSProxy == "" && c.NoProxy == "" {
+		return nil
+	}
+	return &ecv1beta1.ProxySpec{
+		HTTPProxy:  c.HTTPProxy,
+		HTTPSProxy: c.HTTPSProxy,
+		NoProxy:    c.NoProxy,
+	}
 }
 
 type configStore interface {
