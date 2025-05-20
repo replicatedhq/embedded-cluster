@@ -3,6 +3,7 @@ package dryrun
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -686,6 +687,11 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 	assert.Equal(t, "Install", hcli.Calls[3].Method)
 	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
+
+	// Debug: Print all AdminConsole values
+	valuesJson, _ := json.MarshalIndent(adminConsoleOpts.Values, "", "  ")
+	fmt.Printf("\n\nDEBUG: AdminConsole Chart Values:\n%s\n\n", string(valuesJson))
+
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
 		"extraEnv": []map[string]any{
 			{
