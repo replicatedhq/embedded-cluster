@@ -55,6 +55,24 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "Install", hcli.Calls[1].Method)
 	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
+
+	// Print embedded-cluster-operator values
+	operatorValuesJson, _ := json.MarshalIndent(operatorOpts.Values, "", "  ")
+	fmt.Printf("\n\nDEBUG: Embedded Cluster Operator Chart Values:\n%s\n\n", string(operatorValuesJson))
+
+	// NO_PROXY is calculated
+	val, err := helm.GetValue(operatorOpts.Values, "extraEnv")
+	require.NoError(t, err)
+	var noProxy string
+	for _, v := range val.([]map[string]any) {
+		if v["name"] == "NO_PROXY" {
+			noProxy = v["value"].(string)
+		}
+	}
+	assert.NotEmpty(t, noProxy)
+	assert.Contains(t, noProxy, "10.0.0.0/8")
+
+	// Verify embedded-cluster-operator values
 	assertHelmValues(t, operatorOpts.Values, map[string]interface{}{
 		"image.repository": "fake-replicated-proxy.test.net/anonymous/replicated/embedded-cluster-operator-image",
 	})
@@ -63,6 +81,11 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "Install", hcli.Calls[2].Method)
 	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "velero", veleroOpts.ReleaseName)
+
+	// Print Velero values
+	veleroValuesJson, _ := json.MarshalIndent(veleroOpts.Values, "", "  ")
+	fmt.Printf("\n\nDEBUG: Velero Chart Values:\n%s\n\n", string(veleroValuesJson))
+
 	assertHelmValues(t, veleroOpts.Values, map[string]interface{}{
 		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
 		"image.repository":        "fake-replicated-proxy.test.net/anonymous/replicated/ec-velero",
@@ -614,6 +637,10 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
 
+	// Print embedded-cluster-operator values
+	operatorValuesJson, _ := json.MarshalIndent(operatorOpts.Values, "", "  ")
+	fmt.Printf("\n\nDEBUG: Embedded Cluster Operator Chart Values:\n%s\n\n", string(operatorValuesJson))
+
 	// NO_PROXY is calculated
 	val, err := helm.GetValue(operatorOpts.Values, "extraEnv")
 	require.NoError(t, err)
@@ -663,6 +690,11 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 	assert.Equal(t, "Install", hcli.Calls[2].Method)
 	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "velero", veleroOpts.ReleaseName)
+
+	// Print Velero values
+	veleroValuesJson, _ := json.MarshalIndent(veleroOpts.Values, "", "  ")
+	fmt.Printf("\n\nDEBUG: Velero Chart Values:\n%s\n\n", string(veleroValuesJson))
+
 	assertHelmValues(t, veleroOpts.Values, map[string]any{
 		"configuration.extraEnvVars": map[string]any{
 			"HTTPS_PROXY":  "http://localhost:3128",
