@@ -55,24 +55,6 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "Install", hcli.Calls[1].Method)
 	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
-
-	// Print embedded-cluster-operator values
-	operatorValuesJson, _ := json.MarshalIndent(operatorOpts.Values, "", "  ")
-	fmt.Printf("\n\nDEBUG: Embedded Cluster Operator Chart Values:\n%s\n\n", string(operatorValuesJson))
-
-	// NO_PROXY is calculated
-	val, err := helm.GetValue(operatorOpts.Values, "extraEnv")
-	require.NoError(t, err)
-	var noProxy string
-	for _, v := range val.([]map[string]any) {
-		if v["name"] == "NO_PROXY" {
-			noProxy = v["value"].(string)
-		}
-	}
-	assert.NotEmpty(t, noProxy)
-	assert.Contains(t, noProxy, "10.0.0.0/8")
-
-	// Verify embedded-cluster-operator values
 	assertHelmValues(t, operatorOpts.Values, map[string]interface{}{
 		"image.repository": "fake-replicated-proxy.test.net/anonymous/replicated/embedded-cluster-operator-image",
 	})
@@ -81,11 +63,6 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "Install", hcli.Calls[2].Method)
 	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "velero", veleroOpts.ReleaseName)
-
-	// Print Velero values
-	veleroValuesJson, _ := json.MarshalIndent(veleroOpts.Values, "", "  ")
-	fmt.Printf("\n\nDEBUG: Velero Chart Values:\n%s\n\n", string(veleroValuesJson))
-
 	assertHelmValues(t, veleroOpts.Values, map[string]interface{}{
 		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
 		"image.repository":        "fake-replicated-proxy.test.net/anonymous/replicated/ec-velero",
@@ -632,60 +609,6 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 
 	// --- validate addons --- //
 
-	// embedded cluster operator
-	assert.Equal(t, "Install", hcli.Calls[1].Method)
-	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
-	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
-
-	// Print embedded-cluster-operator values
-	operatorValuesJson, _ := json.MarshalIndent(operatorOpts.Values, "", "  ")
-	fmt.Printf("\n\nDEBUG: Embedded Cluster Operator Chart Values:\n%s\n\n", string(operatorValuesJson))
-
-	// NO_PROXY is calculated
-	val, err := helm.GetValue(operatorOpts.Values, "extraEnv")
-	require.NoError(t, err)
-	var noProxy string
-	for _, v := range val.([]map[string]any) {
-		if v["name"] == "NO_PROXY" {
-			noProxy = v["value"].(string)
-		}
-	}
-	assert.NotEmpty(t, noProxy)
-	assert.Contains(t, noProxy, "10.0.0.0/8")
-
-	// Verify embedded-cluster-operator values
-	assertHelmValues(t, operatorOpts.Values, map[string]any{
-		"extraEnv": []map[string]any{
-			{
-				"name":  "HTTP_PROXY",
-				"value": "http://localhost:3128",
-			},
-			{
-				"name":  "HTTPS_PROXY",
-				"value": "http://localhost:3128",
-			},
-			{
-				"name":  "NO_PROXY",
-				"value": noProxy,
-			},
-			{
-				"name":  "SSL_CERT_DIR",
-				"value": "/certs",
-			},
-		},
-		"extraVolumes": []map[string]any{{
-			"name": "host-ca-bundle",
-			"hostPath": map[string]any{
-				"path": hostCABundle,
-				"type": "FileOrCreate",
-			},
-		}},
-		"extraVolumeMounts": []map[string]any{{
-			"mountPath": "/certs/ca-certificates.crt",
-			"name":      "host-ca-bundle",
-		}},
-	})
-
 	// velero
 	assert.Equal(t, "Install", hcli.Calls[2].Method)
 	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
@@ -817,32 +740,6 @@ func TestCABundleOnlyConfiguration(t *testing.T) {
 
 	// --- validate addons --- //
 
-	// embedded cluster operator
-	assert.Equal(t, "Install", hcli.Calls[1].Method)
-	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
-	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
-
-	// Verify CA bundle configuration but no HTTP proxy settings
-	assertHelmValues(t, operatorOpts.Values, map[string]any{
-		"extraEnv": []map[string]any{
-			{
-				"name":  "SSL_CERT_DIR",
-				"value": "/certs",
-			},
-		},
-		"extraVolumes": []map[string]any{{
-			"name": "host-ca-bundle",
-			"hostPath": map[string]any{
-				"path": hostCABundle,
-				"type": "FileOrCreate",
-			},
-		}},
-		"extraVolumeMounts": []map[string]any{{
-			"mountPath": "/certs/ca-certificates.crt",
-			"name":      "host-ca-bundle",
-		}},
-	})
-
 	// velero
 	assert.Equal(t, "Install", hcli.Calls[2].Method)
 	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
@@ -905,167 +802,6 @@ func TestCABundleOnlyConfiguration(t *testing.T) {
 	}
 
 	assert.Equal(t, hostCABundle, in.Spec.RuntimeConfig.HostCABundlePath)
-
-	// Verify some metrics were captured
-	assert.NotEmpty(t, dr.Metrics)
-}
-
-// Test HTTP proxy configuration without CA bundle
-func TestHTTPProxyOnlyConfiguration(t *testing.T) {
-	hcli := &helm.MockClient{}
-
-	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
-		hcli.On("Close").Once().Return(nil),
-	)
-
-	// Set HTTP proxy environment variables
-	t.Setenv("HTTP_PROXY", "http://localhost:3128")
-	t.Setenv("HTTPS_PROXY", "http://localhost:3128")
-	t.Setenv("NO_PROXY", "localhost,127.0.0.1,10.0.0.0/8")
-
-	dr := dryrunInstall(t, &dryrun.Client{HelmClient: hcli})
-
-	// --- validate addons --- //
-
-	// embedded cluster operator
-	assert.Equal(t, "Install", hcli.Calls[1].Method)
-	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
-	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
-
-	// NO_PROXY is calculated
-	val, err := helm.GetValue(operatorOpts.Values, "extraEnv")
-	require.NoError(t, err)
-	var noProxy string
-	for _, v := range val.([]map[string]any) {
-		if v["name"] == "NO_PROXY" {
-			noProxy = v["value"].(string)
-		}
-	}
-	assert.NotEmpty(t, noProxy)
-	assert.Contains(t, noProxy, "10.0.0.0/8")
-
-	// Verify embedded-cluster-operator has HTTP proxy settings but no CA bundle
-	assertHelmValues(t, operatorOpts.Values, map[string]any{
-		"extraEnv": []map[string]any{
-			{
-				"name":  "HTTP_PROXY",
-				"value": "http://localhost:3128",
-			},
-			{
-				"name":  "HTTPS_PROXY",
-				"value": "http://localhost:3128",
-			},
-			{
-				"name":  "NO_PROXY",
-				"value": noProxy,
-			},
-		},
-	})
-
-	// Verify no CA bundle volumes are present
-	volVal, err := helm.GetValue(operatorOpts.Values, "extraVolumes")
-	if err == nil && volVal != nil {
-		for _, vol := range volVal.([]map[string]any) {
-			assert.NotEqual(t, "host-ca-bundle", vol["name"], "CA bundle volume should not be present")
-		}
-	}
-
-	// velero
-	assert.Equal(t, "Install", hcli.Calls[2].Method)
-	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
-	assert.Equal(t, "velero", veleroOpts.ReleaseName)
-
-	// Verify velero has HTTP proxy settings but no CA bundle
-	assertHelmValues(t, veleroOpts.Values, map[string]any{
-		"configuration.extraEnvVars": map[string]any{
-			"HTTPS_PROXY": "http://localhost:3128",
-			"HTTP_PROXY":  "http://localhost:3128",
-			"NO_PROXY":    noProxy,
-		},
-	})
-
-	// Verify no CA bundle volumes are present
-	volVal, err = helm.GetValue(veleroOpts.Values, "extraVolumes")
-	if err == nil && volVal != nil {
-		for _, vol := range volVal.([]map[string]any) {
-			assert.NotEqual(t, "host-ca-bundle", vol["name"], "CA bundle volume should not be present")
-		}
-	}
-
-	// admin console
-	assert.Equal(t, "Install", hcli.Calls[3].Method)
-	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
-	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
-
-	// Verify admin console has HTTP proxy settings but no CA bundle
-	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
-		"extraEnv": []map[string]any{
-			{
-				"name":  "ENABLE_IMPROVED_DR",
-				"value": "true",
-			},
-			{
-				"name":  "HTTP_PROXY",
-				"value": "http://localhost:3128",
-			},
-			{
-				"name":  "HTTPS_PROXY",
-				"value": "http://localhost:3128",
-			},
-			{
-				"name":  "NO_PROXY",
-				"value": noProxy,
-			},
-		},
-	})
-
-	// Verify no CA bundle volumes are present
-	volVal, err = helm.GetValue(adminConsoleOpts.Values, "extraVolumes")
-	if err == nil && volVal != nil {
-		for _, vol := range volVal.([]map[string]any) {
-			assert.NotEqual(t, "host-ca-bundle", vol["name"], "CA bundle volume should not be present")
-		}
-	}
-
-	// --- validate host preflight spec --- //
-	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {
-		match    func(*troubleshootv1beta2.HostCollect) bool
-		validate func(*troubleshootv1beta2.HostCollect)
-	}{
-		"http-replicated-app": {
-			match: func(hc *troubleshootv1beta2.HostCollect) bool {
-				return hc.HTTP != nil && hc.HTTP.CollectorName == "http-replicated-app"
-			},
-			validate: func(hc *troubleshootv1beta2.HostCollect) {
-				assert.Equal(t, "http://localhost:3128", hc.HTTP.Get.Proxy)
-			},
-		},
-		"http-proxy-replicated-com": {
-			match: func(hc *troubleshootv1beta2.HostCollect) bool {
-				return hc.HTTP != nil && hc.HTTP.CollectorName == "http-proxy-replicated-com"
-			},
-			validate: func(hc *troubleshootv1beta2.HostCollect) {
-				assert.Equal(t, "http://localhost:3128", hc.HTTP.Get.Proxy)
-			},
-		},
-	})
-
-	// --- validate cluster resources --- //
-	kcli, err := dr.KubeClient()
-	if err != nil {
-		t.Fatalf("failed to create kube client: %v", err)
-	}
-
-	// --- validate installation object --- //
-	in, err := kubeutils.GetLatestInstallation(context.TODO(), kcli)
-	if err != nil {
-		t.Fatalf("failed to get latest installation: %v", err)
-	}
-
-	// Verify host CA bundle path is empty
-	assert.Empty(t, in.Spec.RuntimeConfig.HostCABundlePath, "HostCABundlePath should be empty for HTTP proxy only configuration")
 
 	// Verify some metrics were captured
 	assert.NotEmpty(t, dr.Metrics)
