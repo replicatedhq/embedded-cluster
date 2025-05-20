@@ -97,7 +97,6 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		Proxy:                    opts.Proxy,
 		ServiceCIDR:              opts.ServiceCIDR,
 		Password:                 opts.AdminConsolePwd,
-		PrivateCAs:               opts.PrivateCAs,
 		KotsInstaller:            opts.KotsInstaller,
 		IsMultiNodeEnabled:       opts.IsMultiNodeEnabled,
 		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
