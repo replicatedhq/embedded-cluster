@@ -23,7 +23,7 @@ type InstallOptions struct {
 	License                 *kotsv1beta1.License
 	IsAirgap                bool
 	Proxy                   *ecv1beta1.ProxySpec
-	HostCABundle            string
+	HostCABundlePath        string
 	PrivateCAs              []string
 	ServiceCIDR             string
 	DisasterRecoveryEnabled bool
@@ -88,6 +88,7 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		addOns = append(addOns, &velero.Velero{
 			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 			Proxy:               opts.Proxy,
+			HostCABundlePath:    opts.HostCABundlePath,
 		})
 	}
 
@@ -118,6 +119,7 @@ func getAddOnsForRestore(opts InstallOptions) []types.AddOn {
 		&velero.Velero{
 			Proxy:               opts.Proxy,
 			ProxyRegistryDomain: domains.ProxyRegistryDomain,
+			HostCABundlePath:    opts.HostCABundlePath,
 		},
 	}
 	return addOns

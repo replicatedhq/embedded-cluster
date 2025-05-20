@@ -1,6 +1,7 @@
 package velero
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/pkg/errors"
@@ -22,46 +23,64 @@ func (v *Velero) Install(ctx context.Context, kcli client.Client, hcli helm.Clie
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	_, err = hcli.Install(ctx, helm.InstallOptions{
+	opts := helm.InstallOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    v.ChartLocation(),
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    namespace,
-	})
-	if err != nil {
-		return errors.Wrap(err, "helm install")
+	}
+
+	if v.DryRun {
+		manifests, err := hcli.Render(ctx, opts)
+		if err != nil {
+			return errors.Wrap(err, "dry run values")
+		}
+		v.dryRunManifests = append(v.dryRunManifests, manifests...)
+	} else {
+		_, err = hcli.Install(ctx, opts)
+		if err != nil {
+			return errors.Wrap(err, "helm install")
+		}
 	}
 
 	return nil
 }
 
 func (v *Velero) createPreRequisites(ctx context.Context, kcli client.Client) error {
-	if err := createNamespace(ctx, kcli, namespace); err != nil {
+	if err := v.createNamespace(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
 
-	if err := createCredentialsSecret(ctx, kcli); err != nil {
+	if err := v.createCredentialsSecret(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create credentials secret")
 	}
 
 	return nil
 }
 
-func createNamespace(ctx context.Context, kcli client.Client, namespace string) error {
-	ns := corev1.Namespace{
+func (v *Velero) createNamespace(ctx context.Context, kcli client.Client) error {
+	obj := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+			Name: v.Namespace(),
 		},
 	}
-	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
-		return err
+	if v.DryRun {
+		b := bytes.NewBuffer(nil)
+		if err := serializer.Encode(obj, b); err != nil {
+			return errors.Wrap(err, "serialize")
+		}
+		v.dryRunManifests = append(v.dryRunManifests, b.Bytes())
+	} else {
+		if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
+			return err
+		}
 	}
 	return nil
 }
 
-func createCredentialsSecret(ctx context.Context, kcli client.Client) error {
-	credentialsSecret := corev1.Secret{
+func (v *Velero) createCredentialsSecret(ctx context.Context, kcli client.Client) error {
+	obj := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
@@ -72,8 +91,16 @@ func createCredentialsSecret(ctx context.Context, kcli client.Client) error {
 		},
 		Type: "Opaque",
 	}
-	if err := kcli.Create(ctx, &credentialsSecret); err != nil && !k8serrors.IsAlreadyExists(err) {
-		return errors.Wrap(err, "create credentials secret")
+	if v.DryRun {
+		b := bytes.NewBuffer(nil)
+		if err := serializer.Encode(obj, b); err != nil {
+			return errors.Wrap(err, "serialize")
+		}
+		v.dryRunManifests = append(v.dryRunManifests, b.Bytes())
+	} else {
+		if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
+			return err
+		}
 	}
 
 	return nil

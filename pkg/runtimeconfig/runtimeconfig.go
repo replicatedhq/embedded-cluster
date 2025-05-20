@@ -200,6 +200,10 @@ func AdminConsolePort() int {
 	return ecv1beta1.DefaultAdminConsolePort
 }
 
+func HostCABundlePath() string {
+	return runtimeConfig.HostCABundlePath
+}
+
 func SetDataDir(dataDir string) {
 	runtimeConfig.DataDir = dataDir
 }
@@ -210,6 +214,10 @@ func SetLocalArtifactMirrorPort(port int) {
 
 func SetAdminConsolePort(port int) {
 	runtimeConfig.AdminConsole.Port = port
+}
+
+func SetHostCABundlePath(hostCABundlePath string) {
+	runtimeConfig.HostCABundlePath = hostCABundlePath
 }
 
 func ApplyFlags(flags *pflag.FlagSet) error {
