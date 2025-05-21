@@ -140,7 +140,7 @@ func addInstallConfigFlags(cmd *cobra.Command, installConfig *models.Installatio
 	cmd.Flags().IntVar(&installConfig.LocalArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&installConfig.NetworkInterface, "network-interface", "", "The network interface to use for the cluster")
 
-	cmd.Flags().StringVar(&installConfig.Overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
+	cmd.Flags().StringVar(&installConfig.EndUserConfigOverrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
 	if err := cmd.Flags().MarkHidden("overrides"); err != nil {
 		return err
 	}
@@ -400,7 +400,7 @@ func doInstall(ctx context.Context, name string, installConfig models.Installati
 		embCfgSpec = &embCfg.Spec
 	}
 
-	euCfg, err := helpers.ParseEndUserConfig(installConfig.Overrides)
+	euCfg, err := helpers.ParseEndUserConfig(installConfig.EndUserConfigOverrides)
 	if err != nil {
 		return fmt.Errorf("unable to process overrides file: %w", err)
 	}
@@ -1306,23 +1306,6 @@ func gatherVersionMetadata(withChannelRelease bool) (*types.ReleaseMetadata, err
 	sort.Strings(meta.Images)
 
 	return &meta, nil
-}
-
-func networkSpecFromK0sConfig(k0sCfg *k0sv1beta1.ClusterConfig) *ecv1beta1.NetworkSpec {
-	network := &ecv1beta1.NetworkSpec{}
-
-	if k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil {
-		network.PodCIDR = k0sCfg.Spec.Network.PodCIDR
-		network.ServiceCIDR = k0sCfg.Spec.Network.ServiceCIDR
-	}
-
-	if k0sCfg.Spec.API != nil {
-		if val, ok := k0sCfg.Spec.API.ExtraArgs["service-node-port-range"]; ok {
-			network.NodePortRange = val
-		}
-	}
-
-	return network
 }
 
 func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName {

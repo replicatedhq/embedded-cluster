@@ -94,7 +94,7 @@ func WriteK0sConfig(ctx context.Context, installConfig models.InstallationConfig
 		}
 	}
 
-	cfg, err = applyUnsupportedOverrides(cfg, installConfig.Overrides)
+	cfg, err = applyUnsupportedOverrides(cfg, installConfig.EndUserConfigOverrides)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}

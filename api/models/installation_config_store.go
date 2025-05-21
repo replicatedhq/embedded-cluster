@@ -5,7 +5,9 @@ import (
 	"sync"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	k0sconfig "github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
@@ -88,16 +90,20 @@ func runtimeConfigToInstallationConfig() (*InstallationConfig, error) {
 	proxySpec := runtimeconfig.ProxySpec()
 	networkSpec := runtimeconfig.NetworkSpec()
 
-	cfg.HTTPProxy = proxySpec.HTTPProxy
-	cfg.HTTPSProxy = proxySpec.HTTPSProxy
-	cfg.NoProxy = proxySpec.ProvidedNoProxy
+	if proxySpec != nil {
+		cfg.HTTPProxy = proxySpec.HTTPProxy
+		cfg.HTTPSProxy = proxySpec.HTTPSProxy
+		cfg.NoProxy = proxySpec.ProvidedNoProxy
+	}
 
-	cfg.NetworkInterface = networkSpec.NetworkInterface
-	cfg.PodCIDR = networkSpec.PodCIDR
-	cfg.ServiceCIDR = networkSpec.ServiceCIDR
-	cfg.GlobalCIDR = networkSpec.GlobalCIDR
+	if networkSpec != nil {
+		cfg.NetworkInterface = networkSpec.NetworkInterface
+		cfg.PodCIDR = networkSpec.PodCIDR
+		cfg.ServiceCIDR = networkSpec.ServiceCIDR
+		cfg.GlobalCIDR = networkSpec.GlobalCIDR
+	}
 
-	cfg.Overrides = runtimeconfig.EndUserK0sConfigOverrides()
+	cfg.EndUserConfigOverrides = runtimeconfig.EndUserK0sConfigOverrides()
 
 	return cfg, nil
 }
@@ -129,7 +135,10 @@ func applyInstallationConfigToRuntimeConfig(config InstallationConfig) error {
 	}
 	runtimeconfig.SetProxySpec(proxySpec)
 
-	networkSpec := getNetworkSpecFromConfig(config)
+	networkSpec, err := getNetworkSpecFromConfig(config)
+	if err != nil {
+		return fmt.Errorf("get network spec from config: %w", err)
+	}
 	runtimeconfig.SetNetworkSpec(networkSpec)
 
 	euOverrides, err := getEndUserK0sConfigOverridesFromConfig(config)
@@ -162,22 +171,60 @@ func getProxySpecFromConfig(config InstallationConfig) (*ecv1beta1.ProxySpec, er
 	return &proxySpec, nil
 }
 
-func getNetworkSpecFromConfig(config InstallationConfig) *ecv1beta1.NetworkSpec {
+func getNetworkSpecFromConfig(config InstallationConfig) (*ecv1beta1.NetworkSpec, error) {
+	nodePortRange, err := getNodePortRangeFromConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("get node port range: %w", err)
+	}
+
 	return &ecv1beta1.NetworkSpec{
 		NetworkInterface: config.NetworkInterface,
 		PodCIDR:          config.PodCIDR,
 		ServiceCIDR:      config.ServiceCIDR,
 		GlobalCIDR:       config.GlobalCIDR,
-		// TODO: NodePortRange from k0s config
+		NodePortRange:    nodePortRange,
+	}, nil
+}
+
+func getNodePortRangeFromConfig(config InstallationConfig) (string, error) {
+	cfg := k0sconfig.RenderK0sConfig("")
+
+	embcfg := release.GetEmbeddedClusterConfig()
+	if embcfg != nil {
+		// Apply vendor k0s overrides
+		vendorOverrides := embcfg.Spec.UnsupportedOverrides.K0s
+		var err error
+		cfg, err = k0sconfig.PatchK0sConfig(cfg, vendorOverrides, false)
+		if err != nil {
+			return "", fmt.Errorf("patch vendor overrides: %w", err)
+		}
 	}
+
+	endUserOverrides, err := getEndUserK0sConfigOverridesFromConfig(config)
+	if err != nil {
+		return "", fmt.Errorf("get end user k0s config overrides from config: %w", err)
+	}
+
+	cfg, err = k0sconfig.PatchK0sConfig(cfg, endUserOverrides, false)
+	if err != nil {
+		return "", fmt.Errorf("patch end user overrides: %w", err)
+	}
+
+	if cfg.Spec.API != nil {
+		if val, ok := cfg.Spec.API.ExtraArgs["service-node-port-range"]; ok {
+			return val, nil
+		}
+	}
+
+	return k0sconfig.DefaultServiceNodePortRange, nil
 }
 
 func getEndUserK0sConfigOverridesFromConfig(config InstallationConfig) (string, error) {
-	if config.Overrides == "" {
+	if config.EndUserConfigOverrides == "" {
 		return "", nil
 	}
 
-	eucfg, err := helpers.ParseEndUserConfig(config.Overrides)
+	eucfg, err := helpers.ParseEndUserConfig(config.EndUserConfigOverrides)
 	if err != nil {
 		return "", fmt.Errorf("parse end user config: %w", err)
 	}

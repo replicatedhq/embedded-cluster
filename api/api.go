@@ -22,7 +22,10 @@ func WithLogger(logger logrus.FieldLogger) APIOption {
 }
 
 func New(opts ...APIOption) *API {
-	api := &API{}
+	api := &API{
+		installController: install.NewInstallController(),
+	}
+
 	for _, opt := range opts {
 		opt(api)
 	}

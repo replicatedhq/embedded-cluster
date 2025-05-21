@@ -134,7 +134,7 @@ func addRestoreInstallConfigFlags(cmd *cobra.Command, installConfig *models.Inst
 	cmd.Flags().IntVar(&installConfig.LocalArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&installConfig.NetworkInterface, "network-interface", "", "The network interface to use for the cluster")
 
-	cmd.Flags().StringVar(&installConfig.Overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
+	cmd.Flags().StringVar(&installConfig.EndUserConfigOverrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
 	if err := cmd.Flags().MarkHidden("overrides"); err != nil {
 		return err
 	}

@@ -14,7 +14,7 @@ type InstallationConfig struct {
 	AdminConsolePassword    string `json:"adminConsolePassword"`
 	AdminConsolePort        int    `json:"adminConsolePort"`
 	DataDirectory           string `json:"dataDirectory"`
-	HostCABundlePath        string `json:"hostCABundlePath"`
+	HostCABundlePath        string `json:"hostCaBundlePath"`
 	LocalArtifactMirrorPort int    `json:"localArtifactMirrorPort"`
 	HTTPProxy               string `json:"httpProxy"`
 	HTTPSProxy              string `json:"httpsProxy"`
@@ -23,7 +23,7 @@ type InstallationConfig struct {
 	PodCIDR                 string `json:"podCidr"`
 	ServiceCIDR             string `json:"serviceCidr"`
 	GlobalCIDR              string `json:"globalCidr"`
-	Overrides               string `json:"overrides"`
+	EndUserConfigOverrides  string `json:"endUserConfigOverrides"`
 }
 
 func (c *InstallationConfig) Validate() error {
