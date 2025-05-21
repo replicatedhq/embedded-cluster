@@ -326,7 +326,7 @@ func getArtifactJobForNode(
 	)
 
 	// Add proxy environment variables if proxy is configured
-	if in.Spec.RuntimeConfig.ProxySpec != nil {
+	if in.Spec.RuntimeConfig != nil && in.Spec.RuntimeConfig.ProxySpec != nil {
 		job.Spec.Template.Spec.Containers[0].Env = append(
 			job.Spec.Template.Spec.Containers[0].Env,
 			corev1.EnvVar{Name: "HTTP_PROXY", Value: in.Spec.RuntimeConfig.ProxySpec.HTTPProxy},
