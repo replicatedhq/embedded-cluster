@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -8,6 +9,7 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -42,7 +44,7 @@ func addProxyFlags(cmd *cobra.Command) error {
 }
 
 func parseProxyFlags(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
-	p, err := getProxySpec(cmd)
+	p, err := getProxySpec(cmd, prompts.New())
 	if err != nil {
 		return nil, fmt.Errorf("unable to get proxy spec from flags: %w", err)
 	}
@@ -51,7 +53,7 @@ func parseProxyFlags(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
 	return p, nil
 }
 
-func getProxySpec(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
+func getProxySpec(cmd *cobra.Command, prompt prompts.Prompt) (*ecv1beta1.ProxySpec, error) {
 	proxy := &ecv1beta1.ProxySpec{}
 
 	// Command-line flags have the highest precedence
@@ -98,6 +100,20 @@ func getProxySpec(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
 			noProxy = envValue
 		}
 	}
+
+	// Check if user only provided HTTP proxy but not HTTPS proxy
+	if httpProxy != "" && httpsProxy == "" {
+		message := "Typically if `http_proxy` is set, `https_proxy` should be set too. Installation failures are likely otherwise. Do you want to continue anyway?"
+		confirmed, err := prompt.Confirm(message, false)
+		if err != nil {
+			return nil, fmt.Errorf("failed to confirm proxy settings: %w", err)
+		}
+		if !confirmed {
+			return nil, NewErrorNothingElseToAdd(errors.New("user aborted: HTTP proxy configured without HTTPS proxy"))
+		}
+	}
+
+	logrus.Debug("User confirmed prompt to proceed installing with `http_proxy` set and `https_proxy` unset")
 
 	// Set the values on the proxy object
 	proxy.HTTPProxy = httpProxy

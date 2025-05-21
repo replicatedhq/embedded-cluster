@@ -1,13 +1,17 @@
 package cli
 
 import (
+	"bytes"
 	"net"
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Mock network interface for testing
@@ -20,9 +24,13 @@ func (m *mockNetworkLookup) FirstValidIPNet(networkInterface string) (*net.IPNet
 
 func Test_getProxySpecFromFlags(t *testing.T) {
 	tests := []struct {
-		name string
-		init func(t *testing.T, flagSet *pflag.FlagSet)
-		want *ecv1beta1.ProxySpec
+		name                  string
+		init                  func(t *testing.T, flagSet *pflag.FlagSet)
+		confirm               bool
+		want                  *ecv1beta1.ProxySpec
+		wantPrompt            bool
+		wantErr               bool
+		isErrNothingElseToAdd bool
 	}{
 		{
 			name: "no flags set and no env vars should not set proxy",
@@ -147,6 +155,30 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,10.244.0.0/17,10.244.128.0/17,lower-no-proxy-1,lower-no-proxy-2,192.168.1.0/24",
 			},
 		},
+		{
+			name: "http proxy set without https proxy and user confirms proceeding with installation",
+			init: func(t *testing.T, flagSet *pflag.FlagSet) {
+				flagSet.Set("http-proxy", "http://flag-proxy")
+			},
+			confirm:    true,
+			wantPrompt: true,
+			want: &ecv1beta1.ProxySpec{
+				HTTPProxy:       "http://flag-proxy",
+				HTTPSProxy:      "",
+				ProvidedNoProxy: "",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,10.244.0.0/17,10.244.128.0/17,192.168.1.0/24",
+			},
+		},
+		{
+			name: "http proxy set without https proxy and user declines proceeding with installation",
+			init: func(t *testing.T, flagSet *pflag.FlagSet) {
+				flagSet.Set("http-proxy", "http://flag-proxy")
+			},
+			confirm:               false,
+			wantPrompt:            true,
+			wantErr:               true,
+			isErrNothingElseToAdd: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -163,9 +195,36 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 			// Override the network lookup with our mock
 			defaultNetworkLookupImpl = &mockNetworkLookup{}
 
-			got, err := getProxySpec(cmd)
-			assert.NoError(t, err, "unexpected error received")
-			assert.Equal(t, tt.want, got)
+			// Set up prompt if needed
+			if tt.wantPrompt {
+				var in *bytes.Buffer
+				if tt.confirm {
+					in = bytes.NewBuffer([]byte("y\n"))
+				} else {
+					in = bytes.NewBuffer([]byte("n\n"))
+				}
+				out := bytes.NewBuffer([]byte{})
+				prompt := plain.New(plain.WithIn(in), plain.WithOut(out))
+
+				prompts.SetTerminal(true)
+				t.Cleanup(func() { prompts.SetTerminal(false) })
+
+				got, err := getProxySpec(cmd, prompt)
+				if tt.wantErr {
+					require.Error(t, err)
+					if tt.isErrNothingElseToAdd {
+						assert.ErrorAs(t, err, &ErrorNothingElseToAdd{})
+					}
+				} else {
+					assert.NoError(t, err, "unexpected error received")
+					assert.Equal(t, tt.want, got)
+				}
+				assert.Contains(t, out.String(), "Typically if `http_proxy` is set, `https_proxy` should be set too", "Prompt should have been printed")
+			} else {
+				got, err := getProxySpec(cmd, prompts.New())
+				assert.NoError(t, err, "unexpected error received")
+				assert.Equal(t, tt.want, got)
+			}
 		})
 	}
 }
