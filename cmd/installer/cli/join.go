@@ -253,15 +253,15 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinComm
 		return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
 	}
 
-	setProxyEnv(jcmd.InstallationSpec.Proxy)
+	setProxyEnv(jcmd.InstallationSpec.RuntimeConfig.ProxySpec)
 
-	proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, flags.networkInterface)
+	proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.RuntimeConfig.ProxySpec, flags.networkInterface)
 	if err != nil {
 		return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 	}
 
 	if !proxyOK {
-		logrus.Errorf("\nThis node's IP address %s is not included in the no-proxy list (%s).", localIP, jcmd.InstallationSpec.Proxy.NoProxy)
+		logrus.Errorf("\nThis node's IP address %s is not included in the no-proxy list (%s).", localIP, jcmd.InstallationSpec.RuntimeConfig.ProxySpec.NoProxy)
 		logrus.Infof(`The no-proxy list cannot easily be modified after installing.`)
 		logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
 		return NewErrorNothingElseToAdd(errors.New("node ip address not included in no-proxy list"))
@@ -349,12 +349,12 @@ func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*CIDRConfig, error) {
 		return nil, fmt.Errorf("unable to split default network CIDR: %w", err)
 	}
 
-	if jcmd.InstallationSpec.Network != nil {
-		if jcmd.InstallationSpec.Network.PodCIDR != "" {
-			podCIDR = jcmd.InstallationSpec.Network.PodCIDR
+	if jcmd.InstallationSpec.RuntimeConfig.NetworkSpec != nil {
+		if jcmd.InstallationSpec.RuntimeConfig.NetworkSpec.PodCIDR != "" {
+			podCIDR = jcmd.InstallationSpec.RuntimeConfig.NetworkSpec.PodCIDR
 		}
-		if jcmd.InstallationSpec.Network.ServiceCIDR != "" {
-			serviceCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
+		if jcmd.InstallationSpec.RuntimeConfig.NetworkSpec.ServiceCIDR != "" {
+			serviceCIDR = jcmd.InstallationSpec.RuntimeConfig.NetworkSpec.ServiceCIDR
 		}
 	}
 
@@ -382,7 +382,7 @@ func installAndJoinCluster(ctx context.Context, jcmd *join.JoinCommandResponse, 
 	}
 
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(ctx, isWorker, jcmd.InstallationSpec.Proxy); err != nil {
+	if err := createSystemdUnitFiles(ctx, isWorker, jcmd.InstallationSpec.RuntimeConfig.ProxySpec); err != nil {
 		return fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 
@@ -436,7 +436,7 @@ func installK0sBinary() error {
 }
 
 func applyNetworkConfiguration(networkInterface string, jcmd *join.JoinCommandResponse) error {
-	if jcmd.InstallationSpec.Network != nil {
+	if jcmd.InstallationSpec.RuntimeConfig.NetworkSpec != nil {
 		domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
 		clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 
@@ -448,13 +448,13 @@ func applyNetworkConfiguration(networkInterface string, jcmd *join.JoinCommandRe
 		clusterSpec.Spec.Storage.Etcd.PeerAddress = address
 		// NOTE: we should be copying everything from the in cluster config spec and overriding
 		// the node specific config from clusterSpec.GetClusterWideConfig()
-		clusterSpec.Spec.Network.PodCIDR = jcmd.InstallationSpec.Network.PodCIDR
-		clusterSpec.Spec.Network.ServiceCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
-		if jcmd.InstallationSpec.Network.NodePortRange != "" {
+		clusterSpec.Spec.Network.PodCIDR = jcmd.InstallationSpec.RuntimeConfig.NetworkSpec.PodCIDR
+		clusterSpec.Spec.Network.ServiceCIDR = jcmd.InstallationSpec.RuntimeConfig.NetworkSpec.ServiceCIDR
+		if jcmd.InstallationSpec.RuntimeConfig.NetworkSpec.NodePortRange != "" {
 			if clusterSpec.Spec.API.ExtraArgs == nil {
 				clusterSpec.Spec.API.ExtraArgs = map[string]string{}
 			}
-			clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = jcmd.InstallationSpec.Network.NodePortRange
+			clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = jcmd.InstallationSpec.RuntimeConfig.NetworkSpec.NodePortRange
 		}
 		clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
 

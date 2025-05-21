@@ -52,8 +52,8 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	}
 
 	serviceCIDR := ""
-	if in.Spec.Network != nil {
-		serviceCIDR = in.Spec.Network.ServiceCIDR
+	if in.Spec.RuntimeConfig.NetworkSpec != nil {
+		serviceCIDR = in.Spec.RuntimeConfig.NetworkSpec.ServiceCIDR
 	}
 
 	hostCABundlePath := ""
@@ -75,7 +75,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	}
 	addOns = append(addOns, &embeddedclusteroperator.EmbeddedClusterOperator{
 		IsAirgap:              in.Spec.AirGap,
-		Proxy:                 in.Spec.Proxy,
+		Proxy:                 in.Spec.RuntimeConfig.ProxySpec,
 		ChartLocationOverride: ecoChartLocation,
 		ChartVersionOverride:  ecoChartVersion,
 		ImageRepoOverride:     ecoImageRepo,
@@ -101,7 +101,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 
 	if in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
 		addOns = append(addOns, &velero.Velero{
-			Proxy:               in.Spec.Proxy,
+			Proxy:               in.Spec.RuntimeConfig.ProxySpec,
 			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 			HostCABundlePath:    hostCABundlePath,
 		})
@@ -110,7 +110,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	addOns = append(addOns, &adminconsole.AdminConsole{
 		IsAirgap:                 in.Spec.AirGap,
 		IsHA:                     in.Spec.HighAvailability,
-		Proxy:                    in.Spec.Proxy,
+		Proxy:                    in.Spec.RuntimeConfig.ProxySpec,
 		ServiceCIDR:              serviceCIDR,
 		IsMultiNodeEnabled:       in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
 		ReplicatedAppDomain:      domains.ReplicatedAppDomain,

@@ -59,6 +59,9 @@ spec:
               adminConsole:
                 description: AdminConsoleSpec holds the admin console configuration.
                 properties:
+                  password:
+                    description: Password holds the password for the admin console.
+                    type: string
                   port:
                     description: Port holds the port on which the admin console will
                       be served.
@@ -316,9 +319,6 @@ spec:
                 - namespace
                 type: object
               endUserK0sConfigOverrides:
-                description: |-
-                  EndUserK0sConfigOverrides holds the end user k0s config overrides
-                  used at installation time.
                 type: string
               highAvailability:
                 description: HighAvailability indicates if the installation is high
@@ -346,25 +346,43 @@ spec:
                 description: MetricsBaseURL holds the base URL for the metrics server.
                 type: string
               network:
-                description: Network holds the network configuration.
+                description: NetworkSpec holds the network configuration.
                 properties:
+                  globalCidr:
+                    description: GlobalCIDR holds the global CIDR to use for the pod
+                      and service networks.
+                    type: string
+                  networkInterface:
+                    description: NetworkInterface holds the network interface to use
+                      for internal cluster communication.
+                    type: string
                   nodePortRange:
+                    description: NodePortRange holds the node port range passed to
+                      k0s.
                     type: string
                   podCIDR:
+                    description: PodCIDR holds the pod CIDR to use for the pod network.
                     type: string
                   serviceCIDR:
+                    description: ServiceCIDR holds the service CIDR to use for the
+                      service network.
                     type: string
                 type: object
               proxy:
-                description: Proxy holds the proxy configuration.
+                description: ProxySpec holds the proxy configuration.
                 properties:
                   httpProxy:
+                    description: HTTPProxy holds the HTTP proxy configuration.
                     type: string
                   httpsProxy:
+                    description: HTTPSProxy holds the HTTPS proxy configuration.
                     type: string
                   noProxy:
+                    description: NoProxy holds the no proxy configuration.
                     type: string
                   providedNoProxy:
+                    description: ProvidedNoProxy holds the user provided no proxy
+                      configuration.
                     type: string
                 type: object
               runtimeConfig:
@@ -374,6 +392,9 @@ spec:
                   adminConsole:
                     description: AdminConsole holds the Admin Console configuration.
                     properties:
+                      password:
+                        description: Password holds the password for the admin console.
+                        type: string
                       port:
                         description: Port holds the port on which the admin console
                           will be served.
@@ -383,6 +404,11 @@ spec:
                     description: |-
                       DataDir holds the data directory for the Embedded Cluster
                       (default: /var/lib/embedded-cluster).
+                    type: string
+                  endUserK0sConfigOverrides:
+                    description: |-
+                      EndUserK0sConfigOverrides holds the end user k0s config overrides
+                      used at installation time.
                     type: string
                   hostCABundlePath:
                     description: HostCABundlePath holds the path to the CA bundle
@@ -402,11 +428,52 @@ spec:
                           mirror will be served.
                         type: integer
                     type: object
+                  network:
+                    description: NetworkSpec holds the network configuration.
+                    properties:
+                      globalCidr:
+                        description: GlobalCIDR holds the global CIDR to use for the
+                          pod and service networks.
+                        type: string
+                      networkInterface:
+                        description: NetworkInterface holds the network interface
+                          to use for internal cluster communication.
+                        type: string
+                      nodePortRange:
+                        description: NodePortRange holds the node port range passed
+                          to k0s.
+                        type: string
+                      podCIDR:
+                        description: PodCIDR holds the pod CIDR to use for the pod
+                          network.
+                        type: string
+                      serviceCIDR:
+                        description: ServiceCIDR holds the service CIDR to use for
+                          the service network.
+                        type: string
+                    type: object
                   openEBSDataDirOverride:
                     description: |-
                       OpenEBSDataDirOverride holds the override for the data directory for the OpenEBS storage
                       provisioner. By default the data will be stored in a subdirectory of DataDir.
                     type: string
+                  proxy:
+                    description: ProxySpec holds the proxy configuration.
+                    properties:
+                      httpProxy:
+                        description: HTTPProxy holds the HTTP proxy configuration.
+                        type: string
+                      httpsProxy:
+                        description: HTTPSProxy holds the HTTPS proxy configuration.
+                        type: string
+                      noProxy:
+                        description: NoProxy holds the no proxy configuration.
+                        type: string
+                      providedNoProxy:
+                        description: ProvidedNoProxy holds the user provided no proxy
+                          configuration.
+                        type: string
+                    type: object
                 type: object
               sourceType:
                 description: SourceType indicates where this Installation object is

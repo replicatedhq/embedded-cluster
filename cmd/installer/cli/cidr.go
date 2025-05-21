@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/api/console"
+	"github.com/replicatedhq/embedded-cluster/api/models"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/spf13/cobra"
 )
@@ -41,7 +41,7 @@ type CIDRConfig struct {
 // what are the CIDRs to be used for the cluster. If either
 // of --pod-cidr or --service-cidr have been set, they are used. Otherwise,
 // the cidr flag is used.
-func parseCIDRFlags(cmd *cobra.Command, consoleConfig *console.Config) error {
+func parseCIDRFlags(cmd *cobra.Command, installConfig *models.InstallationConfig) error {
 	if cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr") {
 		podCIDR, err := cmd.Flags().GetString("pod-cidr")
 		if err != nil {
@@ -51,8 +51,8 @@ func parseCIDRFlags(cmd *cobra.Command, consoleConfig *console.Config) error {
 		if err != nil {
 			return fmt.Errorf("unable to get service-cidr flag: %w", err)
 		}
-		consoleConfig.PodCIDR = podCIDR
-		consoleConfig.ServiceCIDR = serviceCIDR
+		installConfig.PodCIDR = podCIDR
+		installConfig.ServiceCIDR = serviceCIDR
 		return nil
 	}
 
@@ -60,6 +60,6 @@ func parseCIDRFlags(cmd *cobra.Command, consoleConfig *console.Config) error {
 	if err != nil {
 		return fmt.Errorf("unable to get cidr flag: %w", err)
 	}
-	consoleConfig.GlobalCIDR = globalCIDR
+	installConfig.GlobalCIDR = globalCIDR
 	return nil
 }

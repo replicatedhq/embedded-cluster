@@ -22,13 +22,21 @@ type RuntimeConfigSpec struct {
 	// OpenEBSDataDirOverride holds the override for the data directory for the OpenEBS storage
 	// provisioner. By default the data will be stored in a subdirectory of DataDir.
 	OpenEBSDataDirOverride string `json:"openEBSDataDirOverride,omitempty"`
-	// HostCABundlePath holds the path to the CA bundle for the host.
-	HostCABundlePath string `json:"hostCABundlePath,omitempty"`
 
 	// AdminConsole holds the Admin Console configuration.
 	AdminConsole AdminConsoleSpec `json:"adminConsole,omitempty"`
 	// LocalArtifactMirrorPort holds the Local Artifact Mirror configuration.
 	LocalArtifactMirror LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
+
+	// HostCABundlePath holds the path to the CA bundle for the host.
+	HostCABundlePath string `json:"hostCABundlePath,omitempty"`
+	// ProxySpec holds the proxy configuration.
+	ProxySpec *ProxySpec `json:"proxy,omitempty"`
+	// NetworkSpec holds the network configuration.
+	NetworkSpec *NetworkSpec `json:"network,omitempty"`
+	// EndUserK0sConfigOverrides holds the end user k0s config overrides
+	// used at installation time.
+	EndUserK0sConfigOverrides string `json:"endUserK0sConfigOverrides,omitempty"`
 }
 
 func (c *RuntimeConfigSpec) UnmarshalJSON(data []byte) error {

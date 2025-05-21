@@ -1,11 +1,9 @@
-package console
+package models
 
 import (
 	"net"
 	"testing"
 
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/api"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,25 +17,25 @@ func (m *mockNetworkLookup) FirstValidIPNet(networkInterface string) (*net.IPNet
 	return ipnet, nil
 }
 
-// TODO: this should test the API handler
-func TestConfig_GetProxySpec(t *testing.T) {
+// TODO: move to api package
+func Test_getProxySpecFromConfig(t *testing.T) {
 	tests := []struct {
-		name   string
-		config *Config
-		init   func(t *testing.T)
-		want   *ecv1beta1.ProxySpec
+		name               string
+		installationConfig *InstallationConfig
+		init               func(t *testing.T)
+		want               *ecv1beta1.ProxySpec
 	}{
 		{
-			name:   "config empty and no env vars should not set proxy",
-			config: &Config{},
+			name:               "config empty and no env vars should not set proxy",
+			installationConfig: &InstallationConfig{},
 			init: func(t *testing.T) {
 				// No env vars
 			},
 			want: nil,
 		},
 		{
-			name:   "lowercase env vars should be used when config is empty",
-			config: &Config{},
+			name:               "lowercase env vars should be used when config is empty",
+			installationConfig: &InstallationConfig{},
 			init: func(t *testing.T) {
 				t.Setenv("http_proxy", "http://lower-proxy")
 				t.Setenv("https_proxy", "https://lower-proxy")
@@ -51,8 +49,8 @@ func TestConfig_GetProxySpec(t *testing.T) {
 			},
 		},
 		{
-			name:   "uppercase env vars should be used when config is empty and no lowercase vars",
-			config: &Config{},
+			name:               "uppercase env vars should be used when config is empty and no lowercase vars",
+			installationConfig: &InstallationConfig{},
 			init: func(t *testing.T) {
 				t.Setenv("HTTP_PROXY", "http://upper-proxy")
 				t.Setenv("HTTPS_PROXY", "https://upper-proxy")
@@ -66,8 +64,8 @@ func TestConfig_GetProxySpec(t *testing.T) {
 			},
 		},
 		{
-			name:   "lowercase should take precedence over uppercase",
-			config: &Config{},
+			name:               "lowercase should take precedence over uppercase",
+			installationConfig: &InstallationConfig{},
 			init: func(t *testing.T) {
 				t.Setenv("http_proxy", "http://lower-proxy")
 				t.Setenv("https_proxy", "https://lower-proxy")
@@ -85,7 +83,7 @@ func TestConfig_GetProxySpec(t *testing.T) {
 		},
 		{
 			name: "config should override env vars",
-			config: &Config{
+			installationConfig: &InstallationConfig{
 				HTTPProxy:  "http://flag-proxy",
 				HTTPSProxy: "https://flag-proxy",
 				NoProxy:    "flag-no-proxy-1,flag-no-proxy-2",
@@ -107,7 +105,7 @@ func TestConfig_GetProxySpec(t *testing.T) {
 		},
 		{
 			name: "pod and service CIDR should override default no proxy",
-			config: &Config{
+			installationConfig: &InstallationConfig{
 				HTTPProxy:   "http://flag-proxy",
 				HTTPSProxy:  "https://flag-proxy",
 				NoProxy:     "flag-no-proxy-1,flag-no-proxy-2",
@@ -126,7 +124,7 @@ func TestConfig_GetProxySpec(t *testing.T) {
 		},
 		{
 			name: "global cidr should be present in the no-proxy",
-			config: &Config{
+			installationConfig: &InstallationConfig{
 				HTTPProxy:  "http://flag-proxy",
 				HTTPSProxy: "https://flag-proxy",
 				NoProxy:    "flag-no-proxy-1,flag-no-proxy-2",
@@ -144,7 +142,7 @@ func TestConfig_GetProxySpec(t *testing.T) {
 		},
 		{
 			name: "partial env vars with partial config",
-			config: &Config{
+			installationConfig: &InstallationConfig{
 				// Only set https-proxy flag
 				HTTPSProxy: "https://flag-proxy",
 			},
@@ -170,103 +168,13 @@ func TestConfig_GetProxySpec(t *testing.T) {
 			// Override the network lookup with our mock
 			defaultNetworkLookupImpl = &mockNetworkLookup{}
 
-			config := tt.config
-			err := configSetCIDRDefaults(config)
+			err := tt.installationConfig.setCIDRDefaults()
 			require.NoError(t, err, "unexpected error setting cidr defaults")
-			configSetProxyDefaults(api.NewDiscardLogger(), config)
+			tt.installationConfig.setProxyDefaults()
 
-			got, err := config.GetProxySpec()
+			got, err := getProxySpecFromConfig(*tt.installationConfig)
 			require.NoError(t, err, "unexpected error getting proxy spec")
 			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-// TODO: this should test the API handler
-func Test_configSetCIDRDefaults(t *testing.T) {
-	defaultServiceCIDR := k0sv1beta1.DefaultNetwork().ServiceCIDR
-
-	tests := []struct {
-		name                 string
-		config               Config
-		expected             Config
-		expectVaidationError bool
-	}{
-		{
-			name: "with pod and service flags",
-			config: Config{
-				PodCIDR:     "10.0.0.0/24",
-				ServiceCIDR: "10.1.0.0/24",
-				GlobalCIDR:  "",
-			},
-			expected: Config{
-				PodCIDR:     "10.0.0.0/24",
-				ServiceCIDR: "10.1.0.0/24",
-				GlobalCIDR:  "",
-			},
-		},
-		{
-			name: "with pod flag",
-			config: Config{
-				PodCIDR: "10.0.0.0/24",
-			},
-			expected: Config{
-				PodCIDR:     "10.0.0.0/24",
-				ServiceCIDR: defaultServiceCIDR,
-				GlobalCIDR:  "",
-			},
-		},
-		{
-			name: "with pod, service and cidr flags",
-			config: Config{
-				PodCIDR:     "10.1.0.0/17",
-				ServiceCIDR: "10.1.128.0/17",
-				GlobalCIDR:  "10.1.0.0/16",
-			},
-			expected: Config{
-				PodCIDR:     "10.1.0.0/17",
-				ServiceCIDR: "10.1.128.0/17",
-				GlobalCIDR:  "10.1.0.0/16",
-			},
-		},
-		{
-			name: "with pod and cidr flags",
-			config: Config{
-				PodCIDR:    "10.0.0.0/17",
-				GlobalCIDR: "10.2.0.0/16",
-			},
-			expected: Config{
-				PodCIDR:     "10.0.0.0/17",
-				ServiceCIDR: defaultServiceCIDR,
-				GlobalCIDR:  "10.2.0.0/16",
-			},
-			expectVaidationError: true,
-		},
-		{
-			name: "with cidr flag",
-			config: Config{
-				GlobalCIDR: "10.2.0.0/16",
-			},
-			expected: Config{
-				PodCIDR:     "10.2.0.0/17",
-				ServiceCIDR: "10.2.128.0/17",
-				GlobalCIDR:  "10.2.0.0/16",
-			},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			err := configSetCIDRDefaults(&test.config)
-			require.NoError(t, err)
-			assert.Equal(t, test.expected, test.config)
-
-			validateErr := validateConfigCIDR(test.config)
-			if test.expectVaidationError {
-				assert.Error(t, validateErr)
-			} else {
-				assert.NoError(t, validateErr)
-			}
 		})
 	}
 }

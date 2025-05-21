@@ -20,7 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/api"
-	"github.com/replicatedhq/embedded-cluster/api/console"
+	"github.com/replicatedhq/embedded-cluster/api/models"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -88,7 +88,7 @@ const (
 )
 
 func RestoreCmd(ctx context.Context, name string) *cobra.Command {
-	var consoleConfig console.Config
+	var installConfig models.InstallationConfig
 	var cliFlags installCmdFlags
 
 	var s3Store s3BackupStore
@@ -98,7 +98,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 		Use:   "restore",
 		Short: fmt.Sprintf("Restore %s from a backup", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &consoleConfig, &cliFlags); err != nil {
+			if err := preRunInstall(cmd, &installConfig, &cliFlags); err != nil {
 				return err
 			}
 
@@ -108,7 +108,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runRestore(cmd.Context(), name, consoleConfig, cliFlags, s3Store, skipStoreValidation); err != nil {
+			if err := runRestore(cmd.Context(), name, installConfig, cliFlags, s3Store, skipStoreValidation); err != nil {
 				return err
 			}
 
@@ -119,7 +119,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	addS3Flags(cmd, &s3Store)
 	cmd.Flags().BoolVar(&skipStoreValidation, "skip-store-validation", false, "Skip validation of the backup storage location")
 
-	if err := addRestoreConsoleConfigFlags(cmd, &consoleConfig); err != nil {
+	if err := addRestoreInstallConfigFlags(cmd, &installConfig); err != nil {
 		panic(err)
 	}
 	if err := addRestoreCmdFlags(cmd, &cliFlags); err != nil {
@@ -129,17 +129,17 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func addRestoreConsoleConfigFlags(cmd *cobra.Command, consoleConfig *console.Config) error {
-	cmd.Flags().StringVar(&consoleConfig.DataDirectory, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
-	cmd.Flags().IntVar(&consoleConfig.LocalArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
-	cmd.Flags().StringVar(&consoleConfig.NetworkInterface, "network-interface", "", "The network interface to use for the cluster")
+func addRestoreInstallConfigFlags(cmd *cobra.Command, installConfig *models.InstallationConfig) error {
+	cmd.Flags().StringVar(&installConfig.DataDirectory, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
+	cmd.Flags().IntVar(&installConfig.LocalArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
+	cmd.Flags().StringVar(&installConfig.NetworkInterface, "network-interface", "", "The network interface to use for the cluster")
 
-	cmd.Flags().StringVar(&consoleConfig.Overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
+	cmd.Flags().StringVar(&installConfig.Overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
 	if err := cmd.Flags().MarkHidden("overrides"); err != nil {
 		return err
 	}
 
-	if err := addProxyFlags(cmd, consoleConfig); err != nil {
+	if err := addProxyFlags(cmd, installConfig); err != nil {
 		return err
 	}
 	if err := addCIDRFlags(cmd); err != nil {
@@ -170,7 +170,7 @@ func addRestoreCmdFlags(cmd *cobra.Command, cliFlags *installCmdFlags) error {
 	return nil
 }
 
-func runRestore(ctx context.Context, name string, inConsoleConfig console.Config, cliFlags installCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
+func runRestore(ctx context.Context, name string, inInstallConfig models.InstallationConfig, cliFlags installCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
 	logger, err := api.NewLogger()
 	if err != nil {
 		logrus.Warnf("Unable to setup API logging: %v", err)
@@ -189,15 +189,15 @@ func runRestore(ctx context.Context, name string, inConsoleConfig console.Config
 		return fmt.Errorf("unable to wait for install API: %w", err)
 	}
 
-	consoleConfig, err := initializeConsoleAPIConfig(inConsoleConfig, listener.Addr().String())
+	installConfig, err := initializeInstallAPIConfig(inInstallConfig, listener.Addr().String())
 	if err != nil {
-		return fmt.Errorf("unable to initialize console API config: %w", err)
+		return fmt.Errorf("unable to initialize install API config: %w", err)
 	}
 
-	return doRestore(ctx, name, *consoleConfig, cliFlags, s3Store, skipStoreValidation)
+	return doRestore(ctx, name, *installConfig, cliFlags, s3Store, skipStoreValidation)
 }
 
-func doRestore(ctx context.Context, name string, consoleConfig console.Config, cliFlags installCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
+func doRestore(ctx context.Context, name string, installConfig models.InstallationConfig, cliFlags installCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
 	isAirgap := cliFlags.airgapBundle != ""
 
 	if err := verifyChannelRelease("restore", isAirgap, cliFlags.assumeYes); err != nil {
@@ -239,7 +239,7 @@ func doRestore(ctx context.Context, name string, consoleConfig console.Config, c
 			completionTimestamp := backupToRestore.GetCompletionTimestamp().Format("2006-01-02 15:04:05 UTC")
 			logrus.Infof("Resuming restore from backup %q (%s)\n", backupToRestore.GetName(), completionTimestamp)
 
-			if err := overrideRuntimeConfigFromBackup(consoleConfig.LocalArtifactMirrorPort, *backupToRestore); err != nil {
+			if err := overrideRuntimeConfigFromBackup(installConfig.LocalArtifactMirrorPort, *backupToRestore); err != nil {
 				return fmt.Errorf("unable to override runtime config from backup: %w", err)
 			}
 		}
@@ -256,11 +256,6 @@ func doRestore(ctx context.Context, name string, consoleConfig console.Config, c
 		runtimeconfig.Set(rc)
 	}
 
-	proxySpec, err := consoleConfig.GetProxySpec()
-	if err != nil {
-		return fmt.Errorf("unable to get proxy spec: %w", err)
-	}
-
 	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
 	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
@@ -268,7 +263,7 @@ func doRestore(ctx context.Context, name string, consoleConfig console.Config, c
 
 	switch state {
 	case ecRestoreStateNew:
-		err = runRestoreStepNew(ctx, name, consoleConfig, cliFlags, proxySpec, &s3Store, skipStoreValidation)
+		err = runRestoreStepNew(ctx, name, installConfig, cliFlags, &s3Store, skipStoreValidation)
 		if err != nil {
 			return err
 		}
@@ -327,7 +322,7 @@ func doRestore(ctx context.Context, name string, consoleConfig console.Config, c
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		err = runRestoreWaitForNodes(ctx, backupToRestore, consoleConfig.NetworkInterface)
+		err = runRestoreWaitForNodes(ctx, backupToRestore, installConfig.NetworkInterface)
 		if err != nil {
 			return err
 		}
@@ -369,7 +364,7 @@ func doRestore(ctx context.Context, name string, consoleConfig console.Config, c
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		err = runRestoreEnableAdminConsoleHA(ctx, backupToRestore, consoleConfig, proxySpec, isAirgap)
+		err = runRestoreEnableAdminConsoleHA(ctx, backupToRestore, installConfig, isAirgap)
 		if err != nil {
 			return err
 		}
@@ -423,7 +418,7 @@ func doRestore(ctx context.Context, name string, consoleConfig console.Config, c
 	return nil
 }
 
-func runRestoreStepNew(ctx context.Context, name string, consoleConfig console.Config, cliFlags installCmdFlags, proxySpec *ecv1beta1.ProxySpec, s3Store *s3BackupStore, skipStoreValidation bool) error {
+func runRestoreStepNew(ctx context.Context, name string, installConfig models.InstallationConfig, cliFlags installCmdFlags, s3Store *s3BackupStore, skipStoreValidation bool) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "restore")
 	if err != nil {
@@ -463,7 +458,7 @@ func runRestoreStepNew(ctx context.Context, name string, consoleConfig console.C
 	}
 
 	logrus.Debugf("configuring firewalld")
-	if err := configureFirewalld(ctx, consoleConfig.PodCIDR, consoleConfig.ServiceCIDR); err != nil {
+	if err := configureFirewalld(ctx, installConfig.PodCIDR, installConfig.ServiceCIDR); err != nil {
 		logrus.Debugf("unable to configure firewalld: %v", err)
 	}
 
@@ -473,14 +468,14 @@ func runRestoreStepNew(ctx context.Context, name string, consoleConfig console.C
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, consoleConfig, cliFlags, proxySpec, nil); err != nil {
+	if err := runInstallPreflights(ctx, installConfig, cliFlags, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
 		return fmt.Errorf("unable to run install preflights: %w", err)
 	}
 
-	_, err = installAndStartCluster(ctx, consoleConfig, cliFlags.airgapBundle, proxySpec, nil)
+	_, err = installAndStartCluster(ctx, installConfig, cliFlags.airgapBundle, nil)
 	if err != nil {
 		return err
 	}
@@ -519,10 +514,10 @@ func runRestoreStepNew(ctx context.Context, name string, consoleConfig console.C
 	logrus.Debugf("installing addons")
 	if err := addons.Install(ctx, hcli, addons.InstallOptions{
 		IsAirgap:           cliFlags.airgapBundle != "",
-		Proxy:              proxySpec,
+		Proxy:              runtimeconfig.ProxySpec(),
 		HostCABundlePath:   runtimeconfig.HostCABundlePath(),
 		PrivateCAs:         cliFlags.privateCAs,
-		ServiceCIDR:        consoleConfig.ServiceCIDR,
+		ServiceCIDR:        installConfig.ServiceCIDR,
 		IsRestore:          true,
 		EmbeddedConfigSpec: embCfgSpec,
 	}); err != nil {
@@ -625,7 +620,7 @@ func runRestoreWaitForNodes(ctx context.Context, backupToRestore *disasterrecove
 	return nil
 }
 
-func runRestoreEnableAdminConsoleHA(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup, consoleConfig console.Config, proxySpec *ecv1beta1.ProxySpec, isAirgap bool) error {
+func runRestoreEnableAdminConsoleHA(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup, installConfig models.InstallationConfig, isAirgap bool) error {
 	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
 	if err != nil {
 		return err
@@ -663,7 +658,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, backupToRestore *disast
 	}
 	defer hcli.Close()
 
-	err = addons.EnableAdminConsoleHA(ctx, kcli, hcli, isAirgap, consoleConfig.ServiceCIDR, proxySpec, in.Spec.Config, in.Spec.LicenseInfo)
+	err = addons.EnableAdminConsoleHA(ctx, kcli, hcli, isAirgap, installConfig.ServiceCIDR, runtimeconfig.ProxySpec(), in.Spec.Config, in.Spec.LicenseInfo)
 	if err != nil {
 		return err
 	}

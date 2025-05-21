@@ -207,7 +207,9 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 	}
 
 	// Apply unsupported overrides from the installation
-	if (in.Spec.Config != nil && in.Spec.Config.UnsupportedOverrides.K0s != "") || in.Spec.EndUserK0sConfigOverrides != "" {
+	if (in.Spec.Config != nil && in.Spec.Config.UnsupportedOverrides.K0s != "") ||
+		(in.Spec.RuntimeConfig != nil && in.Spec.RuntimeConfig.EndUserK0sConfigOverrides != "") {
+
 		newCfg := currentCfg.DeepCopy()
 
 		if in.Spec.Config != nil && in.Spec.Config.UnsupportedOverrides.K0s != "" {
@@ -217,8 +219,8 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 			}
 		}
 
-		if in.Spec.EndUserK0sConfigOverrides != "" {
-			newCfg, err = config.PatchK0sConfig(newCfg, in.Spec.EndUserK0sConfigOverrides, true)
+		if in.Spec.RuntimeConfig != nil && in.Spec.RuntimeConfig.EndUserK0sConfigOverrides != "" {
+			newCfg, err = config.PatchK0sConfig(newCfg, in.Spec.RuntimeConfig.EndUserK0sConfigOverrides, true)
 			if err != nil {
 				return fmt.Errorf("apply end user unsupported overrides: %w", err)
 			}

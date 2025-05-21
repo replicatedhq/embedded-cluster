@@ -36,7 +36,9 @@ func TestJoinCommandResponseOverrides(t *testing.T) {
 							K0s: tt.EmbeddedOverrides,
 						},
 					},
-					EndUserK0sConfigOverrides: tt.EndUserOverrides,
+					RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
+						EndUserK0sConfigOverrides: tt.EndUserOverrides,
+					},
 				},
 			}
 

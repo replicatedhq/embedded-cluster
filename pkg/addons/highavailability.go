@@ -100,7 +100,7 @@ func EnableHA(
 
 	logrus.Debugf("Updating the Admin Console for high availability")
 	spinner.Infof("Updating the Admin Console for high availability")
-	err := EnableAdminConsoleHA(ctx, kcli, hcli, inSpec.AirGap, serviceCIDR, inSpec.Proxy, inSpec.Config, inSpec.LicenseInfo)
+	err := EnableAdminConsoleHA(ctx, kcli, hcli, inSpec.AirGap, serviceCIDR, inSpec.RuntimeConfig.ProxySpec, inSpec.Config, inSpec.LicenseInfo)
 	if err != nil {
 		return errors.Wrap(err, "enable admin console high availability")
 	}

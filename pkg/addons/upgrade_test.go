@@ -80,8 +80,10 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 				Spec: ecv1beta1.InstallationSpec{
 					AirGap:           true,
 					HighAvailability: false,
-					Network: &ecv1beta1.NetworkSpec{
-						ServiceCIDR: "10.96.0.0/12",
+					RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
+						NetworkSpec: &ecv1beta1.NetworkSpec{
+							ServiceCIDR: "10.96.0.0/12",
+						},
 					},
 					BinaryName: "test-binary-name",
 				},
@@ -123,8 +125,10 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 				Spec: ecv1beta1.InstallationSpec{
 					AirGap:           false,
 					HighAvailability: false,
-					Network: &ecv1beta1.NetworkSpec{
-						ServiceCIDR: "10.96.0.0/12",
+					RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
+						NetworkSpec: &ecv1beta1.NetworkSpec{
+							ServiceCIDR: "10.96.0.0/12",
+						},
 					},
 					LicenseInfo: &ecv1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: true,
@@ -168,16 +172,18 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 				Spec: ecv1beta1.InstallationSpec{
 					AirGap:           true,
 					HighAvailability: true,
-					Network: &ecv1beta1.NetworkSpec{
-						ServiceCIDR: "10.96.0.0/12",
+					RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
+						NetworkSpec: &ecv1beta1.NetworkSpec{
+							ServiceCIDR: "10.96.0.0/12",
+						},
+						ProxySpec: &ecv1beta1.ProxySpec{
+							HTTPProxy:  "http://proxy.example.com",
+							HTTPSProxy: "https://proxy.example.com",
+							NoProxy:    "localhost,127.0.0.1",
+						},
 					},
 					LicenseInfo: &ecv1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: true,
-					},
-					Proxy: &ecv1beta1.ProxySpec{
-						HTTPProxy:  "http://proxy.example.com",
-						HTTPSProxy: "https://proxy.example.com",
-						NoProxy:    "localhost,127.0.0.1",
 					},
 					BinaryName: "test-binary-name",
 				},

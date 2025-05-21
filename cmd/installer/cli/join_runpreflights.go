@@ -103,7 +103,7 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
 		ReplicatedAppURL:       netutil.MaybeAddHTTPS(domains.ReplicatedAppDomain),
 		ProxyRegistryURL:       netutil.MaybeAddHTTPS(domains.ProxyRegistryDomain),
-		Proxy:                  jcmd.InstallationSpec.Proxy,
+		Proxy:                  jcmd.InstallationSpec.RuntimeConfig.ProxySpec,
 		PodCIDR:                cidrCfg.PodCIDR,
 		ServiceCIDR:            cidrCfg.ServiceCIDR,
 		NodeIP:                 nodeIP,

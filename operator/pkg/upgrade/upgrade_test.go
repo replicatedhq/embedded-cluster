@@ -190,7 +190,8 @@ config:
 							ProxyRegistryDomain: "registry.com",
 						},
 					},
-					EndUserK0sConfigOverrides: `
+					RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
+						EndUserK0sConfigOverrides: `
 config:
   spec:
     workerProfiles:
@@ -199,6 +200,7 @@ config:
         allowedUnsafeSysctls:
         - net.ipv4.ip_forward
 `,
+					},
 				},
 			},
 			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {
@@ -239,7 +241,8 @@ config:
 							ProxyRegistryDomain: "registry.com",
 						},
 					},
-					EndUserK0sConfigOverrides: `
+					RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
+						EndUserK0sConfigOverrides: `
 config:
   metadata:
     name: foo
@@ -254,6 +257,7 @@ config:
         allowedUnsafeSysctls:
         - net.ipv4.ip_forward
 `,
+					},
 				},
 			},
 			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {

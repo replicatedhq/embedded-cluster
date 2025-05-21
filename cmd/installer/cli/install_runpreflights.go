@@ -7,8 +7,7 @@ import (
 	"net"
 
 	"github.com/replicatedhq/embedded-cluster/api"
-	"github.com/replicatedhq/embedded-cluster/api/console"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/api/models"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
@@ -18,7 +17,7 @@ import (
 )
 
 func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
-	var consoleConfig console.Config
+	var installConfig models.InstallationConfig
 	var cliFlags installCmdFlags
 
 	cmd := &cobra.Command{
@@ -26,7 +25,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		Short:  "Run install host preflights",
 		Hidden: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &consoleConfig, &cliFlags); err != nil {
+			if err := preRunInstall(cmd, &installConfig, &cliFlags); err != nil {
 				return err
 			}
 
@@ -36,7 +35,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runInstallRunPreflights(cmd.Context(), name, consoleConfig, cliFlags); err != nil {
+			if err := runInstallRunPreflights(cmd.Context(), name, installConfig, cliFlags); err != nil {
 				return err
 			}
 
@@ -44,7 +43,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
-	if err := addInstallConsoleConfigFlags(cmd, &consoleConfig); err != nil {
+	if err := addInstallConfigFlags(cmd, &installConfig); err != nil {
 		panic(err)
 	}
 	if err := addInstallCmdFlags(cmd, &cliFlags); err != nil {
@@ -54,7 +53,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runInstallRunPreflights(ctx context.Context, name string, inConsoleConfig console.Config, cliFlags installCmdFlags) error {
+func runInstallRunPreflights(ctx context.Context, name string, inInstallConfig models.InstallationConfig, cliFlags installCmdFlags) error {
 	logger, err := api.NewLogger()
 	if err != nil {
 		logrus.Warnf("Unable to setup API logging: %v", err)
@@ -73,16 +72,16 @@ func runInstallRunPreflights(ctx context.Context, name string, inConsoleConfig c
 		return fmt.Errorf("unable to wait for install API: %w", err)
 	}
 
-	consoleConfig, err := initializeConsoleAPIConfig(inConsoleConfig, listener.Addr().String())
+	installConfig, err := initializeInstallAPIConfig(inInstallConfig, listener.Addr().String())
 	if err != nil {
-		return fmt.Errorf("unable to initialize console API config: %w", err)
+		return fmt.Errorf("unable to initialize install API config: %w", err)
 	}
 
-	return doRunInstallRunPreflights(ctx, name, *consoleConfig, cliFlags)
+	return doRunInstallRunPreflights(ctx, name, *installConfig, cliFlags)
 }
 
-func doRunInstallRunPreflights(ctx context.Context, name string, consoleConfig console.Config, cliFlags installCmdFlags) error {
-	if err := runInstallVerifyAndPrompt(ctx, name, consoleConfig, cliFlags); err != nil {
+func doRunInstallRunPreflights(ctx context.Context, name string, installConfig models.InstallationConfig, cliFlags installCmdFlags) error {
+	if err := runInstallVerifyAndPrompt(ctx, name, installConfig, cliFlags); err != nil {
 		return err
 	}
 
@@ -101,13 +100,8 @@ func doRunInstallRunPreflights(ctx context.Context, name string, consoleConfig c
 		logrus.Debugf("unable to configure kernel modules: %v", err)
 	}
 
-	proxySpec, err := consoleConfig.GetProxySpec()
-	if err != nil {
-		return fmt.Errorf("unable to get proxy spec: %w", err)
-	}
-
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, consoleConfig, cliFlags, proxySpec, nil); err != nil {
+	if err := runInstallPreflights(ctx, installConfig, cliFlags, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -119,11 +113,11 @@ func doRunInstallRunPreflights(ctx context.Context, name string, consoleConfig c
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, consoleConfig console.Config, cliFlags installCmdFlags, proxySpec *ecv1beta1.ProxySpec, metricsReported preflights.MetricsReporter) error {
+func runInstallPreflights(ctx context.Context, installConfig models.InstallationConfig, cliFlags installCmdFlags, metricsReported preflights.MetricsReporter) error {
 	replicatedAppURL := replicatedAppURL()
 	proxyRegistryURL := proxyRegistryURL()
 
-	nodeIP, err := netutils.FirstValidAddress(consoleConfig.NetworkInterface)
+	nodeIP, err := netutils.FirstValidAddress(installConfig.NetworkInterface)
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
@@ -131,10 +125,10 @@ func runInstallPreflights(ctx context.Context, consoleConfig console.Config, cli
 	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
 		ReplicatedAppURL:     replicatedAppURL,
 		ProxyRegistryURL:     proxyRegistryURL,
-		Proxy:                proxySpec,
-		PodCIDR:              consoleConfig.PodCIDR,
-		ServiceCIDR:          consoleConfig.ServiceCIDR,
-		GlobalCIDR:           consoleConfig.GlobalCIDR,
+		Proxy:                runtimeconfig.ProxySpec(),
+		PodCIDR:              installConfig.PodCIDR,
+		ServiceCIDR:          installConfig.ServiceCIDR,
+		GlobalCIDR:           installConfig.GlobalCIDR,
 		NodeIP:               nodeIP,
 		PrivateCAs:           cliFlags.privateCAs,
 		IsAirgap:             cliFlags.airgapBundle != "",

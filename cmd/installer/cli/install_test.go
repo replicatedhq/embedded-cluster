@@ -12,11 +12,12 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/api"
-	"github.com/replicatedhq/embedded-cluster/api/console"
+	"github.com/replicatedhq/embedded-cluster/api/models"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -111,19 +112,19 @@ func Test_ensureAdminConsolePassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			consoleConfig := &console.Config{
+			installConfig := &models.InstallationConfig{
 				AdminConsolePassword: tt.userPassword,
 			}
 			cliFlags := &installCmdFlags{
 				assumeYes: tt.noPrompt,
 			}
 
-			err := ensureAdminConsolePassword(consoleConfig, cliFlags)
+			err := ensureAdminConsolePassword(installConfig, cliFlags)
 			if tt.wantError {
 				req.Error(err)
 			} else {
 				req.NoError(err)
-				req.Equal(tt.wantPassword, consoleConfig.AdminConsolePassword)
+				req.Equal(tt.wantPassword, installConfig.AdminConsolePassword)
 			}
 		})
 	}
@@ -534,19 +535,30 @@ versionLabel: testversion
 }
 
 func Test_runInstallAPI(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+
 	listener, err := net.Listen("tcp", ":0")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = listener.Close()
 	})
 
-	logger := api.NewDiscardLogger()
-	go runInstallAPI(context.Background(), listener, logger)
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
 
-	err = waitForInstallAPI(context.Background(), listener.Addr().String())
+	logger := api.NewDiscardLogger()
+	go func() {
+		err := runInstallAPI(ctx, listener, logger)
+		require.NoError(t, err)
+	}()
+
+	t.Logf("Waiting for install API to start on %s", listener.Addr().String())
+	err = waitForInstallAPI(ctx, listener.Addr().String())
 	require.NoError(t, err)
 
-	resp, err := http.Get("http://" + listener.Addr().String() + "/api/install/health")
+	url := "http://" + listener.Addr().String() + "/api/health"
+	t.Logf("Making request to %s", url)
+	resp, err := http.Get(url)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 

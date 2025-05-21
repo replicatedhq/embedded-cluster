@@ -79,16 +79,27 @@ type ArtifactsLocation struct {
 
 // ProxySpec holds the proxy configuration.
 type ProxySpec struct {
-	HTTPProxy       string `json:"httpProxy,omitempty"`
-	HTTPSProxy      string `json:"httpsProxy,omitempty"`
+	// HTTPProxy holds the HTTP proxy configuration.
+	HTTPProxy string `json:"httpProxy,omitempty"`
+	// HTTPSProxy holds the HTTPS proxy configuration.
+	HTTPSProxy string `json:"httpsProxy,omitempty"`
+	// ProvidedNoProxy holds the user provided no proxy configuration.
 	ProvidedNoProxy string `json:"providedNoProxy,omitempty"`
-	NoProxy         string `json:"noProxy,omitempty"`
+	// NoProxy holds the no proxy configuration.
+	NoProxy string `json:"noProxy,omitempty"`
 }
 
 // NetworkSpec holds the network configuration.
 type NetworkSpec struct {
-	PodCIDR       string `json:"podCIDR,omitempty"`
-	ServiceCIDR   string `json:"serviceCIDR,omitempty"`
+	// NetworkInterface holds the network interface to use for internal cluster communication.
+	NetworkInterface string `json:"networkInterface,omitempty"`
+	// PodCIDR holds the pod CIDR to use for the pod network.
+	PodCIDR string `json:"podCIDR,omitempty"`
+	// ServiceCIDR holds the service CIDR to use for the service network.
+	ServiceCIDR string `json:"serviceCIDR,omitempty"`
+	// GlobalCIDR holds the global CIDR to use for the pod and service networks.
+	GlobalCIDR string `json:"globalCidr,omitempty"`
+	// NodePortRange holds the node port range passed to k0s.
 	NodePortRange string `json:"nodePortRange,omitempty"`
 }
 
@@ -96,6 +107,8 @@ type NetworkSpec struct {
 type AdminConsoleSpec struct {
 	// Port holds the port on which the admin console will be served.
 	Port int `json:"port,omitempty"`
+	// Password holds the password for the admin console.
+	Password string `json:"password,omitempty"`
 }
 
 // LocalArtifactMirrorSpec holds the local artifact mirror configuration.
@@ -149,16 +162,12 @@ type InstallationSpec struct {
 	HighAvailability bool `json:"highAvailability,omitempty"`
 	// AirGap indicates if the installation is airgapped.
 	AirGap bool `json:"airGap,omitempty"`
-	// Proxy holds the proxy configuration.
-	Proxy *ProxySpec `json:"proxy,omitempty"`
-	// Network holds the network configuration.
-	Network *NetworkSpec `json:"network,omitempty"`
-	// EndUserK0sConfigOverrides holds the end user k0s config overrides
-	// used at installation time.
-	EndUserK0sConfigOverrides string `json:"endUserK0sConfigOverrides,omitempty"`
 
-	Deprecated_AdminConsole        *AdminConsoleSpec        `json:"adminConsole,omitempty"`
-	Deprecated_LocalArtifactMirror *LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
+	Deprecated_Proxy                     *ProxySpec               `json:"proxy,omitempty"`
+	Deprecated_Network                   *NetworkSpec             `json:"network,omitempty"`
+	Deprecated_EndUserK0sConfigOverrides string                   `json:"endUserK0sConfigOverrides,omitempty"`
+	Deprecated_AdminConsole              *AdminConsoleSpec        `json:"adminConsole,omitempty"`
+	Deprecated_LocalArtifactMirror       *LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
 }
 
 func (i *InstallationSpec) UnmarshalJSON(data []byte) error {
@@ -173,6 +182,30 @@ func (i *InstallationSpec) UnmarshalJSON(data []byte) error {
 		i.SourceType = InstallationSourceTypeCRD
 	}
 
+	if i.Deprecated_Proxy != nil {
+		if i.RuntimeConfig == nil {
+			i.RuntimeConfig = &RuntimeConfigSpec{}
+		}
+		if i.RuntimeConfig.ProxySpec == nil {
+			i.RuntimeConfig.ProxySpec = &ProxySpec{}
+		}
+	}
+	if i.Deprecated_Network != nil {
+		if i.RuntimeConfig == nil {
+			i.RuntimeConfig = &RuntimeConfigSpec{}
+		}
+		if i.RuntimeConfig.NetworkSpec == nil {
+			i.RuntimeConfig.NetworkSpec = &NetworkSpec{}
+		}
+	}
+	if i.Deprecated_EndUserK0sConfigOverrides != "" {
+		if i.RuntimeConfig == nil {
+			i.RuntimeConfig = &RuntimeConfigSpec{}
+		}
+		if i.RuntimeConfig.EndUserK0sConfigOverrides == "" {
+			i.RuntimeConfig.EndUserK0sConfigOverrides = i.Deprecated_EndUserK0sConfigOverrides
+		}
+	}
 	if i.Deprecated_AdminConsole != nil && i.Deprecated_AdminConsole.Port > 0 {
 		if i.RuntimeConfig == nil {
 			i.RuntimeConfig = &RuntimeConfigSpec{}

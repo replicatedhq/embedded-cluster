@@ -7,7 +7,6 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
 	"sigs.k8s.io/yaml"
 )
 
@@ -200,8 +199,24 @@ func AdminConsolePort() int {
 	return ecv1beta1.DefaultAdminConsolePort
 }
 
+func AdminConsolePassword() string {
+	return runtimeConfig.AdminConsole.Password
+}
+
 func HostCABundlePath() string {
 	return runtimeConfig.HostCABundlePath
+}
+
+func ProxySpec() *ecv1beta1.ProxySpec {
+	return runtimeConfig.ProxySpec
+}
+
+func NetworkSpec() *ecv1beta1.NetworkSpec {
+	return runtimeConfig.NetworkSpec
+}
+
+func EndUserK0sConfigOverrides() string {
+	return runtimeConfig.EndUserK0sConfigOverrides
 }
 
 func SetDataDir(dataDir string) {
@@ -216,34 +231,22 @@ func SetAdminConsolePort(port int) {
 	runtimeConfig.AdminConsole.Port = port
 }
 
+func SetAdminConsolePassword(password string) {
+	runtimeConfig.AdminConsole.Password = password
+}
+
 func SetHostCABundlePath(hostCABundlePath string) {
 	runtimeConfig.HostCABundlePath = hostCABundlePath
 }
 
-func ApplyFlags(flags *pflag.FlagSet) error {
-	if flags.Lookup("data-dir") != nil {
-		dd, err := flags.GetString("data-dir")
-		if err != nil {
-			return fmt.Errorf("get data-dir flag: %w", err)
-		}
-		SetDataDir(dd)
-	}
+func SetProxySpec(proxySpec *ecv1beta1.ProxySpec) {
+	runtimeConfig.ProxySpec = proxySpec
+}
 
-	if flags.Lookup("local-artifact-mirror-port") != nil {
-		lap, err := flags.GetInt("local-artifact-mirror-port")
-		if err != nil {
-			return fmt.Errorf("get local-artifact-mirror-port flag: %w", err)
-		}
-		SetLocalArtifactMirrorPort(lap)
-	}
+func SetNetworkSpec(networkSpec *ecv1beta1.NetworkSpec) {
+	runtimeConfig.NetworkSpec = networkSpec
+}
 
-	if flags.Lookup("admin-console-port") != nil {
-		ap, err := flags.GetInt("admin-console-port")
-		if err != nil {
-			return fmt.Errorf("get admin-console-port flag: %w", err)
-		}
-		SetAdminConsolePort(ap)
-	}
-
-	return nil
+func SetEndUserK0sConfigOverrides(endUserK0sConfigOverrides string) {
+	runtimeConfig.EndUserK0sConfigOverrides = endUserK0sConfigOverrides
 }

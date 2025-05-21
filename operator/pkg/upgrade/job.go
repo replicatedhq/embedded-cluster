@@ -124,18 +124,18 @@ func CreateUpgradeJob(
 		},
 	}
 
-	if in.Spec.Proxy != nil {
+	if in.Spec.RuntimeConfig.ProxySpec != nil {
 		env = append(env, corev1.EnvVar{
 			Name:  "HTTP_PROXY",
-			Value: in.Spec.Proxy.HTTPProxy,
+			Value: in.Spec.RuntimeConfig.ProxySpec.HTTPProxy,
 		})
 		env = append(env, corev1.EnvVar{
 			Name:  "HTTPS_PROXY",
-			Value: in.Spec.Proxy.HTTPSProxy,
+			Value: in.Spec.RuntimeConfig.ProxySpec.HTTPSProxy,
 		})
 		env = append(env, corev1.EnvVar{
 			Name:  "NO_PROXY",
-			Value: in.Spec.Proxy.NoProxy,
+			Value: in.Spec.RuntimeConfig.ProxySpec.NoProxy,
 		})
 	}
 

@@ -46,7 +46,10 @@ func (j JoinCommandResponse) extractK0sConfigOverridePatch(data []byte) (dig.Map
 // EndUserOverrides returns a dig.Mapping that can be applied on top of a k0s configuration.
 // This patch is assembled based on the EndUserK0sConfigOverrides field.
 func (j JoinCommandResponse) EndUserOverrides() (dig.Mapping, error) {
-	return j.extractK0sConfigOverridePatch([]byte(j.InstallationSpec.EndUserK0sConfigOverrides))
+	if j.InstallationSpec.RuntimeConfig == nil {
+		return nil, nil
+	}
+	return j.extractK0sConfigOverridePatch([]byte(j.InstallationSpec.RuntimeConfig.EndUserK0sConfigOverrides))
 }
 
 // EmbeddedOverrides returns a dig.Mapping that can be applied on top of a k0s configuration.

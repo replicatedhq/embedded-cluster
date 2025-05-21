@@ -1,4 +1,4 @@
-package console
+package models
 
 import (
 	"fmt"
@@ -30,7 +30,7 @@ func getNetworkIPNet(networkInterface string, lookup NetworkLookup) (*net.IPNet,
 	return lookup.FirstValidIPNet(networkInterface)
 }
 
-func combineNoProxySuppliedValuesAndDefaults(config Config, proxy ecv1beta1.ProxySpec, lookup NetworkLookup) (string, error) {
+func combineNoProxySuppliedValuesAndDefaults(config InstallationConfig, proxy ecv1beta1.ProxySpec, lookup NetworkLookup) (string, error) {
 	// Start with runtime defaults
 	noProxy := runtimeconfig.DefaultNoProxy
 
