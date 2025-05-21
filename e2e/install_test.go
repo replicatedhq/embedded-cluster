@@ -1757,7 +1757,7 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 	// Run the verification script to check if the CA is properly mounted in the pod
 	t.Logf("Verifying CA certificate is properly mounted in kotsadm pod")
 	line = []string{"verify-ca-in-pod.sh"}
-	stdout, stderr, err = tc.RunCommandOnNode(0, line, lxd.WithECShellEnv("/var/lib/embedded-cluster"))
+	stdout, stderr, err = tc.RunCommandOnNode(0, line)
 	require.NoError(t, err, "CA verification failed: %s: %s", stdout, stderr)
 	t.Logf("Verification output: %s", stdout)
 
