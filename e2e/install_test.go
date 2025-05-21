@@ -14,7 +14,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
-	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 )
 
 func TestSingleNodeInstallation(t *testing.T) {
@@ -1739,50 +1738,12 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 	tc := lxd.NewCluster(input)
 	defer tc.Cleanup()
 
-	certBuilder, err := certs.NewBuilder()
-	require.NoError(t, err, "unable to create new cert builder")
-	crtContent, _, err := certBuilder.Generate()
-	require.NoError(t, err, "unable to build test certificate")
-
-	tmpfile, err := os.CreateTemp("", "test-temp-cert-*.crt")
-	require.NoError(t, err, "unable to create temp file")
-	defer os.Remove(tmpfile.Name())
-
-	_, err = tmpfile.WriteString(crtContent)
-	require.NoError(t, err, "unable to write to temp file")
-	tmpfile.Close()
-
-	// Generate a server certificate signed by our CA
-	serverCertBuilder, err := certs.NewBuilder()
-	require.NoError(t, err, "unable to create server cert builder")
-	serverCrtContent, _, err := serverCertBuilder.Generate()
-	require.NoError(t, err, "unable to build server certificate")
-
-	// Save server certificate and key to temporary files
-	serverCrtFile, err := os.CreateTemp("", "test-server-cert-*.crt")
-	require.NoError(t, err, "unable to create temp file for server cert")
-	defer os.Remove(serverCrtFile.Name())
-	_, err = serverCrtFile.WriteString(serverCrtContent)
-	require.NoError(t, err, "unable to write to server cert temp file")
-	serverCrtFile.Close()
-
-	// Copy certificates to the test node
-	lxd.CopyFileToNode(input, tc.Nodes[0], lxd.File{
-		SourcePath: tmpfile.Name(),
-		DestPath:   "/tmp/ca.crt",
-		Mode:       0666,
-	})
-	lxd.CopyFileToNode(input, tc.Nodes[0], lxd.File{
-		SourcePath: serverCrtFile.Name(),
-		DestPath:   "/tmp/server.crt",
-		Mode:       0666,
-	})
-
-	// Explicitly install the CA certificate to the system trust store before installation
-	t.Logf("Installing CA certificate to system trust store")
-	line := []string{"install-ca-cert.sh", "/tmp/ca.crt"}
+	// Instead of generating certificates in Go and copying them to the node,
+	// run our install-ca-cert.sh script directly on the test node to generate and install them
+	t.Logf("Generating and installing CA certificate")
+	line := []string{"install-ca-cert.sh"}
 	stdout, stderr, err := tc.RunCommandOnNode(0, line)
-	require.NoError(t, err, "CA installation failed: %s: %s", stdout, stderr)
+	require.NoError(t, err, "CA generation and installation failed: %s: %s", stdout, stderr)
 	t.Logf("CA installation output: %s", stdout)
 
 	installSingleNode(t, tc)
@@ -1795,9 +1756,9 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 
 	// Run the verification script to check if the CA is properly mounted in the pod
 	t.Logf("Verifying CA certificate is properly mounted in kotsadm pod")
-	line = []string{"verify-ca-in-pod.sh", "/tmp/ca.crt", "/tmp/server.crt"}
+	line = []string{"verify-ca-in-pod.sh", "/tmp/certs/ca.crt", "/tmp/certs/server.crt"}
 	stdout, stderr, err = tc.RunCommandOnNode(0, line, lxd.WithECShellEnv("/var/lib/embedded-cluster"))
-	require.NoError(t, err, "CA verification failed: %v", stderr)
+	require.NoError(t, err, "CA verification failed: %s: %s", stdout, stderr)
 	t.Logf("Verification output: %s", stdout)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

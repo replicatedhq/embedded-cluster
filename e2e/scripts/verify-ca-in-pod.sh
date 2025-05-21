@@ -19,9 +19,11 @@ main() {
 
     echo "Checking if CA certificate is properly mounted in kotsadm pod"
     
-    # Extract CA hash for searching - we need this even though it's host-side
+    # Extract CA info for searching
     CA_HASH=$(openssl x509 -in "$ca_cert" -noout -hash)
+    CA_SUBJECT=$(openssl x509 -in "$ca_cert" -noout -subject)
     echo "CA Hash: $CA_HASH"
+    echo "CA Subject: $CA_SUBJECT"
     
     # Find the kotsadm pod
     local pod_name
@@ -32,18 +34,35 @@ main() {
     fi
     echo "Found kotsadm pod: $pod_name"
     
+    # First verify the SSL_CERT_DIR environment variable is set correctly
+    echo "Checking for SSL_CERT_DIR environment variable in pod"
+    if ! kubectl exec -n "$pod_namespace" "$pod_name" -- env | grep -q "SSL_CERT_DIR=/certs"; then
+        echo "Error: SSL_CERT_DIR environment variable not set correctly in the pod"
+        kubectl exec -n "$pod_namespace" "$pod_name" -- env | grep SSL
+        return 1
+    fi
+    echo "SSL_CERT_DIR environment variable is set correctly"
+    
+    # Check for the mounted CA certificate file
+    echo "Checking for mounted CA certificate file"
+    if ! kubectl exec -n "$pod_namespace" "$pod_name" -- ls -la /certs/ca-certificates.crt >/dev/null 2>&1; then
+        echo "Error: CA certificate file not mounted at /certs/ca-certificates.crt"
+        kubectl exec -n "$pod_namespace" "$pod_name" -- ls -la /certs/ || true
+        return 1
+    fi
+    echo "CA certificate file is mounted correctly"
+    
     # Extract CA bundle from pod
     echo "Extracting CA bundle from pod"
-    kubectl exec -n "$pod_namespace" "$pod_name" -- cat /etc/ssl/certs/ca-certificates.crt > /tmp/pod-ca-bundle.crt
+    kubectl exec -n "$pod_namespace" "$pod_name" -- cat /certs/ca-certificates.crt > /tmp/pod-ca-bundle.crt
     
-    # Verify our CA is in the pod's bundle
+    # Verify our CA is in the pod's bundle using multiple methods
     echo "Checking if our CA is in the pod's bundle"
-    if grep -q "$CA_HASH" /tmp/pod-ca-bundle.crt; then
-        echo "CA found in pod's CA bundle (matched by hash)"
+    if grep -q "$CA_SUBJECT" /tmp/pod-ca-bundle.crt; then
+        echo "CA found in pod's CA bundle (matched by subject)"
     else
-        echo "Error: Our CA is not found in the pod's CA bundle"
-        # Additional diagnostics if needed
-        return 1
+        echo "Warning: CA subject not found in pod's CA bundle"
+        echo "Trying to verify server certificate directly..."
     fi
     
     # Verify server certificate is trusted using the pod's CA bundle
@@ -53,6 +72,11 @@ main() {
     else
         echo "Error: Server certificate is not trusted by the pod's CA bundle"
         echo "This indicates the CA was not properly mounted or is not functioning correctly"
+        
+        # Additional diagnostics
+        echo "Diagnostic information:"
+        echo "- Server certificate subject: $(openssl x509 -in "$server_cert" -noout -subject)"
+        echo "- Pod CA bundle size: $(wc -c < /tmp/pod-ca-bundle.crt) bytes"
         return 1
     fi
     
