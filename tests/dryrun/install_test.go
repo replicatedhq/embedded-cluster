@@ -3,7 +3,6 @@ package dryrun
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -648,10 +647,6 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "velero", veleroOpts.ReleaseName)
 
-	// Print Velero values
-	veleroValuesJson, _ := json.MarshalIndent(veleroOpts.Values, "", "  ")
-	fmt.Printf("\n\nDEBUG: Velero Chart Values:\n%s\n\n", string(veleroValuesJson))
-
 	assertHelmValues(t, veleroOpts.Values, map[string]any{
 		"configuration.extraEnvVars": map[string]any{
 			"HTTPS_PROXY":  "http://localhost:3128",
@@ -676,10 +671,6 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 	assert.Equal(t, "Install", hcli.Calls[3].Method)
 	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
-
-	// Debug: Print all AdminConsole values
-	valuesJson, _ := json.MarshalIndent(adminConsoleOpts.Values, "", "  ")
-	fmt.Printf("\n\nDEBUG: AdminConsole Chart Values:\n%s\n\n", string(valuesJson))
 
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
 		"extraEnv": []map[string]any{
