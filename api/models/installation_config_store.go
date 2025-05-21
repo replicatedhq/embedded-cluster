@@ -49,8 +49,15 @@ type InstallationConfigRuntimeConfigStore struct {
 	mu sync.RWMutex
 }
 
-func NewInstallationConfigRuntimeConfigStore() *InstallationConfigRuntimeConfigStore {
-	return &InstallationConfigRuntimeConfigStore{}
+func NewInstallationConfigRuntimeConfigStore() (*InstallationConfigRuntimeConfigStore, error) {
+	runtimeConfig, err := runtimeconfig.ReadFromDisk()
+	if err != nil {
+		return nil, fmt.Errorf("read runtime config from disk: %w", err)
+	} else if runtimeConfig != nil {
+		runtimeconfig.Set(runtimeConfig)
+	}
+
+	return &InstallationConfigRuntimeConfigStore{}, nil
 }
 
 func (s *InstallationConfigRuntimeConfigStore) Read() (*InstallationConfig, error) {

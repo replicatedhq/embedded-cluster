@@ -21,9 +21,23 @@ func (e *APIError) JSON(w http.ResponseWriter) {
 	json.NewEncoder(w).Encode(e)
 }
 
+func (e *APIError) Text(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(e.StatusCode)
+	w.Write([]byte(e.Error()))
+}
+
 func NewBadRequestError(err error) *APIError {
 	return &APIError{
 		StatusCode: http.StatusBadRequest,
+		Message:    err.Error(),
+		Err:        err,
+	}
+}
+
+func NewInternalServerError(err error) *APIError {
+	return &APIError{
+		StatusCode: http.StatusInternalServerError,
 		Message:    err.Error(),
 		Err:        err,
 	}

@@ -546,8 +546,12 @@ func Test_runInstallAPI(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
 
+	errCh := make(chan error)
+
 	logger := api.NewDiscardLogger()
-	go runInstallAPI(ctx, listener, logger)
+	go func() {
+		errCh <- runInstallAPI(ctx, listener, logger)
+	}()
 
 	t.Logf("Waiting for install API to start on %s", listener.Addr().String())
 	err = waitForInstallAPI(ctx, listener.Addr().String())
@@ -560,4 +564,8 @@ func Test_runInstallAPI(t *testing.T) {
 	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	cancel()
+	assert.ErrorIs(t, <-errCh, http.ErrServerClosed)
+	t.Logf("Install API exited")
 }

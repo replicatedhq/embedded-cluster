@@ -174,6 +174,9 @@ func ReadFromDisk() (*ecv1beta1.RuntimeConfigSpec, error) {
 
 	data, err := os.ReadFile(location)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("unable to read runtime config: %w", err)
 	}
 

@@ -1,6 +1,8 @@
 package api
 
 import (
+	"fmt"
+
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
@@ -8,12 +10,17 @@ import (
 )
 
 type API struct {
-	logger logrus.FieldLogger
-
 	installController install.Controller
+	logger            logrus.FieldLogger
 }
 
 type APIOption func(*API)
+
+func WithInstallController(installController install.Controller) APIOption {
+	return func(a *API) {
+		a.installController = installController
+	}
+}
 
 func WithLogger(logger logrus.FieldLogger) APIOption {
 	return func(a *API) {
@@ -21,20 +28,25 @@ func WithLogger(logger logrus.FieldLogger) APIOption {
 	}
 }
 
-func New(opts ...APIOption) *API {
-	api := &API{
-		installController: install.NewInstallController(),
-	}
-
+func New(opts ...APIOption) (*API, error) {
+	api := &API{}
 	for _, opt := range opts {
 		opt(api)
+	}
+
+	if api.installController == nil {
+		installController, err := install.NewInstallController()
+		if err != nil {
+			return nil, fmt.Errorf("new install controller: %w", err)
+		}
+		api.installController = installController
 	}
 
 	if api.logger == nil {
 		api.logger = NewDiscardLogger()
 	}
 
-	return api
+	return api, nil
 }
 
 func (a *API) RegisterRoutes(router *mux.Router) {

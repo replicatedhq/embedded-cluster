@@ -231,7 +231,10 @@ func preRunInstall(cmd *cobra.Command, installConfig *models.InstallationConfig,
 func runInstallAPI(ctx context.Context, listener net.Listener, logger logrus.FieldLogger) error {
 	router := mux.NewRouter()
 
-	api := api.New(api.WithLogger(logger))
+	api, err := api.New(api.WithLogger(logger))
+	if err != nil {
+		return fmt.Errorf("new api: %w", err)
+	}
 	api.RegisterRoutes(router.PathPrefix("/api").Subrouter())
 
 	webFs := http.FileServer(http.FS(web.Fs()))

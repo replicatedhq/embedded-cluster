@@ -22,7 +22,7 @@ func InitBestRuntimeConfig(ctx context.Context) {
 	}
 
 	// There might be a runtime config file
-	if runtimeConfig, err := runtimeconfig.ReadFromDisk(); err == nil {
+	if runtimeConfig, _ := runtimeconfig.ReadFromDisk(); runtimeConfig != nil {
 		runtimeconfig.Set(runtimeConfig)
 		return
 	}

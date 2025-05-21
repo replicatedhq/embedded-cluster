@@ -19,12 +19,15 @@ type InstallController struct {
 	installationConfigStore models.InstallationConfigStore
 }
 
-func NewInstallController() *InstallController {
-	installationConfigStore := models.NewInstallationConfigRuntimeConfigStore()
+func NewInstallController() (*InstallController, error) {
+	installationConfigStore, err := models.NewInstallationConfigRuntimeConfigStore()
+	if err != nil {
+		return nil, fmt.Errorf("new installation config store: %w", err)
+	}
 
 	return &InstallController{
 		installationConfigStore: installationConfigStore,
-	}
+	}, nil
 }
 
 func (c *InstallController) Get(ctx context.Context) (*models.Install, error) {
