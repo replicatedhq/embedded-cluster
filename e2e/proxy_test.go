@@ -128,11 +128,8 @@ func TestProxiedEnvironment(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion := os.Getenv("APP_UPGRADE_VERSION")
-	testArgs = []string{appUpgradeVersion}
-
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", os.Getenv("APP_UPGRADE_VERSION")); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -426,11 +423,8 @@ func TestInstallWithMITMProxy(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion := os.Getenv("APP_UPGRADE_VERSION")
-	testArgs = []string{appUpgradeVersion}
-
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", os.Getenv("APP_UPGRADE_VERSION")); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
