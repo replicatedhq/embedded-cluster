@@ -24,37 +24,17 @@ func TestHostCABundle(t *testing.T) {
 	hcli, err := helm.NewClient(helm.HelmOptions{})
 	require.NoError(t, err, "NewClient should not return an error")
 
-	// Print the addon's Helm values for debugging
-	values, err := addon.GenerateHelmValues(context.Background(), nil, nil)
-	require.NoError(t, err, "Failed to generate Helm values")
-
-	t.Logf("Generated Helm values for AdminConsole:\nextraEnv: %v\nextraVolumes: %v\nextraVolumeMounts: %v",
-		values["extraEnv"], values["extraVolumes"], values["extraVolumeMounts"])
-
 	err = addon.Install(context.Background(), nil, hcli, nil, nil)
 	require.NoError(t, err, "adminconsole.Install should not return an error")
 
 	manifests := addon.DryRunManifests()
 	require.NotEmpty(t, manifests, "DryRunManifests should not be empty")
 
-	// Print overview of all manifests
-	t.Logf("Found %d manifests total", len(manifests))
-	for i, manifest := range manifests {
-		manifestStr := string(manifest)
-		// Print just the first few lines to identify each manifest
-		firstLine := strings.Split(manifestStr, "\n")[0]
-		t.Logf("Manifest #%d: %s", i+1, firstLine)
-	}
-
 	var adminDeployment *appsv1.Deployment
 	for _, manifest := range manifests {
 		manifestStr := string(manifest)
-		// Look for kotsadm deployment - either by the file name or by matching the metadata name
-		if strings.Contains(manifestStr, "# Source: admin-console/templates/kotsadm-deployment.yaml") ||
-			(strings.Contains(manifestStr, "kind: Deployment") && strings.Contains(manifestStr, "name: kotsadm")) {
-			// Print the manifest for debugging
-			t.Logf("Found Admin Console deployment manifest:\n%s", manifestStr)
-
+		// Look for the kotsadm deployment by its template source
+		if strings.Contains(manifestStr, "# Source: admin-console/templates/kotsadm-deployment.yaml") {
 			err := yaml.Unmarshal(manifest, &adminDeployment)
 			require.NoError(t, err, "Failed to unmarshal Admin Console deployment")
 			break
