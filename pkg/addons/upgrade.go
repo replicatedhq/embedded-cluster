@@ -52,13 +52,17 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	}
 
 	serviceCIDR := ""
-	if in.Spec.RuntimeConfig.NetworkSpec != nil {
-		serviceCIDR = in.Spec.RuntimeConfig.NetworkSpec.ServiceCIDR
-	}
-
 	hostCABundlePath := ""
+	var proxySpec *ecv1beta1.ProxySpec
+
 	if in.Spec.RuntimeConfig != nil {
+		if in.Spec.RuntimeConfig.NetworkSpec != nil {
+			serviceCIDR = in.Spec.RuntimeConfig.NetworkSpec.ServiceCIDR
+		}
+
 		hostCABundlePath = in.Spec.RuntimeConfig.HostCABundlePath
+
+		proxySpec = in.Spec.RuntimeConfig.ProxySpec
 	}
 
 	// ECO's embedded (wrong) metadata values do not match the published (correct) metadata values.
@@ -75,7 +79,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	}
 	addOns = append(addOns, &embeddedclusteroperator.EmbeddedClusterOperator{
 		IsAirgap:              in.Spec.AirGap,
-		Proxy:                 in.Spec.RuntimeConfig.ProxySpec,
+		Proxy:                 proxySpec,
 		ChartLocationOverride: ecoChartLocation,
 		ChartVersionOverride:  ecoChartVersion,
 		ImageRepoOverride:     ecoImageRepo,
@@ -101,7 +105,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 
 	if in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
 		addOns = append(addOns, &velero.Velero{
-			Proxy:               in.Spec.RuntimeConfig.ProxySpec,
+			Proxy:               proxySpec,
 			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 			HostCABundlePath:    hostCABundlePath,
 		})
@@ -110,7 +114,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	addOns = append(addOns, &adminconsole.AdminConsole{
 		IsAirgap:                 in.Spec.AirGap,
 		IsHA:                     in.Spec.HighAvailability,
-		Proxy:                    in.Spec.RuntimeConfig.ProxySpec,
+		Proxy:                    proxySpec,
 		ServiceCIDR:              serviceCIDR,
 		IsMultiNodeEnabled:       in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
 		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
