@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
@@ -84,6 +85,10 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 		return errors.Wrap(err, "create kots password secret")
 	}
 
+	if err := createCAConfigmap(ctx, kcli, namespace, a.PrivateCAs); err != nil {
+		return errors.Wrap(err, "create kots CA configmap")
+	}
+
 	if a.IsAirgap {
 		registryIP, err := registry.GetRegistryClusterIP(a.ServiceCIDR)
 		if err != nil {
@@ -92,6 +97,36 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 		if err := a.createRegistrySecret(ctx, kcli, namespace, registryIP); err != nil {
 			return errors.Wrap(err, "create registry secret")
 		}
+	}
+
+	return nil
+}
+
+func createCAConfigmap(ctx context.Context, cli client.Client, namespace string, privateCAs []string) error {
+	cas, err := privateCAsToMap(privateCAs)
+	if err != nil {
+		return errors.Wrap(err, "create private cas map")
+	}
+
+	kotsCAConfigmap := corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kotsadm-private-cas",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"kots.io/kotsadm":                        "true",
+				"replicated.com/disaster-recovery":       "infra",
+				"replicated.com/disaster-recovery-chart": "admin-console",
+			},
+		},
+		Data: cas,
+	}
+
+	if err := cli.Create(ctx, &kotsCAConfigmap); client.IgnoreAlreadyExists(err) != nil {
+		return errors.Wrap(err, "create kotsadm-private-cas configmap")
 	}
 
 	return nil
@@ -197,4 +232,17 @@ func (a *AdminConsole) createRegistrySecret(ctx context.Context, kcli client.Cli
 	}
 
 	return nil
+}
+
+func privateCAsToMap(privateCAs []string) (map[string]string, error) {
+	cas := map[string]string{}
+	for i, path := range privateCAs {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, errors.Wrapf(err, "read private CA file %s", path)
+		}
+		name := fmt.Sprintf("ca_%d.crt", i)
+		cas[name] = string(data)
+	}
+	return cas, nil
 }
