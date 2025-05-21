@@ -638,9 +638,23 @@ func TestInstall_HTTPProxy(t *testing.T) {
 				"name":  "NO_PROXY",
 				"value": noProxy,
 			},
+			{
+				"name":  "SSL_CERT_DIR",
+				"value": "/certs",
+			},
 		},
+		"extraVolumes": []map[string]any{{
+			"name": "host-ca-bundle",
+			"hostPath": map[string]any{
+				"path": hostCABundle,
+				"type": "FileOrCreate",
+			},
+		}},
+		"extraVolumeMounts": []map[string]any{{
+			"mountPath": "/certs/ca-certificates.crt",
+			"name":      "host-ca-bundle",
+		}},
 	})
-	// TODO: CA
 
 	// velero
 	assert.Equal(t, "Install", hcli.Calls[2].Method)
@@ -723,7 +737,6 @@ func TestInstall_HTTPProxy(t *testing.T) {
 
 	// TODO: CA
 	// assertConfigMapExists(t, kcli, "private-cas", "kotsadm")
-	// assertConfigMapExists(t, kcli, "kotsadm-private-cas", "embedded-cluster")
 
 	// --- validate installation object --- //
 	in, err := kubeutils.GetLatestInstallation(context.TODO(), kcli)
