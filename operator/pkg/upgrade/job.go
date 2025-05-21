@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -43,6 +44,7 @@ func CreateUpgradeJob(
 	localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion string,
 	previousInstallVersion string,
 ) error {
+	log := controllerruntime.LoggerFrom(ctx)
 	// check if the job already exists - if it does, we've already rolled out images and can return now
 	job := &batchv1.Job{}
 	err := cli.Get(ctx, client.ObjectKey{Namespace: upgradeJobNamespace, Name: fmt.Sprintf(upgradeJobName, in.Name)}, job)
@@ -118,10 +120,6 @@ func CreateUpgradeJob(
 			Name:  "JOB_NAMESPACE",
 			Value: upgradeJobNamespace,
 		},
-		{
-			Name:  "SSL_CERT_DIR",
-			Value: "/certs",
-		},
 	}
 
 	if in.Spec.Proxy != nil {
@@ -196,17 +194,6 @@ func CreateUpgradeJob(
 							},
 						},
 						{
-							Name: "private-cas",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "kotsadm-private-cas",
-									},
-									Optional: ptr.To(true),
-								},
-							},
-						},
-						{
 							Name: "ec-charts-dir",
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
@@ -237,10 +224,6 @@ func CreateUpgradeJob(
 									MountPath: "/config",
 								},
 								{
-									Name:      "private-cas",
-									MountPath: "/certs",
-								},
-								{
 									Name:      "ec-charts-dir",
 									MountPath: runtimeconfig.EmbeddedClusterChartsSubDirNoCreate(),
 									ReadOnly:  true,
@@ -251,6 +234,43 @@ func CreateUpgradeJob(
 				},
 			},
 		},
+	}
+
+	// Add the host CA bundle volume, mount, and env var if SSL_CERT_DIR is set
+	hostCABundlePath := os.Getenv("SSL_CERT_DIR")
+	if hostCABundlePath != "" {
+		log.Info("Using host CA bundle directory", "path", hostCABundlePath)
+		// Add the CA directory volume
+		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: "host-ca-bundle",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: hostCABundlePath,
+					Type: ptr.To(corev1.HostPathFileOrCreate),
+				},
+			},
+		})
+
+		// Add the CA directory mount
+		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(
+			job.Spec.Template.Spec.Containers[0].VolumeMounts,
+			corev1.VolumeMount{
+				Name:      "host-ca-bundle",
+				MountPath: "/certs/ca-certificates.crt",
+			},
+		)
+
+		// Add the SSL_CERT_DIR environment variable
+		job.Spec.Template.Spec.Containers[0].Env = append(
+			job.Spec.Template.Spec.Containers[0].Env,
+			corev1.EnvVar{
+				Name:  "SSL_CERT_DIR",
+				Value: "/certs",
+			},
+		)
+	} else {
+		log := controllerruntime.LoggerFrom(ctx)
+		log.Info("SSL_CERT_DIR not set, no CA bundle will be used")
 	}
 
 	if err = cli.Create(ctx, job); err != nil {
