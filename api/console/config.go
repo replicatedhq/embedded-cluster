@@ -29,6 +29,44 @@ type Config struct {
 	Overrides               string `json:"overrides"`
 }
 
+func (c *Config) InitEnvironment(logger logrus.FieldLogger) error {
+	if err := applyConfigToRuntimeConfig(*c); err != nil {
+		return fmt.Errorf("apply config to runtime config: %w", err)
+	}
+
+	proxySpec, err := c.GetProxySpec()
+	if err != nil {
+		return fmt.Errorf("get proxy spec: %w", err)
+	}
+
+	if err := runtimeconfig.WriteToDisk(); err != nil {
+		return fmt.Errorf("write runtime config to disk: %w", err)
+	}
+
+	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
+	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+
+	if proxySpec != nil {
+		if proxySpec.HTTPProxy != "" {
+			os.Setenv("HTTP_PROXY", proxySpec.HTTPProxy)
+		}
+		if proxySpec.HTTPSProxy != "" {
+			os.Setenv("HTTPS_PROXY", proxySpec.HTTPSProxy)
+		}
+		if proxySpec.NoProxy != "" {
+			os.Setenv("NO_PROXY", proxySpec.NoProxy)
+		}
+	}
+
+	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
+		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
+		logger.Debugf("unable to chmod embedded-cluster home dir: %s", err)
+	}
+
+	return nil
+}
+
 func (c *Config) GetProxySpec() (*ecv1beta1.ProxySpec, error) {
 	if c.HTTPProxy == "" && c.HTTPSProxy == "" && c.NoProxy == "" {
 		return nil, nil
@@ -153,7 +191,7 @@ func validateConfigPorts(config Config) error {
 	return nil
 }
 
-func configSetDefaults(logger *logrus.Logger, config *Config) error {
+func configSetDefaults(logger logrus.FieldLogger, config *Config) error {
 	if config.AdminConsolePort == 0 {
 		config.AdminConsolePort = ecv1beta1.DefaultAdminConsolePort
 	}
@@ -192,7 +230,7 @@ func configSetDefaults(logger *logrus.Logger, config *Config) error {
 	return nil
 }
 
-func configSetProxyDefaults(logger *logrus.Logger, config *Config) {
+func configSetProxyDefaults(logger logrus.FieldLogger, config *Config) {
 	if config.HTTPProxy == "" {
 		if envValue := os.Getenv("http_proxy"); envValue != "" {
 			logger.Debug("got http_proxy from http_proxy env var")

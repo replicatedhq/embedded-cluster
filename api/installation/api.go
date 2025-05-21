@@ -9,10 +9,10 @@ import (
 )
 
 type API struct {
-	logger *logrus.Logger
+	logger logrus.FieldLogger
 }
 
-func NewAPI(logger *logrus.Logger) *API {
+func NewAPI(logger logrus.FieldLogger) *API {
 	if logger == nil {
 		logger = api.NewDiscardLogger()
 	}

@@ -288,6 +288,10 @@ func initializeConsoleAPIConfig(in console.Config, addr string) (*console.Config
 		return nil, fmt.Errorf("upsert config: %w", err)
 	}
 
+	if err := consoleConfig.InitEnvironment(logrus.StandardLogger()); err != nil {
+		return nil, fmt.Errorf("init environment: %w", err)
+	}
+
 	return consoleConfig, nil
 }
 

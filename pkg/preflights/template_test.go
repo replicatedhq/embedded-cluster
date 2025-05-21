@@ -10,7 +10,6 @@ import (
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/replicatedhq/troubleshoot/pkg/multitype"
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 )
 
 func getSubnetCollectorByName(name string, spec v1beta2.HostPreflightSpec) *v1beta2.SubnetAvailable {
@@ -42,7 +41,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 		name             string
 		podCIDR          string
 		serviceCIDR      string
-		globalCIDR       *string
+		globalCIDR       string
 		wantErr          bool
 		expectCollectors []v1beta2.SubnetAvailable
 		expectAnalyzers  []v1beta2.SubnetAvailableAnalyze
@@ -187,7 +186,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 		},
 		{
 			name:       "valid CIDR",
-			globalCIDR: ptr.To("10.0.0.0/24"),
+			globalCIDR: "10.0.0.0/24",
 			expectCollectors: []v1beta2.SubnetAvailable{
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
@@ -251,14 +250,14 @@ func TestTemplateWithCIDRData(t *testing.T) {
 		},
 		{
 			name:       "not a valid CIDR",
-			globalCIDR: ptr.To("not-a-cidr"),
+			globalCIDR: "not-a-cidr",
 			wantErr:    true,
 		},
 		{
 			name:        "valid podCIDR and serviceCIDR are provided",
 			podCIDR:     "10.1.0.0/24",
 			serviceCIDR: "10.2.0.0/24",
-			globalCIDR:  ptr.To(""),
+			globalCIDR:  "",
 			expectCollectors: []v1beta2.SubnetAvailable{
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
