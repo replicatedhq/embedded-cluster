@@ -229,12 +229,7 @@ func preRunInstall(cmd *cobra.Command, consoleConfig *console.Config, cliFlags *
 	return nil
 }
 
-func runInstallAPI(ctx context.Context, listener net.Listener) error {
-	logger, err := api.NewLogger()
-	if err != nil {
-		logrus.Warnf("Unable to setup API logging: %v", err)
-	}
-
+func runInstallAPI(ctx context.Context, listener net.Listener, logger logrus.FieldLogger) error {
 	consoleAPI := console.NewAPI(logger)
 	installationAPI := installation.NewAPI(logger)
 
@@ -296,11 +291,19 @@ func initializeConsoleAPIConfig(in console.Config, addr string) (*console.Config
 }
 
 func runInstall(ctx context.Context, name string, inConsoleConfig console.Config, cliFlags installCmdFlags, metricsReporter preflights.MetricsReporter) error {
+	logger, err := api.NewLogger()
+	if err != nil {
+		logrus.Warnf("Unable to setup API logging: %v", err)
+	}
+
 	listener, err := net.Listen("tcp", ":30080")
 	if err != nil {
 		return fmt.Errorf("unable to create listener: %w", err)
 	}
-	go runInstallAPI(ctx, listener)
+
+	apiCtx, apiCancel := context.WithCancel(ctx)
+	defer apiCancel()
+	go runInstallAPI(apiCtx, listener, logger)
 
 	if err := waitForInstallAPI(ctx, listener.Addr().String()); err != nil {
 		return fmt.Errorf("unable to wait for install API: %w", err)

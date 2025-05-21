@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/console"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
@@ -54,11 +55,19 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 }
 
 func runInstallRunPreflights(ctx context.Context, name string, inConsoleConfig console.Config, cliFlags installCmdFlags) error {
+	logger, err := api.NewLogger()
+	if err != nil {
+		logrus.Warnf("Unable to setup API logging: %v", err)
+	}
+
 	listener, err := net.Listen("tcp", ":30080")
 	if err != nil {
 		return fmt.Errorf("unable to create listener: %w", err)
 	}
-	go runInstallAPI(ctx, listener)
+
+	apiCtx, apiCancel := context.WithCancel(ctx)
+	defer apiCancel()
+	go runInstallAPI(apiCtx, listener, logger)
 
 	if err := waitForInstallAPI(ctx, listener.Addr().String()); err != nil {
 		return fmt.Errorf("unable to wait for install API: %w", err)

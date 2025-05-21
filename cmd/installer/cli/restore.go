@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/console"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -170,6 +171,11 @@ func addRestoreCmdFlags(cmd *cobra.Command, cliFlags *installCmdFlags) error {
 }
 
 func runRestore(ctx context.Context, name string, inConsoleConfig console.Config, cliFlags installCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
+	logger, err := api.NewLogger()
+	if err != nil {
+		logrus.Warnf("Unable to setup API logging: %v", err)
+	}
+
 	listener, err := net.Listen("tcp", ":30080")
 	if err != nil {
 		return fmt.Errorf("unable to create listener: %w", err)
@@ -177,7 +183,7 @@ func runRestore(ctx context.Context, name string, inConsoleConfig console.Config
 
 	apiCtx, apiCancel := context.WithCancel(ctx)
 	defer apiCancel()
-	go runInstallAPI(apiCtx, listener)
+	go runInstallAPI(apiCtx, listener, logger)
 
 	if err := waitForInstallAPI(ctx, listener.Addr().String()); err != nil {
 		return fmt.Errorf("unable to wait for install API: %w", err)

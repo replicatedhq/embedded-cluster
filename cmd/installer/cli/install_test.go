@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/console"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
@@ -539,7 +540,8 @@ func Test_runInstallAPI(t *testing.T) {
 		_ = listener.Close()
 	})
 
-	go runInstallAPI(context.Background(), listener)
+	logger := api.NewDiscardLogger()
+	go runInstallAPI(context.Background(), listener, logger)
 
 	err = waitForInstallAPI(context.Background(), listener.Addr().String())
 	require.NoError(t, err)
