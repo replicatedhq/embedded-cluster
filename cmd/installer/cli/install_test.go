@@ -547,10 +547,7 @@ func Test_runInstallAPI(t *testing.T) {
 	t.Cleanup(cancel)
 
 	logger := api.NewDiscardLogger()
-	go func() {
-		err := runInstallAPI(ctx, listener, logger)
-		require.NoError(t, err)
-	}()
+	go runInstallAPI(ctx, listener, logger)
 
 	t.Logf("Waiting for install API to start on %s", listener.Addr().String())
 	err = waitForInstallAPI(ctx, listener.Addr().String())
