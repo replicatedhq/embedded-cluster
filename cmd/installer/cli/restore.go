@@ -250,12 +250,19 @@ func doRestore(ctx context.Context, name string, consoleConfig console.Config, c
 		runtimeconfig.Set(rc)
 	}
 
+	proxySpec, err := consoleConfig.GetProxySpec()
+	if err != nil {
+		return fmt.Errorf("unable to get proxy spec: %w", err)
+	}
+
 	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
 	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
+	// TODO: there is a proxy spec in the flags and installation, should we override it in the installation?
+
 	switch state {
 	case ecRestoreStateNew:
-		err = runRestoreStepNew(ctx, name, consoleConfig, cliFlags, &s3Store, skipStoreValidation)
+		err = runRestoreStepNew(ctx, name, consoleConfig, cliFlags, proxySpec, &s3Store, skipStoreValidation)
 		if err != nil {
 			return err
 		}
@@ -356,7 +363,7 @@ func doRestore(ctx context.Context, name string, consoleConfig console.Config, c
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		err = runRestoreEnableAdminConsoleHA(ctx, backupToRestore, consoleConfig, isAirgap)
+		err = runRestoreEnableAdminConsoleHA(ctx, backupToRestore, consoleConfig, proxySpec, isAirgap)
 		if err != nil {
 			return err
 		}
@@ -410,7 +417,7 @@ func doRestore(ctx context.Context, name string, consoleConfig console.Config, c
 	return nil
 }
 
-func runRestoreStepNew(ctx context.Context, name string, consoleConfig console.Config, cliFlags installCmdFlags, s3Store *s3BackupStore, skipStoreValidation bool) error {
+func runRestoreStepNew(ctx context.Context, name string, consoleConfig console.Config, cliFlags installCmdFlags, proxySpec *ecv1beta1.ProxySpec, s3Store *s3BackupStore, skipStoreValidation bool) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "restore")
 	if err != nil {
@@ -460,14 +467,14 @@ func runRestoreStepNew(ctx context.Context, name string, consoleConfig console.C
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, consoleConfig, cliFlags, nil); err != nil {
+	if err := runInstallPreflights(ctx, consoleConfig, cliFlags, proxySpec, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
 		return fmt.Errorf("unable to run install preflights: %w", err)
 	}
 
-	_, err = installAndStartCluster(ctx, consoleConfig, cliFlags.airgapBundle, nil)
+	_, err = installAndStartCluster(ctx, consoleConfig, cliFlags.airgapBundle, proxySpec, nil)
 	if err != nil {
 		return err
 	}
@@ -506,7 +513,7 @@ func runRestoreStepNew(ctx context.Context, name string, consoleConfig console.C
 	logrus.Debugf("installing addons")
 	if err := addons.Install(ctx, hcli, addons.InstallOptions{
 		IsAirgap:           cliFlags.airgapBundle != "",
-		Proxy:              consoleConfig.GetProxySpec(),
+		Proxy:              proxySpec,
 		HostCABundlePath:   runtimeconfig.HostCABundlePath(),
 		PrivateCAs:         cliFlags.privateCAs,
 		ServiceCIDR:        consoleConfig.ServiceCIDR,
@@ -612,7 +619,7 @@ func runRestoreWaitForNodes(ctx context.Context, backupToRestore *disasterrecove
 	return nil
 }
 
-func runRestoreEnableAdminConsoleHA(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup, consoleConfig console.Config, isAirgap bool) error {
+func runRestoreEnableAdminConsoleHA(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup, consoleConfig console.Config, proxySpec *ecv1beta1.ProxySpec, isAirgap bool) error {
 	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
 	if err != nil {
 		return err
@@ -650,7 +657,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, backupToRestore *disast
 	}
 	defer hcli.Close()
 
-	err = addons.EnableAdminConsoleHA(ctx, kcli, hcli, isAirgap, consoleConfig.ServiceCIDR, consoleConfig.GetProxySpec(), in.Spec.Config, in.Spec.LicenseInfo)
+	err = addons.EnableAdminConsoleHA(ctx, kcli, hcli, isAirgap, consoleConfig.ServiceCIDR, proxySpec, in.Spec.Config, in.Spec.LicenseInfo)
 	if err != nil {
 		return err
 	}

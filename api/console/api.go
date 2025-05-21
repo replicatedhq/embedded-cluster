@@ -64,7 +64,7 @@ func (a *API) putConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := configSetDefaults(&config); err != nil {
+	if err := configSetDefaults(a.logger, &config); err != nil {
 		a.logger.Errorf("unable to set defaults: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -72,6 +72,13 @@ func (a *API) putConfig(w http.ResponseWriter, r *http.Request) {
 
 	if err := applyConfigToRuntimeConfig(config); err != nil {
 		a.logger.Errorf("unable to apply config to runtime config: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	proxySpec, err := config.GetProxySpec()
+	if err != nil {
+		a.logger.Errorf("unable to get proxy spec: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -89,6 +96,18 @@ func (a *API) putConfig(w http.ResponseWriter, r *http.Request) {
 
 	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
 	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+
+	if proxySpec != nil {
+		if proxySpec.HTTPProxy != "" {
+			os.Setenv("HTTP_PROXY", proxySpec.HTTPProxy)
+		}
+		if proxySpec.HTTPSProxy != "" {
+			os.Setenv("HTTPS_PROXY", proxySpec.HTTPSProxy)
+		}
+		if proxySpec.NoProxy != "" {
+			os.Setenv("NO_PROXY", proxySpec.NoProxy)
+		}
+	}
 
 	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
 		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),

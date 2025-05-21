@@ -3,11 +3,14 @@ package console
 import (
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/sirupsen/logrus"
 )
 
 type Config struct {
@@ -26,15 +29,25 @@ type Config struct {
 	Overrides               string `json:"overrides"`
 }
 
-func (c *Config) GetProxySpec() *ecv1beta1.ProxySpec {
+func (c *Config) GetProxySpec() (*ecv1beta1.ProxySpec, error) {
 	if c.HTTPProxy == "" && c.HTTPSProxy == "" && c.NoProxy == "" {
-		return nil
+		return nil, nil
 	}
-	return &ecv1beta1.ProxySpec{
-		HTTPProxy:  c.HTTPProxy,
-		HTTPSProxy: c.HTTPSProxy,
-		NoProxy:    c.NoProxy,
+
+	proxySpec := ecv1beta1.ProxySpec{
+		HTTPProxy:       c.HTTPProxy,
+		HTTPSProxy:      c.HTTPSProxy,
+		ProvidedNoProxy: c.NoProxy,
 	}
+
+	// Now that we have all no-proxy entries (from flags/env), merge in defaults
+	noProxy, err := combineNoProxySuppliedValuesAndDefaults(*c, proxySpec, nil)
+	if err != nil {
+		return nil, fmt.Errorf("unable to combine no-proxy supplied values and defaults: %w", err)
+	}
+	proxySpec.NoProxy = noProxy
+
+	return &proxySpec, nil
 }
 
 type configStore interface {
@@ -140,7 +153,7 @@ func validateConfigPorts(config Config) error {
 	return nil
 }
 
-func configSetDefaults(config *Config) error {
+func configSetDefaults(logger *logrus.Logger, config *Config) error {
 	if config.AdminConsolePort == 0 {
 		config.AdminConsolePort = ecv1beta1.DefaultAdminConsolePort
 	}
@@ -170,18 +183,67 @@ func configSetDefaults(config *Config) error {
 		}
 	}
 
-	if config.GlobalCIDR == "" && config.PodCIDR == "" && config.ServiceCIDR == "" {
-		config.GlobalCIDR = ecv1beta1.DefaultNetworkCIDR
+	if err := configSetCIDRDefaults(config); err != nil {
+		return fmt.Errorf("unable to set cidr defaults: %w", err)
 	}
 
-	// if podCIDR or serviceCIDR is not set, we need to split the globalCIDR
-	if config.PodCIDR == "" || config.ServiceCIDR == "" {
+	configSetProxyDefaults(logger, config)
+
+	return nil
+}
+
+func configSetProxyDefaults(logger *logrus.Logger, config *Config) {
+	if config.HTTPProxy == "" {
+		if envValue := os.Getenv("http_proxy"); envValue != "" {
+			logger.Debug("got http_proxy from http_proxy env var")
+			config.HTTPProxy = envValue
+		} else if envValue := os.Getenv("HTTP_PROXY"); envValue != "" {
+			logger.Debug("got http_proxy from HTTP_PROXY env var")
+			config.HTTPProxy = envValue
+		}
+	}
+	if config.HTTPSProxy == "" {
+		if envValue := os.Getenv("https_proxy"); envValue != "" {
+			logger.Debug("got https_proxy from https_proxy env var")
+			config.HTTPSProxy = envValue
+		} else if envValue := os.Getenv("HTTPS_PROXY"); envValue != "" {
+			logger.Debug("got https_proxy from HTTPS_PROXY env var")
+			config.HTTPSProxy = envValue
+		}
+	}
+	if config.NoProxy == "" {
+		if envValue := os.Getenv("no_proxy"); envValue != "" {
+			logger.Debug("got no_proxy from no_proxy env var")
+			config.NoProxy = envValue
+		} else if envValue := os.Getenv("NO_PROXY"); envValue != "" {
+			logger.Debug("got no_proxy from NO_PROXY env var")
+			config.NoProxy = envValue
+		}
+	}
+}
+
+func configSetCIDRDefaults(config *Config) error {
+	if config.PodCIDR == "" && config.ServiceCIDR == "" {
+		if config.GlobalCIDR == "" {
+			config.GlobalCIDR = ecv1beta1.DefaultNetworkCIDR
+		}
+
 		podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(config.GlobalCIDR)
 		if err != nil {
-			return fmt.Errorf("unable to split network cidr: %w", err)
+			return fmt.Errorf("split network cidr: %w", err)
 		}
 		config.PodCIDR = podCIDR
 		config.ServiceCIDR = serviceCIDR
+
+		return nil
+	}
+
+	if config.PodCIDR == "" {
+		config.PodCIDR = k0sv1beta1.DefaultNetwork().PodCIDR
+	}
+
+	if config.ServiceCIDR == "" {
+		config.ServiceCIDR = k0sv1beta1.DefaultNetwork().ServiceCIDR
 	}
 
 	return nil

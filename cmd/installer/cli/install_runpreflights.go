@@ -7,6 +7,7 @@ import (
 	"net"
 
 	"github.com/replicatedhq/embedded-cluster/api/console"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
@@ -91,8 +92,13 @@ func doRunInstallRunPreflights(ctx context.Context, name string, consoleConfig c
 		logrus.Debugf("unable to configure kernel modules: %v", err)
 	}
 
+	proxySpec, err := consoleConfig.GetProxySpec()
+	if err != nil {
+		return fmt.Errorf("unable to get proxy spec: %w", err)
+	}
+
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, consoleConfig, cliFlags, nil); err != nil {
+	if err := runInstallPreflights(ctx, consoleConfig, cliFlags, proxySpec, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -104,7 +110,7 @@ func doRunInstallRunPreflights(ctx context.Context, name string, consoleConfig c
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, consoleConfig console.Config, cliFlags installCmdFlags, metricsReported preflights.MetricsReporter) error {
+func runInstallPreflights(ctx context.Context, consoleConfig console.Config, cliFlags installCmdFlags, proxySpec *ecv1beta1.ProxySpec, metricsReported preflights.MetricsReporter) error {
 	replicatedAppURL := replicatedAppURL()
 	proxyRegistryURL := proxyRegistryURL()
 
@@ -116,7 +122,7 @@ func runInstallPreflights(ctx context.Context, consoleConfig console.Config, cli
 	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
 		ReplicatedAppURL:     replicatedAppURL,
 		ProxyRegistryURL:     proxyRegistryURL,
-		Proxy:                consoleConfig.GetProxySpec(),
+		Proxy:                proxySpec,
 		PodCIDR:              consoleConfig.PodCIDR,
 		ServiceCIDR:          consoleConfig.ServiceCIDR,
 		GlobalCIDR:           consoleConfig.GlobalCIDR,

@@ -320,15 +320,20 @@ func doInstall(ctx context.Context, name string, consoleConfig console.Config, c
 		return fmt.Errorf("unable to initialize install: %w", err)
 	}
 
+	proxySpec, err := consoleConfig.GetProxySpec()
+	if err != nil {
+		return fmt.Errorf("unable to get proxy spec: %w", err)
+	}
+
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, consoleConfig, cliFlags, metricsReporter); err != nil {
+	if err := runInstallPreflights(ctx, consoleConfig, cliFlags, proxySpec, metricsReporter); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
 		return fmt.Errorf("unable to run install preflights: %w", err)
 	}
 
-	k0sCfg, err := installAndStartCluster(ctx, consoleConfig, cliFlags.airgapBundle, nil)
+	k0sCfg, err := installAndStartCluster(ctx, consoleConfig, cliFlags.airgapBundle, proxySpec, nil)
 	if err != nil {
 		return fmt.Errorf("unable to install cluster: %w", err)
 	}
@@ -341,7 +346,7 @@ func doInstall(ctx context.Context, name string, consoleConfig console.Config, c
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	in, err := recordInstallation(ctx, kcli, consoleConfig, cliFlags, k0sCfg)
+	in, err := recordInstallation(ctx, kcli, consoleConfig, cliFlags, proxySpec, k0sCfg)
 	if err != nil {
 		return fmt.Errorf("unable to record installation: %w", err)
 	}
@@ -395,7 +400,7 @@ func doInstall(ctx context.Context, name string, consoleConfig console.Config, c
 		AdminConsolePwd:         consoleConfig.AdminConsolePassword,
 		License:                 cliFlags.license,
 		IsAirgap:                cliFlags.airgapBundle != "",
-		Proxy:                   consoleConfig.GetProxySpec(),
+		Proxy:                   proxySpec,
 		HostCABundlePath:        runtimeconfig.HostCABundlePath(),
 		PrivateCAs:              cliFlags.privateCAs,
 		ServiceCIDR:             consoleConfig.ServiceCIDR,
@@ -697,7 +702,10 @@ func materializeFiles(airgapBundle string) error {
 	return nil
 }
 
-func installAndStartCluster(ctx context.Context, consoleConfig console.Config, airgapBundle string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+func installAndStartCluster(
+	ctx context.Context, consoleConfig console.Config, airgapBundle string, proxySpec *ecv1beta1.ProxySpec,
+	mutate func(*k0sv1beta1.ClusterConfig) error,
+) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	loading.Infof("Installing node")
 	logrus.Debugf("creating k0s configuration file")
@@ -708,7 +716,7 @@ func installAndStartCluster(ctx context.Context, consoleConfig console.Config, a
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(ctx, false, consoleConfig.GetProxySpec()); err != nil {
+	if err := createSystemdUnitFiles(ctx, false, proxySpec); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
@@ -1080,7 +1088,11 @@ func waitForNode(ctx context.Context) error {
 	return nil
 }
 
-func recordInstallation(ctx context.Context, kcli client.Client, consoleConfig console.Config, cliFlags installCmdFlags, k0sCfg *k0sv1beta1.ClusterConfig) (*ecv1beta1.Installation, error) {
+func recordInstallation(
+	ctx context.Context, kcli client.Client,
+	consoleConfig console.Config, cliFlags installCmdFlags, proxySpec *ecv1beta1.ProxySpec,
+	k0sCfg *k0sv1beta1.ClusterConfig,
+) (*ecv1beta1.Installation, error) {
 	// ensure that the embedded-cluster namespace exists
 	if err := createECNamespace(ctx, kcli); err != nil {
 		return nil, fmt.Errorf("create embedded-cluster namespace: %w", err)
@@ -1120,7 +1132,7 @@ func recordInstallation(ctx context.Context, kcli client.Client, consoleConfig c
 			ClusterID:                 metrics.ClusterID().String(),
 			MetricsBaseURL:            replicatedAppURL(),
 			AirGap:                    cliFlags.airgapBundle != "",
-			Proxy:                     consoleConfig.GetProxySpec(),
+			Proxy:                     proxySpec,
 			Network:                   networkSpecFromK0sConfig(k0sCfg),
 			Config:                    cfgspec,
 			RuntimeConfig:             runtimeconfig.Get(),
