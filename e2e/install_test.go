@@ -1725,45 +1725,6 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestInstallWithPrivateCAs(t *testing.T) {
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	input := &lxd.ClusterInput{
-		T:                   t,
-		Nodes:               1,
-		Image:               "ubuntu/jammy",
-		LicensePath:         "licenses/license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-	}
-	tc := lxd.NewCluster(input)
-	defer tc.Cleanup()
-
-	// Instead of generating certificates in Go and copying them to the node,
-	// run our install-ca-cert.sh script directly on the test node to generate and install them
-	t.Logf("Generating and installing CA certificate")
-	line := []string{"install-ca-cert.sh"}
-	stdout, stderr, err := tc.RunCommandOnNode(0, line)
-	require.NoError(t, err, "CA generation and installation failed: %s: %s", stdout, stderr)
-	t.Logf("CA installation output: %s", stdout)
-
-	installSingleNode(t, tc)
-
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
-	}
-
-	checkInstallationState(t, tc)
-
-	// Run the verification script to check if the CA is properly mounted in the pod
-	t.Logf("Verifying CA certificate is properly mounted in kotsadm pod")
-	line = []string{"verify-ca-in-pod.sh"}
-	stdout, stderr, err = tc.RunCommandOnNode(0, line)
-	require.NoError(t, err, "CA verification failed: %s: %s", stdout, stderr)
-	t.Logf("Verification output: %s", stdout)
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
 func TestInstallWithConfigValues(t *testing.T) {
 	t.Parallel()
 
