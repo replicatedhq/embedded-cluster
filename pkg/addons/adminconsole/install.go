@@ -85,7 +85,7 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 		return errors.Wrap(err, "create kots password secret")
 	}
 
-	if err := createCAConfigmap(ctx, kcli, namespace, a.PrivateCAs); err != nil {
+	if err := a.createCAConfigmap(ctx, kcli, namespace, a.PrivateCAs); err != nil {
 		return errors.Wrap(err, "create kots CA configmap")
 	}
 
@@ -102,7 +102,7 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 	return nil
 }
 
-func createCAConfigmap(ctx context.Context, cli client.Client, namespace string, privateCAs []string) error {
+func (a *AdminConsole) createCAConfigmap(ctx context.Context, cli client.Client, namespace string, privateCAs []string) error {
 	cas, err := privateCAsToMap(privateCAs)
 	if err != nil {
 		return errors.Wrap(err, "create private cas map")
@@ -125,8 +125,16 @@ func createCAConfigmap(ctx context.Context, cli client.Client, namespace string,
 		Data: cas,
 	}
 
-	if err := cli.Create(ctx, &kotsCAConfigmap); client.IgnoreAlreadyExists(err) != nil {
-		return errors.Wrap(err, "create kotsadm-private-cas configmap")
+	if a.DryRun {
+		b := bytes.NewBuffer(nil)
+		if err := serializer.Encode(&kotsCAConfigmap, b); err != nil {
+			return errors.Wrap(err, "serialize CA configmap")
+		}
+		a.dryRunManifests = append(a.dryRunManifests, b.Bytes())
+	} else {
+		if err := cli.Create(ctx, &kotsCAConfigmap); client.IgnoreAlreadyExists(err) != nil {
+			return errors.Wrap(err, "create kotsadm-private-cas configmap")
+		}
 	}
 
 	return nil
@@ -236,6 +244,12 @@ func (a *AdminConsole) createRegistrySecret(ctx context.Context, kcli client.Cli
 
 func privateCAsToMap(privateCAs []string) (map[string]string, error) {
 	cas := map[string]string{}
+
+	// Handle nil privateCAs
+	if privateCAs == nil {
+		return cas, nil
+	}
+
 	for i, path := range privateCAs {
 		data, err := os.ReadFile(path)
 		if err != nil {
