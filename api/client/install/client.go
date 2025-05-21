@@ -9,6 +9,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/models"
 )
 
+var defaultHTTPClient = &http.Client{
+	Transport: &http.Transport{
+		Proxy: nil, // This is a local client so no proxy is needed
+	},
+}
+
 type Client interface {
 	GetInstall() (*models.Install, error)
 	InstallPhaseSetConfig(config models.InstallationConfig) (*models.Install, error)
@@ -37,14 +43,20 @@ func New(apiURL string, opts ...ClientOption) Client {
 	}
 
 	if c.httpClient == nil {
-		c.httpClient = http.DefaultClient
+		c.httpClient = defaultHTTPClient
 	}
 
 	return c
 }
 
 func (c *client) GetInstall() (*models.Install, error) {
-	resp, err := http.Get(c.apiURL)
+	req, err := http.NewRequest("GET", c.apiURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +81,13 @@ func (c *client) InstallPhaseSetConfig(config models.InstallationConfig) (*model
 		return nil, err
 	}
 
-	resp, err := http.Post(c.apiURL+"/phase/set-config", "application/json", bytes.NewBuffer(b))
+	req, err := http.NewRequest("POST", c.apiURL+"/phase/set-config", bytes.NewBuffer(b))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +107,13 @@ func (c *client) InstallPhaseSetConfig(config models.InstallationConfig) (*model
 }
 
 func (c *client) InstallPhaseStart() (*models.Install, error) {
-	resp, err := http.Post(c.apiURL+"/phase/start", "application/json", nil)
+	req, err := http.NewRequest("POST", c.apiURL+"/phase/start", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

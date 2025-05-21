@@ -253,18 +253,22 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinComm
 		return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
 	}
 
-	setProxyEnv(jcmd.InstallationSpec.RuntimeConfig.ProxySpec)
+	if jcmd.InstallationSpec.RuntimeConfig != nil {
+		proxySpec := jcmd.InstallationSpec.RuntimeConfig.ProxySpec
 
-	proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.RuntimeConfig.ProxySpec, flags.networkInterface)
-	if err != nil {
-		return fmt.Errorf("failed to check proxy config for local IP: %w", err)
-	}
+		setProxyEnv(proxySpec)
 
-	if !proxyOK {
-		logrus.Errorf("\nThis node's IP address %s is not included in the no-proxy list (%s).", localIP, jcmd.InstallationSpec.RuntimeConfig.ProxySpec.NoProxy)
-		logrus.Infof(`The no-proxy list cannot easily be modified after installing.`)
-		logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
-		return NewErrorNothingElseToAdd(errors.New("node ip address not included in no-proxy list"))
+		proxyOK, localIP, err := checkProxyConfigForLocalIP(proxySpec, flags.networkInterface)
+		if err != nil {
+			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
+		}
+
+		if !proxyOK {
+			logrus.Errorf("\nThis node's IP address %s is not included in the no-proxy list (%s).", localIP, proxySpec.NoProxy)
+			logrus.Infof(`The no-proxy list cannot easily be modified after installing.`)
+			logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
+			return NewErrorNothingElseToAdd(errors.New("node ip address not included in no-proxy list"))
+		}
 	}
 
 	return nil
@@ -349,7 +353,7 @@ func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*CIDRConfig, error) {
 		return nil, fmt.Errorf("unable to split default network CIDR: %w", err)
 	}
 
-	if jcmd.InstallationSpec.RuntimeConfig.NetworkSpec != nil {
+	if jcmd.InstallationSpec.RuntimeConfig != nil && jcmd.InstallationSpec.RuntimeConfig.NetworkSpec != nil {
 		if jcmd.InstallationSpec.RuntimeConfig.NetworkSpec.PodCIDR != "" {
 			podCIDR = jcmd.InstallationSpec.RuntimeConfig.NetworkSpec.PodCIDR
 		}
@@ -382,7 +386,11 @@ func installAndJoinCluster(ctx context.Context, jcmd *join.JoinCommandResponse, 
 	}
 
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(ctx, isWorker, jcmd.InstallationSpec.RuntimeConfig.ProxySpec); err != nil {
+	var proxySpec *ecv1beta1.ProxySpec
+	if jcmd.InstallationSpec.RuntimeConfig != nil {
+		proxySpec = jcmd.InstallationSpec.RuntimeConfig.ProxySpec
+	}
+	if err := createSystemdUnitFiles(ctx, isWorker, proxySpec); err != nil {
 		return fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 
@@ -436,7 +444,7 @@ func installK0sBinary() error {
 }
 
 func applyNetworkConfiguration(networkInterface string, jcmd *join.JoinCommandResponse) error {
-	if jcmd.InstallationSpec.RuntimeConfig.NetworkSpec != nil {
+	if jcmd.InstallationSpec.RuntimeConfig != nil && jcmd.InstallationSpec.RuntimeConfig.NetworkSpec != nil {
 		domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
 		clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 

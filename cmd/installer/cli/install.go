@@ -258,6 +258,9 @@ func runInstallAPI(ctx context.Context, listener net.Listener, logger logrus.Fie
 func waitForInstallAPI(ctx context.Context, addr string) error {
 	httpClient := http.Client{
 		Timeout: 2 * time.Second,
+		Transport: &http.Transport{
+			Proxy: nil,
+		},
 	}
 	timeout := time.After(10 * time.Second)
 	var lastErr error

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
@@ -100,10 +101,15 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 
 	domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
 
+	var proxySpec *ecv1beta1.ProxySpec
+	if jcmd.InstallationSpec.RuntimeConfig != nil {
+		proxySpec = jcmd.InstallationSpec.RuntimeConfig.ProxySpec
+	}
+
 	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
 		ReplicatedAppURL:       netutil.MaybeAddHTTPS(domains.ReplicatedAppDomain),
 		ProxyRegistryURL:       netutil.MaybeAddHTTPS(domains.ProxyRegistryDomain),
-		Proxy:                  jcmd.InstallationSpec.RuntimeConfig.ProxySpec,
+		Proxy:                  proxySpec,
 		PodCIDR:                cidrCfg.PodCIDR,
 		ServiceCIDR:            cidrCfg.ServiceCIDR,
 		NodeIP:                 nodeIP,
