@@ -609,6 +609,40 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 
 	// --- validate addons --- //
 
+	// embedded cluster operator
+	assert.Equal(t, "Install", hcli.Calls[1].Method)
+	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
+
+	// NO_PROXY is calculated
+	val, err := helm.GetValue(operatorOpts.Values, "extraEnv")
+	require.NoError(t, err)
+	var noProxy string
+	for _, v := range val.([]map[string]any) {
+		if v["name"] == "NO_PROXY" {
+			noProxy = v["value"].(string)
+		}
+	}
+	assert.NotEmpty(t, noProxy)
+	assert.Contains(t, noProxy, "10.0.0.0/8")
+
+	assertHelmValues(t, operatorOpts.Values, map[string]any{
+		"extraEnv": []map[string]any{
+			{
+				"name":  "HTTP_PROXY",
+				"value": "http://localhost:3128",
+			},
+			{
+				"name":  "HTTPS_PROXY",
+				"value": "http://localhost:3128",
+			},
+			{
+				"name":  "NO_PROXY",
+				"value": noProxy,
+			},
+		},
+	})
+
 	// velero
 	assert.Equal(t, "Install", hcli.Calls[2].Method)
 	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
