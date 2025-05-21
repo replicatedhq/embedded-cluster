@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        k0s_version: ['current', '1.29']
+        k0s_version: ['current', '1.30', '1.29']
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        k0s_version: ['current', '1.29']
+        k0s_version: ['current', '1.30', '1.29']
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -77,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        k0s_version: ['current', '1.29']
+        k0s_version: ['current', '1.30', '1.29']
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -115,7 +115,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        k0s_version: ['current', '1.29']
+        k0s_version: ['current', '1.30', '1.29']
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -183,7 +183,7 @@ jobs:
       - git-sha
     strategy:
       matrix:
-        k0s_version: ['current', '1.29']
+        k0s_version: ['current', '1.30', '1.29']
         type: ['install', 'upgrade']
     steps:
       - name: Checkout
@@ -299,9 +299,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           k0s_majmin_version="$(make print-PREVIOUS_K0S_VERSION | sed 's/v\([0-9]*\.[0-9]*\).*/\1/')"
-          if [ "$k0s_majmin_version" == "1.28" ]; then
-            k0s_majmin_version="1.29"
-          fi
           EC_VERSION="$(gh release list --repo replicatedhq/embedded-cluster \
             --exclude-drafts --exclude-pre-releases --json name \
             --jq '.[] | .name' \
@@ -352,6 +349,12 @@ jobs:
           export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
           export APP_VERSION="${SHORT_SHA}-previous-stable"
           export RELEASE_YAML_DIR=e2e/kots-release-install-stable
+          ./scripts/ci-release-app.sh
+          
+          # install the 1.30 k0s version to ensure an upgrade occurs
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-1.30-install"
+          export APP_VERSION="${SHORT_SHA}-1.30-install"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # install the 1.29 k0s version to ensure an upgrade occurs
@@ -418,6 +421,12 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install-stable
           ./scripts/ci-release-app.sh
 
+          # install the 1.30 k0s version to ensure an upgrade occurs
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-1.30-install"
+          export APP_VERSION="${SHORT_SHA}-1.30-install"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
           # install the previous k0s version to ensure an upgrade occurs
           export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-1.29-install"
           export APP_VERSION="${SHORT_SHA}-1.29-install"
@@ -478,7 +487,7 @@ jobs:
       - find-previous-stable
       - release-app
     env:
-      # common environment variables
+      # default environment variables
       APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-current-install
       APP_NOOP_VERSION: ${{ needs.git-sha.outputs.git_sha }}-noop
       APP_UPGRADE_VERSION: ${{ needs.git-sha.outputs.git_sha }}-current-upgrade
@@ -494,8 +503,6 @@ jobs:
           - TestPreflightsNoexec
           - TestMaterialize
           - TestHostPreflightInBuiltSpec
-          - TestSingleNodeInstallation
-          - TestSingleNodeInstallationAlmaLinux8
           - TestSingleNodeInstallationDebian11
           - TestSingleNodeInstallationDebian12
           - TestSingleNodeInstallationCentos9Stream
@@ -519,14 +526,28 @@ jobs:
             env:
               APP_FAILING_PREFLIGHTS_VERSION: ${{ needs.git-sha.outputs.git_sha }}-failing-preflights
               APP_WARNING_PREFLIGHTS_VERSION: ${{ needs.git-sha.outputs.git_sha }}-warning-preflights
+          - test: TestSingleNodeInstallation
+            env:
+              APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.30-install
+              K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.30-install'] }}
+          - test: TestSingleNodeInstallationAlmaLinux8
+            env:
+              APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.29-install
+              K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.29-install'] }}
+              APP_UPGRADE_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.30-upgrade
+              K0S_UPGRADE_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.30-upgrade'] }}
+          - test: TestSingleNodeInstallationDebian11
+            env:
+              APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.29-install
+              K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.29-install'] }}
           - test: TestSingleNodeUpgradePreviousStable
             env:
               APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-previous-stable
               K0S_INSTALL_VERSION: ${{ needs.find-previous-stable.outputs.k0s_version }}
           - test: TestUpgradeFromReplicatedApp
             env:
-              APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.29-install
-              K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.29-install'] }}
+              APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.30-install
+              K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.30-install'] }}
           - test: TestSingleNodeLegacyDisasterRecovery
             env:
               APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-legacydr
@@ -594,7 +615,7 @@ jobs:
       - find-previous-stable
       - release-app
     env:
-      # common environment variables
+      # default environment variables
       APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-current-install
       APP_NOOP_VERSION: ${{ needs.git-sha.outputs.git_sha }}-noop
       APP_UPGRADE_VERSION: ${{ needs.git-sha.outputs.git_sha }}-current-upgrade
@@ -617,24 +638,26 @@ jobs:
               K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.29-install'] }}
           - test: TestSingleNodeAirgapUpgradeConfigValues
             env:
-              APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.29-install
-              K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.29-install'] }}
+              APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.30-install
+              K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.30-install'] }}
           - test: TestSingleNodeAirgapUpgradeCustomCIDR
             env:
               APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.29-install
               K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.29-install'] }}
+              APP_UPGRADE_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.30-upgrade
+              K0S_UPGRADE_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.30-upgrade'] }}
           - test: TestMultiNodeAirgapUpgrade
             env:
-              APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.29-install
-              K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.29-install'] }}
+              APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.30-install
+              K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.30-install'] }}
           - test: TestMultiNodeAirgapUpgradePreviousStable
             env:
               APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-previous-stable
               K0S_INSTALL_VERSION: ${{ needs.find-previous-stable.outputs.k0s_version }}
           - test: TestSingleNodeAirgapDisasterRecovery
             env:
-              APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.29-install
-              K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.29-install'] }}
+              APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.30-install
+              K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.30-install'] }}
           - test: TestVersion
             is-lxd: true
           - test: TestCommandsRequireSudo
@@ -713,7 +736,7 @@ jobs:
       - find-previous-stable
       - release-app
     env:
-      # common environment variables
+      # default environment variables
       APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-current-install
       APP_NOOP_VERSION: ${{ needs.git-sha.outputs.git_sha }}-noop
       APP_UPGRADE_VERSION: ${{ needs.git-sha.outputs.git_sha }}-current-upgrade
@@ -728,8 +751,8 @@ jobs:
         include:
           - test: TestFiveNodesAirgapUpgrade
             env:
-              APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.29-install
-              K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.29-install'] }}
+              APP_INSTALL_VERSION: ${{ needs.git-sha.outputs.git_sha }}-1.30-install
+              K0S_INSTALL_VERSION: ${{ fromJson(needs.read-matrix.outputs.result).k0s_version['1.30-install'] }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
