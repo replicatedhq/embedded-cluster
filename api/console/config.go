@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sync"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -67,6 +66,26 @@ func (c *Config) InitEnvironment(logger logrus.FieldLogger) error {
 	return nil
 }
 
+func validateConfig(config Config) error {
+	if config.AdminConsolePassword == "" {
+		return errors.New("adminConsolePassword is required")
+	}
+
+	if err := validateConfigCIDR(config); err != nil {
+		return err
+	}
+
+	if err := validateConfigNetworkInterface(config); err != nil {
+		return err
+	}
+
+	if err := validateConfigPorts(config); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *Config) GetProxySpec() (*ecv1beta1.ProxySpec, error) {
 	if c.HTTPProxy == "" && c.HTTPSProxy == "" && c.NoProxy == "" {
 		return nil, nil
@@ -86,53 +105,6 @@ func (c *Config) GetProxySpec() (*ecv1beta1.ProxySpec, error) {
 	proxySpec.NoProxy = noProxy
 
 	return &proxySpec, nil
-}
-
-type configStore interface {
-	read() (*Config, error)
-	write(cfg *Config) error
-}
-
-var _ configStore = &configMemoryStore{}
-
-type configMemoryStore struct {
-	mu  sync.RWMutex
-	cfg *Config
-}
-
-func (s *configMemoryStore) read() (*Config, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.cfg, nil
-}
-
-func (s *configMemoryStore) write(cfg *Config) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.cfg = cfg
-
-	return nil
-}
-
-func validateConfig(config Config) error {
-	if config.AdminConsolePassword == "" {
-		return errors.New("adminConsolePassword is required")
-	}
-
-	if err := validateConfigCIDR(config); err != nil {
-		return err
-	}
-
-	if err := validateConfigNetworkInterface(config); err != nil {
-		return err
-	}
-
-	if err := validateConfigPorts(config); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func validateConfigCIDR(config Config) error {
