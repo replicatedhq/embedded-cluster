@@ -134,4 +134,4 @@ case "$OS_ID" in
 esac
 
 echo "CA certificate successfully installed and verified in system trust store"
-exit 0 
+exit 0
