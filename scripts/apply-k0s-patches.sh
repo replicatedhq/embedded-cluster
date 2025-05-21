@@ -3,18 +3,18 @@
 set -euo pipefail
 
 # This script applies k0s version-specific patches to the codebase
-# Usage: ./scripts/apply-k0s-patches.sh <k0s_version>
+# Usage: ./scripts/apply-k0s-patches.sh <k0s_major_minor>
 # Example: ./scripts/apply-k0s-patches.sh 1.29
 
 source ./scripts/common.sh
 
-K0S_VERSION=${1:-}
-echo "Applying patches for k0s version $K0S_VERSION"
+K0S_MAJOR_MINOR=${1:-}
+echo "Applying patches for k0s version $K0S_MAJOR_MINOR"
 
-PATCH_DIR="patches/k0s-$K0S_VERSION"
+PATCH_DIR="patches/k0s-$K0S_MAJOR_MINOR"
 
 if [[ ! -d "$PATCH_DIR" ]]; then
-  echo "No patches directory found for k0s $K0S_VERSION at $PATCH_DIR"
+  echo "No patches directory found for k0s $K0S_MAJOR_MINOR at $PATCH_DIR"
   exit 1
 fi
 
@@ -37,7 +37,7 @@ for PATCH in $(find "$PATCH_DIR" -name "*.patch" | sort); do
   fi
 done
 
-echo "All patches for k0s $K0S_VERSION applied successfully"
+echo "All patches for k0s $K0S_MAJOR_MINOR applied successfully"
 
 # Update go.mod and go.sum
 echo "Running 'make go.mod' to update dependencies"
