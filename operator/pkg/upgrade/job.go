@@ -240,6 +240,8 @@ func CreateUpgradeJob(
 	if in.Spec.RuntimeConfig != nil {
 		hostCABundlePath = in.Spec.RuntimeConfig.HostCABundlePath
 	}
+	log.Info("Host CA bundle path", "path", hostCABundlePath)
+	log.Info("Installation Spec", "spec", in.Spec)
 
 	if hostCABundlePath != "" {
 		log.Info("Using host CA bundle from installation", "path", hostCABundlePath)
