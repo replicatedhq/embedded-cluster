@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -236,11 +235,16 @@ func CreateUpgradeJob(
 		},
 	}
 
-	// Add the host CA bundle volume, mount, and env var if SSL_CERT_DIR is set
-	hostCABundlePath := os.Getenv("SSL_CERT_DIR")
+	// Add the host CA bundle volume, mount, and env var if it's available in the installation
+	hostCABundlePath := ""
+	if in.Spec.RuntimeConfig != nil {
+		hostCABundlePath = in.Spec.RuntimeConfig.HostCABundlePath
+	}
+
 	if hostCABundlePath != "" {
-		log.Info("Using host CA bundle directory", "path", hostCABundlePath)
-		// Add the CA directory volume
+		log.Info("Using host CA bundle from installation", "path", hostCABundlePath)
+
+		// Add the CA bundle volume
 		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
 			Name: "host-ca-bundle",
 			VolumeSource: corev1.VolumeSource{
@@ -251,7 +255,7 @@ func CreateUpgradeJob(
 			},
 		})
 
-		// Add the CA directory mount
+		// Add the CA bundle mount
 		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(
 			job.Spec.Template.Spec.Containers[0].VolumeMounts,
 			corev1.VolumeMount{
@@ -269,10 +273,10 @@ func CreateUpgradeJob(
 			},
 		)
 	} else {
-		log := controllerruntime.LoggerFrom(ctx)
-		log.Info("SSL_CERT_DIR not set, no CA bundle will be used")
+		log.Info("No host CA bundle path found in installation, no CA bundle will be used")
 	}
 
+	// Create the job with all configuration in place
 	if err = cli.Create(ctx, job); err != nil {
 		return fmt.Errorf("failed to create upgrade job: %w", err)
 	}

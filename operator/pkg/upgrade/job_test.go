@@ -90,8 +90,8 @@ func TestCreateUpgradeJob_NodeAffinity(t *testing.T) {
 }
 
 func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
-	// Test with SSL_CERT_DIR set
-	t.Run("with SSL_CERT_DIR set", func(t *testing.T) {
+	// Test with HostCABundlePath set
+	t.Run("with HostCABundlePath set", func(t *testing.T) {
 		scheme := runtime.NewScheme()
 		require.NoError(t, ecv1beta1.AddToScheme(scheme))
 		require.NoError(t, batchv1.AddToScheme(scheme))
@@ -99,12 +99,9 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 
 		// Version used for testing
 		testVersion := "1.2.3"
-		testCAPath := "/etc/ssl/certs"
+		testCAPath := "/etc/ssl/certs/ca-certificates.crt"
 
-		// Set the environment variable for this test
-		t.Setenv("SSL_CERT_DIR", testCAPath)
-
-		// Create a minimal installation CR
+		// Create a minimal installation CR with RuntimeConfig.HostCABundlePath set
 		installation := &ecv1beta1.Installation{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-installation",
@@ -117,6 +114,9 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 					Domains: ecv1beta1.Domains{
 						ProxyRegistryDomain: "registry.example.com",
 					},
+				},
+				RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
+					HostCABundlePath: testCAPath,
 				},
 			},
 		}
@@ -158,7 +158,7 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 				hostCABundleVolumeFound = true
 				// Verify the volume properties
 				require.NotNil(t, volume.HostPath, "Host CA bundle volume should be a hostPath volume")
-				assert.Equal(t, testCAPath, volume.HostPath.Path, "Host CA bundle path should match SSL_CERT_DIR")
+				assert.Equal(t, testCAPath, volume.HostPath.Path, "Host CA bundle path should match RuntimeConfig.HostCABundlePath")
 				assert.Equal(t, corev1.HostPathFileOrCreate, *volume.HostPath.Type, "Host CA bundle type should be FileOrCreate")
 				break
 			}
@@ -200,8 +200,8 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 		assert.False(t, privateCasVolumeFound, "private-cas volume should not exist")
 	})
 
-	// Test without SSL_CERT_DIR set
-	t.Run("without SSL_CERT_DIR set", func(t *testing.T) {
+	// Test without HostCABundlePath set
+	t.Run("without HostCABundlePath set", func(t *testing.T) {
 		scheme := runtime.NewScheme()
 		require.NoError(t, ecv1beta1.AddToScheme(scheme))
 		require.NoError(t, batchv1.AddToScheme(scheme))
@@ -210,10 +210,7 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 		// Version used for testing
 		testVersion := "1.2.3"
 
-		// Ensure environment variable is not set
-		t.Setenv("SSL_CERT_DIR", "")
-
-		// Create a minimal installation CR
+		// Create a minimal installation CR without RuntimeConfig.HostCABundlePath
 		installation := &ecv1beta1.Installation{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-installation",
@@ -227,6 +224,7 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 						ProxyRegistryDomain: "registry.example.com",
 					},
 				},
+				// No RuntimeConfig or empty RuntimeConfig
 			},
 		}
 
@@ -268,7 +266,7 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 				break
 			}
 		}
-		assert.False(t, hostCABundleVolumeFound, "Host CA bundle volume should not exist when SSL_CERT_DIR is not set")
+		assert.False(t, hostCABundleVolumeFound, "Host CA bundle volume should not exist when HostCABundlePath is not set")
 
 		// Verify that the volume mount does NOT exist
 		var hostCABundleMountFound bool
@@ -278,7 +276,7 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 				break
 			}
 		}
-		assert.False(t, hostCABundleMountFound, "Host CA bundle mount should not exist when SSL_CERT_DIR is not set")
+		assert.False(t, hostCABundleMountFound, "Host CA bundle mount should not exist when HostCABundlePath is not set")
 
 		// Verify that the SSL_CERT_DIR environment variable does NOT exist
 		var sslCertDirEnvFound bool
@@ -288,7 +286,7 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 				break
 			}
 		}
-		assert.False(t, sslCertDirEnvFound, "SSL_CERT_DIR environment variable should not exist when SSL_CERT_DIR is not set")
+		assert.False(t, sslCertDirEnvFound, "SSL_CERT_DIR environment variable should not exist when HostCABundlePath is not set")
 
 		// Verify the "private-cas" volume does NOT exist
 		var privateCasVolumeFound bool
