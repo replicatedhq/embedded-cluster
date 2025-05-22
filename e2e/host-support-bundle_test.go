@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -10,19 +11,23 @@ import (
 func TestHostCollectSupportBundleInCluster(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA"})
+	RequireEnvVars(t, []string{
+		"APP_INSTALL_VERSION",
+		"EC_BINARY_PATH",
+	})
 
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bookworm",
 		LicensePath:  "licenses/license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
 
 	installSingleNodeWithOptions(t, tc, installOptions{
-		viaCLI: true,
+		version: os.Getenv("APP_INSTALL_VERSION"),
+		viaCLI:  true,
 	})
 
 	line := []string{"collect-support-bundle-host-in-cluster.sh"}

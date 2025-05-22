@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -9,11 +10,16 @@ import (
 
 func TestMaterialize(t *testing.T) {
 	t.Parallel()
+
+	RequireEnvVars(t, []string{
+		"EC_BINARY_PATH",
+	})
+
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bookworm",
-		ECBinaryPath: "../output/bin/embedded-cluster-original",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
 

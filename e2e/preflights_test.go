@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -11,12 +12,16 @@ import (
 func TestPreflights(t *testing.T) {
 	t.Parallel()
 
+	RequireEnvVars(t, []string{
+		"EC_BINARY_PATH",
+	})
+
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bookworm",
 		LicensePath:  "licenses/license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
 
@@ -191,12 +196,16 @@ func TestPreflights(t *testing.T) {
 func TestPreflightsNoexec(t *testing.T) {
 	t.Parallel()
 
+	RequireEnvVars(t, []string{
+		"EC_BINARY_PATH",
+	})
+
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bookworm",
 		LicensePath:  "licenses/license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
 

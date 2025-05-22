@@ -12,19 +12,22 @@ import (
 func TestCollectSupportBundle(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA"})
+	RequireEnvVars(t, []string{
+		"APP_INSTALL_VERSION",
+		"EC_BINARY_PATH",
+	})
 
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:            t,
 		Nodes:        1,
 		Distro:       "debian-bookworm",
 		LicensePath:  "licenses/license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "cli", os.Getenv("SHORT_SHA")}
+	line := []string{"single-node-install.sh", "cli", os.Getenv("APP_INSTALL_VERSION")}
 	stdout, stderr, err := tc.RunCommandOnNode(0, line)
 	assert.NoErrorf(t, err, "fail to install embedded-cluster: %v: %s: %s", err, stdout, stderr)
 
