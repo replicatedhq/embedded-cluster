@@ -125,7 +125,7 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 			return nil, fmt.Errorf("copy scripts to node %s: %v", nodes[i].ID, err)
 		}
 
-		if in.Nodes == 1 {
+		if i == 0 {
 			in.T.Logf("exposing port 30003 on node %s", nodes[i].ID)
 			hostname, err := exposePort(nodes[i], "30003")
 			if err != nil {
