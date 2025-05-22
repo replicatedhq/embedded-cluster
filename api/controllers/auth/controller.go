@@ -39,7 +39,7 @@ func NewAuthController(password string, opts ...AuthControllerOption) (*AuthCont
 
 func (c *AuthController) Authenticate(ctx context.Context, password string) (string, error) {
 	if password != c.password {
-		return "", nil
+		return "", fmt.Errorf("invalid password")
 	}
 
 	c.sessionToken = uuid.New().String()

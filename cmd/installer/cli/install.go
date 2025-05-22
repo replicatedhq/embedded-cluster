@@ -197,6 +197,10 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	// this does not return an error - it returns the previous umask
 	_ = syscall.Umask(0o022)
 
+	if err := ensureAdminConsolePassword(flags); err != nil {
+		return err
+	}
+
 	// license file can be empty for restore
 	if flags.licenseFile != "" {
 		// validate the the license is indeed a license file
@@ -223,7 +227,7 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	// TODO: implement guided UI
 	guidedUI := true
 	if guidedUI {
-		installConfig, err := preRunInstallAPI(cmd.Context())
+		installConfig, err := preRunInstallAPI(cmd.Context(), flags.adminConsolePassword)
 		if err != nil {
 			return fmt.Errorf("unable to start install API: %w", err)
 		}
@@ -310,7 +314,7 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	return nil
 }
 
-func preRunInstallAPI(ctx context.Context) (*apitypes.InstallationConfig, error) {
+func preRunInstallAPI(ctx context.Context, password string) (*apitypes.InstallationConfig, error) {
 	logger, err := api.NewLogger()
 	if err != nil {
 		logrus.Warnf("Unable to setup API logging: %v", err)
@@ -327,7 +331,7 @@ func preRunInstallAPI(ctx context.Context) (*apitypes.InstallationConfig, error)
 	apiCtx, apiCancel := context.WithCancel(ctx)
 	defer apiCancel()
 	go func() {
-		if err := runInstallAPI(apiCtx, listener, logger, configChan); err != nil {
+		if err := runInstallAPI(apiCtx, listener, logger, configChan, password); err != nil {
 			if !errors.Is(err, http.ErrServerClosed) {
 				logrus.Errorf("install API error: %v", err)
 			}
@@ -349,11 +353,11 @@ func preRunInstallAPI(ctx context.Context) (*apitypes.InstallationConfig, error)
 	return config, nil
 }
 
-func runInstallAPI(ctx context.Context, listener net.Listener, logger logrus.FieldLogger, configChan chan<- *apitypes.InstallationConfig) error {
+func runInstallAPI(ctx context.Context, listener net.Listener, logger logrus.FieldLogger, configChan chan<- *apitypes.InstallationConfig, password string) error {
 	router := mux.NewRouter()
 
 	api, err := api.New(
-		"password",
+		password,
 		api.WithLogger(logger),
 		api.WithConfigChan(configChan),
 	)
@@ -413,13 +417,10 @@ func waitForInstallAPI(ctx context.Context, addr string) error {
 }
 
 func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
+	// TODO: revert this
 	// if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
 	// 	return err
 	// }
-
-	if err := ensureAdminConsolePassword(&flags); err != nil {
-		return err
-	}
 
 	logrus.Debug("initializing install")
 	if err := initializeInstall(ctx, flags); err != nil {

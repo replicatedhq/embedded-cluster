@@ -46,7 +46,7 @@ func (a *API) postAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	sessionToken, err := a.authController.Authenticate(r.Context(), request.Password)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
