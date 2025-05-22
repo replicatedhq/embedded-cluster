@@ -24,7 +24,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.15.0
 	github.com/jedib0t/go-pretty/v6 v6.6.7
-	github.com/k0sproject/k0s v1.31.9-0.20250428141639-26a9908cf691
+	github.com/k0sproject/k0s v1.30.10-0.20250117153350-dcf3c22bb568
 	github.com/ohler55/ojg v1.26.3
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
