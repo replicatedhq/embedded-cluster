@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/api/models"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
@@ -61,7 +61,7 @@ func IsInstalled() (bool, error) {
 // WriteK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by runtimeconfig.PathToK0sConfig()). If a file already sits
 // there, this function returns an error.
-func WriteK0sConfig(ctx context.Context, installConfig models.InstallationConfig, airgapBundle string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+func WriteK0sConfig(ctx context.Context, installConfig apitypes.InstallationConfig, airgapBundle string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	cfgpath := runtimeconfig.PathToK0sConfig()
 	if _, err := os.Stat(cfgpath); err == nil {
 		return nil, fmt.Errorf("configuration file already exists")

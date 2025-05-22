@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/api/models"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/spf13/cobra"
 )
@@ -41,7 +41,7 @@ type CIDRConfig struct {
 // what are the CIDRs to be used for the cluster. If either
 // of --pod-cidr or --service-cidr have been set, they are used. Otherwise,
 // the cidr flag is used.
-func parseCIDRFlags(cmd *cobra.Command, installConfig *models.InstallationConfig) error {
+func parseCIDRFlags(cmd *cobra.Command, installConfig *apitypes.InstallationConfig) error {
 	if cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr") {
 		podCIDR, err := cmd.Flags().GetString("pod-cidr")
 		if err != nil {

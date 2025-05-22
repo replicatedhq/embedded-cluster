@@ -1,9 +1,10 @@
-package models
+package installation
 
 import (
 	"fmt"
 	"sync"
 
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	k0sconfig "github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -11,33 +12,33 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
-type InstallationConfigStore interface {
-	Read() (*InstallationConfig, error)
-	Write(cfg InstallationConfig) error
+type ConfigStore interface {
+	Read() (*types.InstallationConfig, error)
+	Write(cfg types.InstallationConfig) error
 }
 
-var _ InstallationConfigStore = &InstallationConfigMemoryStore{}
-var _ InstallationConfigStore = &InstallationConfigRuntimeConfigStore{}
+var _ ConfigStore = &ConfigMemoryStore{}
+var _ ConfigStore = &ConfigRuntimeConfigStore{}
 
-type InstallationConfigMemoryStore struct {
+type ConfigMemoryStore struct {
 	mu  sync.RWMutex
-	cfg *InstallationConfig
+	cfg *types.InstallationConfig
 }
 
-func NewInstallationConfigMemoryStore() *InstallationConfigMemoryStore {
-	return &InstallationConfigMemoryStore{
-		cfg: &InstallationConfig{},
+func NewConfigMemoryStore() *ConfigMemoryStore {
+	return &ConfigMemoryStore{
+		cfg: &types.InstallationConfig{},
 	}
 }
 
-func (s *InstallationConfigMemoryStore) Read() (*InstallationConfig, error) {
+func (s *ConfigMemoryStore) Read() (*types.InstallationConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	return s.cfg, nil
 }
 
-func (s *InstallationConfigMemoryStore) Write(cfg InstallationConfig) error {
+func (s *ConfigMemoryStore) Write(cfg types.InstallationConfig) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cfg = &cfg
@@ -45,11 +46,11 @@ func (s *InstallationConfigMemoryStore) Write(cfg InstallationConfig) error {
 	return nil
 }
 
-type InstallationConfigRuntimeConfigStore struct {
+type ConfigRuntimeConfigStore struct {
 	mu sync.RWMutex
 }
 
-func NewInstallationConfigRuntimeConfigStore() (*InstallationConfigRuntimeConfigStore, error) {
+func NewConfigRuntimeConfigStore() (*ConfigRuntimeConfigStore, error) {
 	runtimeConfig, err := runtimeconfig.ReadFromDisk()
 	if err != nil {
 		return nil, fmt.Errorf("read runtime config from disk: %w", err)
@@ -57,21 +58,21 @@ func NewInstallationConfigRuntimeConfigStore() (*InstallationConfigRuntimeConfig
 		runtimeconfig.Set(runtimeConfig)
 	}
 
-	return &InstallationConfigRuntimeConfigStore{}, nil
+	return &ConfigRuntimeConfigStore{}, nil
 }
 
-func (s *InstallationConfigRuntimeConfigStore) Read() (*InstallationConfig, error) {
+func (s *ConfigRuntimeConfigStore) Read() (*types.InstallationConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return runtimeConfigToInstallationConfig()
+	return runtimeConfigToConfig()
 }
 
-func (s *InstallationConfigRuntimeConfigStore) Write(cfg InstallationConfig) error {
+func (s *ConfigRuntimeConfigStore) Write(cfg types.InstallationConfig) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	err := applyInstallationConfigToRuntimeConfig(cfg)
+	err := applyConfigToRuntimeConfig(cfg)
 	if err != nil {
 		return fmt.Errorf("apply config to runtime config: %w", err)
 	}
@@ -84,8 +85,8 @@ func (s *InstallationConfigRuntimeConfigStore) Write(cfg InstallationConfig) err
 	return nil
 }
 
-func runtimeConfigToInstallationConfig() (*InstallationConfig, error) {
-	cfg := &InstallationConfig{}
+func runtimeConfigToConfig() (*types.InstallationConfig, error) {
+	cfg := &types.InstallationConfig{}
 
 	cfg.AdminConsolePort = runtimeconfig.AdminConsolePort()
 	cfg.AdminConsolePassword = runtimeconfig.AdminConsolePassword()
@@ -115,7 +116,7 @@ func runtimeConfigToInstallationConfig() (*InstallationConfig, error) {
 	return cfg, nil
 }
 
-func applyInstallationConfigToRuntimeConfig(config InstallationConfig) error {
+func applyConfigToRuntimeConfig(config types.InstallationConfig) error {
 	if config.DataDirectory != "" {
 		runtimeconfig.SetDataDir(config.DataDirectory)
 	}
@@ -157,7 +158,7 @@ func applyInstallationConfigToRuntimeConfig(config InstallationConfig) error {
 	return nil
 }
 
-func getProxySpecFromConfig(config InstallationConfig) (*ecv1beta1.ProxySpec, error) {
+func getProxySpecFromConfig(config types.InstallationConfig) (*ecv1beta1.ProxySpec, error) {
 	if config.HTTPProxy == "" && config.HTTPSProxy == "" && config.NoProxy == "" {
 		return nil, nil
 	}
@@ -178,7 +179,7 @@ func getProxySpecFromConfig(config InstallationConfig) (*ecv1beta1.ProxySpec, er
 	return &proxySpec, nil
 }
 
-func getNetworkSpecFromConfig(config InstallationConfig) (*ecv1beta1.NetworkSpec, error) {
+func getNetworkSpecFromConfig(config types.InstallationConfig) (*ecv1beta1.NetworkSpec, error) {
 	nodePortRange, err := getNodePortRangeFromConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("get node port range: %w", err)
@@ -193,7 +194,7 @@ func getNetworkSpecFromConfig(config InstallationConfig) (*ecv1beta1.NetworkSpec
 	}, nil
 }
 
-func getNodePortRangeFromConfig(config InstallationConfig) (string, error) {
+func getNodePortRangeFromConfig(config types.InstallationConfig) (string, error) {
 	cfg := k0sconfig.RenderK0sConfig("")
 
 	embcfg := release.GetEmbeddedClusterConfig()
@@ -226,7 +227,7 @@ func getNodePortRangeFromConfig(config InstallationConfig) (string, error) {
 	return k0sconfig.DefaultServiceNodePortRange, nil
 }
 
-func getEndUserK0sConfigOverridesFromConfig(config InstallationConfig) (string, error) {
+func getEndUserK0sConfigOverridesFromConfig(config types.InstallationConfig) (string, error) {
 	if config.EndUserConfigOverrides == "" {
 		return "", nil
 	}

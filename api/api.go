@@ -1,12 +1,15 @@
 package api
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
+	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 type API struct {
@@ -56,4 +59,12 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	installRouter.HandleFunc("/", a.getInstall).Methods("GET")
 	installRouter.HandleFunc("/phase/set-config", a.postInstallPhaseSetConfig).Methods("POST")
 	installRouter.HandleFunc("/phase/start", a.postInstallPhaseStart).Methods("POST")
+}
+
+func handleError(w http.ResponseWriter, err error) {
+	var apiErr *types.APIError
+	if !errors.As(err, &apiErr) {
+		apiErr = types.NewInternalServerError(err)
+	}
+	apiErr.JSON(w)
 }

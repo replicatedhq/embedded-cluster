@@ -21,7 +21,7 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/api"
 	installclient "github.com/replicatedhq/embedded-cluster/api/client/install"
-	"github.com/replicatedhq/embedded-cluster/api/models"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -74,7 +74,7 @@ type installCmdFlags struct {
 
 // InstallCmd returns a cobra command for installing the embedded cluster.
 func InstallCmd(ctx context.Context, name string) *cobra.Command {
-	var installConfig models.InstallationConfig
+	var installConfig apitypes.InstallationConfig
 	var cliFlags installCmdFlags
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -135,7 +135,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func addInstallConfigFlags(cmd *cobra.Command, installConfig *models.InstallationConfig) error {
+func addInstallConfigFlags(cmd *cobra.Command, installConfig *apitypes.InstallationConfig) error {
 	cmd.Flags().StringVar(&installConfig.DataDirectory, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	cmd.Flags().IntVar(&installConfig.LocalArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&installConfig.NetworkInterface, "network-interface", "", "The network interface to use for the cluster")
@@ -186,7 +186,7 @@ func addInstallCmdFlags(cmd *cobra.Command, cliFlags *installCmdFlags) error {
 	return nil
 }
 
-func preRunInstall(cmd *cobra.Command, installConfig *models.InstallationConfig, cliFlags *installCmdFlags) error {
+func preRunInstall(cmd *cobra.Command, installConfig *apitypes.InstallationConfig, cliFlags *installCmdFlags) error {
 	if os.Getuid() != 0 {
 		return fmt.Errorf("install command must be run as root")
 	}
@@ -285,7 +285,7 @@ func waitForInstallAPI(ctx context.Context, addr string) error {
 	}
 }
 
-func initializeInstallAPIConfig(in models.InstallationConfig, addr string) (*models.InstallationConfig, error) {
+func initializeInstallAPIConfig(in apitypes.InstallationConfig, addr string) (*apitypes.InstallationConfig, error) {
 	client := installclient.New(fmt.Sprintf("http://%s/api", addr))
 
 	install, err := client.InstallPhaseSetConfig(in)
@@ -323,7 +323,7 @@ func initEnvironmentFromRuntimeConfig() {
 	}
 }
 
-func runInstall(ctx context.Context, name string, inInstallConfig models.InstallationConfig, cliFlags installCmdFlags, metricsReporter preflights.MetricsReporter) error {
+func runInstall(ctx context.Context, name string, inInstallConfig apitypes.InstallationConfig, cliFlags installCmdFlags, metricsReporter preflights.MetricsReporter) error {
 	logger, err := api.NewLogger()
 	if err != nil {
 		logrus.Warnf("Unable to setup API logging: %v", err)
@@ -350,7 +350,7 @@ func runInstall(ctx context.Context, name string, inInstallConfig models.Install
 	return doInstall(ctx, name, *installConfig, cliFlags, metricsReporter)
 }
 
-func doInstall(ctx context.Context, name string, installConfig models.InstallationConfig, cliFlags installCmdFlags, metricsReporter preflights.MetricsReporter) error {
+func doInstall(ctx context.Context, name string, installConfig apitypes.InstallationConfig, cliFlags installCmdFlags, metricsReporter preflights.MetricsReporter) error {
 	if err := runInstallVerifyAndPrompt(ctx, name, installConfig, cliFlags); err != nil {
 		return err
 	}
@@ -478,7 +478,7 @@ func doInstall(ctx context.Context, name string, installConfig models.Installati
 	return nil
 }
 
-func runInstallVerifyAndPrompt(ctx context.Context, name string, installConfig models.InstallationConfig, cliFlags installCmdFlags) error {
+func runInstallVerifyAndPrompt(ctx context.Context, name string, installConfig apitypes.InstallationConfig, cliFlags installCmdFlags) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "reinstall")
 	if err != nil {
@@ -523,7 +523,7 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, installConfig m
 	return nil
 }
 
-func ensureAdminConsolePassword(installConfig *models.InstallationConfig, cliFlags *installCmdFlags) error {
+func ensureAdminConsolePassword(installConfig *apitypes.InstallationConfig, cliFlags *installCmdFlags) error {
 	if installConfig.AdminConsolePassword == "" {
 		// no password was provided
 		if cliFlags.assumeYes {
@@ -670,7 +670,7 @@ func verifyNoInstallation(name string, cmdName string) error {
 	return nil
 }
 
-func initializeInstall(ctx context.Context, installConfig models.InstallationConfig, cliFlags installCmdFlags) error {
+func initializeInstall(ctx context.Context, installConfig apitypes.InstallationConfig, cliFlags installCmdFlags) error {
 	logrus.Info("")
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
@@ -738,7 +738,7 @@ func materializeFiles(airgapBundle string) error {
 }
 
 func installAndStartCluster(
-	ctx context.Context, installConfig models.InstallationConfig, airgapBundle string,
+	ctx context.Context, installConfig apitypes.InstallationConfig, airgapBundle string,
 	mutate func(*k0sv1beta1.ClusterConfig) error,
 ) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
@@ -1125,7 +1125,7 @@ func waitForNode(ctx context.Context) error {
 
 func recordInstallation(
 	ctx context.Context, kcli client.Client,
-	installConfig models.InstallationConfig, cliFlags installCmdFlags,
+	installConfig apitypes.InstallationConfig, cliFlags installCmdFlags,
 	k0sCfg *k0sv1beta1.ClusterConfig,
 ) (*ecv1beta1.Installation, error) {
 	// ensure that the embedded-cluster namespace exists

@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/replicatedhq/embedded-cluster/api/models"
+	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 type APIError struct {
@@ -26,9 +26,9 @@ var defaultHTTPClient = &http.Client{
 }
 
 type Client interface {
-	GetInstall() (*models.Install, error)
-	InstallPhaseSetConfig(config models.InstallationConfig) (*models.Install, error)
-	InstallPhaseStart() (*models.Install, error)
+	GetInstall() (*types.Install, error)
+	InstallPhaseSetConfig(config types.InstallationConfig) (*types.Install, error)
+	InstallPhaseStart() (*types.Install, error)
 }
 
 type client struct {
@@ -59,7 +59,7 @@ func New(apiURL string, opts ...ClientOption) Client {
 	return c
 }
 
-func (c *client) GetInstall() (*models.Install, error) {
+func (c *client) GetInstall() (*types.Install, error) {
 	req, err := http.NewRequest("GET", c.apiURL, nil)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (c *client) GetInstall() (*models.Install, error) {
 		return nil, errorFromResponse(resp)
 	}
 
-	var install models.Install
+	var install types.Install
 	err = json.NewDecoder(resp.Body).Decode(&install)
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (c *client) GetInstall() (*models.Install, error) {
 	return &install, nil
 }
 
-func (c *client) InstallPhaseSetConfig(config models.InstallationConfig) (*models.Install, error) {
+func (c *client) InstallPhaseSetConfig(config types.InstallationConfig) (*types.Install, error) {
 	b, err := json.Marshal(config)
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func (c *client) InstallPhaseSetConfig(config models.InstallationConfig) (*model
 		return nil, errorFromResponse(resp)
 	}
 
-	var install models.Install
+	var install types.Install
 	err = json.NewDecoder(resp.Body).Decode(&install)
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func (c *client) InstallPhaseSetConfig(config models.InstallationConfig) (*model
 	return &install, nil
 }
 
-func (c *client) InstallPhaseStart() (*models.Install, error) {
+func (c *client) InstallPhaseStart() (*types.Install, error) {
 	req, err := http.NewRequest("POST", c.apiURL+"/phase/start", nil)
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func (c *client) InstallPhaseStart() (*models.Install, error) {
 		return nil, errorFromResponse(resp)
 	}
 
-	var install models.Install
+	var install types.Install
 	err = json.NewDecoder(resp.Body).Decode(&install)
 	if err != nil {
 		return nil, err

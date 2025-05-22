@@ -7,7 +7,7 @@ import (
 	"net"
 
 	"github.com/replicatedhq/embedded-cluster/api"
-	"github.com/replicatedhq/embedded-cluster/api/models"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
@@ -17,7 +17,7 @@ import (
 )
 
 func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
-	var installConfig models.InstallationConfig
+	var installConfig apitypes.InstallationConfig
 	var cliFlags installCmdFlags
 
 	cmd := &cobra.Command{
@@ -53,7 +53,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runInstallRunPreflights(ctx context.Context, name string, inInstallConfig models.InstallationConfig, cliFlags installCmdFlags) error {
+func runInstallRunPreflights(ctx context.Context, name string, inInstallConfig apitypes.InstallationConfig, cliFlags installCmdFlags) error {
 	logger, err := api.NewLogger()
 	if err != nil {
 		logrus.Warnf("Unable to setup API logging: %v", err)
@@ -80,7 +80,7 @@ func runInstallRunPreflights(ctx context.Context, name string, inInstallConfig m
 	return doRunInstallRunPreflights(ctx, name, *installConfig, cliFlags)
 }
 
-func doRunInstallRunPreflights(ctx context.Context, name string, installConfig models.InstallationConfig, cliFlags installCmdFlags) error {
+func doRunInstallRunPreflights(ctx context.Context, name string, installConfig apitypes.InstallationConfig, cliFlags installCmdFlags) error {
 	if err := runInstallVerifyAndPrompt(ctx, name, installConfig, cliFlags); err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func doRunInstallRunPreflights(ctx context.Context, name string, installConfig m
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, installConfig models.InstallationConfig, cliFlags installCmdFlags, metricsReported preflights.MetricsReporter) error {
+func runInstallPreflights(ctx context.Context, installConfig apitypes.InstallationConfig, cliFlags installCmdFlags, metricsReported preflights.MetricsReporter) error {
 	replicatedAppURL := replicatedAppURL()
 	proxyRegistryURL := proxyRegistryURL()
 

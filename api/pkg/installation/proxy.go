@@ -1,17 +1,18 @@
-package models
+package installation
 
 import (
 	"fmt"
 	"net"
 	"strings"
 
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
-// NetworkLookup defines the interface for network lookups
-type NetworkLookup interface {
+// networkLookup defines the interface for network lookups
+type networkLookup interface {
 	FirstValidIPNet(networkInterface string) (*net.IPNet, error)
 }
 
@@ -21,16 +22,16 @@ func (d *defaultNetworkLookup) FirstValidIPNet(networkInterface string) (*net.IP
 	return netutils.FirstValidIPNet(networkInterface)
 }
 
-var defaultNetworkLookupImpl NetworkLookup = &defaultNetworkLookup{}
+var defaultNetworkLookupImpl networkLookup = &defaultNetworkLookup{}
 
-func getNetworkIPNet(networkInterface string, lookup NetworkLookup) (*net.IPNet, error) {
+func getNetworkIPNet(networkInterface string, lookup networkLookup) (*net.IPNet, error) {
 	if lookup == nil {
 		lookup = defaultNetworkLookupImpl
 	}
 	return lookup.FirstValidIPNet(networkInterface)
 }
 
-func combineNoProxySuppliedValuesAndDefaults(config InstallationConfig, proxy ecv1beta1.ProxySpec, lookup NetworkLookup) (string, error) {
+func combineNoProxySuppliedValuesAndDefaults(config types.InstallationConfig, proxy ecv1beta1.ProxySpec, lookup networkLookup) (string, error) {
 	// Start with runtime defaults
 	noProxy := runtimeconfig.DefaultNoProxy
 

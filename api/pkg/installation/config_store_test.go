@@ -1,9 +1,10 @@
-package models
+package installation
 
 import (
 	"net"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,22 +21,22 @@ func (m *mockNetworkLookup) FirstValidIPNet(networkInterface string) (*net.IPNet
 // TODO: move to api package
 func Test_getProxySpecFromConfig(t *testing.T) {
 	tests := []struct {
-		name               string
-		installationConfig *InstallationConfig
-		init               func(t *testing.T)
-		want               *ecv1beta1.ProxySpec
+		name   string
+		config *types.InstallationConfig
+		init   func(t *testing.T)
+		want   *ecv1beta1.ProxySpec
 	}{
 		{
-			name:               "config empty and no env vars should not set proxy",
-			installationConfig: &InstallationConfig{},
+			name:   "config empty and no env vars should not set proxy",
+			config: &types.InstallationConfig{},
 			init: func(t *testing.T) {
 				// No env vars
 			},
 			want: nil,
 		},
 		{
-			name:               "lowercase env vars should be used when config is empty",
-			installationConfig: &InstallationConfig{},
+			name:   "lowercase env vars should be used when config is empty",
+			config: &types.InstallationConfig{},
 			init: func(t *testing.T) {
 				t.Setenv("http_proxy", "http://lower-proxy")
 				t.Setenv("https_proxy", "https://lower-proxy")
@@ -49,8 +50,8 @@ func Test_getProxySpecFromConfig(t *testing.T) {
 			},
 		},
 		{
-			name:               "uppercase env vars should be used when config is empty and no lowercase vars",
-			installationConfig: &InstallationConfig{},
+			name:   "uppercase env vars should be used when config is empty and no lowercase vars",
+			config: &types.InstallationConfig{},
 			init: func(t *testing.T) {
 				t.Setenv("HTTP_PROXY", "http://upper-proxy")
 				t.Setenv("HTTPS_PROXY", "https://upper-proxy")
@@ -64,8 +65,8 @@ func Test_getProxySpecFromConfig(t *testing.T) {
 			},
 		},
 		{
-			name:               "lowercase should take precedence over uppercase",
-			installationConfig: &InstallationConfig{},
+			name:   "lowercase should take precedence over uppercase",
+			config: &types.InstallationConfig{},
 			init: func(t *testing.T) {
 				t.Setenv("http_proxy", "http://lower-proxy")
 				t.Setenv("https_proxy", "https://lower-proxy")
@@ -83,7 +84,7 @@ func Test_getProxySpecFromConfig(t *testing.T) {
 		},
 		{
 			name: "config should override env vars",
-			installationConfig: &InstallationConfig{
+			config: &types.InstallationConfig{
 				HTTPProxy:  "http://flag-proxy",
 				HTTPSProxy: "https://flag-proxy",
 				NoProxy:    "flag-no-proxy-1,flag-no-proxy-2",
@@ -105,7 +106,7 @@ func Test_getProxySpecFromConfig(t *testing.T) {
 		},
 		{
 			name: "pod and service CIDR should override default no proxy",
-			installationConfig: &InstallationConfig{
+			config: &types.InstallationConfig{
 				HTTPProxy:   "http://flag-proxy",
 				HTTPSProxy:  "https://flag-proxy",
 				NoProxy:     "flag-no-proxy-1,flag-no-proxy-2",
@@ -124,7 +125,7 @@ func Test_getProxySpecFromConfig(t *testing.T) {
 		},
 		{
 			name: "global cidr should be present in the no-proxy",
-			installationConfig: &InstallationConfig{
+			config: &types.InstallationConfig{
 				HTTPProxy:  "http://flag-proxy",
 				HTTPSProxy: "https://flag-proxy",
 				NoProxy:    "flag-no-proxy-1,flag-no-proxy-2",
@@ -142,7 +143,7 @@ func Test_getProxySpecFromConfig(t *testing.T) {
 		},
 		{
 			name: "partial env vars with partial config",
-			installationConfig: &InstallationConfig{
+			config: &types.InstallationConfig{
 				// Only set https-proxy flag
 				HTTPSProxy: "https://flag-proxy",
 			},
@@ -168,11 +169,11 @@ func Test_getProxySpecFromConfig(t *testing.T) {
 			// Override the network lookup with our mock
 			defaultNetworkLookupImpl = &mockNetworkLookup{}
 
-			err := tt.installationConfig.setCIDRDefaults()
+			err := configSetCIDRDefaults(tt.config)
 			require.NoError(t, err, "unexpected error setting cidr defaults")
-			tt.installationConfig.setProxyDefaults()
+			configSetProxyDefaults(tt.config)
 
-			got, err := getProxySpecFromConfig(*tt.installationConfig)
+			got, err := getProxySpecFromConfig(*tt.config)
 			require.NoError(t, err, "unexpected error getting proxy spec")
 			assert.Equal(t, tt.want, got)
 		})

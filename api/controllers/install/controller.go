@@ -4,67 +4,83 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster/api/models"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/installation"
+	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 type Controller interface {
-	Get(ctx context.Context) (*models.Install, error)
-	SetConfig(ctx context.Context, config models.InstallationConfig) error
+	Get(ctx context.Context) (*types.Install, error)
+	SetConfig(ctx context.Context, config *types.InstallationConfig) error
 	StartInstall(ctx context.Context) error
 }
 
 var _ Controller = &InstallController{}
 
 type InstallController struct {
-	installationConfigStore models.InstallationConfigStore
+	configStore installation.ConfigStore
 }
 
-func NewInstallController() (*InstallController, error) {
-	installationConfigStore, err := models.NewInstallationConfigRuntimeConfigStore()
-	if err != nil {
-		return nil, fmt.Errorf("new installation config store: %w", err)
+type InstallControllerOption func(*InstallController)
+
+func WithConfigStore(configStore installation.ConfigStore) InstallControllerOption {
+	return func(c *InstallController) {
+		c.configStore = configStore
+	}
+}
+
+func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
+	controller := &InstallController{}
+
+	for _, opt := range opts {
+		opt(controller)
 	}
 
-	return &InstallController{
-		installationConfigStore: installationConfigStore,
-	}, nil
+	if controller.configStore == nil {
+		configStore, err := installation.NewConfigRuntimeConfigStore()
+		if err != nil {
+			return nil, fmt.Errorf("new installation config store: %w", err)
+		}
+		controller.configStore = configStore
+	}
+
+	return controller, nil
 }
 
-func (c *InstallController) Get(ctx context.Context) (*models.Install, error) {
-	config, err := c.installationConfigStore.Read()
+func (c *InstallController) Get(ctx context.Context) (*types.Install, error) {
+	config, err := c.configStore.Read()
 	if err != nil {
 		return nil, err
 	}
 
-	err = config.SetDefaults()
+	err = installation.ConfigSetDefaults(config)
 	if err != nil {
 		return nil, fmt.Errorf("set defaults: %w", err)
 	}
 
-	err = config.Validate()
+	err = installation.ConfigValidate(config)
 	if err != nil {
 		return nil, fmt.Errorf("validate: %w", err)
 	}
 
-	install := &models.Install{
+	install := &types.Install{
 		Config: *config,
 	}
 
 	return install, nil
 }
 
-func (c *InstallController) SetConfig(ctx context.Context, config models.InstallationConfig) error {
-	err := config.SetDefaults()
+func (c *InstallController) SetConfig(ctx context.Context, config *types.InstallationConfig) error {
+	err := installation.ConfigSetDefaults(config)
 	if err != nil {
 		return fmt.Errorf("set defaults: %w", err)
 	}
 
-	err = config.Validate()
+	err = installation.ConfigValidate(config)
 	if err != nil {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	err = c.installationConfigStore.Write(config)
+	err = c.configStore.Write(*config)
 	if err != nil {
 		return fmt.Errorf("write: %w", err)
 	}

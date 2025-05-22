@@ -1,6 +1,8 @@
-package models
+package types
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	InstallStatusRunning   InstallStatus = "Running"

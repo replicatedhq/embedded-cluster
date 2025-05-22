@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/replicatedhq/embedded-cluster/api/models"
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -17,7 +17,7 @@ func (a *API) getInstall(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
 			Error("failed to get installation")
-		NewInternalServerError(err).JSON(w)
+		handleError(w, err)
 		return
 	}
 
@@ -27,18 +27,18 @@ func (a *API) getInstall(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) postInstallPhaseSetConfig(w http.ResponseWriter, r *http.Request) {
-	var config models.InstallationConfig
+	var config types.InstallationConfig
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
 		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
 			Info("failed to decode installation config")
-		NewBadRequestError(err).JSON(w)
+		types.NewBadRequestError(err).JSON(w)
 		return
 	}
 
-	if err := a.installController.SetConfig(r.Context(), config); err != nil {
+	if err := a.installController.SetConfig(r.Context(), &config); err != nil {
 		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
 			Error("failed to set installation config")
-		NewInternalServerError(err).JSON(w)
+		handleError(w, err)
 		return
 	}
 
@@ -49,7 +49,7 @@ func (a *API) postInstallPhaseStart(w http.ResponseWriter, r *http.Request) {
 	if err := a.installController.StartInstall(r.Context()); err != nil {
 		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
 			Error("failed to start installation")
-		NewInternalServerError(err).JSON(w)
+		handleError(w, err)
 		return
 	}
 

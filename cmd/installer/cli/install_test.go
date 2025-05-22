@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/api"
-	"github.com/replicatedhq/embedded-cluster/api/models"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -112,7 +112,7 @@ func Test_ensureAdminConsolePassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			installConfig := &models.InstallationConfig{
+			installConfig := &apitypes.InstallationConfig{
 				AdminConsolePassword: tt.userPassword,
 			}
 			cliFlags := &installCmdFlags{

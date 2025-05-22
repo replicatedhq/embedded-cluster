@@ -20,7 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/api"
-	"github.com/replicatedhq/embedded-cluster/api/models"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -88,7 +88,7 @@ const (
 )
 
 func RestoreCmd(ctx context.Context, name string) *cobra.Command {
-	var installConfig models.InstallationConfig
+	var installConfig apitypes.InstallationConfig
 	var cliFlags installCmdFlags
 
 	var s3Store s3BackupStore
@@ -129,7 +129,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func addRestoreInstallConfigFlags(cmd *cobra.Command, installConfig *models.InstallationConfig) error {
+func addRestoreInstallConfigFlags(cmd *cobra.Command, installConfig *apitypes.InstallationConfig) error {
 	cmd.Flags().StringVar(&installConfig.DataDirectory, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	cmd.Flags().IntVar(&installConfig.LocalArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&installConfig.NetworkInterface, "network-interface", "", "The network interface to use for the cluster")
@@ -170,7 +170,7 @@ func addRestoreCmdFlags(cmd *cobra.Command, cliFlags *installCmdFlags) error {
 	return nil
 }
 
-func runRestore(ctx context.Context, name string, inInstallConfig models.InstallationConfig, cliFlags installCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
+func runRestore(ctx context.Context, name string, inInstallConfig apitypes.InstallationConfig, cliFlags installCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
 	logger, err := api.NewLogger()
 	if err != nil {
 		logrus.Warnf("Unable to setup API logging: %v", err)
@@ -197,7 +197,7 @@ func runRestore(ctx context.Context, name string, inInstallConfig models.Install
 	return doRestore(ctx, name, *installConfig, cliFlags, s3Store, skipStoreValidation)
 }
 
-func doRestore(ctx context.Context, name string, installConfig models.InstallationConfig, cliFlags installCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
+func doRestore(ctx context.Context, name string, installConfig apitypes.InstallationConfig, cliFlags installCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
 	isAirgap := cliFlags.airgapBundle != ""
 
 	if err := verifyChannelRelease("restore", isAirgap, cliFlags.assumeYes); err != nil {
@@ -418,7 +418,7 @@ func doRestore(ctx context.Context, name string, installConfig models.Installati
 	return nil
 }
 
-func runRestoreStepNew(ctx context.Context, name string, installConfig models.InstallationConfig, cliFlags installCmdFlags, s3Store *s3BackupStore, skipStoreValidation bool) error {
+func runRestoreStepNew(ctx context.Context, name string, installConfig apitypes.InstallationConfig, cliFlags installCmdFlags, s3Store *s3BackupStore, skipStoreValidation bool) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "restore")
 	if err != nil {
@@ -620,7 +620,7 @@ func runRestoreWaitForNodes(ctx context.Context, backupToRestore *disasterrecove
 	return nil
 }
 
-func runRestoreEnableAdminConsoleHA(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup, installConfig models.InstallationConfig, isAirgap bool) error {
+func runRestoreEnableAdminConsoleHA(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup, installConfig apitypes.InstallationConfig, isAirgap bool) error {
 	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
 	if err != nil {
 		return err
