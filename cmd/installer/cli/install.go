@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -14,12 +16,16 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2/terminal"
+	"github.com/gorilla/mux"
 	"github.com/gosimple/slug"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/api"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
+	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
@@ -44,6 +50,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -73,7 +80,7 @@ type InstallCmdFlags struct {
 
 	license *kotsv1beta1.License
 	proxy   *ecv1beta1.ProxySpec
-	cidrCfg *CIDRConfig
+	cidrCfg *newconfig.CIDRConfig
 }
 
 // InstallCmd returns a cobra command for installing the embedded cluster.
@@ -190,31 +197,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	// this does not return an error - it returns the previous umask
 	_ = syscall.Umask(0o022)
 
-	p, err := parseProxyFlags(cmd)
-	if err != nil {
-		return err
-	}
-	flags.proxy = p
-
-	if err := validateCIDRFlags(cmd); err != nil {
-		return err
-	}
-
-	// parse the various cidr flags to make sure we have exactly what we want
-	cidrCfg, err := getCIDRConfig(cmd)
-	if err != nil {
-		return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
-	}
-	flags.cidrCfg = cidrCfg
-
-	// if a network interface flag was not provided, attempt to discover it
-	if flags.networkInterface == "" {
-		autoInterface, err := determineBestNetworkInterface()
-		if err == nil {
-			flags.networkInterface = autoInterface
-		}
-	}
-
 	// license file can be empty for restore
 	if flags.licenseFile != "" {
 		// validate the the license is indeed a license file
@@ -238,7 +220,72 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 
 	flags.isAirgap = flags.airgapBundle != ""
 
-	runtimeconfig.ApplyFlags(cmd.Flags())
+	// TODO: implement guided UI
+	guidedUI := true
+	if guidedUI {
+		installConfig, err := preRunInstallAPI(cmd.Context())
+		if err != nil {
+			return fmt.Errorf("unable to start install API: %w", err)
+		}
+
+		proxy, err := newconfig.GetProxySpec(
+			installConfig.HTTPProxy,
+			installConfig.HTTPSProxy,
+			installConfig.NoProxy,
+			installConfig.PodCIDR,
+			installConfig.ServiceCIDR,
+			installConfig.NetworkInterface,
+			nil,
+		)
+		if err != nil {
+			return fmt.Errorf("unable to get proxy spec: %w", err)
+		}
+		flags.proxy = proxy
+
+		flags.cidrCfg = &newconfig.CIDRConfig{
+			PodCIDR:     installConfig.PodCIDR,
+			ServiceCIDR: installConfig.ServiceCIDR,
+		}
+		if installConfig.GlobalCIDR != "" {
+			flags.cidrCfg.GlobalCIDR = &installConfig.GlobalCIDR
+		}
+
+		flags.networkInterface = installConfig.NetworkInterface
+		flags.adminConsolePort = installConfig.AdminConsolePort
+		flags.dataDir = installConfig.DataDirectory
+		flags.localArtifactMirrorPort = installConfig.LocalArtifactMirrorPort
+
+		runtimeconfig.SetDataDir(installConfig.DataDirectory)
+		runtimeconfig.SetLocalArtifactMirrorPort(installConfig.LocalArtifactMirrorPort)
+		runtimeconfig.SetAdminConsolePort(installConfig.AdminConsolePort)
+	} else {
+		proxy, err := parseProxyFlags(cmd)
+		if err != nil {
+			return err
+		}
+		flags.proxy = proxy
+
+		if err := validateCIDRFlags(cmd); err != nil {
+			return err
+		}
+
+		// parse the various cidr flags to make sure we have exactly what we want
+		cidrCfg, err := getCIDRConfig(cmd)
+		if err != nil {
+			return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+		}
+		flags.cidrCfg = cidrCfg
+
+		// if a network interface flag was not provided, attempt to discover it
+		if flags.networkInterface == "" {
+			autoInterface, err := newconfig.DetermineBestNetworkInterface()
+			if err == nil {
+				flags.networkInterface = autoInterface
+			}
+		}
+
+		runtimeconfig.ApplyFlags(cmd.Flags())
+	}
 
 	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig()) // this is needed for restore as well since it shares this function
 	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
@@ -263,10 +310,103 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	return nil
 }
 
-func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
-	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
-		return err
+func preRunInstallAPI(ctx context.Context) (*apitypes.InstallationConfig, error) {
+	logger, err := api.NewLogger()
+	if err != nil {
+		logrus.Warnf("Unable to setup API logging: %v", err)
 	}
+
+	listener, err := net.Listen("tcp", ":30080") // TODO: make this configurable
+	if err != nil {
+		return nil, fmt.Errorf("unable to create listener: %w", err)
+	}
+
+	configChan := make(chan *apitypes.InstallationConfig)
+	defer close(configChan)
+
+	apiCtx, apiCancel := context.WithCancel(ctx)
+	defer apiCancel()
+	go runInstallAPI(apiCtx, listener, logger, configChan)
+
+	if err := waitForInstallAPI(apiCtx, listener.Addr().String()); err != nil {
+		return nil, fmt.Errorf("unable to wait for install API: %w", err)
+	}
+
+	// TODO: fix this message to have the correct address
+	fmt.Println("Visit http://localhost:30080/ to configure your cluster")
+
+	config, ok := <-configChan
+	if !ok {
+		return nil, fmt.Errorf("install API closed channel")
+	}
+
+	return config, nil
+}
+
+func runInstallAPI(ctx context.Context, listener net.Listener, logger logrus.FieldLogger, configChan chan<- *apitypes.InstallationConfig) error {
+	router := mux.NewRouter()
+
+	api, err := api.New(
+		api.WithLogger(logger),
+		api.WithConfigChan(configChan),
+	)
+	if err != nil {
+		return fmt.Errorf("new api: %w", err)
+	}
+	api.RegisterRoutes(router.PathPrefix("/api").Subrouter())
+
+	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}).Methods("GET")
+
+	webFs := http.FileServer(http.FS(web.Fs()))
+	router.PathPrefix("/").Methods("GET").Handler(webFs)
+
+	server := &http.Server{
+		Handler: router,
+	}
+
+	go func() {
+		<-ctx.Done()
+		logrus.Debugf("Shutting down install API")
+		server.Shutdown(context.Background())
+	}()
+
+	logrus.Debugf("Install API listening on %s", listener.Addr().String())
+	return server.Serve(listener)
+}
+
+func waitForInstallAPI(ctx context.Context, addr string) error {
+	httpClient := http.Client{
+		Timeout: 2 * time.Second,
+		Transport: &http.Transport{
+			Proxy: nil,
+		},
+	}
+	timeout := time.After(10 * time.Second)
+	var lastErr error
+	for {
+		select {
+		case <-timeout:
+			if lastErr != nil {
+				return fmt.Errorf("install API did not start in time: %w", lastErr)
+			}
+			return fmt.Errorf("install API did not start in time")
+		case <-time.Tick(1 * time.Second):
+			resp, err := httpClient.Get(fmt.Sprintf("http://%s/health", addr))
+			if err != nil {
+				lastErr = fmt.Errorf("unable to connect to install API: %w", err)
+			} else if resp.StatusCode == http.StatusOK {
+				return nil
+			}
+		}
+	}
+}
+
+func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
+	// if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
+	// 	return err
+	// }
 
 	if err := ensureAdminConsolePassword(&flags); err != nil {
 		return err
@@ -651,7 +791,7 @@ func materializeFiles(airgapBundle string) error {
 	return nil
 }
 
-func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, proxy *ecv1beta1.ProxySpec, cidrCfg *newconfig.CIDRConfig, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	loading.Infof("Installing node")
 	logrus.Debugf("creating k0s configuration file")
