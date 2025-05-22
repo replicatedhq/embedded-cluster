@@ -27,10 +27,6 @@ type InstallationConfig struct {
 }
 
 func (c *InstallationConfig) Validate() error {
-	if c.AdminConsolePassword == "" {
-		return errors.New("adminConsolePassword is required")
-	}
-
 	if err := c.validateCIDR(); err != nil {
 		return err
 	}

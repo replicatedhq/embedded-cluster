@@ -17,7 +17,7 @@ func (a *API) getInstall(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
 			Error("failed to get installation")
-		NewInternalServerError(err).Text(w)
+		NewInternalServerError(err).JSON(w)
 		return
 	}
 
@@ -38,7 +38,7 @@ func (a *API) postInstallPhaseSetConfig(w http.ResponseWriter, r *http.Request) 
 	if err := a.installController.SetConfig(r.Context(), config); err != nil {
 		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
 			Error("failed to set installation config")
-		NewInternalServerError(err).Text(w)
+		NewInternalServerError(err).JSON(w)
 		return
 	}
 
@@ -49,7 +49,7 @@ func (a *API) postInstallPhaseStart(w http.ResponseWriter, r *http.Request) {
 	if err := a.installController.StartInstall(r.Context()); err != nil {
 		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
 			Error("failed to start installation")
-		NewInternalServerError(err).Text(w)
+		NewInternalServerError(err).JSON(w)
 		return
 	}
 

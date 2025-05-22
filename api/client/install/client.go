@@ -4,10 +4,20 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/models"
 )
+
+type APIError struct {
+	StatusCode int    `json:"status_code"`
+	Message    string `json:"message"`
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("status=%d, message=%q", e.StatusCode, e.Message)
+}
 
 var defaultHTTPClient = &http.Client{
 	Transport: &http.Transport{
@@ -63,7 +73,7 @@ func (c *client) GetInstall() (*models.Install, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get config: %s", resp.Status)
+		return nil, errorFromResponse(resp)
 	}
 
 	var install models.Install
@@ -94,7 +104,7 @@ func (c *client) InstallPhaseSetConfig(config models.InstallationConfig) (*model
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to update config: %s", resp.Status)
+		return nil, errorFromResponse(resp)
 	}
 
 	var install models.Install
@@ -117,9 +127,9 @@ func (c *client) InstallPhaseStart() (*models.Install, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to update config: %s", resp.Status)
+		return nil, errorFromResponse(resp)
 	}
 
 	var install models.Install
@@ -129,4 +139,17 @@ func (c *client) InstallPhaseStart() (*models.Install, error) {
 	}
 
 	return &install, nil
+}
+
+func errorFromResponse(resp *http.Response) error {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("unexpected response: status=%d", resp.StatusCode)
+	}
+	var apiError APIError
+	err = json.Unmarshal(body, &apiError)
+	if err != nil {
+		return fmt.Errorf("unexpected response: status=%d, body=%q", resp.StatusCode, string(body))
+	}
+	return &apiError
 }
