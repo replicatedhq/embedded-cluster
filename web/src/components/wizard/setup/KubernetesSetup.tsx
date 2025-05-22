@@ -2,8 +2,8 @@ import React from 'react';
 
 interface KubernetesSetupProps {
   config: {
-    hostNetworkInterface?: string;
-    clusterNetworkCIDR?: string;
+    networkInterface?: string;
+    globalCidr?: string;
   };
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
@@ -20,17 +20,17 @@ const KubernetesSetup: React.FC<KubernetesSetupProps> = ({
       </p>
       <div className="space-y-4">
         <input
-          id="hostNetworkInterface"
+          id="networkInterface"
           type="text"
-          value={config.hostNetworkInterface || ''}
+          value={config.networkInterface || ''}
           onChange={onInputChange}
           placeholder="Network Interface"
           className="w-full px-3 py-2 border border-gray-300 rounded-md"
         />
         <input
-          id="clusterNetworkCIDR"
+          id="globalCidr"
           type="text"
-          value={config.clusterNetworkCIDR || ''}
+          value={config.globalCidr || ''}
           onChange={onInputChange}
           placeholder="Network CIDR (e.g., 10.244.0.0/16)"
           className="w-full px-3 py-2 border border-gray-300 rounded-md"

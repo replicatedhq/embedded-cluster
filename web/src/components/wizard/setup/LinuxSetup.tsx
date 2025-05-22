@@ -9,11 +9,11 @@ interface LinuxSetupProps {
     httpProxy?: string;
     httpsProxy?: string;
     noProxy?: string;
-    hostNetworkInterface?: string;
-    clusterNetworkCIDR?: string;
+    networkInterface?: string;
+    globalCidr?: string;
   };
   prototypeSettings: {
-    availableHostNetworkInterfaces?: Array<{
+    availableNetworkInterfaces?: Array<{
       name: string;
     }>;
   };
@@ -21,7 +21,7 @@ interface LinuxSetupProps {
   onShowAdvancedChange: (show: boolean) => void;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSelectChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-  availableHostNetworkInterfaces?: string[];
+  availableNetworkInterfaces?: string[];
 }
 
 const LinuxSetup: React.FC<LinuxSetupProps> = ({
@@ -31,7 +31,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
   onShowAdvancedChange,
   onInputChange,
   onSelectChange,
-  availableHostNetworkInterfaces = [],
+  availableNetworkInterfaces = [],
 }) => (
   <div className="space-y-6">
     <div className="space-y-4">
@@ -91,18 +91,18 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
       {showAdvanced && (
         <div className="space-y-6">
           <Select
-            id="hostNetworkInterface"
+            id="networkInterface"
             label="Network Interface"
-            value={config.hostNetworkInterface || ''}
+            value={config.networkInterface || ''}
             onChange={onSelectChange}
             options={[
               { value: '', label: 'Select a network interface' },
-              ...(availableHostNetworkInterfaces.length > 0 
-                ? availableHostNetworkInterfaces.map(iface => ({
+              ...(availableNetworkInterfaces.length > 0 
+                ? availableNetworkInterfaces.map(iface => ({
                     value: iface,
                     label: iface
                   }))
-                : (prototypeSettings.availableHostNetworkInterfaces || []).map(iface => ({
+                : (prototypeSettings.availableNetworkInterfaces || []).map(iface => ({
                     value: iface.name,
                     label: iface.name
                   }))
@@ -112,9 +112,9 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
           />
           
           <Input
-            id="clusterNetworkCIDR"
+            id="globalCidr"
             label="Reserved Network Range (CIDR)"
-            value={config.clusterNetworkCIDR || ''}
+            value={config.globalCidr || ''}
             onChange={onInputChange}
             placeholder="10.244.0.0/16"
             helpText="CIDR notation for the reserved network range (defaults to 10.244.0.0/16; must be /16 or larger)"

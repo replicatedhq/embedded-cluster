@@ -9,14 +9,16 @@ export interface ClusterConfig {
   adminUsername: string;
   adminPassword: string;
   adminEmail: string;
+  adminConsolePort?: number;
+  localArtifactMirrorPort?: number;
   databaseType: 'internal' | 'external';
   dataDirectory: string;
   useProxy: boolean;
   httpProxy?: string;
   httpsProxy?: string;
   noProxy?: string;
-  hostNetworkInterface?: string;
-  clusterNetworkCIDR?: string;
+  networkInterface?: string;
+  globalCidr?: string;
   databaseConfig?: {
     host: string;
     port: number;

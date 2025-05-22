@@ -13,7 +13,7 @@ const ValidationInstallStep: React.FC = () => {
   useEffect(() => {
     const installCluster = async () => {
       try {
-        const response = await fetch('/api/install-cluster', {
+        const response = await fetch('/api/install/phase/set-config', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

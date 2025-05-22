@@ -35,19 +35,10 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
 
         if (installResponse.ok) {
           const install = await installResponse.json();
-          const configData = install.config;
-          updateConfig({
-            dataDirectory: configData.dataDirectory || '',
-            httpProxy: configData.httpProxy || '',
-            httpsProxy: configData.httpsProxy || '',
-            noProxy: configData.noProxy || '',
-            hostNetworkInterface: configData.networkInterface || '',
-            clusterNetworkCIDR: configData.globalCidr || '10.244.0.0/16',
-            useProxy: !!(configData.httpProxy || configData.httpsProxy)
-          });
+          updateConfig(install.config);
 
           // TODO: remove this once it's a dropdown
-          setAvailableHostNetworkInterfaces([configData.networkInterface]);
+          setAvailableHostNetworkInterfaces([install.config.networkInterface]);
         }
 
         // TODO: make this a
@@ -77,8 +68,8 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    if (id === 'clusterNetworkCIDR' && !value) {
-      updateConfig({ clusterNetworkCIDR: '10.244.0.0/16' });
+    if (id === 'globalCidr' && !value) {
+      updateConfig({ globalCidr: '10.244.0.0/16' });
     } else {
       updateConfig({ [id]: value });
     }
@@ -94,18 +85,8 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     setError(null);
     
     try {
-      // Prepare the request payload based on ClusterSetupRequest struct
-      const payload = {
-        dataDirectory: config.dataDirectory,
-        httpProxy: config.useProxy ? config.httpProxy : '',
-        httpsProxy: config.useProxy ? config.httpsProxy : '',
-        noProxy: config.useProxy ? config.noProxy : '',
-        hostNetworkInterface: config.hostNetworkInterface || '',
-        clusterNetworkCIDR: config.clusterNetworkCIDR || '10.244.0.0/16'
-      };
-
       // Make the POST request to the cluster-setup endpoint
-      const response = await fetch('/api/cluster-config', {
+      const response = await fetch('/api/install/phase/set-config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,7 +95,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             'Authorization': `${localStorage.getItem('auth')}`,
           }),
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(config),
       });
 
       if (!response.ok) {
