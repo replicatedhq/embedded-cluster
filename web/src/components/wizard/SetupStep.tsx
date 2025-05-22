@@ -25,40 +25,45 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     const fetchData = async () => {
       try {
         // Fetch cluster config
-        const configResponse = await fetch('/api/cluster-config', {
+        const installResponse = await fetch('/api/install', {
           headers: {
             ...(localStorage.getItem('auth') && {
-              'Authorization': `Basic ${localStorage.getItem('auth')}`,
+              'Authorization': `${localStorage.getItem('auth')}`,
             }),
           },
         });
 
-        if (configResponse.ok) {
-          const configData = await configResponse.json();
+        if (installResponse.ok) {
+          const install = await installResponse.json();
+          const configData = install.config;
           updateConfig({
             dataDirectory: configData.dataDirectory || '',
             httpProxy: configData.httpProxy || '',
             httpsProxy: configData.httpsProxy || '',
             noProxy: configData.noProxy || '',
-            hostNetworkInterface: configData.hostNetworkInterface || '',
-            clusterNetworkCIDR: configData.clusterNetworkCIDR || '10.244.0.0/16',
+            hostNetworkInterface: configData.networkInterface || '',
+            clusterNetworkCIDR: configData.globalCidr || '10.244.0.0/16',
             useProxy: !!(configData.httpProxy || configData.httpsProxy)
           });
+
+          // TODO: remove this once it's a dropdown
+          setAvailableHostNetworkInterfaces([configData.networkInterface]);
         }
 
+        // TODO: make this a
         // Fetch network interfaces
-        const interfacesResponse = await fetch('/api/host-network-interfaces', {
-          headers: {
-            ...(localStorage.getItem('auth') && {
-              'Authorization': `Basic ${localStorage.getItem('auth')}`,
-            }),
-          },
-        });
+        // const interfacesResponse = await fetch('/api/host-network-interfaces', {
+        //   headers: {
+        //     ...(localStorage.getItem('auth') && {
+        //       'Authorization': `${localStorage.getItem('auth')}`,
+        //     }),
+        //   },
+        // });
 
-        if (interfacesResponse.ok) {
-          const interfacesData = await interfacesResponse.json();
-          setAvailableHostNetworkInterfaces(interfacesData.networkInterfaces || []);
-        }
+        // if (interfacesResponse.ok) {
+        //   const interfacesData = await interfacesResponse.json();
+        //   setAvailableHostNetworkInterfaces(interfacesData.networkInterfaces || []);
+        // }
       } catch (err) {
         console.error('Failed to fetch data:', err);
       } finally {
@@ -104,9 +109,9 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Include basic auth credentials if available from localStorage or another source
+          // Include auth credentials if available from localStorage or another source
           ...(localStorage.getItem('auth') && {
-            'Authorization': `Basic ${localStorage.getItem('auth')}`,
+            'Authorization': `${localStorage.getItem('auth')}`,
           }),
         },
         body: JSON.stringify(payload),

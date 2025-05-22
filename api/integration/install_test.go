@@ -29,6 +29,7 @@ func TestInstallPhaseSetConfig(t *testing.T) {
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
+		"password",
 		api.WithInstallController(installController),
 		api.WithLogger(api.NewDiscardLogger()),
 	)
@@ -126,6 +127,7 @@ func TestInstallPhaseSetConfigValidation(t *testing.T) {
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
+		"password",
 		api.WithInstallController(installController),
 		api.WithLogger(api.NewDiscardLogger()),
 	)
@@ -176,6 +178,7 @@ func TestInstallPhaseSetConfigBadRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	apiInstance, err := api.New(
+		"password",
 		api.WithInstallController(installController),
 		api.WithLogger(api.NewDiscardLogger()),
 	)
@@ -208,6 +211,7 @@ func TestInstallPhaseSetConfigControllerError(t *testing.T) {
 
 	// Create the API with the mock controller
 	apiInstance, err := api.New(
+		"password",
 		api.WithInstallController(mockController),
 		api.WithLogger(api.NewDiscardLogger()),
 	)

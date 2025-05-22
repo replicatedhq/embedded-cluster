@@ -39,19 +39,18 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
     setError('');
     
     try {
-      // Create basic auth credentials with username "admin" and the entered password
-      const credentials = btoa(`admin:${password}`);
-      
-      const response = await fetch('/api/login', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
+        body: JSON.stringify({ password }),
         headers: {
-          'Authorization': `Basic ${credentials}`
+          'Content-Type': 'application/json'
         }
       });
       
       if (response.ok) {
         // Store the password in localStorage
-        localStorage.setItem('auth', credentials);
+        const data = await response.json();
+        localStorage.setItem('auth', data.sessionToken);
         onNext();
       } else {
         setError('Invalid password');

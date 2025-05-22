@@ -338,7 +338,7 @@ list-distros:
 create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
 create-node%: GUIDED_EXPERIENCE_NODE_PORT = 30080
-create-node%: K0S_DATA_DIR = /var/lib/ec/k0s
+create-node%: K0S_DATA_DIR = /var/lib/embedded-cluster/k0s
 create-node%:
 	@docker run -d \
 		--name node$* \

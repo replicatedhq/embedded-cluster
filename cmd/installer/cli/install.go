@@ -326,7 +326,13 @@ func preRunInstallAPI(ctx context.Context) (*apitypes.InstallationConfig, error)
 
 	apiCtx, apiCancel := context.WithCancel(ctx)
 	defer apiCancel()
-	go runInstallAPI(apiCtx, listener, logger, configChan)
+	go func() {
+		if err := runInstallAPI(apiCtx, listener, logger, configChan); err != nil {
+			if !errors.Is(err, http.ErrServerClosed) {
+				logrus.Errorf("install API error: %v", err)
+			}
+		}
+	}()
 
 	if err := waitForInstallAPI(apiCtx, listener.Addr().String()); err != nil {
 		return nil, fmt.Errorf("unable to wait for install API: %w", err)
@@ -347,19 +353,22 @@ func runInstallAPI(ctx context.Context, listener net.Listener, logger logrus.Fie
 	router := mux.NewRouter()
 
 	api, err := api.New(
+		"password",
 		api.WithLogger(logger),
 		api.WithConfigChan(configChan),
 	)
 	if err != nil {
 		return fmt.Errorf("new api: %w", err)
 	}
+
 	api.RegisterRoutes(router.PathPrefix("/api").Subrouter())
 
-	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}).Methods("GET")
-
-	webFs := http.FileServer(http.FS(web.Fs()))
+	var webFs http.Handler
+	if os.Getenv("EC_DEV_ENV") == "true" {
+		webFs = http.FileServer(http.FS(os.DirFS("./web/dist")))
+	} else {
+		webFs = http.FileServer(http.FS(web.Fs()))
+	}
 	router.PathPrefix("/").Methods("GET").Handler(webFs)
 
 	server := &http.Server{
@@ -393,7 +402,7 @@ func waitForInstallAPI(ctx context.Context, addr string) error {
 			}
 			return fmt.Errorf("install API did not start in time")
 		case <-time.Tick(1 * time.Second):
-			resp, err := httpClient.Get(fmt.Sprintf("http://%s/health", addr))
+			resp, err := httpClient.Get(fmt.Sprintf("http://%s/api/health", addr))
 			if err != nil {
 				lastErr = fmt.Errorf("unable to connect to install API: %w", err)
 			} else if resp.StatusCode == http.StatusOK {

@@ -17,9 +17,9 @@ const ValidationInstallStep: React.FC = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            // Include basic auth credentials if available from localStorage or another source
+            // Include auth credentials if available from localStorage or another source
             ...(localStorage.getItem('auth') && {
-              'Authorization': `Basic ${localStorage.getItem('auth')}`,
+              'Authorization': `${localStorage.getItem('auth')}`,
             }),
           },
         });
