@@ -67,31 +67,6 @@ func NewCluster(in *ClusterInput) *Cluster {
 		c.Nodes[i] = *node
 	}
 
-	// g := new(errgroup.Group)
-	// var mu sync.Mutex
-
-	// TODO (@salah): revert to creating in parallel once the bug is fixed in CMX
-	// where some nodes aren't added to the bridge of other nodes
-	// for i := range c.Nodes {
-	// 	func(i int) {
-	// 		g.Go(func() error {
-	// 			node, err := NewNode(in, i, network.ID)
-	// 			if err != nil {
-	// 				return fmt.Errorf("create node %d: %w", i, err)
-	// 			}
-	// 			in.T.Logf("node%d created with ID %s", i, node.ID)
-	// 			mu.Lock()
-	// 			c.Nodes[i] = *node
-	// 			mu.Unlock()
-	// 			return nil
-	// 		})
-	// 	}(i)
-	// }
-
-	// if err := g.Wait(); err != nil {
-	// 	in.T.Fatalf("failed to create nodes: %v", err)
-	// }
-
 	return c
 }
 
