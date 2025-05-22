@@ -3,17 +3,23 @@ package cli
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/replicatedhq/embedded-cluster/api"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -526,4 +532,56 @@ versionLabel: testversion
 			}
 		})
 	}
+}
+
+func Test_runInstallAPI(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+
+	listener, err := net.Listen("tcp", ":0")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = listener.Close()
+	})
+
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
+
+	errCh := make(chan error)
+
+	logger := api.NewDiscardLogger()
+
+	cert, err := tlsutils.GetCertificate(tlsutils.Config{})
+	require.NoError(t, err)
+
+	go func() {
+		err := runInstallAPI(ctx, listener, cert, logger, "password", nil)
+		t.Logf("Install API exited with error: %v", err)
+		errCh <- err
+	}()
+
+	t.Logf("Waiting for install API to start on %s", listener.Addr().String())
+	err = waitForInstallAPI(ctx, listener.Addr().String())
+	assert.NoError(t, err)
+
+	url := "https://" + listener.Addr().String() + "/api/health"
+	t.Logf("Making request to %s", url)
+	httpClient := http.Client{
+		Timeout: 2 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+	}
+	resp, err := httpClient.Get(url)
+	assert.NoError(t, err)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	cancel()
+	assert.ErrorIs(t, <-errCh, http.ErrServerClosed)
+	t.Logf("Install API exited")
 }
