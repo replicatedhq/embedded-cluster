@@ -1,6 +1,6 @@
 package types
 
 type Branding struct {
-	ApplicationName string `json:"applicationName"`
-	LogoURL         string `json:"logoURL"`
+	AppTitle string `json:"appTitle"`
+	AppIcon  string `json:"appIcon"`
 }

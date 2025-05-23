@@ -1,7 +1,6 @@
 import React from 'react';
 import Card from '../common/Card';
-import Select from '../common/Select';
-import { GiteaLogo } from '../common/Logo';
+import { AppIcon } from '../common/Logo';
 import { useConfig } from '../../contexts/ConfigContext';
 
 const PrototypeSettings: React.FC = () => {
@@ -45,7 +44,7 @@ const PrototypeSettings: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-3">
-              <GiteaLogo className="h-10 w-10" />
+              <AppIcon className="h-10 w-10" />
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">Prototype Settings</h1>
                 <p className="text-sm text-gray-500">Configure prototype behavior</p>

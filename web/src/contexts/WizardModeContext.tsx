@@ -1,5 +1,6 @@
 import React, { createContext, useContext } from 'react';
 import { useConfig } from './ConfigContext';
+import { useBranding } from './BrandingContext';
 
 export type WizardMode = 'install' | 'upgrade';
 
@@ -20,36 +21,36 @@ interface WizardText {
   nextButtonText: string;
 }
 
-const getTextVariations = (isEmbedded: boolean): Record<WizardMode, WizardText> => ({
+const getTextVariations = (isEmbedded: boolean, appTitle: string): Record<WizardMode, WizardText> => ({
   install: {
-    title: 'Gitea Enterprise',
+    title: appTitle || '',
     subtitle: 'Installation Wizard',
-    welcomeTitle: 'Welcome to Gitea Enterprise',
-    welcomeDescription: `This wizard will guide you through installing Gitea Enterprise on your ${isEmbedded ? 'Linux machine' : 'Kubernetes cluster'}.`,
+    welcomeTitle: `Welcome to ${appTitle}`,
+    welcomeDescription: `This wizard will guide you through installing ${appTitle} on your ${isEmbedded ? 'Linux machine' : 'Kubernetes cluster'}.`,
     setupTitle: 'Setup',
     setupDescription: 'Set up the hosts to use for this installation.',
     configurationTitle: 'Configuration',
-    configurationDescription: 'Configure your Gitea Enterprise installation by providing the information below.',
-    installationTitle: 'Installing Gitea Enterprise',
+    configurationDescription: `Configure your ${appTitle} installation by providing the information below.`,
+    installationTitle: `Installing ${appTitle}`,
     installationDescription: '',
     completionTitle: 'Installation Complete!',
-    completionDescription: 'Gitea Enterprise has been installed successfully.',
+    completionDescription: `${appTitle} has been installed successfully.`,
     welcomeButtonText: 'Start',
     nextButtonText: 'Next: Start Installation',
   },
   upgrade: {
-    title: 'Gitea Enterprise',
+    title: appTitle || '',
     subtitle: 'Upgrade Wizard',
-    welcomeTitle: 'Welcome to Gitea Enterprise',
-    welcomeDescription: `This wizard will guide you through upgrading Gitea Enterprise on your ${isEmbedded ? 'Linux machine' : 'Kubernetes cluster'}.`,
+    welcomeTitle: `Welcome to ${appTitle}`,
+    welcomeDescription: `This wizard will guide you through upgrading ${appTitle} on your ${isEmbedded ? 'Linux machine' : 'Kubernetes cluster'}.`,
     setupTitle: 'Setup',
     setupDescription: 'Set up the hosts to use for this installation.',
     configurationTitle: 'Upgrade Configuration',
-    configurationDescription: 'Configure your Gitea Enterprise installation by providing the information below.',
-    installationTitle: 'Upgrading Gitea Enterprise',
+    configurationDescription: `Configure your ${appTitle} installation by providing the information below.`,
+    installationTitle: `Upgrading ${appTitle}`,
     installationDescription: '',
     completionTitle: 'Upgrade Complete!',
-    completionDescription: 'Gitea Enterprise has been successfully upgraded.',
+    completionDescription: `${appTitle} has been successfully upgraded.`,
     welcomeButtonText: 'Start Upgrade',
     nextButtonText: 'Next: Start Upgrade',
   },
@@ -67,8 +68,9 @@ export const WizardModeProvider: React.FC<{
   mode: WizardMode;
 }> = ({ children, mode }) => {
   const { prototypeSettings } = useConfig();
+  const { branding } = useBranding();
   const isEmbedded = prototypeSettings.clusterMode === 'embedded';
-  const text = getTextVariations(isEmbedded)[mode];
+  const text = getTextVariations(isEmbedded, branding?.appTitle || '')[mode];
 
   return (
     <WizardModeContext.Provider value={{ mode, text }}>

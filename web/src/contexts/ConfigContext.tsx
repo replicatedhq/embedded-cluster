@@ -53,15 +53,15 @@ interface ConfigContextType {
 
 const defaultConfig: ClusterConfig = {
   clusterName: '',
-  namespace: 'gitea',
+  namespace: '',
   storageClass: 'standard',
   domain: '',
   useHttps: true,
-  adminUsername: 'giteaadmin',
+  adminUsername: 'admin',
   adminPassword: '',
   adminEmail: '',
   databaseType: 'internal',
-  dataDirectory: '/var/lib/gitea',
+  dataDirectory: '/var/lib/embedded-cluster',
   useProxy: false,
 };
 
@@ -78,7 +78,7 @@ const defaultPrototypeSettings: PrototypeSettings = {
   availableNetworkInterfaces: []
 };
 
-const PROTOTYPE_SETTINGS_KEY = 'gitea-prototype-settings';
+const PROTOTYPE_SETTINGS_KEY = 'app-prototype-settings';
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 

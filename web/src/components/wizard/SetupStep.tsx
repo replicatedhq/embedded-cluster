@@ -36,13 +36,8 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
         if (installResponse.ok) {
           const install = await installResponse.json();
           updateConfig(install.config);
-
-          // TODO: remove this once it's a dropdown
-          setAvailableNetworkInterfaces([install.config.networkInterface]);
         }
 
-        // TODO: make this a
-        // Fetch network interfaces
         const interfacesResponse = await fetch('/api/console/available-network-interfaces', {
           headers: {
             ...(localStorage.getItem('auth') && {
@@ -51,10 +46,10 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
           },
         });
 
-          if (interfacesResponse.ok) {
-            const interfacesData = await interfacesResponse.json();
-            setAvailableNetworkInterfaces(interfacesData.networkInterfaces || []);
-          }
+        if (interfacesResponse.ok) {
+          const interfacesData = await interfacesResponse.json();
+          setAvailableNetworkInterfaces(interfacesData.networkInterfaces || []);
+        }
       } catch (err) {
         console.error('Failed to fetch data:', err);
       } finally {

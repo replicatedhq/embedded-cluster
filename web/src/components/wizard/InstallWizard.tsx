@@ -4,12 +4,14 @@ import WelcomeStep from './WelcomeStep';
 import SetupStep from './SetupStep';
 import ValidationInstallStep from './ValidationInstallStep';
 import { WizardStep } from '../../types';
-import { GiteaLogo } from '../common/Logo';
+import { AppIcon } from '../common/Logo';
 import { useWizardMode } from '../../contexts/WizardModeContext';
+import { useBranding } from '../../contexts/BrandingContext';
 
 const InstallWizard: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<WizardStep>('welcome');
   const { text } = useWizardMode();
+  const { branding } = useBranding();
 
   const goToNextStep = () => {
     const steps: WizardStep[] = ['welcome', 'setup', 'installation'];
@@ -46,7 +48,7 @@ const InstallWizard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-3">
-              <GiteaLogo className="h-10 w-10" />
+              <AppIcon className="h-10 w-10" />
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">{text.title}</h1>
                 <p className="text-sm text-gray-500">{text.subtitle}</p>

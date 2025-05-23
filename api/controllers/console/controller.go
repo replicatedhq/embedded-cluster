@@ -1,8 +1,11 @@
 package console
 
 import (
+	"fmt"
+
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
 type Controller interface {
@@ -37,10 +40,14 @@ func NewConsoleController(opts ...ConsoleControllerOption) (*ConsoleController, 
 }
 
 func (c *ConsoleController) GetBranding() (types.Branding, error) {
-	// TODO
+	app := release.GetApplication()
+	if app == nil {
+		return types.Branding{}, fmt.Errorf("application not found")
+	}
+
 	return types.Branding{
-		ApplicationName: "Embedded Cluster",
-		LogoURL:         "https://replicated.com/logo.png",
+		AppTitle: app.Spec.Title,
+		AppIcon:  app.Spec.Icon,
 	}, nil
 }
 

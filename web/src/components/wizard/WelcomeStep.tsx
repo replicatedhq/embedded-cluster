@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import Input from '../common/Input';
-import { GiteaLogo } from '../common/Logo';
+import { AppIcon } from '../common/Logo';
 import { ChevronRight, Lock, AlertTriangle } from 'lucide-react';
 import { useWizardMode } from '../../contexts/WizardModeContext';
 import { useConfig } from '../../contexts/ConfigContext';
@@ -73,7 +73,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
     <div className="space-y-6">
       <Card>
         <div className="flex flex-col items-center text-center py-12">
-          <GiteaLogo className="h-20 w-20 mb-6" />
+          <AppIcon className="h-20 w-20 mb-6" />
           <h2 className="text-3xl font-bold text-gray-900">{text.welcomeTitle}</h2>
           <p className="text-xl text-gray-600 max-w-2xl mb-8">
             {text.welcomeDescription}

@@ -2,17 +2,19 @@ import React, { useState } from 'react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import { useConfig } from '../../contexts/ConfigContext';
+import { useBranding } from '../../contexts/BrandingContext';
 import { CheckCircle, ExternalLink, Copy, ClipboardCheck } from 'lucide-react';
 
 const CompletionStep: React.FC = () => {
   const { config, prototypeSettings } = useConfig();
+  const { branding } = useBranding();
   const [copied, setCopied] = useState(false);
   const themeColor = prototypeSettings.themeColor;
 
   const baseUrl = `${config.useHttps ? 'https' : 'http'}://${config.domain}`;
   const urls = [
-    { name: 'Web Interface', url: baseUrl, description: 'Access the main Gitea interface' },
-    { name: 'API Documentation', url: `${baseUrl}/api/swagger`, description: 'Browse and test the Gitea API' }
+    { name: 'Web Interface', url: baseUrl, description: `Access the main ${branding?.appTitle} interface` },
+    { name: 'API Documentation', url: `${baseUrl}/api/swagger`, description: `Browse and test the ${branding?.appTitle} API` }
   ];
 
   const copyToClipboard = (text: string) => {
@@ -31,7 +33,7 @@ const CompletionStep: React.FC = () => {
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Installation Complete!</h2>
           <p className="text-xl text-gray-600 max-w-2xl mb-8">
-            Gitea Enterprise is installed successfully.
+            {branding?.appTitle} is installed successfully.
           </p>
           
           <Button
@@ -85,9 +87,9 @@ const CompletionStep: React.FC = () => {
                 </div>
               </div>
               <div className="ml-3">
-                <h4 className="text-base font-medium text-gray-900">Log in to your Gitea Enterprise instance</h4>
+                <h4 className="text-base font-medium text-gray-900">Log in to your {branding?.appTitle} instance</h4>
                 <p className="text-sm text-gray-600 mt-1">
-                  Use the administrator credentials you provided during setup to log in to your Gitea Enterprise instance.
+                  Use the administrator credentials you provided during setup to log in to your {branding?.appTitle} instance.
                 </p>
               </div>
             </div>

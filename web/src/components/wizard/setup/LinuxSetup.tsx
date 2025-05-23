@@ -1,6 +1,7 @@
 import React from 'react';
 import Input from '../../common/Input';
 import Select from '../../common/Select';
+import { useBranding } from '../../../contexts/BrandingContext';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface LinuxSetupProps {
@@ -35,17 +36,19 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
   onInputChange,
   onSelectChange,
   availableNetworkInterfaces = [],
-}) => (
-  <div className="space-y-6">
-    <div className="space-y-4">
-      <h2 className="text-lg font-medium text-gray-900">System Configuration</h2>
+}) => {
+  const { branding } = useBranding();
+  return (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <h2 className="text-lg font-medium text-gray-900">System Configuration</h2>
       <Input
         id="dataDirectory"
         label="Data Directory"
         value={config.dataDirectory || ''}
         onChange={onInputChange}
-        placeholder="/var/lib/gitea"
-        helpText="Directory where Gitea will store its data"
+        placeholder="/var/lib/embedded-cluster"
+        helpText={`Directory where ${branding?.appTitle} will store its data`}
       />
 
       <Input
@@ -129,7 +132,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
                   }))
               )
             ]}
-            helpText="Network interface to use for Gitea"
+            helpText={`Network interface to use for ${branding?.appTitle}`}
           />
           
           <Input
@@ -143,7 +146,8 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
         </div>
       )}
     </div>
-  </div>
-);
+    </div>
+  );
+};
 
 export default LinuxSetup;

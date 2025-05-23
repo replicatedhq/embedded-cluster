@@ -95,6 +95,7 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/health", a.getHealth).Methods("GET")
 
 	router.HandleFunc("/auth/login", a.postAuthLogin).Methods("POST")
+	router.HandleFunc("/branding", a.getBranding).Methods("GET")
 
 	authenticatedRouter := router.PathPrefix("").Subrouter()
 	authenticatedRouter.Use(a.authMiddleware)
