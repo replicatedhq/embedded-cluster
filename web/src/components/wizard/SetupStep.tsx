@@ -68,8 +68,10 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    if (id === 'globalCidr' && !value) {
-      updateConfig({ globalCidr: '10.244.0.0/16' });
+    if (id === 'adminConsolePort') {
+      updateConfig({ adminConsolePort: parseInt(value) });
+    } else if (id === 'localArtifactMirrorPort') {
+      updateConfig({ localArtifactMirrorPort: parseInt(value) });
     } else {
       updateConfig({ [id]: value });
     }

@@ -6,6 +6,8 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 interface LinuxSetupProps {
   config: {
     dataDirectory?: string;
+    adminConsolePort?: number;
+    localArtifactMirrorPort?: number;
     httpProxy?: string;
     httpsProxy?: string;
     noProxy?: string;
@@ -42,7 +44,25 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
         value={config.dataDirectory || ''}
         onChange={onInputChange}
         placeholder="/var/lib/gitea"
-        helpText="Directory where Gitea will store its data (defaults to /var/lib/gitea)"
+        helpText="Directory where Gitea will store its data"
+      />
+
+      <Input
+        id="adminConsolePort"
+        label="Admin Console Port"
+        value={`${config.adminConsolePort}`}
+        onChange={onInputChange}
+        placeholder="30000"
+        helpText="Port for the admin console"
+      />
+
+      <Input
+        id="localArtifactMirrorPort"
+        label="Local Artifact Mirror Port"
+        value={`${config.localArtifactMirrorPort}`}
+        onChange={onInputChange}
+        placeholder="50000"
+        helpText="Port for the local artifact mirror"
       />
     </div>
 
