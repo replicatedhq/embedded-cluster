@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 )
@@ -16,6 +17,9 @@ func (s *staticAuthController) Authenticate(ctx context.Context, password string
 	return s.token, nil
 }
 
-func (s *staticAuthController) ValidateSessionToken(ctx context.Context, sessionToken string) (bool, error) {
-	return sessionToken == s.token, nil
+func (s *staticAuthController) ValidateToken(ctx context.Context, token string) error {
+	if token != s.token {
+		return fmt.Errorf("invalid token")
+	}
+	return nil
 }

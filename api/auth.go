@@ -2,7 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+
+	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
+	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 type AuthRequest struct {
@@ -17,18 +21,13 @@ func (a *API) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sessionToken := r.Header.Get("Authorization")
 		if sessionToken == "" {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			types.NewUnauthorizedError(errors.New("authorization header is required")).JSON(w)
 			return
 		}
 
-		valid, err := a.authController.ValidateSessionToken(r.Context(), sessionToken)
+		err := a.authController.ValidateToken(r.Context(), sessionToken)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if !valid {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			types.NewUnauthorizedError(err).JSON(w)
 			return
 		}
 
@@ -40,13 +39,16 @@ func (a *API) postAuthLogin(w http.ResponseWriter, r *http.Request) {
 	var request AuthRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		types.NewBadRequestError(err).JSON(w)
 		return
 	}
 
 	sessionToken, err := a.authController.Authenticate(r.Context(), request.Password)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+	if errors.Is(err, auth.ErrInvalidPassword) {
+		types.NewUnauthorizedError(err).JSON(w)
+		return
+	} else if err != nil {
+		types.NewInternalServerError(err).JSON(w)
 		return
 	}
 

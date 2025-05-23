@@ -2,21 +2,21 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
-
-	"github.com/google/uuid"
 )
+
+var ErrInvalidPassword = errors.New("invalid password")
 
 type Controller interface {
 	Authenticate(ctx context.Context, password string) (string, error)
-	ValidateSessionToken(ctx context.Context, sessionToken string) (bool, error)
+	ValidateToken(ctx context.Context, token string) error
 }
 
 var _ Controller = &AuthController{}
 
 type AuthController struct {
-	password     string
-	sessionToken string
+	password string
 }
 
 type AuthControllerOption func(*AuthController)
@@ -39,18 +39,22 @@ func NewAuthController(password string, opts ...AuthControllerOption) (*AuthCont
 
 func (c *AuthController) Authenticate(ctx context.Context, password string) (string, error) {
 	if password != c.password {
-		return "", fmt.Errorf("invalid password")
+		return "", ErrInvalidPassword
 	}
 
-	c.sessionToken = uuid.New().String()
+	token, err := getToken("admin")
+	if err != nil {
+		return "", fmt.Errorf("failed to create session token: %w", err)
+	}
 
-	return c.sessionToken, nil
+	return token, nil
 }
 
-func (c *AuthController) ValidateSessionToken(ctx context.Context, sessionToken string) (bool, error) {
-	if sessionToken != c.sessionToken {
-		return false, nil
+func (c *AuthController) ValidateToken(ctx context.Context, token string) error {
+	_, err := verifyToken(token)
+	if err != nil {
+		return err
 	}
 
-	return true, nil
+	return nil
 }
