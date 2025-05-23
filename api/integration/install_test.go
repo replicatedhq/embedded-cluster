@@ -19,11 +19,13 @@ import (
 
 func TestInstallPhaseSetConfig(t *testing.T) {
 	// Create a memory store
-	configStore := installation.NewConfigMemoryStore()
+	configManager := installation.NewConfigManager(
+		installation.WithConfigStore(installation.NewConfigMemoryStore()),
+	)
 
 	// Create an install controller with the memory store
 	installController, err := install.NewInstallController(
-		install.WithConfigStore(configStore),
+		install.WithConfigManager(configManager),
 	)
 	require.NoError(t, err)
 
@@ -112,7 +114,7 @@ func TestInstallPhaseSetConfig(t *testing.T) {
 
 			// Also verify that the config is in the store
 			if !tc.expectedError {
-				storedConfig, err := configStore.Read()
+				storedConfig, err := configManager.Read()
 				require.NoError(t, err)
 				assert.Equal(t, tc.config.DataDirectory, storedConfig.DataDirectory)
 				assert.Equal(t, tc.config.AdminConsolePort, storedConfig.AdminConsolePort)
@@ -124,11 +126,13 @@ func TestInstallPhaseSetConfig(t *testing.T) {
 // Test that config validation errors are properly returned
 func TestInstallPhaseSetConfigValidation(t *testing.T) {
 	// Create a memory store
-	configStore := installation.NewConfigMemoryStore()
+	configManager := installation.NewConfigManager(
+		installation.WithConfigStore(installation.NewConfigMemoryStore()),
+	)
 
 	// Create an install controller with the memory store
 	installController, err := install.NewInstallController(
-		install.WithConfigStore(configStore),
+		install.WithConfigManager(configManager),
 	)
 	require.NoError(t, err)
 
@@ -182,10 +186,12 @@ func TestInstallPhaseSetConfigValidation(t *testing.T) {
 // Test that the endpoint properly handles malformed JSON
 func TestInstallPhaseSetConfigBadRequest(t *testing.T) {
 	// Create a memory store and API
-	configStore := installation.NewConfigMemoryStore()
+	configManager := installation.NewConfigManager(
+		installation.WithConfigStore(installation.NewConfigMemoryStore()),
+	)
 
 	installController, err := install.NewInstallController(
-		install.WithConfigStore(configStore),
+		install.WithConfigManager(configManager),
 	)
 	require.NoError(t, err)
 

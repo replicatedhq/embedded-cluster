@@ -16,14 +16,14 @@ type Controller interface {
 var _ Controller = &InstallController{}
 
 type InstallController struct {
-	configStore installation.ConfigStore
+	configManager installation.ConfigManager
 }
 
 type InstallControllerOption func(*InstallController)
 
-func WithConfigStore(configStore installation.ConfigStore) InstallControllerOption {
+func WithConfigManager(configManager installation.ConfigManager) InstallControllerOption {
 	return func(c *InstallController) {
-		c.configStore = configStore
+		c.configManager = configManager
 	}
 }
 
@@ -34,25 +34,27 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		opt(controller)
 	}
 
-	if controller.configStore == nil {
-		controller.configStore = installation.NewConfigMemoryStore()
+	if controller.configManager == nil {
+		controller.configManager = installation.NewConfigManager(
+			installation.WithConfigStore(installation.NewConfigMemoryStore()),
+		)
 	}
 
 	return controller, nil
 }
 
 func (c *InstallController) Get(ctx context.Context) (*types.Install, error) {
-	config, err := c.configStore.Read()
+	config, err := c.configManager.Read()
 	if err != nil {
 		return nil, err
 	}
 
-	err = installation.ConfigSetDefaults(config)
+	err = c.configManager.SetDefaults(config)
 	if err != nil {
 		return nil, fmt.Errorf("set defaults: %w", err)
 	}
 
-	err = installation.ConfigValidate(config)
+	err = c.configManager.Validate(config)
 	if err != nil {
 		return nil, fmt.Errorf("validate: %w", err)
 	}
@@ -65,12 +67,12 @@ func (c *InstallController) Get(ctx context.Context) (*types.Install, error) {
 }
 
 func (c *InstallController) SetConfig(ctx context.Context, config *types.InstallationConfig) error {
-	err := installation.ConfigValidate(config)
+	err := c.configManager.Validate(config)
 	if err != nil {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	err = c.configStore.Write(*config)
+	err = c.configManager.Write(*config)
 	if err != nil {
 		return fmt.Errorf("write: %w", err)
 	}
