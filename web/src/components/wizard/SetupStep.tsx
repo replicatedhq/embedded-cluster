@@ -88,7 +88,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
 
     try {
       // Make the POST request to the cluster-setup endpoint
-      const response = await fetch('/api/install/phase/set-config', {
+      const response = await fetch('/api/install/config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

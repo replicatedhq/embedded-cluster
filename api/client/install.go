@@ -41,7 +41,7 @@ func (c *client) SetInstallConfig(config types.InstallationConfig) (*types.Insta
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.apiURL+"/api/install/phase/set-config", bytes.NewBuffer(b))
+	req, err := http.NewRequest("POST", c.apiURL+"/api/install/config", bytes.NewBuffer(b))
 	if err != nil {
 		return nil, err
 	}

@@ -79,7 +79,7 @@ func TestSetInstallConfig(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create a request
-			req := httptest.NewRequest(http.MethodPost, "/install/phase/set-config", bytes.NewReader(configJSON))
+			req := httptest.NewRequest(http.MethodPost, "/install/config", bytes.NewReader(configJSON))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "TOKEN")
 			rec := httptest.NewRecorder()
@@ -158,7 +158,7 @@ func TestSetInstallConfigValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a request
-	req := httptest.NewRequest(http.MethodPost, "/install/phase/set-config", bytes.NewReader(configJSON))
+	req := httptest.NewRequest(http.MethodPost, "/install/config", bytes.NewReader(configJSON))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "TOKEN")
 	rec := httptest.NewRecorder()
@@ -201,7 +201,7 @@ func TestSetInstallConfigBadRequest(t *testing.T) {
 	apiInstance.RegisterRoutes(router)
 
 	// Create a request with invalid JSON
-	req := httptest.NewRequest(http.MethodPost, "/install/phase/set-config",
+	req := httptest.NewRequest(http.MethodPost, "/install/config",
 		bytes.NewReader([]byte(`{"dataDirectory": "/tmp/data", "adminConsolePort": "not-a-number"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "TOKEN")
@@ -244,7 +244,7 @@ func TestSetInstallConfigControllerError(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a request
-	req := httptest.NewRequest(http.MethodPost, "/install/phase/set-config", bytes.NewReader(configJSON))
+	req := httptest.NewRequest(http.MethodPost, "/install/config", bytes.NewReader(configJSON))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "TOKEN")
 	rec := httptest.NewRecorder()
