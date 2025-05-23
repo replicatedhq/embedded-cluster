@@ -73,7 +73,7 @@ func (c *client) SetInstallStatus(status types.InstallationStatus) (*types.Insta
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.apiURL+"/api/install/set-status", bytes.NewBuffer(b))
+	req, err := http.NewRequest("POST", c.apiURL+"/api/install/status", bytes.NewBuffer(b))
 	if err != nil {
 		return nil, err
 	}

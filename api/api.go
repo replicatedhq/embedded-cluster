@@ -86,7 +86,8 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	installRouter := authenticatedRouter.PathPrefix("/install").Subrouter()
 	installRouter.HandleFunc("", a.getInstall).Methods("GET")
 	installRouter.HandleFunc("/phase/set-config", a.setInstallConfig).Methods("POST")
-	installRouter.HandleFunc("/set-status", a.setInstallStatus).Methods("POST")
+	installRouter.HandleFunc("/status", a.setInstallStatus).Methods("POST")
+	installRouter.HandleFunc("/status", a.getInstallStatus).Methods("GET")
 }
 
 func handleError(w http.ResponseWriter, err error) {

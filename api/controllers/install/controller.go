@@ -12,6 +12,7 @@ type Controller interface {
 	Get(ctx context.Context) (*types.Install, error)
 	SetConfig(ctx context.Context, config *types.InstallationConfig) error
 	SetStatus(ctx context.Context, status *types.InstallationStatus) error
+	ReadStatus(ctx context.Context) (*types.InstallationStatus, error)
 }
 
 var _ Controller = &InstallController{}
@@ -92,4 +93,8 @@ func (c *InstallController) SetStatus(ctx context.Context, status *types.Install
 	}
 
 	return nil
+}
+
+func (c *InstallController) ReadStatus(ctx context.Context) (*types.InstallationStatus, error) {
+	return c.installationManager.ReadStatus()
 }

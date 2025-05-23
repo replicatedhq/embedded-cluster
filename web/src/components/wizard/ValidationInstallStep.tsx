@@ -11,10 +11,12 @@ const ValidationInstallStep: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const installCluster = async () => {
+    let pollInterval: NodeJS.Timeout;
+
+    const checkInstallStatus = async () => {
       try {
-        const response = await fetch('/api/install/phase/set-config', {
-          method: 'POST',
+        const response = await fetch('/api/install/status', {
+          method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             // Include auth credentials if available from localStorage or another source
@@ -30,16 +32,39 @@ const ValidationInstallStep: React.FC = () => {
         }
 
         const data = await response.json();
-        setAdminConsoleUrl(data.adminConsoleUrl);
-        setShowAdminLink(true);
-        setIsLoading(false);
+        
+        if (data.state === 'Succeeded') {
+          setAdminConsoleUrl("http://localhost:30000"); // TODO: make this configurable
+          setShowAdminLink(true);
+          setIsLoading(false);
+          if (pollInterval) {
+            clearInterval(pollInterval);
+          }
+        } else if (data.state === 'Failed') {
+          throw new Error('Installation failed');
+        }
+        // If state is neither Succeeded nor Failed, continue polling
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to install cluster');
         setIsLoading(false);
+        if (pollInterval) {
+          clearInterval(pollInterval);
+        }
       }
     };
 
-    installCluster();
+    // Initial check
+    checkInstallStatus();
+    
+    // Set up polling every 5 seconds
+    pollInterval = setInterval(checkInstallStatus, 5000);
+
+    // Cleanup on unmount
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
   }, [config.adminPassword]);
 
   return (

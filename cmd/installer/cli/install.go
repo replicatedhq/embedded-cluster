@@ -15,7 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/gorilla/mux"
 	"github.com/gosimple/slug"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -117,15 +116,33 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				metricsReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runInstall(cmd.Context(), name, flags, metricsReporter); err != nil {
-				// Check if this is an interrupt error from the terminal
-				if errors.Is(err, terminal.InterruptErr) {
-					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
-				} else {
-					metricsReporter.ReportInstallationFailed(ctx, err)
-				}
-				return err
+			// TODO: revert this
+			// if err := runInstall(cmd.Context(), name, flags, metricsReporter); err != nil {
+			// 	// Check if this is an interrupt error from the terminal
+			// 	if errors.Is(err, terminal.InterruptErr) {
+			// 		metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+			// 	} else {
+			// 		metricsReporter.ReportInstallationFailed(ctx, err)
+			// 	}
+			// 	return err
+			// }
+
+			apiClient := apiclient.New("http://localhost:30080") // TODO: make this configurable
+			if err := apiClient.Login(flags.adminConsolePassword); err != nil {
+				return fmt.Errorf("unable to login: %w", err)
 			}
+
+			_, err := apiClient.SetInstallStatus(apitypes.InstallationStatus{
+				State:       apitypes.InstallationStateSucceeded,
+				Description: "Install Complete",
+				LastUpdated: time.Now(),
+			})
+			if err != nil {
+				logrus.Debugf("Failed to set install status: %v", err)
+			}
+
+			time.Sleep(60 * time.Second)
+
 			metricsReporter.ReportInstallationSucceeded(ctx)
 			return nil
 		},

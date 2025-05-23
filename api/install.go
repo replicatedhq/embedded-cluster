@@ -69,6 +69,18 @@ func (a *API) setInstallStatus(w http.ResponseWriter, r *http.Request) {
 	a.getInstall(w, r)
 }
 
+func (a *API) getInstallStatus(w http.ResponseWriter, r *http.Request) {
+	status, err := a.installController.ReadStatus(r.Context())
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(status)
+}
+
 func logrusFieldsFromRequest(r *http.Request) logrus.Fields {
 	return logrus.Fields{
 		"method": r.Method,
