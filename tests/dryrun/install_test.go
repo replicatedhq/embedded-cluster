@@ -587,12 +587,8 @@ func TestNoDomains(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-// this test is to ensure that http proxy settings are passed through correctly
-func TestInstall_HTTPProxy(t *testing.T) {
-	t.Setenv("HTTP_PROXY", "http://localhost:3128")
-	t.Setenv("HTTPS_PROXY", "http://localhost:3128")
-	t.Setenv("NO_PROXY", "localhost,127.0.0.1,10.0.0.0/8")
-
+// this test is to verify HTTP proxy + CA bundle configuration together in Helm values for addons
+func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 	hostCABundle := findHostCABundle(t)
 
 	hcli := &helm.MockClient{}
@@ -602,6 +598,11 @@ func TestInstall_HTTPProxy(t *testing.T) {
 		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
+
+	// Set HTTP proxy environment variables
+	t.Setenv("HTTP_PROXY", "http://localhost:3128")
+	t.Setenv("HTTPS_PROXY", "http://localhost:3128")
+	t.Setenv("NO_PROXY", "localhost,127.0.0.1,10.0.0.0/8")
 
 	dr := dryrunInstall(t, &dryrun.Client{HelmClient: hcli})
 
@@ -640,12 +641,12 @@ func TestInstall_HTTPProxy(t *testing.T) {
 			},
 		},
 	})
-	// TODO: CA
 
 	// velero
 	assert.Equal(t, "Install", hcli.Calls[2].Method)
 	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "velero", veleroOpts.ReleaseName)
+
 	assertHelmValues(t, veleroOpts.Values, map[string]any{
 		"configuration.extraEnvVars": map[string]any{
 			"HTTPS_PROXY":  "http://localhost:3128",
@@ -670,6 +671,7 @@ func TestInstall_HTTPProxy(t *testing.T) {
 	assert.Equal(t, "Install", hcli.Calls[3].Method)
 	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
+
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
 		"extraEnv": []map[string]any{
 			{
@@ -688,9 +690,23 @@ func TestInstall_HTTPProxy(t *testing.T) {
 				"name":  "NO_PROXY",
 				"value": noProxy,
 			},
+			{
+				"name":  "SSL_CERT_DIR",
+				"value": "/certs",
+			},
 		},
+		"extraVolumes": []map[string]any{{
+			"name": "host-ca-bundle",
+			"hostPath": map[string]any{
+				"path": hostCABundle,
+				"type": "FileOrCreate",
+			},
+		}},
+		"extraVolumeMounts": []map[string]any{{
+			"mountPath": "/certs/ca-certificates.crt",
+			"name":      "host-ca-bundle",
+		}},
 	})
-	// TODO: CA
 
 	// --- validate host preflight spec --- //
 	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {
@@ -721,10 +737,6 @@ func TestInstall_HTTPProxy(t *testing.T) {
 		t.Fatalf("failed to create kube client: %v", err)
 	}
 
-	// TODO: CA
-	// assertConfigMapExists(t, kcli, "private-cas", "kotsadm")
-	// assertConfigMapExists(t, kcli, "kotsadm-private-cas", "embedded-cluster")
-
 	// --- validate installation object --- //
 	in, err := kubeutils.GetLatestInstallation(context.TODO(), kcli)
 	if err != nil {
@@ -732,6 +744,9 @@ func TestInstall_HTTPProxy(t *testing.T) {
 	}
 
 	assert.Equal(t, hostCABundle, in.Spec.RuntimeConfig.HostCABundlePath)
+
+	// Verify some metrics were captured
+	assert.NotEmpty(t, dr.Metrics)
 }
 
 func findHostCABundle(t *testing.T) string {
