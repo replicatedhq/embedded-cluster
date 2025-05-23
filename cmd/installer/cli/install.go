@@ -423,6 +423,10 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	// TODO: fix url
 	apiClient := apiclient.New("http://localhost:30080")
 
+	if err := apiClient.Login(flags.adminConsolePassword); err != nil {
+		return fmt.Errorf("unable to login: %w", err)
+	}
+
 	// TODO: make this work with the new auth
 	// TODO: move this to a util function and report more things
 	_, err := apiClient.SetInstallStatus(apitypes.InstallationStatus{

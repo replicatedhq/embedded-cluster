@@ -58,8 +58,14 @@ func (c *InstallController) Get(ctx context.Context) (*types.Install, error) {
 		return nil, fmt.Errorf("validate: %w", err)
 	}
 
+	status, err := c.installationManager.ReadStatus()
+	if err != nil {
+		return nil, fmt.Errorf("read status: %w", err)
+	}
+
 	install := &types.Install{
 		Config: *config,
+		Status: *status,
 	}
 
 	return install, nil
