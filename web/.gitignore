@@ -27,6 +27,7 @@ package-lock.json
 
 dist/*
 !dist/README.md
+!dist/BUILD
 /history
 
 #editors
