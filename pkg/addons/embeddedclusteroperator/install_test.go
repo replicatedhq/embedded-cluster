@@ -67,11 +67,13 @@ func Test_installEnsureCAConfigmap(t *testing.T) {
 			cli := builder.Build()
 
 			// Call the function under test
-			privateCAs := []string{
-				filepath.Join(tmpDir, "ca_0.crt"),
-				filepath.Join(tmpDir, "ca_1.crt"),
+			e := &EmbeddedClusterOperator{
+				PrivateCAs: []string{
+					filepath.Join(tmpDir, "ca_0.crt"),
+					filepath.Join(tmpDir, "ca_1.crt"),
+				},
 			}
-			err := installEnsureCAConfigmap(context.Background(), cli, privateCAs)
+			err := e.installEnsureCAConfigmap(context.Background(), cli)
 
 			// Check error expectations
 			if tt.expectError {

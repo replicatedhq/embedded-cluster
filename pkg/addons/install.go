@@ -74,6 +74,7 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 			IsAirgap:            opts.IsAirgap,
 			Proxy:               opts.Proxy,
 			PrivateCAs:          opts.PrivateCAs,
+			HostCABundlePath:    opts.HostCABundlePath,
 		},
 	}
 
