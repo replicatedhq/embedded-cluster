@@ -21,7 +21,7 @@ func getToken(name string) (string, error) {
 	return tokenString, err
 }
 
-func verifyToken(tokenString string) (jwt.Claims, error) {
+func validateToken(tokenString string) (jwt.Claims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		return signingKey, nil
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))

@@ -81,7 +81,7 @@ func TestSetInstallConfig(t *testing.T) {
 			// Create a request
 			req := httptest.NewRequest(http.MethodPost, "/install/config", bytes.NewReader(configJSON))
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("Authorization", "TOKEN")
+			req.Header.Set("Authorization", "Bearer "+"TOKEN")
 			rec := httptest.NewRecorder()
 
 			// Serve the request
@@ -160,7 +160,7 @@ func TestSetInstallConfigValidation(t *testing.T) {
 	// Create a request
 	req := httptest.NewRequest(http.MethodPost, "/install/config", bytes.NewReader(configJSON))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "TOKEN")
+	req.Header.Set("Authorization", "Bearer "+"TOKEN")
 	rec := httptest.NewRecorder()
 
 	// Serve the request
@@ -204,7 +204,7 @@ func TestSetInstallConfigBadRequest(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/install/config",
 		bytes.NewReader([]byte(`{"dataDirectory": "/tmp/data", "adminConsolePort": "not-a-number"}`)))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "TOKEN")
+	req.Header.Set("Authorization", "Bearer "+"TOKEN")
 	rec := httptest.NewRecorder()
 
 	// Serve the request
@@ -246,7 +246,7 @@ func TestSetInstallConfigControllerError(t *testing.T) {
 	// Create a request
 	req := httptest.NewRequest(http.MethodPost, "/install/config", bytes.NewReader(configJSON))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "TOKEN")
+	req.Header.Set("Authorization", "Bearer "+"TOKEN")
 	rec := httptest.NewRecorder()
 
 	// Serve the request
@@ -297,7 +297,7 @@ func TestGetInstall(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Create a request
 		req := httptest.NewRequest(http.MethodGet, "/install", nil)
-		req.Header.Set("Authorization", "TOKEN")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -324,7 +324,7 @@ func TestGetInstall(t *testing.T) {
 	t.Run("Default configuration", func(t *testing.T) {
 		// Create a fresh config manager without writing anything
 		emptyInstallationManager := installation.NewInstallationManager(
-			installation.WithNetUtils(&mockNetUtils{iface: "eth0"}),
+			installation.WithNetUtils(&mockNetUtils{ifaces: []string{"eth0", "eth1"}}),
 		)
 
 		// Create an install controller with the empty config manager
@@ -348,7 +348,7 @@ func TestGetInstall(t *testing.T) {
 
 		// Create a request
 		req := httptest.NewRequest(http.MethodGet, "/install", nil)
-		req.Header.Set("Authorization", "TOKEN")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -392,7 +392,7 @@ func TestGetInstall(t *testing.T) {
 
 		// Create a request
 		req := httptest.NewRequest(http.MethodGet, "/install", nil)
-		req.Header.Set("Authorization", "TOKEN")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -410,11 +410,14 @@ func TestGetInstall(t *testing.T) {
 	})
 }
 
+var _ install.Controller = &mockInstallController{}
+
 // Mock implementation of the install.Controller interface
 type mockInstallController struct {
-	setConfigError error
-	getError       error
-	setStatusError error
+	setConfigError  error
+	getError        error
+	setStatusError  error
+	readStatusError error
 }
 
 func (m *mockInstallController) Get(ctx context.Context) (*types.Install, error) {
@@ -432,4 +435,8 @@ func (m *mockInstallController) SetConfig(ctx context.Context, config *types.Ins
 
 func (m *mockInstallController) SetStatus(ctx context.Context, status *types.InstallationStatus) error {
 	return m.setStatusError
+}
+
+func (m *mockInstallController) ReadStatus(ctx context.Context) (*types.InstallationStatus, error) {
+	return nil, m.readStatusError
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -14,19 +15,32 @@ type AuthRequest struct {
 }
 
 type AuthResponse struct {
-	SessionToken string `json:"sessionToken"`
+	Token string `json:"token"`
 }
 
 func (a *API) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sessionToken := r.Header.Get("Authorization")
-		if sessionToken == "" {
-			types.NewUnauthorizedError(errors.New("authorization header is required")).JSON(w)
+		token := r.Header.Get("Authorization")
+		if token == "" {
+			err := errors.New("authorization header is required")
+			a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
+				Error("failed to authenticate")
+			types.NewUnauthorizedError(err).JSON(w)
+			return
+		} else if !strings.HasPrefix(token, "Bearer ") {
+			err := errors.New("authorization header must start with Bearer ")
+			a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
+				Error("failed to authenticate")
+			types.NewUnauthorizedError(err).JSON(w)
 			return
 		}
 
-		err := a.authController.ValidateToken(r.Context(), sessionToken)
+		token = token[len("Bearer "):]
+
+		err := a.authController.ValidateToken(r.Context(), token)
 		if err != nil {
+			a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
+				Error("failed to validate token")
 			types.NewUnauthorizedError(err).JSON(w)
 			return
 		}
@@ -39,21 +53,25 @@ func (a *API) postAuthLogin(w http.ResponseWriter, r *http.Request) {
 	var request AuthRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
+		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
+			Error("failed to decode auth request")
 		types.NewBadRequestError(err).JSON(w)
 		return
 	}
 
-	sessionToken, err := a.authController.Authenticate(r.Context(), request.Password)
+	token, err := a.authController.Authenticate(r.Context(), request.Password)
 	if errors.Is(err, auth.ErrInvalidPassword) {
 		types.NewUnauthorizedError(err).JSON(w)
 		return
 	} else if err != nil {
+		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
+			Error("failed to authenticate")
 		types.NewInternalServerError(err).JSON(w)
 		return
 	}
 
 	response := AuthResponse{
-		SessionToken: sessionToken,
+		Token: token,
 	}
 
 	json.NewEncoder(w).Encode(response)

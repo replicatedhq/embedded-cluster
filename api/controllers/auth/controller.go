@@ -51,7 +51,7 @@ func (c *AuthController) Authenticate(ctx context.Context, password string) (str
 }
 
 func (c *AuthController) ValidateToken(ctx context.Context, token string) error {
-	_, err := verifyToken(token)
+	_, err := validateToken(token)
 	if err != nil {
 		return err
 	}

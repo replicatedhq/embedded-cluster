@@ -28,7 +28,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
         const installResponse = await fetch('/api/install', {
           headers: {
             ...(localStorage.getItem('auth') && {
-              'Authorization': `${localStorage.getItem('auth')}`,
+              'Authorization': `Bearer ${localStorage.getItem('auth')}`,
             }),
           },
         });
@@ -43,18 +43,18 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
 
         // TODO: make this a
         // Fetch network interfaces
-        // const interfacesResponse = await fetch('/api/host-network-interfaces', {
-        //   headers: {
-        //     ...(localStorage.getItem('auth') && {
-        //       'Authorization': `${localStorage.getItem('auth')}`,
-        //     }),
-        //   },
-        // });
+        const interfacesResponse = await fetch('/api/console/available-network-interfaces', {
+          headers: {
+            ...(localStorage.getItem('auth') && {
+              'Authorization': `Bearer ${localStorage.getItem('auth')}`,
+            }),
+          },
+        });
 
-        // if (interfacesResponse.ok) {
-        //   const interfacesData = await interfacesResponse.json();
-        //   setAvailableNetworkInterfaces(interfacesData.networkInterfaces || []);
-        // }
+          if (interfacesResponse.ok) {
+            const interfacesData = await interfacesResponse.json();
+            setAvailableNetworkInterfaces(interfacesData.networkInterfaces || []);
+          }
       } catch (err) {
         console.error('Failed to fetch data:', err);
       } finally {
@@ -94,7 +94,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
           'Content-Type': 'application/json',
           // Include auth credentials if available from localStorage or another source
           ...(localStorage.getItem('auth') && {
-            'Authorization': `${localStorage.getItem('auth')}`,
+            'Authorization': `Bearer ${localStorage.getItem('auth')}`,
           }),
         },
         body: JSON.stringify(config),

@@ -50,7 +50,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
       if (response.ok) {
         // Store the password in localStorage
         const data = await response.json();
-        localStorage.setItem('auth', data.sessionToken);
+        localStorage.setItem('auth', data.token);
         onNext();
       } else {
         setError('Invalid password');

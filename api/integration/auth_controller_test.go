@@ -26,7 +26,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 	// Create an install controller
 	installController, err := install.NewInstallController(
 		install.WithInstallationManager(installation.NewInstallationManager(
-			installation.WithNetUtils(&mockNetUtils{iface: "eth0"}),
+			installation.WithNetUtils(&mockNetUtils{ifaces: []string{"eth0", "eth1"}}),
 		)),
 	)
 	require.NoError(t, err)
@@ -69,11 +69,11 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 		require.NoError(t, err)
 
 		// Validate that we got a session token
-		assert.NotEmpty(t, loginResponse.SessionToken)
+		assert.NotEmpty(t, loginResponse.Token)
 
 		// Now use this token to access a protected route
 		getInstallReq := httptest.NewRequest(http.MethodGet, "/install", nil)
-		getInstallReq.Header.Set("Authorization", loginResponse.SessionToken)
+		getInstallReq.Header.Set("Authorization", "Bearer "+loginResponse.Token)
 		getInstallRec := httptest.NewRecorder()
 
 		// Serve the request
@@ -119,7 +119,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 	// Test access to protected route with invalid token
 	t.Run("access protected route with invalid token", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/install", nil)
-		req.Header.Set("Authorization", "invalid-token")
+		req.Header.Set("Authorization", "Bearer "+"invalid-token")
 		rec := httptest.NewRecorder()
 
 		// Serve the request

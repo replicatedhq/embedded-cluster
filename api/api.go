@@ -9,28 +9,36 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
+	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 type API struct {
-	installController install.Controller
 	authController    auth.Controller
+	consoleController console.Controller
+	installController install.Controller
 	configChan        chan<- *types.InstallationConfig
 	logger            logrus.FieldLogger
 }
 
 type APIOption func(*API)
 
-func WithInstallController(installController install.Controller) APIOption {
-	return func(a *API) {
-		a.installController = installController
-	}
-}
-
 func WithAuthController(authController auth.Controller) APIOption {
 	return func(a *API) {
 		a.authController = authController
+	}
+}
+
+func WithConsoleController(consoleController console.Controller) APIOption {
+	return func(a *API) {
+		a.consoleController = consoleController
+	}
+}
+
+func WithInstallController(installController install.Controller) APIOption {
+	return func(a *API) {
+		a.installController = installController
 	}
 }
 
@@ -52,20 +60,28 @@ func New(password string, opts ...APIOption) (*API, error) {
 		opt(api)
 	}
 
-	if api.installController == nil {
-		installController, err := install.NewInstallController()
-		if err != nil {
-			return nil, fmt.Errorf("new install controller: %w", err)
-		}
-		api.installController = installController
-	}
-
 	if api.authController == nil {
 		authController, err := auth.NewAuthController(password)
 		if err != nil {
 			return nil, fmt.Errorf("new auth controller: %w", err)
 		}
 		api.authController = authController
+	}
+
+	if api.consoleController == nil {
+		consoleController, err := console.NewConsoleController()
+		if err != nil {
+			return nil, fmt.Errorf("new console controller: %w", err)
+		}
+		api.consoleController = consoleController
+	}
+
+	if api.installController == nil {
+		installController, err := install.NewInstallController()
+		if err != nil {
+			return nil, fmt.Errorf("new install controller: %w", err)
+		}
+		api.installController = installController
 	}
 
 	if api.logger == nil {
@@ -88,6 +104,9 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	installRouter.HandleFunc("/config", a.setInstallConfig).Methods("POST")
 	installRouter.HandleFunc("/status", a.setInstallStatus).Methods("POST")
 	installRouter.HandleFunc("/status", a.getInstallStatus).Methods("GET")
+
+	consoleRouter := authenticatedRouter.PathPrefix("/console").Subrouter()
+	consoleRouter.HandleFunc("/available-network-interfaces", a.getListAvailableNetworkInterfaces).Methods("GET")
 }
 
 func handleError(w http.ResponseWriter, err error) {
