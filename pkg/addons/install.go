@@ -104,6 +104,7 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
 		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
 		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,
+		HostCABundlePath:         opts.HostCABundlePath,
 	}
 	addOns = append(addOns, adminConsoleAddOn)
 

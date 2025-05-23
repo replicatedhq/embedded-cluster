@@ -76,7 +76,32 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 		)
 	}
 
+	extraVolumes := []map[string]interface{}{}
+	extraVolumeMounts := []map[string]interface{}{}
+
+	if a.HostCABundlePath != "" {
+		extraVolumes = append(extraVolumes, map[string]interface{}{
+			"name": "host-ca-bundle",
+			"hostPath": map[string]interface{}{
+				"path": a.HostCABundlePath,
+				"type": "FileOrCreate",
+			},
+		})
+
+		extraVolumeMounts = append(extraVolumeMounts, map[string]interface{}{
+			"name":      "host-ca-bundle",
+			"mountPath": "/certs/ca-certificates.crt",
+		})
+
+		extraEnv = append(extraEnv, map[string]interface{}{
+			"name":  "SSL_CERT_DIR",
+			"value": "/certs",
+		})
+	}
+
 	copiedValues["extraEnv"] = extraEnv
+	copiedValues["extraVolumes"] = extraVolumes
+	copiedValues["extraVolumeMounts"] = extraVolumeMounts
 
 	err = helm.SetValue(copiedValues, "kurlProxy.nodePort", runtimeconfig.AdminConsolePort())
 	if err != nil {

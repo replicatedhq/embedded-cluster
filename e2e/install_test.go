@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -11,12 +10,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
-	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 )
 
 func TestSingleNodeInstallation(t *testing.T) {
@@ -1724,62 +1721,6 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	}
 
 	checkPostUpgradeState(t, tc)
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
-func TestInstallWithPrivateCAs(t *testing.T) {
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	input := &lxd.ClusterInput{
-		T:                   t,
-		Nodes:               1,
-		Image:               "ubuntu/jammy",
-		LicensePath:         "licenses/license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-	}
-	tc := lxd.NewCluster(input)
-	defer tc.Cleanup()
-
-	certBuilder, err := certs.NewBuilder()
-	require.NoError(t, err, "unable to create new cert builder")
-	crtContent, _, err := certBuilder.Generate()
-	require.NoError(t, err, "unable to build test certificate")
-
-	tmpfile, err := os.CreateTemp("", "test-temp-cert-*.crt")
-	require.NoError(t, err, "unable to create temp file")
-	defer os.Remove(tmpfile.Name())
-
-	_, err = tmpfile.WriteString(crtContent)
-	require.NoError(t, err, "unable to write to temp file")
-	tmpfile.Close()
-
-	lxd.CopyFileToNode(input, tc.Nodes[0], lxd.File{
-		SourcePath: tmpfile.Name(),
-		DestPath:   "/tmp/ca.crt",
-		Mode:       0666,
-	})
-
-	installSingleNodeWithOptions(t, tc, installOptions{
-		privateCA: "/tmp/ca.crt",
-	})
-
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
-	}
-
-	checkInstallationState(t, tc)
-
-	t.Logf("checking if the configmap was created with the right values")
-	line := []string{"kubectl", "get", "cm", "kotsadm-private-cas", "-n", "kotsadm", "-o", "json"}
-	stdout, _, err := tc.RunCommandOnNode(0, line, lxd.WithECShellEnv("/var/lib/embedded-cluster"))
-	require.NoError(t, err, "unable get kotsadm-private-cas configmap")
-
-	var cm corev1.ConfigMap
-	err = json.Unmarshal([]byte(stdout), &cm)
-	require.NoErrorf(t, err, "unable to unmarshal output to configmap: %q", stdout)
-	require.Contains(t, cm.Data, "ca_0.crt", "index ca_0.crt not found in ca secret")
-	require.Equal(t, crtContent, cm.Data["ca_0.crt"], "content mismatch")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
