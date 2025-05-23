@@ -407,6 +407,14 @@ spec:
                           mirror will be served.
                         type: integer
                     type: object
+                  manager:
+                    description: Manager holds the Manager configuration.
+                    properties:
+                      port:
+                        description: Port holds the port on which the manager will
+                          be served.
+                        type: integer
+                    type: object
                   openEBSDataDirOverride:
                     description: |-
                       OpenEBSDataDirOverride holds the override for the data directory for the OpenEBS storage

@@ -2,9 +2,11 @@ package console
 
 import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
+	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 type Controller interface {
+	GetBranding() (types.Branding, error)
 	ListAvailableNetworkInterfaces() ([]string, error)
 }
 
@@ -32,6 +34,14 @@ func NewConsoleController(opts ...ConsoleControllerOption) (*ConsoleController, 
 	}
 
 	return controller, nil
+}
+
+func (c *ConsoleController) GetBranding() (types.Branding, error) {
+	// TODO
+	return types.Branding{
+		ApplicationName: "Embedded Cluster",
+		LogoURL:         "https://replicated.com/logo.png",
+	}, nil
 }
 
 func (c *ConsoleController) ListAvailableNetworkInterfaces() ([]string, error) {
