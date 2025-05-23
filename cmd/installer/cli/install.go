@@ -20,6 +20,7 @@ import (
 	"github.com/gosimple/slug"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/api"
+	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
@@ -69,14 +70,14 @@ type InstallCmdFlags struct {
 	dataDir                 string
 	licenseFile             string
 	localArtifactMirrorPort int
+	guidedUI                bool
 	assumeYes               bool
 	overrides               string
 	privateCAs              []string
 	skipHostPreflights      bool
 	ignoreHostPreflights    bool
 	configValues            string
-
-	networkInterface string
+	networkInterface        string
 
 	license *kotsv1beta1.License
 	proxy   *ecv1beta1.ProxySpec
@@ -147,6 +148,7 @@ func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	cmd.Flags().StringVar(&flags.dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	cmd.Flags().IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
+	cmd.Flags().BoolVarP(&flags.guidedUI, "guided-ui", "g", false, "Run the installation in guided UI mode.")
 	cmd.Flags().BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
@@ -197,10 +199,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	// this does not return an error - it returns the previous umask
 	_ = syscall.Umask(0o022)
 
-	if err := ensureAdminConsolePassword(flags); err != nil {
-		return err
-	}
-
 	// license file can be empty for restore
 	if flags.licenseFile != "" {
 		// validate the the license is indeed a license file
@@ -224,12 +222,25 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 
 	flags.isAirgap = flags.airgapBundle != ""
 
+	if err := ensureAdminConsolePassword(flags); err != nil {
+		return err
+	}
+
 	// TODO: implement guided UI
-	guidedUI := true
-	if guidedUI {
-		installConfig, err := preRunInstallAPI(cmd.Context(), flags.adminConsolePassword)
-		if err != nil {
+	if flags.guidedUI {
+		configChan := make(chan *apitypes.InstallationConfig)
+		defer close(configChan)
+
+		if err := preRunInstallAPI(cmd.Context(), flags.adminConsolePassword, configChan); err != nil {
 			return fmt.Errorf("unable to start install API: %w", err)
+		}
+
+		// TODO: fix this message to have the correct address
+		fmt.Println("Visit http://localhost:30080/ to configure your cluster")
+
+		installConfig, ok := <-configChan
+		if !ok {
+			return fmt.Errorf("install API closed channel")
 		}
 
 		proxy, err := newconfig.GetProxySpec(
@@ -314,7 +325,7 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	return nil
 }
 
-func preRunInstallAPI(ctx context.Context, password string) (*apitypes.InstallationConfig, error) {
+func preRunInstallAPI(ctx context.Context, password string, configChan chan<- *apitypes.InstallationConfig) error {
 	logger, err := api.NewLogger()
 	if err != nil {
 		logrus.Warnf("Unable to setup API logging: %v", err)
@@ -322,38 +333,25 @@ func preRunInstallAPI(ctx context.Context, password string) (*apitypes.Installat
 
 	listener, err := net.Listen("tcp", ":30080") // TODO: make this configurable
 	if err != nil {
-		return nil, fmt.Errorf("unable to create listener: %w", err)
+		return fmt.Errorf("unable to create listener: %w", err)
 	}
 
-	configChan := make(chan *apitypes.InstallationConfig)
-	defer close(configChan)
-
-	apiCtx, apiCancel := context.WithCancel(ctx)
-	defer apiCancel()
 	go func() {
-		if err := runInstallAPI(apiCtx, listener, logger, configChan, password); err != nil {
+		if err := runInstallAPI(ctx, listener, logger, password, configChan); err != nil {
 			if !errors.Is(err, http.ErrServerClosed) {
 				logrus.Errorf("install API error: %v", err)
 			}
 		}
 	}()
 
-	if err := waitForInstallAPI(apiCtx, listener.Addr().String()); err != nil {
-		return nil, fmt.Errorf("unable to wait for install API: %w", err)
+	if err := waitForInstallAPI(ctx, listener.Addr().String()); err != nil {
+		return fmt.Errorf("unable to wait for install API: %w", err)
 	}
 
-	// TODO: fix this message to have the correct address
-	fmt.Println("Visit http://localhost:30080/ to configure your cluster")
-
-	config, ok := <-configChan
-	if !ok {
-		return nil, fmt.Errorf("install API closed channel")
-	}
-
-	return config, nil
+	return nil
 }
 
-func runInstallAPI(ctx context.Context, listener net.Listener, logger logrus.FieldLogger, configChan chan<- *apitypes.InstallationConfig, password string) error {
+func runInstallAPI(ctx context.Context, listener net.Listener, logger logrus.FieldLogger, password string, configChan chan<- *apitypes.InstallationConfig) error {
 	router := mux.NewRouter()
 
 	api, err := api.New(
@@ -421,6 +419,20 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	// if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
 	// 	return err
 	// }
+
+	// TODO: fix url
+	apiClient := apiclient.New("http://localhost:30080")
+
+	// TODO: make this work with the new auth
+	// TODO: move this to a util function and report more things
+	_, err := apiClient.SetInstallStatus(apitypes.InstallationStatus{
+		State:       apitypes.InstallationStateRunning,
+		Description: "Initializing install",
+		LastUpdated: time.Now(),
+	})
+	if err != nil {
+		return fmt.Errorf("unable to set install status: %w", err)
+	}
 
 	logrus.Debug("initializing install")
 	if err := initializeInstall(ctx, flags); err != nil {

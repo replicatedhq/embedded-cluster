@@ -26,7 +26,7 @@ func (a *API) getInstall(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(install)
 }
 
-func (a *API) postInstallPhaseSetConfig(w http.ResponseWriter, r *http.Request) {
+func (a *API) setInstallConfig(w http.ResponseWriter, r *http.Request) {
 	var config types.InstallationConfig
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
 		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
@@ -48,6 +48,25 @@ func (a *API) postInstallPhaseSetConfig(w http.ResponseWriter, r *http.Request) 
 	if a.configChan != nil {
 		a.configChan <- &config
 	}
+}
+
+func (a *API) setInstallStatus(w http.ResponseWriter, r *http.Request) {
+	var status types.InstallationStatus
+	if err := json.NewDecoder(r.Body).Decode(&status); err != nil {
+		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
+			Info("failed to decode installation status")
+		types.NewBadRequestError(err).JSON(w)
+		return
+	}
+
+	if err := a.installController.SetStatus(r.Context(), &status); err != nil {
+		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
+			Error("failed to set installation status")
+		handleError(w, err)
+		return
+	}
+
+	a.getInstall(w, r)
 }
 
 func logrusFieldsFromRequest(r *http.Request) logrus.Fields {

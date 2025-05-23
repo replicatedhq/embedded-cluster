@@ -25,7 +25,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 
 	// Create an install controller
 	installController, err := install.NewInstallController(
-		install.WithConfigManager(installation.NewConfigManager(
+		install.WithInstallationManager(installation.NewInstallationManager(
 			installation.WithNetUtils(&mockNetUtils{iface: "eth0"}),
 		)),
 	)

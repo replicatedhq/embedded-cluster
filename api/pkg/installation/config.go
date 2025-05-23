@@ -11,46 +11,48 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
-var _ ConfigManager = &configManager{}
+var _ InstallationManager = &installationManager{}
 
-// ConfigManager provides methods for validating and setting defaults for installation configuration
-type ConfigManager interface {
-	Read() (*types.InstallationConfig, error)
-	Write(config types.InstallationConfig) error
-	Validate(config *types.InstallationConfig) error
+// InstallationManager provides methods for validating and setting defaults for installation configuration
+type InstallationManager interface {
+	ReadConfig() (*types.InstallationConfig, error)
+	WriteConfig(config types.InstallationConfig) error
+	ReadStatus() (*types.InstallationStatus, error)
+	WriteStatus(status types.InstallationStatus) error
+	ValidateConfig(config *types.InstallationConfig) error
 	SetDefaults(config *types.InstallationConfig) error
 }
 
-// configManager is an implementation of the ConfigManager interface
-type configManager struct {
-	configStore ConfigStore
-	netUtils    utils.NetUtils
+// installationManager is an implementation of the InstallationManager interface
+type installationManager struct {
+	installationStore InstallationStore
+	netUtils          utils.NetUtils
 }
 
-type ConfigManagerOption func(*configManager)
+type InstallationManagerOption func(*installationManager)
 
-func WithConfigStore(configStore ConfigStore) ConfigManagerOption {
-	return func(c *configManager) {
-		c.configStore = configStore
+func WithInstallationStore(installationStore InstallationStore) InstallationManagerOption {
+	return func(c *installationManager) {
+		c.installationStore = installationStore
 	}
 }
 
-func WithNetUtils(netUtils utils.NetUtils) ConfigManagerOption {
-	return func(c *configManager) {
+func WithNetUtils(netUtils utils.NetUtils) InstallationManagerOption {
+	return func(c *installationManager) {
 		c.netUtils = netUtils
 	}
 }
 
-// NewConfigManager creates a new ConfigManager with the provided network utilities
-func NewConfigManager(opts ...ConfigManagerOption) *configManager {
-	manager := &configManager{}
+// NewInstallationManager creates a new InstallationManager with the provided network utilities
+func NewInstallationManager(opts ...InstallationManagerOption) *installationManager {
+	manager := &installationManager{}
 
 	for _, opt := range opts {
 		opt(manager)
 	}
 
-	if manager.configStore == nil {
-		manager.configStore = NewConfigMemoryStore()
+	if manager.installationStore == nil {
+		manager.installationStore = NewMemoryStore()
 	}
 
 	if manager.netUtils == nil {
@@ -60,15 +62,23 @@ func NewConfigManager(opts ...ConfigManagerOption) *configManager {
 	return manager
 }
 
-func (m *configManager) Read() (*types.InstallationConfig, error) {
-	return m.configStore.Read()
+func (m *installationManager) ReadConfig() (*types.InstallationConfig, error) {
+	return m.installationStore.ReadConfig()
 }
 
-func (m *configManager) Write(config types.InstallationConfig) error {
-	return m.configStore.Write(config)
+func (m *installationManager) WriteConfig(config types.InstallationConfig) error {
+	return m.installationStore.WriteConfig(config)
 }
 
-func (m *configManager) Validate(config *types.InstallationConfig) error {
+func (m *installationManager) ReadStatus() (*types.InstallationStatus, error) {
+	return m.installationStore.ReadStatus()
+}
+
+func (m *installationManager) WriteStatus(status types.InstallationStatus) error {
+	return m.installationStore.WriteStatus(status)
+}
+
+func (m *installationManager) ValidateConfig(config *types.InstallationConfig) error {
 	var ve *types.APIError
 
 	if err := m.validateGlobalCIDR(config); err != nil {
@@ -102,7 +112,7 @@ func (m *configManager) Validate(config *types.InstallationConfig) error {
 	return ve.ErrorOrNil()
 }
 
-func (m *configManager) validateGlobalCIDR(config *types.InstallationConfig) error {
+func (m *installationManager) validateGlobalCIDR(config *types.InstallationConfig) error {
 	if config.GlobalCIDR == "" {
 		if config.PodCIDR == "" && config.ServiceCIDR == "" {
 			return errors.New("globalCidr is required")
@@ -128,21 +138,21 @@ func (m *configManager) validateGlobalCIDR(config *types.InstallationConfig) err
 	return nil
 }
 
-func (m *configManager) validatePodCIDR(config *types.InstallationConfig) error {
+func (m *installationManager) validatePodCIDR(config *types.InstallationConfig) error {
 	if config.ServiceCIDR != "" && config.PodCIDR == "" {
 		return errors.New("podCidr is required when serviceCidr is set")
 	}
 	return nil
 }
 
-func (m *configManager) validateServiceCIDR(config *types.InstallationConfig) error {
+func (m *installationManager) validateServiceCIDR(config *types.InstallationConfig) error {
 	if config.PodCIDR != "" && config.ServiceCIDR == "" {
 		return errors.New("serviceCidr is required when podCidr is set")
 	}
 	return nil
 }
 
-func (m *configManager) validateNetworkInterface(config *types.InstallationConfig) error {
+func (m *installationManager) validateNetworkInterface(config *types.InstallationConfig) error {
 	if config.NetworkInterface == "" {
 		return errors.New("networkInterface is required")
 	}
@@ -151,7 +161,7 @@ func (m *configManager) validateNetworkInterface(config *types.InstallationConfi
 	return nil
 }
 
-func (m *configManager) validateAdminConsolePort(config *types.InstallationConfig) error {
+func (m *installationManager) validateAdminConsolePort(config *types.InstallationConfig) error {
 	if config.AdminConsolePort == 0 {
 		return errors.New("adminConsolePort is required")
 	}
@@ -168,7 +178,7 @@ func (m *configManager) validateAdminConsolePort(config *types.InstallationConfi
 	return nil
 }
 
-func (m *configManager) validateLocalArtifactMirrorPort(config *types.InstallationConfig) error {
+func (m *installationManager) validateLocalArtifactMirrorPort(config *types.InstallationConfig) error {
 	if config.LocalArtifactMirrorPort == 0 {
 		return errors.New("localArtifactMirrorPort is required")
 	}
@@ -185,7 +195,7 @@ func (m *configManager) validateLocalArtifactMirrorPort(config *types.Installati
 	return nil
 }
 
-func (m *configManager) validateDataDirectory(config *types.InstallationConfig) error {
+func (m *installationManager) validateDataDirectory(config *types.InstallationConfig) error {
 	if config.DataDirectory == "" {
 		return errors.New("dataDirectory is required")
 	}
@@ -194,7 +204,7 @@ func (m *configManager) validateDataDirectory(config *types.InstallationConfig) 
 }
 
 // SetDefaults sets default values for the installation configuration
-func (m *configManager) SetDefaults(config *types.InstallationConfig) error {
+func (m *installationManager) SetDefaults(config *types.InstallationConfig) error {
 	if config.AdminConsolePort == 0 {
 		config.AdminConsolePort = ecv1beta1.DefaultAdminConsolePort
 	}
@@ -224,7 +234,7 @@ func (m *configManager) SetDefaults(config *types.InstallationConfig) error {
 	return nil
 }
 
-func (m *configManager) setProxyDefaults(config *types.InstallationConfig) {
+func (m *installationManager) setProxyDefaults(config *types.InstallationConfig) {
 	proxy := &ecv1beta1.ProxySpec{
 		HTTPProxy:       config.HTTPProxy,
 		HTTPSProxy:      config.HTTPSProxy,
@@ -237,7 +247,7 @@ func (m *configManager) setProxyDefaults(config *types.InstallationConfig) {
 	config.NoProxy = proxy.ProvidedNoProxy
 }
 
-func (m *configManager) setCIDRDefaults(config *types.InstallationConfig) error {
+func (m *installationManager) setCIDRDefaults(config *types.InstallationConfig) error {
 	if config.PodCIDR == "" && config.ServiceCIDR == "" {
 		if config.GlobalCIDR == "" {
 			config.GlobalCIDR = ecv1beta1.DefaultNetworkCIDR

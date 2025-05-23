@@ -1,4 +1,4 @@
-package install
+package client
 
 import (
 	"bytes"
@@ -27,7 +27,8 @@ var defaultHTTPClient = &http.Client{
 
 type Client interface {
 	GetInstall() (*types.Install, error)
-	InstallPhaseSetConfig(config types.InstallationConfig) (*types.Install, error)
+	SetInstallConfig(config types.InstallationConfig) (*types.Install, error)
+	SetInstallStatus(status types.InstallationStatus) (*types.Install, error)
 }
 
 type client struct {
@@ -84,13 +85,44 @@ func (c *client) GetInstall() (*types.Install, error) {
 	return &install, nil
 }
 
-func (c *client) InstallPhaseSetConfig(config types.InstallationConfig) (*types.Install, error) {
+func (c *client) SetInstallConfig(config types.InstallationConfig) (*types.Install, error) {
 	b, err := json.Marshal(config)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.apiURL+"/phase/set-config", bytes.NewBuffer(b))
+	req, err := http.NewRequest("POST", c.apiURL+"/api/install/phase/set-config", bytes.NewBuffer(b))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errorFromResponse(resp)
+	}
+
+	var install types.Install
+	err = json.NewDecoder(resp.Body).Decode(&install)
+	if err != nil {
+		return nil, err
+	}
+
+	return &install, nil
+}
+
+func (c *client) SetInstallStatus(status types.InstallationStatus) (*types.Install, error) {
+	b, err := json.Marshal(status)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", c.apiURL+"/api/install/phase/set-status", bytes.NewBuffer(b))
 	if err != nil {
 		return nil, err
 	}

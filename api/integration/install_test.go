@@ -17,13 +17,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestInstallPhaseSetConfig(t *testing.T) {
-	// Create a config manager
-	configManager := installation.NewConfigManager()
+func TestSetInstallConfig(t *testing.T) {
+	manager := installation.NewInstallationManager()
 
 	// Create an install controller with the config manager
 	installController, err := install.NewInstallController(
-		install.WithConfigManager(configManager),
+		install.WithInstallationManager(manager),
 	)
 	require.NoError(t, err)
 
@@ -112,7 +111,7 @@ func TestInstallPhaseSetConfig(t *testing.T) {
 
 			// Also verify that the config is in the store
 			if !tc.expectedError {
-				storedConfig, err := configManager.Read()
+				storedConfig, err := manager.ReadConfig()
 				require.NoError(t, err)
 				assert.Equal(t, tc.config.DataDirectory, storedConfig.DataDirectory)
 				assert.Equal(t, tc.config.AdminConsolePort, storedConfig.AdminConsolePort)
@@ -122,13 +121,13 @@ func TestInstallPhaseSetConfig(t *testing.T) {
 }
 
 // Test that config validation errors are properly returned
-func TestInstallPhaseSetConfigValidation(t *testing.T) {
-	// Create a config manager
-	configManager := installation.NewConfigManager()
+func TestSetInstallConfigValidation(t *testing.T) {
+	// Create a memory store
+	manager := installation.NewInstallationManager()
 
 	// Create an install controller with the config manager
 	installController, err := install.NewInstallController(
-		install.WithConfigManager(configManager),
+		install.WithInstallationManager(manager),
 	)
 	require.NoError(t, err)
 
@@ -180,13 +179,13 @@ func TestInstallPhaseSetConfigValidation(t *testing.T) {
 }
 
 // Test that the endpoint properly handles malformed JSON
-func TestInstallPhaseSetConfigBadRequest(t *testing.T) {
-	// Create a config manager
-	configManager := installation.NewConfigManager()
+func TestSetInstallConfigBadRequest(t *testing.T) {
+	// Create a memory store and API
+	manager := installation.NewInstallationManager()
 
 	// Create an install controller with the config manager
 	installController, err := install.NewInstallController(
-		install.WithConfigManager(configManager),
+		install.WithInstallationManager(manager),
 	)
 	require.NoError(t, err)
 
@@ -218,7 +217,7 @@ func TestInstallPhaseSetConfigBadRequest(t *testing.T) {
 }
 
 // Test that the server returns proper errors when the API controller fails
-func TestInstallPhaseSetConfigControllerError(t *testing.T) {
+func TestSetInstallConfigControllerError(t *testing.T) {
 	// Create a mock controller that returns an error
 	mockController := &mockInstallController{
 		setConfigError: assert.AnError,
@@ -262,11 +261,11 @@ func TestInstallPhaseSetConfigControllerError(t *testing.T) {
 // Test the getInstall endpoint returns installation data correctly
 func TestGetInstall(t *testing.T) {
 	// Create a config manager
-	configManager := installation.NewConfigManager()
+	installationManager := installation.NewInstallationManager()
 
 	// Create an install controller with the config manager
 	installController, err := install.NewInstallController(
-		install.WithConfigManager(configManager),
+		install.WithInstallationManager(installationManager),
 	)
 	require.NoError(t, err)
 
@@ -278,7 +277,7 @@ func TestGetInstall(t *testing.T) {
 		GlobalCIDR:              "10.0.0.0/16",
 		NetworkInterface:        "eth0",
 	}
-	err = configManager.Write(initialConfig)
+	err = installationManager.WriteConfig(initialConfig)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
@@ -324,13 +323,13 @@ func TestGetInstall(t *testing.T) {
 	// Test get with default/empty configuration
 	t.Run("Default configuration", func(t *testing.T) {
 		// Create a fresh config manager without writing anything
-		emptyConfigManager := installation.NewConfigManager(
+		emptyInstallationManager := installation.NewInstallationManager(
 			installation.WithNetUtils(&mockNetUtils{iface: "eth0"}),
 		)
 
 		// Create an install controller with the empty config manager
 		emptyInstallController, err := install.NewInstallController(
-			install.WithConfigManager(emptyConfigManager),
+			install.WithInstallationManager(emptyInstallationManager),
 		)
 		require.NoError(t, err)
 
@@ -415,6 +414,7 @@ func TestGetInstall(t *testing.T) {
 type mockInstallController struct {
 	setConfigError error
 	getError       error
+	setStatusError error
 }
 
 func (m *mockInstallController) Get(ctx context.Context) (*types.Install, error) {
@@ -430,6 +430,6 @@ func (m *mockInstallController) SetConfig(ctx context.Context, config *types.Ins
 	return m.setConfigError
 }
 
-func (m *mockInstallController) StartInstall(ctx context.Context) error {
-	return nil
+func (m *mockInstallController) SetStatus(ctx context.Context, status *types.InstallationStatus) error {
+	return m.setStatusError
 }
