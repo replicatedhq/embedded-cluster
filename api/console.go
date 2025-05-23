@@ -26,5 +26,11 @@ func (a *API) getListAvailableNetworkInterfaces(w http.ResponseWriter, r *http.R
 		NetworkInterfaces: interfaces,
 	}
 
-	json.NewEncoder(w).Encode(response)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
+			Error("failed to encode available network interfaces")
+	}
 }
