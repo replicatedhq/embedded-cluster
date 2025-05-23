@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/gorilla/mux"
 	"github.com/gosimple/slug"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -116,34 +117,25 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				metricsReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			// TODO: revert this
-			// if err := runInstall(cmd.Context(), name, flags, metricsReporter); err != nil {
-			// 	// Check if this is an interrupt error from the terminal
-			// 	if errors.Is(err, terminal.InterruptErr) {
-			// 		metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
-			// 	} else {
-			// 		metricsReporter.ReportInstallationFailed(ctx, err)
-			// 	}
-			// 	return err
-			// }
-
-			apiClient := apiclient.New("http://localhost:30080") // TODO: make this configurable
-			if err := apiClient.Login(flags.adminConsolePassword); err != nil {
-				return fmt.Errorf("unable to login: %w", err)
+			if err := runInstall(cmd.Context(), name, flags, metricsReporter); err != nil {
+				// Check if this is an interrupt error from the terminal
+				if errors.Is(err, terminal.InterruptErr) {
+					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+				} else {
+					metricsReporter.ReportInstallationFailed(ctx, err)
+				}
+				return err
 			}
-
-			_, err := apiClient.SetInstallStatus(apitypes.InstallationStatus{
-				State:       apitypes.InstallationStateSucceeded,
-				Description: "Install Complete",
-				LastUpdated: time.Now(),
-			})
-			if err != nil {
-				logrus.Debugf("Failed to set install status: %v", err)
-			}
-
-			time.Sleep(60 * time.Second)
-
 			metricsReporter.ReportInstallationSucceeded(ctx)
+
+			// If in guided UI mode, keep the process running until interrupted
+			if flags.guidedUI {
+				logrus.Info("")
+				logrus.Info("Installation complete. Press Ctrl+C to exit.")
+				logrus.Info("")
+				<-ctx.Done()
+			}
+
 			return nil
 		},
 	}
@@ -253,7 +245,9 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		}
 
 		// TODO: fix this message to have the correct address
-		fmt.Println("Visit http://localhost:30080/ to configure your cluster")
+		logrus.Info("")
+		logrus.Info("Visit http://localhost:30080/ to configure your cluster")
+		logrus.Info("")
 
 		installConfig, ok := <-configChan
 		if !ok {
@@ -437,24 +431,6 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	// 	return err
 	// }
 
-	// TODO: fix url
-	apiClient := apiclient.New("http://localhost:30080")
-
-	if err := apiClient.Login(flags.adminConsolePassword); err != nil {
-		return fmt.Errorf("unable to login: %w", err)
-	}
-
-	// TODO: make this work with the new auth
-	// TODO: move this to a util function and report more things
-	_, err := apiClient.SetInstallStatus(apitypes.InstallationStatus{
-		State:       apitypes.InstallationStateRunning,
-		Description: "Initializing install",
-		LastUpdated: time.Now(),
-	})
-	if err != nil {
-		return fmt.Errorf("unable to set install status: %w", err)
-	}
-
 	logrus.Debug("initializing install")
 	if err := initializeInstall(ctx, flags); err != nil {
 		return fmt.Errorf("unable to initialize install: %w", err)
@@ -571,10 +547,32 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		logrus.Warnf("Unable to create host support bundle: %v", err)
 	}
 
-	if err := printSuccessMessage(flags.license, flags.networkInterface); err != nil {
-		return err
+	if flags.guidedUI {
+		if err := markUIInstallComplete(ctx, flags.adminConsolePassword); err != nil {
+			return fmt.Errorf("unable to mark ui install complete: %w", err)
+		}
+	} else {
+		if err := printSuccessMessage(flags.license, flags.networkInterface); err != nil {
+			return err
+		}
 	}
 
+	return nil
+}
+
+func markUIInstallComplete(ctx context.Context, password string) error {
+	apiClient := apiclient.New("http://localhost:30080") // TODO: make this configurable
+	if err := apiClient.Login(password); err != nil {
+		return fmt.Errorf("unable to login: %w", err)
+	}
+	_, err := apiClient.SetInstallStatus(apitypes.InstallationStatus{
+		State:       apitypes.InstallationStateSucceeded,
+		Description: "Install Complete",
+		LastUpdated: time.Now(),
+	})
+	if err != nil {
+		return fmt.Errorf("unable to set install status: %w", err)
+	}
 	return nil
 }
 

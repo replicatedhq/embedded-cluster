@@ -24,7 +24,6 @@ const ValidationInstallStep: React.FC = () => {
               'Authorization': `${localStorage.getItem('auth')}`,
             }),
           },
-          body: JSON.stringify(config),
         });
 
         if (!response.ok) {
@@ -57,7 +56,7 @@ const ValidationInstallStep: React.FC = () => {
     checkInstallStatus();
     
     // Set up polling every 5 seconds
-    pollInterval = setInterval(checkInstallStatus, 5000);
+    pollInterval = setInterval(checkInstallStatus, 2000);
 
     // Cleanup on unmount
     return () => {

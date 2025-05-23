@@ -113,41 +113,34 @@ func (m *installationManager) ValidateConfig(config *types.InstallationConfig) e
 }
 
 func (m *installationManager) validateGlobalCIDR(config *types.InstallationConfig) error {
-	if config.GlobalCIDR == "" {
+	if config.GlobalCIDR != "" {
+		if err := netutils.ValidateCIDR(config.GlobalCIDR, 16, true); err != nil {
+			return err
+		}
+	} else {
 		if config.PodCIDR == "" && config.ServiceCIDR == "" {
 			return errors.New("globalCidr is required")
 		}
-		return nil
 	}
-
-	if err := netutils.ValidateCIDR(config.GlobalCIDR, 16, true); err != nil {
-		return err
-	}
-
-	podCIDR, serviceCIDR, err := newconfig.SplitCIDR(config.GlobalCIDR)
-	if err != nil {
-		return fmt.Errorf("split globalCidr: %w", err)
-	}
-	if config.PodCIDR != "" && podCIDR != config.PodCIDR {
-		return errors.New("podCidr does not match globalCIDR")
-	}
-	if config.ServiceCIDR != "" && serviceCIDR != config.ServiceCIDR {
-		return errors.New("serviceCidr does not match globalCIDR")
-	}
-
 	return nil
 }
 
 func (m *installationManager) validatePodCIDR(config *types.InstallationConfig) error {
-	if config.ServiceCIDR != "" && config.PodCIDR == "" {
-		return errors.New("podCidr is required when serviceCidr is set")
+	if config.GlobalCIDR != "" {
+		return nil
+	}
+	if config.PodCIDR == "" {
+		return errors.New("podCidr is required when globalCidr is not set")
 	}
 	return nil
 }
 
 func (m *installationManager) validateServiceCIDR(config *types.InstallationConfig) error {
-	if config.PodCIDR != "" && config.ServiceCIDR == "" {
-		return errors.New("serviceCidr is required when podCidr is set")
+	if config.GlobalCIDR != "" {
+		return nil
+	}
+	if config.ServiceCIDR == "" {
+		return errors.New("serviceCidr is required when globalCidr is not set")
 	}
 	return nil
 }
@@ -248,20 +241,12 @@ func (m *installationManager) setProxyDefaults(config *types.InstallationConfig)
 }
 
 func (m *installationManager) setCIDRDefaults(config *types.InstallationConfig) error {
-	if config.PodCIDR == "" && config.ServiceCIDR == "" {
-		if config.GlobalCIDR == "" {
-			config.GlobalCIDR = ecv1beta1.DefaultNetworkCIDR
-		}
-
-		podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(config.GlobalCIDR)
-		if err != nil {
-			return fmt.Errorf("split network cidr: %w", err)
-		}
-		config.PodCIDR = podCIDR
-		config.ServiceCIDR = serviceCIDR
-
-		return nil
+	// if the client has not explicitly set / used pod/service cidrs, we assume the client is using the global cidr
+	// and only popluate the default for the global cidr.
+	// we don't populate pod/service cidrs defaults because the client would have to explicitly
+	// set them in order to use them in place of the global cidr.
+	if config.PodCIDR == "" && config.ServiceCIDR == "" && config.GlobalCIDR == "" {
+		config.GlobalCIDR = ecv1beta1.DefaultNetworkCIDR
 	}
-
 	return nil
 }
