@@ -250,8 +250,11 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 
 	flags.isAirgap = flags.airgapBundle != ""
 
-	if err := ensureAdminConsolePassword(flags); err != nil {
-		return err
+	// restore command doesn't have a password flag
+	if cmd.Flags().Lookup("admin-console-password") != nil {
+		if err := ensureAdminConsolePassword(flags); err != nil {
+			return err
+		}
 	}
 
 	if flags.guidedUI {
