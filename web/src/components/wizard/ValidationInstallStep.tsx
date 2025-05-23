@@ -22,6 +22,7 @@ const ValidationInstallStep: React.FC = () => {
               'Authorization': `${localStorage.getItem('auth')}`,
             }),
           },
+          body: JSON.stringify(config),
         });
 
         if (!response.ok) {
