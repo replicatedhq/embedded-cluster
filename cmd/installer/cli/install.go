@@ -70,7 +70,6 @@ type InstallCmdFlags struct {
 	dataDir                 string
 	licenseFile             string
 	localArtifactMirrorPort int
-	guidedUI                bool
 	assumeYes               bool
 	overrides               string
 	privateCAs              []string
@@ -82,6 +81,10 @@ type InstallCmdFlags struct {
 	license *kotsv1beta1.License
 	proxy   *ecv1beta1.ProxySpec
 	cidrCfg *newconfig.CIDRConfig
+
+	// guided UI flags
+	managerPort int
+	guidedUI    bool
 }
 
 // InstallCmd returns a cobra command for installing the embedded cluster.
@@ -146,6 +149,9 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
+	if err := addGuidedUIFlags(cmd, &flags); err != nil {
+		panic(err)
+	}
 
 	cmd.AddCommand(InstallRunPreflightsCmd(ctx, name))
 
@@ -157,7 +163,6 @@ func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	cmd.Flags().StringVar(&flags.dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	cmd.Flags().IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
-	cmd.Flags().BoolVarP(&flags.guidedUI, "guided-ui", "g", false, "Run the installation in guided UI mode.")
 	cmd.Flags().BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
@@ -199,6 +204,20 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) err
 	return nil
 }
 
+func addGuidedUIFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
+	cmd.Flags().BoolVarP(&flags.guidedUI, "guided-ui", "g", false, "Run the installation in guided UI mode.")
+	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
+
+	if err := cmd.Flags().MarkHidden("guided-ui"); err != nil {
+		return err
+	}
+	if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	if os.Getuid() != 0 {
 		return fmt.Errorf("install command must be run as root")
@@ -235,19 +254,17 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		return err
 	}
 
-	// TODO: implement guided UI
 	if flags.guidedUI {
 		configChan := make(chan *apitypes.InstallationConfig)
 		defer close(configChan)
 
-		if err := preRunInstallAPI(cmd.Context(), flags.adminConsolePassword, configChan); err != nil {
+		if err := preRunInstallAPI(cmd.Context(), flags.adminConsolePassword, flags.managerPort, configChan); err != nil {
 			return fmt.Errorf("unable to start install API: %w", err)
 		}
 
-		// TODO: fix this message to have the correct address
+		// TODO: fix this message
 		logrus.Info("")
-		logrus.Info("Visit http://localhost:30080/ to configure your cluster")
-		logrus.Info("")
+		logrus.Infof("Visit %s to configure your cluster", getManagerURL(flags.managerPort))
 
 		installConfig, ok := <-configChan
 		if !ok {
@@ -281,9 +298,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		flags.dataDir = installConfig.DataDirectory
 		flags.localArtifactMirrorPort = installConfig.LocalArtifactMirrorPort
 
-		runtimeconfig.SetDataDir(installConfig.DataDirectory)
-		runtimeconfig.SetLocalArtifactMirrorPort(installConfig.LocalArtifactMirrorPort)
-		runtimeconfig.SetAdminConsolePort(installConfig.AdminConsolePort)
 	} else {
 		proxy, err := parseProxyFlags(cmd)
 		if err != nil {
@@ -310,8 +324,18 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 			}
 		}
 
-		runtimeconfig.ApplyFlags(cmd.Flags())
+		if flags.localArtifactMirrorPort != 0 && flags.adminConsolePort != 0 {
+			if flags.localArtifactMirrorPort == flags.adminConsolePort {
+				return fmt.Errorf("local artifact mirror port cannot be the same as admin console port")
+			}
+		}
 	}
+
+	// TODO: validate that a single port isn't used for multiple services
+	runtimeconfig.SetDataDir(flags.dataDir)
+	runtimeconfig.SetManagerPort(flags.managerPort)
+	runtimeconfig.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
+	runtimeconfig.SetAdminConsolePort(flags.adminConsolePort)
 
 	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig()) // this is needed for restore as well since it shares this function
 	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
@@ -336,13 +360,13 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	return nil
 }
 
-func preRunInstallAPI(ctx context.Context, password string, configChan chan<- *apitypes.InstallationConfig) error {
+func preRunInstallAPI(ctx context.Context, password string, managerPort int, configChan chan<- *apitypes.InstallationConfig) error {
 	logger, err := api.NewLogger()
 	if err != nil {
 		logrus.Warnf("Unable to setup API logging: %v", err)
 	}
 
-	listener, err := net.Listen("tcp", ":30080") // TODO: make this configurable
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", managerPort))
 	if err != nil {
 		return fmt.Errorf("unable to create listener: %w", err)
 	}
@@ -548,7 +572,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	}
 
 	if flags.guidedUI {
-		if err := markUIInstallComplete(ctx, flags.adminConsolePassword); err != nil {
+		if err := markUIInstallComplete(flags.adminConsolePassword, flags.managerPort); err != nil {
 			return fmt.Errorf("unable to mark ui install complete: %w", err)
 		}
 	} else {
@@ -560,8 +584,8 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	return nil
 }
 
-func markUIInstallComplete(ctx context.Context, password string) error {
-	apiClient := apiclient.New("http://localhost:30080") // TODO: make this configurable
+func markUIInstallComplete(password string, managerPort int) error {
+	apiClient := apiclient.New(fmt.Sprintf("http://localhost:%d", managerPort))
 	if err := apiClient.Login(password); err != nil {
 		return fmt.Errorf("unable to login: %w", err)
 	}
@@ -1489,14 +1513,31 @@ func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) 
 	return nil
 }
 
+func getManagerURL(port int) string {
+	ipaddr := runtimeconfig.TryDiscoverPublicIP()
+	if ipaddr == "" {
+		if addr := os.Getenv("EC_PUBLIC_ADDRESS"); addr != "" {
+			ipaddr = addr
+		} else {
+			logrus.Errorf("Unable to determine node IP address")
+			ipaddr = "NODE-IP-ADDRESS"
+		}
+	}
+	return fmt.Sprintf("http://%s:%v", ipaddr, port)
+}
+
 func getAdminConsoleURL(networkInterface string, port int) string {
 	ipaddr := runtimeconfig.TryDiscoverPublicIP()
 	if ipaddr == "" {
 		var err error
 		ipaddr, err = netutils.FirstValidAddress(networkInterface)
 		if err != nil {
-			logrus.Errorf("Unable to determine node IP address: %v", err)
-			ipaddr = "NODE-IP-ADDRESS"
+			if addr := os.Getenv("EC_PUBLIC_ADDRESS"); addr != "" {
+				ipaddr = addr
+			} else {
+				logrus.Errorf("Unable to determine node IP address: %v", err)
+				ipaddr = "NODE-IP-ADDRESS"
+			}
 		}
 	}
 	return fmt.Sprintf("http://%s:%v", ipaddr, port)

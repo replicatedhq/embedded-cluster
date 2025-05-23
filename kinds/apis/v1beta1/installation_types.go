@@ -104,6 +104,12 @@ type LocalArtifactMirrorSpec struct {
 	Port int `json:"port,omitempty"`
 }
 
+// ManagerSpec holds the manager configuration.
+type ManagerSpec struct {
+	// Port holds the port on which the manager will be served.
+	Port int `json:"port,omitempty"`
+}
+
 // LicenseInfo holds information about the license used to install the cluster.
 type LicenseInfo struct {
 	IsDisasterRecoverySupported bool `json:"isDisasterRecoverySupported,omitempty"`
