@@ -13,8 +13,8 @@ var (
 	ErrCannotDetermineInterfaceName = fmt.Errorf("cannot determine interface name")
 )
 
-// determineBestNetworkInterface attempts to determine the best network interface to use for the cluster.
-func determineBestNetworkInterface() (string, error) {
+// DetermineBestNetworkInterface attempts to determine the best network interface to use for the cluster.
+func DetermineBestNetworkInterface() (string, error) {
 	iface, err := apimachinerynet.ChooseHostInterface()
 
 	if err != nil || iface == nil {

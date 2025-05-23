@@ -7,7 +7,6 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
 	"sigs.k8s.io/yaml"
 )
 
@@ -216,50 +215,10 @@ func SetAdminConsolePort(port int) {
 	runtimeConfig.AdminConsole.Port = port
 }
 
+func SetManagerPort(port int) {
+	runtimeConfig.Manager.Port = port
+}
+
 func SetHostCABundlePath(hostCABundlePath string) {
 	runtimeConfig.HostCABundlePath = hostCABundlePath
-}
-
-func ApplyFlags(flags *pflag.FlagSet) error {
-	if flags.Lookup("data-dir") != nil {
-		dd, err := flags.GetString("data-dir")
-		if err != nil {
-			return fmt.Errorf("get data-dir flag: %w", err)
-		}
-		SetDataDir(dd)
-	}
-
-	if flags.Lookup("local-artifact-mirror-port") != nil {
-		lap, err := flags.GetInt("local-artifact-mirror-port")
-		if err != nil {
-			return fmt.Errorf("get local-artifact-mirror-port flag: %w", err)
-		}
-		SetLocalArtifactMirrorPort(lap)
-	}
-
-	if flags.Lookup("admin-console-port") != nil {
-		ap, err := flags.GetInt("admin-console-port")
-		if err != nil {
-			return fmt.Errorf("get admin-console-port flag: %w", err)
-		}
-		SetAdminConsolePort(ap)
-	}
-
-	if err := validate(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func validate() error {
-	lamPort := LocalArtifactMirrorPort()
-	acPort := AdminConsolePort()
-
-	if lamPort != 0 && acPort != 0 {
-		if lamPort == acPort {
-			return fmt.Errorf("local artifact mirror port cannot be the same as admin console port")
-		}
-	}
-	return nil
 }

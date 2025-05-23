@@ -16,7 +16,11 @@ func VersionEmbeddedDataCmd(ctx context.Context, name string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Application
 			app := release.GetApplication()
-			fmt.Printf("Application:\n%s\n\n", string(app))
+			appJson, err := json.MarshalIndent(app, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal application: %w", err)
+			}
+			fmt.Printf("Application:\n%s\n\n", string(appJson))
 
 			// Embedded Cluster Config
 			cfg := release.GetEmbeddedClusterConfig()

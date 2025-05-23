@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
+	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
@@ -114,7 +115,7 @@ func preRunJoin(flags *JoinCmdFlags) error {
 
 	// if a network interface flag was not provided, attempt to discover it
 	if flags.networkInterface == "" {
-		autoInterface, err := determineBestNetworkInterface()
+		autoInterface, err := newconfig.DetermineBestNetworkInterface()
 		if err == nil {
 			flags.networkInterface = autoInterface
 		}
@@ -253,9 +254,9 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinComm
 		return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
 	}
 
-	setProxyEnv(jcmd.InstallationSpec.Proxy)
+	newconfig.SetProxyEnv(jcmd.InstallationSpec.Proxy)
 
-	proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, flags.networkInterface)
+	proxyOK, localIP, err := newconfig.CheckProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, flags.networkInterface, nil)
 	if err != nil {
 		return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 	}
@@ -270,7 +271,7 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinComm
 	return nil
 }
 
-func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResponse, kotsAPIAddress string) (cidrCfg *CIDRConfig, err error) {
+func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResponse, kotsAPIAddress string) (cidrCfg *newconfig.CIDRConfig, err error) {
 	logrus.Info("")
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
@@ -343,7 +344,7 @@ func materializeFilesForJoin(ctx context.Context, jcmd *join.JoinCommandResponse
 	return nil
 }
 
-func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*CIDRConfig, error) {
+func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*newconfig.CIDRConfig, error) {
 	podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
 	if err != nil {
 		return nil, fmt.Errorf("unable to split default network CIDR: %w", err)
@@ -358,7 +359,7 @@ func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*CIDRConfig, error) {
 		}
 	}
 
-	return &CIDRConfig{
+	return &newconfig.CIDRConfig{
 		PodCIDR:     podCIDR,
 		ServiceCIDR: serviceCIDR,
 	}, nil
