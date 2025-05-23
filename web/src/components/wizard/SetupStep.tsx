@@ -19,7 +19,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [availableHostNetworkInterfaces, setAvailableHostNetworkInterfaces] = useState<string[]>([]);
+  const [availableNetworkInterfaces, setAvailableNetworkInterfaces] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,7 +38,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
           updateConfig(install.config);
 
           // TODO: remove this once it's a dropdown
-          setAvailableHostNetworkInterfaces([install.config.networkInterface]);
+          setAvailableNetworkInterfaces([install.config.networkInterface]);
         }
 
         // TODO: make this a
@@ -53,7 +53,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
 
         // if (interfacesResponse.ok) {
         //   const interfacesData = await interfacesResponse.json();
-        //   setAvailableHostNetworkInterfaces(interfacesData.networkInterfaces || []);
+        //   setAvailableNetworkInterfaces(interfacesData.networkInterfaces || []);
         // }
       } catch (err) {
         console.error('Failed to fetch data:', err);
@@ -138,7 +138,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             onShowAdvancedChange={setShowAdvanced}
             onInputChange={handleInputChange}
             onSelectChange={handleSelectChange}
-            availableHostNetworkInterfaces={availableHostNetworkInterfaces}
+            availableNetworkInterfaces={availableNetworkInterfaces}
           />
         ) : (
           <KubernetesSetup

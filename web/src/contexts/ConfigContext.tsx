@@ -38,7 +38,7 @@ interface PrototypeSettings {
   skipNodeValidation: boolean;
   useSelfSignedCert: boolean;
   enableMultiNode: boolean;
-  availableHostNetworkInterfaces: Array<{
+  availableNetworkInterfaces: Array<{
     name: string;
   }>;
 }
@@ -75,12 +75,7 @@ const defaultPrototypeSettings: PrototypeSettings = {
   skipNodeValidation: false,
   useSelfSignedCert: false,
   enableMultiNode: true,
-  availableHostNetworkInterfaces: [
-    { name: 'eth0' },
-    { name: 'eth1' },
-    { name: 'wlan0' },
-    { name: 'docker0' }
-  ]
+  availableNetworkInterfaces: []
 };
 
 const PROTOTYPE_SETTINGS_KEY = 'gitea-prototype-settings';
