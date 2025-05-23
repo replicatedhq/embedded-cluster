@@ -66,5 +66,6 @@ func UpgradeEnsureCAConfigmap(ctx context.Context, kcli client.Client) error {
 		return errors.Wrap(err, "get kotsadm-private-cas configmap")
 	}
 
-	return ensureCAConfigmap(ctx, kcli, cm.Data)
+	addon := &EmbeddedClusterOperator{}
+	return addon.ensureCAConfigmap(ctx, kcli, cm.Data)
 }

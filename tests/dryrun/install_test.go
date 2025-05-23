@@ -639,7 +639,22 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 				"name":  "NO_PROXY",
 				"value": noProxy,
 			},
+			{
+				"name":  "SSL_CERT_DIR",
+				"value": "/certs",
+			},
 		},
+		"extraVolumes": []map[string]any{{
+			"name": "host-ca-bundle",
+			"hostPath": map[string]any{
+				"path": hostCABundle,
+				"type": "FileOrCreate",
+			},
+		}},
+		"extraVolumeMounts": []map[string]any{{
+			"mountPath": "/certs/ca-certificates.crt",
+			"name":      "host-ca-bundle",
+		}},
 	})
 
 	// velero
