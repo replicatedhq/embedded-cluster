@@ -547,7 +547,7 @@ func Test_runInstallAPI(t *testing.T) {
 
 	logger := api.NewDiscardLogger()
 	go func() {
-		err := runInstallAPI(ctx, listener, logger, nil)
+		err := runInstallAPI(ctx, listener, logger, nil, "password")
 		t.Logf("Install API exited with error: %v", err)
 		errCh <- err
 	}()
