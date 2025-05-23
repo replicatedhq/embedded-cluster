@@ -6,7 +6,6 @@ import { ExternalLink } from 'lucide-react';
 const ValidationInstallStep: React.FC = () => {
   const { config } = useConfig();
   const [showAdminLink, setShowAdminLink] = useState(false);
-  const [adminConsoleUrl, setAdminConsoleUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -33,7 +32,6 @@ const ValidationInstallStep: React.FC = () => {
         const data = await response.json();
         
         if (data.state === 'Succeeded') {
-          setAdminConsoleUrl("http://localhost:30000"); // TODO: make this configurable
           setShowAdminLink(true);
           setIsLoading(false);
           if (pollInterval) {
@@ -85,9 +83,9 @@ const ValidationInstallStep: React.FC = () => {
             </div>
           )}
 
-          {showAdminLink && adminConsoleUrl && (
+          {showAdminLink && (
             <a
-              href={adminConsoleUrl}
+              href={`http://${window.location.hostname}:${config.adminConsolePort}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

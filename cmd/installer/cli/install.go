@@ -450,10 +450,9 @@ func waitForInstallAPI(ctx context.Context, addr string) error {
 }
 
 func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
-	// TODO: revert this
-	// if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
-	// 	return err
-	// }
+	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
+		return err
+	}
 
 	logrus.Debug("initializing install")
 	if err := initializeInstall(ctx, flags); err != nil {
