@@ -31,6 +31,7 @@ func TestInstallPhaseSetConfig(t *testing.T) {
 	apiInstance, err := api.New(
 		"password",
 		api.WithInstallController(installController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(api.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
@@ -49,8 +50,11 @@ func TestInstallPhaseSetConfig(t *testing.T) {
 		{
 			name: "Valid config",
 			config: types.InstallationConfig{
-				DataDirectory:    "/tmp/data",
-				AdminConsolePort: 8000,
+				DataDirectory:           "/tmp/data",
+				AdminConsolePort:        8000,
+				LocalArtifactMirrorPort: 8081,
+				GlobalCIDR:              "10.0.0.0/16",
+				NetworkInterface:        "eth0",
 			},
 			expectedStatus: http.StatusOK,
 			expectedError:  false,
@@ -61,6 +65,8 @@ func TestInstallPhaseSetConfig(t *testing.T) {
 				DataDirectory:           "/tmp/data",
 				AdminConsolePort:        8080,
 				LocalArtifactMirrorPort: 8080, // Same as AdminConsolePort
+				GlobalCIDR:              "10.0.0.0/16",
+				NetworkInterface:        "eth0",
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  true,
@@ -76,6 +82,7 @@ func TestInstallPhaseSetConfig(t *testing.T) {
 			// Create a request
 			req := httptest.NewRequest(http.MethodPost, "/install/phase/set-config", bytes.NewReader(configJSON))
 			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "TOKEN")
 			rec := httptest.NewRecorder()
 
 			// Serve the request
@@ -129,6 +136,7 @@ func TestInstallPhaseSetConfigValidation(t *testing.T) {
 	apiInstance, err := api.New(
 		"password",
 		api.WithInstallController(installController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(api.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
@@ -139,8 +147,11 @@ func TestInstallPhaseSetConfigValidation(t *testing.T) {
 
 	// Test a validation error case with mixed CIDR settings
 	config := types.InstallationConfig{
-		DataDirectory: "/tmp/data",
-		PodCIDR:       "10.244.0.0/16", // Specify PodCIDR but not ServiceCIDR
+		DataDirectory:           "/tmp/data",
+		AdminConsolePort:        8000,
+		LocalArtifactMirrorPort: 8081,
+		PodCIDR:                 "10.244.0.0/16", // Specify PodCIDR but not ServiceCIDR
+		NetworkInterface:        "eth0",
 	}
 
 	// Serialize the config to JSON
@@ -150,6 +161,7 @@ func TestInstallPhaseSetConfigValidation(t *testing.T) {
 	// Create a request
 	req := httptest.NewRequest(http.MethodPost, "/install/phase/set-config", bytes.NewReader(configJSON))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "TOKEN")
 	rec := httptest.NewRecorder()
 
 	// Serve the request
@@ -180,6 +192,7 @@ func TestInstallPhaseSetConfigBadRequest(t *testing.T) {
 	apiInstance, err := api.New(
 		"password",
 		api.WithInstallController(installController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(api.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
@@ -191,6 +204,7 @@ func TestInstallPhaseSetConfigBadRequest(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/install/phase/set-config",
 		bytes.NewReader([]byte(`{"dataDirectory": "/tmp/data", "adminConsolePort": "not-a-number"}`)))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "TOKEN")
 	rec := httptest.NewRecorder()
 
 	// Serve the request
@@ -213,6 +227,7 @@ func TestInstallPhaseSetConfigControllerError(t *testing.T) {
 	apiInstance, err := api.New(
 		"password",
 		api.WithInstallController(mockController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(api.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
@@ -231,6 +246,7 @@ func TestInstallPhaseSetConfigControllerError(t *testing.T) {
 	// Create a request
 	req := httptest.NewRequest(http.MethodPost, "/install/phase/set-config", bytes.NewReader(configJSON))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "TOKEN")
 	rec := httptest.NewRecorder()
 
 	// Serve the request
