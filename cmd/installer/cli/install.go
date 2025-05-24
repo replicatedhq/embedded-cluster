@@ -401,7 +401,10 @@ func runInstallAPI(ctx context.Context, listener net.Listener, logger logrus.Fie
 		return fmt.Errorf("new api: %w", err)
 	}
 
-	api.RegisterRoutes(router.PathPrefix("/api").Subrouter())
+	api.RegisterRoutes(router.PathPrefix("/api/").Subrouter())
+
+	assetsFs := http.FileServer(http.FS(web.AssetsFs("assets")))
+	router.PathPrefix("/assets/").Subrouter().Methods("GET").Handler(assetsFs)
 
 	var webFs http.Handler
 	if os.Getenv("EC_DEV_ENV") == "true" {
