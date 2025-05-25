@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"strings"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 // adapted from https://github.com/k0sproject/k0s/blob/v1.30.4%2Bk0s.0/internal/pkg/iface/iface.go#L61
@@ -113,4 +115,33 @@ func firstValidIPNet(i net.Interface) (*net.IPNet, error) {
 		}
 	}
 	return nil, fmt.Errorf("could not find any non-local, non podnetwork ipv4 addresses")
+}
+
+func ListAllValidIPAddresses() ([]net.IP, error) {
+	ipAddresses := []net.IP{}
+
+	ifs, err := ListValidNetworkInterfaces()
+	if err != nil {
+		return nil, fmt.Errorf("list valid network interfaces: %w", err)
+	}
+	for _, i := range ifs {
+		addrs, err := i.Addrs()
+		if err != nil {
+			return nil, fmt.Errorf("get addresses: %w", err)
+		}
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				if ipnet.IP.To4() != nil {
+					ipAddresses = append(ipAddresses, ipnet.IP)
+				}
+			}
+		}
+	}
+
+	publicIP := runtimeconfig.TryDiscoverPublicIP()
+	if publicIP != "" {
+		ipAddresses = append(ipAddresses, net.ParseIP(publicIP))
+	}
+
+	return ipAddresses, nil
 }

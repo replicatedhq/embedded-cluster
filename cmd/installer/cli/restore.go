@@ -1579,7 +1579,7 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkI
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
-	adminConsoleURL := getAdminConsoleURL(networkInterface, runtimeconfig.AdminConsolePort())
+	adminConsoleURL := getAdminConsoleURL("", networkInterface, runtimeconfig.AdminConsolePort())
 
 	successColor := "\033[32m"
 	colorReset := "\033[0m"

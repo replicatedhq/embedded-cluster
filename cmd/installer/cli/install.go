@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
@@ -85,6 +87,9 @@ type InstallCmdFlags struct {
 	// guided UI flags
 	managerPort int
 	guidedUI    bool
+	certFile    string
+	keyFile     string
+	hostname    string
 }
 
 // InstallCmd returns a cobra command for installing the embedded cluster.
@@ -207,11 +212,23 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) err
 func addGuidedUIFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	cmd.Flags().BoolVarP(&flags.guidedUI, "guided-ui", "g", false, "Run the installation in guided UI mode.")
 	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
+	cmd.Flags().StringVar(&flags.certFile, "cert-file", "", "Path to the TLS certificate file")
+	cmd.Flags().StringVar(&flags.keyFile, "key-file", "", "Path to the TLS key file")
+	cmd.Flags().StringVar(&flags.hostname, "hostname", "", "Hostname to use for TLS configuration")
 
 	if err := cmd.Flags().MarkHidden("guided-ui"); err != nil {
 		return err
 	}
 	if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
+		return err
+	}
+	if err := cmd.Flags().MarkHidden("cert-file"); err != nil {
+		return err
+	}
+	if err := cmd.Flags().MarkHidden("key-file"); err != nil {
+		return err
+	}
+	if err := cmd.Flags().MarkHidden("hostname"); err != nil {
 		return err
 	}
 
@@ -261,13 +278,30 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		configChan := make(chan *apitypes.InstallationConfig)
 		defer close(configChan)
 
-		if err := preRunInstallAPI(cmd.Context(), flags.adminConsolePassword, flags.managerPort, configChan); err != nil {
+		// this is necessary because the api listens on all interfaces,
+		// and we only know the interface to use when the user selects it in the ui
+		ipAddresses, err := netutils.ListAllValidIPAddresses()
+		if err != nil {
+			return fmt.Errorf("unable to list all valid IP addresses: %w", err)
+		}
+
+		cert, err := tlsutils.GetCertificate(tlsutils.Config{
+			CertFile:    flags.certFile,
+			KeyFile:     flags.keyFile,
+			Hostname:    flags.hostname,
+			IPAddresses: ipAddresses,
+		})
+		if err != nil {
+			return fmt.Errorf("get tls certificate: %w", err)
+		}
+
+		if err := preRunInstallAPI(cmd.Context(), cert, flags.adminConsolePassword, flags.managerPort, configChan); err != nil {
 			return fmt.Errorf("unable to start install API: %w", err)
 		}
 
 		// TODO: fix this message
 		logrus.Info("")
-		logrus.Infof("Visit %s to configure your cluster", getManagerURL(flags.managerPort))
+		logrus.Infof("Visit %s to configure your cluster", getManagerURL(flags.hostname, flags.managerPort))
 
 		installConfig, ok := <-configChan
 		if !ok {
@@ -363,7 +397,7 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	return nil
 }
 
-func preRunInstallAPI(ctx context.Context, password string, managerPort int, configChan chan<- *apitypes.InstallationConfig) error {
+func preRunInstallAPI(ctx context.Context, cert tls.Certificate, password string, managerPort int, configChan chan<- *apitypes.InstallationConfig) error {
 	logger, err := api.NewLogger()
 	if err != nil {
 		logrus.Warnf("Unable to setup API logging: %v", err)
@@ -375,7 +409,7 @@ func preRunInstallAPI(ctx context.Context, password string, managerPort int, con
 	}
 
 	go func() {
-		if err := runInstallAPI(ctx, listener, logger, password, configChan); err != nil {
+		if err := runInstallAPI(ctx, listener, cert, logger, password, configChan); err != nil {
 			if !errors.Is(err, http.ErrServerClosed) {
 				logrus.Errorf("install API error: %v", err)
 			}
@@ -389,7 +423,7 @@ func preRunInstallAPI(ctx context.Context, password string, managerPort int, con
 	return nil
 }
 
-func runInstallAPI(ctx context.Context, listener net.Listener, logger logrus.FieldLogger, password string, configChan chan<- *apitypes.InstallationConfig) error {
+func runInstallAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, logger logrus.FieldLogger, password string, configChan chan<- *apitypes.InstallationConfig) error {
 	router := mux.NewRouter()
 
 	api, err := api.New(
@@ -412,7 +446,8 @@ func runInstallAPI(ctx context.Context, listener net.Listener, logger logrus.Fie
 	router.PathPrefix("/").Methods("GET").Handler(webFs)
 
 	server := &http.Server{
-		Handler: router,
+		Handler:   router,
+		TLSConfig: tlsutils.GetTLSConfig(cert),
 	}
 
 	go func() {
@@ -421,8 +456,7 @@ func runInstallAPI(ctx context.Context, listener net.Listener, logger logrus.Fie
 		server.Shutdown(context.Background())
 	}()
 
-	logrus.Debugf("Install API listening on %s", listener.Addr().String())
-	return server.Serve(listener)
+	return server.ServeTLS(listener, "", "")
 }
 
 func waitForInstallAPI(ctx context.Context, addr string) error {
@@ -430,6 +464,9 @@ func waitForInstallAPI(ctx context.Context, addr string) error {
 		Timeout: 2 * time.Second,
 		Transport: &http.Transport{
 			Proxy: nil,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
 		},
 	}
 	timeout := time.After(10 * time.Second)
@@ -442,7 +479,7 @@ func waitForInstallAPI(ctx context.Context, addr string) error {
 			}
 			return fmt.Errorf("install API did not start in time")
 		case <-time.Tick(1 * time.Second):
-			resp, err := httpClient.Get(fmt.Sprintf("http://%s/api/health", addr))
+			resp, err := httpClient.Get(fmt.Sprintf("https://%s/api/health", addr))
 			if err != nil {
 				lastErr = fmt.Errorf("unable to connect to install API: %w", err)
 			} else if resp.StatusCode == http.StatusOK {
@@ -578,7 +615,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 			return fmt.Errorf("unable to mark ui install complete: %w", err)
 		}
 	} else {
-		if err := printSuccessMessage(flags.license, flags.networkInterface); err != nil {
+		if err := printSuccessMessage(flags.license, flags.hostname, flags.networkInterface); err != nil {
 			return err
 		}
 	}
@@ -1484,8 +1521,8 @@ func copyLicenseFileToDataDir(licenseFile, dataDir string) error {
 	return nil
 }
 
-func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) error {
-	adminConsoleURL := getAdminConsoleURL(networkInterface, runtimeconfig.AdminConsolePort())
+func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string) error {
+	adminConsoleURL := getAdminConsoleURL(hostname, networkInterface, runtimeconfig.AdminConsolePort())
 
 	// Create the message content
 	message := fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)
@@ -1515,7 +1552,10 @@ func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) 
 	return nil
 }
 
-func getManagerURL(port int) string {
+func getManagerURL(hostname string, port int) string {
+	if hostname != "" {
+		return fmt.Sprintf("https://%s:%v", hostname, port)
+	}
 	ipaddr := runtimeconfig.TryDiscoverPublicIP()
 	if ipaddr == "" {
 		if addr := os.Getenv("EC_PUBLIC_ADDRESS"); addr != "" {
@@ -1525,10 +1565,13 @@ func getManagerURL(port int) string {
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
-	return fmt.Sprintf("http://%s:%v", ipaddr, port)
+	return fmt.Sprintf("https://%s:%v", ipaddr, port)
 }
 
-func getAdminConsoleURL(networkInterface string, port int) string {
+func getAdminConsoleURL(hostname string, networkInterface string, port int) string {
+	if hostname != "" {
+		return fmt.Sprintf("http://%s:%v", hostname, port)
+	}
 	ipaddr := runtimeconfig.TryDiscoverPublicIP()
 	if ipaddr == "" {
 		var err error
