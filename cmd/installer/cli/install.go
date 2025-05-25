@@ -301,7 +301,7 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 
 		// TODO: fix this message
 		logrus.Info("")
-		logrus.Infof("Visit %s to configure your cluster", getManagerURL(flags.managerPort))
+		logrus.Infof("Visit %s to configure your cluster", getManagerURL(flags.hostname, flags.managerPort))
 
 		installConfig, ok := <-configChan
 		if !ok {
@@ -490,10 +490,9 @@ func waitForInstallAPI(ctx context.Context, addr string) error {
 }
 
 func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
-	// TODO: revert this
-	// if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
-	// 	return err
-	// }
+	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
+		return err
+	}
 
 	logrus.Debug("initializing install")
 	if err := initializeInstall(ctx, flags); err != nil {
@@ -616,7 +615,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 			return fmt.Errorf("unable to mark ui install complete: %w", err)
 		}
 	} else {
-		if err := printSuccessMessage(flags.license, flags.networkInterface); err != nil {
+		if err := printSuccessMessage(flags.license, flags.hostname, flags.networkInterface); err != nil {
 			return err
 		}
 	}
@@ -1522,8 +1521,8 @@ func copyLicenseFileToDataDir(licenseFile, dataDir string) error {
 	return nil
 }
 
-func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) error {
-	adminConsoleURL := getAdminConsoleURL(networkInterface, runtimeconfig.AdminConsolePort())
+func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string) error {
+	adminConsoleURL := getAdminConsoleURL(hostname, networkInterface, runtimeconfig.AdminConsolePort())
 
 	// Create the message content
 	message := fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)
@@ -1553,7 +1552,10 @@ func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) 
 	return nil
 }
 
-func getManagerURL(port int) string {
+func getManagerURL(hostname string, port int) string {
+	if hostname != "" {
+		return fmt.Sprintf("https://%s:%v", hostname, port)
+	}
 	ipaddr := runtimeconfig.TryDiscoverPublicIP()
 	if ipaddr == "" {
 		if addr := os.Getenv("EC_PUBLIC_ADDRESS"); addr != "" {
@@ -1566,7 +1568,10 @@ func getManagerURL(port int) string {
 	return fmt.Sprintf("https://%s:%v", ipaddr, port)
 }
 
-func getAdminConsoleURL(networkInterface string, port int) string {
+func getAdminConsoleURL(hostname string, networkInterface string, port int) string {
+	if hostname != "" {
+		return fmt.Sprintf("http://%s:%v", hostname, port)
+	}
 	ipaddr := runtimeconfig.TryDiscoverPublicIP()
 	if ipaddr == "" {
 		var err error
