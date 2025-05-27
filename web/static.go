@@ -81,6 +81,7 @@ func (web *Web) RegisterRoutes(router *mux.Router) {
 	} else {
 		webFS = http.FileServer(http.FS(assetsFS))
 	}
-	router.Handle("/assets/", webFS)
-	router.Handle("/", http.HandlerFunc(web.rootHandler))
+
+	router.PathPrefix("/assets").Methods("GET").Handler(webFS)
+	router.PathPrefix("/").Methods("GET").HandlerFunc(web.rootHandler)
 }
