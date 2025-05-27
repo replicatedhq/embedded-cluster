@@ -460,11 +460,12 @@ func runInstallAPI(ctx context.Context, listener net.Listener, cert tls.Certific
 
 	var webFs http.Handler
 	if os.Getenv("EC_DEV_ENV") == "true" {
-		webFs = http.FileServer(http.FS(os.DirFS("./web/dist")))
+		webFs = http.FileServer(http.FS(os.DirFS("./web/dist/assets")))
 	} else {
 		webFs = http.FileServer(http.FS(web.Fs()))
 	}
-	router.PathPrefix("/").Methods("GET").Handler(webFs)
+	router.PathPrefix("/assets").Methods("GET").Handler(webFs)
+	router.PathPrefix("/").Methods("GET").HandlerFunc(web.RootHandler)
 
 	server := &http.Server{
 		// ErrorLog outputs TLS errors and warnings to the console, we want to make sure we use the same logrus logger for them
