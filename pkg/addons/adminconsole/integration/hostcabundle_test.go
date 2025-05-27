@@ -76,4 +76,15 @@ func TestHostCABundle(t *testing.T) {
 	if assert.NotNil(t, sslCertDirEnv, "Admin Console SSL_CERT_DIR environment variable should not be nil") {
 		assert.Equal(t, sslCertDirEnv.Value, "/certs")
 	}
+
+	// Check for HOST_CA_BUNDLE_PATH environment variable
+	var hostCABundlePathEnv *corev1.EnvVar
+	for _, env := range adminDeployment.Spec.Template.Spec.Containers[0].Env {
+		if env.Name == "HOST_CA_BUNDLE_PATH" {
+			hostCABundlePathEnv = &env
+		}
+	}
+	if assert.NotNil(t, hostCABundlePathEnv, "Admin Console HOST_CA_BUNDLE_PATH environment variable should not be nil") {
+		assert.Equal(t, hostCABundlePathEnv.Value, "/etc/ssl/certs/ca-certificates.crt")
+	}
 }

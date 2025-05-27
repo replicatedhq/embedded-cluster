@@ -97,6 +97,11 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 			"name":  "SSL_CERT_DIR",
 			"value": "/certs",
 		})
+
+		extraEnv = append(extraEnv, map[string]interface{}{
+			"name":  "HOST_CA_BUNDLE_PATH",
+			"value": a.HostCABundlePath,
+		})
 	}
 
 	copiedValues["extraEnv"] = extraEnv

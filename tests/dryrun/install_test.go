@@ -709,6 +709,10 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 				"name":  "SSL_CERT_DIR",
 				"value": "/certs",
 			},
+			{
+				"name":  "HOST_CA_BUNDLE_PATH",
+				"value": hostCABundle,
+			},
 		},
 		"extraVolumes": []map[string]any{{
 			"name": "host-ca-bundle",

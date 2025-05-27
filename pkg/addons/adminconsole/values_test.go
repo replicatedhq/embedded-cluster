@@ -54,6 +54,17 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 			}
 		}
 		assert.True(t, foundSSLCertDir, "SSL_CERT_DIR environment variable should be set")
+
+		// Verify HOST_CA_BUNDLE_PATH environment variable
+		var foundHostCABundlePath bool
+		for _, env := range extraEnv {
+			if env["name"] == "HOST_CA_BUNDLE_PATH" {
+				foundHostCABundlePath = true
+				assert.Equal(t, "/etc/ssl/certs/ca-certificates.crt", env["value"])
+				break
+			}
+		}
+		assert.True(t, foundHostCABundlePath, "HOST_CA_BUNDLE_PATH environment variable should be set")
 	})
 
 	t.Run("without host CA bundle path", func(t *testing.T) {
@@ -77,6 +88,7 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 		extraEnv := values["extraEnv"].([]map[string]interface{})
 		for _, env := range extraEnv {
 			assert.NotEqual(t, "SSL_CERT_DIR", env["name"], "SSL_CERT_DIR environment variable should not be set")
+			assert.NotEqual(t, "HOST_CA_BUNDLE_PATH", env["name"], "HOST_CA_BUNDLE_PATH environment variable should not be set")
 		}
 	})
 }
