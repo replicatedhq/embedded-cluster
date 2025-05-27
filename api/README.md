@@ -19,6 +19,13 @@ Defines the core data structures and types used throughout the API. This include
 - Custom error types
 - Shared interfaces
 
+#### `/docs`
+Contains Swagger-generated API documentation. This includes:
+- API endpoint definitions
+- Request/response schemas
+- Authentication methods
+- API operation descriptions
+
 #### `/pkg`
 Contains shared utilities and helper packages that provide common functionality used across different parts of the API. This includes both general-purpose utilities and domain-specific helpers.
 
@@ -82,3 +89,26 @@ Provides a client library for interacting with the API. The client package imple
 The API package is designed to be used as part of the larger Embedded Cluster system. It provides both HTTP endpoints for external access and a client library for internal use.
 
 For integration examples and usage patterns, refer to the integration tests in the `/integration` directory. 
+
+## Generating the Docs
+
+The API documentation is generated using Swagger. To generate or update the docs:
+
+1. Ensure the `swag` tool is installed:
+   ```
+   make swag
+   ```
+
+2. Generate the Swagger documentation:
+   ```
+   make swagger
+   ```
+
+This will scan the codebase for Swagger annotations and generate the API documentation files in the `/docs` directory.
+
+Once the API is running, the Swagger documentation is available at the endpoint:
+```
+/api/swagger/
+```
+
+You can use this interactive documentation to explore the available endpoints, understand request/response formats, and test API operations directly from your browser. 
