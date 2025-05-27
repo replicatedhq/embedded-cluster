@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -446,6 +447,8 @@ func runInstallAPI(ctx context.Context, listener net.Listener, cert tls.Certific
 	router.PathPrefix("/").Methods("GET").Handler(webFs)
 
 	server := &http.Server{
+		// ErrorLog outputs TLS errors and warnings to the console, we want to make sure we use the same logrus logger for them
+		ErrorLog:  log.New(logger.WithField("http-server", "std-log").Writer(), "", 0),
 		Handler:   router,
 		TLSConfig: tlsutils.GetTLSConfig(cert),
 	}
