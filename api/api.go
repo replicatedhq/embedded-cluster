@@ -10,7 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
-	_ "github.com/replicatedhq/embedded-cluster/api/docs"
+	"github.com/replicatedhq/embedded-cluster/api/docs"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
@@ -28,10 +28,9 @@ import (
 //	@license.name	Apache 2.0
 //	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
 
-//	@host		localhost:30080
 //	@BasePath	/api
 
-//	@securityDefinitions.basic	BasicAuth
+//	@securityDefinitions.bearerauth	bearerauth
 
 // @externalDocs.description	OpenAPI
 // @externalDocs.url			https://swagger.io/resources/open-api/
@@ -114,6 +113,14 @@ func New(password string, opts ...APIOption) (*API, error) {
 
 func (a *API) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/health", a.getHealth).Methods("GET")
+
+	// Hack to fix issue
+	// https://github.com/swaggo/swag/issues/1588#issuecomment-2797801240
+	router.HandleFunc("/swagger/doc.json", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		w.Write([]byte(docs.SwaggerInfo.ReadDoc()))
+	}).Methods("GET")
 	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	router.HandleFunc("/auth/login", a.postAuthLogin).Methods("POST")

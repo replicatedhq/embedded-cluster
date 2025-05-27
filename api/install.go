@@ -7,6 +7,15 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
+// getInstall handler to get the install object
+//
+//	@Summary		Get the install object
+//	@Description	get the install object
+//	@Tags			install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.Install
+//	@Router			/install [get]
 func (a *API) getInstall(w http.ResponseWriter, r *http.Request) {
 	install, err := a.installController.Get(r.Context())
 	if err != nil {
