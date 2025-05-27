@@ -36,13 +36,13 @@ func (c *client) Login(password string) error {
 	}
 
 	var loginResp struct {
-		SessionToken string `json:"sessionToken"`
+		Token string `json:"token"`
 	}
 	err = json.NewDecoder(resp.Body).Decode(&loginResp)
 	if err != nil {
 		return err
 	}
 
-	c.token = loginResp.SessionToken
+	c.token = loginResp.Token
 	return nil
 }

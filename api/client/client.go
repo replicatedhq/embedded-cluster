@@ -66,6 +66,12 @@ func New(apiURL string, opts ...ClientOption) Client {
 	return c
 }
 
+func setAuthorizationHeader(req *http.Request, token string) {
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+}
+
 func errorFromResponse(resp *http.Response) error {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

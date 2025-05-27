@@ -14,7 +14,7 @@ func (c *client) GetInstall() (*types.Install, error) {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", c.token)
+	setAuthorizationHeader(req, c.token)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -46,7 +46,7 @@ func (c *client) SetInstallConfig(config types.InstallationConfig) (*types.Insta
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", c.token)
+	setAuthorizationHeader(req, c.token)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -78,7 +78,7 @@ func (c *client) SetInstallStatus(status types.InstallationStatus) (*types.Insta
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", c.token)
+	setAuthorizationHeader(req, c.token)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
