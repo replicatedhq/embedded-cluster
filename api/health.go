@@ -11,7 +11,6 @@ import (
 //	@Summary		Get the health of the API
 //	@Description	get the health of the API
 //	@Tags			health
-//	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	types.Health
 //	@Router			/health [get]

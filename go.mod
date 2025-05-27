@@ -39,7 +39,7 @@ require (
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	github.com/swaggo/http-swagger/v2 v2.0.2
-	github.com/swaggo/swag v1.16.4
+	github.com/swaggo/swag/v2 v2.0.0-rc4
 	github.com/urfave/cli/v2 v2.27.6
 	github.com/vmware-tanzu/velero v1.16.0
 	go.uber.org/multierr v1.11.0
@@ -263,7 +263,9 @@ require (
 	github.com/stefanberger/go-pkcs11uri v0.0.0-20230803200340-78284954bff6 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/sv-tools/openapi v0.2.1 // indirect
 	github.com/swaggo/files/v2 v2.0.2 // indirect
+	github.com/swaggo/swag v1.8.1 // indirect
 	github.com/sylabs/sif/v2 v2.20.2 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.2 // indirect
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
