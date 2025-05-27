@@ -7,14 +7,34 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
-
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
+	_ "github.com/replicatedhq/embedded-cluster/api/docs"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/sirupsen/logrus"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
+//	@title			Embedded Cluster API
+//	@version		0.1
+//	@description	This is the API for the Embedded Cluster project.
+//	@termsOfService	http://swagger.io/terms/
+
+//	@contact.name	API Support
+//	@contact.url	https://github.com/replicatedhq/embedded-cluster/issues
+//	@contact.email	support@replicated.com
+
+//	@license.name	Apache 2.0
+//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
+
+//	@host		localhost:30080
+//	@BasePath	/api
+
+//	@securityDefinitions.basic	BasicAuth
+
+// @externalDocs.description	OpenAPI
+// @externalDocs.url			https://swagger.io/resources/open-api/
 type API struct {
 	authController    auth.Controller
 	consoleController console.Controller
@@ -94,11 +114,12 @@ func New(password string, opts ...APIOption) (*API, error) {
 
 func (a *API) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/health", a.getHealth).Methods("GET")
+	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	router.HandleFunc("/auth/login", a.postAuthLogin).Methods("POST")
 	router.HandleFunc("/branding", a.getBranding).Methods("GET")
 
-	authenticatedRouter := router.PathPrefix("").Subrouter()
+	authenticatedRouter := router.PathPrefix("/").Subrouter()
 	authenticatedRouter.Use(a.authMiddleware)
 
 	installRouter := authenticatedRouter.PathPrefix("/install").Subrouter()
@@ -111,7 +132,7 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	consoleRouter.HandleFunc("/available-network-interfaces", a.getListAvailableNetworkInterfaces).Methods("GET")
 }
 
-func (a *API) JSON(w http.ResponseWriter, r *http.Request, code int, payload any) {
+func (a *API) json(w http.ResponseWriter, r *http.Request, code int, payload any) {
 	response, err := json.Marshal(payload)
 	if err != nil {
 		a.logError(r, err, "failed to encode response")
@@ -124,7 +145,7 @@ func (a *API) JSON(w http.ResponseWriter, r *http.Request, code int, payload any
 	w.Write(response)
 }
 
-func (a *API) JSONError(w http.ResponseWriter, r *http.Request, err error) {
+func (a *API) jsonError(w http.ResponseWriter, r *http.Request, err error) {
 	var apiErr *types.APIError
 	if !errors.As(err, &apiErr) {
 		apiErr = types.NewInternalServerError(err)
@@ -133,7 +154,7 @@ func (a *API) JSONError(w http.ResponseWriter, r *http.Request, err error) {
 	response, err := json.Marshal(apiErr)
 	if err != nil {
 		a.logError(r, err, "failed to encode response")
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

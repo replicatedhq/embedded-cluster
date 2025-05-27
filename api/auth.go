@@ -24,14 +24,14 @@ func (a *API) authMiddleware(next http.Handler) http.Handler {
 		if token == "" {
 			err := errors.New("authorization header is required")
 			a.logError(r, err, "failed to authenticate")
-			types.NewUnauthorizedError(err).JSON(w)
+			a.jsonError(w, r, types.NewUnauthorizedError(err))
 			return
 		}
 
 		if !strings.HasPrefix(token, "Bearer ") {
 			err := errors.New("authorization header must start with Bearer ")
 			a.logError(r, err, "failed to authenticate")
-			types.NewUnauthorizedError(err).JSON(w)
+			a.jsonError(w, r, types.NewUnauthorizedError(err))
 			return
 		}
 
@@ -40,7 +40,7 @@ func (a *API) authMiddleware(next http.Handler) http.Handler {
 		err := a.authController.ValidateToken(r.Context(), token)
 		if err != nil {
 			a.logError(r, err, "failed to validate token")
-			types.NewUnauthorizedError(err).JSON(w)
+			a.jsonError(w, r, types.NewUnauthorizedError(err))
 			return
 		}
 
@@ -53,19 +53,19 @@ func (a *API) postAuthLogin(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
 		a.logError(r, err, "failed to decode auth request")
-		types.NewBadRequestError(err).JSON(w)
+		a.jsonError(w, r, types.NewBadRequestError(err))
 		return
 	}
 
 	token, err := a.authController.Authenticate(r.Context(), request.Password)
 	if errors.Is(err, auth.ErrInvalidPassword) {
-		types.NewUnauthorizedError(err).JSON(w)
+		a.jsonError(w, r, types.NewUnauthorizedError(err))
 		return
 	}
 
 	if err != nil {
 		a.logError(r, err, "failed to authenticate")
-		types.NewInternalServerError(err).JSON(w)
+		a.jsonError(w, r, types.NewInternalServerError(err))
 		return
 	}
 
@@ -73,5 +73,5 @@ func (a *API) postAuthLogin(w http.ResponseWriter, r *http.Request) {
 		Token: token,
 	}
 
-	json.NewEncoder(w).Encode(response)
+	a.json(w, r, http.StatusOK, response)
 }

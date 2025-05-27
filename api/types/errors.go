@@ -2,7 +2,6 @@ package types
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -45,12 +44,6 @@ func (e *APIError) ErrorOrNil() error {
 
 func (e *APIError) Unwrap() error {
 	return e.err
-}
-
-func (e *APIError) JSON(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(e.StatusCode)
-	json.NewEncoder(w).Encode(e)
 }
 
 func NewBadRequestError(err error) *APIError {

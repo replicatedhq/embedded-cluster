@@ -1,0 +1,43 @@
+basePath: /api
+definitions:
+  types.Health:
+    properties:
+      status:
+        type: string
+    type: object
+externalDocs:
+  description: OpenAPI
+  url: https://swagger.io/resources/open-api/
+host: localhost:30080
+info:
+  contact:
+    email: support@replicated.com
+    name: API Support
+    url: https://github.com/replicatedhq/embedded-cluster/issues
+  description: This is the API for the Embedded Cluster project.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Embedded Cluster API
+  version: "0.1"
+paths:
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: get the health of the API
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.Health'
+      summary: Get the health of the API
+      tags:
+      - health
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"

@@ -14,7 +14,7 @@ func (a *API) getBranding(w http.ResponseWriter, r *http.Request) {
 	branding, err := a.consoleController.GetBranding()
 	if err != nil {
 		a.logError(r, err, "failed to get branding")
-		a.JSONError(w, r, err)
+		a.jsonError(w, r, err)
 		return
 	}
 
@@ -22,7 +22,7 @@ func (a *API) getBranding(w http.ResponseWriter, r *http.Request) {
 		Branding: branding,
 	}
 
-	a.JSON(w, r, http.StatusOK, response)
+	a.json(w, r, http.StatusOK, response)
 }
 
 type getListAvailableNetworkInterfacesResponse struct {
@@ -33,7 +33,7 @@ func (a *API) getListAvailableNetworkInterfaces(w http.ResponseWriter, r *http.R
 	interfaces, err := a.consoleController.ListAvailableNetworkInterfaces()
 	if err != nil {
 		a.logError(r, err, "failed to list available network interfaces")
-		a.JSONError(w, r, err)
+		a.jsonError(w, r, err)
 		return
 	}
 
@@ -45,5 +45,5 @@ func (a *API) getListAvailableNetworkInterfaces(w http.ResponseWriter, r *http.R
 		NetworkInterfaces: interfaces,
 	}
 
-	a.JSON(w, r, http.StatusOK, response)
+	a.json(w, r, http.StatusOK, response)
 }
