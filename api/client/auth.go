@@ -6,6 +6,7 @@ import (
 	"net/http"
 )
 
+// Login sends a login request to the API server with the provided password and retrieves a session token. The token is stored in the client struct for subsequent requests.
 func (c *client) Login(password string) error {
 	loginReq := struct {
 		Password string `json:"password"`

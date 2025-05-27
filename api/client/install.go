@@ -9,7 +9,7 @@ import (
 )
 
 func (c *client) GetInstall() (*types.Install, error) {
-	req, err := http.NewRequest("GET", c.apiURL, nil)
+	req, err := http.NewRequest("GET", c.apiURL+"/api/install", nil)
 	if err != nil {
 		return nil, err
 	}
