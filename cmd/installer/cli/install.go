@@ -455,17 +455,18 @@ func runInstallAPI(ctx context.Context, listener net.Listener, cert tls.Certific
 	if err != nil {
 		return fmt.Errorf("new api: %w", err)
 	}
+	app := release.GetApplication()
+	if app == nil {
+		return fmt.Errorf("application not found")
+	}
+
+	webServer := web.New(web.InitialState{
+		Title: app.Spec.Title,
+		Icon:  app.Spec.Icon,
+	}, logger)
 
 	api.RegisterRoutes(router.PathPrefix("/api").Subrouter())
-
-	var webFs http.Handler
-	if os.Getenv("EC_DEV_ENV") == "true" {
-		webFs = http.FileServer(http.FS(os.DirFS("./web/dist/assets")))
-	} else {
-		webFs = http.FileServer(http.FS(web.Fs()))
-	}
-	router.PathPrefix("/assets").Methods("GET").Handler(webFs)
-	router.PathPrefix("/").Methods("GET").HandlerFunc(web.RootHandler)
+	webServer.RegisterRoutes(router.PathPrefix("/").Subrouter())
 
 	server := &http.Server{
 		// ErrorLog outputs TLS errors and warnings to the console, we want to make sure we use the same logrus logger for them
