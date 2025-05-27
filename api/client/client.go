@@ -9,15 +9,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-type APIError struct {
-	StatusCode int    `json:"status_code"`
-	Message    string `json:"message"`
-}
-
-func (e *APIError) Error() string {
-	return fmt.Sprintf("status=%d, message=%q", e.StatusCode, e.Message)
-}
-
 var defaultHTTPClient = &http.Client{
 	Transport: &http.Transport{
 		Proxy: nil, // This is a local client so no proxy is needed
@@ -77,7 +68,7 @@ func errorFromResponse(resp *http.Response) error {
 	if err != nil {
 		return fmt.Errorf("unexpected response: status=%d", resp.StatusCode)
 	}
-	var apiError APIError
+	var apiError types.APIError
 	err = json.Unmarshal(body, &apiError)
 	if err != nil {
 		return fmt.Errorf("unexpected response: status=%d, body=%q", resp.StatusCode, string(body))

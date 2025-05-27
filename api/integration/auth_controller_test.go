@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/installation"
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -186,8 +187,8 @@ func TestAPIClientLogin(t *testing.T) {
 		require.Error(t, err, "API client login should fail with wrong password")
 
 		// Check that the error is of correct type
-		apiErr, ok := err.(*client.APIError)
-		require.True(t, ok, "Error should be of type *client.APIError")
+		apiErr, ok := err.(*types.APIError)
+		require.True(t, ok, "Error should be of type *types.APIError")
 		assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode, "Error should have Unauthorized status code")
 
 		// Verify we can't make authenticated requests
