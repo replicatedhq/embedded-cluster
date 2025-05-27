@@ -16,7 +16,7 @@ type Controller interface {
 	ReadStatus(ctx context.Context) (*types.InstallationStatus, error)
 }
 
-var _ Controller = &InstallController{}
+var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
 	installationManager installation.InstallationManager

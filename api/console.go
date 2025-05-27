@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -14,9 +13,8 @@ type getBrandingResponse struct {
 func (a *API) getBranding(w http.ResponseWriter, r *http.Request) {
 	branding, err := a.consoleController.GetBranding()
 	if err != nil {
-		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
-			Error("failed to get branding")
-		handleError(w, err)
+		a.logError(r, err, "failed to get branding")
+		a.JSONError(w, r, err)
 		return
 	}
 
@@ -24,13 +22,7 @@ func (a *API) getBranding(w http.ResponseWriter, r *http.Request) {
 		Branding: branding,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(response)
-	if err != nil {
-		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
-			Error("failed to encode branding")
-	}
+	a.JSON(w, r, http.StatusOK, response)
 }
 
 type getListAvailableNetworkInterfacesResponse struct {
@@ -40,9 +32,8 @@ type getListAvailableNetworkInterfacesResponse struct {
 func (a *API) getListAvailableNetworkInterfaces(w http.ResponseWriter, r *http.Request) {
 	interfaces, err := a.consoleController.ListAvailableNetworkInterfaces()
 	if err != nil {
-		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
-			Error("failed to list available network interfaces")
-		handleError(w, err)
+		a.logError(r, err, "failed to list available network interfaces")
+		a.JSONError(w, r, err)
 		return
 	}
 
@@ -54,11 +45,5 @@ func (a *API) getListAvailableNetworkInterfaces(w http.ResponseWriter, r *http.R
 		NetworkInterfaces: interfaces,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(response)
-	if err != nil {
-		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
-			Error("failed to encode available network interfaces")
-	}
+	a.JSON(w, r, http.StatusOK, response)
 }

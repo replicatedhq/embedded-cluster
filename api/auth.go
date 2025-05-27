@@ -23,16 +23,14 @@ func (a *API) authMiddleware(next http.Handler) http.Handler {
 		token := r.Header.Get("Authorization")
 		if token == "" {
 			err := errors.New("authorization header is required")
-			a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
-				Error("failed to authenticate")
+			a.logError(r, err, "failed to authenticate")
 			types.NewUnauthorizedError(err).JSON(w)
 			return
 		}
 
 		if !strings.HasPrefix(token, "Bearer ") {
 			err := errors.New("authorization header must start with Bearer ")
-			a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
-				Error("failed to authenticate")
+			a.logError(r, err, "failed to authenticate")
 			types.NewUnauthorizedError(err).JSON(w)
 			return
 		}
@@ -41,8 +39,7 @@ func (a *API) authMiddleware(next http.Handler) http.Handler {
 
 		err := a.authController.ValidateToken(r.Context(), token)
 		if err != nil {
-			a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
-				Error("failed to validate token")
+			a.logError(r, err, "failed to validate token")
 			types.NewUnauthorizedError(err).JSON(w)
 			return
 		}
@@ -55,8 +52,7 @@ func (a *API) postAuthLogin(w http.ResponseWriter, r *http.Request) {
 	var request AuthRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
-			Error("failed to decode auth request")
+		a.logError(r, err, "failed to decode auth request")
 		types.NewBadRequestError(err).JSON(w)
 		return
 	}
@@ -68,8 +64,7 @@ func (a *API) postAuthLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
-			Error("failed to authenticate")
+		a.logError(r, err, "failed to authenticate")
 		types.NewInternalServerError(err).JSON(w)
 		return
 	}

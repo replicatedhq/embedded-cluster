@@ -81,16 +81,20 @@ type InstallCmdFlags struct {
 	configValues            string
 	networkInterface        string
 
-	license *kotsv1beta1.License
-	proxy   *ecv1beta1.ProxySpec
-	cidrCfg *newconfig.CIDRConfig
-
 	// guided UI flags
 	managerPort int
 	guidedUI    bool
-	certFile    string
-	keyFile     string
+	tlsCertFile string
+	tlsKeyFile  string
 	hostname    string
+
+	// TODO: move to substruct
+	license      *kotsv1beta1.License
+	proxy        *ecv1beta1.ProxySpec
+	cidrCfg      *newconfig.CIDRConfig
+	tlsCert      tls.Certificate
+	tlsCertBytes []byte
+	tlsKeyBytes  []byte
 }
 
 // InstallCmd returns a cobra command for installing the embedded cluster.
@@ -213,8 +217,8 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) err
 func addGuidedUIFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	cmd.Flags().BoolVarP(&flags.guidedUI, "guided-ui", "g", false, "Run the installation in guided UI mode.")
 	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
-	cmd.Flags().StringVar(&flags.certFile, "cert-file", "", "Path to the TLS certificate file")
-	cmd.Flags().StringVar(&flags.keyFile, "key-file", "", "Path to the TLS key file")
+	cmd.Flags().StringVar(&flags.tlsCertFile, "tls-cert", "", "Path to the TLS certificate file")
+	cmd.Flags().StringVar(&flags.tlsKeyFile, "tls-key", "", "Path to the TLS key file")
 	cmd.Flags().StringVar(&flags.hostname, "hostname", "", "Hostname to use for TLS configuration")
 
 	if err := cmd.Flags().MarkHidden("guided-ui"); err != nil {
@@ -223,10 +227,10 @@ func addGuidedUIFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
 		return err
 	}
-	if err := cmd.Flags().MarkHidden("cert-file"); err != nil {
+	if err := cmd.Flags().MarkHidden("tls-cert"); err != nil {
 		return err
 	}
-	if err := cmd.Flags().MarkHidden("key-file"); err != nil {
+	if err := cmd.Flags().MarkHidden("tls-key"); err != nil {
 		return err
 	}
 	if err := cmd.Flags().MarkHidden("hostname"); err != nil {
@@ -286,17 +290,33 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 			return fmt.Errorf("unable to list all valid IP addresses: %w", err)
 		}
 
-		cert, err := tlsutils.GetCertificate(tlsutils.Config{
-			CertFile:    flags.certFile,
-			KeyFile:     flags.keyFile,
-			Hostname:    flags.hostname,
-			IPAddresses: ipAddresses,
-		})
-		if err != nil {
-			return fmt.Errorf("get tls certificate: %w", err)
+		if flags.tlsCertFile != "" && flags.tlsKeyFile != "" {
+			cert, err := tls.LoadX509KeyPair(flags.tlsCertFile, flags.tlsKeyFile)
+			if err != nil {
+				return fmt.Errorf("load tls certificate: %w", err)
+			}
+			certData, err := os.ReadFile(flags.tlsCertFile)
+			if err != nil {
+				return fmt.Errorf("unable to read tls cert file: %w", err)
+			}
+			keyData, err := os.ReadFile(flags.tlsKeyFile)
+			if err != nil {
+				return fmt.Errorf("unable to read tls key file: %w", err)
+			}
+			flags.tlsCert = cert
+			flags.tlsCertBytes = certData
+			flags.tlsKeyBytes = keyData
+		} else {
+			cert, certData, keyData, err := tlsutils.GenerateCertificate(flags.hostname, ipAddresses)
+			if err != nil {
+				return fmt.Errorf("generate tls certificate: %w", err)
+			}
+			flags.tlsCert = cert
+			flags.tlsCertBytes = certData
+			flags.tlsKeyBytes = keyData
 		}
 
-		if err := preRunInstallAPI(cmd.Context(), cert, flags.adminConsolePassword, flags.managerPort, configChan); err != nil {
+		if err := preRunInstallAPI(cmd.Context(), flags.tlsCert, flags.adminConsolePassword, flags.managerPort, configChan); err != nil {
 			return fmt.Errorf("unable to start install API: %w", err)
 		}
 
@@ -580,6 +600,9 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		Proxy:                   flags.proxy,
 		HostCABundlePath:        runtimeconfig.HostCABundlePath(),
 		PrivateCAs:              flags.privateCAs,
+		TLSCertBytes:            flags.tlsCertBytes,
+		TLSKeyBytes:             flags.tlsKeyBytes,
+		Hostname:                flags.hostname,
 		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
 		DisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
 		IsMultiNodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
@@ -627,10 +650,22 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 }
 
 func markUIInstallComplete(password string, managerPort int) error {
-	apiClient := apiclient.New(fmt.Sprintf("http://localhost:%d", managerPort))
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			Proxy: nil, // This is a local client so no proxy is needed
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+	}
+	apiClient := apiclient.New(
+		fmt.Sprintf("https://localhost:%d", managerPort),
+		apiclient.WithHTTPClient(httpClient),
+	)
 	if err := apiClient.Login(password); err != nil {
 		return fmt.Errorf("unable to login: %w", err)
 	}
+
 	_, err := apiClient.SetInstallStatus(apitypes.InstallationStatus{
 		State:       apitypes.InstallationStateSucceeded,
 		Description: "Install Complete",
@@ -639,6 +674,7 @@ func markUIInstallComplete(password string, managerPort int) error {
 	if err != nil {
 		return fmt.Errorf("unable to set install status: %w", err)
 	}
+
 	return nil
 }
 

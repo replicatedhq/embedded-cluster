@@ -13,7 +13,7 @@ type Controller interface {
 	ValidateToken(ctx context.Context, token string) error
 }
 
-var _ Controller = &AuthController{}
+var _ Controller = (*AuthController)(nil)
 
 type AuthController struct {
 	password string

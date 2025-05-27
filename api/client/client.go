@@ -9,12 +9,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-var defaultHTTPClient = &http.Client{
-	Transport: &http.Transport{
-		Proxy: nil, // This is a local client so no proxy is needed
-	},
-}
-
 type Client interface {
 	Login(password string) error
 	GetInstall() (*types.Install, error)
@@ -51,7 +45,7 @@ func New(apiURL string, opts ...ClientOption) Client {
 	}
 
 	if c.httpClient == nil {
-		c.httpClient = defaultHTTPClient
+		c.httpClient = http.DefaultClient
 	}
 
 	return c

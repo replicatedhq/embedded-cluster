@@ -19,7 +19,7 @@ func TestNew(t *testing.T) {
 	clientImpl, ok := c.(*client)
 	assert.True(t, ok, "Expected c to be of type *client")
 	assert.Equal(t, "http://example.com", clientImpl.apiURL)
-	assert.Equal(t, defaultHTTPClient, clientImpl.httpClient)
+	assert.Equal(t, http.DefaultClient, clientImpl.httpClient)
 	assert.Empty(t, clientImpl.token)
 
 	// Test with custom HTTP client

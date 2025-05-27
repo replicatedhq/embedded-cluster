@@ -25,23 +25,32 @@ func (c *Cluster) DeployMinio(node int) (*Minio, error) {
 		return nil, fmt.Errorf("create minio directories: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// Install Go (only used for downloading minio and mc as the official mirrors get throttled in cmx)
-	stdout, stderr, err = c.RunCommandOnNode(node, []string{"curl", "-L", "https://go.dev/dl/go1.24.2.linux-amd64.tar.gz", "|", "sudo", "tar", "-C", "/usr/local", "-xz"})
-	if err != nil {
-		return nil, fmt.Errorf("install go: %v: %s: %s", err, stdout, stderr)
+	// Download Minio binary
+	downloadCmd := []string{
+		"curl", "-L", "https://dl.min.io/server/minio/release/linux-amd64/minio",
+		"-o", "/minio/bin/minio",
 	}
-
-	// Download minio binary
-	downloadEnvs := map[string]string{"GOBIN": "/minio/bin"}
-	downloadCmd := []string{"/usr/local/go/bin/go", "install", "github.com/minio/minio@v0.0.0-20250507153712-6d18dba9a20d"}
-	if stdout, stderr, err := c.RunCommandOnNode(node, downloadCmd, downloadEnvs); err != nil {
+	if stdout, stderr, err := c.RunCommandOnNode(node, downloadCmd); err != nil {
 		return nil, fmt.Errorf("download minio: %v: %s: %s", err, stdout, stderr)
 	}
 
+	// Make binary executable
+	if stdout, stderr, err := c.RunCommandOnNode(node, []string{"chmod", "+x", "/minio/bin/minio"}); err != nil {
+		return nil, fmt.Errorf("chmod minio: %v: %s: %s", err, stdout, stderr)
+	}
+
 	// Download mc binary
-	downloadCmd = []string{"/usr/local/go/bin/go", "install", "github.com/minio/mc@v0.0.0-20250506164133-19d87ba47505"}
-	if stdout, stderr, err := c.RunCommandOnNode(node, downloadCmd, downloadEnvs); err != nil {
+	downloadCmd = []string{
+		"curl", "-L", "https://dl.min.io/client/mc/release/linux-amd64/mc",
+		"-o", "/minio/bin/mc",
+	}
+	if stdout, stderr, err := c.RunCommandOnNode(node, downloadCmd); err != nil {
 		return nil, fmt.Errorf("download mc: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// Make binary executable
+	if stdout, stderr, err := c.RunCommandOnNode(node, []string{"chmod", "+x", "/minio/bin/mc"}); err != nil {
+		return nil, fmt.Errorf("chmod mc: %v: %s: %s", err, stdout, stderr)
 	}
 
 	// Generate credentials

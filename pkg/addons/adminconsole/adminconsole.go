@@ -21,6 +21,9 @@ type AdminConsole struct {
 	ServiceCIDR              string
 	Password                 string
 	PrivateCAs               []string
+	TLSCertBytes             []byte
+	TLSKeyBytes              []byte
+	Hostname                 string
 	KotsInstaller            KotsInstaller
 	IsMultiNodeEnabled       bool
 	ReplicatedAppDomain      string
