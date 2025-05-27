@@ -82,6 +82,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		ImageTagOverride:      ecoImageTag,
 		UtilsImageOverride:    ecoUtilsImage,
 		ProxyRegistryDomain:   domains.ProxyRegistryDomain,
+		HostCABundlePath:      hostCABundlePath,
 	})
 
 	if in.Spec.AirGap {

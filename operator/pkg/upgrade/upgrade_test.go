@@ -2,6 +2,7 @@ package upgrade
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -16,7 +17,14 @@ import (
 
 func TestUpdateClusterConfig(t *testing.T) {
 	scheme := runtime.NewScheme()
+	//nolint:staticcheck // SA1019 we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
 	require.NoError(t, k0sv1beta1.AddToScheme(scheme))
+
+	// We need to disable telemetry in a backwards compatible way with k0s v1.30 and v1.29
+	// See - https://github.com/k0sproject/k0s/pull/4674/files#diff-eea4a0c68e41d694c3fd23b4865a7b28bcbba61dc9c642e33c2e2f5f7f9ee05d
+	// We can drop the json.Unmarshal once we drop support for 1.30
+	telemetryConfigEnabled := k0sv1beta1.ClusterTelemetry{}
+	json.Unmarshal([]byte(`true`), &telemetryConfigEnabled.Enabled)
 
 	tests := []struct {
 		name          string
@@ -128,9 +136,7 @@ func TestUpdateClusterConfig(t *testing.T) {
 					Network: &k0sv1beta1.Network{
 						ServiceCIDR: "10.96.0.0/12",
 					},
-					Telemetry: &k0sv1beta1.ClusterTelemetry{
-						Enabled: true,
-					},
+					Telemetry: &telemetryConfigEnabled,
 				},
 			},
 			installation: &ecv1beta1.Installation{
@@ -157,7 +163,9 @@ config:
 			},
 			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {
 				// Verify that the unsupported override was applied to the telemetry config
-				assert.Equal(t, false, updatedConfig.Spec.Telemetry.Enabled)
+				val, err := json.Marshal(updatedConfig.Spec.Telemetry.Enabled)
+				require.NoError(t, err)
+				assert.Equal(t, "false", string(val))
 
 				// Verify that the unsupported override was applied to the worker profiles
 				require.Len(t, updatedConfig.Spec.WorkerProfiles, 1)
@@ -225,7 +233,7 @@ config:
 						ServiceCIDR: "10.96.0.0/12",
 					},
 					Storage: &k0sv1beta1.StorageSpec{
-						Type: "abc",
+						Type: "etcd",
 					},
 					API: &k0sv1beta1.APISpec{
 						Address: "192.168.1.1",
@@ -265,7 +273,7 @@ config:
 				// Verify that the immutable fields are not changed
 				assert.Equal(t, "k0s", updatedConfig.Name)
 				assert.Equal(t, "192.168.1.1", updatedConfig.Spec.API.Address)
-				assert.Equal(t, "abc", updatedConfig.Spec.Storage.Type)
+				assert.Equal(t, k0sv1beta1.EtcdStorageType, updatedConfig.Spec.Storage.Type)
 
 				// Verify that other changes were not made
 				assert.Equal(t, "10.96.0.0/12", updatedConfig.Spec.Network.ServiceCIDR)

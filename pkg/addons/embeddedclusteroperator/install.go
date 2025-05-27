@@ -1,6 +1,7 @@
 package embeddedclusteroperator
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -14,7 +15,7 @@ import (
 )
 
 func (e *EmbeddedClusterOperator) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
-	err := installEnsureCAConfigmap(ctx, kcli, e.PrivateCAs)
+	err := e.installEnsureCAConfigmap(ctx, kcli)
 	if err != nil {
 		return errors.Wrap(err, "ensure CA configmap")
 	}
@@ -24,31 +25,41 @@ func (e *EmbeddedClusterOperator) Install(ctx context.Context, kcli client.Clien
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	_, err = hcli.Install(ctx, helm.InstallOptions{
+	opts := helm.InstallOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    e.ChartLocation(),
 		ChartVersion: e.ChartVersion(),
 		Values:       values,
 		Namespace:    namespace,
 		Labels:       getBackupLabels(),
-	})
-	if err != nil {
-		return errors.Wrap(err, "helm install")
+	}
+
+	if e.DryRun {
+		manifests, err := hcli.Render(ctx, opts)
+		if err != nil {
+			return errors.Wrap(err, "dry run values")
+		}
+		e.dryRunManifests = append(e.dryRunManifests, manifests...)
+	} else {
+		_, err = hcli.Install(ctx, opts)
+		if err != nil {
+			return errors.Wrap(err, "helm install")
+		}
 	}
 
 	return nil
 }
 
-func installEnsureCAConfigmap(ctx context.Context, kcli client.Client, privateCAs []string) error {
-	cas, err := privateCAsToMap(privateCAs)
+func (e *EmbeddedClusterOperator) installEnsureCAConfigmap(ctx context.Context, kcli client.Client) error {
+	cas, err := privateCAsToMap(e.PrivateCAs)
 	if err != nil {
 		return errors.Wrap(err, "create private cas map")
 	}
-	return ensureCAConfigmap(ctx, kcli, cas)
+	return e.ensureCAConfigmap(ctx, kcli, cas)
 }
 
-func ensureCAConfigmap(ctx context.Context, cli client.Client, cas map[string]string) error {
-	ecoCAConfigmap := corev1.ConfigMap{
+func (e *EmbeddedClusterOperator) ensureCAConfigmap(ctx context.Context, cli client.Client, cas map[string]string) error {
+	obj := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
 			APIVersion: "v1",
@@ -61,7 +72,16 @@ func ensureCAConfigmap(ctx context.Context, cli client.Client, cas map[string]st
 		Data: cas,
 	}
 
-	err := cli.Create(ctx, &ecoCAConfigmap)
+	if e.DryRun {
+		b := bytes.NewBuffer(nil)
+		if err := serializer.Encode(obj, b); err != nil {
+			return errors.Wrap(err, "serialize")
+		}
+		e.dryRunManifests = append(e.dryRunManifests, b.Bytes())
+		return nil
+	}
+
+	err := cli.Create(ctx, obj)
 	if client.IgnoreAlreadyExists(err) != nil {
 		return errors.Wrap(err, "create private-cas configmap")
 	}
