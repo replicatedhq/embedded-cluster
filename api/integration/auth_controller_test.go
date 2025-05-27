@@ -49,7 +49,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 	// Test successful login
 	t.Run("successful login", func(t *testing.T) {
 		// Create login request with correct password
-		loginReq := api.AuthRequest{
+		loginReq := types.AuthRequest{
 			Password: password,
 		}
 		loginReqJSON, err := json.Marshal(loginReq)
@@ -66,7 +66,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 		// Check the login response
 		assert.Equal(t, http.StatusOK, rec.Code)
 
-		var loginResponse api.AuthResponse
+		var loginResponse types.AuthResponse
 		err = json.NewDecoder(rec.Body).Decode(&loginResponse)
 		require.NoError(t, err)
 
@@ -88,7 +88,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 	// Test failed login with incorrect password
 	t.Run("failed login with incorrect password", func(t *testing.T) {
 		// Create login request with incorrect password
-		loginReq := api.AuthRequest{
+		loginReq := types.AuthRequest{
 			Password: "wrong-password",
 		}
 		loginReqJSON, err := json.Marshal(loginReq)
@@ -168,7 +168,7 @@ func TestAPIClientLogin(t *testing.T) {
 		c := client.New(server.URL)
 
 		// Login with the client
-		err := c.Login(password)
+		err := c.Authenticate(password)
 		require.NoError(t, err, "API client login should succeed with correct password")
 
 		// Verify we can make authenticated requests after login
@@ -183,7 +183,7 @@ func TestAPIClientLogin(t *testing.T) {
 		c := client.New(server.URL)
 
 		// Attempt to login with wrong password
-		err := c.Login("wrong-password")
+		err := c.Authenticate("wrong-password")
 		require.Error(t, err, "API client login should fail with wrong password")
 
 		// Check that the error is of correct type

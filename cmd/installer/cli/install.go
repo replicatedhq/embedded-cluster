@@ -662,8 +662,8 @@ func markUIInstallComplete(password string, managerPort int) error {
 		fmt.Sprintf("https://localhost:%d", managerPort),
 		apiclient.WithHTTPClient(httpClient),
 	)
-	if err := apiClient.Login(password); err != nil {
-		return fmt.Errorf("unable to login: %w", err)
+	if err := apiClient.Authenticate(password); err != nil {
+		return fmt.Errorf("unable to authenticate: %w", err)
 	}
 
 	_, err := apiClient.SetInstallStatus(apitypes.InstallationStatus{

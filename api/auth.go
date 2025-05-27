@@ -10,14 +10,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-type AuthRequest struct {
-	Password string `json:"password"`
-}
-
-type AuthResponse struct {
-	Token string `json:"token"`
-}
-
 func (a *API) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get("Authorization")
@@ -48,8 +40,19 @@ func (a *API) authMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// postAuthLogin handler to authenticate a user
+//
+//	@Summary		Authenticate a user
+//	@Description	Authenticate a user
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		types.AuthRequest	true	"Auth Request"
+//	@Success		200		{object}	types.AuthResponse
+//	@Failure		401		{object}	types.APIError
+//	@Router			/auth/login [post]
 func (a *API) postAuthLogin(w http.ResponseWriter, r *http.Request) {
-	var request AuthRequest
+	var request types.AuthRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
 		a.logError(r, err, "failed to decode auth request")
@@ -69,7 +72,7 @@ func (a *API) postAuthLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := AuthResponse{
+	response := types.AuthResponse{
 		Token: token,
 	}
 
