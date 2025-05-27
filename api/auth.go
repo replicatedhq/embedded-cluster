@@ -27,7 +27,9 @@ func (a *API) authMiddleware(next http.Handler) http.Handler {
 				Error("failed to authenticate")
 			types.NewUnauthorizedError(err).JSON(w)
 			return
-		} else if !strings.HasPrefix(token, "Bearer ") {
+		}
+
+		if !strings.HasPrefix(token, "Bearer ") {
 			err := errors.New("authorization header must start with Bearer ")
 			a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
 				Error("failed to authenticate")
@@ -63,7 +65,9 @@ func (a *API) postAuthLogin(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, auth.ErrInvalidPassword) {
 		types.NewUnauthorizedError(err).JSON(w)
 		return
-	} else if err != nil {
+	}
+
+	if err != nil {
 		a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).
 			Error("failed to authenticate")
 		types.NewInternalServerError(err).JSON(w)
