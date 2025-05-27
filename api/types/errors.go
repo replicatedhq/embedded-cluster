@@ -57,7 +57,7 @@ func NewBadRequestError(err error) *APIError {
 func NewUnauthorizedError(err error) *APIError {
 	return &APIError{
 		StatusCode: http.StatusUnauthorized,
-		Message:    err.Error(),
+		Message:    "Unauthorized",
 		err:        err,
 	}
 }
