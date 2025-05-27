@@ -115,6 +115,57 @@ func TestNewAPIError(t *testing.T) {
 	}
 }
 
+func TestAPIError_Error(t *testing.T) {
+	tests := []struct {
+		name     string
+		apiError *APIError
+		expected string
+	}{
+		{
+			name:     "nil error",
+			apiError: nil,
+			expected: "",
+		},
+		{
+			name: "error with message, no sub-errors",
+			apiError: &APIError{
+				Message: "main error message",
+				Errors:  []*APIError{},
+			},
+			expected: "main error message",
+		},
+		{
+			name: "error with message and one sub-error",
+			apiError: &APIError{
+				Message: "main error message",
+				Errors: []*APIError{
+					{Message: "sub-error 1"},
+				},
+			},
+			expected: "main error message: sub-error 1",
+		},
+		{
+			name: "error with message and multiple sub-errors",
+			apiError: &APIError{
+				Message: "main error message",
+				Errors: []*APIError{
+					{Message: "sub-error 1"},
+					{Message: "sub-error 2"},
+					{Message: "sub-error 3"},
+				},
+			},
+			expected: "main error message: sub-error 1; sub-error 2; sub-error 3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.apiError.Error()
+			assert.Equal(t, tt.expected, got, "Error() should return the expected string")
+		})
+	}
+}
+
 func TestAPIError_ErrorOrNil(t *testing.T) {
 	tests := []struct {
 		name    string
