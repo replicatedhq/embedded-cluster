@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
@@ -550,8 +551,14 @@ func Test_runInstallAPI(t *testing.T) {
 
 	logger := api.NewDiscardLogger()
 
-	cert, err := tlsutils.GetCertificate(tlsutils.Config{})
+	_, port, err := net.SplitHostPort(listener.Addr().String())
 	require.NoError(t, err)
+
+	cert, _, _, err := tlsutils.GenerateCertificate("localhost", nil)
+	require.NoError(t, err)
+
+	certPool := x509.NewCertPool()
+	certPool.AddCert(cert.Leaf)
 
 	go func() {
 		err := runInstallAPI(ctx, listener, cert, logger, "password", nil)
@@ -560,16 +567,16 @@ func Test_runInstallAPI(t *testing.T) {
 	}()
 
 	t.Logf("Waiting for install API to start on %s", listener.Addr().String())
-	err = waitForInstallAPI(ctx, listener.Addr().String())
+	err = waitForInstallAPI(ctx, net.JoinHostPort("localhost", port))
 	assert.NoError(t, err)
 
-	url := "https://" + listener.Addr().String() + "/api/health"
+	url := "https://" + net.JoinHostPort("localhost", port) + "/api/health"
 	t.Logf("Making request to %s", url)
 	httpClient := http.Client{
 		Timeout: 2 * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
+				RootCAs: certPool,
 			},
 		},
 	}

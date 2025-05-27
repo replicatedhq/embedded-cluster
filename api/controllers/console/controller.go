@@ -13,6 +13,8 @@ type Controller interface {
 	ListAvailableNetworkInterfaces() ([]string, error)
 }
 
+var _ Controller = (*ConsoleController)(nil)
+
 type ConsoleController struct {
 	utils.NetUtils
 }

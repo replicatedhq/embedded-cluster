@@ -25,6 +25,9 @@ type InstallOptions struct {
 	Proxy                   *ecv1beta1.ProxySpec
 	HostCABundlePath        string
 	PrivateCAs              []string
+	TLSCertBytes            []byte
+	TLSKeyBytes             []byte
+	Hostname                string
 	ServiceCIDR             string
 	DisasterRecoveryEnabled bool
 	IsMultiNodeEnabled      bool
@@ -99,6 +102,9 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		ServiceCIDR:              opts.ServiceCIDR,
 		Password:                 opts.AdminConsolePwd,
 		PrivateCAs:               opts.PrivateCAs,
+		TLSCertBytes:             opts.TLSCertBytes,
+		TLSKeyBytes:              opts.TLSKeyBytes,
+		Hostname:                 opts.Hostname,
 		KotsInstaller:            opts.KotsInstaller,
 		IsMultiNodeEnabled:       opts.IsMultiNodeEnabled,
 		ReplicatedAppDomain:      domains.ReplicatedAppDomain,

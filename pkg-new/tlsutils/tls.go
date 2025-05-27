@@ -6,7 +6,6 @@ import (
 	"net"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/sirupsen/logrus"
 	certutil "k8s.io/client-go/util/cert"
 )
 
@@ -30,29 +29,22 @@ type Config struct {
 	IPAddresses []net.IP
 }
 
-// GetCertificate returns a TLS certificate based on the provided configuration.
-// If cert and key files are provided, it uses those. Otherwise, it generates a self-signed certificate.
-func GetCertificate(cfg Config) (tls.Certificate, error) {
-	if cfg.CertFile != "" && cfg.KeyFile != "" {
-		logrus.Debugf("Using TLS configuration with cert file: %s and key file: %s", cfg.CertFile, cfg.KeyFile)
-		return tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
-	}
-
-	hostname, altNames := generateCertHostnames(cfg.Hostname)
+// GenerateCertificate creates a new self-signed TLS certificate
+func GenerateCertificate(hostname string, ipAddresses []net.IP) (tls.Certificate, []byte, []byte, error) {
+	hostname, altNames := generateCertHostnames(hostname)
 
 	// Generate a new self-signed cert
-	certData, keyData, err := certutil.GenerateSelfSignedCertKey(hostname, cfg.IPAddresses, altNames)
+	certData, keyData, err := certutil.GenerateSelfSignedCertKey(hostname, ipAddresses, altNames)
 	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("generate self-signed cert: %w", err)
+		return tls.Certificate{}, nil, nil, fmt.Errorf("generate self-signed cert: %w", err)
 	}
 
 	cert, err := tls.X509KeyPair(certData, keyData)
 	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("create TLS certificate: %w", err)
+		return tls.Certificate{}, nil, nil, fmt.Errorf("create TLS certificate: %w", err)
 	}
 
-	logrus.Debugf("Using self-signed TLS certificate for hostname: %s", hostname)
-	return cert, nil
+	return cert, certData, keyData, nil
 }
 
 // GetTLSConfig returns a TLS configuration with the provided certificate

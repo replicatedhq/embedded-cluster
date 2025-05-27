@@ -89,6 +89,10 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 		return errors.Wrap(err, "create kots CA configmap")
 	}
 
+	if err := a.createTLSSecret(ctx, kcli, namespace); err != nil {
+		return errors.Wrap(err, "create kots TLS secret")
+	}
+
 	if a.IsAirgap {
 		registryIP, err := registry.GetRegistryClusterIP(a.ServiceCIDR)
 		if err != nil {
@@ -236,6 +240,54 @@ func (a *AdminConsole) createRegistrySecret(ctx context.Context, kcli client.Cli
 		err := kcli.Create(ctx, &registryCreds)
 		if err != nil {
 			return errors.Wrap(err, "create registry-auth secret")
+		}
+	}
+
+	return nil
+}
+
+func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client, namespace string) error {
+	if len(a.TLSCertBytes) == 0 || len(a.TLSKeyBytes) == 0 {
+		return nil
+	}
+
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kotsadm-tls",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"kots.io/kotsadm":                        "true",
+				"replicated.com/disaster-recovery":       "infra",
+				"replicated.com/disaster-recovery-chart": "admin-console",
+			},
+			Annotations: map[string]string{
+				"acceptAnonymousUploads": "0",
+			},
+		},
+		Type: "kubernetes.io/tls",
+		Data: map[string][]byte{
+			"tls.crt": a.TLSCertBytes,
+			"tls.key": a.TLSKeyBytes,
+		},
+		StringData: map[string]string{
+			"hostname": a.Hostname,
+		},
+	}
+
+	if a.DryRun {
+		b := bytes.NewBuffer(nil)
+		if err := serializer.Encode(secret, b); err != nil {
+			return errors.Wrap(err, "serialize TLS secret")
+		}
+		a.dryRunManifests = append(a.dryRunManifests, b.Bytes())
+	} else {
+		err := kcli.Create(ctx, secret)
+		if err != nil {
+			return errors.Wrap(err, "create kotsadm-tls secret")
 		}
 	}
 

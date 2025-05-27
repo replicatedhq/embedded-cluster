@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -110,10 +111,44 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	consoleRouter.HandleFunc("/available-network-interfaces", a.getListAvailableNetworkInterfaces).Methods("GET")
 }
 
-func handleError(w http.ResponseWriter, err error) {
+func (a *API) JSON(w http.ResponseWriter, r *http.Request, code int, payload any) {
+	response, err := json.Marshal(payload)
+	if err != nil {
+		a.logError(r, err, "failed to encode response")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(response)
+}
+
+func (a *API) JSONError(w http.ResponseWriter, r *http.Request, err error) {
 	var apiErr *types.APIError
 	if !errors.As(err, &apiErr) {
 		apiErr = types.NewInternalServerError(err)
 	}
-	apiErr.JSON(w)
+
+	response, err := json.Marshal(apiErr)
+	if err != nil {
+		a.logError(r, err, "failed to encode response")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(apiErr.StatusCode)
+	w.Write(response)
+}
+
+func (a *API) logError(r *http.Request, err error, args ...any) {
+	a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).Error(args...)
+}
+
+func logrusFieldsFromRequest(r *http.Request) logrus.Fields {
+	return logrus.Fields{
+		"method": r.Method,
+		"path":   r.URL.Path,
+	}
 }
