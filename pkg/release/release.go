@@ -10,6 +10,7 @@ import (
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/utils/pkg/embed"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	"gopkg.in/yaml.v2"
@@ -25,7 +26,7 @@ var (
 // ReleaseData holds the parsed data from a Kots Release.
 type ReleaseData struct {
 	data                  []byte
-	Application           []byte
+	Application           *kotsv1beta1.Application
 	HostPreflights        *v1beta2.HostPreflightSpec
 	EmbeddedClusterConfig *embeddedclusterv1beta1.Config
 	ChannelRelease        *ChannelRelease
@@ -42,7 +43,7 @@ func GetHostPreflights() *v1beta2.HostPreflightSpec {
 // GetApplication reads and returns the kots application embedded as part of the
 // release. If no application is found, returns nil and no error. This function does
 // not unmarshal the application yaml.
-func GetApplication() []byte {
+func GetApplication() *kotsv1beta1.Application {
 	return _releaseData.Application
 }
 
@@ -107,6 +108,17 @@ func parseReleaseDataFromBinary() (*ReleaseData, error) {
 		return nil, fmt.Errorf("failed to parse release data: %w", err)
 	}
 	return release, nil
+}
+
+func parseApplication(data []byte) (*kotsv1beta1.Application, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	var app kotsv1beta1.Application
+	if err := kyaml.Unmarshal(data, &app); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal application: %w", err)
+	}
+	return &app, nil
 }
 
 func parseHostPreflights(data []byte) (*v1beta2.HostPreflightSpec, error) {
@@ -224,7 +236,11 @@ func (r *ReleaseData) parse() error {
 		switch {
 		case bytes.Contains(content.Bytes(), []byte("apiVersion: kots.io/v1beta1")):
 			if bytes.Contains(content.Bytes(), []byte("kind: Application")) {
-				r.Application = content.Bytes()
+				parsed, err := parseApplication(content.Bytes())
+				if err != nil {
+					return fmt.Errorf("failed to parse application: %w", err)
+				}
+				r.Application = parsed
 			}
 
 		case bytes.Contains(content.Bytes(), []byte("apiVersion: troubleshoot.sh/v1beta2")):

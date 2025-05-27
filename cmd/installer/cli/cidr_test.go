@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
@@ -14,11 +15,11 @@ func Test_getCIDRConfig(t *testing.T) {
 	tests := []struct {
 		name     string
 		setFlags func(flagSet *pflag.FlagSet)
-		expected *CIDRConfig
+		expected *newconfig.CIDRConfig
 	}{
 		{
 			name: "with pod and service flags",
-			expected: &CIDRConfig{
+			expected: &newconfig.CIDRConfig{
 				PodCIDR:     "10.0.0.0/24",
 				ServiceCIDR: "10.1.0.0/24",
 				GlobalCIDR:  nil,
@@ -30,7 +31,7 @@ func Test_getCIDRConfig(t *testing.T) {
 		},
 		{
 			name: "with pod flag",
-			expected: &CIDRConfig{
+			expected: &newconfig.CIDRConfig{
 				PodCIDR:     "10.0.0.0/24",
 				ServiceCIDR: v1beta1.DefaultNetwork().ServiceCIDR,
 				GlobalCIDR:  nil,
@@ -41,7 +42,7 @@ func Test_getCIDRConfig(t *testing.T) {
 		},
 		{
 			name: "with pod, service and cidr flags",
-			expected: &CIDRConfig{
+			expected: &newconfig.CIDRConfig{
 				PodCIDR:     "10.0.0.0/24",
 				ServiceCIDR: "10.1.0.0/24",
 				GlobalCIDR:  nil,
@@ -54,7 +55,7 @@ func Test_getCIDRConfig(t *testing.T) {
 		},
 		{
 			name: "with pod and cidr flags",
-			expected: &CIDRConfig{
+			expected: &newconfig.CIDRConfig{
 				PodCIDR:     "10.0.0.0/24",
 				ServiceCIDR: v1beta1.DefaultNetwork().ServiceCIDR,
 				GlobalCIDR:  nil,
@@ -66,7 +67,7 @@ func Test_getCIDRConfig(t *testing.T) {
 		},
 		{
 			name: "with cidr flag",
-			expected: &CIDRConfig{
+			expected: &newconfig.CIDRConfig{
 				PodCIDR:     "10.2.0.0/25",
 				ServiceCIDR: "10.2.0.128/25",
 				GlobalCIDR:  ptr.To("10.2.0.0/24"),
