@@ -176,7 +176,7 @@ jobs:
       - name: Build web
         working-directory: ./web
         run: |
-          npm i
+          npm ci
           npm run build
 
       - name: Build linux-amd64
