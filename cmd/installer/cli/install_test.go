@@ -581,7 +581,7 @@ func Test_runInstallAPI(t *testing.T) {
 		},
 	}
 	resp, err := httpClient.Get(url)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	if resp != nil {
 		defer resp.Body.Close()
 	}

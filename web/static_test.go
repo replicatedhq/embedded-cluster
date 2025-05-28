@@ -3,21 +3,73 @@ package web
 import (
 	"encoding/json"
 	"html/template"
-	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"testing/fstest"
 
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
+// setupMockFS temporarily replaces the assetsFS with a mock filesystem and returns a cleanup function
+func setupMockFS(mockFS fstest.MapFS) func() {
+	// Store the original assetsFS
+	originalAssetsFS := assetsFS
+
+	// Replace with mock filesystem
+	assetsFS = mockFS
+
+	// Return cleanup function
+	return func() {
+		assetsFS = originalAssetsFS
+	}
+}
+
+// createDefaultMockFS creates a standard mock filesystem for testing
+func createDefaultMockFS() fstest.MapFS {
+	// Create mock assets
+	return fstest.MapFS{
+		"assets/test-icon.png": &fstest.MapFile{
+			Data: []byte("fake icon data"),
+			Mode: 0644,
+		},
+		"assets/app.js": &fstest.MapFile{
+			Data: []byte("console.log('Hello, world!');"),
+			Mode: 0644,
+		},
+	}
+}
+
+// createDefaultHTMLTemplate creates a basic HTML template for testing
+func createDefaultHTMLTemplate() *template.Template {
+	// Create a basic HTML template for testing
+	tmpl, err := template.New("index.html").Parse(`<!DOCTYPE html>
+	logger := logtest.NewNullLogger()
+<html>
+<head>
+	<title>{{.Title}}</title>
+</head>
+<body>
+	<script>
+		window.__INITIAL_STATE__ = {{.InitialState}};
+	</script>
+</body>
+</html>`)
+
+	if err != nil {
+		panic(err)
+	}
+	return tmpl
+}
+
 func TestNew(t *testing.T) {
-	// Create a test logger
-	logger := logrus.New()
-	logger.SetOutput(io.Discard)
+	// Setup mock filesystem
+	cleanup := setupMockFS(createDefaultMockFS())
+	defer cleanup()
 
 	// Create initial state
 	initialState := InitialState{
@@ -25,19 +77,43 @@ func TestNew(t *testing.T) {
 		Icon:  "test-icon.png",
 	}
 
+	// Create a test logger
+	logger, _ := logtest.NewNullLogger()
+
 	// Create a new Web instance
-	web := New(initialState, logger)
+	web, err := New(initialState, WithLogger(logger), WithHTMLTemplate(createDefaultHTMLTemplate()))
+	require.NoError(t, err, "Failed to create Web instance")
 
 	// Verify the web instance was created correctly
 	assert.Equal(t, initialState.Title, web.initialState.Title, "Title should match")
 	assert.Equal(t, initialState.Icon, web.initialState.Icon, "Icon should match")
 	assert.NotNil(t, web.logger, "Logger should be set")
+	assert.NotNil(t, web.htmlTemplate, "HTML template should be set")
 }
 
-func TestRootHandler(t *testing.T) {
-	// Create a test logger
-	logger := logrus.New()
-	logger.SetOutput(io.Discard)
+// TestNewWithIndexHTML tests creating a Web instance with the actual index.html template we use and pass over to Vite for building.
+func TestNewWithIndexHTML(t *testing.T) {
+	// Setup a mock filesystem with our actual index.html file
+
+	indexHTML, err := os.ReadFile("index.html")
+	require.NoError(t, err, "Failed to read index.html")
+
+	mockFS := fstest.MapFS{
+		"assets/test-icon.png": &fstest.MapFile{
+			Data: []byte("fake icon data"),
+			Mode: 0644,
+		},
+		"assets/app.js": &fstest.MapFile{
+			Data: []byte("console.log('Hello, world!');"),
+			Mode: 0644,
+		},
+		"index.html": &fstest.MapFile{
+			Data: indexHTML,
+			Mode: 0644,
+		},
+	}
+	cleanup := setupMockFS(mockFS)
+	defer cleanup()
 
 	// Create initial state
 	initialState := InitialState{
@@ -45,8 +121,72 @@ func TestRootHandler(t *testing.T) {
 		Icon:  "test-icon.png",
 	}
 
+	// Create a test logger
+	logger, _ := logtest.NewNullLogger()
+
+	// Create a new Web instance, using the actual index.html template
+	web, err := New(initialState, WithLogger(logger))
+	require.NoError(t, err, "Failed to create Web instance")
+
+	// Verify the web instance was created correctly
+	assert.Equal(t, initialState.Title, web.initialState.Title, "Title should match")
+	assert.Equal(t, initialState.Icon, web.initialState.Icon, "Icon should match")
+}
+
+func TestNewWithNonExistentTemplate(t *testing.T) {
+	// Setup a mock filesystem without an index.html file
+	mockFS := fstest.MapFS{
+		"assets/test-icon.png": &fstest.MapFile{
+			Data: []byte("fake icon data"),
+			Mode: 0644,
+		},
+		"assets/app.js": &fstest.MapFile{
+			Data: []byte("console.log('Hello, world!');"),
+			Mode: 0644,
+		},
+		// Deliberately omitting index.html
+	}
+	cleanup := setupMockFS(mockFS)
+	defer cleanup()
+
+	// Create initial state
+	initialState := InitialState{
+		Title: "Test Title",
+		Icon:  "test-icon.png",
+	}
+
+	// Create a test logger
+	logger, _ := logtest.NewNullLogger()
+
+	// Try to create a new Web instance without providing an HTML template
+	web, err := New(initialState, WithLogger(logger))
+
+	// Assert that an error was returned
+	assert.Error(t, err, "New should return an error when the template doesn't exist")
+
+	// Assert that the error message mentions the template
+	assert.Contains(t, err.Error(), "failed to parse HTML template", "Error should mention template parsing failure")
+
+	// Assert that the web instance is nil
+	assert.Nil(t, web, "Web instance should be nil when an error occurs")
+}
+
+func TestRootHandler(t *testing.T) {
+	// Setup mock filesystem
+	cleanup := setupMockFS(createDefaultMockFS())
+	defer cleanup()
+
+	initialState := InitialState{
+		Title: "Test Title",
+		Icon:  "test-icon.png",
+	}
+
+	// Create a test logger
+	logger, _ := logtest.NewNullLogger()
+
 	// Create a new Web instance
-	web := New(initialState, logger)
+	web, err := New(initialState, WithLogger(logger), WithHTMLTemplate(createDefaultHTMLTemplate()))
+	require.NoError(t, err, "Failed to create Web instance")
 
 	// Create a mock HTTP request
 	req := httptest.NewRequest("GET", "/", nil)
@@ -70,18 +210,9 @@ func TestRootHandler(t *testing.T) {
 }
 
 func TestRootHandlerTemplateError(t *testing.T) {
-	// Save the original template
-	originalTemplate := htmlTemplate
-	defer func() { htmlTemplate = originalTemplate }()
-
-	// Create a template that will cause an error
-	errorTemplate, err := template.New("error").Parse("{{.NonExistentField}}")
-	assert.NoError(t, err, "Failed to parse error template")
-	htmlTemplate = errorTemplate
-
-	// Create a test logger
-	logger := logrus.New()
-	logger.SetOutput(io.Discard)
+	// Setup mock filesystem with standard template
+	cleanup := setupMockFS(createDefaultMockFS())
+	defer cleanup()
 
 	// Create initial state
 	initialState := InitialState{
@@ -89,8 +220,21 @@ func TestRootHandlerTemplateError(t *testing.T) {
 		Icon:  "test-icon.png",
 	}
 
+	// Create a test logger
+	logger, _ := logtest.NewNullLogger()
+
 	// Create a new Web instance
-	web := New(initialState, logger)
+	web, err := New(initialState, WithLogger(logger), WithHTMLTemplate(createDefaultHTMLTemplate()))
+	require.NoError(t, err, "Failed to create Web instance")
+
+	// Replace the template with one that will cause an error
+	errorTemplate, err := template.New("error").Parse("{{.NonExistentField}}")
+	assert.NoError(t, err, "Failed to parse error template")
+
+	// Save original and replace with error template
+	originalTemplate := web.htmlTemplate
+	web.htmlTemplate = errorTemplate
+	defer func() { web.htmlTemplate = originalTemplate }()
 
 	// Create a mock HTTP request
 	req := httptest.NewRequest("GET", "/", nil)
@@ -108,9 +252,10 @@ func TestRootHandlerTemplateError(t *testing.T) {
 }
 
 func TestRegisterRoutes(t *testing.T) {
-	// Create a test logger
-	logger := logrus.New()
-	logger.SetOutput(io.Discard)
+	// Setup mock filesystem
+	mockFS := createDefaultMockFS()
+	cleanup := setupMockFS(mockFS)
+	defer cleanup()
 
 	// Create initial state
 	initialState := InitialState{
@@ -118,27 +263,14 @@ func TestRegisterRoutes(t *testing.T) {
 		Icon:  "test-icon.png",
 	}
 
-	// Mock the assets file system
-	iconContent := []byte("fake icon data")
-	jsContent := []byte("console.log('Hello, world!');")
-	mockFS := fstest.MapFS{
-		"assets/" + initialState.Icon: &fstest.MapFile{
-			Data: iconContent,
-			Mode: 0644,
-		},
-		"assets/app.js": &fstest.MapFile{
-			Data: jsContent,
-			Mode: 0644,
-		},
-	}
-
-	// Store the original assetsFS and restore it after the test
-	originalAssetsFS := assetsFS
-	assetsFS = mockFS
-	defer func() { assetsFS = originalAssetsFS }()
+	// Create a test logger
+	logger, _ := logtest.NewNullLogger()
 
 	// Create a new Web instance
-	web := New(initialState, logger)
+	web, err := New(initialState, WithLogger(logger), WithHTMLTemplate(createDefaultHTMLTemplate()))
+	require.NoError(t, err, "Failed to create Web instance")
+
+	// Create router
 	router := mux.NewRouter()
 	web.RegisterRoutes(router)
 
@@ -168,7 +300,7 @@ func TestRegisterRoutes(t *testing.T) {
 		assert.Equal(t, http.StatusOK, recorder.Code, "Should return status OK for icon")
 
 		// Check that the icon content is in the response
-		assert.Equal(t, string(iconContent), recorder.Body.String(), "Response should contain the icon content")
+		assert.Equal(t, "fake icon data", recorder.Body.String(), "Response should contain the icon content")
 	})
 
 	// Test 3: JS asset
@@ -183,6 +315,6 @@ func TestRegisterRoutes(t *testing.T) {
 		assert.Equal(t, http.StatusOK, recorder.Code, "Should return status OK for JS file")
 
 		// Check that the JS content is in the response
-		assert.Equal(t, string(jsContent), recorder.Body.String(), "Response should contain the JS content")
+		assert.Equal(t, "console.log('Hello, world!');", recorder.Body.String(), "Response should contain the JS content")
 	})
 }

@@ -460,10 +460,13 @@ func runInstallAPI(ctx context.Context, listener net.Listener, cert tls.Certific
 		return fmt.Errorf("application not found")
 	}
 
-	webServer := web.New(web.InitialState{
+	webServer, err := web.New(web.InitialState{
 		Title: app.Spec.Title,
 		Icon:  app.Spec.Icon,
-	}, logger)
+	}, web.WithLogger(logger))
+	if err != nil {
+		return fmt.Errorf("new web server: %w", err)
+	}
 
 	api.RegisterRoutes(router.PathPrefix("/api").Subrouter())
 	webServer.RegisterRoutes(router.PathPrefix("/").Subrouter())
