@@ -44,13 +44,9 @@ spec:
         get:
           url: '{{ .ReplicatedAppURL }}'
           timeout: 5s
-          tls:
-            cacert: '{{ .PrivateCA }}'
           proxy: '{{ .HTTPSProxy }}'
         exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") }}'
     - http:
-        # this collector does NOT use the PrivateCA because it is meant to imitate containerd pulling images,
-        # and containerd will use the system's CA bundle to verify the image's certificate
         collectorName: http-proxy-replicated-com
         get:
           url: '{{ .ProxyRegistryURL }}/v2/'

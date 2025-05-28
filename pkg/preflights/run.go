@@ -29,7 +29,6 @@ type PrepareAndRunOptions struct {
 	ServiceCIDR            string
 	GlobalCIDR             *string
 	NodeIP                 string
-	PrivateCAs             []string
 	IsAirgap               bool
 	SkipHostPreflights     bool
 	IgnoreHostPreflights   bool
@@ -50,11 +49,6 @@ func PrepareAndRun(ctx context.Context, opts PrepareAndRunOptions) error {
 		hpf = &v1beta2.HostPreflightSpec{}
 	}
 
-	privateCA := ""
-	if len(opts.PrivateCAs) > 0 {
-		privateCA = opts.PrivateCAs[0]
-	}
-
 	data, err := types.TemplateData{
 		ReplicatedAppURL:        opts.ReplicatedAppURL,
 		ProxyRegistryURL:        opts.ProxyRegistryURL,
@@ -64,7 +58,6 @@ func PrepareAndRun(ctx context.Context, opts PrepareAndRunOptions) error {
 		DataDir:                 runtimeconfig.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:              runtimeconfig.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
-		PrivateCA:               privateCA,
 		SystemArchitecture:      runtime.GOARCH,
 		FromCIDR:                opts.PodCIDR,
 		ToCIDR:                  opts.ServiceCIDR,

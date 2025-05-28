@@ -20,7 +20,6 @@ type AdminConsole struct {
 	Proxy                    *ecv1beta1.ProxySpec
 	ServiceCIDR              string
 	Password                 string
-	PrivateCAs               []string
 	TLSCertBytes             []byte
 	TLSKeyBytes              []byte
 	Hostname                 string

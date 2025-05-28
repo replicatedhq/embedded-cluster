@@ -26,10 +26,8 @@ func init() {
 }
 
 type EmbeddedClusterOperator struct {
-	IsAirgap bool
-	Proxy    *ecv1beta1.ProxySpec
-	// Deprecated: use HostCABundlePath instead
-	PrivateCAs            []string
+	IsAirgap              bool
+	Proxy                 *ecv1beta1.ProxySpec
 	HostCABundlePath      string
 	ChartLocationOverride string
 	ChartVersionOverride  string

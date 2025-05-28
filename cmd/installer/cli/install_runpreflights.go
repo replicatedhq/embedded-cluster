@@ -99,7 +99,6 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsRep
 		ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
 		GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
 		NodeIP:               nodeIP,
-		PrivateCAs:           flags.privateCAs,
 		IsAirgap:             flags.isAirgap,
 		SkipHostPreflights:   flags.skipHostPreflights,
 		IgnoreHostPreflights: flags.ignoreHostPreflights,

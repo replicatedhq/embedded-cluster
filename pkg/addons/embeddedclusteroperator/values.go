@@ -78,10 +78,16 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, kcli c
 			"mountPath": "/certs/ca-certificates.crt",
 		})
 
-		extraEnvVars = append(extraEnvVars, map[string]any{
-			"name":  "SSL_CERT_DIR",
-			"value": "/certs",
-		})
+		extraEnvVars = append(extraEnvVars, []map[string]any{
+			{
+				"name":  "SSL_CERT_DIR",
+				"value": "/certs",
+			},
+			{
+				"name":  "PRIVATE_CA_BUNDLE_PATH",
+				"value": "/certs/ca-certificates.crt",
+			},
+		}...)
 	}
 
 	copiedValues["extraEnv"] = extraEnvVars

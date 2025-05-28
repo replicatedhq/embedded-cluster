@@ -24,7 +24,6 @@ type InstallOptions struct {
 	IsAirgap                bool
 	Proxy                   *ecv1beta1.ProxySpec
 	HostCABundlePath        string
-	PrivateCAs              []string
 	TLSCertBytes            []byte
 	TLSKeyBytes             []byte
 	Hostname                string
@@ -76,7 +75,6 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 			IsAirgap:            opts.IsAirgap,
 			Proxy:               opts.Proxy,
-			PrivateCAs:          opts.PrivateCAs,
 			HostCABundlePath:    opts.HostCABundlePath,
 		},
 	}
@@ -101,7 +99,6 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		Proxy:                    opts.Proxy,
 		ServiceCIDR:              opts.ServiceCIDR,
 		Password:                 opts.AdminConsolePwd,
-		PrivateCAs:               opts.PrivateCAs,
 		TLSCertBytes:             opts.TLSCertBytes,
 		TLSKeyBytes:              opts.TLSKeyBytes,
 		Hostname:                 opts.Hostname,

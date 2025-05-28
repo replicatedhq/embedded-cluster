@@ -582,8 +582,6 @@ jobs:
             is-lxd: true
           - test: TestProxiedCustomCIDR
             is-lxd: true
-          - test: TestInstallWithPrivateCAs
-            is-lxd: true
           - test: TestInstallWithMITMProxy
             is-lxd: true
     steps:

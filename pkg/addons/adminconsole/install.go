@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
@@ -85,10 +84,6 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 		return errors.Wrap(err, "create kots password secret")
 	}
 
-	if err := a.createCAConfigmap(ctx, kcli, namespace, a.PrivateCAs); err != nil {
-		return errors.Wrap(err, "create kots CA configmap")
-	}
-
 	if err := a.createTLSSecret(ctx, kcli, namespace); err != nil {
 		return errors.Wrap(err, "create kots TLS secret")
 	}
@@ -100,44 +95,6 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 		}
 		if err := a.createRegistrySecret(ctx, kcli, namespace, registryIP); err != nil {
 			return errors.Wrap(err, "create registry secret")
-		}
-	}
-
-	return nil
-}
-
-func (a *AdminConsole) createCAConfigmap(ctx context.Context, cli client.Client, namespace string, privateCAs []string) error {
-	cas, err := privateCAsToMap(privateCAs)
-	if err != nil {
-		return errors.Wrap(err, "create private cas map")
-	}
-
-	kotsCAConfigmap := corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kotsadm-private-cas",
-			Namespace: namespace,
-			Labels: map[string]string{
-				"kots.io/kotsadm":                        "true",
-				"replicated.com/disaster-recovery":       "infra",
-				"replicated.com/disaster-recovery-chart": "admin-console",
-			},
-		},
-		Data: cas,
-	}
-
-	if a.DryRun {
-		b := bytes.NewBuffer(nil)
-		if err := serializer.Encode(&kotsCAConfigmap, b); err != nil {
-			return errors.Wrap(err, "serialize CA configmap")
-		}
-		a.dryRunManifests = append(a.dryRunManifests, b.Bytes())
-	} else {
-		if err := cli.Create(ctx, &kotsCAConfigmap); client.IgnoreAlreadyExists(err) != nil {
-			return errors.Wrap(err, "create kotsadm-private-cas configmap")
 		}
 	}
 
@@ -292,23 +249,4 @@ func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client, 
 	}
 
 	return nil
-}
-
-func privateCAsToMap(privateCAs []string) (map[string]string, error) {
-	cas := map[string]string{}
-
-	// Handle nil privateCAs
-	if privateCAs == nil {
-		return cas, nil
-	}
-
-	for i, path := range privateCAs {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, errors.Wrapf(err, "read private CA file %s", path)
-		}
-		name := fmt.Sprintf("ca_%d.crt", i)
-		cas[name] = string(data)
-	}
-	return cas, nil
 }

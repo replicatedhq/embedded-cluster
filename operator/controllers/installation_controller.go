@@ -426,6 +426,11 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		r.ReportNodesChanges(ctx, in, events)
 	}
 
+	// ensure the CA configmap is present and up-to-date
+	if err := r.ReconcileHostCABundle(ctx); err != nil {
+		log.Error(err, "Failed to reconcile host ca bundle")
+	}
+
 	log.Info("Installation reconciliation ended")
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }

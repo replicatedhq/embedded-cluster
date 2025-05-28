@@ -43,6 +43,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
@@ -75,7 +76,6 @@ type InstallCmdFlags struct {
 	localArtifactMirrorPort int
 	assumeYes               bool
 	overrides               string
-	privateCAs              []string
 	skipHostPreflights      bool
 	ignoreHostPreflights    bool
 	configValues            string
@@ -181,7 +181,13 @@ func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		return err
 	}
 
-	cmd.Flags().StringSliceVar(&flags.privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
+	cmd.Flags().StringSlice("private-ca", []string{}, "Path to a trusted private CA certificate file")
+	if err := cmd.Flags().MarkHidden("private-ca"); err != nil {
+		return err
+	}
+	if err := cmd.Flags().MarkDeprecated("private-ca", "This flag is no longer used and will be removed in a future version. The CA bundle will be automatically detected from the host."); err != nil {
+		return err
+	}
 
 	if err := addProxyFlags(cmd); err != nil {
 		return err
@@ -599,7 +605,6 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		IsAirgap:                flags.airgapBundle != "",
 		Proxy:                   flags.proxy,
 		HostCABundlePath:        runtimeconfig.HostCABundlePath(),
-		PrivateCAs:              flags.privateCAs,
 		TLSCertBytes:            flags.tlsCertBytes,
 		TLSKeyBytes:             flags.tlsKeyBytes,
 		Hostname:                flags.hostname,
@@ -621,6 +626,15 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		},
 	}); err != nil {
 		return fmt.Errorf("unable to install addons: %w", err)
+	}
+
+	if caPath := runtimeconfig.HostCABundlePath(); caPath != "" {
+		logrus.Debugf("ensuring kotsadm CA configmap")
+		err := kotsadm.EnsureCAConfigmap(ctx, logrus.Debugf, kcli, caPath, 0)
+		if err != nil {
+			logrus.Warnf("Failed to create kotsadm CA configmap: %v", err)
+			logrus.Warnf("This can result in issues installing in environments with a man-in-the-middle proxy.")
+		}
 	}
 
 	logrus.Debugf("installing extensions")
