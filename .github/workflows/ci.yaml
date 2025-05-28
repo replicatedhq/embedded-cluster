@@ -201,6 +201,11 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
       - uses: oras-project/setup-oras@v1
 
       - uses: imjasonh/setup-crane@v0.4
@@ -274,6 +279,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
 
       - uses: oras-project/setup-oras@v1
 
@@ -383,6 +393,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
 
       - uses: oras-project/setup-oras@v1
 
