@@ -8,8 +8,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (c *client) GetInstall() (*types.Install, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/install", nil)
+func (c *client) GetInstallationConfig() (*types.InstallationConfig, error) {
+	req, err := http.NewRequest("GET", c.apiURL+"/api/install/installation/config", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -26,22 +26,22 @@ func (c *client) GetInstall() (*types.Install, error) {
 		return nil, errorFromResponse(resp)
 	}
 
-	var install types.Install
-	err = json.NewDecoder(resp.Body).Decode(&install)
+	var config types.InstallationConfig
+	err = json.NewDecoder(resp.Body).Decode(&config)
 	if err != nil {
 		return nil, err
 	}
 
-	return &install, nil
+	return &config, nil
 }
 
-func (c *client) SetInstallConfig(config types.InstallationConfig) (*types.Install, error) {
-	b, err := json.Marshal(config)
+func (c *client) ConfigureInstallation(cfg *types.InstallationConfig) (*types.InstallationConfig, error) {
+	b, err := json.Marshal(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.apiURL+"/api/install/config", bytes.NewBuffer(b))
+	req, err := http.NewRequest("POST", c.apiURL+"/api/install/installation/configure", bytes.NewBuffer(b))
 	if err != nil {
 		return nil, err
 	}
@@ -58,17 +58,44 @@ func (c *client) SetInstallConfig(config types.InstallationConfig) (*types.Insta
 		return nil, errorFromResponse(resp)
 	}
 
-	var install types.Install
-	err = json.NewDecoder(resp.Body).Decode(&install)
+	var config types.InstallationConfig
+	err = json.NewDecoder(resp.Body).Decode(&config)
 	if err != nil {
 		return nil, err
 	}
 
-	return &install, nil
+	return &config, nil
 }
 
-func (c *client) SetInstallStatus(status types.InstallationStatus) (*types.Install, error) {
-	b, err := json.Marshal(status)
+func (c *client) GetInstallationStatus() (*types.Status, error) {
+	req, err := http.NewRequest("GET", c.apiURL+"/api/install/installation/status", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errorFromResponse(resp)
+	}
+
+	var status types.Status
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return nil, err
+	}
+
+	return &status, nil
+}
+
+func (c *client) SetInstallStatus(s *types.Status) (*types.Status, error) {
+	b, err := json.Marshal(s)
 	if err != nil {
 		return nil, err
 	}
@@ -90,11 +117,11 @@ func (c *client) SetInstallStatus(status types.InstallationStatus) (*types.Insta
 		return nil, errorFromResponse(resp)
 	}
 
-	var install types.Install
-	err = json.NewDecoder(resp.Body).Decode(&install)
+	var status types.Status
+	err = json.NewDecoder(resp.Body).Decode(&status)
 	if err != nil {
 		return nil, err
 	}
 
-	return &install, nil
+	return &status, nil
 }

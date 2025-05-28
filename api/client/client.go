@@ -11,9 +11,10 @@ import (
 
 type Client interface {
 	Authenticate(password string) error
-	GetInstall() (*types.Install, error)
-	SetInstallConfig(config types.InstallationConfig) (*types.Install, error)
-	SetInstallStatus(status types.InstallationStatus) (*types.Install, error)
+	GetInstallationConfig() (*types.InstallationConfig, error)
+	GetInstallationStatus() (*types.Status, error)
+	ConfigureInstallation(config *types.InstallationConfig) (*types.InstallationConfig, error)
+	SetInstallStatus(status *types.Status) (*types.Status, error)
 }
 
 type client struct {

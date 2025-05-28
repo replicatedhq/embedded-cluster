@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -189,6 +190,126 @@ func TestRemoveAll(t *testing.T) {
 				names, err := d.Readdirnames(-1)
 				req.NoError(err)
 				req.Empty(names)
+			}
+		})
+	}
+}
+
+func TestCopyFile(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+
+	tests := []struct {
+		name        string
+		src         string
+		dst         string
+		mode        os.FileMode
+		setup       func() error
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "successful copy",
+			src:  filepath.Join(tmpDir, "source.txt"),
+			dst:  filepath.Join(tmpDir, "subdir", "dest.txt"),
+			mode: 0644,
+			setup: func() error {
+				return os.WriteFile(filepath.Join(tmpDir, "source.txt"), []byte("test content"), 0644)
+			},
+			wantErr: false,
+		},
+		{
+			name:        "empty source",
+			src:         "",
+			dst:         filepath.Join(tmpDir, "dest.txt"),
+			mode:        0644,
+			setup:       func() error { return nil },
+			wantErr:     true,
+			errContains: "source path cannot be empty",
+		},
+		{
+			name: "source is directory",
+			src:  filepath.Join(tmpDir, "sourcedir"),
+			dst:  filepath.Join(tmpDir, "dest.txt"),
+			mode: 0644,
+			setup: func() error {
+				return os.Mkdir(filepath.Join(tmpDir, "sourcedir"), 0755)
+			},
+			wantErr:     true,
+			errContains: "cannot copy directory",
+		},
+		{
+			name: "source does not exist",
+			src:  filepath.Join(tmpDir, "nonexistent.txt"),
+			dst:  filepath.Join(tmpDir, "dest.txt"),
+			mode: 0644,
+			setup: func() error {
+				return nil
+			},
+			wantErr:     true,
+			errContains: "stat source file",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup test case
+			if err := tt.setup(); err != nil {
+				t.Fatalf("Setup failed: %v", err)
+			}
+
+			// Run CopyFile
+			err := CopyFile(tt.src, tt.dst, tt.mode)
+
+			// Check error
+			if tt.wantErr {
+				if err == nil {
+					t.Error("CopyFile() error = nil, want error")
+				} else if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("CopyFile() error = %v, want error containing %q", err, tt.errContains)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("CopyFile() error = %v, want nil", err)
+				return
+			}
+
+			// Verify file was copied correctly
+			if tt.wantErr {
+				return
+			}
+
+			// Check if destination file exists
+			if _, err := os.Stat(tt.dst); err != nil {
+				t.Errorf("Destination file does not exist: %v", err)
+				return
+			}
+
+			// Check file mode
+			info, err := os.Stat(tt.dst)
+			if err != nil {
+				t.Errorf("Failed to stat destination file: %v", err)
+				return
+			}
+			if info.Mode() != tt.mode {
+				t.Errorf("Destination file mode = %v, want %v", info.Mode(), tt.mode)
+			}
+
+			// Check file contents
+			srcContent, err := os.ReadFile(tt.src)
+			if err != nil {
+				t.Errorf("Failed to read source file: %v", err)
+				return
+			}
+			dstContent, err := os.ReadFile(tt.dst)
+			if err != nil {
+				t.Errorf("Failed to read destination file: %v", err)
+				return
+			}
+			if string(srcContent) != string(dstContent) {
+				t.Errorf("Destination file content = %q, want %q", string(dstContent), string(srcContent))
 			}
 		})
 	}

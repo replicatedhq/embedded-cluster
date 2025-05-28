@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -43,7 +43,7 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	}
 
 	if a.ReplicatedAppDomain != "" {
-		copiedValues["replicatedAppEndpoint"] = netutil.MaybeAddHTTPS(a.ReplicatedAppDomain)
+		copiedValues["replicatedAppEndpoint"] = netutils.MaybeAddHTTPS(a.ReplicatedAppDomain)
 	}
 	if a.ReplicatedRegistryDomain != "" {
 		copiedValues["replicatedRegistryDomain"] = a.ReplicatedRegistryDomain

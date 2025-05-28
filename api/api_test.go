@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -84,7 +85,7 @@ func TestAPI_jsonError(t *testing.T) {
 
 			// Call the JSON method
 			api := &API{
-				logger: NewDiscardLogger(),
+				logger: logger.NewDiscardLogger(),
 			}
 			api.jsonError(rec, httptest.NewRequest("GET", "/api/test", nil), tt.apiErr)
 

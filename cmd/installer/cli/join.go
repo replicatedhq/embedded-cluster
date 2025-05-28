@@ -14,17 +14,17 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
-	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -74,27 +74,27 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
-			metricsReporter := NewJoinReporter(
+			joinReporter := newJoinReporter(
 				jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 			)
-			metricsReporter.ReportJoinStarted(ctx)
+			joinReporter.ReportJoinStarted(ctx)
 
 			// Setup signal handler with the metrics reporter cleanup function
 			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
-				metricsReporter.ReportSignalAborted(ctx, sig)
+				joinReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runJoin(cmd.Context(), name, flags, jcmd, args[0], metricsReporter); err != nil {
+			if err := runJoin(cmd.Context(), name, flags, jcmd, args[0], joinReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
-					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+					joinReporter.ReportSignalAborted(ctx, syscall.SIGINT)
 				} else {
-					metricsReporter.ReportJoinFailed(ctx, err)
+					joinReporter.ReportJoinFailed(ctx, err)
 				}
 				return err
 			}
 
-			metricsReporter.ReportJoinSucceeded(ctx)
+			joinReporter.ReportJoinSucceeded(ctx)
 			return nil
 		},
 	}
@@ -149,7 +149,7 @@ func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
 	return nil
 }
 
-func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse, kotsAPIAddress string, metricsReporter preflights.MetricsReporter) error {
+func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse, kotsAPIAddress string, joinReporter *JoinReporter) error {
 	// both controller and worker nodes will have 'worker' in the join command
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if !isWorker {
@@ -166,7 +166,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.Jo
 	}
 
 	logrus.Debugf("running join preflights")
-	if err := runJoinPreflights(ctx, jcmd, flags, cidrCfg, metricsReporter); err != nil {
+	if err := runJoinPreflights(ctx, jcmd, flags, cidrCfg, joinReporter.reporter); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -306,17 +306,17 @@ func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResp
 	}
 
 	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
+	if err := hostutils.ConfigureSysctl(); err != nil {
 		logrus.Debugf("unable to configure sysctl: %v", err)
 	}
 
 	logrus.Debugf("configuring kernel modules")
-	if err := configutils.ConfigureKernelModules(); err != nil {
+	if err := hostutils.ConfigureKernelModules(); err != nil {
 		logrus.Debugf("unable to configure kernel modules: %v", err)
 	}
 
 	logrus.Debugf("configuring network manager")
-	if err := configureNetworkManager(ctx); err != nil {
+	if err := hostutils.ConfigureNetworkManager(ctx); err != nil {
 		return nil, fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
@@ -326,7 +326,7 @@ func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResp
 	}
 
 	logrus.Debugf("configuring firewalld")
-	if err := configureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
+	if err := hostutils.ConfigureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
 		logrus.Debugf("unable to configure firewalld: %v", err)
 	}
 

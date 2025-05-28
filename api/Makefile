@@ -8,3 +8,7 @@ swagger: swag
 .PHONY: swag
 swag:
 	which swag || (go install github.com/swaggo/swag/v2/cmd/swag@latest)
+
+.PHONY: unit-tests
+unit-tests:
+	go test -v ./...

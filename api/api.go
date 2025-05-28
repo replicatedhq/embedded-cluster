@@ -11,7 +11,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
 	"github.com/replicatedhq/embedded-cluster/api/docs"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
@@ -38,8 +42,13 @@ type API struct {
 	authController    auth.Controller
 	consoleController console.Controller
 	installController install.Controller
+	releaseData       *release.ReleaseData
+	licenseFile       string
+	airgapBundle      string
 	configChan        chan<- *types.InstallationConfig
 	logger            logrus.FieldLogger
+	hostUtils         *hostutils.HostUtils
+	metricsReporter   metrics.ReporterInterface
 }
 
 type APIOption func(*API)
@@ -68,16 +77,61 @@ func WithLogger(logger logrus.FieldLogger) APIOption {
 	}
 }
 
+func WithHostUtils(hostUtils *hostutils.HostUtils) APIOption {
+	return func(a *API) {
+		a.hostUtils = hostUtils
+	}
+}
+
+func WithMetricsReporter(metricsReporter metrics.ReporterInterface) APIOption {
+	return func(a *API) {
+		a.metricsReporter = metricsReporter
+	}
+}
+
+func WithReleaseData(releaseData *release.ReleaseData) APIOption {
+	return func(a *API) {
+		a.releaseData = releaseData
+	}
+}
+
 func WithConfigChan(configChan chan<- *types.InstallationConfig) APIOption {
 	return func(a *API) {
 		a.configChan = configChan
 	}
 }
 
+func WithLicenseFile(licenseFile string) APIOption {
+	return func(a *API) {
+		a.licenseFile = licenseFile
+	}
+}
+
+func WithAirgapBundle(airgapBundle string) APIOption {
+	return func(a *API) {
+		a.airgapBundle = airgapBundle
+	}
+}
+
 func New(password string, opts ...APIOption) (*API, error) {
 	api := &API{}
+
 	for _, opt := range opts {
 		opt(api)
+	}
+
+	if api.logger == nil {
+		l, err := logger.NewLogger()
+		if err != nil {
+			return nil, fmt.Errorf("create logger: %w", err)
+		}
+		api.logger = l
+	}
+
+	if api.hostUtils == nil {
+		api.hostUtils = hostutils.New(
+			hostutils.WithLogger(api.logger),
+		)
 	}
 
 	if api.authController == nil {
@@ -97,15 +151,18 @@ func New(password string, opts ...APIOption) (*API, error) {
 	}
 
 	if api.installController == nil {
-		installController, err := install.NewInstallController()
+		installController, err := install.NewInstallController(
+			install.WithLogger(api.logger),
+			install.WithHostUtils(api.hostUtils),
+			install.WithMetricsReporter(api.metricsReporter),
+			install.WithReleaseData(api.releaseData),
+			install.WithLicenseFile(api.licenseFile),
+			install.WithAirgapBundle(api.airgapBundle),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("new install controller: %w", err)
 		}
 		api.installController = installController
-	}
-
-	if api.logger == nil {
-		api.logger = NewDiscardLogger()
 	}
 
 	return api, nil
@@ -129,10 +186,19 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	authenticatedRouter.Use(a.authMiddleware)
 
 	installRouter := authenticatedRouter.PathPrefix("/install").Subrouter()
-	installRouter.HandleFunc("", a.getInstall).Methods("GET")
-	installRouter.HandleFunc("/config", a.setInstallConfig).Methods("POST")
-	installRouter.HandleFunc("/status", a.setInstallStatus).Methods("POST")
+	installRouter.HandleFunc("/installation/config", a.getInstallInstallationConfig).Methods("GET")
+	installRouter.HandleFunc("/installation/status", a.getInstallInstallationStatus).Methods("GET")
+	installRouter.HandleFunc("/installation/configure", a.postInstallConfigureInstallation).Methods("POST")
+
+	installRouter.HandleFunc("/host-preflights/status", a.getInstallHostPreflightsStatus).Methods("GET")
+	installRouter.HandleFunc("/host-preflights/run", a.postInstallRunHostPreflights).Methods("POST")
+
+	installRouter.HandleFunc("/node/setup", a.postInstallSetupNode).Methods("POST")
+
+	// TODO (@salah): remove this once the cli isn't responsible for setting the install status
+	// and the ui isn't polling for it to know if the entire install is complete
 	installRouter.HandleFunc("/status", a.getInstallStatus).Methods("GET")
+	installRouter.HandleFunc("/status", a.setInstallStatus).Methods("POST")
 
 	consoleRouter := authenticatedRouter.PathPrefix("/console").Subrouter()
 	consoleRouter.HandleFunc("/available-network-interfaces", a.getListAvailableNetworkInterfaces).Methods("GET")

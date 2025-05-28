@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
@@ -49,7 +50,7 @@ func EmbeddedClusterHomeDirectory() string {
 // EmbeddedClusterTmpSubDir returns the path to the tmp directory where embedded-cluster
 // stores temporary files.
 func EmbeddedClusterTmpSubDir() string {
-	path := filepath.Join(EmbeddedClusterHomeDirectory(), "tmp")
+	path := paths.TmpSubDir(EmbeddedClusterHomeDirectory())
 
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster tmp dir: %s", err)
@@ -60,7 +61,7 @@ func EmbeddedClusterTmpSubDir() string {
 // EmbeddedClusterBinsSubDir returns the path to the directory where embedded-cluster binaries
 // are stored.
 func EmbeddedClusterBinsSubDir() string {
-	path := filepath.Join(EmbeddedClusterHomeDirectory(), "bin")
+	path := paths.BinsSubDir(EmbeddedClusterHomeDirectory())
 
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster bin dir: %s", err)
@@ -71,7 +72,7 @@ func EmbeddedClusterBinsSubDir() string {
 // EmbeddedClusterChartsSubDir returns the path to the directory where embedded-cluster helm charts
 // are stored.
 func EmbeddedClusterChartsSubDir() string {
-	path := filepath.Join(EmbeddedClusterHomeDirectory(), "charts")
+	path := paths.ChartsSubDir(EmbeddedClusterHomeDirectory())
 
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster charts dir: %s", err)
@@ -82,12 +83,12 @@ func EmbeddedClusterChartsSubDir() string {
 // EmbeddedClusterChartsSubDirNoCreate returns the path to the directory where embedded-cluster helm charts
 // are stored without creating the directory if it does not exist.
 func EmbeddedClusterChartsSubDirNoCreate() string {
-	return filepath.Join(EmbeddedClusterHomeDirectory(), "charts")
+	return paths.ChartsSubDir(EmbeddedClusterHomeDirectory())
 }
 
 // EmbeddedClusterImagesSubDir returns the path to the directory where docker images are stored.
 func EmbeddedClusterImagesSubDir() string {
-	path := filepath.Join(EmbeddedClusterHomeDirectory(), "images")
+	path := paths.ImagesSubDir(EmbeddedClusterHomeDirectory())
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster images dir: %s", err)
 	}
@@ -99,12 +100,12 @@ func EmbeddedClusterK0sSubDir() string {
 	if runtimeConfig.K0sDataDirOverride != "" {
 		return runtimeConfig.K0sDataDirOverride
 	}
-	return filepath.Join(EmbeddedClusterHomeDirectory(), "k0s")
+	return paths.K0sSubDir(EmbeddedClusterHomeDirectory())
 }
 
 // EmbeddedClusterSeaweedfsSubDir returns the path to the directory where seaweedfs data is stored.
 func EmbeddedClusterSeaweedfsSubDir() string {
-	return filepath.Join(EmbeddedClusterHomeDirectory(), "seaweedfs")
+	return paths.SeaweedfsSubDir(EmbeddedClusterHomeDirectory())
 }
 
 // EmbeddedClusterOpenEBSLocalSubDir returns the path to the directory where OpenEBS local data is stored.
@@ -112,31 +113,31 @@ func EmbeddedClusterOpenEBSLocalSubDir() string {
 	if runtimeConfig.OpenEBSDataDirOverride != "" {
 		return runtimeConfig.OpenEBSDataDirOverride
 	}
-	return filepath.Join(EmbeddedClusterHomeDirectory(), "openebs-local")
+	return paths.OpenEBSLocalSubDir(EmbeddedClusterHomeDirectory())
 }
 
 // PathToEmbeddedClusterBinary is an utility function that returns the full path to a
 // materialized binary that belongs to embedded-cluster. This function does not check
 // if the file exists.
 func PathToEmbeddedClusterBinary(name string) string {
-	return filepath.Join(EmbeddedClusterBinsSubDir(), name)
+	return paths.EmbeddedClusterBinaryPath(EmbeddedClusterHomeDirectory(), name)
 }
 
 // PathToKubeConfig returns the path to the kubeconfig file.
 func PathToKubeConfig() string {
-	return filepath.Join(EmbeddedClusterK0sSubDir(), "pki/admin.conf")
+	return paths.KubeConfigPath(EmbeddedClusterHomeDirectory())
 }
 
 // PathToKubeletConfig returns the path to the kubelet config file.
 func PathToKubeletConfig() string {
-	return filepath.Join(EmbeddedClusterK0sSubDir(), "kubelet.conf")
+	return paths.KubeletConfigPath(EmbeddedClusterHomeDirectory())
 }
 
 // EmbeddedClusterSupportSubDir returns the path to the directory where embedded-cluster
 // support files are stored. Things that are useful when providing end user support in
 // a running cluster should be stored into this directory.
 func EmbeddedClusterSupportSubDir() string {
-	path := filepath.Join(EmbeddedClusterHomeDirectory(), "support")
+	path := paths.SupportSubDir(EmbeddedClusterHomeDirectory())
 	if err := os.MkdirAll(path, 0700); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster support dir: %s", err)
 	}
@@ -146,7 +147,7 @@ func EmbeddedClusterSupportSubDir() string {
 // PathToEmbeddedClusterSupportFile is an utility function that returns the full path to
 // a materialized support file. This function does not check if the file exists.
 func PathToEmbeddedClusterSupportFile(name string) string {
-	return filepath.Join(EmbeddedClusterSupportSubDir(), name)
+	return paths.SupportFilePath(EmbeddedClusterHomeDirectory(), name)
 }
 
 func WriteToDisk() error {

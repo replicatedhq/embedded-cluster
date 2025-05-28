@@ -96,3 +96,36 @@ func RemoveAll(path string) error {
 	}
 	return me.ErrorOrNil()
 }
+
+// CopyFile copies a file from src to dst, creating parent directories as needed.
+// The destination file will be created with the specified mode.
+func CopyFile(src, dst string, mode os.FileMode) error {
+	if src == "" {
+		return fmt.Errorf("source path cannot be empty")
+	}
+
+	srcinfo, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("stat source file: %w", err)
+	}
+
+	if srcinfo.IsDir() {
+		return fmt.Errorf("cannot copy directory %s", src)
+	}
+
+	// Create parent directories
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return fmt.Errorf("create parent directories: %w", err)
+	}
+
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return fmt.Errorf("read source file: %w", err)
+	}
+
+	if err := os.WriteFile(dst, data, mode); err != nil {
+		return fmt.Errorf("write destination file: %w", err)
+	}
+
+	return nil
+}

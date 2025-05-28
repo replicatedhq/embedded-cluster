@@ -68,7 +68,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     error: submitError,
   } = useMutation({
     mutationFn: async (configData: typeof config) => {
-      const response = await fetch("/api/install/config", {
+      const response = await fetch("/api/install/installation/configure", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +30,7 @@ func TestConsoleListAvailableNetworkInterfaces(t *testing.T) {
 		"password",
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 
@@ -74,7 +75,7 @@ func TestConsoleListAvailableNetworkInterfacesUnauthorized(t *testing.T) {
 		"password",
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(&staticAuthController{"VALID_TOKEN"}),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 
@@ -115,7 +116,7 @@ func TestConsoleListAvailableNetworkInterfacesError(t *testing.T) {
 		"password",
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 

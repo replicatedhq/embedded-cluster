@@ -6,6 +6,7 @@ import (
 
 	"github.com/gosimple/slug"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 )
@@ -20,9 +21,6 @@ var DefaultNoProxy = []string{
 	"169.254.169.254",
 }
 
-const DefaultReplicatedAppDomain = "replicated.app"
-const DefaultProxyRegistryDomain = "proxy.replicated.com"
-const DefaultReplicatedRegistryDomain = "registry.replicated.com"
 const KotsadmNamespace = "kotsadm"
 const KotsadmServiceAccount = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"
@@ -90,40 +88,5 @@ func PathToECConfig() string {
 // GetDomains returns the domains for the embedded cluster. The first priority is the domains configured within the provided config spec.
 // The second priority is the domains configured within the channel release. If neither is configured, the default domains are returned.
 func GetDomains(cfgspec *ecv1beta1.ConfigSpec) ecv1beta1.Domains {
-	replicatedAppDomain := DefaultReplicatedAppDomain
-	proxyRegistryDomain := DefaultProxyRegistryDomain
-	replicatedRegistryDomain := DefaultReplicatedRegistryDomain
-
-	// get defaults from channel release if available
-	rel := release.GetChannelRelease()
-	if rel != nil {
-		if rel.DefaultDomains.ReplicatedAppDomain != "" {
-			replicatedAppDomain = rel.DefaultDomains.ReplicatedAppDomain
-		}
-		if rel.DefaultDomains.ProxyRegistryDomain != "" {
-			proxyRegistryDomain = rel.DefaultDomains.ProxyRegistryDomain
-		}
-		if rel.DefaultDomains.ReplicatedRegistryDomain != "" {
-			replicatedRegistryDomain = rel.DefaultDomains.ReplicatedRegistryDomain
-		}
-	}
-
-	// get overrides from config spec if available
-	if cfgspec != nil {
-		if cfgspec.Domains.ReplicatedAppDomain != "" {
-			replicatedAppDomain = cfgspec.Domains.ReplicatedAppDomain
-		}
-		if cfgspec.Domains.ProxyRegistryDomain != "" {
-			proxyRegistryDomain = cfgspec.Domains.ProxyRegistryDomain
-		}
-		if cfgspec.Domains.ReplicatedRegistryDomain != "" {
-			replicatedRegistryDomain = cfgspec.Domains.ReplicatedRegistryDomain
-		}
-	}
-
-	return ecv1beta1.Domains{
-		ReplicatedAppDomain:      replicatedAppDomain,
-		ProxyRegistryDomain:      proxyRegistryDomain,
-		ReplicatedRegistryDomain: replicatedRegistryDomain,
-	}
+	return domains.GetDomains(cfgspec, release.GetChannelRelease())
 }
