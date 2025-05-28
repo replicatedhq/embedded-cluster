@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: swagger
-swagger:
+swagger: swag
 	swag fmt -g api.go
 	swag init --v3.1 -g api.go
 
