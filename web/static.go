@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"html/template"
@@ -65,7 +66,14 @@ func (web *Web) rootHandler(w http.ResponseWriter, r *http.Request) {
 		InitialState: template.JS(stateJSON), // Mark safe for unescaped JS
 	}
 
-	err = htmlTemplate.Execute(w, data)
+	// Create a buffer to store the rendered template
+	buf := new(bytes.Buffer)
+
+	// Execute the template and write to the buffer
+	err = htmlTemplate.Execute(buf, data)
+
+	// Write the buffer contents to the response writer
+	_, _ = buf.WriteTo(w)
 	if err != nil {
 		web.logger.WithError(err).
 			Info("failed to execute HTML template")
