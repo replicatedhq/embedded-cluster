@@ -82,11 +82,11 @@ type InstallCmdFlags struct {
 	networkInterface        string
 
 	// guided UI flags
-	managerPort int
-	guidedUI    bool
-	tlsCertFile string
-	tlsKeyFile  string
-	hostname    string
+	enableManagerExperience bool
+	managerPort             int
+	tlsCertFile             string
+	tlsKeyFile              string
+	hostname                string
 
 	// TODO: move to substruct
 	license      *kotsv1beta1.License
@@ -142,7 +142,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			metricsReporter.ReportInstallationSucceeded(ctx)
 
 			// If in guided UI mode, keep the process running until interrupted
-			if flags.guidedUI {
+			if flags.enableManagerExperience {
 				logrus.Info("")
 				logrus.Info("Installation complete. Press Ctrl+C to exit.")
 				logrus.Info("")
@@ -159,7 +159,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
-	if err := addGuidedUIFlags(cmd, &flags); err != nil {
+	if err := addManagerExperienceFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
 
@@ -214,14 +214,14 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) err
 	return nil
 }
 
-func addGuidedUIFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
-	cmd.Flags().BoolVarP(&flags.guidedUI, "guided-ui", "g", false, "Run the installation in guided UI mode.")
+func addManagerExperienceFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
+	cmd.Flags().BoolVar(&flags.enableManagerExperience, "manager-experience", false, "Run the browser-based installation experience.")
 	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
 	cmd.Flags().StringVar(&flags.tlsCertFile, "tls-cert", "", "Path to the TLS certificate file")
 	cmd.Flags().StringVar(&flags.tlsKeyFile, "tls-key", "", "Path to the TLS key file")
 	cmd.Flags().StringVar(&flags.hostname, "hostname", "", "Hostname to use for TLS configuration")
 
-	if err := cmd.Flags().MarkHidden("guided-ui"); err != nil {
+	if err := cmd.Flags().MarkHidden("manager-experience"); err != nil {
 		return err
 	}
 	if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
@@ -279,7 +279,7 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		}
 	}
 
-	if flags.guidedUI {
+	if flags.enableManagerExperience {
 		configChan := make(chan *apitypes.InstallationConfig)
 		defer close(configChan)
 
@@ -636,7 +636,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		logrus.Warnf("Unable to create host support bundle: %v", err)
 	}
 
-	if flags.guidedUI {
+	if flags.enableManagerExperience {
 		if err := markUIInstallComplete(flags.adminConsolePassword, flags.managerPort); err != nil {
 			return fmt.Errorf("unable to mark ui install complete: %w", err)
 		}
