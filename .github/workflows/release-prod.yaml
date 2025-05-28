@@ -151,7 +151,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 22.x
+          node-version-file: ./web/.nvmrc
 
       - uses: oras-project/setup-oras@v1
 
