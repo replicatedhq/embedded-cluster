@@ -62,7 +62,11 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     });
 
   // Mutation for submitting the configuration
-  const { mutate: submitConfig, isPending: isSubmitting } = useMutation({
+  const {
+    mutate: submitConfig,
+    isPending: isSubmitting,
+    error: submitError,
+  } = useMutation({
     mutationFn: async (configData: typeof config) => {
       const response = await fetch("/api/install/config", {
         method: "POST",
@@ -77,26 +81,34 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `Server responded with ${response.status}`
-        );
+        throw errorData;
       }
       return response.json();
     },
     onSuccess: () => {
       onNext();
     },
-    onError: (err: Error) => {
+    onError: (err: any) => {
       setError(err.message || "Failed to setup cluster");
     },
   });
 
+  // Helper function to get field error message
+  const getFieldError = (fieldName: string) => {
+    if (!submitError?.errors) return undefined;
+    const fieldError = submitError.errors.find(
+      (err: any) => err.field === fieldName
+    );
+    return fieldError?.message;
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    if (id === "adminConsolePort") {
-      updateConfig({ adminConsolePort: parseInt(value) });
-    } else if (id === "localArtifactMirrorPort") {
-      updateConfig({ localArtifactMirrorPort: parseInt(value) });
+    if (id === "adminConsolePort" || id === "localArtifactMirrorPort") {
+      // Only update if the value is empty or a valid number
+      if (value === "" || !isNaN(Number(value))) {
+        updateConfig({ [id]: value === "" ? undefined : Number(value) });
+      }
     } else {
       updateConfig({ [id]: value });
     }
@@ -143,14 +155,15 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             onInputChange={handleInputChange}
             onSelectChange={handleSelectChange}
             availableNetworkInterfaces={availableNetworkInterfaces}
+            fieldErrors={submitError?.errors || []}
           />
         ) : (
           <KubernetesSetup config={config} onInputChange={handleInputChange} />
         )}
 
-        {error && (
-          <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-md">
-            {error}
+        {submitError && (
+          <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
+            Please fix the errors in the form above before proceeding.
           </div>
         )}
       </Card>
