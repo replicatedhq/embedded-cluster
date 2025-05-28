@@ -7,6 +7,7 @@ import path from 'path';
 export default defineConfig({
   plugins: [
     react(),
+    // Preserve README.md from .gitignore
     viteStaticCopy({
       targets: [
         {

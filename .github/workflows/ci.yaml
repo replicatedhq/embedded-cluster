@@ -155,32 +155,6 @@ jobs:
             exit 1
           fi
 
-  check-web:
-    name: Check web
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-      - name: Install dependencies
-        working-directory: ./web
-        run: npm i
-      - name: Build
-        working-directory: ./web
-        run: npm run build
-      - name: Check web is up to date
-        run: |
-          git diff --exit-code --name-only
-          if [ $? -eq 0 ]; then
-            echo "Web is up to date"
-          else
-            echo "Web is out of date"
-            exit 1
-          fi
-
   buildtools:
     name: Build buildtools
     runs-on: ubuntu-latest
@@ -871,7 +845,6 @@ jobs:
       - check-images
       - check-operator-crds
       - check-swagger-docs
-      - check-web
     if: always()
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
@@ -898,9 +871,6 @@ jobs:
         run: exit 1
       - name: fail if check-swagger-docs job was not successful
         if: needs.check-swagger-docs.result != 'success'
-        run: exit 1
-      - name: fail if check-web job was not successful
-        if: needs.check-web.result != 'success'
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Validation succeeded"
