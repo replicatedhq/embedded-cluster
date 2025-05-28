@@ -1,16 +1,15 @@
-package preflights
+package release
 
 import (
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 )
 
-// ValidateApp runs some basic checks on the embedded cluster config.
-func ValidateApp() error {
-	cfg := release.GetEmbeddedClusterConfig()
+// ValidateECConfig runs some basic checks on the embedded cluster config.
+func ValidateECConfig() error {
+	cfg := GetEmbeddedClusterConfig()
 	if cfg == nil || cfg.Spec.Extensions.Helm == nil {
 		return nil
 	}

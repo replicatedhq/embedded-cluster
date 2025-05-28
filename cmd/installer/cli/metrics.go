@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
-	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/spf13/pflag"
 )
 

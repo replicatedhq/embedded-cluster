@@ -1,9 +1,9 @@
-package preflights
+package release
 
 import (
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateApp(t *testing.T) {
@@ -88,7 +88,7 @@ spec:
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			req.NoError(release.SetReleaseDataForTests(tt.releaseData))
+			req.NoError(SetReleaseDataForTests(tt.releaseData))
 
 			err := ValidateApp()
 			if tt.wantErr != "" {

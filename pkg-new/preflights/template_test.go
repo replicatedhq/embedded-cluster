@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/replicatedhq/troubleshoot/pkg/multitype"
 	"github.com/stretchr/testify/require"

@@ -7,11 +7,11 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -93,7 +93,7 @@ func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, 
 	return nil
 }
 
-func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flags JoinCmdFlags, cidrCfg *newconfig.CIDRConfig, metricsReported preflights.MetricsReporter) error {
+func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flags JoinCmdFlags, cidrCfg *newconfig.CIDRConfig, metricsReporter preflights.MetricsReporter) error {
 	nodeIP, err := netutils.FirstValidAddress(flags.networkInterface)
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
@@ -101,20 +101,28 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 
 	domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
 
-	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
-		ReplicatedAppURL:       netutil.MaybeAddHTTPS(domains.ReplicatedAppDomain),
-		ProxyRegistryURL:       netutil.MaybeAddHTTPS(domains.ProxyRegistryDomain),
-		Proxy:                  jcmd.InstallationSpec.Proxy,
-		PodCIDR:                cidrCfg.PodCIDR,
-		ServiceCIDR:            cidrCfg.ServiceCIDR,
-		NodeIP:                 nodeIP,
-		IsAirgap:               jcmd.InstallationSpec.AirGap,
-		SkipHostPreflights:     flags.skipHostPreflights,
-		IgnoreHostPreflights:   flags.ignoreHostPreflights,
-		AssumeYes:              flags.assumeYes,
-		TCPConnectionsRequired: jcmd.TCPConnectionsRequired,
-		IsJoin:                 true,
-	}); err != nil {
+	hpf, err := preflights.Prepare(ctx, preflights.PrepareOptions{
+		HostPreflightSpec:       release.GetHostPreflights(),
+		ReplicatedAppURL:        netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
+		ProxyRegistryURL:        netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
+		AdminConsolePort:        runtimeconfig.AdminConsolePort(),
+		LocalArtifactMirrorPort: runtimeconfig.LocalArtifactMirrorPort(),
+		DataDir:                 runtimeconfig.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              runtimeconfig.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                   jcmd.InstallationSpec.Proxy,
+		PodCIDR:                 cidrCfg.PodCIDR,
+		ServiceCIDR:             cidrCfg.ServiceCIDR,
+		NodeIP:                  nodeIP,
+		IsAirgap:                jcmd.InstallationSpec.AirGap,
+		TCPConnectionsRequired:  jcmd.TCPConnectionsRequired,
+		IsJoin:                  true,
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := runHostPreflights(ctx, hpf, jcmd.InstallationSpec.Proxy, flags.skipHostPreflights, flags.ignoreHostPreflights, flags.assumeYes, metricsReporter); err != nil {
 		return err
 	}
 

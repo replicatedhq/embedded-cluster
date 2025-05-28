@@ -76,3 +76,43 @@ func (a *API) getInstallStatus(w http.ResponseWriter, r *http.Request) {
 
 	a.json(w, r, http.StatusOK, status)
 }
+
+// runInstallHostPreflights handler to run install host preflight checks
+//
+//	@Summary		Run install host preflight checks
+//	@Description	Run install host preflight checks using installation config and client-provided data
+//	@Tags			install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200		{object}	types.RunHostPreflightResponse
+//	@Router			/install/host-preflights [post]
+func (a *API) runInstallHostPreflights(w http.ResponseWriter, r *http.Request) {
+	response, err := a.installController.RunHostPreflights(r.Context())
+	if err != nil {
+		a.logError(r, err, "failed to run install host preflights")
+		a.jsonError(w, r, err)
+		return
+	}
+
+	a.json(w, r, http.StatusOK, response)
+}
+
+// getInstallHostPreflightStatus handler to get host preflight status
+//
+//	@Summary		Get host preflight status
+//	@Description	Get the current status and results of host preflight checks
+//	@Tags			install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.HostPreflightStatusResponse
+//	@Router			/install/host-preflights [get]
+func (a *API) getInstallHostPreflightStatus(w http.ResponseWriter, r *http.Request) {
+	response, err := a.installController.GetHostPreflightStatus(r.Context())
+	if err != nil {
+		a.logError(r, err, "failed to get install host preflight status")
+		a.jsonError(w, r, err)
+		return
+	}
+
+	a.json(w, r, http.StatusOK, response)
+}

@@ -4,9 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster/api/pkg/installation"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/managers/installation"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/managers/preflight"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/sirupsen/logrus"
 )
 
 type Controller interface {
@@ -14,19 +19,49 @@ type Controller interface {
 	SetConfig(ctx context.Context, config *types.InstallationConfig) error
 	SetStatus(ctx context.Context, status *types.InstallationStatus) error
 	ReadStatus(ctx context.Context) (*types.InstallationStatus, error)
+	RunHostPreflights(ctx context.Context) (*types.RunHostPreflightResponse, error)
+	GetHostPreflightStatus(ctx context.Context) (*types.HostPreflightStatusResponse, error)
 }
 
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	installationManager installation.InstallationManager
+	installationManager  installation.InstallationManager
+	hostPreflightManager preflight.HostPreflightManager
+	logger               logrus.FieldLogger
+	releaseData          *release.ReleaseData
+	isAirgap             bool
 }
 
 type InstallControllerOption func(*InstallController)
 
+func WithLogger(logger logrus.FieldLogger) InstallControllerOption {
+	return func(c *InstallController) {
+		c.logger = logger
+	}
+}
+
+func WithReleaseData(releaseData *release.ReleaseData) InstallControllerOption {
+	return func(c *InstallController) {
+		c.releaseData = releaseData
+	}
+}
+
+func WithIsAirgap(isAirgap bool) InstallControllerOption {
+	return func(c *InstallController) {
+		c.isAirgap = isAirgap
+	}
+}
+
 func WithInstallationManager(installationManager installation.InstallationManager) InstallControllerOption {
 	return func(c *InstallController) {
 		c.installationManager = installationManager
+	}
+}
+
+func WithHostPreflightManager(hostPreflightManager preflight.HostPreflightManager) InstallControllerOption {
+	return func(c *InstallController) {
+		c.hostPreflightManager = hostPreflightManager
 	}
 }
 
@@ -37,8 +72,20 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		opt(controller)
 	}
 
+	if controller.logger == nil {
+		controller.logger = logger.NewDiscardLogger()
+	}
+
 	if controller.installationManager == nil {
-		controller.installationManager = installation.NewInstallationManager()
+		controller.installationManager = installation.NewInstallationManager(
+			installation.WithLogger(controller.logger),
+		)
+	}
+
+	if controller.hostPreflightManager == nil {
+		controller.hostPreflightManager = preflight.NewHostPreflightManager(
+			preflight.WithLogger(controller.logger),
+		)
 	}
 
 	return controller, nil
@@ -50,7 +97,7 @@ func (c *InstallController) Get(ctx context.Context) (*types.Install, error) {
 		return nil, err
 	}
 
-	if err := c.installationManager.SetDefaults(config); err != nil {
+	if err := c.installationManager.SetConfigDefaults(config); err != nil {
 		return nil, fmt.Errorf("set defaults: %w", err)
 	}
 
@@ -97,6 +144,34 @@ func (c *InstallController) SetStatus(ctx context.Context, status *types.Install
 
 func (c *InstallController) ReadStatus(ctx context.Context) (*types.InstallationStatus, error) {
 	return c.installationManager.ReadStatus()
+}
+
+func (c *InstallController) RunHostPreflights(ctx context.Context) (*types.RunHostPreflightResponse, error) {
+	// Get current installation config and add it to options
+	config, err := c.installationManager.ReadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read installation config: %w", err)
+	}
+
+	// Get the configured custom domains
+	ecDomains := utils.GetDomains(c.releaseData)
+
+	options := preflight.PrepareHostPreflightOptions{
+		InstallationConfig:    config,
+		ReplicatedAppURL:      netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
+		ProxyRegistryURL:      netutils.MaybeAddHTTPS(ecDomains.ProxyRegistryDomain),
+		HostPreflightSpec:     c.releaseData.HostPreflights,
+		EmbeddedClusterConfig: c.releaseData.EmbeddedClusterConfig,
+		IsAirgap:              c.isAirgap,
+		// TODO NOW: metrics reporter
+		MetricsReporter: nil,
+	}
+
+	return c.hostPreflightManager.RunHostPreflights(ctx, options)
+}
+
+func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (*types.HostPreflightStatusResponse, error) {
+	return c.hostPreflightManager.GetHostPreflightStatus(ctx)
 }
 
 func (c *InstallController) computeCIDRs(config *types.InstallationConfig) error {

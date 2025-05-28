@@ -5,13 +5,19 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
+
+// ErrPreflightsHaveFail is an error returned when we managed to execute the host preflights but
+// they contain failures. We use this to differentiate the way we provide user feedback.
+var ErrPreflightsHaveFail = metrics.NewErrorNoFail(fmt.Errorf("host preflight failures detected"))
 
 func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var flags InstallCmdFlags
@@ -82,7 +88,7 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsReported preflights.MetricsReporter) error {
+func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
 	replicatedAppURL := replicatedAppURL()
 	proxyRegistryURL := proxyRegistryURL()
 
@@ -91,21 +97,27 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsRep
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
 
-	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
-		ReplicatedAppURL:     replicatedAppURL,
-		ProxyRegistryURL:     proxyRegistryURL,
-		Proxy:                flags.proxy,
-		PodCIDR:              flags.cidrCfg.PodCIDR,
-		ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
-		GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
-		NodeIP:               nodeIP,
-		PrivateCAs:           flags.privateCAs,
-		IsAirgap:             flags.isAirgap,
-		SkipHostPreflights:   flags.skipHostPreflights,
-		IgnoreHostPreflights: flags.ignoreHostPreflights,
-		AssumeYes:            flags.assumeYes,
-		MetricsReporter:      metricsReported,
-	}); err != nil {
+	hpf, err := preflights.Prepare(ctx, preflights.PrepareOptions{
+		HostPreflightSpec:       release.GetHostPreflights(),
+		ReplicatedAppURL:        replicatedAppURL,
+		ProxyRegistryURL:        proxyRegistryURL,
+		AdminConsolePort:        runtimeconfig.AdminConsolePort(),
+		LocalArtifactMirrorPort: runtimeconfig.LocalArtifactMirrorPort(),
+		DataDir:                 runtimeconfig.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              runtimeconfig.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                   flags.proxy,
+		PodCIDR:                 flags.cidrCfg.PodCIDR,
+		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
+		GlobalCIDR:              flags.cidrCfg.GlobalCIDR,
+		NodeIP:                  nodeIP,
+		IsAirgap:                flags.isAirgap,
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := runHostPreflights(ctx, hpf, flags.proxy, flags.skipHostPreflights, flags.ignoreHostPreflights, flags.assumeYes, metricsReporter); err != nil {
 		return err
 	}
 

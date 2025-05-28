@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
 )
 
 func TestPreflights(t *testing.T) {

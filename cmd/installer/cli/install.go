@@ -6,9 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
-	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,17 +15,16 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2/terminal"
-	"github.com/gorilla/mux"
 	"github.com/gosimple/slug"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/api"
-	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -45,16 +41,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
-	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -316,8 +309,15 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 			flags.tlsKeyBytes = keyData
 		}
 
-		if err := preRunInstallAPI(cmd.Context(), flags.tlsCert, flags.adminConsolePassword, flags.managerPort, configChan); err != nil {
-			return fmt.Errorf("unable to start install API: %w", err)
+		apiConfig := APIConfig{
+			Password:    flags.adminConsolePassword,
+			ManagerPort: flags.managerPort,
+			IsAirgap:    flags.isAirgap,
+			ConfigChan:  configChan,
+		}
+
+		if err := startAPI(cmd.Context(), flags.tlsCert, apiConfig); err != nil {
+			return fmt.Errorf("unable to start api: %w", err)
 		}
 
 		// TODO: fix this message
@@ -326,7 +326,7 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 
 		installConfig, ok := <-configChan
 		if !ok {
-			return fmt.Errorf("install API closed channel")
+			return fmt.Errorf("api closed channel")
 		}
 
 		proxy, err := newconfig.GetProxySpec(
@@ -416,100 +416,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	}
 
 	return nil
-}
-
-func preRunInstallAPI(ctx context.Context, cert tls.Certificate, password string, managerPort int, configChan chan<- *apitypes.InstallationConfig) error {
-	logger, err := api.NewLogger()
-	if err != nil {
-		logrus.Warnf("Unable to setup API logging: %v", err)
-	}
-
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", managerPort))
-	if err != nil {
-		return fmt.Errorf("unable to create listener: %w", err)
-	}
-
-	go func() {
-		if err := runInstallAPI(ctx, listener, cert, logger, password, configChan); err != nil {
-			if !errors.Is(err, http.ErrServerClosed) {
-				logrus.Errorf("install API error: %v", err)
-			}
-		}
-	}()
-
-	if err := waitForInstallAPI(ctx, listener.Addr().String()); err != nil {
-		return fmt.Errorf("unable to wait for install API: %w", err)
-	}
-
-	return nil
-}
-
-func runInstallAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, logger logrus.FieldLogger, password string, configChan chan<- *apitypes.InstallationConfig) error {
-	router := mux.NewRouter()
-
-	api, err := api.New(
-		password,
-		api.WithLogger(logger),
-		api.WithConfigChan(configChan),
-	)
-	if err != nil {
-		return fmt.Errorf("new api: %w", err)
-	}
-
-	api.RegisterRoutes(router.PathPrefix("/api").Subrouter())
-
-	var webFs http.Handler
-	if os.Getenv("EC_DEV_ENV") == "true" {
-		webFs = http.FileServer(http.FS(os.DirFS("./web/dist")))
-	} else {
-		webFs = http.FileServer(http.FS(web.Fs()))
-	}
-	router.PathPrefix("/").Methods("GET").Handler(webFs)
-
-	server := &http.Server{
-		// ErrorLog outputs TLS errors and warnings to the console, we want to make sure we use the same logrus logger for them
-		ErrorLog:  log.New(logger.WithField("http-server", "std-log").Writer(), "", 0),
-		Handler:   router,
-		TLSConfig: tlsutils.GetTLSConfig(cert),
-	}
-
-	go func() {
-		<-ctx.Done()
-		logrus.Debugf("Shutting down install API")
-		server.Shutdown(context.Background())
-	}()
-
-	return server.ServeTLS(listener, "", "")
-}
-
-func waitForInstallAPI(ctx context.Context, addr string) error {
-	httpClient := http.Client{
-		Timeout: 2 * time.Second,
-		Transport: &http.Transport{
-			Proxy: nil,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
-	timeout := time.After(10 * time.Second)
-	var lastErr error
-	for {
-		select {
-		case <-timeout:
-			if lastErr != nil {
-				return fmt.Errorf("install API did not start in time: %w", lastErr)
-			}
-			return fmt.Errorf("install API did not start in time")
-		case <-time.Tick(1 * time.Second):
-			resp, err := httpClient.Get(fmt.Sprintf("https://%s/api/health", addr))
-			if err != nil {
-				lastErr = fmt.Errorf("unable to connect to install API: %w", err)
-			} else if resp.StatusCode == http.StatusOK {
-				return nil
-			}
-		}
-	}
 }
 
 func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
@@ -649,35 +555,6 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	return nil
 }
 
-func markUIInstallComplete(password string, managerPort int) error {
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			Proxy: nil, // This is a local client so no proxy is needed
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
-	apiClient := apiclient.New(
-		fmt.Sprintf("https://localhost:%d", managerPort),
-		apiclient.WithHTTPClient(httpClient),
-	)
-	if err := apiClient.Authenticate(password); err != nil {
-		return fmt.Errorf("unable to authenticate: %w", err)
-	}
-
-	_, err := apiClient.SetInstallStatus(apitypes.InstallationStatus{
-		State:       apitypes.InstallationStateSucceeded,
-		Description: "Install Complete",
-		LastUpdated: time.Now(),
-	})
-	if err != nil {
-		return fmt.Errorf("unable to set install status: %w", err)
-	}
-
-	return nil
-}
-
 func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *InstallCmdFlags) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "reinstall")
@@ -713,7 +590,7 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *InstallC
 		}
 	}
 
-	if err := preflights.ValidateApp(); err != nil {
+	if err := release.ValidateECConfig(); err != nil {
 		return err
 	}
 
@@ -1119,7 +996,7 @@ func replicatedAppURL() string {
 		embCfgSpec = &embCfg.Spec
 	}
 	domains := runtimeconfig.GetDomains(embCfgSpec)
-	return netutil.MaybeAddHTTPS(domains.ReplicatedAppDomain)
+	return netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain)
 }
 
 func proxyRegistryURL() string {
@@ -1128,7 +1005,7 @@ func proxyRegistryURL() string {
 		embCfgSpec = &embCfg.Spec
 	}
 	domains := runtimeconfig.GetDomains(embCfgSpec)
-	return netutil.MaybeAddHTTPS(domains.ProxyRegistryDomain)
+	return netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain)
 }
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
@@ -1506,7 +1383,7 @@ func gatherVersionMetadata(withChannelRelease bool) (*types.ReleaseMetadata, err
 		Repositories:     append(repconfig, additionalRepos...),
 	}
 
-	k0sCfg := config.RenderK0sConfig(runtimeconfig.DefaultProxyRegistryDomain)
+	k0sCfg := config.RenderK0sConfig(domains.DefaultProxyRegistryDomain)
 	meta.K0sImages = config.ListK0sImages(k0sCfg)
 	meta.K0sImages = append(meta.K0sImages, addons.GetAdditionalImages()...)
 	meta.K0sImages = helpers.UniqueStringSlice(meta.K0sImages)
@@ -1589,22 +1466,6 @@ func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkI
 	logrus.Infof("%s%s%s\n", boldStart, divider, boldEnd)
 
 	return nil
-}
-
-func getManagerURL(hostname string, port int) string {
-	if hostname != "" {
-		return fmt.Sprintf("https://%s:%v", hostname, port)
-	}
-	ipaddr := runtimeconfig.TryDiscoverPublicIP()
-	if ipaddr == "" {
-		if addr := os.Getenv("EC_PUBLIC_ADDRESS"); addr != "" {
-			ipaddr = addr
-		} else {
-			logrus.Errorf("Unable to determine node IP address")
-			ipaddr = "NODE-IP-ADDRESS"
-		}
-	}
-	return fmt.Sprintf("https://%s:%v", ipaddr, port)
 }
 
 func getAdminConsoleURL(hostname string, networkInterface string, port int) string {

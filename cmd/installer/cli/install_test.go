@@ -11,10 +11,11 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/api"
+	apilogger "github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
@@ -549,8 +550,6 @@ func Test_runInstallAPI(t *testing.T) {
 
 	errCh := make(chan error)
 
-	logger := api.NewDiscardLogger()
-
 	_, port, err := net.SplitHostPort(listener.Addr().String())
 	require.NoError(t, err)
 
@@ -560,15 +559,16 @@ func Test_runInstallAPI(t *testing.T) {
 	certPool := x509.NewCertPool()
 	certPool.AddCert(cert.Leaf)
 
-	go func() {
-		err := runInstallAPI(ctx, listener, cert, logger, "password", nil)
-		t.Logf("Install API exited with error: %v", err)
-		errCh <- err
-	}()
+	portInt, err := strconv.Atoi(port)
+	require.NoError(t, err)
 
-	t.Logf("Waiting for install API to start on %s", listener.Addr().String())
-	err = waitForInstallAPI(ctx, net.JoinHostPort("localhost", port))
-	assert.NoError(t, err)
+	config := APIConfig{
+		Logger:      apilogger.NewDiscardLogger(),
+		Password:    "password",
+		ManagerPort: portInt,
+	}
+	err = startAPI(ctx, cert, config)
+	require.NoError(t, err)
 
 	url := "https://" + net.JoinHostPort("localhost", port) + "/api/health"
 	t.Logf("Making request to %s", url)

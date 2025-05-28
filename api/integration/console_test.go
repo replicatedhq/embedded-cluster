@@ -10,7 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/installation"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/managers/installation"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

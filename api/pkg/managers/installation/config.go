@@ -4,63 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
-
-var _ InstallationManager = &installationManager{}
-
-// InstallationManager provides methods for validating and setting defaults for installation configuration
-type InstallationManager interface {
-	ReadConfig() (*types.InstallationConfig, error)
-	WriteConfig(config types.InstallationConfig) error
-	ReadStatus() (*types.InstallationStatus, error)
-	WriteStatus(status types.InstallationStatus) error
-	ValidateConfig(config *types.InstallationConfig) error
-	SetDefaults(config *types.InstallationConfig) error
-}
-
-// installationManager is an implementation of the InstallationManager interface
-type installationManager struct {
-	installationStore InstallationStore
-	netUtils          utils.NetUtils
-}
-
-type InstallationManagerOption func(*installationManager)
-
-func WithInstallationStore(installationStore InstallationStore) InstallationManagerOption {
-	return func(c *installationManager) {
-		c.installationStore = installationStore
-	}
-}
-
-func WithNetUtils(netUtils utils.NetUtils) InstallationManagerOption {
-	return func(c *installationManager) {
-		c.netUtils = netUtils
-	}
-}
-
-// NewInstallationManager creates a new InstallationManager with the provided network utilities
-func NewInstallationManager(opts ...InstallationManagerOption) *installationManager {
-	manager := &installationManager{}
-
-	for _, opt := range opts {
-		opt(manager)
-	}
-
-	if manager.installationStore == nil {
-		manager.installationStore = NewMemoryStore()
-	}
-
-	if manager.netUtils == nil {
-		manager.netUtils = utils.NewNetUtils()
-	}
-
-	return manager
-}
 
 func (m *installationManager) ReadConfig() (*types.InstallationConfig, error) {
 	return m.installationStore.ReadConfig()
@@ -68,14 +16,6 @@ func (m *installationManager) ReadConfig() (*types.InstallationConfig, error) {
 
 func (m *installationManager) WriteConfig(config types.InstallationConfig) error {
 	return m.installationStore.WriteConfig(config)
-}
-
-func (m *installationManager) ReadStatus() (*types.InstallationStatus, error) {
-	return m.installationStore.ReadStatus()
-}
-
-func (m *installationManager) WriteStatus(status types.InstallationStatus) error {
-	return m.installationStore.WriteStatus(status)
 }
 
 func (m *installationManager) ValidateConfig(config *types.InstallationConfig) error {
@@ -196,8 +136,8 @@ func (m *installationManager) validateDataDirectory(config *types.InstallationCo
 	return nil
 }
 
-// SetDefaults sets default values for the installation configuration
-func (m *installationManager) SetDefaults(config *types.InstallationConfig) error {
+// SetConfigDefaults sets default values for the installation configuration
+func (m *installationManager) SetConfigDefaults(config *types.InstallationConfig) error {
 	if config.AdminConsolePort == 0 {
 		config.AdminConsolePort = ecv1beta1.DefaultAdminConsolePort
 	}

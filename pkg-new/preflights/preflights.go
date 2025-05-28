@@ -13,16 +13,16 @@ import (
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"sigs.k8s.io/yaml"
 )
 
-// SerializeSpec serialize the provided spec inside a HostPreflight object and
+// serializeSpec serialize the provided spec inside a HostPreflight object and
 // returns the byte slice.
-func SerializeSpec(spec *troubleshootv1beta2.HostPreflightSpec) ([]byte, error) {
+func serializeSpec(spec *troubleshootv1beta2.HostPreflightSpec) ([]byte, error) {
 	hpf := map[string]interface{}{
 		"apiVersion": "troubleshoot.sh/v1beta2",
 		"kind":       "HostPreflight",
@@ -103,7 +103,7 @@ func saveHostPreflightFile(spec *troubleshootv1beta2.HostPreflightSpec) (string,
 		return "", fmt.Errorf("unable to create temporary file: %w", err)
 	}
 	defer tmpfile.Close()
-	if data, err := SerializeSpec(spec); err != nil {
+	if data, err := serializeSpec(spec); err != nil {
 		return "", fmt.Errorf("unable to serialize host preflight spec: %w", err)
 	} else if _, err := tmpfile.Write(data); err != nil {
 		return "", fmt.Errorf("unable to write host preflight spec: %w", err)
