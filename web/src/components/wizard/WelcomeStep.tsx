@@ -84,8 +84,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
           <p className="text-xl text-gray-600 max-w-2xl mb-8">
             {text.welcomeDescription}
           </p>
-
-          {prototypeSettings.useSelfSignedCert && !showPasswordInput ? (
+          {prototypeSettings.useSelfSignedCert && !showPasswordInput && (
             <>
               <div className="w-full max-w-2xl mb-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                 <div className="flex items-start">
@@ -128,7 +127,8 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
                 Continue Securely
               </Button>
             </>
-          ) : (
+          )}{" "}
+          {!prototypeSettings.useSelfSignedCert && showPasswordInput && (
             <div className="w-full max-w-sm mb-8">
               <Input
                 id="password"

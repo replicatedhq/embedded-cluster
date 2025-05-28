@@ -150,7 +150,7 @@ export default {
     }
   },
   corePlugins: {
-    preflight: false
+    preflight: true
   },
   plugins: [
     plugin(function ({ addVariant }) {
