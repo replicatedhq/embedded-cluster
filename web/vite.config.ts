@@ -7,7 +7,9 @@ import path from 'path';
 export default defineConfig({
   plugins: [
     react(),
-    // Preserve README.md from .gitignore
+    // When building, vite removes README.md from the dist directory which makes the git tree dirty as it is in the .gitignore.
+    // This is needed because otherwise the go build fails with "pattern dist: no matching files found".
+    // This copies README.md back into the dist directory.
     viteStaticCopy({
       targets: [
         {
