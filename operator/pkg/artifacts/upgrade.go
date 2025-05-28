@@ -64,38 +64,16 @@ var copyArtifactsJob = &batchv1.Job{
 							},
 						},
 					},
-					{
-						Name: "private-cas",
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: "private-cas",
-								},
-								Optional: ptr.To[bool](true),
-							},
-						},
-					},
 				},
 				RestartPolicy: corev1.RestartPolicyNever,
 				Containers: []corev1.Container{
 					{
 						Name: "embedded-cluster-updater",
-						Env: []corev1.EnvVar{
-							{
-								Name:  "SSL_CERT_DIR",
-								Value: "/certs",
-							},
-						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "host",
 								MountPath: "/embedded-cluster",
 								ReadOnly:  false,
-							},
-							{
-								Name:      "private-cas",
-								MountPath: "/certs",
-								ReadOnly:  true,
 							},
 						},
 					},
@@ -259,7 +237,7 @@ func ensureArtifactsJobForNode(
 	localArtifactMirrorImage, appSlug, channelID, appVersion string,
 	cfghash string,
 ) (*batchv1.Job, error) {
-	job, err := getArtifactJobForNode(cli, in, node, localArtifactMirrorImage, appSlug, channelID, appVersion)
+	job, err := getArtifactJobForNode(ctx, cli, in, node, localArtifactMirrorImage, appSlug, channelID, appVersion)
 	if err != nil {
 		return nil, fmt.Errorf("get job for node: %w", err)
 	}
@@ -284,7 +262,7 @@ func ensureArtifactsJobForNode(
 }
 
 func getArtifactJobForNode(
-	cli client.Client, in *clusterv1beta1.Installation,
+	ctx context.Context, cli client.Client, in *clusterv1beta1.Installation,
 	node corev1.Node,
 	localArtifactMirrorImage, appSlug, channelID, appVersion string,
 ) (*batchv1.Job, error) {
@@ -333,6 +311,48 @@ func getArtifactJobForNode(
 			corev1.EnvVar{Name: "HTTPS_PROXY", Value: in.Spec.Proxy.HTTPSProxy},
 			corev1.EnvVar{Name: "NO_PROXY", Value: in.Spec.Proxy.NoProxy},
 		)
+	}
+
+	// Add the host CA bundle volume, mount, and env var if it's available in the installation
+	log := ctrl.LoggerFrom(ctx)
+	hostCABundlePath := ""
+	if in.Spec.RuntimeConfig != nil {
+		hostCABundlePath = in.Spec.RuntimeConfig.HostCABundlePath
+	}
+
+	if hostCABundlePath != "" {
+		log.Info("Using host CA bundle from installation", "path", hostCABundlePath)
+
+		// Add the CA bundle volume
+		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: "host-ca-bundle",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: hostCABundlePath,
+					Type: ptr.To(corev1.HostPathFileOrCreate),
+				},
+			},
+		})
+
+		// Add the CA bundle mount
+		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(
+			job.Spec.Template.Spec.Containers[0].VolumeMounts,
+			corev1.VolumeMount{
+				Name:      "host-ca-bundle",
+				MountPath: "/certs/ca-certificates.crt",
+			},
+		)
+
+		// Add the SSL_CERT_DIR environment variable
+		job.Spec.Template.Spec.Containers[0].Env = append(
+			job.Spec.Template.Spec.Containers[0].Env,
+			corev1.EnvVar{
+				Name:  "SSL_CERT_DIR",
+				Value: "/certs",
+			},
+		)
+	} else {
+		log.Info("No host CA bundle path found in installation, no CA bundle will be used")
 	}
 
 	if !in.Spec.AirGap && in.Spec.Config != nil && in.Spec.Config.Domains.ProxyRegistryDomain != "" {

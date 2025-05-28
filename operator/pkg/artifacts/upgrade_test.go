@@ -15,7 +15,9 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 )
 
@@ -434,4 +436,181 @@ func TestListArtifactsJobForNodes(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetArtifactJobForNode_HostCABundle(t *testing.T) {
+	// Test with HostCABundlePath set
+	t.Run("with HostCABundlePath set", func(t *testing.T) {
+		log := testr.NewWithOptions(t, testr.Options{Verbosity: 10})
+		ctx := logr.NewContext(context.Background(), log)
+
+		scheme := runtime.NewScheme()
+		require.NoError(t, clusterv1beta1.AddToScheme(scheme))
+		require.NoError(t, batchv1.AddToScheme(scheme))
+		require.NoError(t, corev1.AddToScheme(scheme))
+
+		// CA path used for testing
+		testCAPath := "/etc/ssl/certs/ca-certificates.crt"
+
+		// Create a minimal installation CR with RuntimeConfig.HostCABundlePath set
+		installation := &clusterv1beta1.Installation{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-installation",
+			},
+			Spec: clusterv1beta1.InstallationSpec{
+				AirGap: true,
+				Artifacts: &clusterv1beta1.ArtifactsLocation{
+					Images:                  "images",
+					HelmCharts:              "helm-charts",
+					EmbeddedClusterBinary:   "embedded-cluster-binary",
+					EmbeddedClusterMetadata: "embedded-cluster-metadata",
+				},
+				RuntimeConfig: &clusterv1beta1.RuntimeConfigSpec{
+					HostCABundlePath: testCAPath,
+				},
+			},
+		}
+
+		// Create a fake client
+		cli := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(installation).
+			Build()
+
+		// Create a test node
+		node := corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-node",
+			},
+		}
+
+		// Call the function under test
+		job, err := getArtifactJobForNode(
+			ctx, cli, installation, node,
+			"local-artifact-mirror:latest",
+			"app-slug",
+			"channel-id",
+			"1.0.0",
+		)
+		require.NoError(t, err)
+
+		// Verify that the host CA bundle volume exists
+		var hostCABundleVolumeFound bool
+		for _, volume := range job.Spec.Template.Spec.Volumes {
+			if volume.Name == "host-ca-bundle" {
+				hostCABundleVolumeFound = true
+				// Verify the volume properties
+				require.NotNil(t, volume.HostPath, "Host CA bundle volume should be a hostPath volume")
+				assert.Equal(t, testCAPath, volume.HostPath.Path, "Host CA bundle path should match RuntimeConfig.HostCABundlePath")
+				assert.Equal(t, corev1.HostPathFileOrCreate, *volume.HostPath.Type, "Host CA bundle type should be FileOrCreate")
+				break
+			}
+		}
+		assert.True(t, hostCABundleVolumeFound, "Host CA bundle volume should exist")
+
+		// Verify that the volume mount exists
+		var hostCABundleMountFound bool
+		for _, mount := range job.Spec.Template.Spec.Containers[0].VolumeMounts {
+			if mount.Name == "host-ca-bundle" {
+				hostCABundleMountFound = true
+				// Verify the mount properties
+				assert.Equal(t, "/certs/ca-certificates.crt", mount.MountPath, "Host CA bundle mount path should be correct")
+				break
+			}
+		}
+		assert.True(t, hostCABundleMountFound, "Host CA bundle mount should exist")
+
+		// Verify that the SSL_CERT_DIR environment variable exists
+		var sslCertDirEnvFound bool
+		for _, env := range job.Spec.Template.Spec.Containers[0].Env {
+			if env.Name == "SSL_CERT_DIR" {
+				sslCertDirEnvFound = true
+				// Verify the env var value
+				assert.Equal(t, "/certs", env.Value, "SSL_CERT_DIR value should be correct")
+				break
+			}
+		}
+		assert.True(t, sslCertDirEnvFound, "SSL_CERT_DIR environment variable should exist")
+	})
+
+	// Test without HostCABundlePath set
+	t.Run("without HostCABundlePath set", func(t *testing.T) {
+		log := testr.NewWithOptions(t, testr.Options{Verbosity: 10})
+		ctx := logr.NewContext(context.Background(), log)
+
+		scheme := runtime.NewScheme()
+		require.NoError(t, clusterv1beta1.AddToScheme(scheme))
+		require.NoError(t, batchv1.AddToScheme(scheme))
+		require.NoError(t, corev1.AddToScheme(scheme))
+
+		// Create a minimal installation CR without RuntimeConfig.HostCABundlePath
+		installation := &clusterv1beta1.Installation{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-installation",
+			},
+			Spec: clusterv1beta1.InstallationSpec{
+				AirGap: true,
+				Artifacts: &clusterv1beta1.ArtifactsLocation{
+					Images:                  "images",
+					HelmCharts:              "helm-charts",
+					EmbeddedClusterBinary:   "embedded-cluster-binary",
+					EmbeddedClusterMetadata: "embedded-cluster-metadata",
+				},
+				// No RuntimeConfig or empty RuntimeConfig
+			},
+		}
+
+		// Create a fake client
+		cli := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(installation).
+			Build()
+
+		// Create a test node
+		node := corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-node",
+			},
+		}
+
+		// Call the function under test
+		job, err := getArtifactJobForNode(
+			ctx, cli, installation, node,
+			"local-artifact-mirror:latest",
+			"app-slug",
+			"channel-id",
+			"1.0.0",
+		)
+		require.NoError(t, err)
+
+		// Verify that the host CA bundle volume does NOT exist
+		var hostCABundleVolumeFound bool
+		for _, volume := range job.Spec.Template.Spec.Volumes {
+			if volume.Name == "host-ca-bundle" {
+				hostCABundleVolumeFound = true
+				break
+			}
+		}
+		assert.False(t, hostCABundleVolumeFound, "Host CA bundle volume should not exist when HostCABundlePath is not set")
+
+		// Verify that the volume mount does NOT exist
+		var hostCABundleMountFound bool
+		for _, mount := range job.Spec.Template.Spec.Containers[0].VolumeMounts {
+			if mount.Name == "host-ca-bundle" {
+				hostCABundleMountFound = true
+				break
+			}
+		}
+		assert.False(t, hostCABundleMountFound, "Host CA bundle mount should not exist when HostCABundlePath is not set")
+
+		// Verify that the SSL_CERT_DIR environment variable does NOT exist
+		var sslCertDirEnvFound bool
+		for _, env := range job.Spec.Template.Spec.Containers[0].Env {
+			if env.Name == "SSL_CERT_DIR" {
+				sslCertDirEnvFound = true
+				break
+			}
+		}
+		assert.False(t, sslCertDirEnvFound, "SSL_CERT_DIR environment variable should not exist when HostCABundlePath is not set")
+	})
 }
