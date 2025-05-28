@@ -10,7 +10,6 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
-	"github.com/stretchr/testify/require"
 )
 
 // SkipProxyTest returns true if the k0s version in use does not support
@@ -77,7 +76,13 @@ func TestProxiedEnvironment(t *testing.T) {
 		withEnv:    lxd.WithProxyEnv(tc.IPs),
 	})
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -172,8 +177,10 @@ func TestProxiedEnvironment(t *testing.T) {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.SetupPlaywrightAndRunTest("validate-restore-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
 		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
 	}
 
@@ -229,7 +236,13 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		withEnv:     lxd.WithProxyEnv(tc.IPs),
 	})
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -341,8 +354,15 @@ func TestInstallWithMITMProxy(t *testing.T) {
 		withEnv:    lxd.WithMITMProxyEnv(tc.IPs),
 	})
 
-	_, _, err := tc.SetupPlaywrightAndRunTest("deploy-app")
-	require.NoError(t, err, "failed to deploy app")
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
 
 	// join a controller node
 	joinControllerNode(t, tc, 1)
@@ -441,7 +461,10 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	}
 
 	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.SetupPlaywrightAndRunTest("validate-restore-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
 		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
 	}
 

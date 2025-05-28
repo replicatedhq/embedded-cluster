@@ -1136,20 +1136,17 @@ func (c *Cluster) Cleanup(envs ...map[string]string) {
 	c.copyPlaywrightReport()
 }
 
-func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (string, string, error) {
-	if err := c.SetupPlaywright(); err != nil {
-		return "", "", fmt.Errorf("failed to setup playwright: %w", err)
-	}
-	return c.RunPlaywrightTest(testName, args...)
-}
-
-func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
+func (c *Cluster) BypassKurlProxy(envs ...map[string]string) error {
 	c.T.Logf("%s: bypassing kurl-proxy on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"bypass-kurl-proxy.sh"}
 	if _, stderr, err := c.RunCommandOnNode(0, line, envs...); err != nil {
 		return fmt.Errorf("fail to bypass kurl-proxy on node %s: %v: %s", c.Nodes[0], err, string(stderr))
 	}
-	line = []string{"install-playwright.sh"}
+	return nil
+}
+
+func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
+	line := []string{"install-playwright.sh"}
 	c.T.Logf("%s: installing playwright on proxy node", time.Now().Format(time.RFC3339))
 	if _, stderr, err := c.RunCommandOnProxyNode(c.T, line); err != nil {
 		return fmt.Errorf("fail to install playwright on node %s: %v: %s", c.Proxy, err, string(stderr))

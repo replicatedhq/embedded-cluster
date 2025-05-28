@@ -22,7 +22,13 @@ func TestMultiNodeReset(t *testing.T) {
 
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 

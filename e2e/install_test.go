@@ -37,7 +37,13 @@ func TestSingleNodeInstallation(t *testing.T) {
 	isMultiNodeEnabled := "false"
 	testArgs := []string{isMultiNodeEnabled}
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -98,7 +104,13 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	isMultiNodeEnabled := "false"
 	testArgs := []string{isMultiNodeEnabled}
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -149,7 +161,13 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	isMultiNodeEnabled := "false"
 	testArgs := []string{isMultiNodeEnabled}
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -188,7 +206,13 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 	isMultiNodeEnabled := "false"
 	testArgs := []string{isMultiNodeEnabled}
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -233,7 +257,13 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	isMultiNodeEnabled := "false"
 	testArgs := []string{isMultiNodeEnabled}
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -339,7 +369,13 @@ func TestMultiNodeInstallation(t *testing.T) {
 	installSingleNode(t, tc)
 	checkWorkerProfile(t, tc, 0)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -387,7 +423,13 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	downloadECRelease(t, tc, 0)
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -428,7 +470,13 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 		version: initialVersion,
 	})
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -490,7 +538,13 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 		version: initialVersion,
 	})
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -534,7 +588,13 @@ func TestResetAndReinstall(t *testing.T) {
 
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -546,7 +606,10 @@ func TestResetAndReinstall(t *testing.T) {
 
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -567,6 +630,10 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 		Version:      "22.04",
 	})
 	defer tc.Cleanup()
+
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
 
 	t.Logf("%s: downloading airgap file on node 0", time.Now().Format(time.RFC3339))
 	err := downloadAirgapBundleOnNode(t, tc, 0, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), AirgapInstallBundlePath, AirgapLicenseID)
@@ -590,7 +657,10 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 		isAirgap: true,
 	})
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -610,7 +680,10 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 		isAirgap: true,
 	})
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -635,6 +708,10 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 		Version:      "22.04",
 	})
 	defer tc.Cleanup()
+
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
 
 	t.Logf("%s: downloading airgap files on node 0", time.Now().Format(time.RFC3339))
 	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
@@ -663,8 +740,11 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 		localArtifactMirrorPort: "50001", // choose an alternate lam port
 	})
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
@@ -707,6 +787,10 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+
 	t.Logf("%s: downloading airgap files on node 0", time.Now().Format(time.RFC3339))
 	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
@@ -734,7 +818,10 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 		cidr:     "172.16.0.0/15",
 	})
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -1002,6 +1089,10 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	initialVersion := fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA"))
 	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
@@ -1029,7 +1120,10 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 		isAirgap: true,
 	})
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -1078,6 +1172,10 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
@@ -1107,7 +1205,10 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 		localArtifactMirrorPort: "50001", // choose an alternate lam port
 	})
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -1272,7 +1373,13 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -1351,6 +1458,10 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+
 	t.Logf("%s: downloading airgap files on nodes", time.Now().Format(time.RFC3339))
 	initialVersion := fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA"))
 	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
@@ -1386,7 +1497,10 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 
 	checkWorkerProfile(t, tc, 0)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -1478,7 +1592,13 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -1524,7 +1644,13 @@ func TestCustomCIDR(t *testing.T) {
 		serviceCidr: "10.129.0.0/20",
 	})
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -1577,7 +1703,13 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -1613,6 +1745,10 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
@@ -1641,7 +1777,10 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 		version:  initialVersion,
 	})
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -1785,8 +1924,13 @@ spec:
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion, "", hostname}
 
-	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-upgrade", testArgs...); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -1813,6 +1957,10 @@ func TestSingleNodeAirgapUpgradeConfigValues(t *testing.T) {
 		Version:      "22.04",
 	})
 	defer tc.Cleanup()
+
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
 
 	t.Logf("%s: downloading airgap files on node 0", time.Now().Format(time.RFC3339))
 	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
@@ -1885,9 +2033,11 @@ spec:
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion, "", hostname}
 
-	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)
