@@ -108,7 +108,7 @@ This will scan the codebase for Swagger annotations and generate the API documen
 
 Once the API is running, the Swagger documentation is available at the endpoint:
 ```
-/api/swagger/
+/api/swagger/index.html
 ```
 
 You can use this interactive documentation to explore the available endpoints, understand request/response formats, and test API operations directly from your browser. 
