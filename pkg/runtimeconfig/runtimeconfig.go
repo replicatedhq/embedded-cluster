@@ -34,7 +34,7 @@ func emptyTmpDir() {
 	tmpDir := EmbeddedClusterTmpSubDir()
 	entries, err := os.ReadDir(tmpDir)
 	if err != nil {
-		logrus.Errorf("error reading embedded-cluster tmp dir: %s", err)
+		logrus.Errorf("error reading %s tmp dir: %v", tmpDir, err)
 		return
 	}
 
