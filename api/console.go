@@ -2,28 +2,7 @@ package api
 
 import (
 	"net/http"
-
-	"github.com/replicatedhq/embedded-cluster/api/types"
 )
-
-type getBrandingResponse struct {
-	Branding types.Branding `json:"branding"`
-}
-
-func (a *API) getBranding(w http.ResponseWriter, r *http.Request) {
-	branding, err := a.consoleController.GetBranding()
-	if err != nil {
-		a.logError(r, err, "failed to get branding")
-		a.jsonError(w, r, err)
-		return
-	}
-
-	response := getBrandingResponse{
-		Branding: branding,
-	}
-
-	a.json(w, r, http.StatusOK, response)
-}
 
 type getListAvailableNetworkInterfacesResponse struct {
 	NetworkInterfaces []string `json:"networkInterfaces"`

@@ -16,6 +16,8 @@ export const useBranding = () => {
 };
 
 export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // __INITIAL_STATE__ is a global variable that can be set by the server-side rendering process
+  // as a way to pass initial data to the client.
   const initialState = window.__INITIAL_STATE__ || {};
 
   const branding = {
