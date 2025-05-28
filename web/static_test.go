@@ -186,4 +186,3 @@ func TestRegisterRoutes(t *testing.T) {
 		assert.Equal(t, string(jsContent), recorder.Body.String(), "Response should contain the JS content")
 	})
 }
-
