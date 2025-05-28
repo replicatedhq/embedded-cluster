@@ -37,8 +37,12 @@ function deps() {
 }
 
 function web() {
-    (cd web && \
-        npm i && \
+    local install_cmd="npm i"
+    if [ "$CI" == "true" ]; then
+        install_cmd="npm ci"
+    fi
+    (set -x; cd web && \
+        $install_cmd && \
         npm run build)
 }
 
