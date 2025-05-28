@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import Card from '../common/Card';
-import Button from '../common/Button';
-import { useConfig } from '../../contexts/ConfigContext';
-import { useWizardMode } from '../../contexts/WizardModeContext';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import LinuxSetup from './setup/LinuxSetup';
-import KubernetesSetup from './setup/KubernetesSetup';
+import React, { useState } from "react";
+import Card from "../common/Card";
+import Button from "../common/Button";
+import { useConfig } from "../../contexts/ConfigContext";
+import { useWizardMode } from "../../contexts/WizardModeContext";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import LinuxSetup from "./setup/LinuxSetup";
+import KubernetesSetup from "./setup/KubernetesSetup";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 interface SetupStepProps {
   onNext: () => void;
@@ -16,56 +17,85 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   const { config, updateConfig, prototypeSettings } = useConfig();
   const { text } = useWizardMode();
   const [showAdvanced, setShowAdvanced] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [availableNetworkInterfaces, setAvailableNetworkInterfaces] = useState<string[]>([]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch cluster config
-        const installResponse = await fetch('/api/install', {
-          headers: {
-            ...(localStorage.getItem('auth') && {
-              'Authorization': `Bearer ${localStorage.getItem('auth')}`,
-            }),
-          },
-        });
-
-        if (installResponse.ok) {
-          const install = await installResponse.json();
-          updateConfig(install.config);
-        }
-
-        const interfacesResponse = await fetch('/api/console/available-network-interfaces', {
-          headers: {
-            ...(localStorage.getItem('auth') && {
-              'Authorization': `Bearer ${localStorage.getItem('auth')}`,
-            }),
-          },
-        });
-
-        if (interfacesResponse.ok) {
-          const interfacesData = await interfacesResponse.json();
-          setAvailableNetworkInterfaces(interfacesData.networkInterfaces || []);
-        }
-      } catch (err) {
-        console.error('Failed to fetch data:', err);
-      } finally {
-        setIsLoading(false);
+  // Query for fetching install configuration
+  const { isLoading: isConfigLoading } = useQuery({
+    queryKey: ["installConfig"],
+    queryFn: async () => {
+      const response = await fetch("/api/install", {
+        headers: {
+          ...(localStorage.getItem("auth") && {
+            Authorization: `Bearer ${localStorage.getItem("auth")}`,
+          }),
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch install configuration");
       }
-    };
+      const data = await response.json();
+      updateConfig(data.config);
+      return data;
+    },
+  });
 
-    fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Query for fetching network interfaces
+  const { data: networkInterfacesData, isLoading: isInterfacesLoading } =
+    useQuery({
+      queryKey: ["networkInterfaces"],
+      queryFn: async () => {
+        const response = await fetch(
+          "/api/console/available-network-interfaces",
+          {
+            headers: {
+              ...(localStorage.getItem("auth") && {
+                Authorization: `Bearer ${localStorage.getItem("auth")}`,
+              }),
+            },
+          }
+        );
+        if (!response.ok) {
+          throw new Error("Failed to fetch network interfaces");
+        }
+        return response.json();
+      },
+    });
+
+  // Mutation for submitting the configuration
+  const { mutate: submitConfig, isPending: isSubmitting } = useMutation({
+    mutationFn: async (configData: typeof config) => {
+      const response = await fetch("/api/install/config", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(localStorage.getItem("auth") && {
+            Authorization: `Bearer ${localStorage.getItem("auth")}`,
+          }),
+        },
+        body: JSON.stringify(configData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Server responded with ${response.status}`
+        );
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      onNext();
+    },
+    onError: (err: Error) => {
+      setError(err.message || "Failed to setup cluster");
+    },
+  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    if (id === 'adminConsolePort') {
+    if (id === "adminConsolePort") {
       updateConfig({ adminConsolePort: parseInt(value) });
-    } else if (id === 'localArtifactMirrorPort') {
+    } else if (id === "localArtifactMirrorPort") {
       updateConfig({ localArtifactMirrorPort: parseInt(value) });
     } else {
       updateConfig({ [id]: value });
@@ -77,47 +107,24 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     updateConfig({ [id]: value });
   };
 
-  const handleNext = async () => {
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      // Make the POST request to the cluster-setup endpoint
-      const response = await fetch('/api/install/config', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Include auth credentials if available from localStorage or another source
-          ...(localStorage.getItem('auth') && {
-            'Authorization': `Bearer ${localStorage.getItem('auth')}`,
-          }),
-        },
-        body: JSON.stringify(config),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Server responded with ${response.status}`);
-      }
-
-      // Call the original onNext function to proceed to the next step
-      onNext();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to setup cluster');
-      console.error('Cluster setup failed:', err);
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleNext = () => {
+    submitConfig(config);
   };
+
+  const isLoading = isConfigLoading || isInterfacesLoading;
+  const availableNetworkInterfaces =
+    networkInterfacesData?.networkInterfaces || [];
 
   return (
     <div className="space-y-6">
       <Card>
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">{text.setupTitle}</h2>
+          <h2 className="text-2xl font-bold text-gray-900">
+            {text.setupTitle}
+          </h2>
           <p className="text-gray-600 mt-1">
-            {prototypeSettings.clusterMode === 'embedded' 
-              ? 'Configure the installation settings.'
+            {prototypeSettings.clusterMode === "embedded"
+              ? "Configure the installation settings."
               : text.setupDescription}
           </p>
         </div>
@@ -127,7 +134,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
             <p className="mt-2 text-gray-600">Loading configuration...</p>
           </div>
-        ) : prototypeSettings?.clusterMode === 'embedded' ? (
+        ) : prototypeSettings?.clusterMode === "embedded" ? (
           <LinuxSetup
             config={config}
             prototypeSettings={prototypeSettings}
@@ -138,10 +145,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             availableNetworkInterfaces={availableNetworkInterfaces}
           />
         ) : (
-          <KubernetesSetup
-            config={config}
-            onInputChange={handleInputChange}
-          />
+          <KubernetesSetup config={config} onInputChange={handleInputChange} />
         )}
 
         {error && (
@@ -152,15 +156,19 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
       </Card>
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
+        <Button
+          variant="outline"
+          onClick={onBack}
+          icon={<ChevronLeft className="w-5 h-5" />}
+        >
           Back
         </Button>
-        <Button 
+        <Button
           onClick={handleNext}
           icon={<ChevronRight className="w-5 h-5" />}
           disabled={isSubmitting || isLoading}
         >
-          {isSubmitting ? 'Setting up...' : text.nextButtonText}
+          {isSubmitting ? "Setting up..." : text.nextButtonText}
         </Button>
       </div>
     </div>
