@@ -27,7 +27,23 @@ func Get() *ecv1beta1.RuntimeConfigSpec {
 }
 
 func Cleanup() {
-	os.RemoveAll(EmbeddedClusterTmpSubDir())
+	emptyTmpDir()
+}
+
+func emptyTmpDir() {
+	tmpDir := EmbeddedClusterTmpSubDir()
+	entries, err := os.ReadDir(tmpDir)
+	if err != nil {
+		logrus.Errorf("error reading embedded-cluster tmp dir: %s", err)
+		return
+	}
+
+	for _, entry := range entries {
+		path := filepath.Join(tmpDir, entry.Name())
+		if err := os.RemoveAll(path); err != nil {
+			logrus.Errorf("error removing item %s: %s", path, err)
+		}
+	}
 }
 
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
