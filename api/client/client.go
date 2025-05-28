@@ -10,7 +10,7 @@ import (
 )
 
 type Client interface {
-	Login(password string) error
+	Authenticate(password string) error
 	GetInstall() (*types.Install, error)
 	SetInstallConfig(config types.InstallationConfig) (*types.Install, error)
 	SetInstallStatus(status types.InstallationStatus) (*types.Install, error)

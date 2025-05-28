@@ -4,17 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+
+	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-// Login sends a login request to the API server with the provided password and retrieves a session token. The token is stored in the client struct for subsequent requests.
-func (c *client) Login(password string) error {
-	loginReq := struct {
-		Password string `json:"password"`
-	}{
-		Password: password,
-	}
-
-	b, err := json.Marshal(loginReq)
+// Authenticate sends a login request to the API server with the provided password and retrieves a
+// session token. The token is stored in the client struct for subsequent requests.
+func (c *client) Authenticate(password string) error {
+	b, err := json.Marshal(types.AuthRequest{Password: password})
 	if err != nil {
 		return err
 	}
@@ -35,14 +32,12 @@ func (c *client) Login(password string) error {
 		return errorFromResponse(resp)
 	}
 
-	var loginResp struct {
-		Token string `json:"token"`
-	}
-	err = json.NewDecoder(resp.Body).Decode(&loginResp)
+	var authResponse types.AuthResponse
+	err = json.NewDecoder(resp.Body).Decode(&authResponse)
 	if err != nil {
 		return err
 	}
 
-	c.token = loginResp.Token
+	c.token = authResponse.Token
 	return nil
 }

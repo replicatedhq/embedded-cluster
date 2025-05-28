@@ -79,7 +79,7 @@ func TestLogin(t *testing.T) {
 
 	// Test successful login
 	c := New(server.URL)
-	err := c.Login("correct-password")
+	err := c.Authenticate("correct-password")
 	assert.NoError(t, err)
 
 	// Check that token was set
@@ -89,7 +89,7 @@ func TestLogin(t *testing.T) {
 
 	// Test failed login
 	c = New(server.URL)
-	err = c.Login("wrong-password")
+	err = c.Authenticate("wrong-password")
 	assert.Error(t, err)
 
 	// Check that error is of type APIError
