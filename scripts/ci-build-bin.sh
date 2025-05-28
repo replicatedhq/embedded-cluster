@@ -38,7 +38,7 @@ function deps() {
 
 function web() {
     local install_cmd="npm i"
-    if [ "$CI" == "true" ]; then
+    if [ "${CI:-}" = "true" ]; then
         install_cmd="npm ci"
     fi
     (set -x; cd web && \
