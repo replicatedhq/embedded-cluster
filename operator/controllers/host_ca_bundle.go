@@ -8,11 +8,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-const (
-	kotsadmNamespace        = "kotsadm"
-	privateCASConfigMapName = "kotsadm-private-cas"
-)
-
 // ReconcileHostCABundle ensures that the CA configmap is present and is up-to-date
 // with the CA bundle from the host.
 func (r *InstallationReconciler) ReconcileHostCABundle(ctx context.Context) error {

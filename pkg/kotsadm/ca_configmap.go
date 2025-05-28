@@ -59,7 +59,8 @@ func ensureCAConfigmap(ctx context.Context, logf LogFunc, kcli client.Client, ca
 	err = kcli.Get(ctx, client.ObjectKeyFromObject(existing), existing)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			err := kcli.Create(ctx, casConfigMap(casMap))
+			new := casConfigMap(casMap)
+			err := kcli.Create(ctx, new)
 			if err != nil {
 				return fmt.Errorf("create configmap: %w", err)
 			}
