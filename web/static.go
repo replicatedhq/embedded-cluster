@@ -71,13 +71,18 @@ func (web *Web) rootHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Execute the template and write to the buffer
 	err = htmlTemplate.Execute(buf, data)
-
-	// Write the buffer contents to the response writer
-	_, _ = buf.WriteTo(w)
 	if err != nil {
 		web.logger.WithError(err).
 			Info("failed to execute HTML template")
 		http.Error(w, "Template execution error", 500)
+	}
+
+	// Write the buffer contents to the response writer
+	_, err = buf.WriteTo(w)
+	if err != nil {
+		web.logger.WithError(err).
+			Info("failed to write response")
+		return
 	}
 }
 
