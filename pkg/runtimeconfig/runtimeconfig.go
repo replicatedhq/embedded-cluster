@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 )
@@ -27,22 +28,12 @@ func Get() *ecv1beta1.RuntimeConfigSpec {
 }
 
 func Cleanup() {
-	emptyTmpDir()
-}
-
-func emptyTmpDir() {
 	tmpDir := EmbeddedClusterTmpSubDir()
-	entries, err := os.ReadDir(tmpDir)
-	if err != nil {
-		logrus.Errorf("error reading %s tmp dir: %v", tmpDir, err)
-		return
-	}
-
-	for _, entry := range entries {
-		path := filepath.Join(tmpDir, entry.Name())
-		if err := os.RemoveAll(path); err != nil {
-			logrus.Errorf("error removing item %s: %s", path, err)
-		}
+	// We should not delete the tmp dir, rather we should empty its contents leaving
+	// it in place. This is because commands such as `kubectl edit <resource>`
+	// will create files in the tmp dir
+	if err := helpers.RemoveAll(tmpDir); err != nil {
+		logrus.Errorf("error removing %s dir: %s", tmpDir, err)
 	}
 }
 
