@@ -77,8 +77,8 @@ func TestProxiedEnvironment(t *testing.T) {
 		withEnv:    lxd.WithProxyEnv(tc.IPs),
 	})
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	// join a controller node
@@ -117,8 +117,8 @@ func TestProxiedEnvironment(t *testing.T) {
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", appUpgradeVersion); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", appUpgradeVersion); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)
@@ -173,8 +173,8 @@ func TestProxiedEnvironment(t *testing.T) {
 	}
 
 	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.SetupPlaywrightAndRunTest("validate-restore-app"); err != nil {
-		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -229,8 +229,8 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		withEnv:     lxd.WithProxyEnv(tc.IPs),
 	})
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	// join a controller node
@@ -268,8 +268,8 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", appUpgradeVersion); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", appUpgradeVersion); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)
@@ -380,8 +380,8 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", appUpgradeVersion); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", appUpgradeVersion); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
@@ -441,8 +441,8 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	}
 
 	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.SetupPlaywrightAndRunTest("validate-restore-app"); err != nil {
-		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

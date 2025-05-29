@@ -140,7 +140,7 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		return stdout.String(), stderr.String(), fmt.Errorf("fail to run playwright test %s: %v", testName, err)
+		return stdout.String(), stderr.String(), err
 	}
 	return stdout.String(), stderr.String(), nil
 }
