@@ -5,6 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type APIError struct {
@@ -94,9 +99,65 @@ func AppendFieldError(apiErr *APIError, field string, err error) *APIError {
 	return AppendError(apiErr, newFieldError(field, err))
 }
 
+func camelCaseToWords(s string) string {
+	// Handle special cases
+	specialCases := map[string]string{
+		"cidr": "CIDR",
+		"Cidr": "CIDR",
+		"CIDR": "CIDR",
+	}
+
+	// Check if the entire string is a special case
+	if replacement, ok := specialCases[strings.ToLower(s)]; ok {
+		return replacement
+	}
+
+	// Split on capital letters
+	re := regexp.MustCompile(`([a-z])([A-Z])`)
+	words := re.ReplaceAllString(s, "$1 $2")
+
+	// Split the words and handle special cases
+	wordList := strings.Split(strings.ToLower(words), " ")
+	for i, word := range wordList {
+		if replacement, ok := specialCases[word]; ok {
+			wordList[i] = replacement
+		} else {
+			// Capitalize other words
+			c := cases.Title(language.English)
+			wordList[i] = c.String(word)
+		}
+	}
+
+	return strings.Join(wordList, " ")
+}
+
 func newFieldError(field string, err error) *APIError {
+	msg := err.Error()
+
+	// Try different patterns to replace the field name
+	patterns := []string{
+		field,                  // exact match
+		strings.ToLower(field), // lowercase
+		strings.ToUpper(field), // uppercase
+		"cidr",                 // special case for CIDR
+	}
+
+	replaced := false
+	for _, pattern := range patterns {
+		if strings.Contains(msg, pattern) {
+			msg = strings.Replace(msg, pattern, camelCaseToWords(field), 1)
+			replaced = true
+			break
+		}
+	}
+
+	// If no replacement was made, prepend the field name
+	if !replaced {
+		msg = fmt.Sprintf("%s: %s", camelCaseToWords(field), msg)
+	}
+
 	return &APIError{
-		Message: fmt.Sprintf("%s: %s", field, err.Error()),
+		Message: msg,
 		Field:   field,
 		err:     err,
 	}
