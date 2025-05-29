@@ -83,8 +83,10 @@ func TestAPI_jsonError(t *testing.T) {
 			rec := httptest.NewRecorder()
 
 			// Call the JSON method
-			api := &API{}
-			api.jsonError(rec, nil, tt.apiErr)
+			api := &API{
+				logger: NewDiscardLogger(),
+			}
+			api.jsonError(rec, httptest.NewRequest("GET", "/api/test", nil), tt.apiErr)
 
 			// Check status code
 			assert.Equal(t, tt.wantCode, rec.Code, "Status code should match")

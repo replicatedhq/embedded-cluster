@@ -610,26 +610,22 @@ func Test_ensureKotsadmCAConfigmap(t *testing.T) {
 
 	tests := []struct {
 		name               string
-		setupEnv           func(t *testing.T)
+		caPath             string
 		setupMockClient    func(base client.Client) client.Client
 		expectedErr        bool
 		expectedErrMessage string
 	}{
 		{
-			name: "should return nil when PRIVATE_CA_BUNDLE_PATH is not set",
-			setupEnv: func(t *testing.T) {
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", "")
-			},
+			name:   "should return nil when caPath is not set",
+			caPath: "",
 			setupMockClient: func(base client.Client) client.Client {
 				return base
 			},
 			expectedErr: false,
 		},
 		{
-			name: "should return nil when IsRequestEntityTooLargeError is returned from Get",
-			setupEnv: func(t *testing.T) {
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", testCAPath)
-			},
+			name:   "should return nil when IsRequestEntityTooLargeError is returned from Get",
+			caPath: testCAPath,
 			setupMockClient: func(base client.Client) client.Client {
 				return &mockClient{
 					Client: base,
@@ -651,10 +647,8 @@ func Test_ensureKotsadmCAConfigmap(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name: "should return nil when IsRequestEntityTooLargeError is returned from Create",
-			setupEnv: func(t *testing.T) {
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", testCAPath)
-			},
+			name:   "should return nil when IsRequestEntityTooLargeError is returned from Create",
+			caPath: testCAPath,
 			setupMockClient: func(base client.Client) client.Client {
 				return &mockClient{
 					Client: base,
@@ -685,10 +679,8 @@ func Test_ensureKotsadmCAConfigmap(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name: "should return nil when IsRequestEntityTooLargeError is returned from Update",
-			setupEnv: func(t *testing.T) {
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", testCAPath)
-			},
+			name:   "should return nil when IsRequestEntityTooLargeError is returned from Update",
+			caPath: testCAPath,
 			setupMockClient: func(base client.Client) client.Client {
 				return &mockClient{
 					Client: base,
@@ -710,21 +702,16 @@ func Test_ensureKotsadmCAConfigmap(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name: "should return nil when IsNotExist is returned from reading CA file",
-			setupEnv: func(t *testing.T) {
-				// Set a path that doesn't exist
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", filepath.Join(tempDir, "non-existent.crt"))
-			},
+			name:   "should return nil when IsNotExist is returned from reading CA file",
+			caPath: filepath.Join(tempDir, "non-existent.crt"),
 			setupMockClient: func(base client.Client) client.Client {
 				return base
 			},
 			expectedErr: false,
 		},
 		{
-			name: "should return error for other errors from Get",
-			setupEnv: func(t *testing.T) {
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", testCAPath)
-			},
+			name:   "should return error for other errors from Get",
+			caPath: testCAPath,
 			setupMockClient: func(base client.Client) client.Client {
 				return &mockClient{
 					Client: base,
@@ -740,10 +727,8 @@ func Test_ensureKotsadmCAConfigmap(t *testing.T) {
 			expectedErrMessage: "some other error",
 		},
 		{
-			name: "should return error for other errors from Create",
-			setupEnv: func(t *testing.T) {
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", testCAPath)
-			},
+			name:   "should return error for other errors from Create",
+			caPath: testCAPath,
 			setupMockClient: func(base client.Client) client.Client {
 				return &mockClient{
 					Client: base,
@@ -768,10 +753,8 @@ func Test_ensureKotsadmCAConfigmap(t *testing.T) {
 			expectedErrMessage: "some other create error",
 		},
 		{
-			name: "should return error for other errors from Update",
-			setupEnv: func(t *testing.T) {
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", testCAPath)
-			},
+			name:   "should return error for other errors from Update",
+			caPath: testCAPath,
 			setupMockClient: func(base client.Client) client.Client {
 				err := base.Create(context.Background(), &corev1.ConfigMap{
 					TypeMeta: metav1.TypeMeta{
@@ -804,11 +787,6 @@ func Test_ensureKotsadmCAConfigmap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup environment
-			if tt.setupEnv != nil {
-				tt.setupEnv(t)
-			}
-
 			// Setup reconciler with mock client
 			scheme := runtime.NewScheme()
 			// Register core v1 types to the scheme
@@ -819,7 +797,7 @@ func Test_ensureKotsadmCAConfigmap(t *testing.T) {
 			kcli := tt.setupMockClient(baseClient)
 
 			// Run test
-			err = ensureKotsadmCAConfigmap(t.Context(), kcli, testCAPath)
+			err = ensureKotsadmCAConfigmap(t.Context(), kcli, tt.caPath)
 
 			// Check results
 			if tt.expectedErr {
