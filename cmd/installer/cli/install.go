@@ -513,7 +513,7 @@ func waitForInstallAPI(ctx context.Context, addr string) error {
 }
 
 func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
-	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
+	if err := runInstallVerifyAndPrompt(ctx, name, &flags, prompts.New()); err != nil {
 		return err
 	}
 
@@ -678,7 +678,7 @@ func markUIInstallComplete(password string, managerPort int) error {
 	return nil
 }
 
-func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *InstallCmdFlags) error {
+func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *InstallCmdFlags, prompt prompts.Prompt) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "reinstall")
 	if err != nil {
@@ -703,7 +703,7 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *InstallC
 	}
 
 	if !flags.isAirgap {
-		if err := maybePromptForAppUpdate(ctx, prompts.New(), license, flags.assumeYes); err != nil {
+		if err := maybePromptForAppUpdate(ctx, prompt, license, flags.assumeYes); err != nil {
 			if errors.As(err, &ErrorNothingElseToAdd{}) {
 				return err
 			}
@@ -712,6 +712,11 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *InstallC
 			logrus.Debugf("WARNING: Failed to check for newer app versions: %v", err)
 		}
 	}
+
+	if err := promptProceedWithPartialProxyConfig(flags.proxy, prompt); err != nil {
+		return err
+	}
+	logrus.Debug("User confirmed prompt to proceed installing with `http_proxy` set and `https_proxy` unset")
 
 	if err := preflights.ValidateApp(); err != nil {
 		return err
@@ -1095,6 +1100,22 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 
 	logrus.Debug("User confirmed prompt to continue installing out-of-date release")
 
+	return nil
+}
+
+// promptProceedWithPartialProxyConfig prompts for confirmation when HTTP proxy is set without HTTPS proxy,
+// returning an error if the user declines to proceed.
+func promptProceedWithPartialProxyConfig(proxy *ecv1beta1.ProxySpec, prompt prompts.Prompt) error {
+	if proxy != nil && proxy.HTTPProxy != "" && proxy.HTTPSProxy == "" {
+		message := "Typically --https-proxy should be set if --http-proxy is set. Installation failures are likely otherwise. Do you want to continue anyway?"
+		confirmed, err := prompt.Confirm(message, false)
+		if err != nil {
+			return fmt.Errorf("failed to confirm proxy settings: %w", err)
+		}
+		if !confirmed {
+			return NewErrorNothingElseToAdd(errors.New("user aborted: HTTP proxy configured without HTTPS proxy"))
+		}
+	}
 	return nil
 }
 

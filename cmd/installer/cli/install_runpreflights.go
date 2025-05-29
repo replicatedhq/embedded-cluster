@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -50,7 +51,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 }
 
 func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdFlags) error {
-	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
+	if err := runInstallVerifyAndPrompt(ctx, name, &flags, prompts.New()); err != nil {
 		return err
 	}
 

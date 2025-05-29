@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
@@ -591,4 +592,74 @@ func Test_runInstallAPI(t *testing.T) {
 	cancel()
 	assert.ErrorIs(t, <-errCh, http.ErrServerClosed)
 	t.Logf("Install API exited")
+}
+
+func Test_promptIncompleteProxyConfig(t *testing.T) {
+	tests := []struct {
+		name                  string
+		proxy                 *ecv1beta1.ProxySpec
+		confirm               bool
+		wantErr               bool
+		isErrNothingElseToAdd bool
+	}{
+		{
+			name:    "no proxy set",
+			proxy:   nil,
+			wantErr: false,
+		},
+		{
+			name: "http proxy set without https proxy and user confirms",
+			proxy: &ecv1beta1.ProxySpec{
+				HTTPProxy: "http://proxy:8080",
+			},
+			confirm: true,
+			wantErr: false,
+		},
+		{
+			name: "http proxy set without https proxy and user declines",
+			proxy: &ecv1beta1.ProxySpec{
+				HTTPProxy: "http://proxy:8080",
+			},
+			confirm:               false,
+			wantErr:               true,
+			isErrNothingElseToAdd: true,
+		},
+		{
+			name: "both proxies set",
+			proxy: &ecv1beta1.ProxySpec{
+				HTTPProxy:  "http://proxy:8080",
+				HTTPSProxy: "https://proxy:8080",
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var in *bytes.Buffer
+			if tt.confirm {
+				in = bytes.NewBuffer([]byte("y\n"))
+			} else {
+				in = bytes.NewBuffer([]byte("n\n"))
+			}
+			out := bytes.NewBuffer([]byte{})
+			mockPrompt := plain.New(plain.WithIn(in), plain.WithOut(out))
+
+			prompts.SetTerminal(true)
+			t.Cleanup(func() { prompts.SetTerminal(false) })
+
+			err := promptProceedWithPartialProxyConfig(tt.proxy, mockPrompt)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.isErrNothingElseToAdd {
+					assert.ErrorAs(t, err, &ErrorNothingElseToAdd{})
+				}
+				if tt.proxy != nil && tt.proxy.HTTPProxy != "" && tt.proxy.HTTPSProxy == "" {
+					assert.Contains(t, out.String(), "Typically --https-proxy should be set if --http-proxy is set")
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
