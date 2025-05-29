@@ -28,14 +28,25 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 		return nil, errors.Wrap(err, "unmarshal helm values")
 	}
 
-	extraEnvVars := map[string]any{}
+	extraEnvVars := []map[string]any{}
 	extraVolumes := []map[string]any{}
 	extraVolumeMounts := []map[string]any{}
 
 	if v.Proxy != nil {
-		extraEnvVars["HTTP_PROXY"] = v.Proxy.HTTPProxy
-		extraEnvVars["HTTPS_PROXY"] = v.Proxy.HTTPSProxy
-		extraEnvVars["NO_PROXY"] = v.Proxy.NoProxy
+		extraEnvVars = append(extraEnvVars, []map[string]any{
+			{
+				"name":  "HTTP_PROXY",
+				"value": v.Proxy.HTTPProxy,
+			},
+			{
+				"name":  "HTTPS_PROXY",
+				"value": v.Proxy.HTTPSProxy,
+			},
+			{
+				"name":  "NO_PROXY",
+				"value": v.Proxy.NoProxy,
+			},
+		}...)
 	}
 
 	if v.HostCABundlePath != "" {
@@ -52,7 +63,10 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 			"mountPath": "/certs/ca-certificates.crt",
 		})
 
-		extraEnvVars["SSL_CERT_DIR"] = "/certs"
+		extraEnvVars = append(extraEnvVars, map[string]any{
+			"name":  "SSL_CERT_DIR",
+			"value": "/certs",
+		})
 	}
 
 	copiedValues["configuration"] = map[string]any{
