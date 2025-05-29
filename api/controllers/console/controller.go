@@ -1,15 +1,10 @@
 package console
 
 import (
-	"fmt"
-
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
-	"github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
 type Controller interface {
-	GetBranding() (types.Branding, error)
 	ListAvailableNetworkInterfaces() ([]string, error)
 }
 
@@ -39,18 +34,6 @@ func NewConsoleController(opts ...ConsoleControllerOption) (*ConsoleController, 
 	}
 
 	return controller, nil
-}
-
-func (c *ConsoleController) GetBranding() (types.Branding, error) {
-	app := release.GetApplication()
-	if app == nil {
-		return types.Branding{}, fmt.Errorf("application not found")
-	}
-
-	return types.Branding{
-		AppTitle: app.Spec.Title,
-		AppIcon:  app.Spec.Icon,
-	}, nil
 }
 
 func (c *ConsoleController) ListAvailableNetworkInterfaces() ([]string, error) {

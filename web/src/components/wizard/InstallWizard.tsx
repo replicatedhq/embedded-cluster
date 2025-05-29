@@ -6,12 +6,10 @@ import ValidationInstallStep from './ValidationInstallStep';
 import { WizardStep } from '../../types';
 import { AppIcon } from '../common/Logo';
 import { useWizardMode } from '../../contexts/WizardModeContext';
-import { useBranding } from '../../contexts/BrandingContext';
 
 const InstallWizard: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<WizardStep>('welcome');
   const { text } = useWizardMode();
-  const { branding } = useBranding();
 
   const goToNextStep = () => {
     const steps: WizardStep[] = ['welcome', 'setup', 'installation'];

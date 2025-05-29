@@ -21,36 +21,36 @@ interface WizardText {
   nextButtonText: string;
 }
 
-const getTextVariations = (isEmbedded: boolean, appTitle: string): Record<WizardMode, WizardText> => ({
+const getTextVariations = (isEmbedded: boolean, title: string): Record<WizardMode, WizardText> => ({
   install: {
-    title: appTitle || '',
+    title: title || '',
     subtitle: 'Installation Wizard',
-    welcomeTitle: `Welcome to ${appTitle}`,
-    welcomeDescription: `This wizard will guide you through installing ${appTitle} on your ${isEmbedded ? 'Linux machine' : 'Kubernetes cluster'}.`,
+    welcomeTitle: `Welcome to ${title}`,
+    welcomeDescription: `This wizard will guide you through installing ${title} on your ${isEmbedded ? 'Linux machine' : 'Kubernetes cluster'}.`,
     setupTitle: 'Setup',
     setupDescription: 'Set up the hosts to use for this installation.',
     configurationTitle: 'Configuration',
-    configurationDescription: `Configure your ${appTitle} installation by providing the information below.`,
-    installationTitle: `Installing ${appTitle}`,
+    configurationDescription: `Configure your ${title} installation by providing the information below.`,
+    installationTitle: `Installing ${title}`,
     installationDescription: '',
     completionTitle: 'Installation Complete!',
-    completionDescription: `${appTitle} has been installed successfully.`,
+    completionDescription: `${title} has been installed successfully.`,
     welcomeButtonText: 'Start',
     nextButtonText: 'Next: Start Installation',
   },
   upgrade: {
-    title: appTitle || '',
+    title: title || '',
     subtitle: 'Upgrade Wizard',
-    welcomeTitle: `Welcome to ${appTitle}`,
-    welcomeDescription: `This wizard will guide you through upgrading ${appTitle} on your ${isEmbedded ? 'Linux machine' : 'Kubernetes cluster'}.`,
+    welcomeTitle: `Welcome to ${title}`,
+    welcomeDescription: `This wizard will guide you through upgrading ${title} on your ${isEmbedded ? 'Linux machine' : 'Kubernetes cluster'}.`,
     setupTitle: 'Setup',
     setupDescription: 'Set up the hosts to use for this installation.',
     configurationTitle: 'Upgrade Configuration',
-    configurationDescription: `Configure your ${appTitle} installation by providing the information below.`,
-    installationTitle: `Upgrading ${appTitle}`,
+    configurationDescription: `Configure your ${title} installation by providing the information below.`,
+    installationTitle: `Upgrading ${title}`,
     installationDescription: '',
     completionTitle: 'Upgrade Complete!',
-    completionDescription: `${appTitle} has been successfully upgraded.`,
+    completionDescription: `${title} has been successfully upgraded.`,
     welcomeButtonText: 'Start Upgrade',
     nextButtonText: 'Next: Start Upgrade',
   },
@@ -68,9 +68,9 @@ export const WizardModeProvider: React.FC<{
   mode: WizardMode;
 }> = ({ children, mode }) => {
   const { prototypeSettings } = useConfig();
-  const { branding } = useBranding();
+  const { title } = useBranding();
   const isEmbedded = prototypeSettings.clusterMode === 'embedded';
-  const text = getTextVariations(isEmbedded, branding?.appTitle || '')[mode];
+  const text = getTextVariations(isEmbedded, title)[mode];
 
   return (
     <WizardModeContext.Provider value={{ mode, text }}>
