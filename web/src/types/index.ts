@@ -14,3 +14,28 @@ export interface InstallationStatus {
 }
 
 export type WizardStep = 'welcome' | 'setup' | 'validation' | 'installation' | 'completion';
+
+export interface ValidationResult {
+  success: boolean;
+  message: string;
+  details?: string;
+}
+
+export interface ValidationStatus {
+  kubernetes: ValidationResult | null;
+  helm: ValidationResult | null;
+  storage: ValidationResult | null;
+  networking: ValidationResult | null;
+  permissions: ValidationResult | null;
+}
+
+export interface HostPreflightStatus {
+  kernelVersion: ValidationResult | null;
+  kernelParameters: ValidationResult | null;
+  dataDirectory: ValidationResult | null;
+  systemMemory: ValidationResult | null;
+  systemCPU: ValidationResult | null;
+  diskSpace: ValidationResult | null;
+  selinux: ValidationResult | null;
+  networkEndpoints: ValidationResult | null;
+}
