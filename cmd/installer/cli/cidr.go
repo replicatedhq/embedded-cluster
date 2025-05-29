@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"net"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -74,13 +73,4 @@ func getCIDRConfig(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 		ServiceCIDR: serviceCIDR,
 		GlobalCIDR:  &globalCIDR,
 	}, nil
-}
-
-// cleanCIDR returns a `.0/x` subnet instead of a `.2/x` etc subnet
-func cleanCIDR(ipnet *net.IPNet) (string, error) {
-	_, newNet, err := net.ParseCIDR(ipnet.String())
-	if err != nil {
-		return "", fmt.Errorf("failed to parse local inet CIDR %q: %w", ipnet.String(), err)
-	}
-	return newNet.String(), nil
 }
