@@ -71,7 +71,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	addon := &openebs.OpenEBS{
 		ProxyRegistryDomain: "proxy.replicated.com",
 	}
-	if err := addon.Install(ctx, kcli, hcli, nil, nil); err != nil {
+	if err := addon.Install(ctx, t.Logf, kcli, hcli, nil, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 
@@ -84,7 +84,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		ProxyRegistryDomain: "proxy.replicated.com",
 		IsHA:                false,
 	}
-	require.NoError(t, registryAddon.Install(ctx, kcli, hcli, nil, nil))
+	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, hcli, nil, nil))
 
 	t.Logf("%s creating hostport service", formattedTime())
 	registryAddr := createHostPortService(t, clusterName, kubeconfig)
@@ -96,7 +96,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		ProxyRegistryDomain: "proxy.replicated.com",
 		IsHA:                false,
 	}
-	require.NoError(t, adminConsoleAddon.Install(ctx, kcli, hcli, nil, nil))
+	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, hcli, nil, nil))
 
 	t.Logf("%s pushing image to registry", formattedTime())
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")
@@ -138,7 +138,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	loading := newTestingSpinner(t)
 	func() {
 		defer loading.Close()
-		err = addons.EnableHA(ctx, kcli, kclient, hcli, "10.96.0.0/12", inSpec, loading)
+		err = addons.EnableHA(ctx, t.Logf, kcli, kclient, hcli, "10.96.0.0/12", inSpec, loading)
 		require.NoError(t, err)
 	}()
 
@@ -200,7 +200,7 @@ func enableHAAndCancelContextOnMessage(
 	defer loading.Close()
 
 	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
-	err = addons.EnableHA(ctx, kcli, kclient, hcli, "10.96.0.0/12", inSpec, loading)
+	err = addons.EnableHA(ctx, t.Logf, kcli, kclient, hcli, "10.96.0.0/12", inSpec, loading)
 	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
 	t.Logf("%s cancelled context and got error: %v", formattedTime(), err)
 }

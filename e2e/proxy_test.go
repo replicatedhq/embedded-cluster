@@ -337,7 +337,6 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	installSingleNodeWithOptions(t, tc, installOptions{
 		httpProxy:  lxd.HTTPMITMProxy,
 		httpsProxy: lxd.HTTPMITMProxy,
-		privateCA:  "/usr/local/share/ca-certificates/proxy/ca.crt",
 		withEnv:    lxd.WithMITMProxyEnv(tc.IPs),
 	})
 

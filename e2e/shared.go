@@ -32,7 +32,6 @@ type installOptions struct {
 	httpProxy               string
 	httpsProxy              string
 	noProxy                 string
-	privateCA               string
 	configValuesFile        string
 	networkInterface        string
 	dataDir                 string
@@ -115,9 +114,6 @@ func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts install
 	}
 	if opts.noProxy != "" {
 		line = append(line, "--no-proxy", opts.noProxy)
-	}
-	if opts.privateCA != "" {
-		line = append(line, "--private-ca", opts.privateCA)
 	}
 	if opts.configValuesFile != "" {
 		line = append(line, "--config-values", opts.configValuesFile)

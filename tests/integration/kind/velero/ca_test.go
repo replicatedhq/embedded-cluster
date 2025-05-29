@@ -23,7 +23,7 @@ func TestVelero_HostCABundle(t *testing.T) {
 	addon := &velero.Velero{
 		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
 	}
-	if err := addon.Install(t.Context(), kcli, hcli, nil, nil); err != nil {
+	if err := addon.Install(t.Context(), t.Logf, kcli, hcli, nil, nil); err != nil {
 		t.Fatalf("failed to install velero: %v", err)
 	}
 

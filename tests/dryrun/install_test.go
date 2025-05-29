@@ -19,6 +19,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestDefaultInstallation(t *testing.T) {
@@ -643,6 +645,10 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 				"name":  "SSL_CERT_DIR",
 				"value": "/certs",
 			},
+			{
+				"name":  "PRIVATE_CA_BUNDLE_PATH",
+				"value": "/certs/ca-certificates.crt",
+			},
 		},
 		"extraVolumes": []map[string]any{{
 			"name": "host-ca-bundle",
@@ -759,6 +765,12 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 	}
 
 	assert.Equal(t, hostCABundle, in.Spec.RuntimeConfig.HostCABundlePath)
+
+	var caConfigMap corev1.ConfigMap
+	if err = kcli.Get(context.TODO(), client.ObjectKey{Namespace: "kotsadm", Name: "kotsadm-private-cas"}, &caConfigMap); err != nil {
+		t.Fatalf("failed to get kotsadm-private-cas configmap: %v", err)
+	}
+	assert.Contains(t, caConfigMap.Data, "ca_0.crt", "kotsadm-private-cas configmap should contain ca_0.crt")
 
 	// Verify some metrics were captured
 	assert.NotEmpty(t, dr.Metrics)

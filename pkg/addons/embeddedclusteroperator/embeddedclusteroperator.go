@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -15,6 +16,8 @@ import (
 )
 
 var (
+	_ types.AddOn = (*EmbeddedClusterOperator)(nil)
+
 	serializer runtime.Serializer
 )
 
@@ -26,10 +29,8 @@ func init() {
 }
 
 type EmbeddedClusterOperator struct {
-	IsAirgap bool
-	Proxy    *ecv1beta1.ProxySpec
-	// Deprecated: use HostCABundlePath instead
-	PrivateCAs            []string
+	IsAirgap              bool
+	Proxy                 *ecv1beta1.ProxySpec
 	HostCABundlePath      string
 	ChartLocationOverride string
 	ChartVersionOverride  string

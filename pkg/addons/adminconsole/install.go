@@ -5,15 +5,17 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
+	"io/fs"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
@@ -31,10 +33,10 @@ func init() {
 	})
 }
 
-func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
+func (a *AdminConsole) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
 	// some resources are not part of the helm chart and need to be created before the chart is installed
 	// TODO: move this to the helm chart
-	if err := a.createPreRequisites(ctx, kcli); err != nil {
+	if err := a.createPreRequisites(ctx, logf, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
@@ -76,7 +78,7 @@ func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, hcli hel
 	return nil
 }
 
-func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Client) error {
+func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFunc, kcli client.Client) error {
 	if err := a.createNamespace(ctx, kcli, namespace); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
@@ -85,12 +87,12 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 		return errors.Wrap(err, "create kots password secret")
 	}
 
-	if err := a.createCAConfigmap(ctx, kcli, namespace, a.PrivateCAs); err != nil {
-		return errors.Wrap(err, "create kots CA configmap")
-	}
-
 	if err := a.createTLSSecret(ctx, kcli, namespace); err != nil {
 		return errors.Wrap(err, "create kots TLS secret")
+	}
+
+	if err := a.ensureCAConfigmap(ctx, logf, kcli); err != nil {
+		return errors.Wrap(err, "ensure CA configmap")
 	}
 
 	if a.IsAirgap {
@@ -100,44 +102,6 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 		}
 		if err := a.createRegistrySecret(ctx, kcli, namespace, registryIP); err != nil {
 			return errors.Wrap(err, "create registry secret")
-		}
-	}
-
-	return nil
-}
-
-func (a *AdminConsole) createCAConfigmap(ctx context.Context, cli client.Client, namespace string, privateCAs []string) error {
-	cas, err := privateCAsToMap(privateCAs)
-	if err != nil {
-		return errors.Wrap(err, "create private cas map")
-	}
-
-	kotsCAConfigmap := corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kotsadm-private-cas",
-			Namespace: namespace,
-			Labels: map[string]string{
-				"kots.io/kotsadm":                        "true",
-				"replicated.com/disaster-recovery":       "infra",
-				"replicated.com/disaster-recovery-chart": "admin-console",
-			},
-		},
-		Data: cas,
-	}
-
-	if a.DryRun {
-		b := bytes.NewBuffer(nil)
-		if err := serializer.Encode(&kotsCAConfigmap, b); err != nil {
-			return errors.Wrap(err, "serialize CA configmap")
-		}
-		a.dryRunManifests = append(a.dryRunManifests, b.Bytes())
-	} else {
-		if err := cli.Create(ctx, &kotsCAConfigmap); client.IgnoreAlreadyExists(err) != nil {
-			return errors.Wrap(err, "create kotsadm-private-cas configmap")
 		}
 	}
 
@@ -294,21 +258,33 @@ func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client, 
 	return nil
 }
 
-func privateCAsToMap(privateCAs []string) (map[string]string, error) {
-	cas := map[string]string{}
-
-	// Handle nil privateCAs
-	if privateCAs == nil {
-		return cas, nil
+func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client) error {
+	if a.HostCABundlePath == "" {
+		return nil
 	}
 
-	for i, path := range privateCAs {
-		data, err := os.ReadFile(path)
+	if a.DryRun {
+		new, err := newCAConfigMap(a.HostCABundlePath)
 		if err != nil {
-			return nil, errors.Wrapf(err, "read private CA file %s", path)
+			return fmt.Errorf("create map: %w", err)
 		}
-		name := fmt.Sprintf("ca_%d.crt", i)
-		cas[name] = string(data)
+		b := bytes.NewBuffer(nil)
+		if err := serializer.Encode(new, b); err != nil {
+			return errors.Wrap(err, "serialize CA configmap")
+		}
+		a.dryRunManifests = append(a.dryRunManifests, b.Bytes())
+		return nil
 	}
-	return cas, nil
+
+	err := EnsureCAConfigmap(ctx, logf, kcli, a.HostCABundlePath)
+
+	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
+		// This can result in issues installing in environments with a MITM HTTP proxy.
+		// NOTE: this cannot be a warning because it will mess up the spinner
+		logf("WARNING: Failed to ensure kotsadm CA configmap: %v", err)
+	} else if err != nil {
+		return err
+	}
+
+	return nil
 }

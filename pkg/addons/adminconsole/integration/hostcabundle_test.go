@@ -2,6 +2,8 @@ package integration
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -18,13 +20,16 @@ import (
 func TestHostCABundle(t *testing.T) {
 	addon := &adminconsole.AdminConsole{
 		DryRun:           true,
-		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
+		HostCABundlePath: filepath.Join(t.TempDir(), "ca-certificates.crt"),
 	}
+
+	err := os.WriteFile(addon.HostCABundlePath, []byte("test"), 0644)
+	require.NoError(t, err, "Failed to write CA bundle file")
 
 	hcli, err := helm.NewClient(helm.HelmOptions{})
 	require.NoError(t, err, "NewClient should not return an error")
 
-	err = addon.Install(context.Background(), nil, hcli, nil, nil)
+	err = addon.Install(context.Background(), t.Logf, nil, hcli, nil, nil)
 	require.NoError(t, err, "adminconsole.Install should not return an error")
 
 	manifests := addon.DryRunManifests()
@@ -51,8 +56,8 @@ func TestHostCABundle(t *testing.T) {
 		}
 	}
 	if assert.NotNil(t, volume, "Admin Console host-ca-bundle volume should not be nil") {
-		assert.Equal(t, volume.VolumeSource.HostPath.Path, "/etc/ssl/certs/ca-certificates.crt")
-		assert.Equal(t, volume.VolumeSource.HostPath.Type, ptr.To(corev1.HostPathFileOrCreate))
+		assert.Equal(t, addon.HostCABundlePath, volume.VolumeSource.HostPath.Path)
+		assert.Equal(t, ptr.To(corev1.HostPathFileOrCreate), volume.VolumeSource.HostPath.Type)
 	}
 
 	// Check for host-ca-bundle volume mount
@@ -63,7 +68,7 @@ func TestHostCABundle(t *testing.T) {
 		}
 	}
 	if assert.NotNil(t, volumeMount, "Admin Console host-ca-bundle volume mount should not be nil") {
-		assert.Equal(t, volumeMount.MountPath, "/certs/ca-certificates.crt")
+		assert.Equal(t, "/certs/ca-certificates.crt", volumeMount.MountPath)
 	}
 
 	// Check for SSL_CERT_DIR environment variable
@@ -74,6 +79,21 @@ func TestHostCABundle(t *testing.T) {
 		}
 	}
 	if assert.NotNil(t, sslCertDirEnv, "Admin Console SSL_CERT_DIR environment variable should not be nil") {
-		assert.Equal(t, sslCertDirEnv.Value, "/certs")
+		assert.Equal(t, "/certs", sslCertDirEnv.Value)
+	}
+
+	// Check for kotsadm-private-cas configmap
+	var configmap *corev1.ConfigMap
+	for _, manifest := range manifests {
+		manifestStr := string(manifest)
+		if strings.Contains(manifestStr, "ca_0.crt") {
+			err := yaml.Unmarshal(manifest, &configmap)
+			require.NoError(t, err, "Failed to unmarshal Admin Console deployment")
+			break
+		}
+	}
+
+	if assert.NotNil(t, configmap, "kotsadm-private-cas configmap should not be nil") {
+		assert.Equal(t, "test", configmap.Data["ca_0.crt"])
 	}
 }

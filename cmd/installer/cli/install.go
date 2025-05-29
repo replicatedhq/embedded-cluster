@@ -76,7 +76,6 @@ type InstallCmdFlags struct {
 	localArtifactMirrorPort int
 	assumeYes               bool
 	overrides               string
-	privateCAs              []string
 	skipHostPreflights      bool
 	ignoreHostPreflights    bool
 	configValues            string
@@ -185,7 +184,13 @@ func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		return err
 	}
 
-	cmd.Flags().StringSliceVar(&flags.privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
+	cmd.Flags().StringSlice("private-ca", []string{}, "Path to a trusted private CA certificate file")
+	if err := cmd.Flags().MarkHidden("private-ca"); err != nil {
+		return err
+	}
+	if err := cmd.Flags().MarkDeprecated("private-ca", "This flag is no longer used and will be removed in a future version. The CA bundle will be automatically detected from the host."); err != nil {
+		return err
+	}
 
 	if err := addProxyFlags(cmd); err != nil {
 		return err
@@ -602,13 +607,12 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	defer hcli.Close()
 
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, hcli, addons.InstallOptions{
+	if err := addons.Install(ctx, logrus.Debugf, hcli, addons.InstallOptions{
 		AdminConsolePwd:         flags.adminConsolePassword,
 		License:                 flags.license,
 		IsAirgap:                flags.airgapBundle != "",
 		Proxy:                   flags.proxy,
 		HostCABundlePath:        runtimeconfig.HostCABundlePath(),
-		PrivateCAs:              flags.privateCAs,
 		TLSCertBytes:            flags.tlsCertBytes,
 		TLSKeyBytes:             flags.tlsKeyBytes,
 		Hostname:                flags.hostname,

@@ -24,7 +24,6 @@ type InstallOptions struct {
 	IsAirgap                bool
 	Proxy                   *ecv1beta1.ProxySpec
 	HostCABundlePath        string
-	PrivateCAs              []string
 	TLSCertBytes            []byte
 	TLSKeyBytes             []byte
 	Hostname                string
@@ -37,7 +36,7 @@ type InstallOptions struct {
 	IsRestore               bool
 }
 
-func Install(ctx context.Context, hcli helm.Client, opts InstallOptions) error {
+func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, opts InstallOptions) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return errors.Wrap(err, "create kube client")
@@ -54,7 +53,7 @@ func Install(ctx context.Context, hcli helm.Client, opts InstallOptions) error {
 
 		overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
-		if err := addon.Install(ctx, kcli, hcli, overrides, loading); err != nil {
+		if err := addon.Install(ctx, logf, kcli, hcli, overrides, loading); err != nil {
 			loading.ErrorClosef("Failed to install %s", addon.Name())
 			return errors.Wrapf(err, "install %s", addon.Name())
 		}
@@ -76,7 +75,6 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 			IsAirgap:            opts.IsAirgap,
 			Proxy:               opts.Proxy,
-			PrivateCAs:          opts.PrivateCAs,
 			HostCABundlePath:    opts.HostCABundlePath,
 		},
 	}
@@ -101,7 +99,6 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		Proxy:                    opts.Proxy,
 		ServiceCIDR:              opts.ServiceCIDR,
 		Password:                 opts.AdminConsolePwd,
-		PrivateCAs:               opts.PrivateCAs,
 		TLSCertBytes:             opts.TLSCertBytes,
 		TLSKeyBytes:              opts.TLSKeyBytes,
 		Hostname:                 opts.Hostname,

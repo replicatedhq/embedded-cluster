@@ -32,7 +32,7 @@ func TestHostCABundle(t *testing.T) {
 	hcli, err := helm.NewClient(helm.HelmOptions{})
 	require.NoError(t, err, "NewClient should not return an error")
 
-	err = addon.Install(context.Background(), nil, hcli, nil, nil)
+	err = addon.Install(context.Background(), t.Logf, nil, hcli, nil, nil)
 	require.NoError(t, err, "embeddedclusteroperator.Install should not return an error")
 
 	manifests := addon.DryRunManifests()

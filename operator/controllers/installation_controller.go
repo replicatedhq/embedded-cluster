@@ -18,7 +18,9 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"sort"
 	"time"
@@ -29,6 +31,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
@@ -426,8 +429,30 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		r.ReportNodesChanges(ctx, in, events)
 	}
 
+	// ensure the CA configmap is present and up-to-date
+	if err := r.reconcileHostCABundle(ctx); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to ensure kotsadm CA configmap: %w", err)
+	}
+
 	log.Info("Installation reconciliation ended")
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
+}
+
+// reconcileHostCABundle ensures that the CA configmap is present and is up-to-date
+// with the CA bundle from the host.
+func (r *InstallationReconciler) reconcileHostCABundle(ctx context.Context) error {
+	caPathInContainer := os.Getenv("PRIVATE_CA_BUNDLE_PATH")
+	if caPathInContainer == "" {
+		return nil
+	}
+
+	logger := ctrl.LoggerFrom(ctx)
+	err := adminconsole.EnsureCAConfigmap(ctx, logger.Info, r.Client, caPathInContainer)
+	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
+		logger.Error(err, "Failed to reconcile host ca bundle")
+		return nil
+	}
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.
