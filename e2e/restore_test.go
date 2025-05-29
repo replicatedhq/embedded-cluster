@@ -42,7 +42,13 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -77,12 +83,11 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	if err := tc.SetupPlaywright(); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
 	}
-	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
-		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
@@ -132,11 +137,14 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 
 	installSingleNode(t, tc)
 
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
 	if err := tc.SetupPlaywright(); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if _, _, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
@@ -168,13 +176,11 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 		version: appVersion,
 	})
 
-	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	if err := tc.SetupPlaywright(); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
 	}
-	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
-		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
+		t.Fatalf("fail to run playwright test validate-restore-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -237,7 +243,13 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		withEnv:    lxd.WithProxyEnv(tc.IPs),
 	})
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -269,9 +281,8 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	if err := tc.SetupPlaywright(); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
 	}
 	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
 		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
@@ -309,8 +320,14 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	checkInstallationState(t, tc)
@@ -338,9 +355,8 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	if err := tc.SetupPlaywright(); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
 	}
 	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
 		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
@@ -362,6 +378,10 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup()
+
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
 
 	t.Logf("%s: deploying minio on node 0", time.Now().Format(time.RFC3339))
 	minio, err := tc.DeployMinio(0)
@@ -404,7 +424,10 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		serviceCidr: "10.129.0.0/20",
 	})
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -465,9 +488,8 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	if err := tc.SetupPlaywright(); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
 	}
 	if stdout, stderr, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
 		t.Fatalf("fail to run playwright test validate-restore-app: %v: %s: %s", err, stdout, stderr)
@@ -521,7 +543,13 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 
 	installSingleNode(t, tc)
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -606,9 +634,8 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	if err := tc.SetupPlaywright(); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
 	}
 	if _, _, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
 		t.Fatalf("fail to run playwright test validate-restore-app: %v", err)
@@ -645,6 +672,10 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup(withEnv)
+
+	if err := tc.SetupPlaywright(withEnv); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
 
 	t.Logf("%s: deploying minio on node 0", time.Now().Format(time.RFC3339))
 	minio, err := tc.DeployMinio(0)
@@ -692,8 +723,8 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		withEnv:  withEnv,
 	})
 
-	if err := tc.SetupPlaywright(withEnv); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
 	}
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
@@ -835,9 +866,8 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	if err := tc.SetupPlaywright(withEnv); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
 	}
 	if stdout, stderr, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
 		t.Fatalf("fail to run playwright test validate-restore-app: %v: %s: %s", err, stdout, stderr)

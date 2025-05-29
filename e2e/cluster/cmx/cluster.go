@@ -38,9 +38,8 @@ type Node struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 
-	privateIP       string `json:"-"`
-	sshEndpoint     string `json:"-"`
-	adminConsoleURL string `json:"-"`
+	privateIP   string `json:"-"`
+	sshEndpoint string `json:"-"`
 }
 
 type Network struct {
@@ -154,7 +153,7 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 	}
 	node.privateIP = privateIP
 
-	if err := ensureAssetsDir(node); err != nil {
+	if err := ensureTestDirs(node); err != nil {
 		return nil, fmt.Errorf("ensure assets dir on node %s: %v", node.Name, err)
 	}
 
@@ -162,13 +161,8 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 		return nil, fmt.Errorf("copy scripts to node %s: %v", node.Name, err)
 	}
 
-	if index == 0 {
-		in.T.Logf("exposing port 30003 on node %s", node.Name)
-		hostname, err := exposePort(node, "30003")
-		if err != nil {
-			return nil, fmt.Errorf("expose port: %v", err)
-		}
-		node.adminConsoleURL = fmt.Sprintf("http://%s", hostname)
+	if err := copyPlaywrightToNode(node); err != nil {
+		return nil, fmt.Errorf("copy playwright to node %s: %v", node.Name, err)
 	}
 
 	return &node, nil
@@ -189,8 +183,8 @@ func discoverPrivateIP(node Node) (string, error) {
 	return "", fmt.Errorf("find private ip starting with 10.")
 }
 
-func ensureAssetsDir(node Node) error {
-	stdout, stderr, err := runCommandOnNode(node, []string{"mkdir", "-p", "/assets"})
+func ensureTestDirs(node Node) error {
+	stdout, stderr, err := runCommandOnNode(node, []string{"mkdir", "-p", "/assets", "/automation/playwright"})
 	if err != nil {
 		return fmt.Errorf("create directory: %v: %s: %s", err, stdout, stderr)
 	}
@@ -227,6 +221,47 @@ func copyScriptsToNode(node Node) error {
 	_, stderr, err = runCommandOnNode(node, []string{"rm", "-f", "/tmp/scripts.tgz"})
 	if err != nil {
 		return fmt.Errorf("clean up scripts archive: %v: %s", err, stderr)
+	}
+
+	return nil
+}
+
+func copyPlaywrightToNode(node Node) error {
+	// Create a temporary directory for the archive
+	tempDir, err := os.MkdirTemp("", "playwright-archive")
+	if err != nil {
+		return fmt.Errorf("create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create the archive, excluding node_modules, test-results, and playwright-report
+	archivePath := filepath.Join(tempDir, "playwright.tgz")
+	output, err := exec.Command("tar",
+		"--exclude=node_modules",
+		"--exclude=test-results",
+		"--exclude=playwright-report",
+		"-czf", archivePath,
+		"-C", "playwright", ".",
+	).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("create playwright archive: %v: %s", err, string(output))
+	}
+
+	// Copy the archive to the node
+	if err := copyFileToNode(node, archivePath, "/tmp/playwright.tgz"); err != nil {
+		return fmt.Errorf("copy playwright archive to node: %v", err)
+	}
+
+	// Extract the archive in /automation
+	_, stderr, err := runCommandOnNode(node, []string{"tar", "-xzf", "/tmp/playwright.tgz", "-C", "/automation/playwright"})
+	if err != nil {
+		return fmt.Errorf("extract playwright archive: %v: %s", err, stderr)
+	}
+
+	// Clean up the archive on the node
+	_, stderr, err = runCommandOnNode(node, []string{"rm", "-f", "/tmp/playwright.tgz"})
+	if err != nil {
+		return fmt.Errorf("clean up playwright archive: %v: %s", err, stderr)
 	}
 
 	return nil
@@ -353,43 +388,35 @@ func runCommandOnNode(node Node, line []string, envs ...map[string]string) (stri
 	return stdout.String(), stderr.String(), err
 }
 
-func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (string, string, error) {
-	if err := c.SetupPlaywright(); err != nil {
-		return "", "", fmt.Errorf("setup playwright: %w", err)
-	}
-	return c.RunPlaywrightTest(testName, args...)
-}
-
-func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
+func (c *Cluster) BypassKurlProxy(envs ...map[string]string) error {
 	c.t.Logf("%s: bypassing kurl-proxy", time.Now().Format(time.RFC3339))
 	_, stderr, err := c.RunCommandOnNode(0, []string{"bypass-kurl-proxy.sh"}, envs...)
 	if err != nil {
 		return fmt.Errorf("bypass kurl-proxy: %v: %s", err, string(stderr))
 	}
-	c.t.Logf("%s: installing playwright", time.Now().Format(time.RFC3339))
-	output, err := exec.Command("sh", "-c", "cd playwright && npm ci && npx playwright install --with-deps").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("install playwright: %v: %s", err, string(output))
+	return nil
+}
+
+func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
+	c.t.Logf("%s: installing playwright on node 0", time.Now().Format(time.RFC3339))
+	if _, stderr, err := c.RunCommandOnNode(0, []string{"install-playwright.sh"}); err != nil {
+		return fmt.Errorf("install playwright on node 0: %v: %s", err, string(stderr))
 	}
 	return nil
 }
 
 func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, string, error) {
 	c.t.Logf("%s: running playwright test %s", time.Now().Format(time.RFC3339), testName)
-	cmdArgs := []string{testName}
-	cmdArgs = append(cmdArgs, args...)
-	cmd := exec.Command("scripts/playwright.sh", cmdArgs...)
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("BASE_URL=%s", c.Nodes[0].adminConsoleURL))
-	cmd.Env = append(cmd.Env, "PLAYWRIGHT_DIR=./playwright")
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err != nil {
-		return stdout.String(), stderr.String(), fmt.Errorf("run playwright test %s: %v", testName, err)
+	envs := map[string]string{
+		"BASE_URL":       "http://localhost:30003",
+		"PLAYWRIGHT_DIR": "/automation/playwright",
 	}
-	return stdout.String(), stderr.String(), nil
+	line := append([]string{"playwright.sh", testName}, args...)
+	stdout, stderr, err := c.RunCommandOnNode(0, line, envs)
+	if err != nil {
+		return stdout, stderr, fmt.Errorf("run playwright test %s: %v", testName, err)
+	}
+	return stdout, stderr, nil
 }
 
 func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
@@ -440,33 +467,6 @@ func (c *Cluster) copyPlaywrightReport() {
 	if err != nil {
 		c.t.Logf("fail to compress playwright report: %v: %s", err, string(output))
 	}
-}
-
-func exposePort(node Node, port string) (string, error) {
-	output, err := exec.Command("replicated", "vm", "port", "expose", node.ID, "--port", port).CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("expose port: %v: %s", err, string(output))
-	}
-
-	output, err = exec.Command("replicated", "vm", "port", "ls", node.ID, "-ojson").Output() // stderr can break json parsing
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return "", fmt.Errorf("get port info: %w: stderr: %s: stdout: %s", err, string(exitErr.Stderr), string(output))
-		}
-		return "", fmt.Errorf("get port info: %w: stdout: %s", err, string(output))
-	}
-
-	var ports []struct {
-		Hostname string `json:"hostname"`
-	}
-	if err := json.Unmarshal(output, &ports); err != nil {
-		return "", fmt.Errorf("unmarshal port info: %v", err)
-	}
-
-	if len(ports) == 0 {
-		return "", fmt.Errorf("no ports found for node %s", node.ID)
-	}
-	return ports[0].Hostname, nil
 }
 
 func copyFileToNode(node Node, src, dst string) error {

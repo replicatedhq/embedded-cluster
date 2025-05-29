@@ -17,7 +17,7 @@ type Cluster interface {
 
 	RunCommandOnNode(node int, line []string, envs ...map[string]string) (string, string, error)
 
-	SetupPlaywrightAndRunTest(testName string, args ...string) (string, string, error)
+	BypassKurlProxy(envs ...map[string]string) error
 	SetupPlaywright(envs ...map[string]string) error
 	RunPlaywrightTest(testName string, args ...string) (string, string, error)
 }
