@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	preflighttypes "github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	troubleshootanalyze "github.com/replicatedhq/troubleshoot/pkg/analyze"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
@@ -47,7 +48,11 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, opts RunHo
 		return nil, fmt.Errorf("host preflights are already running")
 	}
 
-	// TODO NOW: return a list of preflight checks names
+	titles, err := m.getTitles(opts.HostPreflightSpec)
+	if err != nil {
+		return nil, fmt.Errorf("get titles: %w", err)
+	}
+
 	m.isRunning = true
 	m.status = types.HostPreflightStatus{
 		State:       types.HostPreflightStateRunning,
@@ -61,6 +66,7 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, opts RunHo
 
 	return &types.RunHostPreflightResponse{
 		Status: m.status,
+		Titles: titles,
 	}, nil
 }
 
@@ -238,4 +244,27 @@ func (m *hostPreflightManager) convertOutputToAPI(output *preflighttypes.Output)
 	}
 
 	return apiOutput
+}
+
+func (m *hostPreflightManager) getTitles(hpf *troubleshootv1beta2.HostPreflightSpec) ([]string, error) {
+	if hpf == nil || hpf.Analyzers == nil {
+		return nil, nil
+	}
+
+	titles := []string{}
+	for _, a := range hpf.Analyzers {
+		analyzer, ok := troubleshootanalyze.GetHostAnalyzer(a)
+		if !ok {
+			continue
+		}
+		excluded, err := analyzer.IsExcluded()
+		if err != nil {
+			return nil, fmt.Errorf("check if analyzer is excluded: %w", err)
+		}
+		if !excluded {
+			titles = append(titles, analyzer.Title())
+		}
+	}
+
+	return titles, nil
 }

@@ -84,7 +84,7 @@ func (a *API) getInstallStatus(w http.ResponseWriter, r *http.Request) {
 //	@Tags			install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200		{object}	types.RunHostPreflightResponse
+//	@Success		200	{object}	types.RunHostPreflightResponse
 //	@Router			/install/host-preflights [post]
 func (a *API) runInstallHostPreflights(w http.ResponseWriter, r *http.Request) {
 	response, err := a.installController.RunHostPreflights(r.Context())

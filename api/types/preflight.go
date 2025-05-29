@@ -5,6 +5,7 @@ import "time"
 // RunHostPreflightResponse represents the response from starting host preflight checks
 type RunHostPreflightResponse struct {
 	Status HostPreflightStatus `json:"status"`
+	Titles []string            `json:"titles"`
 }
 
 // HostPreflightStatusResponse represents the response when polling host preflight status
