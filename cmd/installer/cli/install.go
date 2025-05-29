@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -96,6 +97,9 @@ type InstallCmdFlags struct {
 	tlsCertBytes []byte
 	tlsKeyBytes  []byte
 }
+
+// webAssetsFS is the filesystem to be used by the web component. Defaults to nil allowing the web server to use the default assets embedded in the binary. Useful for testing.
+var webAssetsFS fs.FS = nil
 
 // InstallCmd returns a cobra command for installing the embedded cluster.
 func InstallCmd(ctx context.Context, name string) *cobra.Command {
@@ -463,7 +467,7 @@ func runInstallAPI(ctx context.Context, listener net.Listener, cert tls.Certific
 	webServer, err := web.New(web.InitialState{
 		Title: app.Spec.Title,
 		Icon:  app.Spec.Icon,
-	}, web.WithLogger(logger))
+	}, web.WithLogger(logger), web.WithAssetsFS(webAssetsFS))
 	if err != nil {
 		return fmt.Errorf("new web server: %w", err)
 	}

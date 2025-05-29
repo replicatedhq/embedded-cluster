@@ -15,22 +15,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// setupMockFS temporarily replaces the assetsFS with a mock filesystem and returns a cleanup function
-func setupMockFS(mockFS fstest.MapFS) func() {
+// overrideDefaultFS temporarily replaces the assetsFS with a mock filesystem and returns a cleanup function
+func overrideDefaultFS(mockFS fstest.MapFS) func() {
 	// Store the original assetsFS
-	originalAssetsFS := assetsFS
+	originalAssetsFS := embedAssetsFS
 
 	// Replace with mock filesystem
-	assetsFS = mockFS
+	embedAssetsFS = mockFS
 
 	// Return cleanup function
 	return func() {
-		assetsFS = originalAssetsFS
+		embedAssetsFS = originalAssetsFS
 	}
 }
 
-// createDefaultMockFS creates a standard mock filesystem for testing
-func createDefaultMockFS() fstest.MapFS {
+// createMockFS creates a standard mock filesystem for testing
+func createMockFS() fstest.MapFS {
 	// Create mock assets
 	return fstest.MapFS{
 		"assets/test-icon.png": &fstest.MapFile{
@@ -41,34 +41,48 @@ func createDefaultMockFS() fstest.MapFS {
 			Data: []byte("console.log('Hello, world!');"),
 			Mode: 0644,
 		},
+		"index.html": &fstest.MapFile{
+			Data: []byte(`<!DOCTYPE html>
+				<html>
+				<head>
+					<title>{{.Title}}</title>
+				</head>
+				<body>
+					<script>
+						window.__INITIAL_STATE__ = {{.InitialState}};
+					</script>
+				</body>
+				</html>`,
+			),
+			Mode: 0644,
+		},
 	}
-}
-
-// createDefaultHTMLTemplate creates a basic HTML template for testing
-func createDefaultHTMLTemplate() *template.Template {
-	// Create a basic HTML template for testing
-	tmpl, err := template.New("index.html").Parse(`<!DOCTYPE html>
-	logger := logtest.NewNullLogger()
-<html>
-<head>
-	<title>{{.Title}}</title>
-</head>
-<body>
-	<script>
-		window.__INITIAL_STATE__ = {{.InitialState}};
-	</script>
-</body>
-</html>`)
-
-	if err != nil {
-		panic(err)
-	}
-	return tmpl
 }
 
 func TestNew(t *testing.T) {
-	// Setup mock filesystem
-	cleanup := setupMockFS(createDefaultMockFS())
+	// Create initial state
+	initialState := InitialState{
+		Title: "Test Title",
+		Icon:  "test-icon.png",
+	}
+
+	// Create a test logger
+	logger, _ := logtest.NewNullLogger()
+
+	// Create a new Web instance
+	web, err := New(initialState, WithLogger(logger), WithAssetsFS(createMockFS()))
+	require.NoError(t, err, "Failed to create Web instance")
+
+	// Verify the web instance was created correctly
+	assert.Equal(t, initialState.Title, web.initialState.Title, "Title should match")
+	assert.Equal(t, initialState.Icon, web.initialState.Icon, "Icon should match")
+	assert.NotNil(t, web.logger, "Logger should be set")
+	assert.NotNil(t, web.htmlTemplate, "HTML template should be set")
+}
+
+func TestNewWithDefaultFS(t *testing.T) {
+	// Override the default filesystem with a mock one
+	cleanup := overrideDefaultFS(createMockFS())
 	defer cleanup()
 
 	// Create initial state
@@ -81,7 +95,7 @@ func TestNew(t *testing.T) {
 	logger, _ := logtest.NewNullLogger()
 
 	// Create a new Web instance
-	web, err := New(initialState, WithLogger(logger), WithHTMLTemplate(createDefaultHTMLTemplate()))
+	web, err := New(initialState, WithLogger(logger))
 	require.NoError(t, err, "Failed to create Web instance")
 
 	// Verify the web instance was created correctly
@@ -94,7 +108,6 @@ func TestNew(t *testing.T) {
 // TestNewWithIndexHTML tests creating a Web instance with the actual index.html template we use and pass over to Vite for building.
 func TestNewWithIndexHTML(t *testing.T) {
 	// Setup a mock filesystem with our actual index.html file
-
 	indexHTML, err := os.ReadFile("index.html")
 	require.NoError(t, err, "Failed to read index.html")
 
@@ -112,8 +125,6 @@ func TestNewWithIndexHTML(t *testing.T) {
 			Mode: 0644,
 		},
 	}
-	cleanup := setupMockFS(mockFS)
-	defer cleanup()
 
 	// Create initial state
 	initialState := InitialState{
@@ -125,7 +136,7 @@ func TestNewWithIndexHTML(t *testing.T) {
 	logger, _ := logtest.NewNullLogger()
 
 	// Create a new Web instance, using the actual index.html template
-	web, err := New(initialState, WithLogger(logger))
+	web, err := New(initialState, WithLogger(logger), WithAssetsFS(mockFS))
 	require.NoError(t, err, "Failed to create Web instance")
 
 	// Verify the web instance was created correctly
@@ -146,8 +157,6 @@ func TestNewWithNonExistentTemplate(t *testing.T) {
 		},
 		// Deliberately omitting index.html
 	}
-	cleanup := setupMockFS(mockFS)
-	defer cleanup()
 
 	// Create initial state
 	initialState := InitialState{
@@ -159,7 +168,7 @@ func TestNewWithNonExistentTemplate(t *testing.T) {
 	logger, _ := logtest.NewNullLogger()
 
 	// Try to create a new Web instance without providing an HTML template
-	web, err := New(initialState, WithLogger(logger))
+	web, err := New(initialState, WithLogger(logger), WithAssetsFS(mockFS))
 
 	// Assert that an error was returned
 	assert.Error(t, err, "New should return an error when the template doesn't exist")
@@ -172,10 +181,6 @@ func TestNewWithNonExistentTemplate(t *testing.T) {
 }
 
 func TestRootHandler(t *testing.T) {
-	// Setup mock filesystem
-	cleanup := setupMockFS(createDefaultMockFS())
-	defer cleanup()
-
 	initialState := InitialState{
 		Title: "Test Title",
 		Icon:  "test-icon.png",
@@ -185,7 +190,7 @@ func TestRootHandler(t *testing.T) {
 	logger, _ := logtest.NewNullLogger()
 
 	// Create a new Web instance
-	web, err := New(initialState, WithLogger(logger), WithHTMLTemplate(createDefaultHTMLTemplate()))
+	web, err := New(initialState, WithLogger(logger), WithAssetsFS(createMockFS()))
 	require.NoError(t, err, "Failed to create Web instance")
 
 	// Create a mock HTTP request
@@ -210,10 +215,6 @@ func TestRootHandler(t *testing.T) {
 }
 
 func TestRootHandlerTemplateError(t *testing.T) {
-	// Setup mock filesystem with standard template
-	cleanup := setupMockFS(createDefaultMockFS())
-	defer cleanup()
-
 	// Create initial state
 	initialState := InitialState{
 		Title: "Test Title",
@@ -224,7 +225,7 @@ func TestRootHandlerTemplateError(t *testing.T) {
 	logger, _ := logtest.NewNullLogger()
 
 	// Create a new Web instance
-	web, err := New(initialState, WithLogger(logger), WithHTMLTemplate(createDefaultHTMLTemplate()))
+	web, err := New(initialState, WithLogger(logger), WithAssetsFS(createMockFS()))
 	require.NoError(t, err, "Failed to create Web instance")
 
 	// Replace the template with one that will cause an error
@@ -252,11 +253,6 @@ func TestRootHandlerTemplateError(t *testing.T) {
 }
 
 func TestRegisterRoutes(t *testing.T) {
-	// Setup mock filesystem
-	mockFS := createDefaultMockFS()
-	cleanup := setupMockFS(mockFS)
-	defer cleanup()
-
 	// Create initial state
 	initialState := InitialState{
 		Title: "Test Title",
@@ -267,7 +263,7 @@ func TestRegisterRoutes(t *testing.T) {
 	logger, _ := logtest.NewNullLogger()
 
 	// Create a new Web instance
-	web, err := New(initialState, WithLogger(logger), WithHTMLTemplate(createDefaultHTMLTemplate()))
+	web, err := New(initialState, WithLogger(logger), WithAssetsFS(createMockFS()))
 	require.NoError(t, err, "Failed to create Web instance")
 
 	// Create router
