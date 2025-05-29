@@ -36,7 +36,7 @@ type InstallOptions struct {
 	IsRestore               bool
 }
 
-func Install(ctx context.Context, hcli helm.Client, opts InstallOptions) error {
+func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, opts InstallOptions) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return errors.Wrap(err, "create kube client")
@@ -53,7 +53,7 @@ func Install(ctx context.Context, hcli helm.Client, opts InstallOptions) error {
 
 		overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
-		if err := addon.Install(ctx, kcli, hcli, overrides, loading); err != nil {
+		if err := addon.Install(ctx, logf, kcli, hcli, overrides, loading); err != nil {
 			loading.ErrorClosef("Failed to install %s", addon.Name())
 			return errors.Wrapf(err, "install %s", addon.Name())
 		}

@@ -21,7 +21,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
-	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -263,7 +262,7 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, in 
 		return fmt.Errorf("no images available")
 	}
 
-	if err := addons.Upgrade(ctx, hcli, in, meta); err != nil {
+	if err := addons.Upgrade(ctx, slog.Info, hcli, in, meta); err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 
@@ -326,7 +325,7 @@ func waitForAutopilotPlan(ctx context.Context, cli client.Client) (apv1b2.Plan, 
 		if autopilot.HasThePlanEnded(plan) {
 			return plan, nil
 		}
-		logrus.Infof("an autopilot upgrade is in progress (%s)", plan.Spec.ID)
+		slog.Info("An autopilot upgrade is in progress", "plan_id", plan.Spec.ID)
 		time.Sleep(5 * time.Second)
 	}
 }

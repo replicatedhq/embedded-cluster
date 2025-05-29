@@ -7,12 +7,15 @@ import (
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"gopkg.in/yaml.v3"
 )
+
+var _ types.AddOn = (*AdminConsole)(nil)
 
 type AdminConsole struct {
 	IsAirgap                 bool

@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func Upgrade(ctx context.Context, hcli helm.Client, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
+func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return errors.Wrap(err, "create kube client")
@@ -34,7 +34,7 @@ func Upgrade(ctx context.Context, hcli helm.Client, in *ecv1beta1.Installation, 
 		return errors.Wrap(err, "get addons for upgrade")
 	}
 	for _, addon := range addons {
-		if err := upgradeAddOn(ctx, hcli, kcli, in, addon); err != nil {
+		if err := upgradeAddOn(ctx, logf, hcli, kcli, in, addon); err != nil {
 			return errors.Wrapf(err, "addon %s", addon.Name())
 		}
 	}
@@ -122,7 +122,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	return addOns, nil
 }
 
-func upgradeAddOn(ctx context.Context, hcli helm.Client, kcli client.Client, in *ecv1beta1.Installation, addon types.AddOn) error {
+func upgradeAddOn(ctx context.Context, logf types.LogFunc, hcli helm.Client, kcli client.Client, in *ecv1beta1.Installation, addon types.AddOn) error {
 	// check if we already processed this addon
 	if kubeutils.CheckInstallationConditionStatus(in.Status, conditionName(addon)) == metav1.ConditionTrue {
 		slog.Info(addon.Name() + " is ready")
@@ -139,7 +139,7 @@ func upgradeAddOn(ctx context.Context, hcli helm.Client, kcli client.Client, in 
 	// TODO (@salah): add support for end user overrides
 	overrides := addOnOverrides(addon, in.Spec.Config, nil)
 
-	err := addon.Upgrade(ctx, kcli, hcli, overrides)
+	err := addon.Upgrade(ctx, logf, kcli, hcli, overrides)
 	if err != nil {
 		message := helpers.CleanErrorMessage(err)
 		if err := setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionFalse, "UpgradeFailed", message); err != nil {

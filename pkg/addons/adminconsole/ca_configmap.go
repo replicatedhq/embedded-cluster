@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,10 +16,7 @@ const (
 	privateCASConfigMapName = "kotsadm-private-cas"
 )
 
-// LogFunc can be used as an argument to Run to log messages.
-type LogFunc func(string, ...any)
-
-func EnsureCAConfigmap(ctx context.Context, logf LogFunc, kcli client.Client, caPath string) error {
+func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client, caPath string) error {
 	if caPath == "" {
 		return nil
 	}

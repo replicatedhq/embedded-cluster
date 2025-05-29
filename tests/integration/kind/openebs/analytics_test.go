@@ -21,7 +21,7 @@ func TestOpenEBS_AnalyticsDisabled(t *testing.T) {
 	addon := &openebs.OpenEBS{
 		ProxyRegistryDomain: "proxy.replicated.com",
 	}
-	if err := addon.Install(t.Context(), kcli, hcli, nil, nil); err != nil {
+	if err := addon.Install(t.Context(), t.Logf, kcli, hcli, nil, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 

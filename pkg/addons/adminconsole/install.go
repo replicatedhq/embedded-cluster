@@ -5,14 +5,17 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io/fs"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
@@ -30,10 +33,10 @@ func init() {
 	})
 }
 
-func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
+func (a *AdminConsole) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
 	// some resources are not part of the helm chart and need to be created before the chart is installed
 	// TODO: move this to the helm chart
-	if err := a.createPreRequisites(ctx, kcli); err != nil {
+	if err := a.createPreRequisites(ctx, logf, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
@@ -75,7 +78,7 @@ func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, hcli hel
 	return nil
 }
 
-func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Client) error {
+func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFunc, kcli client.Client) error {
 	if err := a.createNamespace(ctx, kcli, namespace); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
@@ -86,6 +89,10 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 
 	if err := a.createTLSSecret(ctx, kcli, namespace); err != nil {
 		return errors.Wrap(err, "create kots TLS secret")
+	}
+
+	if err := a.ensureCAConfigmap(ctx, logf, kcli); err != nil {
+		return errors.Wrap(err, "ensure CA configmap")
 	}
 
 	if a.IsAirgap {
@@ -246,6 +253,24 @@ func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client, 
 		if err != nil {
 			return errors.Wrap(err, "create kotsadm-tls secret")
 		}
+	}
+
+	return nil
+}
+
+func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client) error {
+	if a.HostCABundlePath == "" {
+		return nil
+	}
+
+	err := EnsureCAConfigmap(ctx, logf, kcli, a.HostCABundlePath)
+
+	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
+		// This can result in issues installing in environments with a MITM HTTP proxy.
+		// NOTE: this cannot be a warning because it will mess up the spinner
+		logf("WARNING: Failed to ensure kotsadm CA configmap: %v", err)
+	} else if err != nil {
+		return err
 	}
 
 	return nil

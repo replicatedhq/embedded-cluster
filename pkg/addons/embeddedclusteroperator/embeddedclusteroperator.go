@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -15,6 +16,8 @@ import (
 )
 
 var (
+	_ types.AddOn = (*EmbeddedClusterOperator)(nil)
+
 	serializer runtime.Serializer
 )
 

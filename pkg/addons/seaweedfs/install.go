@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -16,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
+func (s *SeaweedFS) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
 	if err := s.ensurePreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}

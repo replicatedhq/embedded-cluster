@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -598,15 +597,8 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	}
 	defer hcli.Close()
 
-	if caPath := runtimeconfig.HostCABundlePath(); caPath != "" {
-		logrus.Debugf("ensuring kotsadm CA configmap")
-		if err := ensureKotsadmCAConfigmap(ctx, kcli, caPath); err != nil {
-			return fmt.Errorf("unable to ensure kotsadm CA configmap: %w", err)
-		}
-	}
-
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, hcli, addons.InstallOptions{
+	if err := addons.Install(ctx, logrus.Debugf, hcli, addons.InstallOptions{
 		AdminConsolePwd:         flags.adminConsolePassword,
 		License:                 flags.license,
 		IsAirgap:                flags.airgapBundle != "",
@@ -656,29 +648,6 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		if err := printSuccessMessage(flags.license, flags.hostname, flags.networkInterface); err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-// NOTE: this cannot be part of the addon.Install because the warning message will mess up the
-// spinner.
-func ensureKotsadmCAConfigmap(ctx context.Context, kcli client.Client, caPath string) error {
-	err := kubeutils.EnsureObject(ctx, kcli, &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: runtimeconfig.KotsadmNamespace,
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("create kotsadm namespace: %w", err)
-	}
-
-	err = adminconsole.EnsureCAConfigmap(ctx, logrus.Debugf, kcli, caPath)
-	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
-		logrus.Warnf("Failed to create kotsadm CA configmap: %v", err)
-		logrus.Warnf("This can result in issues installing in environments with a man-in-the-middle proxy.")
-	} else if err != nil {
-		return fmt.Errorf("ensure CA configmap: %w", err)
 	}
 
 	return nil

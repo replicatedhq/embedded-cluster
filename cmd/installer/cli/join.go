@@ -625,6 +625,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 
 	return addons.EnableHA(
 		ctx,
+		logrus.Debugf,
 		kcli,
 		kclient,
 		hcli,
