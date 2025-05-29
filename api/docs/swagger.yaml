@@ -29,6 +29,54 @@ components:
         status:
           type: string
       type: object
+    types.HostPreflightOutput:
+      properties:
+        fail:
+          items:
+            $ref: '#/components/schemas/types.HostPreflightRecord'
+          type: array
+          uniqueItems: false
+        pass:
+          items:
+            $ref: '#/components/schemas/types.HostPreflightRecord'
+          type: array
+          uniqueItems: false
+        warn:
+          items:
+            $ref: '#/components/schemas/types.HostPreflightRecord'
+          type: array
+          uniqueItems: false
+      type: object
+    types.HostPreflightRecord:
+      properties:
+        message:
+          type: string
+        title:
+          type: string
+      type: object
+    types.HostPreflightState:
+      type: string
+      x-enum-varnames:
+      - HostPreflightStatePending
+      - HostPreflightStateRunning
+      - HostPreflightStateSucceeded
+      - HostPreflightStateFailed
+    types.HostPreflightStatus:
+      properties:
+        description:
+          type: string
+        lastUpdated:
+          type: string
+        state:
+          $ref: '#/components/schemas/types.HostPreflightState'
+      type: object
+    types.HostPreflightStatusResponse:
+      properties:
+        output:
+          $ref: '#/components/schemas/types.HostPreflightOutput'
+        status:
+          $ref: '#/components/schemas/types.HostPreflightStatus'
+      type: object
     types.Install:
       properties:
         config:
@@ -74,6 +122,11 @@ components:
           type: string
         state:
           $ref: '#/components/schemas/types.InstallationState'
+      type: object
+    types.RunHostPreflightResponse:
+      properties:
+        status:
+          $ref: '#/components/schemas/types.HostPreflightStatus'
       type: object
   securitySchemes:
     bearerauth:
@@ -149,6 +202,36 @@ paths:
       security:
       - bearerauth: []
       summary: Get the install object
+      tags:
+      - install
+  /install/host-preflights:
+    get:
+      description: Get the current status and results of host preflight checks
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.HostPreflightStatusResponse'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get host preflight status
+      tags:
+      - install
+    post:
+      description: Run install host preflight checks using installation config and
+        client-provided data
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.RunHostPreflightResponse'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Run install host preflight checks
       tags:
       - install
 servers:
