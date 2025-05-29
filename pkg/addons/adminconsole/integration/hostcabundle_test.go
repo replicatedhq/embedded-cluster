@@ -21,12 +21,10 @@ func TestHostCABundle(t *testing.T) {
 		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
 	}
 
-	logf := func(format string, args ...interface{}) {}
-
 	hcli, err := helm.NewClient(helm.HelmOptions{})
 	require.NoError(t, err, "NewClient should not return an error")
 
-	err = addon.Install(context.Background(), logf, nil, hcli, nil, nil)
+	err = addon.Install(context.Background(), t.Logf, nil, hcli, nil, nil)
 	require.NoError(t, err, "adminconsole.Install should not return an error")
 
 	manifests := addon.DryRunManifests()

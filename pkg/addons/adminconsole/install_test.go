@@ -213,13 +213,11 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 			baseClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 			kcli := tt.setupMockClient(baseClient)
 
-			logf := func(format string, args ...interface{}) {}
-
 			// Run test
 			addon := &AdminConsole{
 				HostCABundlePath: tt.caPath,
 			}
-			err = addon.ensureCAConfigmap(t.Context(), logf, kcli)
+			err = addon.ensureCAConfigmap(t.Context(), t.Logf, kcli)
 
 			// Check results
 			if tt.expectedErr {
