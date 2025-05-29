@@ -176,7 +176,7 @@ func TestSetInstallConfigValidation(t *testing.T) {
 	var apiError types.APIError
 	err = json.NewDecoder(rec.Body).Decode(&apiError)
 	require.NoError(t, err)
-	assert.Contains(t, apiError.Error(), "serviceCidr")
+	assert.Contains(t, apiError.Error(), "Service CIDR is required when globalCidr is not set")
 }
 
 // Test that the endpoint properly handles malformed JSON
@@ -550,7 +550,7 @@ func TestInstallWithAPIClient(t *testing.T) {
 		require.True(t, ok, "Error should be of type *types.APIError")
 		assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
 		// Error message should contain the field and the validation error
-		assert.Contains(t, apiErr.Error(), "adminConsolePort and localArtifactMirrorPort cannot be equal")
+		assert.Contains(t, apiErr.Error(), "Admin Console Port and Local Artifact Mirror Port cannot be equal")
 	})
 
 	// Test SetInstallStatus
