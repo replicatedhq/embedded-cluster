@@ -154,19 +154,14 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHo
 	}
 
 	// TODO NOW: don't use runtimeconfig
-	err = output.SaveToDisk(runtimeconfig.PathToEmbeddedClusterSupportFile("host-preflight-results.json"))
-	if err != nil {
+	if err = output.SaveToDisk(runtimeconfig.PathToEmbeddedClusterSupportFile("host-preflight-results.json")); err != nil {
 		m.logger.WithField("error", err).Warn("save preflights output")
 	}
 
 	// TODO NOW: don't use runtimeconfig
-	err = preflights.CopyBundleToECSupportDir()
-	if err != nil {
+	if err := preflights.CopyBundleToECSupportDir(); err != nil {
 		m.logger.WithField("error", err).Warn("copy preflight bundle to embedded-cluster support dir")
 	}
-
-	// Convert output to API format
-	apiOutput := m.convertOutputToAPI(output)
 
 	// TODO (@salah): report bypassing preflights on a separate api endpoint if the user chooses to bypass and continue
 	if output.HasFail() || output.HasWarn() {
@@ -174,6 +169,9 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHo
 			m.metricsReporter.ReportPreflightsFailed(ctx, *output)
 		}
 	}
+
+	// Convert output to API format
+	apiOutput := m.convertOutputToAPI(output)
 
 	// Set final status based on results
 	if output.HasFail() {
