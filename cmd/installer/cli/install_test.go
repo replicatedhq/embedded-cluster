@@ -618,11 +618,12 @@ kind: Application
 	t.Logf("Install API exited")
 }
 
-func Test_promptIncompleteProxyConfig(t *testing.T) {
+func Test_verifyProxyConfig(t *testing.T) {
 	tests := []struct {
 		name                  string
 		proxy                 *ecv1beta1.ProxySpec
 		confirm               bool
+		assumeYes             bool
 		wantErr               bool
 		isErrNothingElseToAdd bool
 	}{
@@ -649,6 +650,14 @@ func Test_promptIncompleteProxyConfig(t *testing.T) {
 			isErrNothingElseToAdd: true,
 		},
 		{
+			name: "http proxy set without https proxy and assumeYes is true",
+			proxy: &ecv1beta1.ProxySpec{
+				HTTPProxy: "http://proxy:8080",
+			},
+			assumeYes: true,
+			wantErr:   false,
+		},
+		{
 			name: "both proxies set",
 			proxy: &ecv1beta1.ProxySpec{
 				HTTPProxy:  "http://proxy:8080",
@@ -672,13 +681,13 @@ func Test_promptIncompleteProxyConfig(t *testing.T) {
 			prompts.SetTerminal(true)
 			t.Cleanup(func() { prompts.SetTerminal(false) })
 
-			err := promptProceedWithPartialProxyConfig(tt.proxy, mockPrompt)
+			err := verifyProxyConfig(tt.proxy, mockPrompt, tt.assumeYes)
 			if tt.wantErr {
 				require.Error(t, err)
 				if tt.isErrNothingElseToAdd {
 					assert.ErrorAs(t, err, &ErrorNothingElseToAdd{})
 				}
-				if tt.proxy != nil && tt.proxy.HTTPProxy != "" && tt.proxy.HTTPSProxy == "" {
+				if tt.proxy != nil && tt.proxy.HTTPProxy != "" && tt.proxy.HTTPSProxy == "" && !tt.assumeYes {
 					assert.Contains(t, out.String(), "Typically --https-proxy should be set if --http-proxy is set")
 				}
 			} else {

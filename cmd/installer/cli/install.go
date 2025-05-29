@@ -722,7 +722,7 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *InstallC
 		}
 	}
 
-	if err := promptProceedWithPartialProxyConfig(flags.proxy, prompt); err != nil {
+	if err := verifyProxyConfig(flags.proxy, prompt, flags.assumeYes); err != nil {
 		return err
 	}
 	logrus.Debug("User confirmed prompt to proceed installing with `http_proxy` set and `https_proxy` unset")
@@ -1112,10 +1112,10 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 	return nil
 }
 
-// promptProceedWithPartialProxyConfig prompts for confirmation when HTTP proxy is set without HTTPS proxy,
+// verifyProxyConfig prompts for confirmation when HTTP proxy is set without HTTPS proxy,
 // returning an error if the user declines to proceed.
-func promptProceedWithPartialProxyConfig(proxy *ecv1beta1.ProxySpec, prompt prompts.Prompt) error {
-	if proxy != nil && proxy.HTTPProxy != "" && proxy.HTTPSProxy == "" {
+func verifyProxyConfig(proxy *ecv1beta1.ProxySpec, prompt prompts.Prompt, assumeYes bool) error {
+	if proxy != nil && proxy.HTTPProxy != "" && proxy.HTTPSProxy == "" && !assumeYes {
 		message := "Typically --https-proxy should be set if --http-proxy is set. Installation failures are likely otherwise. Do you want to continue anyway?"
 		confirmed, err := prompt.Confirm(message, false)
 		if err != nil {
