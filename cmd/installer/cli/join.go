@@ -73,27 +73,27 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
-			metricsReporter := NewJoinReporter(
+			joinReporter := newJoinReporter(
 				jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 			)
-			metricsReporter.ReportJoinStarted(ctx)
+			joinReporter.ReportJoinStarted(ctx)
 
 			// Setup signal handler with the metrics reporter cleanup function
 			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
-				metricsReporter.ReportSignalAborted(ctx, sig)
+				joinReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runJoin(cmd.Context(), name, flags, jcmd, args[0], metricsReporter); err != nil {
+			if err := runJoin(cmd.Context(), name, flags, jcmd, args[0], joinReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
-					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+					joinReporter.ReportSignalAborted(ctx, syscall.SIGINT)
 				} else {
-					metricsReporter.ReportJoinFailed(ctx, err)
+					joinReporter.ReportJoinFailed(ctx, err)
 				}
 				return err
 			}
 
-			metricsReporter.ReportJoinSucceeded(ctx)
+			joinReporter.ReportJoinSucceeded(ctx)
 			return nil
 		},
 	}
@@ -148,7 +148,7 @@ func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
 	return nil
 }
 
-func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse, kotsAPIAddress string, metricsReporter preflights.MetricsReporter) error {
+func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse, kotsAPIAddress string, joinReporter *JoinReporter) error {
 	// both controller and worker nodes will have 'worker' in the join command
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if !isWorker {
@@ -165,7 +165,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.Jo
 	}
 
 	logrus.Debugf("running join preflights")
-	if err := runJoinPreflights(ctx, jcmd, flags, cidrCfg, metricsReporter); err != nil {
+	if err := runJoinPreflights(ctx, jcmd, flags, cidrCfg, joinReporter.reporter); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}

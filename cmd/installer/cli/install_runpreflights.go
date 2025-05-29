@@ -88,7 +88,7 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
+func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsReporter metrics.ReporterInterface) error {
 	replicatedAppURL := replicatedAppURL()
 	proxyRegistryURL := proxyRegistryURL()
 

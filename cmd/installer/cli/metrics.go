@@ -11,12 +11,12 @@ import (
 )
 
 type InstallReporter struct {
-	reporter  *metrics.Reporter
+	reporter  metrics.ReporterInterface
 	licenseID string
 	appSlug   string
 }
 
-func NewInstallReporter(baseURL string, clusterID uuid.UUID, cmd string, args []string, licenseID string, appSlug string) *InstallReporter {
+func newInstallReporter(baseURL string, clusterID uuid.UUID, cmd string, args []string, licenseID string, appSlug string) *InstallReporter {
 	executionID := uuid.New().String()
 	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd, args)
 	return &InstallReporter{
@@ -51,10 +51,10 @@ func (r *InstallReporter) ReportSignalAborted(ctx context.Context, sig os.Signal
 }
 
 type JoinReporter struct {
-	reporter *metrics.Reporter
+	reporter metrics.ReporterInterface
 }
 
-func NewJoinReporter(baseURL string, clusterID uuid.UUID, cmd string, flags []string) *JoinReporter {
+func newJoinReporter(baseURL string, clusterID uuid.UUID, cmd string, flags []string) *JoinReporter {
 	executionID := uuid.New().String()
 	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd, flags)
 	return &JoinReporter{

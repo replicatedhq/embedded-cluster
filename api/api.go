@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/docs"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
@@ -43,6 +44,7 @@ type API struct {
 	releaseData       *release.ReleaseData
 	configChan        chan<- *types.InstallationConfig
 	logger            logrus.FieldLogger
+	metricsReporter   metrics.ReporterInterface
 	isAirgap          bool
 }
 
@@ -69,6 +71,12 @@ func WithInstallController(installController install.Controller) APIOption {
 func WithLogger(logger logrus.FieldLogger) APIOption {
 	return func(a *API) {
 		a.logger = logger
+	}
+}
+
+func WithMetricsReporter(metricsReporter metrics.ReporterInterface) APIOption {
+	return func(a *API) {
+		a.metricsReporter = metricsReporter
 	}
 }
 
@@ -123,6 +131,7 @@ func New(password string, opts ...APIOption) (*API, error) {
 	if api.installController == nil {
 		installController, err := install.NewInstallController(
 			install.WithLogger(api.logger),
+			install.WithMetricsReporter(api.metricsReporter),
 			install.WithReleaseData(api.releaseData),
 			install.WithIsAirgap(api.isAirgap),
 		)

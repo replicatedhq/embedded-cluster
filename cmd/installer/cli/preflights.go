@@ -6,6 +6,7 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -20,7 +21,7 @@ func runHostPreflights(
 	skipHostPreflights bool,
 	ignoreHostPreflights bool,
 	assumeYes bool,
-	metricsReporter preflights.MetricsReporter,
+	metricsReporter metrics.ReporterInterface,
 ) error {
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
 		return nil

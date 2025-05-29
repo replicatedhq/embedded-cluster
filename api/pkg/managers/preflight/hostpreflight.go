@@ -21,7 +21,6 @@ type PrepareHostPreflightOptions struct {
 	HostPreflightSpec      *troubleshootv1beta2.HostPreflightSpec
 	EmbeddedClusterConfig  *ecv1beta1.Config
 	TCPConnectionsRequired []string
-	MetricsReporter        preflights.MetricsReporter
 	IsAirgap               bool
 	IsJoin                 bool
 }
@@ -29,7 +28,6 @@ type PrepareHostPreflightOptions struct {
 type RunHostPreflightOptions struct {
 	HostPreflightSpec *troubleshootv1beta2.HostPreflightSpec
 	ProxySpec         *ecv1beta1.ProxySpec
-	MetricsReporter   preflights.MetricsReporter
 }
 
 func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, *ecv1beta1.ProxySpec, error) {
@@ -155,13 +153,13 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHo
 		return
 	}
 
-	// TOODO NOW: don't use runtimeconfig
+	// TODO NOW: don't use runtimeconfig
 	err = output.SaveToDisk(runtimeconfig.PathToEmbeddedClusterSupportFile("host-preflight-results.json"))
 	if err != nil {
 		m.logger.WithField("error", err).Warn("save preflights output")
 	}
 
-	// TOODO NOW: don't use runtimeconfig
+	// TODO NOW: don't use runtimeconfig
 	err = preflights.CopyBundleToECSupportDir()
 	if err != nil {
 		m.logger.WithField("error", err).Warn("copy preflight bundle to embedded-cluster support dir")
@@ -172,8 +170,8 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHo
 
 	// TODO (@salah): report bypassing preflights on a separate api endpoint if the user chooses to bypass and continue
 	if output.HasFail() || output.HasWarn() {
-		if opts.MetricsReporter != nil {
-			opts.MetricsReporter.ReportPreflightsFailed(ctx, *output)
+		if m.metricsReporter != nil {
+			m.metricsReporter.ReportPreflightsFailed(ctx, *output)
 		}
 	}
 

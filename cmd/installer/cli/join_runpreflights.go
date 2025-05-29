@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -93,7 +94,7 @@ func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, 
 	return nil
 }
 
-func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flags JoinCmdFlags, cidrCfg *newconfig.CIDRConfig, metricsReporter preflights.MetricsReporter) error {
+func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flags JoinCmdFlags, cidrCfg *newconfig.CIDRConfig, metricsReporter metrics.ReporterInterface) error {
 	nodeIP, err := netutils.FirstValidAddress(flags.networkInterface)
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)

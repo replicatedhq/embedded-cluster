@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/managers/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
@@ -29,6 +30,7 @@ type InstallController struct {
 	installationManager  installation.InstallationManager
 	hostPreflightManager preflight.HostPreflightManager
 	logger               logrus.FieldLogger
+	metricsReporter      metrics.ReporterInterface
 	releaseData          *release.ReleaseData
 	isAirgap             bool
 }
@@ -38,6 +40,12 @@ type InstallControllerOption func(*InstallController)
 func WithLogger(logger logrus.FieldLogger) InstallControllerOption {
 	return func(c *InstallController) {
 		c.logger = logger
+	}
+}
+
+func WithMetricsReporter(metricsReporter metrics.ReporterInterface) InstallControllerOption {
+	return func(c *InstallController) {
+		c.metricsReporter = metricsReporter
 	}
 }
 
@@ -85,6 +93,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.hostPreflightManager == nil {
 		controller.hostPreflightManager = preflight.NewHostPreflightManager(
 			preflight.WithLogger(controller.logger),
+			preflight.WithMetricsReporter(controller.metricsReporter),
 		)
 	}
 

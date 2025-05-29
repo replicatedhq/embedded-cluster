@@ -16,6 +16,7 @@ import (
 	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/web"
@@ -24,11 +25,12 @@ import (
 
 // APIConfig holds the configuration for the API server
 type APIConfig struct {
-	Logger      logrus.FieldLogger
-	Password    string
-	ManagerPort int
-	IsAirgap    bool
-	ConfigChan  chan<- *apitypes.InstallationConfig
+	Logger          logrus.FieldLogger
+	MetricsReporter metrics.ReporterInterface
+	Password        string
+	ManagerPort     int
+	IsAirgap        bool
+	ConfigChan      chan<- *apitypes.InstallationConfig
 }
 
 func startAPI(ctx context.Context, cert tls.Certificate, config APIConfig) error {
@@ -58,6 +60,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 	api, err := api.New(
 		config.Password,
 		api.WithLogger(config.Logger),
+		api.WithMetricsReporter(config.MetricsReporter),
 		api.WithConfigChan(config.ConfigChan),
 		api.WithReleaseData(release.GetReleaseData()),
 		api.WithIsAirgap(config.IsAirgap),

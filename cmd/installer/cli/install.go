@@ -112,27 +112,27 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clusterID := metrics.ClusterID()
-			metricsReporter := NewInstallReporter(
+			installReporter := newInstallReporter(
 				replicatedAppURL(), clusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 				flags.license.Spec.LicenseID, flags.license.Spec.AppSlug,
 			)
-			metricsReporter.ReportInstallationStarted(ctx)
+			installReporter.ReportInstallationStarted(ctx)
 
 			// Setup signal handler with the metrics reporter cleanup function
 			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
-				metricsReporter.ReportSignalAborted(ctx, sig)
+				installReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runInstall(cmd.Context(), name, flags, metricsReporter); err != nil {
+			if err := runInstall(cmd.Context(), name, flags, installReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
-					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+					installReporter.ReportSignalAborted(ctx, syscall.SIGINT)
 				} else {
-					metricsReporter.ReportInstallationFailed(ctx, err)
+					installReporter.ReportInstallationFailed(ctx, err)
 				}
 				return err
 			}
-			metricsReporter.ReportInstallationSucceeded(ctx)
+			installReporter.ReportInstallationSucceeded(ctx)
 
 			// If in guided UI mode, keep the process running until interrupted
 			if flags.enableManagerExperience {
@@ -418,7 +418,7 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	return nil
 }
 
-func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
+func runInstall(ctx context.Context, name string, flags InstallCmdFlags, installReporter *InstallReporter) error {
 	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
 		return err
 	}
@@ -429,7 +429,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, metricsReporter); err != nil {
+	if err := runInstallPreflights(ctx, flags, installReporter.reporter); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}

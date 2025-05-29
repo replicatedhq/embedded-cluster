@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 )
@@ -19,7 +20,8 @@ type HostPreflightManager interface {
 }
 
 type hostPreflightManager struct {
-	logger logrus.FieldLogger
+	logger          logrus.FieldLogger
+	metricsReporter metrics.ReporterInterface
 
 	// Thread-safe execution state
 	mu        sync.RWMutex
@@ -33,6 +35,12 @@ type HostPreflightManagerOption func(*hostPreflightManager)
 func WithLogger(logger logrus.FieldLogger) HostPreflightManagerOption {
 	return func(m *hostPreflightManager) {
 		m.logger = logger
+	}
+}
+
+func WithMetricsReporter(metricsReporter metrics.ReporterInterface) HostPreflightManagerOption {
+	return func(m *hostPreflightManager) {
+		m.metricsReporter = metricsReporter
 	}
 }
 
