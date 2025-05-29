@@ -2,6 +2,7 @@ package integration
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,8 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
-	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/installation"
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,18 +24,9 @@ func TestConsoleListAvailableNetworkInterfaces(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// Create an install controller
-	installController, err := install.NewInstallController(
-		install.WithInstallationManager(installation.NewInstallationManager(
-			installation.WithNetUtils(netutils),
-		)),
-	)
-	require.NoError(t, err)
-
 	// Create the API with the install controller
 	apiInstance, err := api.New(
 		"password",
-		api.WithInstallController(installController),
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(api.NewDiscardLogger()),
@@ -67,4 +58,85 @@ func TestConsoleListAvailableNetworkInterfaces(t *testing.T) {
 
 	// Verify the response contains the expected network interfaces
 	assert.Equal(t, []string{"eth0", "eth1"}, response.NetworkInterfaces)
+}
+
+func TestConsoleListAvailableNetworkInterfacesUnauthorized(t *testing.T) {
+	netutils := &mockNetUtils{ifaces: []string{"eth0", "eth1"}}
+
+	// Create a console controller
+	consoleController, err := console.NewConsoleController(
+		console.WithNetUtils(netutils),
+	)
+	require.NoError(t, err)
+
+	// Create the API with the install controller
+	apiInstance, err := api.New(
+		"password",
+		api.WithConsoleController(consoleController),
+		api.WithAuthController(&staticAuthController{"VALID_TOKEN"}),
+		api.WithLogger(api.NewDiscardLogger()),
+	)
+	require.NoError(t, err)
+
+	// Create a router and register the API routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router)
+
+	// Create a request with an invalid token
+	req := httptest.NewRequest(http.MethodGet, "/console/available-network-interfaces", nil)
+	req.Header.Set("Authorization", "Bearer INVALID_TOKEN")
+	rec := httptest.NewRecorder()
+
+	// Serve the request
+	router.ServeHTTP(rec, req)
+
+	// Check the response is unauthorized
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+	// Check that the API response is of type APIError
+	var apiErr *types.APIError
+	err = json.NewDecoder(rec.Body).Decode(&apiErr)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode)
+}
+
+func TestConsoleListAvailableNetworkInterfacesError(t *testing.T) {
+	// Create a mock that returns an error
+	netutils := &mockNetUtils{err: errors.New("failed to list network interfaces")}
+
+	// Create a console controller
+	consoleController, err := console.NewConsoleController(
+		console.WithNetUtils(netutils),
+	)
+	require.NoError(t, err)
+
+	// Create the API with the install controller
+	apiInstance, err := api.New(
+		"password",
+		api.WithConsoleController(consoleController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithLogger(api.NewDiscardLogger()),
+	)
+	require.NoError(t, err)
+
+	// Create a router and register the API routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router)
+
+	// Create a request to the network interfaces endpoint
+	req := httptest.NewRequest(http.MethodGet, "/console/available-network-interfaces", nil)
+	req.Header.Set("Authorization", "Bearer TOKEN")
+	rec := httptest.NewRecorder()
+
+	// Serve the request
+	router.ServeHTTP(rec, req)
+
+	// Check the response
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+	// Check that the API response is of type APIError
+	var apiErr *types.APIError
+	err = json.NewDecoder(rec.Body).Decode(&apiErr)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
 }
