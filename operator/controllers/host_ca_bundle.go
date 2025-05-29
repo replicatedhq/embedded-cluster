@@ -2,9 +2,12 @@ package controllers
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -17,5 +20,10 @@ func (r *InstallationReconciler) ReconcileHostCABundle(ctx context.Context) erro
 	}
 
 	logger := ctrl.LoggerFrom(ctx)
-	return kotsadm.EnsureCAConfigmap(ctx, logger.Info, r.Client, caPathInContainer, 2)
+	err := adminconsole.EnsureCAConfigmap(ctx, logger.Info, r.Client, caPathInContainer)
+	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
+		logger.Error(err, "Failed to reconcile host ca bundle")
+		return nil
+	}
+	return err
 }

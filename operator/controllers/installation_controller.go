@@ -428,7 +428,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// ensure the CA configmap is present and up-to-date
 	if err := r.ReconcileHostCABundle(ctx); err != nil {
-		log.Error(err, "Failed to reconcile host ca bundle")
+		return ctrl.Result{}, fmt.Errorf("failed to ensure kotsadm CA configmap: %w", err)
 	}
 
 	log.Info("Installation reconciliation ended")

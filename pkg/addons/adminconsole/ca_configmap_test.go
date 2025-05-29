@@ -1,4 +1,4 @@
-package kotsadm
+package adminconsole
 
 import (
 	"context"
@@ -37,7 +37,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			assert: func(t *testing.T, c client.Client) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
-					Namespace: kotsadmNamespace,
+					Namespace: namespace,
 					Name:      privateCASConfigMapName,
 				}, cm)
 				assert.True(t, k8serrors.IsNotFound(err), "ConfigMap should not exist")
@@ -56,7 +56,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			assert: func(t *testing.T, c client.Client) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
-					Namespace: kotsadmNamespace,
+					Namespace: namespace,
 					Name:      privateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
@@ -72,7 +72,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      privateCASConfigMapName,
-					Namespace: kotsadmNamespace,
+					Namespace: namespace,
 				},
 				Data: map[string]string{
 					"ca_0.crt": "old-ca-content",
@@ -88,7 +88,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			assert: func(t *testing.T, c client.Client) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
-					Namespace: kotsadmNamespace,
+					Namespace: namespace,
 					Name:      privateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
@@ -104,7 +104,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      privateCASConfigMapName,
-					Namespace: kotsadmNamespace,
+					Namespace: namespace,
 				},
 				Data: map[string]string{
 					"ca_0.crt": "same-ca-content",
@@ -120,7 +120,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			assert: func(t *testing.T, c client.Client) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
-					Namespace: kotsadmNamespace,
+					Namespace: namespace,
 					Name:      privateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
@@ -170,7 +170,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      privateCASConfigMapName,
-						Namespace: kotsadmNamespace,
+						Namespace: namespace,
 					},
 					Data: map[string]string{
 						"ca_0.crt": "old-ca-content",
@@ -205,7 +205,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 
 			caPath := os.Getenv("PRIVATE_CA_BUNDLE_PATH")
 			logf := func(format string, args ...any) {} // discard logs
-			err := EnsureCAConfigmap(context.Background(), logf, tt.kcli, caPath, 0)
+			err := EnsureCAConfigmap(context.Background(), logf, tt.kcli, caPath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("EnsureCAConfigmap() error = %v, wantErr %v", err, tt.wantErr)
 			}

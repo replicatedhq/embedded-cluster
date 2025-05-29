@@ -1,10 +1,9 @@
-package kotsadm
+package adminconsole
 
 import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -13,35 +12,13 @@ import (
 )
 
 const (
-	kotsadmNamespace        = "kotsadm"
 	privateCASConfigMapName = "kotsadm-private-cas"
 )
 
 // LogFunc can be used as an argument to Run to log messages.
 type LogFunc func(string, ...any)
 
-func EnsureCAConfigmap(ctx context.Context, logf LogFunc, kcli client.Client, caPath string, retries int) error {
-	if caPath == "" {
-		return nil
-	}
-
-	var err error
-	for range retries + 1 {
-		err = ensureCAConfigmap(ctx, logf, kcli, caPath)
-		if err == nil {
-			return nil
-		}
-		select {
-		case <-time.After(2 * time.Second):
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-
-	return err
-}
-
-func ensureCAConfigmap(ctx context.Context, logf LogFunc, kcli client.Client, caPath string) error {
+func EnsureCAConfigmap(ctx context.Context, logf LogFunc, kcli client.Client, caPath string) error {
 	if caPath == "" {
 		return nil
 	}
@@ -94,7 +71,7 @@ func casConfigMap(cas map[string]string) *corev1.ConfigMap {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      privateCASConfigMapName,
-			Namespace: kotsadmNamespace,
+			Namespace: namespace,
 			Labels: map[string]string{
 				"kots.io/kotsadm":                        "true",
 				"replicated.com/disaster-recovery":       "infra",
