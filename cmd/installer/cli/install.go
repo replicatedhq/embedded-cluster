@@ -670,7 +670,7 @@ func ensureKotsadmCAConfigmap(ctx context.Context, kcli client.Client, caPath st
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("unable to create kotsadm namespace: %w", err)
+		return fmt.Errorf("create kotsadm namespace: %w", err)
 	}
 
 	err = adminconsole.EnsureCAConfigmap(ctx, logrus.Debugf, kcli, caPath)
@@ -678,7 +678,7 @@ func ensureKotsadmCAConfigmap(ctx context.Context, kcli client.Client, caPath st
 		logrus.Warnf("Failed to create kotsadm CA configmap: %v", err)
 		logrus.Warnf("This can result in issues installing in environments with a man-in-the-middle proxy.")
 	} else if err != nil {
-		return fmt.Errorf("unable to ensure kotsadm CA configmap: %w", err)
+		return fmt.Errorf("ensure CA configmap: %w", err)
 	}
 
 	return nil
