@@ -102,9 +102,10 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 
 	if in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
 		addOns = append(addOns, &velero.Velero{
-			Proxy:               in.Spec.Proxy,
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-			HostCABundlePath:    hostCABundlePath,
+			Proxy:                    in.Spec.Proxy,
+			ProxyRegistryDomain:      domains.ProxyRegistryDomain,
+			HostCABundlePath:         hostCABundlePath,
+			EmbeddedClusterK0sSubDir: runtimeconfig.EmbeddedClusterK0sSubDir(),
 		})
 	}
 

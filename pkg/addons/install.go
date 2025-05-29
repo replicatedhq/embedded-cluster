@@ -88,9 +88,10 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-			Proxy:               opts.Proxy,
-			HostCABundlePath:    opts.HostCABundlePath,
+			ProxyRegistryDomain:      domains.ProxyRegistryDomain,
+			Proxy:                    opts.Proxy,
+			HostCABundlePath:         opts.HostCABundlePath,
+			EmbeddedClusterK0sSubDir: runtimeconfig.EmbeddedClusterK0sSubDir(),
 		})
 	}
 

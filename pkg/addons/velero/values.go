@@ -7,7 +7,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -75,15 +74,15 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 	copiedValues["extraVolumes"] = extraVolumes
 	copiedValues["extraVolumeMounts"] = extraVolumeMounts
 
-	copiedValues["nodeAgent"] = map[string]any{
-		"extraVolumes":      extraVolumes,
-		"extraVolumeMounts": extraVolumeMounts,
-	}
-
-	podVolumePath := filepath.Join(runtimeconfig.EmbeddedClusterK0sSubDir(), "kubelet/pods")
+	podVolumePath := filepath.Join(v.EmbeddedClusterK0sSubDir, "kubelet/pods")
 	err = helm.SetValue(copiedValues, "nodeAgent.podVolumePath", podVolumePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm value nodeAgent.podVolumePath")
+	}
+	pluginVolumePath := filepath.Join(v.EmbeddedClusterK0sSubDir, "kubelet/plugins")
+	err = helm.SetValue(copiedValues, "nodeAgent.pluginVolumePath", pluginVolumePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "set helm value nodeAgent.pluginVolumePath")
 	}
 
 	for _, override := range overrides {
