@@ -22,7 +22,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 	tests := []struct {
 		name               string
 		kcli               client.Client
-		setup              func(t *testing.T)
+		setup              func(t *testing.T) string
 		existingConfigMaps []runtime.Object
 		wantErr            bool
 		assert             func(t *testing.T, client client.Client)
@@ -30,8 +30,9 @@ func TestEnsureCAConfigmap(t *testing.T) {
 		{
 			name: "empty CA path should do nothing",
 			kcli: fake.NewClientBuilder().Build(),
-			setup: func(t *testing.T) {
+			setup: func(t *testing.T) string {
 				// No setup needed for this test
+				return ""
 			},
 			wantErr: false,
 			assert: func(t *testing.T, c client.Client) {
@@ -46,11 +47,11 @@ func TestEnsureCAConfigmap(t *testing.T) {
 		{
 			name: "should create configmap when it doesn't exist",
 			kcli: fake.NewClientBuilder().Build(),
-			setup: func(t *testing.T) {
+			setup: func(t *testing.T) string {
 				cafile := filepath.Join(t.TempDir(), "ca.crt")
 				err := os.WriteFile(cafile, []byte("test-ca-content"), 0644)
 				require.NoError(t, err)
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", cafile)
+				return cafile
 			},
 			wantErr: false,
 			assert: func(t *testing.T, c client.Client) {
@@ -78,11 +79,11 @@ func TestEnsureCAConfigmap(t *testing.T) {
 					"ca_0.crt": "old-ca-content",
 				},
 			}).Build(),
-			setup: func(t *testing.T) {
+			setup: func(t *testing.T) string {
 				cafile := filepath.Join(t.TempDir(), "ca.crt")
 				err := os.WriteFile(cafile, []byte("new-ca-content"), 0644)
 				require.NoError(t, err)
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", cafile)
+				return cafile
 			},
 			wantErr: false,
 			assert: func(t *testing.T, c client.Client) {
@@ -110,11 +111,11 @@ func TestEnsureCAConfigmap(t *testing.T) {
 					"ca_0.crt": "same-ca-content",
 				},
 			}).Build(),
-			setup: func(t *testing.T) {
+			setup: func(t *testing.T) string {
 				cafile := filepath.Join(t.TempDir(), "ca.crt")
 				err := os.WriteFile(cafile, []byte("same-ca-content"), 0644)
 				require.NoError(t, err)
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", cafile)
+				return cafile
 			},
 			wantErr: false,
 			assert: func(t *testing.T, c client.Client) {
@@ -130,8 +131,8 @@ func TestEnsureCAConfigmap(t *testing.T) {
 		{
 			name: "should return error when CA file doesn't exist",
 			kcli: fake.NewClientBuilder().Build(),
-			setup: func(t *testing.T) {
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", "/nonexistent/path/ca.crt")
+			setup: func(t *testing.T) string {
+				return "/nonexistent/path/ca.crt"
 			},
 			wantErr: true,
 			assert:  func(t *testing.T, c client.Client) {},
@@ -151,11 +152,11 @@ func TestEnsureCAConfigmap(t *testing.T) {
 					}
 				},
 			},
-			setup: func(t *testing.T) {
+			setup: func(t *testing.T) string {
 				cafile := filepath.Join(t.TempDir(), "ca.crt")
 				err := os.WriteFile(cafile, []byte("new-ca-content"), 0644)
 				require.NoError(t, err)
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", cafile)
+				return cafile
 			},
 			wantErr: true,
 			assert:  func(t *testing.T, c client.Client) {},
@@ -187,11 +188,11 @@ func TestEnsureCAConfigmap(t *testing.T) {
 					}
 				},
 			},
-			setup: func(t *testing.T) {
+			setup: func(t *testing.T) string {
 				cafile := filepath.Join(t.TempDir(), "ca.crt")
 				err := os.WriteFile(cafile, []byte("new-ca-content"), 0644)
 				require.NoError(t, err)
-				t.Setenv("PRIVATE_CA_BUNDLE_PATH", cafile)
+				return cafile
 			},
 			wantErr: true,
 			assert:  func(t *testing.T, c client.Client) {},
@@ -199,11 +200,11 @@ func TestEnsureCAConfigmap(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var caPath string
 			if tt.setup != nil {
-				tt.setup(t)
+				caPath = tt.setup(t)
 			}
 
-			caPath := os.Getenv("PRIVATE_CA_BUNDLE_PATH")
 			logf := func(format string, args ...any) {} // discard logs
 			err := EnsureCAConfigmap(context.Background(), logf, tt.kcli, caPath)
 			if (err != nil) != tt.wantErr {
