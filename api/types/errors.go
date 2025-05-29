@@ -142,18 +142,11 @@ func newFieldError(field string, err error) *APIError {
 		"cidr",                 // special case for CIDR
 	}
 
-	replaced := false
 	for _, pattern := range patterns {
 		if strings.Contains(msg, pattern) {
 			msg = strings.Replace(msg, pattern, camelCaseToWords(field), 1)
-			replaced = true
 			break
 		}
-	}
-
-	// If no replacement was made, prepend the field name
-	if !replaced {
-		msg = fmt.Sprintf("%s: %s", camelCaseToWords(field), msg)
 	}
 
 	return &APIError{
