@@ -88,6 +88,10 @@ func (c *InstallController) SetConfig(ctx context.Context, config *types.Install
 }
 
 func (c *InstallController) SetStatus(ctx context.Context, status *types.InstallationStatus) error {
+	if err := c.installationManager.ValidateStatus(status); err != nil {
+		return fmt.Errorf("validate: %w", err)
+	}
+
 	if err := c.installationManager.WriteStatus(*status); err != nil {
 		return fmt.Errorf("write: %w", err)
 	}
