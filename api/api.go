@@ -124,7 +124,6 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	router.HandleFunc("/auth/login", a.postAuthLogin).Methods("POST")
-	router.HandleFunc("/branding", a.getBranding).Methods("GET")
 
 	authenticatedRouter := router.PathPrefix("/").Subrouter()
 	authenticatedRouter.Use(a.authMiddleware)

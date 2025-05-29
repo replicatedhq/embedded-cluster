@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api"
@@ -560,6 +561,29 @@ func Test_runInstallAPI(t *testing.T) {
 	certPool := x509.NewCertPool()
 	certPool.AddCert(cert.Leaf)
 
+	// We need a release object to pass over to the Web component.
+	dataMap := map[string][]byte{
+		"kots-app.yaml": []byte(`
+apiVersion: kots.io/v1beta1
+kind: Application
+`),
+	}
+	err = release.SetReleaseDataForTests(dataMap)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		release.SetReleaseDataForTests(nil)
+	})
+
+	// Mock the web assets filesystem so that we don't need to embed the web assets.
+	webAssetsFS = fstest.MapFS{
+		"index.html": &fstest.MapFile{
+			Data: []byte(""),
+			Mode: 0644,
+		},
+	}
+	defer func() { webAssetsFS = nil }()
+
 	go func() {
 		err := runInstallAPI(ctx, listener, cert, logger, "password", nil)
 		t.Logf("Install API exited with error: %v", err)
@@ -581,7 +605,7 @@ func Test_runInstallAPI(t *testing.T) {
 		},
 	}
 	resp, err := httpClient.Get(url)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	if resp != nil {
 		defer resp.Body.Close()
 	}

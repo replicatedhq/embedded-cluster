@@ -7,14 +7,14 @@ import { CheckCircle, ExternalLink, Copy, ClipboardCheck } from 'lucide-react';
 
 const CompletionStep: React.FC = () => {
   const { config, prototypeSettings } = useConfig();
-  const { branding } = useBranding();
+  const { title } = useBranding();
   const [copied, setCopied] = useState(false);
   const themeColor = prototypeSettings.themeColor;
 
   const baseUrl = `${config.useHttps ? 'https' : 'http'}://${config.domain}`;
   const urls = [
-    { name: 'Web Interface', url: baseUrl, description: `Access the main ${branding?.appTitle} interface` },
-    { name: 'API Documentation', url: `${baseUrl}/api/swagger`, description: `Browse and test the ${branding?.appTitle} API` }
+    { name: 'Web Interface', url: baseUrl, description: `Access the main ${title} interface` },
+    { name: 'API Documentation', url: `${baseUrl}/api/swagger`, description: `Browse and test the ${title} API` }
   ];
 
   const copyToClipboard = (text: string) => {
@@ -33,9 +33,9 @@ const CompletionStep: React.FC = () => {
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Installation Complete!</h2>
           <p className="text-xl text-gray-600 max-w-2xl mb-8">
-            {branding?.appTitle} is installed successfully.
+            {title} is installed successfully.
           </p>
-          
+
           <Button
             size="lg"
             onClick={() => window.open(`${baseUrl}/admin`, '_blank')}
@@ -78,7 +78,7 @@ const CompletionStep: React.FC = () => {
       <Card>
         <div className="space-y-4">
           <h3 className="text-lg font-medium text-gray-900">Next Steps</h3>
-          
+
           <div className="space-y-4">
             <div className="flex items-start">
               <div className="flex-shrink-0 mt-1">
@@ -87,9 +87,9 @@ const CompletionStep: React.FC = () => {
                 </div>
               </div>
               <div className="ml-3">
-                <h4 className="text-base font-medium text-gray-900">Log in to your {branding?.appTitle} instance</h4>
+                <h4 className="text-base font-medium text-gray-900">Log in to your {title} instance</h4>
                 <p className="text-sm text-gray-600 mt-1">
-                  Use the administrator credentials you provided during setup to log in to your {branding?.appTitle} instance.
+                  Use the administrator credentials you provided during setup to log in to your {title} instance.
                 </p>
               </div>
             </div>
@@ -103,7 +103,7 @@ const CompletionStep: React.FC = () => {
               <div className="ml-3">
                 <h4 className="text-base font-medium text-gray-900">Configure additional settings</h4>
                 <p className="text-sm text-gray-600 mt-1">
-                  Visit the Admin Dashboard to configure additional settings such as authentication providers, 
+                  Visit the Admin Dashboard to configure additional settings such as authentication providers,
                   webhooks, and other integrations.
                 </p>
               </div>
