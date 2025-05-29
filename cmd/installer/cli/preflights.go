@@ -50,7 +50,7 @@ func runHostPreflights(
 		logrus.Warnf("save preflights output: %v", err)
 	}
 
-	err = preflights.CopyBundleToECSupportDir()
+	err = preflights.CopyBundleTo(runtimeconfig.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz"))
 	if err != nil {
 		logrus.Warnf("copy preflight bundle to embedded-cluster support dir: %v", err)
 	}

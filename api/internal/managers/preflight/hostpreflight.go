@@ -7,10 +7,10 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	preflighttypes "github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
@@ -25,6 +25,12 @@ type PrepareHostPreflightOptions struct {
 	IsJoin                 bool
 }
 
+type RunHostPreflightOptions struct {
+	HostPreflightSpec *troubleshootv1beta2.HostPreflightSpec
+	Proxy             *ecv1beta1.ProxySpec
+	DataDirectory     string
+}
+
 func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, *ecv1beta1.ProxySpec, error) {
 	hpf, proxy, err := m.prepareHostPreflights(ctx, opts)
 	if err != nil {
@@ -33,7 +39,7 @@ func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, opts P
 	return hpf, proxy, nil
 }
 
-func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, hpf *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) (*types.RunHostPreflightResponse, error) {
+func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, opts RunHostPreflightOptions) (*types.RunHostPreflightResponse, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -51,7 +57,7 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, hpf *troub
 	m.output = nil
 
 	// Run preflights in background
-	go m.runHostPreflights(ctx, hpf, proxy)
+	go m.runHostPreflights(ctx, opts)
 
 	return &types.RunHostPreflightResponse{
 		Status: m.status,
@@ -105,17 +111,18 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts P
 		ProxyRegistryURL:        opts.ProxyRegistryURL,
 		AdminConsolePort:        opts.InstallationConfig.AdminConsolePort,
 		LocalArtifactMirrorPort: opts.InstallationConfig.LocalArtifactMirrorPort,
-		DataDir:                 opts.InstallationConfig.DataDir,
-		K0sDataDir:              opts.InstallationConfig.K0sDataDir,
-		OpenEBSDataDir:          opts.InstallationConfig.OpenEBSDataDir,
-		Proxy:                   proxy,
-		PodCIDR:                 config.PodCIDR,
-		ServiceCIDR:             config.ServiceCIDR,
-		GlobalCIDR:              globalCIDR,
-		NodeIP:                  nodeIP,
-		IsAirgap:                opts.IsAirgap,
-		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
-		IsJoin:                  opts.IsJoin,
+		DataDir:                 opts.InstallationConfig.DataDirectory,
+		// TODO (@salah): should we handle K0sDataDirOverride & OpenEBSDataDirOverride when we support running preflights on upgrade from old versions?
+		K0sDataDir:             paths.K0sSubDir(opts.InstallationConfig.DataDirectory),
+		OpenEBSDataDir:         paths.OpenEBSLocalSubDir(opts.InstallationConfig.DataDirectory),
+		Proxy:                  proxy,
+		PodCIDR:                config.PodCIDR,
+		ServiceCIDR:            config.ServiceCIDR,
+		GlobalCIDR:             globalCIDR,
+		NodeIP:                 nodeIP,
+		IsAirgap:               opts.IsAirgap,
+		TCPConnectionsRequired: opts.TCPConnectionsRequired,
+		IsJoin:                 opts.IsJoin,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("prepare host preflights: %w", err)
@@ -124,7 +131,7 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts P
 	return hpf, proxy, nil
 }
 
-func (m *hostPreflightManager) runHostPreflights(ctx context.Context, hpf *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) {
+func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHostPreflightOptions) {
 	defer func() {
 		m.mu.Lock()
 		m.isRunning = false
@@ -138,7 +145,7 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, hpf *troub
 	}()
 
 	// Run the preflights using the shared core function
-	output, stderr, err := preflights.Run(ctx, hpf, proxy)
+	output, stderr, err := preflights.Run(ctx, opts.HostPreflightSpec, opts.Proxy)
 	if err != nil {
 		errMsg := fmt.Sprintf("Host preflights failed to run: %v", err)
 		if stderr != "" {
@@ -148,13 +155,11 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, hpf *troub
 		return
 	}
 
-	// TODO NOW: don't use runtimeconfig
-	if err = output.SaveToDisk(runtimeconfig.PathToEmbeddedClusterSupportFile("host-preflight-results.json")); err != nil {
+	if err := output.SaveToDisk(paths.SupportFilePath(opts.DataDirectory, "host-preflight-results.json")); err != nil {
 		m.logger.WithField("error", err).Warn("save preflights output")
 	}
 
-	// TODO NOW: don't use runtimeconfig
-	if err := preflights.CopyBundleToECSupportDir(); err != nil {
+	if err := preflights.CopyBundleTo(paths.SupportFilePath(opts.DataDirectory, "preflight-bundle.tar.gz")); err != nil {
 		m.logger.WithField("error", err).Warn("copy preflight bundle to embedded-cluster support dir")
 	}
 

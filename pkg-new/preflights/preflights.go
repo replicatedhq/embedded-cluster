@@ -72,7 +72,7 @@ func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy
 	return out, stderr.String(), err
 }
 
-func CopyBundleToECSupportDir() error {
+func CopyBundleTo(dst string) error {
 	matches, err := filepath.Glob("preflightbundle-*.tar.gz")
 	if err != nil {
 		return fmt.Errorf("find preflight bundle: %w", err)
@@ -87,7 +87,6 @@ func CopyBundleToECSupportDir() error {
 			src = match
 		}
 	}
-	dst := runtimeconfig.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")
 	if err := helpers.MoveFile(src, dst); err != nil {
 		return fmt.Errorf("move preflight bundle to %s: %w", dst, err)
 	}

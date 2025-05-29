@@ -15,7 +15,7 @@ import (
 // HostPreflightManager provides methods for running host preflights
 type HostPreflightManager interface {
 	PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, *ecv1beta1.ProxySpec, error)
-	RunHostPreflights(ctx context.Context, hpf *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) (*types.RunHostPreflightResponse, error)
+	RunHostPreflights(ctx context.Context, opts RunHostPreflightOptions) (*types.RunHostPreflightResponse, error)
 	GetHostPreflightStatus(ctx context.Context) (*types.HostPreflightStatusResponse, error)
 }
 

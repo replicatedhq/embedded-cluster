@@ -179,7 +179,11 @@ func (c *InstallController) RunHostPreflights(ctx context.Context) (*types.RunHo
 	}
 
 	// Run host preflights
-	return c.hostPreflightManager.RunHostPreflights(ctx, hpf, proxy)
+	return c.hostPreflightManager.RunHostPreflights(ctx, preflight.RunHostPreflightOptions{
+		HostPreflightSpec: hpf,
+		Proxy:             proxy,
+		DataDirectory:     config.DataDirectory,
+	})
 }
 
 func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (*types.HostPreflightStatusResponse, error) {
