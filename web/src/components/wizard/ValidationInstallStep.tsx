@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import Card from '../common/Card';
-import { useConfig } from '../../contexts/ConfigContext';
-import { ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import Card from "../common/Card";
+import { useConfig } from "../../contexts/ConfigContext";
+import { ExternalLink } from "lucide-react";
 
 const ValidationInstallStep: React.FC = () => {
   const { config } = useConfig();
@@ -14,13 +14,13 @@ const ValidationInstallStep: React.FC = () => {
 
     const checkInstallStatus = async () => {
       try {
-        const response = await fetch('/api/install/status', {
-          method: 'GET',
+        const response = await fetch("/api/install/status", {
+          method: "GET",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
             // Include auth credentials if available from localStorage or another source
-            ...(localStorage.getItem('auth') && {
-              'Authorization': `Bearer ${localStorage.getItem('auth')}`,
+            ...(localStorage.getItem("auth") && {
+              Authorization: `Bearer ${localStorage.getItem("auth")}`,
             }),
           },
         });
@@ -30,19 +30,21 @@ const ValidationInstallStep: React.FC = () => {
         }
 
         const data = await response.json();
-        
-        if (data.state === 'Succeeded') {
+
+        if (data.state === "Succeeded") {
           setShowAdminLink(true);
           setIsLoading(false);
           if (pollInterval) {
             clearInterval(pollInterval);
           }
-        } else if (data.state === 'Failed') {
-          throw new Error('Installation failed');
+        } else if (data.state === "Failed") {
+          throw new Error("Installation failed");
         }
         // If state is neither Succeeded nor Failed, continue polling
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to install cluster');
+        setError(
+          err instanceof Error ? err.message : "Failed to install cluster"
+        );
         setIsLoading(false);
         if (pollInterval) {
           clearInterval(pollInterval);
@@ -52,7 +54,7 @@ const ValidationInstallStep: React.FC = () => {
 
     // Initial check
     checkInstallStatus();
-    
+
     // Set up polling every 5 seconds
     pollInterval = setInterval(checkInstallStatus, 2000);
 
@@ -68,11 +70,14 @@ const ValidationInstallStep: React.FC = () => {
     <div className="space-y-6">
       <Card>
         <div className="flex flex-col items-center text-center py-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Installing Embedded Cluster</h2>
-          
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Installing Embedded Cluster
+          </h2>
+
           {isLoading && (
             <p className="text-xl text-gray-600 mb-8">
               Please wait while we complete the installation...
+              {/* TODO: Add a loader for now */}
             </p>
           )}
 
