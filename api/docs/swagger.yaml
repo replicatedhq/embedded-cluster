@@ -204,6 +204,28 @@ paths:
       summary: Get the install object
       tags:
       - install
+  /install/config:
+    post:
+      description: set the installation config
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.InstallationConfig'
+        description: Installation config
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Install'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Set the installation config
+      tags:
+      - install
   /install/host-preflights:
     get:
       description: Get the current status and results of host preflight checks
@@ -232,6 +254,42 @@ paths:
       security:
       - bearerauth: []
       summary: Run install host preflight checks
+      tags:
+      - install
+  /install/status:
+    get:
+      description: get the installation status
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.InstallationStatus'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the installation status
+      tags:
+      - install
+    post:
+      description: set the installation status
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.InstallationStatus'
+        description: Installation status
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Install'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Set the installation status
       tags:
       - install
 servers:

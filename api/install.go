@@ -31,12 +31,12 @@ func (a *API) getInstall(w http.ResponseWriter, r *http.Request) {
 //
 //	@Summary		Set the installation config
 //	@Description	set the installation config
-//	@Tags				install
+//	@Tags			install
 //	@Security		bearerauth
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body	types.InstallationConfig	true	"Installation config"
-//	@Success		200	{object}	types.Install
+//	@Param			request	body		types.InstallationConfig	true	"Installation config"
+//	@Success		200		{object}	types.Install
 //	@Router			/install/config [post]
 func (a *API) setInstallConfig(w http.ResponseWriter, r *http.Request) {
 	var config types.InstallationConfig
@@ -64,12 +64,12 @@ func (a *API) setInstallConfig(w http.ResponseWriter, r *http.Request) {
 //
 //	@Summary		Set the installation status
 //	@Description	set the installation status
-//	@Tags				install
+//	@Tags			install
 //	@Security		bearerauth
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body	types.InstallationStatus	true	"Installation status"
-//	@Success		200	{object}	types.Install
+//	@Param			request	body		types.InstallationStatus	true	"Installation status"
+//	@Success		200		{object}	types.Install
 //	@Router			/install/status [post]
 func (a *API) setInstallStatus(w http.ResponseWriter, r *http.Request) {
 	var status types.InstallationStatus
@@ -92,7 +92,7 @@ func (a *API) setInstallStatus(w http.ResponseWriter, r *http.Request) {
 //
 //	@Summary		Get the installation status
 //	@Description	get the installation status
-//	@Tags				install
+//	@Tags			install
 //	@Security		bearerauth
 //	@Produce		json
 //	@Success		200	{object}	types.InstallationStatus
