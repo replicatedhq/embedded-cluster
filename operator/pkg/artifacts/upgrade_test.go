@@ -2,7 +2,6 @@ package artifacts
 
 import (
 	"context"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -238,11 +237,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			verbosity := 1
-			if os.Getenv("DEBUG") != "" {
-				verbosity = 10
-			}
-			log := testr.NewWithOptions(t, testr.Options{Verbosity: verbosity})
+			log := testr.NewWithOptions(t, testr.Options{Verbosity: 10})
 			ctx = logr.NewContext(ctx, log)
 
 			testEnv := &envtest.Environment{}
@@ -414,11 +409,7 @@ func TestListArtifactsJobForNodes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			verbosity := 1
-			if os.Getenv("DEBUG") != "" {
-				verbosity = 10
-			}
-			log := testr.NewWithOptions(t, testr.Options{Verbosity: verbosity})
+			log := testr.NewWithOptions(t, testr.Options{Verbosity: 10})
 			ctx := logr.NewContext(context.Background(), log)
 
 			testEnv := &envtest.Environment{}
@@ -450,11 +441,7 @@ func TestListArtifactsJobForNodes(t *testing.T) {
 func TestGetArtifactJobForNode_HostCABundle(t *testing.T) {
 	// Test with HostCABundlePath set
 	t.Run("with HostCABundlePath set", func(t *testing.T) {
-		verbosity := 1
-		if os.Getenv("DEBUG") != "" {
-			verbosity = 10
-		}
-		log := testr.NewWithOptions(t, testr.Options{Verbosity: verbosity})
+		log := testr.NewWithOptions(t, testr.Options{Verbosity: 10})
 		ctx := logr.NewContext(context.Background(), log)
 
 		scheme := runtime.NewScheme()
@@ -548,11 +535,7 @@ func TestGetArtifactJobForNode_HostCABundle(t *testing.T) {
 
 	// Test without HostCABundlePath set
 	t.Run("without HostCABundlePath set", func(t *testing.T) {
-		verbosity := 1
-		if os.Getenv("DEBUG") != "" {
-			verbosity = 10
-		}
-		log := testr.NewWithOptions(t, testr.Options{Verbosity: verbosity})
+		log := testr.NewWithOptions(t, testr.Options{Verbosity: 10})
 		ctx := logr.NewContext(context.Background(), log)
 
 		scheme := runtime.NewScheme()
