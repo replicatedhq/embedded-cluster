@@ -25,11 +25,6 @@ type PrepareHostPreflightOptions struct {
 	IsJoin                 bool
 }
 
-type RunHostPreflightOptions struct {
-	HostPreflightSpec *troubleshootv1beta2.HostPreflightSpec
-	ProxySpec         *ecv1beta1.ProxySpec
-}
-
 func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, *ecv1beta1.ProxySpec, error) {
 	hpf, proxy, err := m.prepareHostPreflights(ctx, opts)
 	if err != nil {
@@ -38,7 +33,7 @@ func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, opts P
 	return hpf, proxy, nil
 }
 
-func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, opts RunHostPreflightOptions) (*types.RunHostPreflightResponse, error) {
+func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, hpf *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) (*types.RunHostPreflightResponse, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -56,7 +51,7 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, opts RunHo
 	m.output = nil
 
 	// Run preflights in background
-	go m.runHostPreflights(ctx, opts)
+	go m.runHostPreflights(ctx, hpf, proxy)
 
 	return &types.RunHostPreflightResponse{
 		Status: m.status,
@@ -129,7 +124,7 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts P
 	return hpf, proxy, nil
 }
 
-func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHostPreflightOptions) {
+func (m *hostPreflightManager) runHostPreflights(ctx context.Context, hpf *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) {
 	defer func() {
 		m.mu.Lock()
 		m.isRunning = false
@@ -143,7 +138,7 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHo
 	}()
 
 	// Run the preflights using the shared core function
-	output, stderr, err := preflights.Run(ctx, opts.HostPreflightSpec, opts.ProxySpec)
+	output, stderr, err := preflights.Run(ctx, hpf, proxy)
 	if err != nil {
 		errMsg := fmt.Sprintf("Host preflights failed to run: %v", err)
 		if stderr != "" {

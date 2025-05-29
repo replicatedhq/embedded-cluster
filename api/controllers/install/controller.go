@@ -165,18 +165,21 @@ func (c *InstallController) RunHostPreflights(ctx context.Context) (*types.RunHo
 	// Get the configured custom domains
 	ecDomains := utils.GetDomains(c.releaseData)
 
-	options := preflight.PrepareHostPreflightOptions{
+	// Prepare host preflights
+	hpf, proxy, err := c.hostPreflightManager.PrepareHostPreflights(ctx, preflight.PrepareHostPreflightOptions{
 		InstallationConfig:    config,
 		ReplicatedAppURL:      netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
 		ProxyRegistryURL:      netutils.MaybeAddHTTPS(ecDomains.ProxyRegistryDomain),
 		HostPreflightSpec:     c.releaseData.HostPreflights,
 		EmbeddedClusterConfig: c.releaseData.EmbeddedClusterConfig,
 		IsAirgap:              c.isAirgap,
-		// TODO NOW: metrics reporter
-		MetricsReporter: nil,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare host preflights: %w", err)
 	}
 
-	return c.hostPreflightManager.RunHostPreflights(ctx, options)
+	// Run host preflights
+	return c.hostPreflightManager.RunHostPreflights(ctx, hpf, proxy)
 }
 
 func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (*types.HostPreflightStatusResponse, error) {
