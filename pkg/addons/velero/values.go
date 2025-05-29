@@ -74,6 +74,11 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 	copiedValues["extraVolumes"] = extraVolumes
 	copiedValues["extraVolumeMounts"] = extraVolumeMounts
 
+	copiedValues["nodeAgent"] = map[string]any{
+		"extraVolumes":      extraVolumes,
+		"extraVolumeMounts": extraVolumeMounts,
+	}
+
 	podVolumePath := filepath.Join(v.EmbeddedClusterK0sSubDir, "kubelet/pods")
 	err = helm.SetValue(copiedValues, "nodeAgent.podVolumePath", podVolumePath)
 	if err != nil {
