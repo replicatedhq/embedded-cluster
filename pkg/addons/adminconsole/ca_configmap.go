@@ -17,24 +17,17 @@ const (
 )
 
 func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client, caPath string) error {
-	if caPath == "" {
+	new, err := newCAConfigMap(caPath)
+	if err != nil {
+		return fmt.Errorf("create map: %w", err)
+	} else if new == nil {
 		return nil
 	}
 
-	casMap, err := casToMap([]string{caPath})
-	if err != nil {
-		return fmt.Errorf("create map: %w", err)
-	}
-	ca, ok := casMap["ca_0.crt"]
-	if !ok {
-		return fmt.Errorf("ca_0.crt not found in map")
-	}
-
-	existing := casConfigMap(casMap)
-	err = kcli.Get(ctx, client.ObjectKeyFromObject(existing), existing)
+	var existing corev1.ConfigMap
+	err = kcli.Get(ctx, client.ObjectKeyFromObject(new), &existing)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			new := casConfigMap(casMap)
 			err := kcli.Create(ctx, new)
 			if err != nil {
 				return fmt.Errorf("create configmap: %w", err)
@@ -45,20 +38,34 @@ func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Clie
 		return fmt.Errorf("get configmap: %w", err)
 	}
 
-	existingCA, ok := existing.Data["ca_0.crt"]
-	if ok && existingCA == ca {
+	newCA := new.Data["ca_0.crt"]
+	existingCA := existing.Data["ca_0.crt"]
+	if existingCA == newCA {
 		return nil
 	}
 
-	existing.Data = casMap
+	existing.Data = new.Data
 
-	err = kcli.Update(ctx, existing)
+	err = kcli.Update(ctx, &existing)
 	if err != nil {
 		return fmt.Errorf("update configmap: %w", err)
 	}
 	logf("Updated %s ConfigMap", privateCASConfigMapName)
 
 	return nil
+}
+
+func newCAConfigMap(caPath string) (*corev1.ConfigMap, error) {
+	if caPath == "" {
+		return nil, nil
+	}
+
+	casMap, err := casToMap([]string{caPath})
+	if err != nil {
+		return nil, fmt.Errorf("create map: %w", err)
+	}
+
+	return casConfigMap(casMap), nil
 }
 
 func casConfigMap(cas map[string]string) *corev1.ConfigMap {

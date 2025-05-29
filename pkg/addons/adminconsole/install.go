@@ -263,6 +263,19 @@ func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc
 		return nil
 	}
 
+	if a.DryRun {
+		new, err := newCAConfigMap(a.HostCABundlePath)
+		if err != nil {
+			return fmt.Errorf("create map: %w", err)
+		}
+		b := bytes.NewBuffer(nil)
+		if err := serializer.Encode(new, b); err != nil {
+			return errors.Wrap(err, "serialize CA configmap")
+		}
+		a.dryRunManifests = append(a.dryRunManifests, b.Bytes())
+		return nil
+	}
+
 	err := EnsureCAConfigmap(ctx, logf, kcli, a.HostCABundlePath)
 
 	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {

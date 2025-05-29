@@ -47,7 +47,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 				return &mockClient{
 					fake: base,
 					getFunc: func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						if obj.GetObjectKind().GroupVersionKind().Kind == "ConfigMap" {
+						if key.Name == "kotsadm-private-cas" {
 							return &k8serrors.StatusError{
 								ErrStatus: metav1.Status{
 									Status:  metav1.StatusFailure,
@@ -70,7 +70,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 				return &mockClient{
 					fake: base,
 					getFunc: func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						if obj.GetObjectKind().GroupVersionKind().Kind == "ConfigMap" {
+						if key.Name == "kotsadm-private-cas" {
 							return k8serrors.NewNotFound(schema.GroupResource{
 								Group:    "",
 								Resource: "configmaps",
@@ -79,7 +79,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 						return base.Get(ctx, key, obj)
 					},
 					createFunc: func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-						if obj.GetObjectKind().GroupVersionKind().Kind == "ConfigMap" {
+						if obj.GetName() == "kotsadm-private-cas" {
 							return &k8serrors.StatusError{
 								ErrStatus: metav1.Status{
 									Status:  metav1.StatusFailure,
@@ -102,7 +102,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 				return &mockClient{
 					fake: base,
 					updateFunc: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-						if obj.GetObjectKind().GroupVersionKind().Kind == "ConfigMap" {
+						if obj.GetName() == "kotsadm-private-cas" {
 							return &k8serrors.StatusError{
 								ErrStatus: metav1.Status{
 									Status:  metav1.StatusFailure,
@@ -133,7 +133,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 				return &mockClient{
 					fake: base,
 					getFunc: func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						if obj.GetObjectKind().GroupVersionKind().Kind == "ConfigMap" {
+						if key.Name == "kotsadm-private-cas" {
 							return errors.New("some other error")
 						}
 						return base.Get(ctx, key, obj)
@@ -150,7 +150,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 				return &mockClient{
 					fake: base,
 					getFunc: func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						if obj.GetObjectKind().GroupVersionKind().Kind == "ConfigMap" {
+						if key.Name == "kotsadm-private-cas" {
 							return k8serrors.NewNotFound(schema.GroupResource{
 								Group:    "",
 								Resource: "configmaps",
@@ -159,7 +159,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 						return base.Get(ctx, key, obj)
 					},
 					createFunc: func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-						if obj.GetObjectKind().GroupVersionKind().Kind == "ConfigMap" {
+						if obj.GetName() == "kotsadm-private-cas" {
 							return errors.New("some other create error")
 						}
 						return base.Create(ctx, obj, opts...)
@@ -190,7 +190,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 				return &mockClient{
 					fake: base,
 					updateFunc: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-						if obj.GetObjectKind().GroupVersionKind().Kind == "ConfigMap" {
+						if obj.GetName() == "kotsadm-private-cas" {
 							return errors.New("some other update error")
 						}
 						return base.Update(ctx, obj, opts...)
