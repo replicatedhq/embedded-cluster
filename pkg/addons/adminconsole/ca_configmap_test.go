@@ -2,6 +2,8 @@ package adminconsole
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,26 +12,52 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	metadata "k8s.io/client-go/metadata"
+	metadatafake "k8s.io/client-go/metadata/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestEnsureCAConfigmap(t *testing.T) {
+	metascheme := metadatafake.NewTestScheme()
+	metav1.AddMetaToScheme(metascheme)
+
+	newConfigMap := func(content string) *corev1.ConfigMap {
+		hash := md5.Sum([]byte(content))
+		checksum := hex.EncodeToString(hash[:])
+		return &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ConfigMap",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      privateCASConfigMapName,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"replicated.com/cas-checksum": checksum,
+				},
+			},
+			Data: map[string]string{
+				"ca_0.crt": content,
+			},
+		}
+	}
+
 	tests := []struct {
-		name               string
-		kcli               client.Client
-		setup              func(t *testing.T) string
-		existingConfigMaps []runtime.Object
-		wantErr            bool
-		assert             func(t *testing.T, client client.Client)
+		name        string
+		initClients func(t *testing.T) (client.Client, metadata.Interface)
+		setup       func(t *testing.T) string
+		wantErr     bool
+		assert      func(t *testing.T, client client.Client)
 	}{
 		{
 			name: "empty CA path should do nothing",
-			kcli: fake.NewClientBuilder().Build(),
+			initClients: func(t *testing.T) (client.Client, metadata.Interface) {
+				kcli := clientfake.NewClientBuilder().Build()
+				mcli := metadatafake.NewSimpleMetadataClient(metascheme)
+				return kcli, mcli
+			},
 			setup: func(t *testing.T) string {
 				// No setup needed for this test
 				return ""
@@ -46,7 +74,11 @@ func TestEnsureCAConfigmap(t *testing.T) {
 		},
 		{
 			name: "should create configmap when it doesn't exist",
-			kcli: fake.NewClientBuilder().Build(),
+			initClients: func(t *testing.T) (client.Client, metadata.Interface) {
+				kcli := clientfake.NewClientBuilder().Build()
+				mcli := metadatafake.NewSimpleMetadataClient(metascheme)
+				return kcli, mcli
+			},
 			setup: func(t *testing.T) string {
 				cafile := filepath.Join(t.TempDir(), "ca.crt")
 				err := os.WriteFile(cafile, []byte("test-ca-content"), 0644)
@@ -61,24 +93,23 @@ func TestEnsureCAConfigmap(t *testing.T) {
 					Name:      privateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
+
 				assert.Equal(t, "test-ca-content", cm.Data["ca_0.crt"])
+
+				hash := md5.Sum([]byte("test-ca-content"))
+				checksum := hex.EncodeToString(hash[:])
+				assert.Equal(t, checksum, cm.Annotations["replicated.com/cas-checksum"])
 			},
 		},
 		{
 			name: "should update configmap when it exists with different content",
-			kcli: fake.NewClientBuilder().WithObjects(&corev1.ConfigMap{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ConfigMap",
-					APIVersion: "v1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      privateCASConfigMapName,
-					Namespace: namespace,
-				},
-				Data: map[string]string{
-					"ca_0.crt": "old-ca-content",
-				},
-			}).Build(),
+			initClients: func(t *testing.T) (client.Client, metadata.Interface) {
+				cm := newConfigMap("old-ca-content")
+				kcli := clientfake.NewClientBuilder().WithObjects(cm).Build()
+				mcli := metadatafake.NewSimpleMetadataClient(metascheme,
+					&metav1.PartialObjectMetadata{TypeMeta: cm.TypeMeta, ObjectMeta: cm.ObjectMeta})
+				return kcli, mcli
+			},
 			setup: func(t *testing.T) string {
 				cafile := filepath.Join(t.TempDir(), "ca.crt")
 				err := os.WriteFile(cafile, []byte("new-ca-content"), 0644)
@@ -93,24 +124,24 @@ func TestEnsureCAConfigmap(t *testing.T) {
 					Name:      privateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
+
 				assert.Equal(t, "new-ca-content", cm.Data["ca_0.crt"])
+
+				hash := md5.Sum([]byte("new-ca-content"))
+				checksum := hex.EncodeToString(hash[:])
+				assert.Equal(t, checksum, cm.Annotations["replicated.com/cas-checksum"])
 			},
 		},
 		{
 			name: "should not update configmap when content is the same",
-			kcli: fake.NewClientBuilder().WithObjects(&corev1.ConfigMap{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ConfigMap",
-					APIVersion: "v1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      privateCASConfigMapName,
-					Namespace: namespace,
-				},
-				Data: map[string]string{
-					"ca_0.crt": "same-ca-content",
-				},
-			}).Build(),
+			initClients: func(t *testing.T) (client.Client, metadata.Interface) {
+				cm := newConfigMap("same-ca-content")
+				cm.ObjectMeta.Annotations["some-old-annotation"] = "some-old-value" // this should stay the same
+				kcli := clientfake.NewClientBuilder().WithObjects(cm).Build()
+				mcli := metadatafake.NewSimpleMetadataClient(metascheme,
+					&metav1.PartialObjectMetadata{TypeMeta: cm.TypeMeta, ObjectMeta: cm.ObjectMeta})
+				return kcli, mcli
+			},
 			setup: func(t *testing.T) string {
 				cafile := filepath.Join(t.TempDir(), "ca.crt")
 				err := os.WriteFile(cafile, []byte("same-ca-content"), 0644)
@@ -125,74 +156,25 @@ func TestEnsureCAConfigmap(t *testing.T) {
 					Name:      privateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
+
 				assert.Equal(t, "same-ca-content", cm.Data["ca_0.crt"])
+
+				hash := md5.Sum([]byte("same-ca-content"))
+				checksum := hex.EncodeToString(hash[:])
+				assert.Equal(t, checksum, cm.Annotations["replicated.com/cas-checksum"])
+
+				assert.Equal(t, "some-old-value", cm.Annotations["some-old-annotation"])
 			},
 		},
 		{
 			name: "should return error when CA file doesn't exist",
-			kcli: fake.NewClientBuilder().Build(),
+			initClients: func(t *testing.T) (client.Client, metadata.Interface) {
+				kcli := clientfake.NewClientBuilder().Build()
+				mcli := metadatafake.NewSimpleMetadataClient(metascheme)
+				return kcli, mcli
+			},
 			setup: func(t *testing.T) string {
 				return "/nonexistent/path/ca.crt"
-			},
-			wantErr: true,
-			assert:  func(t *testing.T, c client.Client) {},
-		},
-		{
-			name: "should return error when client create fails",
-			kcli: &mockClient{
-				fake: fake.NewClientBuilder().Build(),
-				createFunc: func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-					return &k8serrors.StatusError{
-						ErrStatus: metav1.Status{
-							Status:  metav1.StatusFailure,
-							Message: "create error",
-							Reason:  metav1.StatusReasonUnknown,
-							Code:    500,
-						},
-					}
-				},
-			},
-			setup: func(t *testing.T) string {
-				cafile := filepath.Join(t.TempDir(), "ca.crt")
-				err := os.WriteFile(cafile, []byte("new-ca-content"), 0644)
-				require.NoError(t, err)
-				return cafile
-			},
-			wantErr: true,
-			assert:  func(t *testing.T, c client.Client) {},
-		},
-		{
-			name: "should return error when client update fails",
-			kcli: &mockClient{
-				fake: fake.NewClientBuilder().WithObjects(&corev1.ConfigMap{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "ConfigMap",
-						APIVersion: "v1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      privateCASConfigMapName,
-						Namespace: namespace,
-					},
-					Data: map[string]string{
-						"ca_0.crt": "old-ca-content",
-					},
-				}).Build(),
-				updateFunc: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-					return &k8serrors.StatusError{
-						ErrStatus: metav1.Status{
-							Status:  metav1.StatusFailure,
-							Message: "update error",
-							Reason:  metav1.StatusReasonUnknown,
-							Code:    500,
-						},
-					}
-				},
-			},
-			setup: func(t *testing.T) string {
-				cafile := filepath.Join(t.TempDir(), "ca.crt")
-				err := os.WriteFile(cafile, []byte("new-ca-content"), 0644)
-				require.NoError(t, err)
-				return cafile
 			},
 			wantErr: true,
 			assert:  func(t *testing.T, c client.Client) {},
@@ -205,84 +187,17 @@ func TestEnsureCAConfigmap(t *testing.T) {
 				caPath = tt.setup(t)
 			}
 
+			kcli, mcli := tt.initClients(t)
+
 			logf := func(format string, args ...any) {} // discard logs
-			err := EnsureCAConfigmap(context.Background(), logf, tt.kcli, caPath)
+			err := EnsureCAConfigmap(context.Background(), logf, kcli, mcli, caPath)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("EnsureCAConfigmap() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("EnsureCAConfigmap() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if tt.assert != nil {
-				tt.assert(t, tt.kcli)
+				tt.assert(t, kcli)
 			}
 		})
 	}
-}
-
-// mockClient implements client.Client interface with customizable behavior
-type mockClient struct {
-	fake       client.Client
-	createFunc func(context.Context, client.Object, ...client.CreateOption) error
-	updateFunc func(context.Context, client.Object, ...client.UpdateOption) error
-	getFunc    func(context.Context, client.ObjectKey, client.Object, ...client.GetOption) error
-}
-
-func (m *mockClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-	if m.getFunc != nil {
-		return m.getFunc(ctx, key, obj, opts...)
-	}
-	return m.fake.Get(ctx, key, obj, opts...)
-}
-
-func (m *mockClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-	return m.fake.List(ctx, list, opts...)
-}
-
-func (m *mockClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-	if m.createFunc != nil {
-		return m.createFunc(ctx, obj, opts...)
-	}
-	return m.fake.Create(ctx, obj, opts...)
-}
-
-func (m *mockClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
-	return m.fake.Delete(ctx, obj, opts...)
-}
-
-func (m *mockClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-	if m.updateFunc != nil {
-		return m.updateFunc(ctx, obj, opts...)
-	}
-	return m.fake.Update(ctx, obj, opts...)
-}
-
-func (m *mockClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-	return m.fake.Patch(ctx, obj, patch, opts...)
-}
-
-func (m *mockClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
-	return m.fake.DeleteAllOf(ctx, obj, opts...)
-}
-
-func (m *mockClient) Status() client.StatusWriter {
-	return m.fake.Status()
-}
-
-func (m *mockClient) Scheme() *runtime.Scheme {
-	return m.fake.Scheme()
-}
-
-func (m *mockClient) RESTMapper() meta.RESTMapper {
-	return m.fake.RESTMapper()
-}
-
-func (m *mockClient) GroupVersionKindFor(obj runtime.Object) (schema.GroupVersionKind, error) {
-	return m.fake.GroupVersionKindFor(obj)
-}
-
-func (m *mockClient) IsObjectNamespaced(obj runtime.Object) (bool, error) {
-	return m.fake.IsObjectNamespaced(obj)
-}
-
-func (m *mockClient) SubResource(subResource string) client.SubResourceClient {
-	return m.fake.SubResource(subResource)
 }

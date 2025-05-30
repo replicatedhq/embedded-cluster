@@ -8,10 +8,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (a *AdminConsole) Upgrade(ctx context.Context, logf types.LogFunc, kcli client.Client, hcli helm.Client, overrides []string) error {
+func (a *AdminConsole) Upgrade(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, overrides []string) error {
 	exists, err := hcli.ReleaseExists(ctx, namespace, releaseName)
 	if err != nil {
 		return errors.Wrap(err, "check if release exists")

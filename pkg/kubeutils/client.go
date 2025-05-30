@@ -12,6 +12,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
@@ -40,6 +41,15 @@ func (k *KubeUtils) KubeClient() (client.Client, error) {
 		return nil, fmt.Errorf("unable to process kubernetes config: %w", err)
 	}
 	return client.New(cfg, client.Options{})
+}
+
+// MetadataClient returns a new kubernetes metadata client.
+func (k *KubeUtils) MetadataClient() (metadata.Interface, error) {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("unable to process kubernetes config: %w", err)
+	}
+	return metadata.NewForConfig(cfg)
 }
 
 // RESTClientGetterFactory is a factory function that can be used to create namespaced

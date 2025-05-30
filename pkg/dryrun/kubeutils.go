@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -90,4 +91,8 @@ func (k *KubeUtils) WaitForCRDToBeReady(ctx context.Context, cli client.Client, 
 
 func (k *KubeUtils) KubeClient() (client.Client, error) {
 	return KubeClient()
+}
+
+func (k *KubeUtils) MetadataClient() (metadata.Interface, error) {
+	return MetadataClient()
 }

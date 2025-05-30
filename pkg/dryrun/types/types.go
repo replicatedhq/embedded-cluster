@@ -13,9 +13,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8scheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/metadata"
+	metadatafake "k8s.io/client-go/metadata/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/yaml"
@@ -32,7 +35,8 @@ type DryRun struct {
 	K8sObjects []string          `json:"k8sObjects"`
 
 	// These fields are used as mocks
-	kcli client.Client `json:"-"`
+	kcli client.Client      `json:"-"`
+	mcli metadata.Interface `json:"-"`
 }
 
 type Metric struct {
@@ -202,11 +206,11 @@ func (d *DryRun) KubeClient() (client.Client, error) {
 		}
 		clientObjs := []client.Object{}
 		for _, o := range d.K8sObjects {
-			var m map[string]interface{}
-			if err := yaml.Unmarshal([]byte(o), &m); err != nil {
+			var u unstructured.Unstructured
+			if err := yaml.Unmarshal([]byte(o), &u.Object); err != nil {
 				return nil, fmt.Errorf("unmarshal: %w", err)
 			}
-			clientObjs = append(clientObjs, &unstructured.Unstructured{Object: m})
+			clientObjs = append(clientObjs, &u)
 		}
 		d.kcli = fake.NewClientBuilder().
 			WithScheme(scheme).
@@ -215,6 +219,31 @@ func (d *DryRun) KubeClient() (client.Client, error) {
 			Build()
 	}
 	return d.kcli, nil
+}
+
+func (d *DryRun) MetadataClient() (metadata.Interface, error) {
+	if d.mcli == nil {
+		scheme := runtime.NewScheme()
+		if err := k8scheme.AddToScheme(scheme); err != nil {
+			return nil, fmt.Errorf("add k8s scheme: %w", err)
+		}
+		if err := apiextensionsv1.AddToScheme(scheme); err != nil {
+			return nil, fmt.Errorf("add apiextensions v1 scheme: %w", err)
+		}
+		if err := ecv1beta1.AddToScheme(scheme); err != nil {
+			return nil, fmt.Errorf("add ec v1beta1 scheme: %w", err)
+		}
+		clientObjs := []runtime.Object{}
+		for _, o := range d.K8sObjects {
+			var m metav1.PartialObjectMetadata
+			if err := yaml.Unmarshal([]byte(o), &m); err != nil {
+				return nil, fmt.Errorf("unmarshal: %w", err)
+			}
+			clientObjs = append(clientObjs, &m)
+		}
+		d.mcli = metadatafake.NewSimpleMetadataClient(scheme, clientObjs...)
+	}
+	return d.mcli, nil
 }
 
 func getOSEnv() map[string]string {

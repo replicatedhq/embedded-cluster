@@ -30,12 +30,13 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 	runtimeconfig.SetDataDir("/custom")
 
 	kcli := util.CtrlClient(t, kubeconfig)
+	mcli := util.MetadataClient(t, kubeconfig)
 	hcli := util.HelmClient(t, kubeconfig)
 
 	addon := &openebs.OpenEBS{
 		ProxyRegistryDomain: "proxy.replicated.com",
 	}
-	if err := addon.Install(t.Context(), t.Logf, kcli, hcli, nil, nil); err != nil {
+	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, nil, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 

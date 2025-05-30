@@ -41,6 +41,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -128,9 +129,10 @@ type NodeEventsBatch struct {
 // InstallationReconciler reconciles a Installation object
 type InstallationReconciler struct {
 	client.Client
-	Discovery discovery.DiscoveryInterface
-	Scheme    *runtime.Scheme
-	Recorder  record.EventRecorder
+	MetadataClient metadata.Interface
+	Discovery      discovery.DiscoveryInterface
+	Scheme         *runtime.Scheme
+	Recorder       record.EventRecorder
 }
 
 // NodeHasChanged returns true if the node configuration has changed when compared to
@@ -447,7 +449,7 @@ func (r *InstallationReconciler) reconcileHostCABundle(ctx context.Context) erro
 	}
 
 	logger := ctrl.LoggerFrom(ctx)
-	err := adminconsole.EnsureCAConfigmap(ctx, logger.Info, r.Client, caPathInContainer)
+	err := adminconsole.EnsureCAConfigmap(ctx, logger.Info, r.Client, r.MetadataClient, caPathInContainer)
 	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
 		logger.Error(err, "Failed to reconcile host ca bundle")
 		return nil
