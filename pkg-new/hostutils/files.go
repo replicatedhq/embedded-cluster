@@ -1,4 +1,4 @@
-package host
+package hostutils
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 )
 
-func MaterializeFiles(airgapBundle string) error {
+func (h *HostUtils) MaterializeFiles(airgapBundle string) error {
 	materializer := goods.NewMaterializer()
 	if err := materializer.Materialize(); err != nil {
 		return fmt.Errorf("materialize binaries: %w", err)

@@ -1,4 +1,4 @@
-package host
+package hostutils
 
 import (
 	"bufio"
@@ -61,7 +61,7 @@ type sysctlValueGetter func(key string) (int64, error)
 // ConfigureSysctl writes the sysctl config files for the embedded cluster and reloads the sysctl configuration.
 // NOTE: do not run this after the cluster has already been installed as it may revert sysctl
 // settings set by k0s and its extensions.
-func ConfigureSysctl() error {
+func (h *HostUtils) ConfigureSysctl() error {
 	if _, err := exec.LookPath("sysctl"); err != nil {
 		return fmt.Errorf("find sysctl binary: %w", err)
 	}
@@ -150,7 +150,7 @@ func getCurrentSysctlValue(key string) (int64, error) {
 
 // ConfigureKernelModules writes the kernel modules config file and ensures the kernel modules are
 // loaded that are listed in the file.
-func ConfigureKernelModules() error {
+func (h *HostUtils) ConfigureKernelModules() error {
 	if _, err := exec.LookPath("modprobe"); err != nil {
 		return fmt.Errorf("find modprobe binary: %w", err)
 	}

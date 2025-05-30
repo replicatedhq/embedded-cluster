@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSetInstallConfig(t *testing.T) {
+func TestConfigureInstallation(t *testing.T) {
 	manager := installation.NewInstallationManager()
 
 	// Create an install controller with the config manager
@@ -80,7 +80,7 @@ func TestSetInstallConfig(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create a request
-			req := httptest.NewRequest(http.MethodPost, "/install/config", bytes.NewReader(configJSON))
+			req := httptest.NewRequest(http.MethodPost, "/install/installation/configure", bytes.NewReader(configJSON))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer "+"TOKEN")
 			rec := httptest.NewRecorder()
@@ -122,7 +122,7 @@ func TestSetInstallConfig(t *testing.T) {
 }
 
 // Test that config validation errors are properly returned
-func TestSetInstallConfigValidation(t *testing.T) {
+func TestConfigureInstallationValidation(t *testing.T) {
 	// Create a memory store
 	manager := installation.NewInstallationManager()
 
@@ -159,7 +159,7 @@ func TestSetInstallConfigValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a request
-	req := httptest.NewRequest(http.MethodPost, "/install/config", bytes.NewReader(configJSON))
+	req := httptest.NewRequest(http.MethodPost, "/install/installation/configure", bytes.NewReader(configJSON))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+"TOKEN")
 	rec := httptest.NewRecorder()
@@ -180,7 +180,7 @@ func TestSetInstallConfigValidation(t *testing.T) {
 }
 
 // Test that the endpoint properly handles malformed JSON
-func TestSetInstallConfigBadRequest(t *testing.T) {
+func TestConfigureInstallationBadRequest(t *testing.T) {
 	// Create a memory store and API
 	manager := installation.NewInstallationManager()
 
@@ -202,7 +202,7 @@ func TestSetInstallConfigBadRequest(t *testing.T) {
 	apiInstance.RegisterRoutes(router)
 
 	// Create a request with invalid JSON
-	req := httptest.NewRequest(http.MethodPost, "/install/config",
+	req := httptest.NewRequest(http.MethodPost, "/install/installation/configure",
 		bytes.NewReader([]byte(`{"dataDirectory": "/tmp/data", "adminConsolePort": "not-a-number"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+"TOKEN")
@@ -218,7 +218,7 @@ func TestSetInstallConfigBadRequest(t *testing.T) {
 }
 
 // Test that the server returns proper errors when the API controller fails
-func TestSetInstallConfigControllerError(t *testing.T) {
+func TestConfigureInstallationControllerError(t *testing.T) {
 	// Create a mock controller that returns an error
 	mockController := &mockInstallController{
 		setConfigError: assert.AnError,
@@ -245,7 +245,7 @@ func TestSetInstallConfigControllerError(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a request
-	req := httptest.NewRequest(http.MethodPost, "/install/config", bytes.NewReader(configJSON))
+	req := httptest.NewRequest(http.MethodPost, "/install/installation/configure", bytes.NewReader(configJSON))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+"TOKEN")
 	rec := httptest.NewRecorder()
@@ -430,15 +430,15 @@ func (m *mockInstallController) Get(ctx context.Context) (*types.Install, error)
 	}, nil
 }
 
-func (m *mockInstallController) SetConfig(ctx context.Context, config *types.InstallationConfig) error {
+func (m *mockInstallController) ConfigureInstallation(ctx context.Context, config *types.InstallationConfig) error {
 	return m.setConfigError
 }
 
-func (m *mockInstallController) SetStatus(ctx context.Context, status *types.InstallationStatus) error {
+func (m *mockInstallController) SetStatus(ctx context.Context, status *types.Status) error {
 	return m.setStatusError
 }
 
-func (m *mockInstallController) ReadStatus(ctx context.Context) (*types.InstallationStatus, error) {
+func (m *mockInstallController) ReadStatus(ctx context.Context) (*types.Status, error) {
 	return nil, m.readStatusError
 }
 
@@ -501,8 +501,8 @@ func TestInstallWithAPIClient(t *testing.T) {
 		assert.Equal(t, "eth1", install.Config.NetworkInterface)
 	})
 
-	// Test SetInstallConfig
-	t.Run("SetInstallConfig", func(t *testing.T) {
+	// Test ConfigureInstallation
+	t.Run("ConfigureInstallation", func(t *testing.T) {
 		// Create a valid config
 		config := types.InstallationConfig{
 			DataDirectory:           "/tmp/new-dir",
@@ -513,8 +513,8 @@ func TestInstallWithAPIClient(t *testing.T) {
 		}
 
 		// Set the config using the client
-		install, err := c.SetInstallConfig(config)
-		require.NoError(t, err, "SetInstallConfig should succeed with valid config")
+		install, err := c.ConfigureInstallation(config)
+		require.NoError(t, err, "ConfigureInstallation should succeed with valid config")
 		assert.NotNil(t, install, "Install should not be nil")
 
 		// Verify the config was set correctly
@@ -530,8 +530,8 @@ func TestInstallWithAPIClient(t *testing.T) {
 		assert.Equal(t, config.NetworkInterface, install.Config.NetworkInterface)
 	})
 
-	// Test SetInstallConfig validation error
-	t.Run("SetInstallConfig validation error", func(t *testing.T) {
+	// Test ConfigureInstallation validation error
+	t.Run("ConfigureInstallation validation error", func(t *testing.T) {
 		// Create an invalid config (port conflict)
 		config := types.InstallationConfig{
 			DataDirectory:           "/tmp/new-dir",
@@ -542,8 +542,8 @@ func TestInstallWithAPIClient(t *testing.T) {
 		}
 
 		// Set the config using the client
-		_, err := c.SetInstallConfig(config)
-		require.Error(t, err, "SetInstallConfig should fail with invalid config")
+		_, err := c.ConfigureInstallation(config)
+		require.Error(t, err, "ConfigureInstallation should fail with invalid config")
 
 		// Verify the error is of type APIError
 		apiErr, ok := err.(*types.APIError)
@@ -556,7 +556,7 @@ func TestInstallWithAPIClient(t *testing.T) {
 	// Test SetInstallStatus
 	t.Run("SetInstallStatus", func(t *testing.T) {
 		// Create a status
-		status := types.InstallationStatus{
+		status := types.Status{
 			State:       types.InstallationStateFailed,
 			Description: "Installation failed",
 		}

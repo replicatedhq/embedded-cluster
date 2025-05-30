@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -16,20 +17,25 @@ import (
 )
 
 type Controller interface {
-	Get(ctx context.Context) (*types.Install, error)
-	SetConfig(ctx context.Context, config *types.InstallationConfig) error
-	SetStatus(ctx context.Context, status *types.InstallationStatus) error
-	ReadStatus(ctx context.Context) (*types.InstallationStatus, error)
-	RunHostPreflights(ctx context.Context) (*types.RunHostPreflightResponse, error)
-	GetHostPreflightStatus(ctx context.Context) (*types.HostPreflightStatusResponse, error)
+	GetInstallationConfig(ctx context.Context) (*types.InstallationConfig, error)
+	ConfigureInstallation(ctx context.Context, config *types.InstallationConfig) error
+	GetInstallationStatus(ctx context.Context) (*types.Status, error)
+	RunHostPreflights(ctx context.Context) error
+	GetHostPreflightStatus(ctx context.Context) (*types.Status, error)
+	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightOutput, error)
+	GetHostPreflightTitles(ctx context.Context) ([]string, error)
+	SetStatus(ctx context.Context, status *types.Status) error
+	ReadStatus(ctx context.Context) (*types.Status, error)
 }
 
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
+	install              *types.Install
 	installationManager  installation.InstallationManager
 	hostPreflightManager preflight.HostPreflightManager
 	logger               logrus.FieldLogger
+	hostUtils            *hostutils.HostUtils
 	metricsReporter      metrics.ReporterInterface
 	releaseData          *release.ReleaseData
 	isAirgap             bool
@@ -40,6 +46,12 @@ type InstallControllerOption func(*InstallController)
 func WithLogger(logger logrus.FieldLogger) InstallControllerOption {
 	return func(c *InstallController) {
 		c.logger = logger
+	}
+}
+
+func WithHostUtils(hostUtils *hostutils.HostUtils) InstallControllerOption {
+	return func(c *InstallController) {
+		c.hostUtils = hostUtils
 	}
 }
 
@@ -74,7 +86,9 @@ func WithHostPreflightManager(hostPreflightManager preflight.HostPreflightManage
 }
 
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
-	controller := &InstallController{}
+	controller := &InstallController{
+		install: types.NewInstall(),
+	}
 
 	for _, opt := range opts {
 		opt(controller)
@@ -84,9 +98,16 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.logger = logger.NewDiscardLogger()
 	}
 
+	if controller.hostUtils == nil {
+		controller.hostUtils = hostutils.New(
+			hostutils.WithLogger(controller.logger),
+		)
+	}
+
 	if controller.installationManager == nil {
 		controller.installationManager = installation.NewInstallationManager(
 			installation.WithLogger(controller.logger),
+			installation.WithInstallation(controller.install.Steps.Installation),
 		)
 	}
 
@@ -94,13 +115,14 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.hostPreflightManager = preflight.NewHostPreflightManager(
 			preflight.WithLogger(controller.logger),
 			preflight.WithMetricsReporter(controller.metricsReporter),
+			preflight.WithHostPreflight(controller.install.Steps.HostPreflight),
 		)
 	}
 
 	return controller, nil
 }
 
-func (c *InstallController) Get(ctx context.Context) (*types.Install, error) {
+func (c *InstallController) GetInstallationConfig(ctx context.Context) (*types.InstallationConfig, error) {
 	config, err := c.installationManager.ReadConfig()
 	if err != nil {
 		return nil, err
@@ -114,20 +136,10 @@ func (c *InstallController) Get(ctx context.Context) (*types.Install, error) {
 		return nil, fmt.Errorf("validate: %w", err)
 	}
 
-	status, err := c.installationManager.ReadStatus()
-	if err != nil {
-		return nil, fmt.Errorf("read status: %w", err)
-	}
-
-	install := &types.Install{
-		Config: *config,
-		Status: *status,
-	}
-
-	return install, nil
+	return config, nil
 }
 
-func (c *InstallController) SetConfig(ctx context.Context, config *types.InstallationConfig) error {
+func (c *InstallController) ConfigureInstallation(ctx context.Context, config *types.InstallationConfig) error {
 	if err := c.installationManager.ValidateConfig(config); err != nil {
 		return fmt.Errorf("validate: %w", err)
 	}
@@ -140,10 +152,25 @@ func (c *InstallController) SetConfig(ctx context.Context, config *types.Install
 		return fmt.Errorf("write: %w", err)
 	}
 
+	go func() {
+		// TODO NOW: other fields
+		if err := c.hostUtils.ConfigureForInstall(ctx, hostutils.InitForInstallOptions{
+			PodCIDR:     config.PodCIDR,
+			ServiceCIDR: config.ServiceCIDR,
+		}); err != nil {
+			// TODO NOW: configure status like preflight status for ui to poll?
+			c.logger.Errorf("configure for install: %v", err)
+		}
+	}()
+
 	return nil
 }
 
-func (c *InstallController) SetStatus(ctx context.Context, status *types.InstallationStatus) error {
+func (c *InstallController) GetInstallationStatus(ctx context.Context) (*types.Status, error) {
+	return c.installationManager.ReadStatus()
+}
+
+func (c *InstallController) SetStatus(ctx context.Context, status *types.Status) error {
 	if err := c.installationManager.WriteStatus(*status); err != nil {
 		return fmt.Errorf("write: %w", err)
 	}
@@ -151,15 +178,15 @@ func (c *InstallController) SetStatus(ctx context.Context, status *types.Install
 	return nil
 }
 
-func (c *InstallController) ReadStatus(ctx context.Context) (*types.InstallationStatus, error) {
+func (c *InstallController) ReadStatus(ctx context.Context) (*types.Status, error) {
 	return c.installationManager.ReadStatus()
 }
 
-func (c *InstallController) RunHostPreflights(ctx context.Context) (*types.RunHostPreflightResponse, error) {
+func (c *InstallController) RunHostPreflights(ctx context.Context) error {
 	// Get current installation config and add it to options
 	config, err := c.installationManager.ReadConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read installation config: %w", err)
+		return fmt.Errorf("failed to read installation config: %w", err)
 	}
 
 	// Get the configured custom domains
@@ -175,7 +202,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context) (*types.RunHo
 		IsAirgap:              c.isAirgap,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to prepare host preflights: %w", err)
+		return fmt.Errorf("failed to prepare host preflights: %w", err)
 	}
 
 	// Run host preflights
@@ -186,8 +213,16 @@ func (c *InstallController) RunHostPreflights(ctx context.Context) (*types.RunHo
 	})
 }
 
-func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (*types.HostPreflightStatusResponse, error) {
+func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (*types.Status, error) {
 	return c.hostPreflightManager.GetHostPreflightStatus(ctx)
+}
+
+func (c *InstallController) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightOutput, error) {
+	return c.hostPreflightManager.GetHostPreflightOutput(ctx)
+}
+
+func (c *InstallController) GetHostPreflightTitles(ctx context.Context) ([]string, error) {
+	return c.hostPreflightManager.GetHostPreflightTitles(ctx)
 }
 
 func (c *InstallController) computeCIDRs(config *types.InstallationConfig) error {

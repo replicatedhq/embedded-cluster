@@ -9,22 +9,20 @@ import (
 type InstallationStore interface {
 	ReadConfig() (*types.InstallationConfig, error)
 	WriteConfig(cfg types.InstallationConfig) error
-	ReadStatus() (*types.InstallationStatus, error)
-	WriteStatus(status types.InstallationStatus) error
+	ReadStatus() (*types.Status, error)
+	WriteStatus(status types.Status) error
 }
 
 var _ InstallationStore = &MemoryStore{}
 
 type MemoryStore struct {
-	mu     sync.RWMutex
-	config *types.InstallationConfig
-	status *types.InstallationStatus
+	mu           sync.RWMutex
+	installation *types.Installation
 }
 
-func NewMemoryStore() *MemoryStore {
+func NewMemoryStore(installation *types.Installation) *MemoryStore {
 	return &MemoryStore{
-		config: &types.InstallationConfig{},
-		status: &types.InstallationStatus{},
+		installation: installation,
 	}
 }
 
@@ -32,28 +30,28 @@ func (s *MemoryStore) ReadConfig() (*types.InstallationConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.config, nil
+	return s.installation.Config, nil
 }
 
 func (s *MemoryStore) WriteConfig(cfg types.InstallationConfig) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.config = &cfg
+	s.installation.Config = &cfg
 
 	return nil
 }
 
-func (s *MemoryStore) ReadStatus() (*types.InstallationStatus, error) {
+func (s *MemoryStore) ReadStatus() (*types.Status, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.status, nil
+	return s.installation.Status, nil
 }
 
-func (s *MemoryStore) WriteStatus(status types.InstallationStatus) error {
+func (s *MemoryStore) WriteStatus(status types.Status) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.status = &status
+	s.installation.Status = &status
 
 	return nil
 }

@@ -40,46 +40,43 @@ func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, opts P
 	return hpf, proxy, nil
 }
 
-func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, opts RunHostPreflightOptions) (*types.RunHostPreflightResponse, error) {
+func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, opts RunHostPreflightOptions) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.isRunning {
-		return nil, fmt.Errorf("host preflights are already running")
+	if m.hostPreflightStore.IsRunning() {
+		return fmt.Errorf("host preflights are already running")
 	}
 
 	titles, err := m.getTitles(opts.HostPreflightSpec)
 	if err != nil {
-		return nil, fmt.Errorf("get titles: %w", err)
+		return fmt.Errorf("get titles: %w", err)
 	}
 
-	m.isRunning = true
-	m.status = types.HostPreflightStatus{
-		State:       types.HostPreflightStateRunning,
+	m.hostPreflightStore.WriteTitles(titles)
+	m.hostPreflightStore.WriteOutput(nil)
+	m.hostPreflightStore.WriteStatus(&types.Status{
+		State:       types.StateRunning,
 		Description: "Running host preflights",
 		LastUpdated: time.Now(),
-	}
-	m.output = nil
+	})
 
 	// Run preflights in background
 	go m.runHostPreflights(ctx, opts)
 
-	return &types.RunHostPreflightResponse{
-		Status: m.status,
-		Titles: titles,
-	}, nil
+	return nil
 }
 
-func (m *hostPreflightManager) GetHostPreflightStatus(ctx context.Context) (*types.HostPreflightStatusResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+func (m *hostPreflightManager) GetHostPreflightStatus(ctx context.Context) (*types.Status, error) {
+	return m.hostPreflightStore.ReadStatus()
+}
 
-	response := &types.HostPreflightStatusResponse{
-		Status: m.status,
-		Output: m.output,
-	}
+func (m *hostPreflightManager) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightOutput, error) {
+	return m.hostPreflightStore.ReadOutput()
+}
 
-	return response, nil
+func (m *hostPreflightManager) GetHostPreflightTitles(ctx context.Context) ([]string, error) {
+	return m.hostPreflightStore.ReadTitles()
 }
 
 func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, *ecv1beta1.ProxySpec, error) {
@@ -139,12 +136,6 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts P
 
 func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHostPreflightOptions) {
 	defer func() {
-		m.mu.Lock()
-		m.isRunning = false
-		m.mu.Unlock()
-	}()
-
-	defer func() {
 		if r := recover(); r != nil {
 			m.setFailedStatus(fmt.Sprintf("Panic: %v", r))
 		}
@@ -181,9 +172,9 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHo
 
 	// Set final status based on results
 	if output.HasFail() {
-		m.setCompletedStatus(types.HostPreflightStateFailed, "Host preflights failed", apiOutput)
+		m.setCompletedStatus(types.StateFailed, "Host preflights failed", apiOutput)
 	} else {
-		m.setCompletedStatus(types.HostPreflightStateSucceeded, "Host preflights completed successfully", apiOutput)
+		m.setCompletedStatus(types.StateSucceeded, "Host preflights completed successfully", apiOutput)
 	}
 }
 
@@ -191,24 +182,25 @@ func (m *hostPreflightManager) setFailedStatus(description string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.status = types.HostPreflightStatus{
-		State:       types.HostPreflightStateFailed,
+	m.hostPreflightStore.WriteStatus(&types.Status{
+		State:       types.StateFailed,
 		Description: description,
 		LastUpdated: time.Now(),
-	}
+	})
+
 	m.logger.Error(description)
 }
 
-func (m *hostPreflightManager) setCompletedStatus(state types.HostPreflightState, description string, output *types.HostPreflightOutput) {
+func (m *hostPreflightManager) setCompletedStatus(state types.State, description string, output *types.HostPreflightOutput) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.status = types.HostPreflightStatus{
+	m.hostPreflightStore.WriteOutput(output)
+	m.hostPreflightStore.WriteStatus(&types.Status{
 		State:       state,
 		Description: description,
 		LastUpdated: time.Now(),
-	}
-	m.output = output
+	})
 }
 
 func (m *hostPreflightManager) convertOutputToAPI(output *preflighttypes.Output) *types.HostPreflightOutput {

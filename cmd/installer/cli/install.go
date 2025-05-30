@@ -24,7 +24,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/host"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -750,7 +750,7 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
 
-	if err := host.InitializeForInstall(ctx, host.InitializeForInstallOptions{
+	if err := hostutils.ConfigureForInstall(ctx, hostutils.InitForInstallOptions{
 		LicenseFile:  flags.licenseFile,
 		AirgapBundle: flags.airgapBundle,
 		DataDir:      flags.dataDir,

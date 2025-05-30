@@ -1,6 +1,9 @@
 package types
 
-import "time"
+type Installation struct {
+	Config *InstallationConfig `json:"config"`
+	Status *Status             `json:"status"`
+}
 
 type InstallationConfig struct {
 	AdminConsolePort        int    `json:"adminConsolePort"`
@@ -15,17 +18,8 @@ type InstallationConfig struct {
 	GlobalCIDR              string `json:"globalCidr"`
 }
 
-type InstallationStatus struct {
-	State       InstallationState `json:"state"`
-	Description string            `json:"description"`
-	LastUpdated time.Time         `json:"lastUpdated"`
+func NewInstallation() *Installation {
+	return &Installation{
+		Status: NewStatus(),
+	}
 }
-
-type InstallationState string
-
-const (
-	InstallationStatePending   InstallationState = "Pending"
-	InstallationStateRunning   InstallationState = "Running"
-	InstallationStateSucceeded InstallationState = "Succeeded"
-	InstallationStateFailed    InstallationState = "Failed"
-)

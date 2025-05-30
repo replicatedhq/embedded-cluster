@@ -12,8 +12,8 @@ import (
 type Client interface {
 	Authenticate(password string) error
 	GetInstall() (*types.Install, error)
-	SetInstallConfig(config types.InstallationConfig) (*types.Install, error)
-	SetInstallStatus(status types.InstallationStatus) (*types.Install, error)
+	ConfigureInstallation(config types.InstallationConfig) (*types.Install, error)
+	SetInstallStatus(status types.Status) (*types.Install, error)
 }
 
 type client struct {

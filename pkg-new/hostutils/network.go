@@ -1,4 +1,4 @@
-package host
+package hostutils
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 // ConfigureNetworkManager configures the network manager (if the host is using it) to ignore
 // the calico interfaces. This function restarts the NetworkManager service if the configuration
 // was changed.
-func ConfigureNetworkManager(ctx context.Context) error {
+func (h *HostUtils) ConfigureNetworkManager(ctx context.Context) error {
 	if active, err := helpers.IsSystemdServiceActive(ctx, "NetworkManager"); err != nil {
 		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
 	} else if !active {
@@ -45,7 +45,7 @@ func ConfigureNetworkManager(ctx context.Context) error {
 // ConfigureFirewalld configures firewalld for the cluster. It adds the ec-net zone for pod and
 // service communication with default target ACCEPT, and opens the necessary ports in the default
 // zone for k0s and k8s components on the host network.
-func ConfigureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) error {
+func (h *HostUtils) ConfigureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) error {
 	isActive, err := firewalld.IsFirewalldActive(ctx)
 	if err != nil {
 		return fmt.Errorf("check if firewalld is active: %w", err)

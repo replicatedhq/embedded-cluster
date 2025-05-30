@@ -15,19 +15,18 @@ import (
 // HostPreflightManager provides methods for running host preflights
 type HostPreflightManager interface {
 	PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, *ecv1beta1.ProxySpec, error)
-	RunHostPreflights(ctx context.Context, opts RunHostPreflightOptions) (*types.RunHostPreflightResponse, error)
-	GetHostPreflightStatus(ctx context.Context) (*types.HostPreflightStatusResponse, error)
+	RunHostPreflights(ctx context.Context, opts RunHostPreflightOptions) error
+	GetHostPreflightStatus(ctx context.Context) (*types.Status, error)
+	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightOutput, error)
+	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 }
 
 type hostPreflightManager struct {
-	logger          logrus.FieldLogger
-	metricsReporter metrics.ReporterInterface
-
-	// Thread-safe execution state
-	mu        sync.RWMutex
-	status    types.HostPreflightStatus
-	output    *types.HostPreflightOutput
-	isRunning bool
+	hostPreflight      *types.HostPreflight
+	hostPreflightStore HostPreflightStore
+	logger             logrus.FieldLogger
+	metricsReporter    metrics.ReporterInterface
+	mu                 sync.RWMutex
 }
 
 type HostPreflightManagerOption func(*hostPreflightManager)
@@ -44,6 +43,18 @@ func WithMetricsReporter(metricsReporter metrics.ReporterInterface) HostPrefligh
 	}
 }
 
+func WithHostPreflight(hostPreflight *types.HostPreflight) HostPreflightManagerOption {
+	return func(m *hostPreflightManager) {
+		m.hostPreflight = hostPreflight
+	}
+}
+
+func WithHostPreflightStore(hostPreflightStore HostPreflightStore) HostPreflightManagerOption {
+	return func(m *hostPreflightManager) {
+		m.hostPreflightStore = hostPreflightStore
+	}
+}
+
 // NewHostPreflightManager creates a new HostPreflightManager
 func NewHostPreflightManager(opts ...HostPreflightManagerOption) HostPreflightManager {
 	manager := &hostPreflightManager{}
@@ -54,6 +65,14 @@ func NewHostPreflightManager(opts ...HostPreflightManagerOption) HostPreflightMa
 
 	if manager.logger == nil {
 		manager.logger = logger.NewDiscardLogger()
+	}
+
+	if manager.hostPreflight == nil {
+		manager.hostPreflight = types.NewHostPreflight()
+	}
+
+	if manager.hostPreflightStore == nil {
+		manager.hostPreflightStore = NewMemoryStore(manager.hostPreflight)
 	}
 
 	return manager

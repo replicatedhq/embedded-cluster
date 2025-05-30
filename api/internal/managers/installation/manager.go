@@ -13,14 +13,15 @@ var _ InstallationManager = &installationManager{}
 type InstallationManager interface {
 	ReadConfig() (*types.InstallationConfig, error)
 	WriteConfig(config types.InstallationConfig) error
-	ReadStatus() (*types.InstallationStatus, error)
-	WriteStatus(status types.InstallationStatus) error
+	ReadStatus() (*types.Status, error)
+	WriteStatus(status types.Status) error
 	ValidateConfig(config *types.InstallationConfig) error
 	SetConfigDefaults(config *types.InstallationConfig) error
 }
 
 // installationManager is an implementation of the InstallationManager interface
 type installationManager struct {
+	installation      *types.Installation
 	installationStore InstallationStore
 	netUtils          utils.NetUtils
 	logger            logrus.FieldLogger
@@ -31,6 +32,12 @@ type InstallationManagerOption func(*installationManager)
 func WithLogger(logger logrus.FieldLogger) InstallationManagerOption {
 	return func(c *installationManager) {
 		c.logger = logger
+	}
+}
+
+func WithInstallation(installation *types.Installation) InstallationManagerOption {
+	return func(c *installationManager) {
+		c.installation = installation
 	}
 }
 
@@ -58,8 +65,12 @@ func NewInstallationManager(opts ...InstallationManagerOption) *installationMana
 		manager.logger = logger.NewDiscardLogger()
 	}
 
+	if manager.installation == nil {
+		manager.installation = types.NewInstallation()
+	}
+
 	if manager.installationStore == nil {
-		manager.installationStore = NewMemoryStore()
+		manager.installationStore = NewMemoryStore(manager.installation)
 	}
 
 	if manager.netUtils == nil {

@@ -35,13 +35,13 @@ func (c *client) GetInstall() (*types.Install, error) {
 	return &install, nil
 }
 
-func (c *client) SetInstallConfig(config types.InstallationConfig) (*types.Install, error) {
+func (c *client) ConfigureInstallation(config types.InstallationConfig) (*types.Install, error) {
 	b, err := json.Marshal(config)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.apiURL+"/api/install/config", bytes.NewBuffer(b))
+	req, err := http.NewRequest("POST", c.apiURL+"/api/install/installation/configure", bytes.NewBuffer(b))
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (c *client) SetInstallConfig(config types.InstallationConfig) (*types.Insta
 	return &install, nil
 }
 
-func (c *client) SetInstallStatus(status types.InstallationStatus) (*types.Install, error) {
+func (c *client) SetInstallStatus(status types.Status) (*types.Install, error) {
 	b, err := json.Marshal(status)
 	if err != nil {
 		return nil, err

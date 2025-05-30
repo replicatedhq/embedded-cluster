@@ -142,7 +142,7 @@ func markUIInstallComplete(password string, managerPort int) error {
 		return fmt.Errorf("unable to authenticate: %w", err)
 	}
 
-	_, err := apiClient.SetInstallStatus(apitypes.InstallationStatus{
+	_, err := apiClient.SetInstallStatus(apitypes.Status{
 		State:       apitypes.InstallationStateSucceeded,
 		Description: "Install Complete",
 		LastUpdated: time.Now(),
