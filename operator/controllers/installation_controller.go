@@ -448,7 +448,8 @@ func (r *InstallationReconciler) reconcileHostCABundle(ctx context.Context) erro
 		return nil
 	}
 
-	if err := r.Get(ctx, types.NamespacedName{Name: "kotsadm"}, &corev1.Namespace{}); k8serrors.IsNotFound(err) {
+	err := r.Get(ctx, types.NamespacedName{Name: "kotsadm"}, &corev1.Namespace{})
+	if k8serrors.IsNotFound(err) {
 		// if the namespace has not been created yet, we don't need to reconcile the CA configmap
 		return nil
 	} else if err != nil {
@@ -456,7 +457,7 @@ func (r *InstallationReconciler) reconcileHostCABundle(ctx context.Context) erro
 	}
 
 	logger := ctrl.LoggerFrom(ctx)
-	err := adminconsole.EnsureCAConfigmap(ctx, logger.Info, r.Client, r.MetadataClient, caPathInContainer)
+	err = adminconsole.EnsureCAConfigmap(ctx, logger.Info, r.Client, r.MetadataClient, caPathInContainer)
 	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
 		logger.Error(err, "Failed to reconcile host ca bundle")
 		return nil
