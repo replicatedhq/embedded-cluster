@@ -9,6 +9,8 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -126,14 +128,38 @@ func (web *Web) rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (web *Web) RegisterRoutes(router *mux.Router) {
-
 	var webFS http.Handler
 	if os.Getenv("EC_DEV_ENV") == "true" {
-		webFS = http.FileServer(http.FS(os.DirFS("./web/dist/assets")))
+		// Use absolute path to ensure we can find the files
+		absPath, err := filepath.Abs("web/dist")
+		if err != nil {
+			web.logger.WithError(err).Error("Failed to get absolute path for assets")
+		}
+		webFS = http.FileServer(http.Dir(absPath))
 	} else {
 		webFS = http.FileServer(http.FS(web.assets))
 	}
 
-	router.PathPrefix("/assets").Methods("GET").Handler(webFS)
+	// Create a custom handler that sets the correct MIME types
+	assetsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Remove the nosniff header to allow content type override
+		w.Header().Del("X-Content-Type-Options")
+
+		// Set correct MIME types for different file types
+		switch {
+		case strings.HasSuffix(r.URL.Path, ".css"):
+			w.Header().Set("Content-Type", "text/css")
+		case strings.HasSuffix(r.URL.Path, ".js"):
+			w.Header().Set("Content-Type", "application/javascript")
+		case strings.HasSuffix(r.URL.Path, ".html"):
+			w.Header().Set("Content-Type", "text/html")
+		case strings.HasSuffix(r.URL.Path, ".json"):
+			w.Header().Set("Content-Type", "application/json")
+		}
+
+		webFS.ServeHTTP(w, r)
+	})
+
+	router.PathPrefix("/assets").Methods("GET").Handler(assetsHandler)
 	router.PathPrefix("/").Methods("GET").HandlerFunc(web.rootHandler)
 }
