@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
@@ -18,6 +19,37 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var _ install.Controller = &mockInstallController{}
+
+// Mock implementation of the install.Controller interface
+type mockInstallController struct {
+	setConfigError  error
+	getError        error
+	setStatusError  error
+	readStatusError error
+}
+
+func (m *mockInstallController) Get(ctx context.Context) (*types.Install, error) {
+	if m.getError != nil {
+		return nil, m.getError
+	}
+	return &types.Install{
+		Config: types.InstallationConfig{},
+	}, nil
+}
+
+func (m *mockInstallController) SetConfig(ctx context.Context, config *types.InstallationConfig) error {
+	return m.setConfigError
+}
+
+func (m *mockInstallController) SetStatus(ctx context.Context, status *types.InstallationStatus) error {
+	return m.setStatusError
+}
+
+func (m *mockInstallController) ReadStatus(ctx context.Context) (*types.InstallationStatus, error) {
+	return nil, m.readStatusError
+}
 
 func TestSetInstallConfig(t *testing.T) {
 	manager := installation.NewInstallationManager()
@@ -44,12 +76,14 @@ func TestSetInstallConfig(t *testing.T) {
 	// Test scenarios
 	testCases := []struct {
 		name           string
+		token          string
 		config         types.InstallationConfig
 		expectedStatus int
 		expectedError  bool
 	}{
 		{
-			name: "Valid config",
+			name:  "Valid config",
+			token: "TOKEN",
 			config: types.InstallationConfig{
 				DataDirectory:           "/tmp/data",
 				AdminConsolePort:        8000,
@@ -61,7 +95,8 @@ func TestSetInstallConfig(t *testing.T) {
 			expectedError:  false,
 		},
 		{
-			name: "Invalid config - port conflict",
+			name:  "Invalid config - port conflict",
+			token: "TOKEN",
 			config: types.InstallationConfig{
 				DataDirectory:           "/tmp/data",
 				AdminConsolePort:        8080,
@@ -70,6 +105,13 @@ func TestSetInstallConfig(t *testing.T) {
 				NetworkInterface:        "eth0",
 			},
 			expectedStatus: http.StatusBadRequest,
+			expectedError:  true,
+		},
+		{
+			name:           "Unauthorized",
+			token:          "NOT_A_TOKEN",
+			config:         types.InstallationConfig{},
+			expectedStatus: http.StatusUnauthorized,
 			expectedError:  true,
 		},
 	}
@@ -83,7 +125,7 @@ func TestSetInstallConfig(t *testing.T) {
 			// Create a request
 			req := httptest.NewRequest(http.MethodPost, "/install/config", bytes.NewReader(configJSON))
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("Authorization", "Bearer "+"TOKEN")
+			req.Header.Set("Authorization", "Bearer "+tc.token)
 			rec := httptest.NewRecorder()
 
 			// Serve the request
@@ -262,7 +304,6 @@ func TestSetInstallConfigControllerError(t *testing.T) {
 	t.Logf("Response body: %s", rec.Body.String())
 }
 
-// Test the getInstall endpoint returns installation data correctly
 func TestGetInstall(t *testing.T) {
 	// Create a config manager
 	installationManager := installation.NewInstallationManager()
@@ -375,6 +416,26 @@ func TestGetInstall(t *testing.T) {
 		assert.Equal(t, "eth0", install.Config.NetworkInterface)
 	})
 
+	// Test authorization
+	t.Run("Authorization error", func(t *testing.T) {
+		// Create a request
+		req := httptest.NewRequest(http.MethodGet, "/install", nil)
+		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+
 	// Test error handling
 	t.Run("Controller error", func(t *testing.T) {
 		// Create a mock controller that returns an error
@@ -414,35 +475,271 @@ func TestGetInstall(t *testing.T) {
 	})
 }
 
-var _ install.Controller = &mockInstallController{}
+// Test the getInstallStatus endpoint returns installation status correctly
+func TestGetInstallStatus(t *testing.T) {
+	// Create a config manager
+	installationManager := installation.NewInstallationManager()
 
-// Mock implementation of the install.Controller interface
-type mockInstallController struct {
-	setConfigError  error
-	getError        error
-	setStatusError  error
-	readStatusError error
-}
+	// Create an install controller with the config manager
+	installController, err := install.NewInstallController(
+		install.WithInstallationManager(installationManager),
+	)
+	require.NoError(t, err)
 
-func (m *mockInstallController) Get(ctx context.Context) (*types.Install, error) {
-	if m.getError != nil {
-		return nil, m.getError
+	// Set some initial status
+	initialStatus := types.InstallationStatus{
+		State:       types.InstallationStatePending,
+		Description: "Installation in progress",
 	}
-	return &types.Install{
-		Config: types.InstallationConfig{},
-	}, nil
+	err = installationManager.WriteStatus(initialStatus)
+	require.NoError(t, err)
+
+	// Create the API with the install controller
+	apiInstance, err := api.New(
+		"password",
+		api.WithInstallController(installController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithLogger(api.NewDiscardLogger()),
+	)
+	require.NoError(t, err)
+
+	// Create a router and register the API routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router)
+
+	// Test successful get
+	t.Run("Success", func(t *testing.T) {
+		// Create a request
+		req := httptest.NewRequest(http.MethodGet, "/install/status", nil)
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var status types.InstallationStatus
+		err = json.NewDecoder(rec.Body).Decode(&status)
+		require.NoError(t, err)
+
+		// Verify the status matches what we expect
+		assert.Equal(t, initialStatus.State, status.State)
+		assert.Equal(t, initialStatus.Description, status.Description)
+	})
+
+	// Test authorization
+	t.Run("Authorization error", func(t *testing.T) {
+		// Create a request
+		req := httptest.NewRequest(http.MethodGet, "/install/status", nil)
+		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+
+	// Test error handling
+	t.Run("Controller error", func(t *testing.T) {
+		// Create a mock controller that returns an error
+		mockController := &mockInstallController{
+			readStatusError: assert.AnError,
+		}
+
+		// Create the API with the mock controller
+		apiInstance, err := api.New(
+			"password",
+			api.WithInstallController(mockController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(api.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request
+		req := httptest.NewRequest(http.MethodGet, "/install/status", nil)
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
+		assert.NotEmpty(t, apiError.Message)
+	})
 }
 
-func (m *mockInstallController) SetConfig(ctx context.Context, config *types.InstallationConfig) error {
-	return m.setConfigError
-}
+// Test the setInstallStatus endpoint sets installation status correctly
+func TestSetInstallStatus(t *testing.T) {
+	// Create a config manager
+	installationManager := installation.NewInstallationManager()
 
-func (m *mockInstallController) SetStatus(ctx context.Context, status *types.InstallationStatus) error {
-	return m.setStatusError
-}
+	// Create an install controller with the config manager
+	installController, err := install.NewInstallController(
+		install.WithInstallationManager(installationManager),
+	)
+	require.NoError(t, err)
 
-func (m *mockInstallController) ReadStatus(ctx context.Context) (*types.InstallationStatus, error) {
-	return nil, m.readStatusError
+	// Create the API with the install controller
+	apiInstance, err := api.New(
+		"password",
+		api.WithInstallController(installController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithLogger(api.NewDiscardLogger()),
+	)
+	require.NoError(t, err)
+
+	// Create a router and register the API routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router)
+
+	t.Run("Valid status is passed", func(t *testing.T) {
+
+		now := time.Now()
+		status := types.InstallationStatus{
+			State:       types.InstallationStatePending,
+			Description: "Installation in progress",
+			LastUpdated: now,
+		}
+
+		// Serialize the status to JSON
+		statusJSON, err := json.Marshal(status)
+		require.NoError(t, err)
+
+		// Create a request
+		req := httptest.NewRequest(http.MethodPost, "/install/status", bytes.NewReader(statusJSON))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		t.Logf("Response body: %s", rec.Body.String())
+
+		// Parse the response body
+		var install types.Install
+		err = json.NewDecoder(rec.Body).Decode(&install)
+		require.NoError(t, err)
+
+		// Verify that the status was properly set
+		assert.Equal(t, status.State, install.Status.State)
+		assert.Equal(t, status.Description, install.Status.Description)
+		assert.Equal(t, now.Format(time.RFC3339), install.Status.LastUpdated.Format(time.RFC3339))
+
+		// Also verify that the status is in the store
+		storedStatus, err := installationManager.ReadStatus()
+		require.NoError(t, err)
+		assert.Equal(t, status.State, storedStatus.State)
+		assert.Equal(t, status.Description, storedStatus.Description)
+		assert.Equal(t, now.Format(time.RFC3339), storedStatus.LastUpdated.Format(time.RFC3339))
+	})
+
+	// Test that the endpoint properly handles validation errors
+	t.Run("Validation error", func(t *testing.T) {
+		// Create a request with invalid JSON
+		req := httptest.NewRequest(http.MethodPost, "/install/status",
+			bytes.NewReader([]byte(`{"state": "INVALID_STATE"}`)))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		t.Logf("Response body: %s", rec.Body.String())
+	})
+
+	// Test authorization errors
+	t.Run("Authorization error", func(t *testing.T) {
+		// Create a request with invalid JSON
+		req := httptest.NewRequest(http.MethodPost, "/install/status",
+			bytes.NewReader([]byte(`{}`)))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+
+	// Test controller error
+	t.Run("Controller error", func(t *testing.T) {
+		// Create a mock controller that returns an error
+		mockController := &mockInstallController{
+			setStatusError: assert.AnError,
+		}
+
+		// Create the API with the mock controller
+		apiInstance, err := api.New(
+			"password",
+			api.WithInstallController(mockController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(api.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a valid status
+		status := types.InstallationStatus{
+			State:       types.InstallationStatePending,
+			Description: "Installation in progress",
+		}
+		statusJSON, err := json.Marshal(status)
+		require.NoError(t, err)
+
+		// Create a request
+		req := httptest.NewRequest(http.MethodPost, "/install/status", bytes.NewReader(statusJSON))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+
+		t.Logf("Response body: %s", rec.Body.String())
+	})
 }
 
 // TestInstallWithAPIClient tests the install endpoints using the API client

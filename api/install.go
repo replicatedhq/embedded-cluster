@@ -27,6 +27,17 @@ func (a *API) getInstall(w http.ResponseWriter, r *http.Request) {
 	a.json(w, r, http.StatusOK, install)
 }
 
+// setInstallConfig handler to set the installation config
+//
+//	@Summary		Set the installation config
+//	@Description	set the installation config
+//	@Tags			install
+//	@Security		bearerauth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		types.InstallationConfig	true	"Installation config"
+//	@Success		200		{object}	types.Install
+//	@Router			/install/config [post]
 func (a *API) setInstallConfig(w http.ResponseWriter, r *http.Request) {
 	var config types.InstallationConfig
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
@@ -49,6 +60,17 @@ func (a *API) setInstallConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// setInstallStatus handler to set the installation status
+//
+//	@Summary		Set the installation status
+//	@Description	set the installation status
+//	@Tags			install
+//	@Security		bearerauth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		types.InstallationStatus	true	"Installation status"
+//	@Success		200		{object}	types.Install
+//	@Router			/install/status [post]
 func (a *API) setInstallStatus(w http.ResponseWriter, r *http.Request) {
 	var status types.InstallationStatus
 	if err := json.NewDecoder(r.Body).Decode(&status); err != nil {
@@ -66,6 +88,15 @@ func (a *API) setInstallStatus(w http.ResponseWriter, r *http.Request) {
 	a.getInstall(w, r)
 }
 
+// getInstallStatus handler to get the installation status
+//
+//	@Summary		Get the installation status
+//	@Description	get the installation status
+//	@Tags			install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.InstallationStatus
+//	@Router			/install/status [get]
 func (a *API) getInstallStatus(w http.ResponseWriter, r *http.Request) {
 	status, err := a.installController.ReadStatus(r.Context())
 	if err != nil {
