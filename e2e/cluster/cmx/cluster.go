@@ -299,7 +299,7 @@ func (c *Cluster) Destroy() {
 func (c *Cluster) removeNode(node Node) {
 	output, err := exec.Command("replicated", "vm", "rm", node.ID).CombinedOutput()
 	if err != nil {
-		c.t.Logf("failed to destroy node %s: %v: %s", node.Name, err, string(output))
+		c.t.Logf("failed to destroy node %s: %v: %s", node.ID, err, string(output))
 	}
 }
 
