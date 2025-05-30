@@ -11,7 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
-var _ InstallationManager = &installationManager{}
+var _ InstallationManager = (*installationManager)(nil)
 
 // InstallationManager provides methods for validating and setting defaults for installation configuration
 type InstallationManager interface {
@@ -20,6 +20,7 @@ type InstallationManager interface {
 	ReadStatus() (*types.InstallationStatus, error)
 	WriteStatus(status types.InstallationStatus) error
 	ValidateConfig(config *types.InstallationConfig) error
+	ValidateStatus(status *types.InstallationStatus) error
 	SetDefaults(config *types.InstallationConfig) error
 }
 
@@ -107,6 +108,27 @@ func (m *installationManager) ValidateConfig(config *types.InstallationConfig) e
 
 	if err := m.validateDataDirectory(config); err != nil {
 		ve = types.AppendFieldError(ve, "dataDirectory", err)
+	}
+
+	return ve.ErrorOrNil()
+}
+
+func (m *installationManager) ValidateStatus(status *types.InstallationStatus) error {
+	var ve *types.APIError
+
+	if status == nil {
+		return types.NewBadRequestError(errors.New("a status is required"))
+	}
+
+	switch status.State {
+	case types.InstallationStatePending, types.InstallationStateRunning, types.InstallationStateSucceeded, types.InstallationStateFailed:
+		// valid states
+	default:
+		ve = types.AppendFieldError(ve, "state", fmt.Errorf("invalid state: %s", status.State))
+	}
+
+	if status.Description == "" {
+		ve = types.AppendFieldError(ve, "description", errors.New("description is required"))
 	}
 
 	return ve.ErrorOrNil()

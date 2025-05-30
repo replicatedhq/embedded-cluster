@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Card from "../common/Card";
 import Button from "../common/Button";
 import { useConfig } from "../../contexts/ConfigContext";
@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import LinuxSetup from "./setup/LinuxSetup";
 import KubernetesSetup from "./setup/KubernetesSetup";
 import LinuxPreflightCheck from "./setup/LinuxPreflightCheck";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 interface SetupStepProps {
   onNext: () => void;
@@ -19,34 +20,37 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   const { config, updateConfig, prototypeSettings } = useConfig();
   const { text } = useWizardMode();
   const [showAdvanced, setShowAdvanced] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [availableNetworkInterfaces, setAvailableNetworkInterfaces] = useState<
-    string[]
-  >([]);
   const [preflightComplete, setPreflightComplete] = useState(false);
   const [preflightSuccess, setPreflightSuccess] = useState(false);
   const [phase, setPhase] = useState<SetupPhase>("configuration");
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch cluster config
-        const installResponse = await fetch("/api/install", {
-          headers: {
-            ...(localStorage.getItem("auth") && {
-              Authorization: `Bearer ${localStorage.getItem("auth")}`,
-            }),
-          },
-        });
+  // Query for fetching install configuration
+  const { isLoading: isConfigLoading } = useQuery({
+    queryKey: ["installConfig"],
+    queryFn: async () => {
+      const response = await fetch("/api/install", {
+        headers: {
+          ...(localStorage.getItem("auth") && {
+            Authorization: `Bearer ${localStorage.getItem("auth")}`,
+          }),
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch install configuration");
+      }
+      const data = await response.json();
+      updateConfig(data.config);
+      return data;
+    },
+  });
 
-        if (installResponse.ok) {
-          const install = await installResponse.json();
-          updateConfig(install.config);
-        }
-
-        const interfacesResponse = await fetch(
+  // Query for fetching network interfaces
+  const { data: networkInterfacesData, isLoading: isInterfacesLoading } =
+    useQuery({
+      queryKey: ["networkInterfaces"],
+      queryFn: async () => {
+        const response = await fetch(
           "/api/console/available-network-interfaces",
           {
             headers: {
@@ -56,21 +60,53 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             },
           }
         );
-
-        if (interfacesResponse.ok) {
-          const interfacesData = await interfacesResponse.json();
-          setAvailableNetworkInterfaces(interfacesData.networkInterfaces || []);
+        if (!response.ok) {
+          throw new Error("Failed to fetch network interfaces");
         }
-      } catch (err) {
-        console.error("Failed to fetch data:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+        return response.json();
+      },
+    });
 
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Mutation for submitting the configuration
+  const {
+    mutate: submitConfig,
+    isPending: isSubmitting,
+    error: submitError,
+  } = useMutation({
+    mutationFn: async (configData: typeof config) => {
+      const response = await fetch("/api/install/config", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(localStorage.getItem("auth") && {
+            Authorization: `Bearer ${localStorage.getItem("auth")}`,
+          }),
+        },
+        body: JSON.stringify(configData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw errorData;
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      onNext();
+    },
+    onError: (err: any) => {
+      setError(err.message || "Failed to setup cluster");
+    },
+  });
+
+  // Helper function to get field error message
+  const getFieldError = (fieldName: string) => {
+    if (!submitError?.errors) return undefined;
+    const fieldError = submitError.errors.find(
+      (err: any) => err.field === fieldName
+    );
+    return fieldError?.message;
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -78,8 +114,6 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
       updateConfig({ adminConsolePort: parseInt(value) });
     } else if (id === "localArtifactMirrorPort") {
       updateConfig({ localArtifactMirrorPort: parseInt(value) });
-    } else {
-      updateConfig({ [id]: value });
     }
   };
 
@@ -89,7 +123,6 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   };
 
   const handleNext = async () => {
-    setIsSubmitting(true);
     setError(null);
 
     try {
@@ -122,8 +155,6 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to setup cluster");
       console.error("Cluster setup failed:", err);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -139,6 +170,10 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
       onBack();
     }
   };
+
+  const isLoading = isConfigLoading || isInterfacesLoading;
+  const availableNetworkInterfaces =
+    networkInterfacesData?.networkInterfaces || [];
 
   return (
     <div className="space-y-6">
@@ -180,9 +215,9 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
           <KubernetesSetup config={config} onInputChange={handleInputChange} />
         )}
 
-        {error && (
-          <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-md">
-            {error}
+        {submitError && (
+          <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
+            Please fix the errors in the form above before proceeding.
           </div>
         )}
       </Card>
