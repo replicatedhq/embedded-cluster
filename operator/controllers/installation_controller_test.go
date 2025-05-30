@@ -226,6 +226,8 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 			// Setup context with logger
 			ctx := logr.NewContext(context.Background(), logger)
 
+			t.Setenv("PRIVATE_CA_BUNDLE_PATH", tt.caPath)
+
 			// Run test
 			err = reconciler.reconcileHostCABundle(ctx)
 
