@@ -457,7 +457,10 @@ func (r *InstallationReconciler) reconcileHostCABundle(ctx context.Context) erro
 	}
 
 	logger := ctrl.LoggerFrom(ctx)
-	err = adminconsole.EnsureCAConfigmap(ctx, logger.Info, r.Client, r.MetadataClient, caPathInContainer)
+	logf := func(format string, args ...interface{}) {
+		logger.Info(fmt.Sprintf(format, args...))
+	}
+	err = adminconsole.EnsureCAConfigmap(ctx, logf, r.Client, r.MetadataClient, caPathInContainer)
 	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
 		logger.Error(err, "Failed to reconcile host ca bundle")
 		return nil
