@@ -103,7 +103,6 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 		"--name", nodeName,
 		"--network", networkID,
 		"--wait", "5m",
-		"--ttl", "2h",
 		"-ojson",
 	}
 	if in.Distribution != "" {

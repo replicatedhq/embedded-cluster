@@ -205,9 +205,6 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 
 	for _, line := range lines {
 		if stdout, stderr, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
-			// sleep for 1 hour
-			time.Sleep(1 * time.Hour)
-			fmt.Println("sleeping for 1 hour")
 			t.Fatalf("fail to join node %d as a controller%s: %v: %s: %s",
 				node, map[bool]string{true: " in ha mode", false: ""}[opts.isHA], err, stdout, stderr)
 		}
