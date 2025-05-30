@@ -27,7 +27,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context) error {
 		ProxyRegistryURL:      netutils.MaybeAddHTTPS(ecDomains.ProxyRegistryDomain),
 		HostPreflightSpec:     c.releaseData.HostPreflights,
 		EmbeddedClusterConfig: c.releaseData.EmbeddedClusterConfig,
-		IsAirgap:              c.isAirgap,
+		IsAirgap:              c.airgapBundle != "",
 	})
 	if err != nil {
 		return fmt.Errorf("failed to prepare host preflights: %w", err)

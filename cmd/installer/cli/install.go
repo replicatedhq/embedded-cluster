@@ -311,10 +311,11 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		}
 
 		apiConfig := APIConfig{
-			Password:    flags.adminConsolePassword,
-			ManagerPort: flags.managerPort,
-			IsAirgap:    flags.isAirgap,
-			ConfigChan:  configChan,
+			Password:     flags.adminConsolePassword,
+			ManagerPort:  flags.managerPort,
+			LicenseFile:  flags.licenseFile,
+			AirgapBundle: flags.airgapBundle,
+			ConfigChan:   configChan,
 		}
 
 		if err := startAPI(cmd.Context(), flags.tlsCert, apiConfig); err != nil {

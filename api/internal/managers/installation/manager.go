@@ -21,13 +21,15 @@ type InstallationManager interface {
 	SetStatus(status *types.Status) error
 	ValidateConfig(config *types.InstallationConfig) error
 	SetConfigDefaults(config *types.InstallationConfig) error
-	ConfigureInstallation(ctx context.Context, config *types.InstallationConfig) error
+	ConfigureForInstall(ctx context.Context, config *types.InstallationConfig) error
 }
 
 // installationManager is an implementation of the InstallationManager interface
 type installationManager struct {
 	installation      *types.Installation
 	installationStore InstallationStore
+	licenseFile       string
+	airgapBundle      string
 	netUtils          utils.NetUtils
 	hostUtils         *hostutils.HostUtils
 	logger            logrus.FieldLogger
@@ -51,6 +53,18 @@ func WithInstallation(installation *types.Installation) InstallationManagerOptio
 func WithInstallationStore(installationStore InstallationStore) InstallationManagerOption {
 	return func(c *installationManager) {
 		c.installationStore = installationStore
+	}
+}
+
+func WithLicenseFile(licenseFile string) InstallationManagerOption {
+	return func(c *installationManager) {
+		c.licenseFile = licenseFile
+	}
+}
+
+func WithAirgapBundle(airgapBundle string) InstallationManagerOption {
+	return func(c *installationManager) {
+		c.airgapBundle = airgapBundle
 	}
 }
 

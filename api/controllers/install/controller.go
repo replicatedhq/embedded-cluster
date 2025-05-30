@@ -36,7 +36,8 @@ type InstallController struct {
 	hostUtils            *hostutils.HostUtils
 	metricsReporter      metrics.ReporterInterface
 	releaseData          *release.ReleaseData
-	isAirgap             bool
+	licenseFile          string
+	airgapBundle         string
 	mu                   sync.RWMutex
 }
 
@@ -66,9 +67,15 @@ func WithReleaseData(releaseData *release.ReleaseData) InstallControllerOption {
 	}
 }
 
-func WithIsAirgap(isAirgap bool) InstallControllerOption {
+func WithLicenseFile(licenseFile string) InstallControllerOption {
 	return func(c *InstallController) {
-		c.isAirgap = isAirgap
+		c.licenseFile = licenseFile
+	}
+}
+
+func WithAirgapBundle(airgapBundle string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.airgapBundle = airgapBundle
 	}
 }
 
@@ -107,6 +114,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.installationManager = installation.NewInstallationManager(
 			installation.WithLogger(controller.logger),
 			installation.WithInstallation(controller.install.Steps.Installation),
+			installation.WithLicenseFile(controller.licenseFile),
+			installation.WithAirgapBundle(controller.airgapBundle),
 		)
 	}
 

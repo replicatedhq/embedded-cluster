@@ -43,11 +43,12 @@ type API struct {
 	consoleController console.Controller
 	installController install.Controller
 	releaseData       *release.ReleaseData
+	licenseFile       string
+	airgapBundle      string
 	configChan        chan<- *types.InstallationConfig
 	logger            logrus.FieldLogger
 	hostUtils         *hostutils.HostUtils
 	metricsReporter   metrics.ReporterInterface
-	isAirgap          bool
 }
 
 type APIOption func(*API)
@@ -100,9 +101,15 @@ func WithConfigChan(configChan chan<- *types.InstallationConfig) APIOption {
 	}
 }
 
-func WithIsAirgap(isAirgap bool) APIOption {
+func WithLicenseFile(licenseFile string) APIOption {
 	return func(a *API) {
-		a.isAirgap = isAirgap
+		a.licenseFile = licenseFile
+	}
+}
+
+func WithAirgapBundle(airgapBundle string) APIOption {
+	return func(a *API) {
+		a.airgapBundle = airgapBundle
 	}
 }
 
@@ -149,7 +156,8 @@ func New(password string, opts ...APIOption) (*API, error) {
 			install.WithHostUtils(api.hostUtils),
 			install.WithMetricsReporter(api.metricsReporter),
 			install.WithReleaseData(api.releaseData),
-			install.WithIsAirgap(api.isAirgap),
+			install.WithLicenseFile(api.licenseFile),
+			install.WithAirgapBundle(api.airgapBundle),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("new install controller: %w", err)

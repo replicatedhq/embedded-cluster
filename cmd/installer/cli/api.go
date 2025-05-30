@@ -29,7 +29,8 @@ type APIConfig struct {
 	MetricsReporter metrics.ReporterInterface
 	Password        string
 	ManagerPort     int
-	IsAirgap        bool
+	LicenseFile     string
+	AirgapBundle    string
 	ConfigChan      chan<- *apitypes.InstallationConfig
 }
 
@@ -61,9 +62,10 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		config.Password,
 		api.WithLogger(config.Logger),
 		api.WithMetricsReporter(config.MetricsReporter),
-		api.WithConfigChan(config.ConfigChan),
 		api.WithReleaseData(release.GetReleaseData()),
-		api.WithIsAirgap(config.IsAirgap),
+		api.WithLicenseFile(config.LicenseFile),
+		api.WithAirgapBundle(config.AirgapBundle),
+		api.WithConfigChan(config.ConfigChan),
 	)
 	if err != nil {
 		return fmt.Errorf("new api: %w", err)
@@ -143,7 +145,7 @@ func markUIInstallComplete(password string, managerPort int) error {
 	}
 
 	_, err := apiClient.SetInstallStatus(apitypes.Status{
-		State:       apitypes.InstallationStateSucceeded,
+		State:       apitypes.StateSucceeded,
 		Description: "Install Complete",
 		LastUpdated: time.Now(),
 	})
