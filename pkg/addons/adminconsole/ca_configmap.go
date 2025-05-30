@@ -71,7 +71,7 @@ func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Clie
 
 	rawPatch := fmt.Sprintf(`{"metadata":{"annotations":{"replicated.com/cas-checksum":"%s"}},"data":%s}`, checksum, marshalledData)
 	patch := client.RawPatch(apitypes.MergePatchType, []byte(rawPatch))
-	err = kcli.Patch(ctx, existingMeta, patch)
+	err = kcli.Patch(ctx, new, patch)
 	if err != nil {
 		return fmt.Errorf("patch configmap: %w", err)
 	}

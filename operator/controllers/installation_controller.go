@@ -448,6 +448,14 @@ func (r *InstallationReconciler) reconcileHostCABundle(ctx context.Context) erro
 		return nil
 	}
 
+	var ns corev1.Namespace
+	if err := r.Get(ctx, types.NamespacedName{Name: "kotsadm"}, &ns); k8serrors.IsNotFound(err) {
+		// if the namespace has not been created yet, we don't need to reconcile the CA configmap
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to get kotsadm namespace: %w", err)
+	}
+
 	logger := ctrl.LoggerFrom(ctx)
 	err := adminconsole.EnsureCAConfigmap(ctx, logger.Info, r.Client, r.MetadataClient, caPathInContainer)
 	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
