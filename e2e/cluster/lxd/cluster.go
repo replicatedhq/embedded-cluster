@@ -1166,7 +1166,7 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 	}
 	stdout, stderr, err := c.RunCommandOnProxyNode(c.T, line, env)
 	if err != nil {
-		return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, c.Proxy, err)
+		return stdout, stderr, err
 	}
 	return stdout, stderr, nil
 }

@@ -2,6 +2,7 @@ package kubeutils
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -169,7 +170,11 @@ func TestEnsureObject(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			log := testr.NewWithOptions(t, testr.Options{Verbosity: 10})
+			verbosity := 1
+			if os.Getenv("DEBUG") != "" {
+				verbosity = 10
+			}
+			log := testr.NewWithOptions(t, testr.Options{Verbosity: verbosity})
 			ctx := logr.NewContext(context.Background(), log)
 
 			testEnv := &envtest.Environment{}

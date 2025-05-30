@@ -50,6 +50,8 @@ type Network struct {
 
 func NewCluster(in *ClusterInput) *Cluster {
 	c := &Cluster{t: in.T, supportBundleNodeIndex: in.SupportBundleNodeIndex}
+	c.t.Cleanup(c.Destroy)
+
 	c.Nodes = make([]Node, in.Nodes)
 
 	network, err := NewNetwork(in)
@@ -60,11 +62,13 @@ func NewCluster(in *ClusterInput) *Cluster {
 
 	for i := range c.Nodes {
 		node, err := NewNode(in, i, network.ID)
+		if node != nil {
+			c.Nodes[i] = *node
+		}
 		if err != nil {
 			in.T.Fatalf("create node %d: %v", i, err)
 		}
 		in.T.Logf("node%d created with ID %s", i, node.ID)
-		c.Nodes[i] = *node
 	}
 
 	return c
@@ -94,7 +98,7 @@ func NewNetwork(in *ClusterInput) (*Network, error) {
 	return network, nil
 }
 
-func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
+func NewNode(in *ClusterInput, index int, networkID string) (node *Node, err error) {
 	nodeName := fmt.Sprintf("node%d", index)
 	in.T.Logf("creating node %s", nodeName)
 
@@ -136,7 +140,7 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 	if len(nodes) != 1 {
 		return nil, fmt.Errorf("expected 1 node, got %d", len(nodes))
 	}
-	node := nodes[0]
+	node = &nodes[0]
 
 	// TODO (@salah): remove this once the bug is fixed in CMX
 	// note: the vm gets marked as ready before the services are actually running
@@ -144,34 +148,34 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 
 	sshEndpoint, err := getSSHEndpoint(node.ID)
 	if err != nil {
-		return nil, fmt.Errorf("get ssh endpoint for node %s: %v", nodeName, err)
+		return node, fmt.Errorf("get ssh endpoint for node %s: %v", nodeName, err)
 	}
 	node.sshEndpoint = sshEndpoint
 
-	privateIP, err := discoverPrivateIP(node)
+	privateIP, err := discoverPrivateIP(*node)
 	if err != nil {
-		return nil, fmt.Errorf("discover node private IP: %v", err)
+		return node, fmt.Errorf("discover node private IP: %v", err)
 	}
 	node.privateIP = privateIP
 
-	if err := ensureAssetsDir(node); err != nil {
-		return nil, fmt.Errorf("ensure assets dir on node %s: %v", node.Name, err)
+	if err := ensureAssetsDir(*node); err != nil {
+		return node, fmt.Errorf("ensure assets dir on node %s: %v", node.Name, err)
 	}
 
-	if err := copyScriptsToNode(node); err != nil {
-		return nil, fmt.Errorf("copy scripts to node %s: %v", node.Name, err)
+	if err := copyScriptsToNode(*node); err != nil {
+		return node, fmt.Errorf("copy scripts to node %s: %v", node.Name, err)
 	}
 
 	if index == 0 {
 		in.T.Logf("exposing port 30003 on node %s", node.Name)
-		hostname, err := exposePort(node, "30003")
+		hostname, err := exposePort(*node, "30003")
 		if err != nil {
-			return nil, fmt.Errorf("expose port: %v", err)
+			return node, fmt.Errorf("expose port: %v", err)
 		}
 		node.adminConsoleURL = fmt.Sprintf("http://%s", hostname)
 	}
 
-	return &node, nil
+	return node, nil
 }
 
 func discoverPrivateIP(node Node) (string, error) {
@@ -316,11 +320,31 @@ func (c *Cluster) Cleanup(envs ...map[string]string) {
 }
 
 func (c *Cluster) Destroy() {
+	if os.Getenv("SKIP_CMX_CLEANUP") != "" {
+		c.t.Logf("Skipping CMX cleanup")
+		return
+	}
+
 	for _, node := range c.Nodes {
-		output, err := exec.Command("replicated", "vm", "rm", node.ID).CombinedOutput()
-		if err != nil {
-			c.t.Logf("failed to destroy node %s: %v: %s", node.Name, err, string(output))
-		}
+		c.removeNode(node)
+	}
+
+	if c.network != nil {
+		c.removeNetwork(*c.network)
+	}
+}
+
+func (c *Cluster) removeNode(node Node) {
+	output, err := exec.Command("replicated", "vm", "rm", node.ID).CombinedOutput()
+	if err != nil {
+		c.t.Logf("failed to destroy node %s: %v: %s", node.Name, err, string(output))
+	}
+}
+
+func (c *Cluster) removeNetwork(network Network) {
+	output, err := exec.Command("replicated", "network", "rm", network.ID).CombinedOutput()
+	if err != nil {
+		c.t.Logf("failed to destroy network %s: %v: %s", network.Name, err, string(output))
 	}
 }
 
@@ -387,7 +411,7 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		return stdout.String(), stderr.String(), fmt.Errorf("run playwright test %s: %v", testName, err)
+		return stdout.String(), stderr.String(), err
 	}
 	return stdout.String(), stderr.String(), nil
 }
