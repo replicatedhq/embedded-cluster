@@ -59,7 +59,7 @@ func (a *API) postInstallConfigureInstallation(w http.ResponseWriter, r *http.Re
 //	@Success		200	{object}	types.InstallationConfig
 //	@Router			/install/installation/status [get]
 func (a *API) getInstallInstallationStatus(w http.ResponseWriter, r *http.Request) {
-	status, err := a.installController.ReadStatus(r.Context())
+	status, err := a.installController.GetStatus(r.Context())
 	if err != nil {
 		a.logError(r, err, "failed to get installation status")
 		a.jsonError(w, r, err)
@@ -127,7 +127,7 @@ func (a *API) setInstallStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getInstallStatus(w http.ResponseWriter, r *http.Request) {
-	status, err := a.installController.ReadStatus(r.Context())
+	status, err := a.installController.GetStatus(r.Context())
 	if err != nil {
 		a.logError(r, err, "failed to get installation status")
 		a.jsonError(w, r, err)

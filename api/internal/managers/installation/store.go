@@ -7,10 +7,11 @@ import (
 )
 
 type InstallationStore interface {
-	ReadConfig() (*types.InstallationConfig, error)
-	WriteConfig(cfg types.InstallationConfig) error
-	ReadStatus() (*types.Status, error)
-	WriteStatus(status types.Status) error
+	GetConfig() (*types.InstallationConfig, error)
+	SetConfig(cfg types.InstallationConfig) error
+	GetStatus() (*types.Status, error)
+	SetStatus(status *types.Status) error
+	IsRunning() bool
 }
 
 var _ InstallationStore = &MemoryStore{}
@@ -26,14 +27,14 @@ func NewMemoryStore(installation *types.Installation) *MemoryStore {
 	}
 }
 
-func (s *MemoryStore) ReadConfig() (*types.InstallationConfig, error) {
+func (s *MemoryStore) GetConfig() (*types.InstallationConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	return s.installation.Config, nil
 }
 
-func (s *MemoryStore) WriteConfig(cfg types.InstallationConfig) error {
+func (s *MemoryStore) SetConfig(cfg types.InstallationConfig) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.installation.Config = &cfg
@@ -41,17 +42,24 @@ func (s *MemoryStore) WriteConfig(cfg types.InstallationConfig) error {
 	return nil
 }
 
-func (s *MemoryStore) ReadStatus() (*types.Status, error) {
+func (s *MemoryStore) GetStatus() (*types.Status, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	return s.installation.Status, nil
 }
 
-func (s *MemoryStore) WriteStatus(status types.Status) error {
+func (s *MemoryStore) SetStatus(status *types.Status) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.installation.Status = &status
+	s.installation.Status = status
 
 	return nil
+}
+
+func (s *MemoryStore) IsRunning() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.installation.Status.State == types.StateRunning
 }

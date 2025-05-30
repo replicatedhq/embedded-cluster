@@ -7,12 +7,12 @@ import (
 )
 
 type HostPreflightStore interface {
-	ReadTitles() ([]string, error)
-	WriteTitles(titles []string) error
-	ReadOutput() (*types.HostPreflightOutput, error)
-	WriteOutput(output *types.HostPreflightOutput) error
-	ReadStatus() (*types.Status, error)
-	WriteStatus(status *types.Status) error
+	GetTitles() ([]string, error)
+	SetTitles(titles []string) error
+	GetOutput() (*types.HostPreflightOutput, error)
+	SetOutput(output *types.HostPreflightOutput) error
+	GetStatus() (*types.Status, error)
+	SetStatus(status *types.Status) error
 	IsRunning() bool
 }
 
@@ -29,14 +29,14 @@ func NewMemoryStore(hostPreflight *types.HostPreflight) *MemoryStore {
 	}
 }
 
-func (s *MemoryStore) ReadTitles() ([]string, error) {
+func (s *MemoryStore) GetTitles() ([]string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	return s.hostPreflight.Titles, nil
 }
 
-func (s *MemoryStore) WriteTitles(titles []string) error {
+func (s *MemoryStore) SetTitles(titles []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.hostPreflight.Titles = titles
@@ -44,14 +44,14 @@ func (s *MemoryStore) WriteTitles(titles []string) error {
 	return nil
 }
 
-func (s *MemoryStore) ReadOutput() (*types.HostPreflightOutput, error) {
+func (s *MemoryStore) GetOutput() (*types.HostPreflightOutput, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	return s.hostPreflight.Output, nil
 }
 
-func (s *MemoryStore) WriteOutput(output *types.HostPreflightOutput) error {
+func (s *MemoryStore) SetOutput(output *types.HostPreflightOutput) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.hostPreflight.Output = output
@@ -59,14 +59,14 @@ func (s *MemoryStore) WriteOutput(output *types.HostPreflightOutput) error {
 	return nil
 }
 
-func (s *MemoryStore) ReadStatus() (*types.Status, error) {
+func (s *MemoryStore) GetStatus() (*types.Status, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	return s.hostPreflight.Status, nil
 }
 
-func (s *MemoryStore) WriteStatus(status *types.Status) error {
+func (s *MemoryStore) SetStatus(status *types.Status) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.hostPreflight.Status = status

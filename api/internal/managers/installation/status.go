@@ -4,10 +4,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (m *installationManager) ReadStatus() (*types.Status, error) {
-	return m.installationStore.ReadStatus()
+func (m *installationManager) GetStatus() (*types.Status, error) {
+	return m.installationStore.GetStatus()
 }
 
-func (m *installationManager) WriteStatus(status types.Status) error {
-	return m.installationStore.WriteStatus(status)
+func (m *installationManager) SetStatus(status *types.Status) error {
+	return m.installationStore.SetStatus(status)
 }

@@ -1,21 +1,24 @@
 package installation
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
-func (m *installationManager) ReadConfig() (*types.InstallationConfig, error) {
-	return m.installationStore.ReadConfig()
+func (m *installationManager) GetConfig() (*types.InstallationConfig, error) {
+	return m.installationStore.GetConfig()
 }
 
-func (m *installationManager) WriteConfig(config types.InstallationConfig) error {
-	return m.installationStore.WriteConfig(config)
+func (m *installationManager) SetConfig(config types.InstallationConfig) error {
+	return m.installationStore.SetConfig(config)
 }
 
 func (m *installationManager) ValidateConfig(config *types.InstallationConfig) error {
@@ -189,4 +192,98 @@ func (m *installationManager) setCIDRDefaults(config *types.InstallationConfig) 
 		config.GlobalCIDR = ecv1beta1.DefaultNetworkCIDR
 	}
 	return nil
+}
+
+func (m *installationManager) computeCIDRs(config *types.InstallationConfig) error {
+	if config.GlobalCIDR != "" {
+		podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(config.GlobalCIDR)
+		if err != nil {
+			return fmt.Errorf("split network cidr: %w", err)
+		}
+		config.PodCIDR = podCIDR
+		config.ServiceCIDR = serviceCIDR
+	}
+
+	return nil
+}
+
+func (m *installationManager) ConfigureInstallation(ctx context.Context, config *types.InstallationConfig) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.installationStore.IsRunning() {
+		return fmt.Errorf("installation configuration is already running")
+	}
+
+	if err := m.ValidateConfig(config); err != nil {
+		return fmt.Errorf("validate config: %w", err)
+	}
+
+	if err := m.computeCIDRs(config); err != nil {
+		return fmt.Errorf("compute cidrs: %w", err)
+	}
+
+	if err := m.SetConfig(*config); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+
+	if err := m.setRunningStatus("Configuring installation"); err != nil {
+		return fmt.Errorf("set running status: %w", err)
+	}
+
+	go m.configureInstallation(ctx, config)
+
+	return nil
+}
+
+func (m *installationManager) configureInstallation(ctx context.Context, config *types.InstallationConfig) {
+	defer func() {
+		if r := recover(); r != nil {
+			if err := m.setFailedStatus(fmt.Sprintf("panic: %v", r)); err != nil {
+				m.logger.WithField("error", err).Error("set failed status")
+			}
+		}
+	}()
+
+	opts := hostutils.InitForInstallOptions{
+		// TODO NOW: other fields
+		PodCIDR:     config.PodCIDR,
+		ServiceCIDR: config.ServiceCIDR,
+	}
+	if err := m.hostUtils.ConfigureForInstall(ctx, opts); err != nil {
+		if err := m.setFailedStatus(fmt.Sprintf("configure installation: %v", err)); err != nil {
+			m.logger.WithField("error", err).Error("set failed status")
+		}
+		return
+	}
+
+	if err := m.setCompletedStatus(types.StateSucceeded, "Installation configured"); err != nil {
+		m.logger.WithField("error", err).Error("set succeeded status")
+	}
+}
+
+func (m *installationManager) setRunningStatus(description string) error {
+	return m.installationStore.SetStatus(&types.Status{
+		State:       types.StateRunning,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
+}
+
+func (m *installationManager) setFailedStatus(description string) error {
+	m.logger.Error(description)
+
+	return m.installationStore.SetStatus(&types.Status{
+		State:       types.StateFailed,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
+}
+
+func (m *installationManager) setCompletedStatus(state types.State, description string) error {
+	return m.installationStore.SetStatus(&types.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
 }

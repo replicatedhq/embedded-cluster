@@ -112,7 +112,7 @@ func TestConfigureInstallation(t *testing.T) {
 
 			// Also verify that the config is in the store
 			if !tc.expectedError {
-				storedConfig, err := manager.ReadConfig()
+				storedConfig, err := manager.GetConfig()
 				require.NoError(t, err)
 				assert.Equal(t, tc.config.DataDirectory, storedConfig.DataDirectory)
 				assert.Equal(t, tc.config.AdminConsolePort, storedConfig.AdminConsolePort)
@@ -278,7 +278,7 @@ func TestGetInstall(t *testing.T) {
 		GlobalCIDR:              "10.0.0.0/16",
 		NetworkInterface:        "eth0",
 	}
-	err = installationManager.WriteConfig(initialConfig)
+	err = installationManager.SetConfig(initialConfig)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
@@ -438,7 +438,7 @@ func (m *mockInstallController) SetStatus(ctx context.Context, status *types.Sta
 	return m.setStatusError
 }
 
-func (m *mockInstallController) ReadStatus(ctx context.Context) (*types.Status, error) {
+func (m *mockInstallController) GetStatus(ctx context.Context) (*types.Status, error) {
 	return nil, m.readStatusError
 }
 
@@ -463,7 +463,7 @@ func TestInstallWithAPIClient(t *testing.T) {
 		GlobalCIDR:              "192.168.0.0/16",
 		NetworkInterface:        "eth1",
 	}
-	err = installationManager.WriteConfig(initialConfig)
+	err = installationManager.SetConfig(initialConfig)
 	require.NoError(t, err)
 
 	// Create the API with controllers

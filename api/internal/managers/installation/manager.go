@@ -1,9 +1,13 @@
 package installation
 
 import (
+	"context"
+	"sync"
+
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -11,12 +15,13 @@ var _ InstallationManager = &installationManager{}
 
 // InstallationManager provides methods for validating and setting defaults for installation configuration
 type InstallationManager interface {
-	ReadConfig() (*types.InstallationConfig, error)
-	WriteConfig(config types.InstallationConfig) error
-	ReadStatus() (*types.Status, error)
-	WriteStatus(status types.Status) error
+	GetConfig() (*types.InstallationConfig, error)
+	SetConfig(config types.InstallationConfig) error
+	GetStatus() (*types.Status, error)
+	SetStatus(status *types.Status) error
 	ValidateConfig(config *types.InstallationConfig) error
 	SetConfigDefaults(config *types.InstallationConfig) error
+	ConfigureInstallation(ctx context.Context, config *types.InstallationConfig) error
 }
 
 // installationManager is an implementation of the InstallationManager interface
@@ -24,7 +29,9 @@ type installationManager struct {
 	installation      *types.Installation
 	installationStore InstallationStore
 	netUtils          utils.NetUtils
+	hostUtils         *hostutils.HostUtils
 	logger            logrus.FieldLogger
+	mu                sync.RWMutex
 }
 
 type InstallationManagerOption func(*installationManager)
@@ -53,6 +60,12 @@ func WithNetUtils(netUtils utils.NetUtils) InstallationManagerOption {
 	}
 }
 
+func WithHostUtils(hostUtils *hostutils.HostUtils) InstallationManagerOption {
+	return func(c *installationManager) {
+		c.hostUtils = hostUtils
+	}
+}
+
 // NewInstallationManager creates a new InstallationManager with the provided network utilities
 func NewInstallationManager(opts ...InstallationManagerOption) *installationManager {
 	manager := &installationManager{}
@@ -75,6 +88,10 @@ func NewInstallationManager(opts ...InstallationManagerOption) *installationMana
 
 	if manager.netUtils == nil {
 		manager.netUtils = utils.NewNetUtils()
+	}
+
+	if manager.hostUtils == nil {
+		manager.hostUtils = hostutils.New()
 	}
 
 	return manager
