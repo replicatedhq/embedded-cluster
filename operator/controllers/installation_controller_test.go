@@ -70,6 +70,16 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 	metascheme := metadatafake.NewTestScheme()
 	metav1.AddMetaToScheme(metascheme)
 
+	ns := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Namespace",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	}
+
 	newConfigMap := func(content string) *corev1.ConfigMap {
 		hash := md5.Sum([]byte(content))
 		checksum := hex.EncodeToString(hash[:])
@@ -102,7 +112,7 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 			name:   "should return nil when caPath is not set",
 			caPath: "",
 			initClients: func(t *testing.T) (client.Client, metadata.Interface) {
-				kcli := clientfake.NewClientBuilder().Build()
+				kcli := clientfake.NewClientBuilder().WithObjects(ns).Build()
 				mcli := metadatafake.NewSimpleMetadataClient(metascheme)
 				return kcli, mcli
 			},
@@ -113,7 +123,7 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 			caPath: testCAPath,
 			initClients: func(t *testing.T) (client.Client, metadata.Interface) {
 				kcli := &mockClient{
-					fake: clientfake.NewClientBuilder().Build(),
+					fake: clientfake.NewClientBuilder().WithObjects(ns).Build(),
 					createFunc: func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
 						return &k8serrors.StatusError{
 							ErrStatus: metav1.Status{
@@ -136,7 +146,7 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 			initClients: func(t *testing.T) (client.Client, metadata.Interface) {
 				cm := newConfigMap("old CA content")
 				kcli := &mockClient{
-					fake: clientfake.NewClientBuilder().WithObjects(cm).Build(),
+					fake: clientfake.NewClientBuilder().WithObjects(ns, cm).Build(),
 					patchFunc: func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						return &k8serrors.StatusError{
 							ErrStatus: metav1.Status{
@@ -158,7 +168,7 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 			name:   "should return nil when IsNotExist is returned from reading CA file",
 			caPath: filepath.Join(tempDir, "non-existent.crt"),
 			initClients: func(t *testing.T) (client.Client, metadata.Interface) {
-				kcli := clientfake.NewClientBuilder().Build()
+				kcli := clientfake.NewClientBuilder().WithObjects(ns).Build()
 				mcli := metadatafake.NewSimpleMetadataClient(metascheme)
 				return kcli, mcli
 			},
@@ -169,7 +179,7 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 			caPath: testCAPath,
 			initClients: func(t *testing.T) (client.Client, metadata.Interface) {
 				kcli := &mockClient{
-					fake: clientfake.NewClientBuilder().Build(),
+					fake: clientfake.NewClientBuilder().WithObjects(ns).Build(),
 					createFunc: func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
 						return errors.New("some other create error")
 					},
@@ -186,7 +196,7 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 			initClients: func(t *testing.T) (client.Client, metadata.Interface) {
 				cm := newConfigMap("old CA content")
 				kcli := &mockClient{
-					fake: clientfake.NewClientBuilder().WithObjects(cm).Build(),
+					fake: clientfake.NewClientBuilder().WithObjects(ns, cm).Build(),
 					patchFunc: func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						return errors.New("some other patch error")
 					},
