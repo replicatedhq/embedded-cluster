@@ -18,9 +18,10 @@ import (
 var _ types.AddOn = (*Velero)(nil)
 
 type Velero struct {
-	Proxy               *ecv1beta1.ProxySpec
-	ProxyRegistryDomain string
-	HostCABundlePath    string
+	Proxy                    *ecv1beta1.ProxySpec
+	ProxyRegistryDomain      string
+	HostCABundlePath         string
+	EmbeddedClusterK0sSubDir string
 
 	// DryRun is a flag to enable dry-run mode for Velero.
 	// If true, Velero will only render the helm template and additional manifests, but not install

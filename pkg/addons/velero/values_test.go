@@ -25,7 +25,7 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	require.Len(t, values["extraVolumeMounts"], 1)
 
 	require.IsType(t, map[string]any{}, values["configuration"])
-	require.IsType(t, map[string]any{}, values["configuration"].(map[string]any)["extraEnvVars"])
+	require.IsType(t, []map[string]any{}, values["configuration"].(map[string]any)["extraEnvVars"])
 
 	require.IsType(t, map[string]any{}, values["nodeAgent"])
 	require.IsType(t, []map[string]any{}, values["nodeAgent"].(map[string]any)["extraVolumes"])
@@ -41,8 +41,17 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	assert.Equal(t, "host-ca-bundle", extraVolumeMount["name"])
 	assert.Equal(t, "/certs/ca-certificates.crt", extraVolumeMount["mountPath"])
 
-	extraEnvVars := values["configuration"].(map[string]any)["extraEnvVars"].(map[string]any)
-	assert.Equal(t, "/certs", extraEnvVars["SSL_CERT_DIR"])
+	extraEnvVars := values["configuration"].(map[string]any)["extraEnvVars"].([]map[string]any)
+	// Find the SSL_CERT_DIR environment variable
+	var foundSSLCertDir bool
+	for _, env := range extraEnvVars {
+		if env["name"] == "SSL_CERT_DIR" {
+			assert.Equal(t, "/certs", env["value"])
+			foundSSLCertDir = true
+			break
+		}
+	}
+	assert.True(t, foundSSLCertDir, "SSL_CERT_DIR environment variable should be set")
 
 	extraVolumes := values["nodeAgent"].(map[string]any)["extraVolumes"].([]map[string]any)
 	assert.Equal(t, "/etc/ssl/certs/ca-certificates.crt", extraVolumes[0]["hostPath"].(map[string]any)["path"])

@@ -603,7 +603,7 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 
 	// Set HTTP proxy environment variables
 	t.Setenv("HTTP_PROXY", "http://localhost:3128")
-	t.Setenv("HTTPS_PROXY", "http://localhost:3128")
+	t.Setenv("HTTPS_PROXY", "https://localhost:3128")
 	t.Setenv("NO_PROXY", "localhost,127.0.0.1,10.0.0.0/8")
 
 	dr := dryrunInstall(t, &dryrun.Client{HelmClient: hcli})
@@ -635,7 +635,7 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 			},
 			{
 				"name":  "HTTPS_PROXY",
-				"value": "http://localhost:3128",
+				"value": "https://localhost:3128",
 			},
 			{
 				"name":  "NO_PROXY",
@@ -669,11 +669,23 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 	assert.Equal(t, "velero", veleroOpts.ReleaseName)
 
 	assertHelmValues(t, veleroOpts.Values, map[string]any{
-		"configuration.extraEnvVars": map[string]any{
-			"HTTPS_PROXY":  "http://localhost:3128",
-			"HTTP_PROXY":   "http://localhost:3128",
-			"NO_PROXY":     noProxy,
-			"SSL_CERT_DIR": "/certs",
+		"configuration.extraEnvVars": []map[string]any{
+			{
+				"name":  "HTTP_PROXY",
+				"value": "http://localhost:3128",
+			},
+			{
+				"name":  "HTTPS_PROXY",
+				"value": "https://localhost:3128",
+			},
+			{
+				"name":  "NO_PROXY",
+				"value": noProxy,
+			},
+			{
+				"name":  "SSL_CERT_DIR",
+				"value": "/certs",
+			},
 		},
 		"extraVolumes": []map[string]any{{
 			"name": "host-ca-bundle",
@@ -683,6 +695,17 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 			},
 		}},
 		"extraVolumeMounts": []map[string]any{{
+			"mountPath": "/certs/ca-certificates.crt",
+			"name":      "host-ca-bundle",
+		}},
+		"nodeAgent.extraVolumes": []map[string]any{{
+			"name": "host-ca-bundle",
+			"hostPath": map[string]any{
+				"path": hostCABundle,
+				"type": "FileOrCreate",
+			},
+		}},
+		"nodeAgent.extraVolumeMounts": []map[string]any{{
 			"mountPath": "/certs/ca-certificates.crt",
 			"name":      "host-ca-bundle",
 		}},
@@ -705,7 +728,7 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 			},
 			{
 				"name":  "HTTPS_PROXY",
-				"value": "http://localhost:3128",
+				"value": "https://localhost:3128",
 			},
 			{
 				"name":  "NO_PROXY",
@@ -739,7 +762,7 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 				return hc.HTTP != nil && hc.HTTP.CollectorName == "http-replicated-app"
 			},
 			validate: func(hc *troubleshootv1beta2.HostCollect) {
-				assert.Equal(t, "http://localhost:3128", hc.HTTP.Get.Proxy)
+				assert.Equal(t, "https://localhost:3128", hc.HTTP.Get.Proxy)
 			},
 		},
 		"http-proxy-replicated-com": {
@@ -747,7 +770,7 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 				return hc.HTTP != nil && hc.HTTP.CollectorName == "http-proxy-replicated-com"
 			},
 			validate: func(hc *troubleshootv1beta2.HostCollect) {
-				assert.Equal(t, "http://localhost:3128", hc.HTTP.Get.Proxy)
+				assert.Equal(t, "https://localhost:3128", hc.HTTP.Get.Proxy)
 			},
 		},
 	})
