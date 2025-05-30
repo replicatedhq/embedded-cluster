@@ -109,18 +109,14 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: fmt.Sprintf("Install %s", name),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &flags); err != nil {
-				return err
-			}
-
-			return nil
-		},
 		PostRun: func(cmd *cobra.Command, args []string) {
 			runtimeconfig.Cleanup()
 			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := preRunInstall(cmd, &flags); err != nil {
+				return err
+			}
 			clusterID := metrics.ClusterID()
 			metricsReporter := NewInstallReporter(
 				replicatedAppURL(), clusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
