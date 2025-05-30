@@ -448,8 +448,7 @@ func (r *InstallationReconciler) reconcileHostCABundle(ctx context.Context) erro
 		return nil
 	}
 
-	var ns corev1.Namespace
-	if err := r.Get(ctx, types.NamespacedName{Name: "kotsadm"}, &ns); k8serrors.IsNotFound(err) {
+	if err := r.Get(ctx, types.NamespacedName{Name: "kotsadm"}, &corev1.Namespace{}); k8serrors.IsNotFound(err) {
 		// if the namespace has not been created yet, we don't need to reconcile the CA configmap
 		return nil
 	} else if err != nil {
