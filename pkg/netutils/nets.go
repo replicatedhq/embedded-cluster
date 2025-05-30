@@ -35,7 +35,7 @@ func SplitNetworkCIDR(netaddr string) (string, string, error) {
 func ValidateCIDR(cidr string, notLessThan int, private bool) error {
 	_, ipnet, err := net.ParseCIDR(cidr)
 	if err != nil {
-		return fmt.Errorf("invalid cidr: %w", err)
+		return err
 	}
 
 	if ipnet.String() != cidr {

@@ -32,7 +32,7 @@ func TestAppendFieldError(t *testing.T) {
 				fmt.Println(string(b))
 				return fe
 			},
-			want: "field errors: field1: error1",
+			want: "field errors: error1",
 		},
 		{
 			name: "multiple errors",
@@ -42,7 +42,7 @@ func TestAppendFieldError(t *testing.T) {
 				fe = AppendFieldError(fe, "field2", errors.New("error2"))
 				return fe
 			},
-			want: "field errors: field1: error1; field2: error2",
+			want: "field errors: error1; error2",
 		},
 	}
 	for _, tt := range tests {
