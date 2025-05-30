@@ -1,4 +1,4 @@
-package configutils
+package host
 
 import (
 	_ "embed"

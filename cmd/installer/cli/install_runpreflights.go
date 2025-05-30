@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/host"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
-	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -61,17 +61,17 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	}
 
 	logrus.Debugf("materializing binaries")
-	if err := materializeFiles(flags.airgapBundle); err != nil {
+	if err := host.MaterializeFiles(flags.airgapBundle); err != nil {
 		return fmt.Errorf("unable to materialize files: %w", err)
 	}
 
 	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
+	if err := host.ConfigureSysctl(); err != nil {
 		logrus.Debugf("unable to configure sysctl: %v", err)
 	}
 
 	logrus.Debugf("configuring kernel modules")
-	if err := configutils.ConfigureKernelModules(); err != nil {
+	if err := host.ConfigureKernelModules(); err != nil {
 		logrus.Debugf("unable to configure kernel modules: %v", err)
 	}
 

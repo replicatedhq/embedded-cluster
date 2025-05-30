@@ -20,10 +20,10 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/host"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
-	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
@@ -365,27 +365,27 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	}
 
 	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
+	if err := host.ConfigureSysctl(); err != nil {
 		logrus.Debugf("unable to configure sysctl: %v", err)
 	}
 
 	logrus.Debugf("configuring kernel modules")
-	if err := configutils.ConfigureKernelModules(); err != nil {
+	if err := host.ConfigureKernelModules(); err != nil {
 		logrus.Debugf("unable to configure kernel modules: %v", err)
 	}
 
 	logrus.Debugf("configuring network manager")
-	if err := configureNetworkManager(ctx); err != nil {
+	if err := host.ConfigureNetworkManager(ctx); err != nil {
 		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
 	logrus.Debugf("configuring firewalld")
-	if err := configureFirewalld(ctx, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR); err != nil {
+	if err := host.ConfigureFirewalld(ctx, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR); err != nil {
 		logrus.Debugf("unable to configure firewalld: %v", err)
 	}
 
 	logrus.Debugf("materializing binaries")
-	if err := materializeFiles(flags.airgapBundle); err != nil {
+	if err := host.MaterializeFiles(flags.airgapBundle); err != nil {
 		return fmt.Errorf("unable to materialize binaries: %w", err)
 	}
 

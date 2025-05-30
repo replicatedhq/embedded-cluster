@@ -24,6 +24,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/host"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -749,65 +750,18 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
 
-	if err := materializeFiles(flags.airgapBundle); err != nil {
+	if err := host.InitializeForInstall(ctx, host.InitializeForInstallOptions{
+		LicenseFile:  flags.licenseFile,
+		AirgapBundle: flags.airgapBundle,
+		DataDir:      flags.dataDir,
+		PodCIDR:      flags.cidrCfg.PodCIDR,
+		ServiceCIDR:  flags.cidrCfg.ServiceCIDR,
+	}); err != nil {
 		spinner.ErrorClosef("Initialization failed")
-		return fmt.Errorf("unable to materialize files: %w", err)
-	}
-
-	logrus.Debugf("copy license file to %s", flags.dataDir)
-	if err := copyLicenseFileToDataDir(flags.licenseFile, flags.dataDir); err != nil {
-		// We have decided not to report this error
-		logrus.Warnf("Unable to copy license file to %s: %v", flags.dataDir, err)
-	}
-
-	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
-		logrus.Debugf("unable to configure sysctl: %v", err)
-	}
-
-	logrus.Debugf("configuring kernel modules")
-	if err := configutils.ConfigureKernelModules(); err != nil {
-		logrus.Debugf("unable to configure kernel modules: %v", err)
-	}
-
-	logrus.Debugf("configuring network manager")
-	if err := configureNetworkManager(ctx); err != nil {
-		spinner.ErrorClosef("Initialization failed")
-		return fmt.Errorf("unable to configure network manager: %w", err)
-	}
-
-	logrus.Debugf("configuring firewalld")
-	if err := configureFirewalld(ctx, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR); err != nil {
-		logrus.Debugf("unable to configure firewalld: %v", err)
+		return fmt.Errorf("unable to initialize install: %w", err)
 	}
 
 	spinner.Closef("Initialization complete")
-	return nil
-}
-
-func materializeFiles(airgapBundle string) error {
-	materializer := goods.NewMaterializer()
-	if err := materializer.Materialize(); err != nil {
-		return fmt.Errorf("materialize binaries: %w", err)
-	}
-	if err := support.MaterializeSupportBundleSpec(); err != nil {
-		return fmt.Errorf("materialize support bundle spec: %w", err)
-	}
-
-	if airgapBundle != "" {
-		// read file from path
-		rawfile, err := os.Open(airgapBundle)
-		if err != nil {
-			return fmt.Errorf("failed to open airgap file: %w", err)
-		}
-		defer rawfile.Close()
-
-		if err := airgap.MaterializeAirgap(rawfile); err != nil {
-			err = fmt.Errorf("materialize airgap files: %w", err)
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -848,36 +802,6 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 
 	loading.Closef("Node is ready")
 	return cfg, nil
-}
-
-// configureNetworkManager configures the network manager (if the host is using it) to ignore
-// the calico interfaces. This function restarts the NetworkManager service if the configuration
-// was changed.
-func configureNetworkManager(ctx context.Context) error {
-	if active, err := helpers.IsSystemdServiceActive(ctx, "NetworkManager"); err != nil {
-		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
-	} else if !active {
-		logrus.Debugf("NetworkManager is not active, skipping configuration")
-		return nil
-	}
-
-	dir := "/etc/NetworkManager/conf.d"
-	if _, err := os.Stat(dir); err != nil {
-		logrus.Debugf("skiping NetworkManager config (%s): %v", dir, err)
-		return nil
-	}
-
-	logrus.Debugf("creating NetworkManager config file")
-	materializer := goods.NewMaterializer()
-	if err := materializer.CalicoNetworkManagerConfig(); err != nil {
-		return fmt.Errorf("unable to materialize configuration: %w", err)
-	}
-
-	logrus.Debugf("network manager config created, restarting the service")
-	if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
-		return fmt.Errorf("unable to restart network manager: %w", err)
-	}
-	return nil
 }
 
 func checkAirgapMatches(airgapBundle string) error {

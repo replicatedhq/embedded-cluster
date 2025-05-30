@@ -14,11 +14,11 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/host"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
-	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
@@ -299,17 +299,17 @@ func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResp
 	}
 
 	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
+	if err := host.ConfigureSysctl(); err != nil {
 		logrus.Debugf("unable to configure sysctl: %v", err)
 	}
 
 	logrus.Debugf("configuring kernel modules")
-	if err := configutils.ConfigureKernelModules(); err != nil {
+	if err := host.ConfigureKernelModules(); err != nil {
 		logrus.Debugf("unable to configure kernel modules: %v", err)
 	}
 
 	logrus.Debugf("configuring network manager")
-	if err := configureNetworkManager(ctx); err != nil {
+	if err := host.ConfigureNetworkManager(ctx); err != nil {
 		return nil, fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
@@ -319,7 +319,7 @@ func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResp
 	}
 
 	logrus.Debugf("configuring firewalld")
-	if err := configureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
+	if err := host.ConfigureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
 		logrus.Debugf("unable to configure firewalld: %v", err)
 	}
 
