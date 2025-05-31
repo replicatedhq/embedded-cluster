@@ -5,6 +5,7 @@ type Installation struct {
 	Status *Status             `json:"status"`
 }
 
+// InstallationConfig represents the configuration for an installation
 type InstallationConfig struct {
 	AdminConsolePort        int    `json:"adminConsolePort"`
 	DataDirectory           string `json:"dataDirectory"`
@@ -18,6 +19,7 @@ type InstallationConfig struct {
 	GlobalCIDR              string `json:"globalCidr"`
 }
 
+// NewInstallation initializes a new installation state
 func NewInstallation() *Installation {
 	return &Installation{
 		Status: NewStatus(),

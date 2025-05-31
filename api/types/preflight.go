@@ -1,5 +1,6 @@
 package types
 
+// HostPreflight represents the host preflight checks state
 type HostPreflight struct {
 	Titles []string             `json:"titles"`
 	Output *HostPreflightOutput `json:"output"`

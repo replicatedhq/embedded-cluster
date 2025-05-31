@@ -194,6 +194,8 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	installRouter.HandleFunc("/host-preflights/status", a.getInstallHostPreflightsStatus).Methods("GET")
 	installRouter.HandleFunc("/host-preflights/run", a.postInstallRunHostPreflights).Methods("POST")
 
+	installRouter.HandleFunc("/node/setup", a.postInstallSetupNode).Methods("POST")
+
 	// TODO (@salah): remove this once the cli isn't responsible for setting the install status
 	// and the ui isn't polling for it to know if the entire install is complete
 	installRouter.HandleFunc("/status", a.getInstallStatus).Methods("GET")

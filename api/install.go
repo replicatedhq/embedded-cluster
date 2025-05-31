@@ -52,11 +52,6 @@ func (a *API) postInstallConfigureInstallation(w http.ResponseWriter, r *http.Re
 	}
 
 	a.getInstallInstallationConfig(w, r)
-
-	// TODO: this is a hack to get the config to the CLI
-	if a.configChan != nil {
-		a.configChan <- &config
-	}
 }
 
 // getInstallInstallationStatus handler to get the status of the installation configuration for install
@@ -137,6 +132,38 @@ func (a *API) getInstallHostPreflightsStatus(w http.ResponseWriter, r *http.Requ
 	}
 
 	a.json(w, r, http.StatusOK, response)
+}
+
+// postInstallSetupNode handler to setup a node
+//
+//	@Summary		Setup a node
+//	@Description	Setup a node
+//	@Tags			install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.Status
+//	@Router			/install/node/setup [post]
+func (a *API) postInstallSetupNode(w http.ResponseWriter, r *http.Request) {
+	err := a.installController.SetupNode(r.Context())
+	if err != nil {
+		a.logError(r, err, "failed to setup node")
+		a.jsonError(w, r, err)
+		return
+	}
+
+	var config types.InstallationConfig
+	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+		a.logError(r, err, "failed to decode installation config")
+		a.jsonError(w, r, types.NewBadRequestError(err))
+		return
+	}
+
+	// TODO: this is a hack to get the config to the CLI
+	if a.configChan != nil {
+		a.configChan <- &config
+	}
+
+	a.getInstallStatus(w, r)
 }
 
 // postInstallSetInstallStatus handler to set the status of the install workflow
