@@ -6,14 +6,14 @@ import (
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (a *AdminConsole) Upgrade(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, overrides []string) error {
-	exists, err := hcli.ReleaseExists(ctx, namespace, releaseName)
+func (a *AdminConsole) Upgrade(ctx context.Context, writer *spinner.MessageWriter, opts types.InstallOptions, overrides []string) error {
+	exists, err := a.hcli.ReleaseExists(ctx, a.Namespace(), releaseName)
 	if err != nil {
 		return errors.Wrap(err, "check if release exists")
 	}
@@ -22,25 +22,27 @@ func (a *AdminConsole) Upgrade(ctx context.Context, logf types.LogFunc, kcli cli
 		return errors.New("admin console release not found")
 	}
 
-	values, err := a.GenerateHelmValues(ctx, kcli, overrides)
+	values, err := a.GenerateHelmValues(ctx, opts, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	err = ensurePostUpgradeHooksDeleted(ctx, kcli)
+	err = ensurePostUpgradeHooksDeleted(ctx, a.kcli, a.Namespace())
 	if err != nil {
 		return errors.Wrap(err, "ensure hooks deleted")
 	}
 
-	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
+	helmOpts := helm.UpgradeOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    a.ChartLocation(),
+		ChartPath:    a.ChartLocation(opts.Domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    a.Namespace(),
 		Labels:       getBackupLabels(),
 		Force:        false,
-	})
+	}
+
+	_, err = a.hcli.Upgrade(ctx, helmOpts)
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")
 	}
@@ -50,7 +52,7 @@ func (a *AdminConsole) Upgrade(ctx context.Context, logf types.LogFunc, kcli cli
 
 // ensurePostUpgradeHooksDeleted will delete helm hooks if for some reason they fail. It is
 // necessary if the hook does not have the "before-hook-creation" delete policy.
-func ensurePostUpgradeHooksDeleted(ctx context.Context, kcli client.Client) error {
+func ensurePostUpgradeHooksDeleted(ctx context.Context, kcli client.Client, namespace string) error {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
