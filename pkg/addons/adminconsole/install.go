@@ -47,7 +47,7 @@ func (a *AdminConsole) Install(ctx context.Context, writer *spinner.MessageWrite
 
 	helmOpts := helm.InstallOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    ChartLocation(opts.Domains),
+		ChartPath:    a.ChartLocation(opts.Domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    a.Namespace(),

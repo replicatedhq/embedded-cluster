@@ -53,15 +53,14 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, opts typ
 
 func getAddOnsForInstall(logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client) []types.AddOn {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		},
-		&embeddedclusteroperator.EmbeddedClusterOperator{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-			IsAirgap:            opts.IsAirgap,
-			Proxy:               opts.Proxy,
-			HostCABundlePath:    opts.HostCABundlePath,
-		},
+		openebs.New(
+			openebs.WithLogFunc(logf),
+			openebs.WithClients(kcli, mcli, hcli),
+		),
+		embeddedclusteroperator.New(
+			embeddedclusteroperator.WithLogFunc(logf),
+			embeddedclusteroperator.WithClients(kcli, mcli, hcli),
+		),
 	}
 
 	if opts.IsAirgap {
@@ -80,11 +79,10 @@ func getAddOnsForInstall(logf types.LogFunc, kcli client.Client, mcli metadata.I
 		})
 	}
 
-	adminConsoleAddOn := adminconsole.New(
+	addOns = append(addOns, adminconsole.New(
 		adminconsole.WithLogFunc(logf),
 		adminconsole.WithClients(kcli, mcli, hcli),
-	)
-	addOns = append(addOns, adminConsoleAddOn)
+	))
 
 	return addOns
 }
@@ -93,9 +91,10 @@ func getAddOnsForRestore(logf types.LogFunc, kcli client.Client, mcli metadata.I
 	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
 
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		},
+		openebs.New(
+			openebs.WithLogFunc(logf),
+			openebs.WithClients(kcli, mcli, hcli),
+		),
 		&velero.Velero{
 			Proxy:                    opts.Proxy,
 			ProxyRegistryDomain:      domains.ProxyRegistryDomain,

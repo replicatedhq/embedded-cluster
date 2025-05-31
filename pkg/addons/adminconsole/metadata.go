@@ -1,6 +1,8 @@
 package adminconsole
 
 import (
+	_ "embed"
+
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -40,7 +42,7 @@ func GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 
 	chartConfig := ecv1beta1.Chart{
 		Name:         releaseName,
-		ChartName:    ChartLocation(ecv1beta1.Domains{}),
+		ChartName:    new(AdminConsole).ChartLocation(ecv1beta1.Domains{}),
 		Version:      Metadata.Version,
 		Values:       string(values),
 		TargetNS:     namespace,

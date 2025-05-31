@@ -2,6 +2,7 @@ package embeddedclusteroperator
 
 import (
 	"context"
+	_ "embed"
 	"strings"
 
 	"github.com/pkg/errors"

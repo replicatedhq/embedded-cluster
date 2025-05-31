@@ -95,14 +95,7 @@ func (a *AdminConsole) DryRunManifests() [][]byte {
 	return a.dryRunManifests
 }
 
-func getBackupLabels() map[string]string {
-	return map[string]string{
-		"replicated.com/disaster-recovery":       "infra",
-		"replicated.com/disaster-recovery-chart": "admin-console",
-	}
-}
-
-func ChartLocation(domains ecv1beta1.Domains) string {
+func (a *AdminConsole) ChartLocation(domains ecv1beta1.Domains) string {
 	chartName := Metadata.Location
 	if AdminConsoleChartRepoOverride != "" {
 		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", AdminConsoleChartRepoOverride)
@@ -112,4 +105,11 @@ func ChartLocation(domains ecv1beta1.Domains) string {
 		chartName = strings.Replace(chartName, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 	}
 	return chartName
+}
+
+func getBackupLabels() map[string]string {
+	return map[string]string{
+		"replicated.com/disaster-recovery":       "infra",
+		"replicated.com/disaster-recovery-chart": "admin-console",
+	}
 }

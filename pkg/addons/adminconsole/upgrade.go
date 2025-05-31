@@ -34,7 +34,7 @@ func (a *AdminConsole) Upgrade(ctx context.Context, writer *spinner.MessageWrite
 
 	helmOpts := helm.UpgradeOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    ChartLocation(opts.Domains),
+		ChartPath:    a.ChartLocation(opts.Domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    a.Namespace(),

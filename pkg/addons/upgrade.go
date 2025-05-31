@@ -35,7 +35,7 @@ func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, in *ecv1
 		return errors.Wrap(err, "create metadata client")
 	}
 
-	addons, err := getAddOnsForUpgrade(in, meta)
+	addons, err := getAddOnsForUpgrade(in, logf, hcli, kcli, mcli, meta)
 	if err != nil {
 		return errors.Wrap(err, "get addons for upgrade")
 	}
@@ -48,13 +48,14 @@ func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, in *ecv1
 	return nil
 }
 
-func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
+func getAddOnsForUpgrade(in *ecv1beta1.Installation, logf types.LogFunc, hcli helm.Client, kcli client.Client, mcli metadata.Interface, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
 	domains := runtimeconfig.GetDomains(in.Spec.Config)
 
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		},
+		openebs.New(
+			openebs.WithLogFunc(logf),
+			openebs.WithClients(kcli, mcli, hcli),
+		),
 	}
 
 	serviceCIDR := ""
@@ -79,17 +80,18 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator images")
 	}
-	addOns = append(addOns, &embeddedclusteroperator.EmbeddedClusterOperator{
-		IsAirgap:              in.Spec.AirGap,
-		Proxy:                 in.Spec.Proxy,
-		ChartLocationOverride: ecoChartLocation,
-		ChartVersionOverride:  ecoChartVersion,
-		ImageRepoOverride:     ecoImageRepo,
-		ImageTagOverride:      ecoImageTag,
-		UtilsImageOverride:    ecoUtilsImage,
-		ProxyRegistryDomain:   domains.ProxyRegistryDomain,
-		HostCABundlePath:      hostCABundlePath,
-	})
+
+	ecAddOn := embeddedclusteroperator.New(
+		embeddedclusteroperator.WithLogFunc(logf),
+		embeddedclusteroperator.WithClients(kcli, mcli, hcli),
+	)
+	ecAddOn.ChartLocationOverride = ecoChartLocation
+	ecAddOn.ChartVersionOverride = ecoChartVersion
+	ecAddOn.ImageRepoOverride = ecoImageRepo
+	ecAddOn.ImageTagOverride = ecoImageTag
+	ecAddOn.UtilsImageOverride = ecoUtilsImage
+
+	addOns = append(addOns, ecAddOn)
 
 	if in.Spec.AirGap {
 		addOns = append(addOns, &registry.Registry{
@@ -115,16 +117,10 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 		})
 	}
 
-	addOns = append(addOns, &adminconsole.AdminConsole{
-		IsAirgap:                 in.Spec.AirGap,
-		IsHA:                     in.Spec.HighAvailability,
-		Proxy:                    in.Spec.Proxy,
-		ServiceCIDR:              serviceCIDR,
-		IsMultiNodeEnabled:       in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
-		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
-		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
-		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,
-	})
+	addOns = append(addOns, adminconsole.New(
+		adminconsole.WithLogFunc(logf),
+		adminconsole.WithClients(kcli, mcli, hcli),
+	))
 
 	return addOns, nil
 }
