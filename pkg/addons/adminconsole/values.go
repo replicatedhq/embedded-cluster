@@ -9,7 +9,31 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"gopkg.in/yaml.v3"
 )
+
+var (
+	//go:embed static/values.tpl.yaml
+	rawvalues []byte
+	// helmValues is the unmarshal version of rawvalues.
+	helmValues map[string]interface{}
+)
+
+func init() {
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(errors.Wrap(err, "unmarshal metadata"))
+	}
+
+	hv, err := release.RenderHelmValues(rawvalues, Metadata)
+	if err != nil {
+		panic(errors.Wrap(err, "unmarshal values"))
+	}
+	helmValues = hv
+
+	helmValues["embeddedClusterVersion"] = versions.Version
+}
 
 func (a *AdminConsole) GenerateHelmValues(ctx context.Context, opts types.InstallOptions, overrides []string) (map[string]interface{}, error) {
 	// create a copy of the helm values so we don't modify the original

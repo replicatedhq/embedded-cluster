@@ -4,16 +4,19 @@ import (
 	"context"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
-	e := &EmbeddedClusterOperator{
+	addon := &EmbeddedClusterOperator{}
+
+	opts := types.InstallOptions{
 		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
 	}
 
-	values, err := e.GenerateHelmValues(context.Background(), nil, nil)
+	values, err := addon.GenerateHelmValues(context.Background(), opts, nil)
 	require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 	require.NotEmpty(t, values["extraVolumes"])
