@@ -49,11 +49,11 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools v2.2.0+incompatible
 	helm.sh/helm/v3 v3.17.3
-	k8s.io/api v0.32.3
-	k8s.io/apimachinery v0.32.3
-	k8s.io/cli-runtime v0.32.3
-	k8s.io/client-go v0.32.3
-	k8s.io/kubectl v0.32.3
+	k8s.io/api v0.33.1
+	k8s.io/apimachinery v0.33.1
+	k8s.io/cli-runtime v0.33.1
+	k8s.io/client-go v0.33.1
+	k8s.io/kubectl v0.33.1
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	oras.land/oras-go/v2 v2.5.0
 	sigs.k8s.io/controller-runtime v0.20.4
@@ -66,7 +66,7 @@ replace (
 )
 
 require (
-	cel.dev/expr v0.18.0 // indirect
+	cel.dev/expr v0.19.1 // indirect
 	cloud.google.com/go v0.116.0 // indirect
 	cloud.google.com/go/auth v0.14.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect
@@ -199,7 +199,7 @@ require (
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/k0sproject/dig v0.4.0 // indirect
 	github.com/k0sproject/version v0.6.0 // indirect
-	github.com/klauspost/compress v1.17.11 // indirect
+	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
@@ -241,7 +241,7 @@ require (
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/proglottis/gpgme v0.1.4 // indirect
-	github.com/prometheus/client_golang v1.20.5 // indirect
+	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
@@ -286,14 +286,14 @@ require (
 	github.com/zitadel/logging v0.6.1 // indirect
 	github.com/zitadel/oidc/v3 v3.31.0 // indirect
 	github.com/zitadel/schema v1.3.0 // indirect
-	go.etcd.io/etcd/api/v3 v3.5.18 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.5.18 // indirect
-	go.etcd.io/etcd/client/v3 v3.5.18 // indirect
+	go.etcd.io/etcd/api/v3 v3.5.21 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.5.21 // indirect
+	go.etcd.io/etcd/client/v3 v3.5.21 // indirect
 	go.mongodb.org/mongo-driver v1.17.3 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.34.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.54.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.58.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.59.0 // indirect
 	go.opentelemetry.io/otel v1.35.0 // indirect
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
@@ -312,14 +312,15 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
 	google.golang.org/grpc v1.69.4 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
-	k8s.io/apiserver v0.32.3 // indirect
-	k8s.io/component-base v0.32.3 // indirect
+	k8s.io/apiserver v0.33.1 // indirect
+	k8s.io/component-base v0.33.1 // indirect
 	k8s.io/kubelet v0.32.3 // indirect
-	k8s.io/metrics v0.32.3 // indirect
+	k8s.io/metrics v0.33.1 // indirect
 	oras.land/oras-go v1.2.6 // indirect
 	periph.io/x/host/v3 v3.8.5 // indirect
-	sigs.k8s.io/kustomize/api v0.18.0 // indirect
-	sigs.k8s.io/kustomize/kyaml v0.18.1 // indirect
+	sigs.k8s.io/kustomize/api v0.19.0 // indirect
+	sigs.k8s.io/kustomize/kyaml v0.19.0 // indirect
+	sigs.k8s.io/randfill v1.0.0 // indirect
 )
 
 require (
@@ -336,10 +337,10 @@ require (
 	github.com/go-openapi/swag v0.23.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/gnostic-models v0.6.8 // indirect
+	github.com/google/gnostic-models v0.6.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -374,9 +375,9 @@ require (
 	golang.org/x/time v0.9.0 // indirect
 	google.golang.org/protobuf v1.36.5 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/apiextensions-apiserver v0.32.3
+	k8s.io/apiextensions-apiserver v0.33.1
 	k8s.io/klog/v2 v2.130.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20241105132330-32ad38e42d3f // indirect
+	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
 	sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.4.2 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 )
