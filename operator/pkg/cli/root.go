@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/metadata"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -59,11 +60,18 @@ func RootCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
+			metadataClient, err := metadata.NewForConfig(mgr.GetConfig())
+			if err != nil {
+				setupLog.Error(err, "unable to create metadata client")
+				os.Exit(1)
+			}
+
 			if err = (&controllers.InstallationReconciler{
-				Client:    mgr.GetClient(),
-				Scheme:    mgr.GetScheme(),
-				Discovery: discovery.NewDiscoveryClientForConfigOrDie(ctrl.GetConfigOrDie()),
-				Recorder:  mgr.GetEventRecorderFor("installation-controller"),
+				Client:         mgr.GetClient(),
+				MetadataClient: metadataClient,
+				Scheme:         mgr.GetScheme(),
+				Discovery:      discovery.NewDiscoveryClientForConfigOrDie(ctrl.GetConfigOrDie()),
+				Recorder:       mgr.GetEventRecorderFor("installation-controller"),
 			}).SetupWithManager(mgr); err != nil {
 				setupLog.Error(err, "unable to create controller", "controller", "Installation")
 				os.Exit(1)
