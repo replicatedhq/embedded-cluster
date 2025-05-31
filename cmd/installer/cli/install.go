@@ -425,17 +425,19 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, install
 		return err
 	}
 
-	logrus.Debug("initializing install")
-	if err := initializeInstall(ctx, flags); err != nil {
-		return fmt.Errorf("unable to initialize install: %w", err)
-	}
-
-	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, installReporter.reporter); err != nil {
-		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
-			return NewErrorNothingElseToAdd(err)
+	if !flags.enableManagerExperience {
+		logrus.Debug("initializing install")
+		if err := initializeInstall(ctx, flags); err != nil {
+			return fmt.Errorf("unable to initialize install: %w", err)
 		}
-		return fmt.Errorf("unable to run install preflights: %w", err)
+
+		logrus.Debugf("running install preflights")
+		if err := runInstallPreflights(ctx, flags, installReporter.reporter); err != nil {
+			if errors.Is(err, preflights.ErrPreflightsHaveFail) {
+				return NewErrorNothingElseToAdd(err)
+			}
+			return fmt.Errorf("unable to run install preflights: %w", err)
+		}
 	}
 
 	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, nil)
