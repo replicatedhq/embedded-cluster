@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/sirupsen/logrus"
@@ -29,7 +30,7 @@ func ResetFirewalldCmd(ctx context.Context, name string) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := resetFirewalld(cmd.Context())
+			err := hostutils.ResetFirewalld(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("failed to reset firewalld: %w", err)
 			}

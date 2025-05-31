@@ -90,7 +90,7 @@ spec:
 
 			req.NoError(SetReleaseDataForTests(tt.releaseData))
 
-			err := ValidateApp()
+			err := ValidateECConfig()
 			if tt.wantErr != "" {
 				req.Error(err)
 				req.Equal(tt.wantErr, err.Error())

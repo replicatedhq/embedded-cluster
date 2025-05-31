@@ -19,7 +19,7 @@ import (
 func (a *API) getInstallInstallationConfig(w http.ResponseWriter, r *http.Request) {
 	config, err := a.installController.GetInstallationConfig(r.Context())
 	if err != nil {
-		a.logError(r, err, "failed to get installation")
+		a.logError(r, err, "failed to get installation config")
 		a.jsonError(w, r, err)
 		return
 	}
@@ -27,6 +27,16 @@ func (a *API) getInstallInstallationConfig(w http.ResponseWriter, r *http.Reques
 	a.json(w, r, http.StatusOK, config)
 }
 
+// postInstallConfigureInstallation handler to configure the installation for install
+//
+//	@Summary		Configure the installation for install
+//	@Description	configure the installation for install
+//	@Tags			install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Param			installationConfig	body	types.InstallationConfig	true	"Installation config"
+//	@Success		200	{object}	types.InstallationConfig
+//	@Router			/install/installation/configure [post]
 func (a *API) postInstallConfigureInstallation(w http.ResponseWriter, r *http.Request) {
 	var config types.InstallationConfig
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
@@ -49,14 +59,14 @@ func (a *API) postInstallConfigureInstallation(w http.ResponseWriter, r *http.Re
 	}
 }
 
-// getInstallInstallationStatus handler to get the status of the installation configuration
+// getInstallInstallationStatus handler to get the status of the installation configuration for install
 //
-//	@Summary		Get installation configuration status
-//	@Description	Get the current status of the installation configuration
+//	@Summary		Get installation configuration status for install
+//	@Description	Get the current status of the installation configuration for install
 //	@Tags			install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.InstallationConfig
+//	@Success		200	{object}	types.Status
 //	@Router			/install/installation/status [get]
 func (a *API) getInstallInstallationStatus(w http.ResponseWriter, r *http.Request) {
 	status, err := a.installController.GetStatus(r.Context())
@@ -76,39 +86,69 @@ func (a *API) getInstallInstallationStatus(w http.ResponseWriter, r *http.Reques
 //	@Tags			install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.RunHostPreflightResponse
-//	@Router			/install/host-preflights [post]
+//	@Success		200	{object}	types.InstallHostPreflightsStatusResponse
+//	@Router			/install/host-preflights/run [post]
 func (a *API) postInstallRunHostPreflights(w http.ResponseWriter, r *http.Request) {
-	response, err := a.installController.RunHostPreflights(r.Context())
+	err := a.installController.RunHostPreflights(r.Context())
 	if err != nil {
 		a.logError(r, err, "failed to run install host preflights")
 		a.jsonError(w, r, err)
 		return
 	}
 
-	a.json(w, r, http.StatusOK, response)
+	a.getInstallHostPreflightsStatus(w, r)
 }
 
-// getInstallHostPreflightsStatus handler to get host preflight status
+// getInstallHostPreflightsStatus handler to get host preflight status for install
 //
-//	@Summary		Get host preflight status
-//	@Description	Get the current status and results of host preflight checks
+//	@Summary		Get host preflight status for install
+//	@Description	Get the current status and results of host preflight checks for install
 //	@Tags			install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.HostPreflightStatusResponse
-//	@Router			/install/host-preflights [get]
+//	@Success		200	{object}	types.InstallHostPreflightsStatusResponse
+//	@Router			/install/host-preflights/status [get]
 func (a *API) getInstallHostPreflightsStatus(w http.ResponseWriter, r *http.Request) {
-	response, err := a.installController.GetHostPreflightStatus(r.Context())
+	titles, err := a.installController.GetHostPreflightTitles(r.Context())
+	if err != nil {
+		a.logError(r, err, "failed to get install host preflight titles")
+		a.jsonError(w, r, err)
+		return
+	}
+
+	output, err := a.installController.GetHostPreflightOutput(r.Context())
+	if err != nil {
+		a.logError(r, err, "failed to get install host preflight output")
+		a.jsonError(w, r, err)
+		return
+	}
+
+	status, err := a.installController.GetHostPreflightStatus(r.Context())
 	if err != nil {
 		a.logError(r, err, "failed to get install host preflight status")
 		a.jsonError(w, r, err)
 		return
 	}
 
+	response := types.InstallHostPreflightsStatusResponse{
+		Titles: titles,
+		Output: output,
+		Status: status,
+	}
+
 	a.json(w, r, http.StatusOK, response)
 }
 
+// postInstallSetInstallStatus handler to set the status of the install workflow
+//
+//	@Summary		Set the status of the install workflow
+//	@Description	Set the status of the install workflow
+//	@Tags			install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Param			status	body	types.Status	true	"Status"
+//	@Success		200	{object}	types.Status
+//	@Router			/install/status [post]
 func (a *API) setInstallStatus(w http.ResponseWriter, r *http.Request) {
 	var status types.Status
 	if err := json.NewDecoder(r.Body).Decode(&status); err != nil {
@@ -126,6 +166,15 @@ func (a *API) setInstallStatus(w http.ResponseWriter, r *http.Request) {
 	a.getInstallStatus(w, r)
 }
 
+// getInstallStatus handler to get the status of the install workflow
+//
+//	@Summary		Get the status of the install workflow
+//	@Description	Get the current status of the install workflow
+//	@Tags			install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.Status
+//	@Router			/install/status [get]
 func (a *API) getInstallStatus(w http.ResponseWriter, r *http.Request) {
 	status, err := a.installController.GetStatus(r.Context())
 	if err != nil {

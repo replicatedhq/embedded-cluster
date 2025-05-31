@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/client"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,7 +33,7 @@ func TestConfigureInstallation(t *testing.T) {
 		"password",
 		api.WithInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 
@@ -101,13 +102,13 @@ func TestConfigureInstallation(t *testing.T) {
 				assert.Equal(t, tc.expectedStatus, apiError.StatusCode)
 				assert.NotEmpty(t, apiError.Message)
 			} else {
-				var install types.Install
-				err = json.NewDecoder(rec.Body).Decode(&install)
+				var config types.InstallationConfig
+				err = json.NewDecoder(rec.Body).Decode(&config)
 				require.NoError(t, err)
 
 				// Verify that the config was properly set
-				assert.Equal(t, tc.config.DataDirectory, install.Config.DataDirectory)
-				assert.Equal(t, tc.config.AdminConsolePort, install.Config.AdminConsolePort)
+				assert.Equal(t, tc.config.DataDirectory, config.DataDirectory)
+				assert.Equal(t, tc.config.AdminConsolePort, config.AdminConsolePort)
 			}
 
 			// Also verify that the config is in the store
@@ -137,7 +138,7 @@ func TestConfigureInstallationValidation(t *testing.T) {
 		"password",
 		api.WithInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 
@@ -194,7 +195,7 @@ func TestConfigureInstallationBadRequest(t *testing.T) {
 		"password",
 		api.WithInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 
@@ -221,7 +222,7 @@ func TestConfigureInstallationBadRequest(t *testing.T) {
 func TestConfigureInstallationControllerError(t *testing.T) {
 	// Create a mock controller that returns an error
 	mockController := &mockInstallController{
-		setConfigError: assert.AnError,
+		configureInstallationError: assert.AnError,
 	}
 
 	// Create the API with the mock controller
@@ -229,7 +230,7 @@ func TestConfigureInstallationControllerError(t *testing.T) {
 		"password",
 		api.WithInstallController(mockController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 
@@ -260,7 +261,7 @@ func TestConfigureInstallationControllerError(t *testing.T) {
 }
 
 // Test the getInstall endpoint returns installation data correctly
-func TestGetInstall(t *testing.T) {
+func TestGetInstallationConfig(t *testing.T) {
 	// Create a config manager
 	installationManager := installation.NewInstallationManager()
 
@@ -286,7 +287,7 @@ func TestGetInstall(t *testing.T) {
 		"password",
 		api.WithInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 
@@ -297,7 +298,7 @@ func TestGetInstall(t *testing.T) {
 	// Test successful get
 	t.Run("Success", func(t *testing.T) {
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install", nil)
+		req := httptest.NewRequest(http.MethodGet, "/install/installation/config", nil)
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -309,16 +310,16 @@ func TestGetInstall(t *testing.T) {
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
-		var install types.Install
-		err = json.NewDecoder(rec.Body).Decode(&install)
+		var config types.InstallationConfig
+		err = json.NewDecoder(rec.Body).Decode(&config)
 		require.NoError(t, err)
 
 		// Verify the installation data matches what we expect
-		assert.Equal(t, initialConfig.DataDirectory, install.Config.DataDirectory)
-		assert.Equal(t, initialConfig.AdminConsolePort, install.Config.AdminConsolePort)
-		assert.Equal(t, initialConfig.LocalArtifactMirrorPort, install.Config.LocalArtifactMirrorPort)
-		assert.Equal(t, initialConfig.GlobalCIDR, install.Config.GlobalCIDR)
-		assert.Equal(t, initialConfig.NetworkInterface, install.Config.NetworkInterface)
+		assert.Equal(t, initialConfig.DataDirectory, config.DataDirectory)
+		assert.Equal(t, initialConfig.AdminConsolePort, config.AdminConsolePort)
+		assert.Equal(t, initialConfig.LocalArtifactMirrorPort, config.LocalArtifactMirrorPort)
+		assert.Equal(t, initialConfig.GlobalCIDR, config.GlobalCIDR)
+		assert.Equal(t, initialConfig.NetworkInterface, config.NetworkInterface)
 	})
 
 	// Test get with default/empty configuration
@@ -339,7 +340,7 @@ func TestGetInstall(t *testing.T) {
 			"password",
 			api.WithInstallController(emptyInstallController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
-			api.WithLogger(api.NewDiscardLogger()),
+			api.WithLogger(logger.NewDiscardLogger()),
 		)
 		require.NoError(t, err)
 
@@ -348,7 +349,7 @@ func TestGetInstall(t *testing.T) {
 		emptyAPI.RegisterRoutes(emptyRouter)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install", nil)
+		req := httptest.NewRequest(http.MethodGet, "/install/installation/config", nil)
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -360,23 +361,23 @@ func TestGetInstall(t *testing.T) {
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
-		var install types.Install
-		err = json.NewDecoder(rec.Body).Decode(&install)
+		var config types.InstallationConfig
+		err = json.NewDecoder(rec.Body).Decode(&config)
 		require.NoError(t, err)
 
 		// Verify the installation data contains defaults or empty values
-		assert.Equal(t, "/var/lib/embedded-cluster", install.Config.DataDirectory)
-		assert.Equal(t, 30000, install.Config.AdminConsolePort)
-		assert.Equal(t, 50000, install.Config.LocalArtifactMirrorPort)
-		assert.Equal(t, "10.244.0.0/16", install.Config.GlobalCIDR)
-		assert.Equal(t, "eth0", install.Config.NetworkInterface)
+		assert.Equal(t, "/var/lib/embedded-cluster", config.DataDirectory)
+		assert.Equal(t, 30000, config.AdminConsolePort)
+		assert.Equal(t, 50000, config.LocalArtifactMirrorPort)
+		assert.Equal(t, "10.244.0.0/16", config.GlobalCIDR)
+		assert.Equal(t, "eth0", config.NetworkInterface)
 	})
 
 	// Test error handling
 	t.Run("Controller error", func(t *testing.T) {
 		// Create a mock controller that returns an error
 		mockController := &mockInstallController{
-			getError: assert.AnError,
+			getInstallationConfigError: assert.AnError,
 		}
 
 		// Create the API with the mock controller
@@ -384,7 +385,7 @@ func TestGetInstall(t *testing.T) {
 			"password",
 			api.WithInstallController(mockController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
-			api.WithLogger(api.NewDiscardLogger()),
+			api.WithLogger(logger.NewDiscardLogger()),
 		)
 		require.NoError(t, err)
 
@@ -392,7 +393,7 @@ func TestGetInstall(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install", nil)
+		req := httptest.NewRequest(http.MethodGet, "/install/installation/config", nil)
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -415,23 +416,57 @@ var _ install.Controller = &mockInstallController{}
 
 // Mock implementation of the install.Controller interface
 type mockInstallController struct {
-	setConfigError  error
-	getError        error
-	setStatusError  error
-	readStatusError error
+	configureInstallationError  error
+	getInstallationConfigError  error
+	runHostPreflightsError      error
+	getHostPreflightStatusError error
+	getHostPreflightOutputError error
+	getHostPreflightTitlesError error
+	setStatusError              error
+	readStatusError             error
 }
 
-func (m *mockInstallController) Get(ctx context.Context) (*types.Install, error) {
-	if m.getError != nil {
-		return nil, m.getError
+func (m *mockInstallController) GetInstallationConfig(ctx context.Context) (*types.InstallationConfig, error) {
+	if m.getInstallationConfigError != nil {
+		return nil, m.getInstallationConfigError
 	}
-	return &types.Install{
-		Config: types.InstallationConfig{},
-	}, nil
+	return &types.InstallationConfig{}, nil
 }
 
 func (m *mockInstallController) ConfigureInstallation(ctx context.Context, config *types.InstallationConfig) error {
-	return m.setConfigError
+	return m.configureInstallationError
+}
+
+func (m *mockInstallController) GetInstallationStatus(ctx context.Context) (*types.Status, error) {
+	if m.readStatusError != nil {
+		return nil, m.readStatusError
+	}
+	return &types.Status{}, nil
+}
+
+func (m *mockInstallController) RunHostPreflights(ctx context.Context) error {
+	return m.runHostPreflightsError
+}
+
+func (m *mockInstallController) GetHostPreflightStatus(ctx context.Context) (*types.Status, error) {
+	if m.getHostPreflightStatusError != nil {
+		return nil, m.getHostPreflightStatusError
+	}
+	return &types.Status{}, nil
+}
+
+func (m *mockInstallController) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightOutput, error) {
+	if m.getHostPreflightOutputError != nil {
+		return nil, m.getHostPreflightOutputError
+	}
+	return &types.HostPreflightOutput{}, nil
+}
+
+func (m *mockInstallController) GetHostPreflightTitles(ctx context.Context) ([]string, error) {
+	if m.getHostPreflightTitlesError != nil {
+		return nil, m.getHostPreflightTitlesError
+	}
+	return []string{}, nil
 }
 
 func (m *mockInstallController) SetStatus(ctx context.Context, status *types.Status) error {
@@ -471,7 +506,7 @@ func TestInstallWithAPIClient(t *testing.T) {
 		password,
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithInstallController(installController),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 
@@ -487,18 +522,18 @@ func TestInstallWithAPIClient(t *testing.T) {
 	c := client.New(server.URL, client.WithToken("TOKEN"))
 	require.NoError(t, err, "API client login should succeed")
 
-	// Test GetInstall
-	t.Run("GetInstall", func(t *testing.T) {
-		install, err := c.GetInstall()
-		require.NoError(t, err, "GetInstall should succeed")
-		assert.NotNil(t, install, "Install should not be nil")
+	// Test GetInstallationConfig
+	t.Run("GetInstallationConfig", func(t *testing.T) {
+		config, err := c.GetInstallationConfig()
+		require.NoError(t, err, "GetInstallationConfig should succeed")
+		assert.NotNil(t, config, "InstallationConfig should not be nil")
 
 		// Verify values
-		assert.Equal(t, "/tmp/test-data-for-client", install.Config.DataDirectory)
-		assert.Equal(t, 9080, install.Config.AdminConsolePort)
-		assert.Equal(t, 9081, install.Config.LocalArtifactMirrorPort)
-		assert.Equal(t, "192.168.0.0/16", install.Config.GlobalCIDR)
-		assert.Equal(t, "eth1", install.Config.NetworkInterface)
+		assert.Equal(t, "/tmp/test-data-for-client", config.DataDirectory)
+		assert.Equal(t, 9080, config.AdminConsolePort)
+		assert.Equal(t, 9081, config.LocalArtifactMirrorPort)
+		assert.Equal(t, "192.168.0.0/16", config.GlobalCIDR)
+		assert.Equal(t, "eth1", config.NetworkInterface)
 	})
 
 	// Test ConfigureInstallation
@@ -513,27 +548,27 @@ func TestInstallWithAPIClient(t *testing.T) {
 		}
 
 		// Set the config using the client
-		install, err := c.ConfigureInstallation(config)
+		newConfig, err := c.ConfigureInstallation(&config)
 		require.NoError(t, err, "ConfigureInstallation should succeed with valid config")
-		assert.NotNil(t, install, "Install should not be nil")
+		assert.NotNil(t, newConfig, "InstallationConfig should not be nil")
 
 		// Verify the config was set correctly
-		assert.Equal(t, config.DataDirectory, install.Config.DataDirectory)
-		assert.Equal(t, config.AdminConsolePort, install.Config.AdminConsolePort)
-		assert.Equal(t, config.NetworkInterface, install.Config.NetworkInterface)
+		assert.Equal(t, config.DataDirectory, newConfig.DataDirectory)
+		assert.Equal(t, config.AdminConsolePort, newConfig.AdminConsolePort)
+		assert.Equal(t, config.NetworkInterface, newConfig.NetworkInterface)
 
 		// Get the config to verify it persisted
-		install, err = c.GetInstall()
-		require.NoError(t, err, "GetInstall should succeed after setting config")
-		assert.Equal(t, config.DataDirectory, install.Config.DataDirectory)
-		assert.Equal(t, config.AdminConsolePort, install.Config.AdminConsolePort)
-		assert.Equal(t, config.NetworkInterface, install.Config.NetworkInterface)
+		newConfig, err = c.GetInstallationConfig()
+		require.NoError(t, err, "GetInstallationConfig should succeed after setting config")
+		assert.Equal(t, config.DataDirectory, newConfig.DataDirectory)
+		assert.Equal(t, config.AdminConsolePort, newConfig.AdminConsolePort)
+		assert.Equal(t, config.NetworkInterface, newConfig.NetworkInterface)
 	})
 
 	// Test ConfigureInstallation validation error
 	t.Run("ConfigureInstallation validation error", func(t *testing.T) {
 		// Create an invalid config (port conflict)
-		config := types.InstallationConfig{
+		config := &types.InstallationConfig{
 			DataDirectory:           "/tmp/new-dir",
 			AdminConsolePort:        8080,
 			LocalArtifactMirrorPort: 8080, // Same as AdminConsolePort
@@ -556,15 +591,15 @@ func TestInstallWithAPIClient(t *testing.T) {
 	// Test SetInstallStatus
 	t.Run("SetInstallStatus", func(t *testing.T) {
 		// Create a status
-		status := types.Status{
-			State:       types.InstallationStateFailed,
+		status := &types.Status{
+			State:       types.StateFailed,
 			Description: "Installation failed",
 		}
 
 		// Set the status using the client
-		install, err := c.SetInstallStatus(status)
+		newStatus, err := c.SetInstallStatus(status)
 		require.NoError(t, err, "SetInstallStatus should succeed")
-		assert.NotNil(t, install, "Install should not be nil")
-		assert.NotNil(t, install.Status, status, "Install status should match the one set")
+		assert.NotNil(t, newStatus, "Install should not be nil")
+		assert.Equal(t, status, newStatus, "Install status should match the one set")
 	})
 }

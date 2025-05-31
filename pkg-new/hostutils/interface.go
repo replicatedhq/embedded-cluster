@@ -20,6 +20,7 @@ type HostUtilsInterface interface {
 	ConfigureKernelModules() error
 	ConfigureNetworkManager(ctx context.Context) error
 	ConfigureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) error
+	ResetFirewalld(ctx context.Context) error
 	MaterializeFiles(airgapBundle string) error
 }
 
@@ -44,6 +45,10 @@ func ConfigureNetworkManager(ctx context.Context) error {
 
 func ConfigureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) error {
 	return h.ConfigureFirewalld(ctx, podNetwork, serviceNetwork)
+}
+
+func ResetFirewalld(ctx context.Context) error {
+	return h.ResetFirewalld(ctx)
 }
 
 func MaterializeFiles(airgapBundle string) error {

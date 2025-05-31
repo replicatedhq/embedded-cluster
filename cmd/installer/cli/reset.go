@@ -12,6 +12,7 @@ import (
 
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/k0sproject/k0s/pkg/etcd"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
@@ -142,7 +143,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("Resetting firewalld...")
-			err = resetFirewalld(ctx)
+			err = hostutils.ResetFirewalld(ctx)
 			if !checkErrPrompt(assumeYes, force, err) {
 				return fmt.Errorf("failed to reset firewalld: %w", err)
 			}

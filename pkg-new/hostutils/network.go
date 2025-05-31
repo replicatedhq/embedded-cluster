@@ -84,8 +84,8 @@ func (h *HostUtils) ConfigureFirewalld(ctx context.Context, podNetwork, serviceN
 	return nil
 }
 
-// resetFirewalld removes all firewalld configuration added by the installer.
-func resetFirewalld(ctx context.Context) (finalErr error) {
+// ResetFirewalld removes all firewalld configuration added by the installer.
+func (h *HostUtils) ResetFirewalld(ctx context.Context) (finalErr error) {
 	cmdExists, err := firewalld.FirewallCmdExists(ctx)
 	if err != nil {
 		return fmt.Errorf("check if firewall-cmd exists: %w", err)

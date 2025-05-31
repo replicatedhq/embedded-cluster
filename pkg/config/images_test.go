@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/k0sproject/k0s/pkg/airgap"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 )
 
 func TestListK0sImages(t *testing.T) {
-	original := airgap.GetImageURIs(RenderK0sConfig(runtimeconfig.DefaultProxyRegistryDomain).Spec, true)
+	original := airgap.GetImageURIs(RenderK0sConfig(domains.DefaultProxyRegistryDomain).Spec, true)
 	if len(original) == 0 {
 		t.Errorf("airgap.GetImageURIs() = %v, want not empty", original)
 	}
@@ -35,7 +35,7 @@ func TestListK0sImages(t *testing.T) {
 		t.Errorf("airgap.GetImageURIs() = %v, want to contain apiserver-network-proxy-agent", original)
 	}
 
-	filtered := ListK0sImages(RenderK0sConfig(runtimeconfig.DefaultProxyRegistryDomain))
+	filtered := ListK0sImages(RenderK0sConfig(domains.DefaultProxyRegistryDomain))
 	if len(filtered) == 0 {
 		t.Errorf("ListK0sImages() = %v, want not empty", filtered)
 	}
