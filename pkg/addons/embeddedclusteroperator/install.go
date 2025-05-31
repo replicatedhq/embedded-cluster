@@ -20,7 +20,7 @@ func (e *EmbeddedClusterOperator) Install(ctx context.Context, writer *spinner.M
 		ChartPath:    e.ChartLocation(opts.Domains),
 		ChartVersion: e.ChartVersion(),
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    e.Namespace(),
 		Labels:       getBackupLabels(),
 	}
 

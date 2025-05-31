@@ -29,9 +29,9 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, opts typ
 		return errors.Wrap(err, "create metadata client")
 	}
 
-	addons := getAddOnsForInstall(logf, kcli, mcli, hcli)
+	addons := getAddOnsForInstall(logf, kcli, mcli, hcli, opts)
 	if opts.IsRestore {
-		addons = getAddOnsForRestore(logf, kcli, mcli, hcli)
+		addons = getAddOnsForRestore(logf, kcli, mcli, hcli, opts)
 	}
 
 	for _, addon := range addons {
@@ -51,7 +51,7 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, opts typ
 	return nil
 }
 
-func getAddOnsForInstall(logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client) []types.AddOn {
+func getAddOnsForInstall(logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, opts types.InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		openebs.New(
 			openebs.WithLogFunc(logf),
@@ -64,10 +64,10 @@ func getAddOnsForInstall(logf types.LogFunc, kcli client.Client, mcli metadata.I
 	}
 
 	if opts.IsAirgap {
-		addOns = append(addOns, &registry.Registry{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-			ServiceCIDR:         opts.ServiceCIDR,
-		})
+		addOns = append(addOns, registry.New(
+			registry.WithLogFunc(logf),
+			registry.WithClients(kcli, mcli, hcli),
+		))
 	}
 
 	if opts.DisasterRecoveryEnabled {
@@ -87,7 +87,7 @@ func getAddOnsForInstall(logf types.LogFunc, kcli client.Client, mcli metadata.I
 	return addOns
 }
 
-func getAddOnsForRestore(logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client) []types.AddOn {
+func getAddOnsForRestore(logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, opts types.InstallOptions) []types.AddOn {
 	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
 
 	addOns := []types.AddOn{

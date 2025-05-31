@@ -11,12 +11,12 @@ import (
 )
 
 func (o *OpenEBS) Upgrade(ctx context.Context, writer *spinner.MessageWriter, opts types.InstallOptions, overrides []string) error {
-	exists, err := o.hcli.ReleaseExists(ctx, namespace, releaseName)
+	exists, err := o.hcli.ReleaseExists(ctx, o.Namespace(), releaseName)
 	if err != nil {
 		return errors.Wrap(err, "check if release exists")
 	}
 	if !exists {
-		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, namespace)
+		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, o.Namespace())
 		if err := o.Install(ctx, writer, opts, overrides); err != nil {
 			return errors.Wrap(err, "install")
 		}
@@ -33,7 +33,7 @@ func (o *OpenEBS) Upgrade(ctx context.Context, writer *spinner.MessageWriter, op
 		ChartPath:    o.ChartLocation(opts.Domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    o.Namespace(),
 		Force:        false,
 	}
 

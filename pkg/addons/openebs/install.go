@@ -20,7 +20,7 @@ func (o *OpenEBS) Install(ctx context.Context, writer *spinner.MessageWriter, op
 		ChartPath:    o.ChartLocation(opts.Domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    o.Namespace(),
 	}
 
 	_, err = o.hcli.Install(ctx, helmOpts)

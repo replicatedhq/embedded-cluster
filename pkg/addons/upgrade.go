@@ -48,7 +48,7 @@ func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, in *ecv1
 	return nil
 }
 
-func getAddOnsForUpgrade(in *ecv1beta1.Installation, logf types.LogFunc, hcli helm.Client, kcli client.Client, mcli metadata.Interface, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
+func getAddOnsForUpgrade(in *ecv1beta1.Installation, logf types.LogFunc, hcli helm.Client, kcli client.Client, mcli metadata.Interface, opts types.InstallOptions, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
 	domains := runtimeconfig.GetDomains(in.Spec.Config)
 
 	addOns := []types.AddOn{
@@ -94,11 +94,10 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, logf types.LogFunc, hcli he
 	addOns = append(addOns, ecAddOn)
 
 	if in.Spec.AirGap {
-		addOns = append(addOns, &registry.Registry{
-			ServiceCIDR:         serviceCIDR,
-			IsHA:                in.Spec.HighAvailability,
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		})
+		addOns = append(addOns, registry.New(
+			registry.WithLogFunc(logf),
+			registry.WithClients(kcli, mcli, hcli),
+		))
 
 		if in.Spec.HighAvailability {
 			addOns = append(addOns, &seaweedfs.SeaweedFS{

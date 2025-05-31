@@ -11,12 +11,12 @@ import (
 )
 
 func (e *EmbeddedClusterOperator) Upgrade(ctx context.Context, writer *spinner.MessageWriter, opts types.InstallOptions, overrides []string) error {
-	exists, err := e.hcli.ReleaseExists(ctx, namespace, releaseName)
+	exists, err := e.hcli.ReleaseExists(ctx, e.Namespace(), releaseName)
 	if err != nil {
 		return errors.Wrap(err, "check if release exists")
 	}
 	if !exists {
-		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, namespace)
+		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, e.Namespace())
 		if err := e.Install(ctx, writer, opts, overrides); err != nil {
 			return errors.Wrap(err, "install")
 		}
@@ -33,7 +33,7 @@ func (e *EmbeddedClusterOperator) Upgrade(ctx context.Context, writer *spinner.M
 		ChartPath:    e.ChartLocation(opts.Domains),
 		ChartVersion: e.ChartVersion(),
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    e.Namespace(),
 		Labels:       getBackupLabels(),
 		Force:        false,
 	}
