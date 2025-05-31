@@ -21,6 +21,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
@@ -29,6 +30,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -431,16 +433,23 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
+	domains := runtimeconfig.GetDomains(embCfgSpec)
+
 	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, hcli, addons.InstallOptions{
-		IsAirgap:           flags.airgapBundle != "",
-		Proxy:              flags.proxy,
-		HostCABundlePath:   runtimeconfig.HostCABundlePath(),
-		ServiceCIDR:        flags.cidrCfg.ServiceCIDR,
-		IsRestore:          true,
-		EmbeddedConfigSpec: embCfgSpec,
+	if err := addons.Install(ctx, logrus.Debugf, hcli, addonstypes.InstallOptions{
+		IsAirgap:                 flags.airgapBundle != "",
+		Proxy:                    flags.proxy,
+		HostCABundlePath:         runtimeconfig.HostCABundlePath(),
+		ServiceCIDR:              flags.cidrCfg.ServiceCIDR,
+		IsRestore:                true,
+		EmbeddedConfigSpec:       embCfgSpec,
+		Domains:                  domains,
+		ClusterID:                metrics.ClusterID().String(),
+		EmbeddedClusterHomeDir:   runtimeconfig.EmbeddedClusterHomeDirectory(),
+		EmbeddedClusterK0sSubDir: runtimeconfig.EmbeddedClusterK0sSubDir(),
+		IsHA:                     false,
 	}); err != nil {
 		return err
 	}

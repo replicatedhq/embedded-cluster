@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -175,9 +176,14 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 
 			// Run test
 			addon := &AdminConsole{
+				logf: t.Logf,
+				kcli: kcli,
+				mcli: mcli,
+			}
+			opts := types.InstallOptions{
 				HostCABundlePath: tt.caPath,
 			}
-			err = addon.ensureCAConfigmap(t.Context(), t.Logf, kcli, mcli)
+			err = addon.ensureCAConfigmap(t.Context(), opts)
 
 			// Check results
 			if tt.expectedErr {

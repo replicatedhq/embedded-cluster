@@ -32,7 +32,7 @@ func GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 
 	chartConfig := ecv1beta1.Chart{
 		Name:         releaseName,
-		ChartName:    (&AdminConsole{}).ChartLocation(),
+		ChartName:    ChartLocation(ecv1beta1.Domains{}),
 		Version:      Metadata.Version,
 		Values:       string(values),
 		TargetNS:     namespace,

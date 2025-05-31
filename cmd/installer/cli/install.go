@@ -35,6 +35,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
@@ -506,6 +507,8 @@ func waitForInstallAPI(ctx context.Context, addr string) error {
 	var lastErr error
 	for {
 		select {
+		case <-ctx.Done():
+			return ctx.Err()
 		case <-timeout:
 			if lastErr != nil {
 				return fmt.Errorf("install API did not start in time: %w", lastErr)
@@ -602,9 +605,12 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	}
 	defer hcli.Close()
 
+	domains := runtimeconfig.GetDomains(embCfgSpec)
+
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, hcli, addons.InstallOptions{
-		AdminConsolePwd:         flags.adminConsolePassword,
+	if err := addons.Install(ctx, logrus.Debugf, hcli, addonstypes.InstallOptions{
+		AdminConsolePassword:    flags.adminConsolePassword,
+		AdminConsolePort:        runtimeconfig.AdminConsolePort(),
 		License:                 flags.license,
 		IsAirgap:                flags.airgapBundle != "",
 		Proxy:                   flags.proxy,
@@ -617,6 +623,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		IsMultiNodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec:      embCfgSpec,
 		EndUserConfigSpec:       euCfgSpec,
+		Domains:                 domains,
 		KotsInstaller: func(msg *spinner.MessageWriter) error {
 			opts := kotscli.InstallOptions{
 				AppSlug:               flags.license.Spec.AppSlug,
@@ -628,6 +635,10 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 			}
 			return kotscli.Install(opts, msg)
 		},
+		ClusterID:                metrics.ClusterID().String(),
+		EmbeddedClusterHomeDir:   runtimeconfig.EmbeddedClusterHomeDirectory(),
+		EmbeddedClusterK0sSubDir: runtimeconfig.EmbeddedClusterK0sSubDir(),
+		IsHA:                     false,
 	}); err != nil {
 		return fmt.Errorf("unable to install addons: %w", err)
 	}

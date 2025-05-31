@@ -4,17 +4,19 @@ import (
 	"context"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	t.Run("with host CA bundle path", func(t *testing.T) {
-		adminConsole := &AdminConsole{
+		opts := types.InstallOptions{
 			HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
 		}
 
-		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, nil)
+		addon := &AdminConsole{}
+		values, err := addon.GenerateHelmValues(context.Background(), opts, nil)
 		require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 		// Verify structure types
@@ -57,11 +59,12 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	})
 
 	t.Run("without host CA bundle path", func(t *testing.T) {
-		adminConsole := &AdminConsole{
+		opts := types.InstallOptions{
 			// HostCABundlePath intentionally not set
 		}
 
-		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, nil)
+		addon := &AdminConsole{}
+		values, err := addon.GenerateHelmValues(context.Background(), opts, nil)
 		require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 		// Verify structure types
