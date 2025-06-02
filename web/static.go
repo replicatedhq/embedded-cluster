@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -127,6 +126,7 @@ func (web *Web) rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (web *Web) RegisterRoutes(router *mux.Router) {
+
 	var webFS http.Handler
 	if os.Getenv("EC_DEV_ENV") == "true" {
 		webFS = http.FileServer(http.FS(os.DirFS("./dist")))
@@ -134,26 +134,6 @@ func (web *Web) RegisterRoutes(router *mux.Router) {
 		webFS = http.FileServer(http.FS(web.assets))
 	}
 
-	// Create a custom handler that sets the correct MIME types
-	assetsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Remove the nosniff header to allow content type override
-		w.Header().Del("X-Content-Type-Options")
-
-		// Set correct MIME types for different file types
-		switch {
-		case strings.HasSuffix(r.URL.Path, ".css"):
-			w.Header().Set("Content-Type", "text/css")
-		case strings.HasSuffix(r.URL.Path, ".js"):
-			w.Header().Set("Content-Type", "application/javascript")
-		case strings.HasSuffix(r.URL.Path, ".html"):
-			w.Header().Set("Content-Type", "text/html")
-		case strings.HasSuffix(r.URL.Path, ".json"):
-			w.Header().Set("Content-Type", "application/json")
-		}
-
-		webFS.ServeHTTP(w, r)
-	})
-
-	router.PathPrefix("/assets").Methods("GET").Handler(assetsHandler)
+	router.PathPrefix("/assets").Methods("GET").Handler(webFS)
 	router.PathPrefix("/").Methods("GET").HandlerFunc(web.rootHandler)
 }
