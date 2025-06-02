@@ -92,28 +92,28 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
       return response.json();
     },
     onSuccess: () => {
-      onNext();
+      // Call the original onNext function to proceed to the next step
+      if (phase === "configuration") {
+        setPhase("validation");
+      } else {
+        onNext();
+      }
     },
     onError: (err: any) => {
       setError(err.message || "Failed to setup cluster");
+      return err;
     },
   });
 
-  // Helper function to get field error message
-  const getFieldError = (fieldName: string) => {
-    if (!submitError?.errors) return undefined;
-    const fieldError = submitError.errors.find(
-      (err: any) => err.field === fieldName
-    );
-    return fieldError?.message;
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    if (id === "adminConsolePort") {
-      updateConfig({ adminConsolePort: parseInt(value) });
-    } else if (id === "localArtifactMirrorPort") {
-      updateConfig({ localArtifactMirrorPort: parseInt(value) });
+    if (id === "adminConsolePort" || id === "localArtifactMirrorPort") {
+      // Only update if the value is empty or a valid number
+      if (value === "" || !isNaN(Number(value))) {
+        updateConfig({ [id]: value === "" ? undefined : Number(value) });
+      }
+    } else {
+      updateConfig({ [id]: value });
     }
   };
 
@@ -123,39 +123,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   };
 
   const handleNext = async () => {
-    setError(null);
-
-    try {
-      // Make the POST request to the cluster-setup endpoint
-      const response = await fetch("/api/install/config", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // Include auth credentials if available from localStorage or another source
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
-        },
-        body: JSON.stringify(config),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `Server responded with ${response.status}`
-        );
-      }
-
-      // Call the original onNext function to proceed to the next step
-      if (phase === "configuration") {
-        setPhase("validation");
-      } else {
-        onNext();
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to setup cluster");
-      console.error("Cluster setup failed:", err);
-    }
+    submitConfig(config);
   };
 
   const handlePreflightComplete = (success: boolean) => {
@@ -204,6 +172,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
               onInputChange={handleInputChange}
               onSelectChange={handleSelectChange}
               availableNetworkInterfaces={availableNetworkInterfaces}
+              fieldErrors={submitError?.errors || []}
             />
           ) : (
             <LinuxPreflightCheck
@@ -215,7 +184,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
           <KubernetesSetup config={config} onInputChange={handleInputChange} />
         )}
 
-        {submitError && (
+        {error && (
           <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
             Please fix the errors in the form above before proceeding.
           </div>
