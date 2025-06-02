@@ -69,4 +69,3 @@ func (r *RealNetworkInterfaceProvider) Interfaces() ([]NetworkInterface, error) 
 
 // Default provider instance - can be overridden for testing
 var DefaultNetworkInterfaceProvider NetworkInterfaceProvider = NewRealNetworkInterfaceProvider()
-
