@@ -1,10 +1,17 @@
-package cli
+package config
 
 import (
 	"fmt"
 	"net"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	apimachinerynet "k8s.io/apimachinery/pkg/util/net"
+)
+
+// Dependency injection variables for testing
+var (
+	chooseHostInterface      = apimachinerynet.ChooseHostInterface
+	networkInterfaceProvider = netutils.DefaultNetworkInterfaceProvider
 )
 
 var (
@@ -15,7 +22,7 @@ var (
 
 // DetermineBestNetworkInterface attempts to determine the best network interface to use for the cluster.
 func DetermineBestNetworkInterface() (string, error) {
-	iface, err := apimachinerynet.ChooseHostInterface()
+	iface, err := chooseHostInterface()
 
 	if err != nil || iface == nil {
 		return "", ErrNoAutoInterface
@@ -34,7 +41,7 @@ func DetermineBestNetworkInterface() (string, error) {
 }
 
 func findInterfaceNameByIP(ip net.IP) (string, error) {
-	interfaces, err := net.Interfaces()
+	interfaces, err := networkInterfaceProvider.Interfaces()
 	if err != nil {
 		return "", fmt.Errorf("failed to list interfaces: %v", err)
 	}
@@ -42,7 +49,7 @@ func findInterfaceNameByIP(ip net.IP) (string, error) {
 	for _, iface := range interfaces {
 		addrs, err := iface.Addrs()
 		if err != nil {
-			return "", fmt.Errorf("failed to get addresses for interface %s: %v", iface.Name, err)
+			return "", fmt.Errorf("failed to get addresses for interface %s: %v", iface.Name(), err)
 		}
 
 		for _, addr := range addrs {
@@ -55,7 +62,7 @@ func findInterfaceNameByIP(ip net.IP) (string, error) {
 			}
 
 			if ifaceIP != nil && ifaceIP.Equal(ip) {
-				return iface.Name, nil
+				return iface.Name(), nil
 			}
 		}
 	}
