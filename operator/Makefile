@@ -126,7 +126,7 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 
 .PHONY: schemas
 schemas: fmt controller-gen
-	go build ${LDFLAGS} -o bin/schemagen ./schemagen
+	go build -ldflags="$(LD_FLAGS)" -o bin/schemagen ./schemagen
 	./bin/schemagen --output-dir ./schemas
 
 .PHONY: envtest
