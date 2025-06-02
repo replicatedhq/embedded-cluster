@@ -39,32 +39,25 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   });
 
   // Query for fetching network interfaces
-  const { data: networkInterfacesData, isLoading: isInterfacesLoading } =
-    useQuery({
-      queryKey: ["networkInterfaces"],
-      queryFn: async () => {
-        const response = await fetch(
-          "/api/console/available-network-interfaces",
-          {
-            headers: {
-              ...(localStorage.getItem("auth") && {
-                Authorization: `Bearer ${localStorage.getItem("auth")}`,
-              }),
-            },
-          }
-        );
-        if (!response.ok) {
-          throw new Error("Failed to fetch network interfaces");
-        }
-        return response.json();
-      },
-    });
+  const { data: networkInterfacesData, isLoading: isInterfacesLoading } = useQuery({
+    queryKey: ["networkInterfaces"],
+    queryFn: async () => {
+      const response = await fetch("/api/console/available-network-interfaces", {
+        headers: {
+          ...(localStorage.getItem("auth") && {
+            Authorization: `Bearer ${localStorage.getItem("auth")}`,
+          }),
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch network interfaces");
+      }
+      return response.json();
+    },
+  });
 
   // Mutation for submitting the configuration
-  const {
-    mutate: submitConfig,
-    error: submitError,
-  } = useMutation({
+  const { mutate: submitConfig, error: submitError } = useMutation({
     mutationFn: async (configData: typeof config) => {
       const response = await fetch("/api/install/installation/configure", {
         method: "POST",
@@ -114,19 +107,14 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   };
 
   const isLoading = isConfigLoading || isInterfacesLoading;
-  const availableNetworkInterfaces =
-    networkInterfacesData?.networkInterfaces || [];
+  const availableNetworkInterfaces = networkInterfacesData?.networkInterfaces || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="setup-step">
       <Card>
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {text.setupTitle}
-          </h2>
-          <p className="text-gray-600 mt-1">
-            Configure the installation settings.
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900">{text.setupTitle}</h2>
+          <p className="text-gray-600 mt-1">Configure the installation settings.</p>
         </div>
 
         {isLoading ? (
@@ -155,17 +143,10 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
       </Card>
 
       <div className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          icon={<ChevronLeft className="w-5 h-5" />}
-        >
+        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
           Back
         </Button>
-        <Button
-          onClick={handleNext}
-          icon={<ChevronRight className="w-5 h-5" />}
-        >
+        <Button onClick={handleNext} data-testid="setup-next-button" icon={<ChevronRight className="w-5 h-5" />}>
           Next: Validate Host
         </Button>
       </div>

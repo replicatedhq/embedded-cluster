@@ -59,7 +59,7 @@ interface WizardModeContextType {
   text: WizardText;
 }
 
-const WizardModeContext = createContext<WizardModeContextType | undefined>(undefined);
+export const WizardModeContext = createContext<WizardModeContextType | undefined>(undefined);
 
 export const WizardModeProvider: React.FC<{
   children: React.ReactNode;

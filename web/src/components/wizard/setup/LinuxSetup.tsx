@@ -47,7 +47,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="linux-setup">
       <div className="space-y-4">
         <h2 className="text-lg font-medium text-gray-900">
           System Configuration
