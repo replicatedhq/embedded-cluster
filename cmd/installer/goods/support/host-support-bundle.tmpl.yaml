@@ -645,9 +645,9 @@ spec:
       outcomes:
         - fail:
             when: '{{ "{{" }} .IsInstalled {{ "}}" }}'
-            message: Package {{ .Name }} is installed. This tool can interfere with kubernetes operation. Ensure the tool is either disabled or configured to not interfere with kubernetes operation.
+            message: Package {{ "{{" }} .Name {{ "}}" }} is installed. This tool can interfere with kubernetes operation. Ensure the tool is either disabled or configured to not interfere with kubernetes operation.
         - pass:
-            message: Package {{ .Name }} is not installed
+            message: Package {{ "{{" }} .Name {{ "}}" }} is not installed
   - filesystemPerformance:
       checkName: Filesystem Write Latency
       collectorName: filesystem-write-latency-etcd
