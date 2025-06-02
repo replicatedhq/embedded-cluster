@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -37,9 +38,9 @@ func Test_signalHandler_Signal(t *testing.T) {
 	originalOsExit := osExit
 	defer func() { osExit = originalOsExit }()
 
-	exitCode := 0
+	exitCode := int32(0)
 	osExit = func(code int) {
-		exitCode = code
+		atomic.StoreInt32(&exitCode, int32(code))
 		// Instead of exiting, just cancel the context
 		cancel()
 	}
@@ -76,7 +77,7 @@ func Test_signalHandler_Signal(t *testing.T) {
 	// Verify cleanup was called with the expected error
 	assert.True(t, cleanupCalled, "Cleanup function should have been called")
 	assert.Equal(t, syscall.SIGINT, cleanupSignal, "Cleanup should be called with SIGINT")
-	assert.Equal(t, 1, exitCode, "Exit code should be 1")
+	assert.Equal(t, int32(1), atomic.LoadInt32(&exitCode), "Exit code should be 1")
 }
 
 func Test_signalHandler_ContextDone(t *testing.T) {
