@@ -15,7 +15,7 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (*types.I
 	}
 
 	if config == nil {
-		return nil, fmt.Errorf("installation config is nil")
+		return nil, nil
 	}
 
 	if err := c.installationManager.SetConfigDefaults(config); err != nil {
