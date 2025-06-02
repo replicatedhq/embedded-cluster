@@ -63,6 +63,7 @@ const ValidationInstallStep: React.FC = () => {
           {isLoading && (
             <p className="text-xl text-gray-600 mb-8">
               Please wait while we complete the installation...
+              {/* TODO: Add a loader for now */}
             </p>
           )}
 
