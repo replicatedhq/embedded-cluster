@@ -129,7 +129,7 @@ func (web *Web) RegisterRoutes(router *mux.Router) {
 
 	var webFS http.Handler
 	if os.Getenv("EC_DEV_ENV") == "true" {
-		webFS = http.FileServer(http.FS(os.DirFS("./web/dist/assets")))
+		webFS = http.FileServer(http.FS(os.DirFS("./dist")))
 	} else {
 		webFS = http.FileServer(http.FS(web.assets))
 	}
