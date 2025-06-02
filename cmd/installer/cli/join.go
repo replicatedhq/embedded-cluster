@@ -34,6 +34,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 )
@@ -186,6 +187,12 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.Jo
 		return fmt.Errorf("unable to get kube client: %w", err)
 	}
 
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		loading.ErrorClosef("Failed to install node")
+		return fmt.Errorf("unable to get metadata client: %w", err)
+	}
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		loading.ErrorClosef("Failed to install node")
@@ -207,7 +214,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.Jo
 		return nil
 	}
 
-	if err := maybeEnableHA(ctx, kcli, flags, cidrCfg.ServiceCIDR, jcmd); err != nil {
+	if err := maybeEnableHA(ctx, kcli, mcli, flags, cidrCfg.ServiceCIDR, jcmd); err != nil {
 		return fmt.Errorf("unable to enable high availability: %w", err)
 	}
 
@@ -565,7 +572,7 @@ func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string,
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, serviceCIDR string, jcmd *join.JoinCommandResponse) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interface, flags JoinCmdFlags, serviceCIDR string, jcmd *join.JoinCommandResponse) error {
 	if flags.noHA {
 		logrus.Debug("--no-ha flag provided, skipping high availability")
 		return nil
@@ -627,6 +634,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 		ctx,
 		logrus.Debugf,
 		kcli,
+		mcli,
 		kclient,
 		hcli,
 		serviceCIDR,

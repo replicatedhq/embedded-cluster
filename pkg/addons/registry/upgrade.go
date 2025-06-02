@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -21,14 +22,14 @@ const (
 )
 
 // Upgrade upgrades the registry chart to the latest version.
-func (r *Registry) Upgrade(ctx context.Context, logf types.LogFunc, kcli client.Client, hcli helm.Client, overrides []string) error {
+func (r *Registry) Upgrade(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, overrides []string) error {
 	exists, err := hcli.ReleaseExists(ctx, namespace, releaseName)
 	if err != nil {
 		return errors.Wrap(err, "check if release exists")
 	}
 	if !exists {
 		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, namespace)
-		if err := r.Install(ctx, logf, kcli, hcli, overrides, nil); err != nil {
+		if err := r.Install(ctx, logf, kcli, mcli, hcli, overrides, nil); err != nil {
 			return errors.Wrap(err, "install")
 		}
 		return nil

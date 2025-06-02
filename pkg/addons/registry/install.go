@@ -13,10 +13,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *Registry) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
+func (r *Registry) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
 	registryIP, err := GetRegistryClusterIP(r.ServiceCIDR)
 	if err != nil {
 		return errors.Wrap(err, "get registry cluster IP")

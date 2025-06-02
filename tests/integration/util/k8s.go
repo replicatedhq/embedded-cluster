@@ -13,6 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/metadata"
 	clientcmd "k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -61,6 +62,18 @@ func KubeClient(t *testing.T, kubeconfig string) kubernetes.Interface {
 		t.Fatalf("failed to create kubernetes client: %s", err)
 	}
 	return kclient
+}
+
+func MetadataClient(t *testing.T, kubeconfig string) metadata.Interface {
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		t.Fatalf("failed to build config from flags: %s", err)
+	}
+	mcli, err := metadata.NewForConfig(config)
+	if err != nil {
+		t.Fatalf("failed to create metadata client: %s", err)
+	}
+	return mcli
 }
 
 func KubectlApply(t *testing.T, kubeconfig string, namespace string, file string) {

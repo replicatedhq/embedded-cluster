@@ -20,6 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,12 +30,17 @@ func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, in *ecv1
 		return errors.Wrap(err, "create kube client")
 	}
 
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		return errors.Wrap(err, "create metadata client")
+	}
+
 	addons, err := getAddOnsForUpgrade(in, meta)
 	if err != nil {
 		return errors.Wrap(err, "get addons for upgrade")
 	}
 	for _, addon := range addons {
-		if err := upgradeAddOn(ctx, logf, hcli, kcli, in, addon); err != nil {
+		if err := upgradeAddOn(ctx, logf, hcli, kcli, mcli, in, addon); err != nil {
 			return errors.Wrapf(err, "addon %s", addon.Name())
 		}
 	}
@@ -123,7 +129,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	return addOns, nil
 }
 
-func upgradeAddOn(ctx context.Context, logf types.LogFunc, hcli helm.Client, kcli client.Client, in *ecv1beta1.Installation, addon types.AddOn) error {
+func upgradeAddOn(ctx context.Context, logf types.LogFunc, hcli helm.Client, kcli client.Client, mcli metadata.Interface, in *ecv1beta1.Installation, addon types.AddOn) error {
 	// check if we already processed this addon
 	if kubeutils.CheckInstallationConditionStatus(in.Status, conditionName(addon)) == metav1.ConditionTrue {
 		slog.Info(addon.Name() + " is ready")
@@ -140,7 +146,7 @@ func upgradeAddOn(ctx context.Context, logf types.LogFunc, hcli helm.Client, kcl
 	// TODO (@salah): add support for end user overrides
 	overrides := addOnOverrides(addon, in.Spec.Config, nil)
 
-	err := addon.Upgrade(ctx, logf, kcli, hcli, overrides)
+	err := addon.Upgrade(ctx, logf, kcli, mcli, hcli, overrides)
 	if err != nil {
 		message := helpers.CleanErrorMessage(err)
 		if err := setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionFalse, "UpgradeFailed", message); err != nil {

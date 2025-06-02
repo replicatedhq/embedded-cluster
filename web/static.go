@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -130,12 +129,7 @@ func (web *Web) rootHandler(w http.ResponseWriter, r *http.Request) {
 func (web *Web) RegisterRoutes(router *mux.Router) {
 	var webFS http.Handler
 	if os.Getenv("EC_DEV_ENV") == "true" {
-		// Use absolute path to ensure we can find the files
-		absPath, err := filepath.Abs("web/dist")
-		if err != nil {
-			web.logger.WithError(err).Error("Failed to get absolute path for assets")
-		}
-		webFS = http.FileServer(http.Dir(absPath))
+		webFS = http.FileServer(http.FS(os.DirFS("./dist")))
 	} else {
 		webFS = http.FileServer(http.FS(web.assets))
 	}

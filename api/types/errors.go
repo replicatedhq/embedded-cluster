@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -154,4 +155,17 @@ func newFieldError(field string, err error) *APIError {
 		Field:   field,
 		err:     err,
 	}
+}
+
+// JSON writes the APIError as JSON to the provided http.ResponseWriter
+func (e *APIError) JSON(w http.ResponseWriter) {
+	response, err := json.Marshal(e)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(e.StatusCode)
+	w.Write(response)
 }

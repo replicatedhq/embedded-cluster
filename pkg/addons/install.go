@@ -42,6 +42,11 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, opts Ins
 		return errors.Wrap(err, "create kube client")
 	}
 
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		return errors.Wrap(err, "create metadata client")
+	}
+
 	addons := getAddOnsForInstall(opts)
 	if opts.IsRestore {
 		addons = getAddOnsForRestore(opts)
@@ -53,7 +58,7 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, opts Ins
 
 		overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
-		if err := addon.Install(ctx, logf, kcli, hcli, overrides, loading); err != nil {
+		if err := addon.Install(ctx, logf, kcli, mcli, hcli, overrides, loading); err != nil {
 			loading.ErrorClosef("Failed to install %s", addon.Name())
 			return errors.Wrapf(err, "install %s", addon.Name())
 		}

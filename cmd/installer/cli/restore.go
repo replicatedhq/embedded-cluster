@@ -559,6 +559,11 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		return fmt.Errorf("unable to create metadata client: %w", err)
+	}
+
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("get latest installation: %w", err)
@@ -579,7 +584,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	}
 	defer hcli.Close()
 
-	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, kcli, hcli, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config, in.Spec.LicenseInfo)
+	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, kcli, mcli, hcli, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config, in.Spec.LicenseInfo)
 	if err != nil {
 		return err
 	}

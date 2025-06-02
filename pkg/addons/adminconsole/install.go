@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -33,10 +34,10 @@ func init() {
 	})
 }
 
-func (a *AdminConsole) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
+func (a *AdminConsole) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
 	// some resources are not part of the helm chart and need to be created before the chart is installed
 	// TODO: move this to the helm chart
-	if err := a.createPreRequisites(ctx, logf, kcli); err != nil {
+	if err := a.createPreRequisites(ctx, logf, kcli, mcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
@@ -78,7 +79,7 @@ func (a *AdminConsole) Install(ctx context.Context, logf types.LogFunc, kcli cli
 	return nil
 }
 
-func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFunc, kcli client.Client) error {
+func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface) error {
 	if err := a.createNamespace(ctx, kcli, namespace); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
@@ -91,7 +92,7 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFu
 		return errors.Wrap(err, "create kots TLS secret")
 	}
 
-	if err := a.ensureCAConfigmap(ctx, logf, kcli); err != nil {
+	if err := a.ensureCAConfigmap(ctx, logf, kcli, mcli); err != nil {
 		return errors.Wrap(err, "ensure CA configmap")
 	}
 
@@ -258,13 +259,17 @@ func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client, 
 	return nil
 }
 
-func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client) error {
+func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface) error {
 	if a.HostCABundlePath == "" {
 		return nil
 	}
 
 	if a.DryRun {
-		new, err := newCAConfigMap(a.HostCABundlePath)
+		checksum, err := calculateFileChecksum(a.HostCABundlePath)
+		if err != nil {
+			return fmt.Errorf("calculate checksum: %w", err)
+		}
+		new, err := newCAConfigMap(a.HostCABundlePath, checksum)
 		if err != nil {
 			return fmt.Errorf("create map: %w", err)
 		}
@@ -276,7 +281,7 @@ func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc
 		return nil
 	}
 
-	err := EnsureCAConfigmap(ctx, logf, kcli, a.HostCABundlePath)
+	err := EnsureCAConfigmap(ctx, logf, kcli, mcli, a.HostCABundlePath)
 
 	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
 		// This can result in issues installing in environments with a MITM HTTP proxy.
