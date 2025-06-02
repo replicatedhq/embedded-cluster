@@ -339,17 +339,7 @@ func TestRegisterRoutesWithDevEnv(t *testing.T) {
 	require.NoError(t, err, "Failed to write dev file")
 
 	// Set the development environment variable
-	originalEnv := os.Getenv("EC_DEV_ENV")
-	err = os.Setenv("EC_DEV_ENV", "true")
-	require.NoError(t, err, "Failed to set environment variable")
-	defer func() {
-		if originalEnv == "" {
-			os.Unsetenv("EC_DEV_ENV")
-		} else {
-			os.Setenv("EC_DEV_ENV", originalEnv)
-		}
-	}()
-
+	t.Setenv("EC_DEV_ENV", "true")
 	// Create router and register routes
 	router := mux.NewRouter()
 	web.RegisterRoutes(router)
