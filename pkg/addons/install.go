@@ -88,9 +88,10 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-			Proxy:               opts.Proxy,
-			HostCABundlePath:    opts.HostCABundlePath,
+			ProxyRegistryDomain:      domains.ProxyRegistryDomain,
+			Proxy:                    opts.Proxy,
+			HostCABundlePath:         opts.HostCABundlePath,
+			EmbeddedClusterK0sSubDir: runtimeconfig.EmbeddedClusterK0sSubDir(),
 		})
 	}
 
@@ -122,9 +123,10 @@ func getAddOnsForRestore(opts InstallOptions) []types.AddOn {
 			ProxyRegistryDomain: domains.ProxyRegistryDomain,
 		},
 		&velero.Velero{
-			Proxy:               opts.Proxy,
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-			HostCABundlePath:    opts.HostCABundlePath,
+			Proxy:                    opts.Proxy,
+			ProxyRegistryDomain:      domains.ProxyRegistryDomain,
+			HostCABundlePath:         opts.HostCABundlePath,
+			EmbeddedClusterK0sSubDir: runtimeconfig.EmbeddedClusterK0sSubDir(),
 		},
 	}
 	return addOns
