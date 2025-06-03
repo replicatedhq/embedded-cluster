@@ -455,12 +455,19 @@ validate_data_dirs() {
     fi
 }
 
-validate_no_pods_in_crashloop() {
-    if kubectl get pods -A | grep CrashLoopBackOff -q ; then
-        echo "found pods in CrashLoopBackOff state"
-        kubectl get pods -A | grep CrashLoopBackOff
+validate_all_pods_healthy() {
+    local unhealthy_pods
+    unhealthy_pods=$(kubectl get pods -A --no-headers | awk '$4 != "Running" && $4 != "Completed" && $4 != "Succeeded" { print $0 }')
+    
+    if [ -n "$unhealthy_pods" ]; then
+        echo "found pods in unhealthy state:"
+        echo "$unhealthy_pods"
+        echo ""
+        echo "All pod statuses:"
+        kubectl get pods -A
         exit 1
     fi
+    echo "All pods are healthy (Running, Completed, or Succeeded)"
 }
 
 validate_worker_profile() {

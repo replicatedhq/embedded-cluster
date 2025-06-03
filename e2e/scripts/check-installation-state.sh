@@ -49,7 +49,7 @@ main() {
         validate_data_dirs
     fi
 
-    validate_no_pods_in_crashloop
+    validate_all_pods_healthy
 }
 
 main "$@"
