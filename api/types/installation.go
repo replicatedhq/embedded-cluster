@@ -22,6 +22,7 @@ type InstallationConfig struct {
 // NewInstallation initializes a new installation state
 func NewInstallation() *Installation {
 	return &Installation{
+		Config: &InstallationConfig{},
 		Status: NewStatus(),
 	}
 }
