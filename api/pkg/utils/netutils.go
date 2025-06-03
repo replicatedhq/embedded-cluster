@@ -27,7 +27,7 @@ func (n *netUtils) ListValidNetworkInterfaces() ([]string, error) {
 
 	names := []string{}
 	for _, i := range ifs {
-		names = append(names, i.Name)
+		names = append(names, i.Name())
 	}
 	return names, nil
 }
