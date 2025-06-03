@@ -526,6 +526,12 @@ jobs:
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
       - name: Free up runner disk space
         uses: ./.github/actions/free-disk-space
+      - name: Enable required kernel modules
+        run: |
+          sudo modprobe overlay
+          sudo modprobe ip_tables
+          sudo modprobe br_netfilter
+          sudo modprobe nf_conntrack
       - name: Run test
         env:
           SHORT_SHA: ${{ github.ref_name }}
