@@ -25,7 +25,6 @@ type TemplateData struct {
 	ServiceCIDR             CIDRData
 	PodCIDR                 CIDRData
 	GlobalCIDR              CIDRData
-	PrivateCA               string
 	HTTPProxy               string
 	HTTPSProxy              string
 	ProvidedNoProxy         string

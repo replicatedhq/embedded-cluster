@@ -104,16 +104,21 @@ spec:
                               type: string
                             name:
                               description: The repository name.
+                              minLength: 1
                               type: string
                             password:
                               description: Password for Basic HTTP authentication.
                               type: string
                             url:
                               description: The repository URL.
+                              minLength: 1
                               type: string
                             username:
                               description: Username for Basic HTTP authentication.
                               type: string
+                          required:
+                          - name
+                          - url
                           type: object
                         type: array
                     type: object
@@ -403,16 +408,21 @@ spec:
                                   type: string
                                 name:
                                   description: The repository name.
+                                  minLength: 1
                                   type: string
                                 password:
                                   description: Password for Basic HTTP authentication.
                                   type: string
                                 url:
                                   description: The repository URL.
+                                  minLength: 1
                                   type: string
                                 username:
                                   description: Username for Basic HTTP authentication.
                                   type: string
+                              required:
+                              - name
+                              - url
                               type: object
                             type: array
                         type: object
@@ -606,6 +616,9 @@ spec:
                       DataDir holds the data directory for the Embedded Cluster
                       (default: /var/lib/embedded-cluster).
                     type: string
+                  hostCABundlePath:
+                    description: HostCABundlePath holds the path to the CA bundle for the host.
+                    type: string
                   k0sDataDirOverride:
                     description: |-
                       K0sDataDirOverride holds the override for the data directory for K0s. By default the data
@@ -616,6 +629,13 @@ spec:
                     properties:
                       port:
                         description: Port holds the port on which the local artifact mirror will be served.
+                        type: integer
+                    type: object
+                  manager:
+                    description: Manager holds the Manager configuration.
+                    properties:
+                      port:
+                        description: Port holds the port on which the manager will be served.
                         type: integer
                     type: object
                   openEBSDataDirOverride:

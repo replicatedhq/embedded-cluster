@@ -36,6 +36,16 @@ function deps() {
     make buildtools
 }
 
+function web() {
+    local install_cmd="npm i"
+    if [ "${CI:-}" = "true" ]; then
+        install_cmd="npm ci"
+    fi
+    (set -x; cd web && \
+        $install_cmd && \
+        npm run build)
+}
+
 function binary() {
     local local_artifact_mirror_image k0s_binary_url="" kots_binary_url="" operator_binary_url=""
 
@@ -50,7 +60,7 @@ function binary() {
     fi
     local_artifact_mirror_image="proxy.replicated.com/anonymous/$(cat local-artifact-mirror/build/image)"
 
-    make embedded-cluster-linux-$ARCH \
+    make "embedded-cluster-linux-$ARCH" \
         K0S_VERSION="$K0S_VERSION" \
         K0S_GO_VERSION="$K0S_GO_VERSION" \
         VERSION="$EC_VERSION" \
@@ -101,7 +111,7 @@ function archive() {
 
 function metadata() {
     mkdir -p build
-    docker run --rm --platform linux/$ARCH -v "$(pwd)/output/bin:/wrk" -w /wrk debian:bookworm-slim \
+    docker run --rm --platform "linux/$ARCH" -v "$(pwd)/output/bin:/wrk" -w /wrk debian:bookworm-slim \
         ./embedded-cluster version metadata > "build/metadata.json"
     log "created build/metadata.json"
 }
@@ -110,6 +120,7 @@ function main() {
     init_vars
     deps
     update_operator_metadata
+    web
     binary
     archive
     metadata

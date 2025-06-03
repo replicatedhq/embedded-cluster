@@ -4,9 +4,6 @@ inputs:
   test-name:
     description: 'individual test to run'
     required: true
-  is-large-runner:
-    description: 'Whether the test is running on a large runner'
-    required: true
   dr-aws-access-key-id:
     description: 'Disaster Recovery AWS Access Key ID'
     required: true
@@ -28,11 +25,12 @@ inputs:
   github-token:
     description: 'the ci github token used to install the replicated cli'
     required: false # this is only needed for cmx-based tests
+  is-lxd:
+    description: 'whether the test runs on lxd'
+    required: false
+    default: 'false'
   cmx-api-token:
     description: 'the token used to access the replicated api for cmx'
-    required: false # this is only needed for cmx-based tests
-  cmx-ssh-private-key:
-    description: 'the private key used to access the cmx nodes'
     required: false # this is only needed for cmx-based tests
   upgrade-target-ec-version:
     description: 'the embedded cluster version to expect after upgrades complete'
@@ -41,82 +39,43 @@ inputs:
 runs:
   using: composite
   steps:
-  - name: Remove MS repo
-    shell: bash
-    run: |
-      apt-add-repository --list
-      sudo apt-add-repository -y -r deb [arch=amd64,arm64,armhf] https://packages.microsoft.com/ubuntu/22.04/prod jammy main
-      apt-add-repository --list
-  - name: Move Docker aside
-    shell: bash
-    run: |
-      sudo systemctl stop docker
-      sudo iptables -F
-      sudo iptables -P FORWARD ACCEPT
-  - name: Install and Configure LXD
-    shell: bash
-    run: |
-      sudo lxd init --auto
-      sudo snap set lxd daemon.group=adm
-      sudo snap restart lxd
-      sudo lxd waitready
-  - name: Install and configure OVN
-    shell: bash
-    run: |
-      sudo apt-get update -y
-      sudo apt-get install ovn-host ovn-central -y
-      sudo ovs-vsctl set open_vswitch .                            \
-           external_ids:ovn-remote=unix:/var/run/ovn/ovnsb_db.sock \
-           external_ids:ovn-encap-type=geneve                      \
-           external_ids:ovn-encap-ip=127.0.0.1
-  - name: Free up runner disk space
-    uses: ./.github/actions/free-disk-space
-  - name: Set AppArmor mode to complain
-    shell: bash
-    run: |
-      sudo apt-get update -y
-      sudo apt install apparmor-utils -y
-      sudo aa-complain /etc/apparmor.d/*
+  - name: Local Setup
+    if: ${{ inputs.is-lxd == 'true' }}
+    uses: ./.github/actions/e2e-lxd-setup
+
+  - name: CMX Setup
+    if: ${{ inputs.is-lxd == 'false' }}
+    uses: ./.github/actions/e2e-cmx-setup
+    with:
+      github-token: ${{ inputs.github-token }}
+
   - name: Setup Go
     uses: actions/setup-go@v5
     with:
       go-version-file: go.mod
       cache-dependency-path: "**/*.sum"
-  - name: Install replicated CLI for CMX
-    if: ${{ inputs.cmx-api-token != '' }}
-    shell: bash
-    env:
-      GH_TOKEN: ${{ inputs.github-token }}
-    run: |
-      gh release download --repo replicatedhq/replicated --pattern '*_linux_amd64.tar.gz' --output /tmp/replicated.tar.gz --clobber
-      tar -xzf /tmp/replicated.tar.gz -C /tmp
-      mv /tmp/replicated /usr/local/bin/replicated
-  - name: Setup SSH for CMX
-    if: ${{ inputs.cmx-ssh-private-key != '' }}
-    shell: bash
-    run: |
-      mkdir -p ~/.ssh
-      echo "${{ inputs.cmx-ssh-private-key }}" > ~/.ssh/id_ed25519
-      chmod 600 ~/.ssh/id_ed25519
+
   - name: E2E
     shell: bash
     run: |
       export SHORT_SHA=${{ inputs.version-specifier }}
       echo "${SHORT_SHA}"
       export REPLICATED_API_TOKEN=${{ inputs.cmx-api-token }}
-      export DR_AWS_S3_ENDPOINT=https://s3.amazonaws.com
-      export DR_AWS_S3_REGION=us-east-1
-      export DR_AWS_S3_BUCKET=kots-testim-snapshots
-      export DR_AWS_S3_PREFIX=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}
-      export DR_AWS_S3_PREFIX_AIRGAP=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
-      export DR_AWS_ACCESS_KEY_ID=${{ inputs.dr-aws-access-key-id }}
-      export DR_AWS_SECRET_ACCESS_KEY=${{ inputs.dr-aws-secret-access-key }}
+      export DR_S3_ENDPOINT=https://s3.amazonaws.com
+      export DR_S3_REGION=us-east-1
+      export DR_S3_BUCKET=kots-testim-snapshots
+      export DR_S3_PREFIX=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}
+      export DR_S3_PREFIX_AIRGAP=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
+      export DR_ACCESS_KEY_ID=${{ inputs.dr-aws-access-key-id }}
+      export DR_SECRET_ACCESS_KEY=${{ inputs.dr-aws-secret-access-key }}
       export EXPECT_K0S_VERSION=${{ inputs.k0s-version }}
       export EXPECT_K0S_VERSION_PREVIOUS=${{ inputs.k0s-version-previous }}
       export EXPECT_K0S_VERSION_PREVIOUS_STABLE=${{ inputs.k0s-version-previous-stable }}
       export EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION=${{ inputs.upgrade-target-ec-version }}
+      export CMX_SSH_PUBLIC_KEY="$HOME/.ssh/id_rsa.pub"
       export SKIP_LXD_CLEANUP=true
       make e2e-test TEST_NAME=${{ inputs.test-name }}
+
   - name: Troubleshoot
     if: ${{ !cancelled() }}
     uses: ./.github/actions/e2e-troubleshoot

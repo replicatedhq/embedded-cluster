@@ -9,6 +9,7 @@ contents:
     - wolfi-base
     - seaweedfs~${PACKAGE_VERSION}
     - fuse3 # for weed mount
+    - wget
 
 accounts:
   groups:

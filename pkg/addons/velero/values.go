@@ -7,7 +7,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,20 +27,67 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, ove
 		return nil, errors.Wrap(err, "unmarshal helm values")
 	}
 
+	extraEnvVars := []map[string]any{}
+	extraVolumes := []map[string]any{}
+	extraVolumeMounts := []map[string]any{}
+
 	if v.Proxy != nil {
-		copiedValues["configuration"] = map[string]interface{}{
-			"extraEnvVars": map[string]interface{}{
-				"HTTP_PROXY":  v.Proxy.HTTPProxy,
-				"HTTPS_PROXY": v.Proxy.HTTPSProxy,
-				"NO_PROXY":    v.Proxy.NoProxy,
+		extraEnvVars = append(extraEnvVars, []map[string]any{
+			{
+				"name":  "HTTP_PROXY",
+				"value": v.Proxy.HTTPProxy,
 			},
-		}
+			{
+				"name":  "HTTPS_PROXY",
+				"value": v.Proxy.HTTPSProxy,
+			},
+			{
+				"name":  "NO_PROXY",
+				"value": v.Proxy.NoProxy,
+			},
+		}...)
 	}
 
-	podVolumePath := filepath.Join(runtimeconfig.EmbeddedClusterK0sSubDir(), "kubelet/pods")
+	if v.HostCABundlePath != "" {
+		extraVolumes = append(extraVolumes, map[string]any{
+			"name": "host-ca-bundle",
+			"hostPath": map[string]any{
+				"path": v.HostCABundlePath,
+				"type": "FileOrCreate",
+			},
+		})
+
+		extraVolumeMounts = append(extraVolumeMounts, map[string]any{
+			"name":      "host-ca-bundle",
+			"mountPath": "/certs/ca-certificates.crt",
+		})
+
+		extraEnvVars = append(extraEnvVars, map[string]any{
+			"name":  "SSL_CERT_DIR",
+			"value": "/certs",
+		})
+	}
+
+	copiedValues["configuration"] = map[string]any{
+		"extraEnvVars": extraEnvVars,
+	}
+	copiedValues["extraVolumes"] = extraVolumes
+	copiedValues["extraVolumeMounts"] = extraVolumeMounts
+
+	copiedValues["nodeAgent"] = map[string]any{
+		"extraVolumes":      extraVolumes,
+		"extraVolumeMounts": extraVolumeMounts,
+	}
+
+	podVolumePath := filepath.Join(v.EmbeddedClusterK0sSubDir, "kubelet/pods")
 	err = helm.SetValue(copiedValues, "nodeAgent.podVolumePath", podVolumePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm value nodeAgent.podVolumePath")
+	}
+	pluginVolumePath := filepath.Join(v.EmbeddedClusterK0sSubDir, "kubelet/plugins")
+	err = helm.SetValue(copiedValues, "nodeAgent.pluginVolumePath", pluginVolumePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "set helm value nodeAgent.pluginVolumePath")
 	}
 
 	for _, override := range overrides {

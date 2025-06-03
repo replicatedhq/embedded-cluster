@@ -54,6 +54,11 @@ func runEnableHA(ctx context.Context) error {
 		return fmt.Errorf("unable to get kube client: %w", err)
 	}
 
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		return fmt.Errorf("unable to create metadata client: %w", err)
+	}
+
 	canEnableHA, reason, err := addons.CanEnableHA(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
@@ -91,5 +96,5 @@ func runEnableHA(ctx context.Context) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addons.EnableHA(ctx, kcli, kclient, hcli, in.Spec.Network.ServiceCIDR, in.Spec, loading)
+	return addons.EnableHA(ctx, logrus.Debugf, kcli, mcli, kclient, hcli, in.Spec.Network.ServiceCIDR, in.Spec, loading)
 }

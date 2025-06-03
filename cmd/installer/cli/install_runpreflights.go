@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -17,8 +18,9 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var flags InstallCmdFlags
 
 	cmd := &cobra.Command{
-		Use:   "run-preflights",
-		Short: "Run install host preflights",
+		Use:    "run-preflights",
+		Short:  "Run install host preflights",
+		Hidden: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall(cmd, &flags); err != nil {
 				return err
@@ -49,7 +51,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 }
 
 func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdFlags) error {
-	if err := runInstallVerifyAndPrompt(ctx, name, &flags); err != nil {
+	if err := runInstallVerifyAndPrompt(ctx, name, &flags, prompts.New()); err != nil {
 		return err
 	}
 
@@ -98,7 +100,6 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsRep
 		ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
 		GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
 		NodeIP:               nodeIP,
-		PrivateCAs:           flags.privateCAs,
 		IsAirgap:             flags.isAirgap,
 		SkipHostPreflights:   flags.skipHostPreflights,
 		IgnoreHostPreflights: flags.ignoreHostPreflights,

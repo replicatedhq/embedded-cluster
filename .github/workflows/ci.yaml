@@ -112,21 +112,48 @@ jobs:
     name: Check operator CRDs
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Make manifests
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: make -C operator manifests
-    - name: Check CRDs
-      run: |
-        git diff --exit-code --name-only
-        if [ $? -eq 0 ]; then
-          echo "CRDs are up to date"
-        else
-          echo "CRDs are out of date"
-          exit 1
-        fi
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+      - name: Make manifests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: make -C operator manifests
+      - name: Check CRDs
+        run: |
+          git diff --exit-code --name-only
+          if [ $? -eq 0 ]; then
+            echo "CRDs are up to date"
+          else
+            echo "CRDs are out of date"
+            exit 1
+          fi
+
+  check-swagger-docs:
+    name: Check swagger docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+      - name: Check swagger docs
+        run: |
+          make -C api swagger
+          git diff --exit-code --name-only
+          if [ $? -eq 0 ]; then
+            echo "Swagger docs are up to date"
+          else
+            echo "Swagger docs are out of date"
+            exit 1
+          fi
 
   buildtools:
     name: Build buildtools
@@ -150,7 +177,7 @@ jobs:
 
   build-current:
     name: Build current
-    runs-on: embedded-cluster-2
+    runs-on: ubuntu-latest
     needs:
       - git-sha
     outputs:
@@ -173,6 +200,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./web/.nvmrc
 
       - uses: oras-project/setup-oras@v1
 
@@ -224,7 +256,7 @@ jobs:
 
   build-previous-k0s:
     name: Build previous k0s
-    runs-on: embedded-cluster-2
+    runs-on: ubuntu-latest
     needs:
       - git-sha
     outputs:
@@ -247,6 +279,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./web/.nvmrc
 
       - uses: oras-project/setup-oras@v1
 
@@ -333,7 +370,7 @@ jobs:
 
   build-upgrade:
     name: Build upgrade
-    runs-on: embedded-cluster-2
+    runs-on: ubuntu-latest
     needs:
       - git-sha
     outputs:
@@ -356,6 +393,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./web/.nvmrc
 
       - uses: oras-project/setup-oras@v1
 
@@ -492,15 +534,6 @@ jobs:
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
 
-          # re-promote a release containing an old version of embedded-cluster to test upgrades
-          export APP_VERSION="appver-${SHORT_SHA}-pre-minio-removal"
-          replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
-
-          # re-promote a release containing an old version of embedded-cluster to test upgrades
-          export APP_VERSION="appver-${SHORT_SHA}-1.8.0-k8s-1.28"
-          replicated release promote 11615 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
-          replicated release promote 11615 2eAqMYG1IEtX8cwpaO1kgNV6EB3 --version "${APP_VERSION}"
-
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
           export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}-previous-stable"
@@ -624,7 +657,7 @@ jobs:
   # e2e-docker runs the e2e tests inside a docker container rather than a full VM
   e2e-docker:
     name: E2E docker # this name is used by .github/workflows/automated-prs-manager.yaml
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
       - git-sha
       - build-current
@@ -650,9 +683,7 @@ jobs:
           - TestSingleNodeUpgradePreviousStable
           - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedApp
-          - TestUpgradeEC18FromReplicatedApp
           - TestResetAndReinstall
-          # - TestOldVersionUpgrade
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeInstallation
           - TestMultiNodeHAInstallation
@@ -697,13 +728,13 @@ jobs:
       - name: Run test
         env:
           SHORT_SHA: dev-${{ needs.git-sha.outputs.git_sha }}
-          DR_AWS_S3_ENDPOINT: https://s3.amazonaws.com
-          DR_AWS_S3_REGION: us-east-1
-          DR_AWS_S3_BUCKET: kots-testim-snapshots
-          DR_AWS_S3_PREFIX: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
-          DR_AWS_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
-          DR_AWS_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
-          DR_AWS_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
+          DR_S3_ENDPOINT: https://s3.amazonaws.com
+          DR_S3_REGION: us-east-1
+          DR_S3_BUCKET: kots-testim-snapshots
+          DR_S3_PREFIX: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
+          DR_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
+          DR_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
+          DR_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
           EXPECT_K0S_VERSION_PREVIOUS: ${{ needs.build-previous-k0s.outputs.k0s_version }}
           EXPECT_K0S_VERSION_PREVIOUS_STABLE: ${{ needs.find-previous-stable.outputs.k0s_version }}
@@ -729,28 +760,29 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestVersion
-          - TestCommandsRequireSudo
           - TestResetAndReinstallAirgap
           - TestSingleNodeAirgapUpgrade
           - TestSingleNodeAirgapUpgradeConfigValues
           - TestSingleNodeAirgapUpgradeCustomCIDR
-          - TestSingleNodeDisasterRecoveryWithProxy
-          - TestProxiedEnvironment
-          - TestProxiedCustomCIDR
-          - TestInstallWithPrivateCAs
-          - TestInstallWithMITMProxy
           - TestMultiNodeAirgapUpgrade
           - TestMultiNodeAirgapUpgradeSameK0s
           - TestMultiNodeAirgapUpgradePreviousStable
           - TestMultiNodeAirgapHAInstallation
+          - TestSingleNodeAirgapDisasterRecovery
+          - TestMultiNodeAirgapHADisasterRecovery
         include:
-          - test: TestAirgapUpgradeFromEC18
-            runner: embedded-cluster-2
-          - test: TestSingleNodeAirgapDisasterRecovery
-            runner: embedded-cluster-2
-          - test: TestMultiNodeAirgapHADisasterRecovery
-            runner: embedded-cluster-2
+          - test: TestVersion
+            is-lxd: true
+          - test: TestCommandsRequireSudo
+            is-lxd: true
+          - test: TestSingleNodeDisasterRecoveryWithProxy
+            is-lxd: true
+          - test: TestProxiedEnvironment
+            is-lxd: true
+          - test: TestProxiedCustomCIDR
+            is-lxd: true
+          - test: TestInstallWithMITMProxy
+            is-lxd: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -763,7 +795,7 @@ jobs:
       - uses: ./.github/actions/e2e
         with:
           test-name: '${{ matrix.test }}'
-          is-large-runner: ${{ matrix.runner == 'embedded-cluster-2' }}
+          is-lxd: '${{ matrix.is-lxd || false }}'
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.build-current.outputs.k0s_version }}
@@ -772,12 +804,11 @@ jobs:
           version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
-          cmx-ssh-private-key: ${{ secrets.CMX_SSH_PRIVATE_KEY }}
 
   e2e-main:
     name: E2E (on merge)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
+    runs-on: ubuntu-22.04
     needs:
       - build-current
       - build-previous-k0s
@@ -788,9 +819,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - test: TestFiveNodesAirgapUpgrade
-            runner: embedded-cluster-2
+        test:
+          - TestFiveNodesAirgapUpgrade
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -803,13 +833,14 @@ jobs:
       - uses: ./.github/actions/e2e
         with:
           test-name: '${{ matrix.test }}'
-          is-large-runner: ${{ matrix.runner == 'embedded-cluster-2' }}
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.build-current.outputs.k0s_version }}
           k0s-version-previous: ${{ needs.build-previous-k0s.outputs.k0s_version }}
           k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
           version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
 
   # this job will validate that all the tests passed
   # it is used for the github branch protection rule
@@ -826,6 +857,7 @@ jobs:
       - dryrun-tests
       - check-images
       - check-operator-crds
+      - check-swagger-docs
     if: always()
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
@@ -849,6 +881,9 @@ jobs:
         run: exit 1
       - name: fail if check-operator-crds job was not successful
         if: needs.check-operator-crds.result != 'success'
+        run: exit 1
+      - name: fail if check-swagger-docs job was not successful
+        if: needs.check-swagger-docs.result != 'success'
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Validation succeeded"

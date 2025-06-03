@@ -43,8 +43,12 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, kcli c
 		copiedValues["isAirgap"] = "true"
 	}
 
+	extraEnvVars := []map[string]any{}
+	extraVolumes := []map[string]any{}
+	extraVolumeMounts := []map[string]any{}
+
 	if e.Proxy != nil {
-		copiedValues["extraEnv"] = []map[string]interface{}{
+		extraEnvVars = append(extraEnvVars, []map[string]any{
 			{
 				"name":  "HTTP_PROXY",
 				"value": e.Proxy.HTTPProxy,
@@ -57,10 +61,38 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, kcli c
 				"name":  "NO_PROXY",
 				"value": e.Proxy.NoProxy,
 			},
-		}
-	} else {
-		delete(copiedValues, "extraEnv")
+		}...)
 	}
+
+	if e.HostCABundlePath != "" {
+		extraVolumes = append(extraVolumes, map[string]any{
+			"name": "host-ca-bundle",
+			"hostPath": map[string]any{
+				"path": e.HostCABundlePath,
+				"type": "FileOrCreate",
+			},
+		})
+
+		extraVolumeMounts = append(extraVolumeMounts, map[string]any{
+			"name":      "host-ca-bundle",
+			"mountPath": "/certs/ca-certificates.crt",
+		})
+
+		extraEnvVars = append(extraEnvVars, []map[string]any{
+			{
+				"name":  "SSL_CERT_DIR",
+				"value": "/certs",
+			},
+			{
+				"name":  "PRIVATE_CA_BUNDLE_PATH",
+				"value": "/certs/ca-certificates.crt",
+			},
+		}...)
+	}
+
+	copiedValues["extraEnv"] = extraEnvVars
+	copiedValues["extraVolumes"] = extraVolumes
+	copiedValues["extraVolumeMounts"] = extraVolumeMounts
 
 	for _, override := range overrides {
 		var err error

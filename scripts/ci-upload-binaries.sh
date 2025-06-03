@@ -122,7 +122,7 @@ function kotsbin() {
         fi
     elif [ -n "${kots_file_override}" ]; then
         echo "KOTS_BINARY_FILE_OVERRIDE is set to '${kots_file_override}', using that source"
-        tar -czvf "build/kots_linux_${ARCH}.tar.gz" -C $(dirname "${kots_file_override}") $(basename "${kots_file_override}")
+        tar -czvf "build/kots_linux_${ARCH}.tar.gz" -C "$(dirname "${kots_file_override}")" "$(basename "${kots_file_override}")"
     else
         echo "extracting kots binary from kotsadm image"
         crane export "kotsadm/kotsadm:${kots_version}" --platform "linux/${ARCH}" - | tar -Oxf - kots > build/kots

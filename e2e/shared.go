@@ -32,7 +32,6 @@ type installOptions struct {
 	httpProxy               string
 	httpsProxy              string
 	noProxy                 string
-	privateCA               string
 	configValuesFile        string
 	networkInterface        string
 	dataDir                 string
@@ -54,6 +53,7 @@ type joinOptions struct {
 type downloadECReleaseOptions struct {
 	version   string
 	licenseID string
+	withEnv   map[string]string
 }
 
 type resetInstallationOptions struct {
@@ -114,9 +114,6 @@ func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts install
 	}
 	if opts.noProxy != "" {
 		line = append(line, "--no-proxy", opts.noProxy)
-	}
-	if opts.privateCA != "" {
-		line = append(line, "--private-ca", opts.privateCA)
 	}
 	if opts.configValuesFile != "" {
 		line = append(line, "--config-values", opts.configValuesFile)
@@ -277,7 +274,7 @@ func downloadECReleaseWithOptions(t *testing.T, tc cluster.Cluster, node int, op
 		line = append(line, LicenseID)
 	}
 
-	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
 		t.Fatalf("fail to download embedded cluster release on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
+	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
@@ -33,6 +34,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 )
@@ -114,7 +116,7 @@ func preRunJoin(flags *JoinCmdFlags) error {
 
 	// if a network interface flag was not provided, attempt to discover it
 	if flags.networkInterface == "" {
-		autoInterface, err := determineBestNetworkInterface()
+		autoInterface, err := newconfig.DetermineBestNetworkInterface()
 		if err == nil {
 			flags.networkInterface = autoInterface
 		}
@@ -185,6 +187,12 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.Jo
 		return fmt.Errorf("unable to get kube client: %w", err)
 	}
 
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		loading.ErrorClosef("Failed to install node")
+		return fmt.Errorf("unable to get metadata client: %w", err)
+	}
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		loading.ErrorClosef("Failed to install node")
@@ -206,7 +214,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.Jo
 		return nil
 	}
 
-	if err := maybeEnableHA(ctx, kcli, flags, cidrCfg.ServiceCIDR, jcmd); err != nil {
+	if err := maybeEnableHA(ctx, kcli, mcli, flags, cidrCfg.ServiceCIDR, jcmd); err != nil {
 		return fmt.Errorf("unable to enable high availability: %w", err)
 	}
 
@@ -253,9 +261,9 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinComm
 		return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
 	}
 
-	setProxyEnv(jcmd.InstallationSpec.Proxy)
+	newconfig.SetProxyEnv(jcmd.InstallationSpec.Proxy)
 
-	proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, flags.networkInterface)
+	proxyOK, localIP, err := newconfig.CheckProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, flags.networkInterface, nil)
 	if err != nil {
 		return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 	}
@@ -270,7 +278,7 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinComm
 	return nil
 }
 
-func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResponse, kotsAPIAddress string) (cidrCfg *CIDRConfig, err error) {
+func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResponse, kotsAPIAddress string) (cidrCfg *newconfig.CIDRConfig, err error) {
 	logrus.Info("")
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
@@ -343,7 +351,7 @@ func materializeFilesForJoin(ctx context.Context, jcmd *join.JoinCommandResponse
 	return nil
 }
 
-func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*CIDRConfig, error) {
+func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*newconfig.CIDRConfig, error) {
 	podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
 	if err != nil {
 		return nil, fmt.Errorf("unable to split default network CIDR: %w", err)
@@ -358,7 +366,7 @@ func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*CIDRConfig, error) {
 		}
 	}
 
-	return &CIDRConfig{
+	return &newconfig.CIDRConfig{
 		PodCIDR:     podCIDR,
 		ServiceCIDR: serviceCIDR,
 	}, nil
@@ -564,7 +572,7 @@ func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string,
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, serviceCIDR string, jcmd *join.JoinCommandResponse) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interface, flags JoinCmdFlags, serviceCIDR string, jcmd *join.JoinCommandResponse) error {
 	if flags.noHA {
 		logrus.Debug("--no-ha flag provided, skipping high availability")
 		return nil
@@ -624,7 +632,9 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, flags JoinCmdFlags, 
 
 	return addons.EnableHA(
 		ctx,
+		logrus.Debugf,
 		kcli,
+		mcli,
 		kclient,
 		hcli,
 		serviceCIDR,

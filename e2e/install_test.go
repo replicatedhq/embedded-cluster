@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -11,12 +10,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
-	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 )
 
 func TestSingleNodeInstallation(t *testing.T) {
@@ -431,8 +428,8 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 		version: initialVersion,
 	})
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-ec23-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-ec23-app: %v: %s: %s", err, stdout, stderr)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
@@ -521,154 +518,6 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
-	t.Parallel()
-
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	withEnv := map[string]string{"KUBECONFIG": "/var/lib/k0s/pki/admin.conf"}
-
-	tc := docker.NewCluster(&docker.ClusterInput{
-		T:      t,
-		Nodes:  4,
-		Distro: "debian-bookworm",
-		K0sDir: "/var/lib/k0s",
-	})
-	defer tc.Cleanup(withEnv)
-
-	appVer := fmt.Sprintf("appver-%s-1.8.0-k8s-1.28", os.Getenv("SHORT_SHA"))
-
-	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
-		version: appVer,
-	})
-
-	downloadECReleaseWithOptions(t, tc, 1, downloadECReleaseOptions{
-		version: appVer,
-	})
-
-	installSingleNodeWithOptions(t, tc, installOptions{
-		version: appVer,
-		withEnv: withEnv,
-	})
-
-	if err := tc.SetupPlaywright(withEnv); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
-	}
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-ec18-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-ec18-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-ec18-join-worker-command")
-	if err != nil {
-		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err := findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Log("worker join token command:", command)
-
-	t.Logf("%s: joining worker node to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(1, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join worker node to the cluster as a worker: %v: %s: %s", err, stdout, stderr)
-	}
-
-	// wait for the nodes to report as ready.
-	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "2"}, withEnv)
-	if err != nil {
-		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkInstallationStateWithOptions(t, tc, installationStateOptions{
-		version:    appVer,
-		k8sVersion: "v1.28.11",
-		withEnv:    withEnv,
-	})
-
-	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
-
-	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: re-installing kots cli on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"install-kots-cli.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install kots cli on node 0: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkInstallationStateWithOptions(t, tc, installationStateOptions{
-		version: appUpgradeVersion,
-		withEnv: withEnv,
-	})
-
-	// Download embedded-cluster on additional nodes
-	downloadECReleaseWithOptions(t, tc, 2, downloadECReleaseOptions{
-		version: appUpgradeVersion,
-	})
-	downloadECReleaseWithOptions(t, tc, 3, downloadECReleaseOptions{
-		version: appUpgradeVersion,
-	})
-
-	// Join the additional nodes to the cluster
-	joinControllerNode(t, tc, 2)
-	joinWorkerNode(t, tc, 3)
-
-	// wait for all nodes to report as ready
-	waitForNodes(t, tc, 4, withEnv)
-
-	// Check worker profiles for the joined nodes
-	checkWorkerProfile(t, tc, 2)
-	checkWorkerProfile(t, tc, 3)
-
-	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs = []string{appUpgradeVersion}
-
-	t.Logf("%s: upgrading cluster a second time", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
-		withEnv: withEnv,
-	})
-
-	// wait for all nodes to report as ready after upgrade
-	waitForNodes(t, tc, 4, withEnv)
-
-	// use upgraded binaries to run the reset command
-	// TODO: this is a temporary workaround and should eventually be a feature of EC
-
-	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
-		version: appUpgradeVersion,
-	})
-	downloadECReleaseWithOptions(t, tc, 1, downloadECReleaseOptions{
-		version: appUpgradeVersion,
-	})
-
-	resetInstallationWithOptions(t, tc, 1, resetInstallationOptions{
-		withEnv: withEnv,
-	})
-
-	resetInstallationWithOptions(t, tc, 3, resetInstallationOptions{
-		withEnv: withEnv,
-	})
-
-	resetInstallationWithOptions(t, tc, 2, resetInstallationOptions{
-		withEnv: withEnv,
-	})
-
-	resetInstallationWithOptions(t, tc, 0, resetInstallationOptions{
-		withEnv: withEnv,
-	})
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
 func TestResetAndReinstall(t *testing.T) {
 	t.Parallel()
 
@@ -711,111 +560,65 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
-	airgapBundlePath := "/tmp/airgap-bundle.tar.gz"
-	err := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapBundlePath, AirgapLicenseID)
+	tc := cmx.NewCluster(&cmx.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distribution: "ubuntu",
+		Version:      "22.04",
+	})
+	defer tc.Cleanup()
+
+	t.Logf("%s: downloading airgap file on node 0", time.Now().Format(time.RFC3339))
+	err := downloadAirgapBundleOnNode(t, tc, 0, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), AirgapInstallBundlePath, AirgapLicenseID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Logf("%s: creating airgap node", time.Now().Format(time.RFC3339))
-
-	tc := lxd.NewCluster(&lxd.ClusterInput{
-		T:                       t,
-		Nodes:                   1,
-		Image:                   "debian/12",
-		WithProxy:               true,
-		AirgapInstallBundlePath: airgapBundlePath,
-	})
-	defer tc.Cleanup()
-
-	// install "curl" dependency on node 0 for app version checks.
-	tc.InstallTestDependenciesDebian(t, 0, true)
+	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
+	if err := tc.Airgap(); err != nil {
+		t.Fatalf("failed to airgap cluster: %v", err)
+	}
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
 
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
 
 	installSingleNodeWithOptions(t, tc, installOptions{
 		isAirgap: true,
 	})
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), k8sVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkNodeJoinCommand(t, tc, 0)
 	resetInstallation(t, tc, 0)
 
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
-	time.Sleep(30 * time.Second)
+	tc.WaitForReboot()
 
 	installSingleNodeWithOptions(t, tc, installOptions{
 		isAirgap: true,
 	})
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), k8sVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
-	}
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
-func TestOldVersionUpgrade(t *testing.T) {
-	t.Parallel()
-
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	withEnv := map[string]string{"KUBECONFIG": "/var/lib/k0s/pki/admin.conf"}
-
-	tc := docker.NewCluster(&docker.ClusterInput{
-		T:      t,
-		Nodes:  1,
-		Distro: "debian-bookworm",
-		K0sDir: "/var/lib/k0s",
-	})
-	defer tc.Cleanup(withEnv)
-
-	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
-		version: fmt.Sprintf("appver-%s-pre-minio-removal", os.Getenv("SHORT_SHA")),
-	})
-
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"pre-minio-removal-install.sh", "cli"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-pre-minio-removal-installation-state.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA"))}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
-
-	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to run kots upstream upgrade: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
-		withEnv: withEnv,
-	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -860,8 +663,8 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 		localArtifactMirrorPort: "50001", // choose an alternate lam port
 	})
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
@@ -882,8 +685,8 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)
@@ -931,8 +734,8 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 		cidr:     "172.16.0.0/15",
 	})
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
@@ -951,8 +754,8 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)
@@ -1050,8 +853,8 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 	if err := tc.SetupPlaywright(withEnv); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if _, _, err := tc.RunPlaywrightTest("deploy-ec18-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-ec18-app: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-ec18-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-ec18-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	// generate worker node join command.
@@ -1125,7 +928,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
@@ -1154,7 +957,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 
 	t.Logf("%s: upgrading cluster a second time", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after second upgrade", time.Now().Format(time.RFC3339))
@@ -1253,7 +1056,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)
@@ -1331,7 +1134,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)
@@ -1372,11 +1175,6 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, upgrade2Version, AirgapUpgrade2BundlePath, AirgapLicenseID)
 		},
-		// TODO (@salah): remove this once we release 2.4.0 as it becomes the "previous stable"
-		// versions < 2.4.0 required getting the binary from replicated.app
-		func(t *testing.T) error {
-			return downloadAirgapBundleOnNode(t, tc, 1, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
-		},
 	)
 
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
@@ -1401,33 +1199,12 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	if err := tc.SetupPlaywright(withEnv); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-ec23-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-ec23-app: %v: %s: %s", err, stdout, stderr)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// TODO (@salah): use shared join function once we release 2.4.0 as it becomes the "previous stable"
-	// generate worker node join command.
-	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-ec23-join-worker-command")
-	if err != nil {
-		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	workerCommand, err := findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v", err)
-	}
-	t.Log("worker join token command:", workerCommand)
-
-	// join the worker node
-	t.Logf("%s: preparing embedded cluster airgap files on worker node", time.Now().Format(time.RFC3339))
-	line = []string{"airgap-prepare.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
-		t.Fatalf("fail to prepare airgap files on worker node: %v: %s: %s", err, stdout, stderr)
-	}
-	t.Logf("%s: joining worker node to the cluster", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(1, strings.Split(workerCommand, " "), withEnv); err != nil {
-		t.Fatalf("fail to join worker node to the cluster: %v: %s: %s", err, stdout, stderr)
-	}
+	// join a worker
+	joinWorkerNode(t, tc, 1)
 
 	// wait for the nodes to report as ready.
 	waitForNodes(t, tc, 2, withEnv)
@@ -1449,7 +1226,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
@@ -1469,7 +1246,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: upgrading cluster a second time", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
@@ -1522,7 +1299,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)
@@ -1651,7 +1428,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)
@@ -1718,7 +1495,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)
@@ -1812,7 +1589,7 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
@@ -1940,66 +1717,10 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	testArgs := []string{fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))}
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
-func TestInstallWithPrivateCAs(t *testing.T) {
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	input := &lxd.ClusterInput{
-		T:                   t,
-		Nodes:               1,
-		Image:               "ubuntu/jammy",
-		LicensePath:         "licenses/license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-	}
-	tc := lxd.NewCluster(input)
-	defer tc.Cleanup()
-
-	certBuilder, err := certs.NewBuilder()
-	require.NoError(t, err, "unable to create new cert builder")
-	crtContent, _, err := certBuilder.Generate()
-	require.NoError(t, err, "unable to build test certificate")
-
-	tmpfile, err := os.CreateTemp("", "test-temp-cert-*.crt")
-	require.NoError(t, err, "unable to create temp file")
-	defer os.Remove(tmpfile.Name())
-
-	_, err = tmpfile.WriteString(crtContent)
-	require.NoError(t, err, "unable to write to temp file")
-	tmpfile.Close()
-
-	lxd.CopyFileToNode(input, tc.Nodes[0], lxd.File{
-		SourcePath: tmpfile.Name(),
-		DestPath:   "/tmp/ca.crt",
-		Mode:       0666,
-	})
-
-	installSingleNodeWithOptions(t, tc, installOptions{
-		privateCA: "/tmp/ca.crt",
-	})
-
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
-	}
-
-	checkInstallationState(t, tc)
-
-	t.Logf("checking if the configmap was created with the right values")
-	line := []string{"kubectl", "get", "cm", "kotsadm-private-cas", "-n", "kotsadm", "-o", "json"}
-	stdout, _, err := tc.RunCommandOnNode(0, line, lxd.WithECShellEnv("/var/lib/embedded-cluster"))
-	require.NoError(t, err, "unable get kotsadm-private-cas configmap")
-
-	var cm corev1.ConfigMap
-	err = json.Unmarshal([]byte(stdout), &cm)
-	require.NoErrorf(t, err, "unable to unmarshal output to configmap: %q", stdout)
-	require.Contains(t, cm.Data, "ca_0.crt", "index ca_0.crt not found in ca secret")
-	require.Equal(t, crtContent, cm.Data["ca_0.crt"], "content mismatch")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -2066,7 +1787,7 @@ spec:
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)
@@ -2165,8 +1886,8 @@ spec:
 	testArgs := []string{appUpgradeVersion, "", hostname}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkPostUpgradeState(t, tc)

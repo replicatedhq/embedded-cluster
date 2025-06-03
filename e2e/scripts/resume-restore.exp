@@ -2,12 +2,12 @@
 
 source /usr/local/bin/env.exp
 
-set dr_aws_s3_endpoint [lindex $argv 0]
-set dr_aws_s3_region [lindex $argv 1]
-set dr_aws_s3_bucket [lindex $argv 2]
-set dr_aws_s3_prefix [lindex $argv 3]
-set dr_aws_access_key_id [lindex $argv 4]
-set dr_aws_secret_access_key [lindex $argv 5]
+set dr_s3_endpoint [lindex $argv 0]
+set dr_s3_region [lindex $argv 1]
+set dr_s3_bucket [lindex $argv 2]
+set dr_s3_prefix [lindex $argv 3]
+set dr_access_key_id [lindex $argv 4]
+set dr_secret_access_key [lindex $argv 5]
 
 proc send_interrupt {} {
     send "\x03"
@@ -30,7 +30,7 @@ expect {
 
 expect {
     "S3 endpoint:" {
-      send "$dr_aws_s3_endpoint\r"
+      send "$dr_s3_endpoint\r"
     }
     timeout {
       puts "\n\nFailed to find 'S3 endpoint' prompt."
@@ -44,7 +44,7 @@ expect {
 
 expect {
     "Region:" {
-      send "$dr_aws_s3_region\r"
+      send "$dr_s3_region\r"
     }
     timeout {
       puts "\n\nFailed to find 'Region' prompt."
@@ -58,7 +58,7 @@ expect {
 
 expect {
     "Bucket:" {
-      send "$dr_aws_s3_bucket\r"
+      send "$dr_s3_bucket\r"
     }
     timeout {
       puts "\n\nFailed to find 'Bucket' prompt."
@@ -72,7 +72,7 @@ expect {
 
 expect {
     "Prefix (press Enter to skip):" {
-      send "$dr_aws_s3_prefix\r"
+      send "$dr_s3_prefix\r"
     }
     timeout {
       puts "\n\nFailed to find 'Prefix' prompt."
@@ -86,7 +86,7 @@ expect {
 
 expect {
     "Access key ID:" {
-      send "$dr_aws_access_key_id\r"
+      send "$dr_access_key_id\r"
     }
     timeout {
       puts "\n\nFailed to find 'Access key ID' prompt."
@@ -100,7 +100,7 @@ expect {
 
 expect {
     "Secret access key:" {
-      send "$dr_aws_secret_access_key\r"
+      send "$dr_secret_access_key\r"
     }
     timeout {
       puts "\n\nFailed to find 'Secret access key' prompt."

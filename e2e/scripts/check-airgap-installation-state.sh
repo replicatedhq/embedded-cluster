@@ -43,11 +43,6 @@ main() {
         exit 1
     fi
 
-    # if this is the current version in CI
-    if echo "$version" | grep -qvE "(pre-minio-removal|1.8.0-k8s)" ; then
-        validate_data_dirs
-    fi
-
     validate_no_pods_in_crashloop
 }
 

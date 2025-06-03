@@ -18,7 +18,9 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"sort"
 	"time"
@@ -29,6 +31,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
@@ -38,6 +41,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -125,9 +129,10 @@ type NodeEventsBatch struct {
 // InstallationReconciler reconciles a Installation object
 type InstallationReconciler struct {
 	client.Client
-	Discovery discovery.DiscoveryInterface
-	Scheme    *runtime.Scheme
-	Recorder  record.EventRecorder
+	MetadataClient metadata.Interface
+	Discovery      discovery.DiscoveryInterface
+	Scheme         *runtime.Scheme
+	Recorder       record.EventRecorder
 }
 
 // NodeHasChanged returns true if the node configuration has changed when compared to
@@ -426,8 +431,41 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		r.ReportNodesChanges(ctx, in, events)
 	}
 
+	// ensure the CA configmap is present and up-to-date
+	if err := r.reconcileHostCABundle(ctx); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to ensure kotsadm CA configmap: %w", err)
+	}
+
 	log.Info("Installation reconciliation ended")
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
+}
+
+// reconcileHostCABundle ensures that the CA configmap is present and is up-to-date
+// with the CA bundle from the host.
+func (r *InstallationReconciler) reconcileHostCABundle(ctx context.Context) error {
+	caPathInContainer := os.Getenv("PRIVATE_CA_BUNDLE_PATH")
+	if caPathInContainer == "" {
+		return nil
+	}
+
+	err := r.Get(ctx, types.NamespacedName{Name: "kotsadm"}, &corev1.Namespace{})
+	if k8serrors.IsNotFound(err) {
+		// if the namespace has not been created yet, we don't need to reconcile the CA configmap
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to get kotsadm namespace: %w", err)
+	}
+
+	logger := ctrl.LoggerFrom(ctx)
+	logf := func(format string, args ...interface{}) {
+		logger.Info(fmt.Sprintf(format, args...))
+	}
+	err = adminconsole.EnsureCAConfigmap(ctx, logf, r.Client, r.MetadataClient, caPathInContainer)
+	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
+		logger.Error(err, "Failed to reconcile host ca bundle")
+		return nil
+	}
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.

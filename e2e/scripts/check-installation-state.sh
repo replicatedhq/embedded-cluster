@@ -20,10 +20,6 @@ main() {
     kubectl get pods -A
 
     echo "ensure that installation is installed"
-    if echo "$version" | grep "pre-minio-removal"; then
-        echo "waiting for installation as this is a pre-minio-removal embedded-cluster version (and so the installer doesn't wait for the installation to be ready itself)"
-        wait_for_installation
-    fi
     if ! ensure_installation_is_installed; then
         echo "installation is not installed"
         exit 1
@@ -49,7 +45,7 @@ main() {
     fi
 
     # if this is the current version in CI
-    if echo "$version" | grep -qvE "(pre-minio-removal|1.8.0-k8s|previous-stable)" ; then
+    if echo "$version" | grep -qvE "(previous-stable)" ; then
         validate_data_dirs
     fi
 

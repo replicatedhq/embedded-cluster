@@ -2,82 +2,42 @@ package embeddedclusteroperator
 
 import (
 	"context"
-	"fmt"
-	"os"
 
 	"github.com/pkg/errors"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (e *EmbeddedClusterOperator) Install(ctx context.Context, kcli client.Client, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
-	err := installEnsureCAConfigmap(ctx, kcli, e.PrivateCAs)
-	if err != nil {
-		return errors.Wrap(err, "ensure CA configmap")
-	}
-
+func (e *EmbeddedClusterOperator) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
 	values, err := e.GenerateHelmValues(ctx, kcli, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	_, err = hcli.Install(ctx, helm.InstallOptions{
+	opts := helm.InstallOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    e.ChartLocation(),
 		ChartVersion: e.ChartVersion(),
 		Values:       values,
 		Namespace:    namespace,
 		Labels:       getBackupLabels(),
-	})
-	if err != nil {
-		return errors.Wrap(err, "helm install")
 	}
 
-	return nil
-}
-
-func installEnsureCAConfigmap(ctx context.Context, kcli client.Client, privateCAs []string) error {
-	cas, err := privateCAsToMap(privateCAs)
-	if err != nil {
-		return errors.Wrap(err, "create private cas map")
-	}
-	return ensureCAConfigmap(ctx, kcli, cas)
-}
-
-func ensureCAConfigmap(ctx context.Context, cli client.Client, cas map[string]string) error {
-	ecoCAConfigmap := corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "private-cas",
-			Namespace: namespace,
-			Labels:    getBackupLabels(),
-		},
-		Data: cas,
-	}
-
-	err := cli.Create(ctx, &ecoCAConfigmap)
-	if client.IgnoreAlreadyExists(err) != nil {
-		return errors.Wrap(err, "create private-cas configmap")
-	}
-
-	return nil
-}
-
-func privateCAsToMap(privateCAs []string) (map[string]string, error) {
-	cas := map[string]string{}
-	for i, path := range privateCAs {
-		data, err := os.ReadFile(path)
+	if e.DryRun {
+		manifests, err := hcli.Render(ctx, opts)
 		if err != nil {
-			return nil, errors.Wrapf(err, "read private CA file %s", path)
+			return errors.Wrap(err, "dry run values")
 		}
-		name := fmt.Sprintf("ca_%d.crt", i)
-		cas[name] = string(data)
+		e.dryRunManifests = append(e.dryRunManifests, manifests...)
+	} else {
+		_, err = hcli.Install(ctx, opts)
+		if err != nil {
+			return errors.Wrap(err, "helm install")
+		}
 	}
-	return cas, nil
+
+	return nil
 }

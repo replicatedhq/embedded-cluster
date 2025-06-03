@@ -148,6 +148,11 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./web/.nvmrc
+
       - uses: oras-project/setup-oras@v1
 
       - uses: imjasonh/setup-crane@v0.4
@@ -167,6 +172,12 @@ jobs:
           OPERATOR_IMAGE: ${{ needs.publish-operator-image.outputs.image }}
         run: |
           ./scripts/ci-update-operator-metadata.sh
+
+      - name: Build web
+        working-directory: ./web
+        run: |
+          npm ci
+          npm run build
 
       - name: Build linux-amd64
         run: |
@@ -456,7 +467,7 @@ jobs:
   # e2e-docker runs the e2e tests inside a docker container rather than a full VM
   e2e-docker:
     name: E2E docker
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
       - release
       - release-app
@@ -480,9 +491,7 @@ jobs:
           - TestSingleNodeUpgradePreviousStable
           - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedApp
-#          - TestUpgradeEC18FromReplicatedApp
           - TestResetAndReinstall
-#          - TestOldVersionUpgrade
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeInstallation
           - TestMultiNodeHAInstallation
@@ -520,13 +529,13 @@ jobs:
       - name: Run test
         env:
           SHORT_SHA: ${{ github.ref_name }}
-          DR_AWS_S3_ENDPOINT: https://s3.amazonaws.com
-          DR_AWS_S3_REGION: us-east-1
-          DR_AWS_S3_BUCKET: kots-testim-snapshots
-          DR_AWS_S3_PREFIX: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
-          DR_AWS_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
-          DR_AWS_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
-          DR_AWS_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
+          DR_S3_ENDPOINT: https://s3.amazonaws.com
+          DR_S3_REGION: us-east-1
+          DR_S3_BUCKET: kots-testim-snapshots
+          DR_S3_PREFIX: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
+          DR_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
+          DR_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
+          DR_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           EXPECT_K0S_VERSION: ${{ needs.get-tag.outputs.k0s_version }}
           EXPECT_K0S_VERSION_PREVIOUS: ${{ needs.get-tag.outputs.k0s_version }}
           EXPECT_K0S_VERSION_PREVIOUS_STABLE: ${{ needs.find-previous-stable.outputs.k0s_version }}
@@ -552,28 +561,29 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestVersion
-          - TestCommandsRequireSudo
           - TestResetAndReinstallAirgap
           - TestSingleNodeAirgapUpgrade
           - TestSingleNodeAirgapUpgradeConfigValues
           - TestSingleNodeAirgapUpgradeCustomCIDR
-          - TestSingleNodeDisasterRecoveryWithProxy
-          - TestProxiedEnvironment
-          - TestProxiedCustomCIDR
-          - TestInstallWithPrivateCAs
-          - TestInstallWithMITMProxy
           - TestMultiNodeAirgapUpgrade
           - TestMultiNodeAirgapUpgradeSameK0s
           - TestMultiNodeAirgapUpgradePreviousStable
           - TestMultiNodeAirgapHAInstallation
+          - TestSingleNodeAirgapDisasterRecovery
+          - TestMultiNodeAirgapHADisasterRecovery
         include:
-          - test: TestAirgapUpgradeFromEC18
-            runner: embedded-cluster-2
-          - test: TestSingleNodeAirgapDisasterRecovery
-            runner: embedded-cluster-2
-          - test: TestMultiNodeAirgapHADisasterRecovery
-            runner: embedded-cluster-2
+          - test: TestVersion
+            is-lxd: true
+          - test: TestCommandsRequireSudo
+            is-lxd: true
+          - test: TestSingleNodeDisasterRecoveryWithProxy
+            is-lxd: true
+          - test: TestProxiedEnvironment
+            is-lxd: true
+          - test: TestProxiedCustomCIDR
+            is-lxd: true
+          - test: TestInstallWithMITMProxy
+            is-lxd: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -586,14 +596,15 @@ jobs:
       - uses: ./.github/actions/e2e
         with:
           test-name: '${{ matrix.test }}'
-          is-large-runner: ${{ matrix.runner == 'embedded-cluster-2' }}
+          is-lxd: '${{ matrix.is-lxd || false }}'
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
-          version-specifier: ${{ github.ref_name }}
-
           k0s-version: ${{ needs.get-tag.outputs.k0s_version }}
           k0s-version-previous: ${{ needs.get-tag.outputs.k0s_version }} # we do not run k8s upgrade tests on release
           k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
+          version-specifier: ${{ github.ref_name }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
           upgrade-target-ec-version: ${{ github.ref_name }}
 
   # this job will validate that all the tests passed
@@ -616,3 +627,38 @@ jobs:
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Validation succeeded"
+
+  generate-ec-release-notes-pr:
+    runs-on: ubuntu-latest
+    needs: [release, release-app, get-tag]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Check if tag is from main branch
+        id: check-main
+        run: |
+          # Get the commit that the tag points to
+          TAG_COMMIT=$(git rev-list -n 1 ${{ github.ref }})
+          
+          # Check if this commit is an ancestor of the main branch (or the same commit)
+          if git merge-base --is-ancestor $TAG_COMMIT origin/main; then
+            echo "Tag was created from main branch"
+            echo "is_from_main=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag was NOT created from main branch"
+            echo "is_from_main=false" >> $GITHUB_OUTPUT
+          fi
+        
+      - name: Generate EC Release Notes PR
+        if: steps.check-main.outputs.is_from_main == 'true'
+        env:
+          GIT_TAG: ${{ needs.get-tag.outputs.tag-name }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          curl -H "Authorization: token $GH_PAT" \
+            -H 'Accept: application/json' \
+            -d "{\"event_type\": \"embedded-cluster-release-notes\", \"client_payload\": {\"version\": \"${GIT_TAG}\"}}" \
+            "https://api.github.com/repos/replicatedhq/replicated-docs/dispatches"

@@ -3,17 +3,26 @@ package cli
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/fstest"
+	"time"
 
+	"github.com/replicatedhq/embedded-cluster/api"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -523,6 +532,166 @@ versionLabel: testversion
 				req.EqualError(err, tt.wantErr)
 			} else {
 				req.NoError(err)
+			}
+		})
+	}
+}
+
+func Test_runInstallAPI(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+
+	listener, err := net.Listen("tcp", ":0")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = listener.Close()
+	})
+
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
+
+	errCh := make(chan error)
+
+	logger := api.NewDiscardLogger()
+
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	require.NoError(t, err)
+
+	cert, _, _, err := tlsutils.GenerateCertificate("localhost", nil)
+	require.NoError(t, err)
+
+	certPool := x509.NewCertPool()
+	certPool.AddCert(cert.Leaf)
+
+	// We need a release object to pass over to the Web component.
+	dataMap := map[string][]byte{
+		"kots-app.yaml": []byte(`
+apiVersion: kots.io/v1beta1
+kind: Application
+`),
+	}
+	err = release.SetReleaseDataForTests(dataMap)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		release.SetReleaseDataForTests(nil)
+	})
+
+	// Mock the web assets filesystem so that we don't need to embed the web assets.
+	webAssetsFS = fstest.MapFS{
+		"index.html": &fstest.MapFile{
+			Data: []byte(""),
+			Mode: 0644,
+		},
+	}
+	defer func() { webAssetsFS = nil }()
+
+	go func() {
+		err := runInstallAPI(ctx, listener, cert, logger, "password", nil)
+		t.Logf("Install API exited with error: %v", err)
+		errCh <- err
+	}()
+
+	t.Logf("Waiting for install API to start on %s", listener.Addr().String())
+	err = waitForInstallAPI(ctx, net.JoinHostPort("localhost", port))
+	assert.NoError(t, err)
+
+	url := "https://" + net.JoinHostPort("localhost", port) + "/api/health"
+	t.Logf("Making request to %s", url)
+	httpClient := http.Client{
+		Timeout: 2 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: certPool,
+			},
+		},
+	}
+	resp, err := httpClient.Get(url)
+	require.NoError(t, err)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	cancel()
+	assert.ErrorIs(t, <-errCh, http.ErrServerClosed)
+	t.Logf("Install API exited")
+}
+
+func Test_verifyProxyConfig(t *testing.T) {
+	tests := []struct {
+		name                  string
+		proxy                 *ecv1beta1.ProxySpec
+		confirm               bool
+		assumeYes             bool
+		wantErr               bool
+		isErrNothingElseToAdd bool
+	}{
+		{
+			name:    "no proxy set",
+			proxy:   nil,
+			wantErr: false,
+		},
+		{
+			name: "http proxy set without https proxy and user confirms",
+			proxy: &ecv1beta1.ProxySpec{
+				HTTPProxy: "http://proxy:8080",
+			},
+			confirm: true,
+			wantErr: false,
+		},
+		{
+			name: "http proxy set without https proxy and user declines",
+			proxy: &ecv1beta1.ProxySpec{
+				HTTPProxy: "http://proxy:8080",
+			},
+			confirm:               false,
+			wantErr:               true,
+			isErrNothingElseToAdd: true,
+		},
+		{
+			name: "http proxy set without https proxy and assumeYes is true",
+			proxy: &ecv1beta1.ProxySpec{
+				HTTPProxy: "http://proxy:8080",
+			},
+			assumeYes: true,
+			wantErr:   false,
+		},
+		{
+			name: "both proxies set",
+			proxy: &ecv1beta1.ProxySpec{
+				HTTPProxy:  "http://proxy:8080",
+				HTTPSProxy: "https://proxy:8080",
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var in *bytes.Buffer
+			if tt.confirm {
+				in = bytes.NewBuffer([]byte("y\n"))
+			} else {
+				in = bytes.NewBuffer([]byte("n\n"))
+			}
+			out := bytes.NewBuffer([]byte{})
+			mockPrompt := plain.New(plain.WithIn(in), plain.WithOut(out))
+
+			prompts.SetTerminal(true)
+			t.Cleanup(func() { prompts.SetTerminal(false) })
+
+			err := verifyProxyConfig(tt.proxy, mockPrompt, tt.assumeYes)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.isErrNothingElseToAdd {
+					assert.ErrorAs(t, err, &ErrorNothingElseToAdd{})
+				}
+				if tt.proxy != nil && tt.proxy.HTTPProxy != "" && tt.proxy.HTTPSProxy == "" && !tt.assumeYes {
+					assert.Contains(t, out.String(), "Typically --https-proxy should be set if --http-proxy is set")
+				}
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}

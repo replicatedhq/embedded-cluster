@@ -9,6 +9,7 @@ const (
 	DefaultAdminConsolePort        = 30000
 	DefaultLocalArtifactMirrorPort = 50000
 	DefaultNetworkCIDR             = "10.244.0.0/16"
+	DefaultManagerPort             = 30080
 )
 
 // RuntimeConfigSpec defines the configuration for the Embedded Cluster at runtime.
@@ -22,11 +23,15 @@ type RuntimeConfigSpec struct {
 	// OpenEBSDataDirOverride holds the override for the data directory for the OpenEBS storage
 	// provisioner. By default the data will be stored in a subdirectory of DataDir.
 	OpenEBSDataDirOverride string `json:"openEBSDataDirOverride,omitempty"`
+	// HostCABundlePath holds the path to the CA bundle for the host.
+	HostCABundlePath string `json:"hostCABundlePath,omitempty"`
 
 	// AdminConsole holds the Admin Console configuration.
 	AdminConsole AdminConsoleSpec `json:"adminConsole,omitempty"`
 	// LocalArtifactMirrorPort holds the Local Artifact Mirror configuration.
 	LocalArtifactMirror LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
+	// Manager holds the Manager configuration.
+	Manager ManagerSpec `json:"manager,omitempty"`
 }
 
 func (c *RuntimeConfigSpec) UnmarshalJSON(data []byte) error {
@@ -51,6 +56,7 @@ func runtimeConfigSetDefaults(c *RuntimeConfigSpec) {
 	}
 	adminConsoleSpecSetDefaults(&c.AdminConsole)
 	localArtifactMirrorSpecSetDefaults(&c.LocalArtifactMirror)
+	managerSpecSetDefaults(&c.Manager)
 }
 
 func adminConsoleSpecSetDefaults(s *AdminConsoleSpec) {
@@ -62,5 +68,11 @@ func adminConsoleSpecSetDefaults(s *AdminConsoleSpec) {
 func localArtifactMirrorSpecSetDefaults(s *LocalArtifactMirrorSpec) {
 	if s.Port == 0 {
 		s.Port = DefaultLocalArtifactMirrorPort
+	}
+}
+
+func managerSpecSetDefaults(s *ManagerSpec) {
+	if s.Port == 0 {
+		s.Port = DefaultManagerPort
 	}
 }

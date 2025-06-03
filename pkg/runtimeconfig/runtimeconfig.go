@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
 	"sigs.k8s.io/yaml"
 )
 
@@ -28,7 +28,13 @@ func Get() *ecv1beta1.RuntimeConfigSpec {
 }
 
 func Cleanup() {
-	os.RemoveAll(EmbeddedClusterTmpSubDir())
+	tmpDir := EmbeddedClusterTmpSubDir()
+	// We should not delete the tmp dir, rather we should empty its contents leaving
+	// it in place. This is because commands such as `kubectl edit <resource>`
+	// will create files in the tmp dir
+	if err := helpers.RemoveAll(tmpDir); err != nil {
+		logrus.Errorf("error removing %s dir: %s", tmpDir, err)
+	}
 }
 
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
@@ -200,6 +206,10 @@ func AdminConsolePort() int {
 	return ecv1beta1.DefaultAdminConsolePort
 }
 
+func HostCABundlePath() string {
+	return runtimeConfig.HostCABundlePath
+}
+
 func SetDataDir(dataDir string) {
 	runtimeConfig.DataDir = dataDir
 }
@@ -212,46 +222,10 @@ func SetAdminConsolePort(port int) {
 	runtimeConfig.AdminConsole.Port = port
 }
 
-func ApplyFlags(flags *pflag.FlagSet) error {
-	if flags.Lookup("data-dir") != nil {
-		dd, err := flags.GetString("data-dir")
-		if err != nil {
-			return fmt.Errorf("get data-dir flag: %w", err)
-		}
-		SetDataDir(dd)
-	}
-
-	if flags.Lookup("local-artifact-mirror-port") != nil {
-		lap, err := flags.GetInt("local-artifact-mirror-port")
-		if err != nil {
-			return fmt.Errorf("get local-artifact-mirror-port flag: %w", err)
-		}
-		SetLocalArtifactMirrorPort(lap)
-	}
-
-	if flags.Lookup("admin-console-port") != nil {
-		ap, err := flags.GetInt("admin-console-port")
-		if err != nil {
-			return fmt.Errorf("get admin-console-port flag: %w", err)
-		}
-		SetAdminConsolePort(ap)
-	}
-
-	if err := validate(); err != nil {
-		return err
-	}
-
-	return nil
+func SetManagerPort(port int) {
+	runtimeConfig.Manager.Port = port
 }
 
-func validate() error {
-	lamPort := LocalArtifactMirrorPort()
-	acPort := AdminConsolePort()
-
-	if lamPort != 0 && acPort != 0 {
-		if lamPort == acPort {
-			return fmt.Errorf("local artifact mirror port cannot be the same as admin console port")
-		}
-	}
-	return nil
+func SetHostCABundlePath(hostCABundlePath string) {
+	runtimeConfig.HostCABundlePath = hostCABundlePath
 }

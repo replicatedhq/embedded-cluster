@@ -9,6 +9,11 @@ function fail() {
     exit 1
 }
 
+function prefix_output() {
+    local prefix=$1
+    sed "s/^/[$prefix] /"
+}
+
 function require() {
     if [ -z "$2" ]; then
         fail "validation failed: $1 unset"
