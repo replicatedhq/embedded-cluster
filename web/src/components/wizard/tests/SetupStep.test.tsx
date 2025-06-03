@@ -7,31 +7,32 @@ import {
   beforeAll,
   afterEach,
   afterAll,
+  beforeEach,
 } from "vitest";
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
-import SetupStep from "../SetupStep";
+import SetupStep from "../SetupStep.tsx";
 import {
   MOCK_INSTALL_CONFIG,
   MOCK_NETWORK_INTERFACES,
   MOCK_PROTOTYPE_SETTINGS,
-} from "../../../test/testData";
+} from "../../../test/testData.ts";
 
 const server = setupServer(
   // Mock install config endpoint
-  http.get("/api/install", () => {
+  http.get("*/api/install", () => {
     return HttpResponse.json({ config: MOCK_INSTALL_CONFIG });
   }),
 
   // Mock network interfaces endpoint
-  http.get("/api/console/available-network-interfaces", () => {
+  http.get("*/api/console/available-network-interfaces", () => {
     return HttpResponse.json({ networkInterfaces: MOCK_NETWORK_INTERFACES });
   }),
 
   // Mock config submission endpoint
-  http.post("/api/install/config", () => {
+  http.post("*/api/install/config", () => {
     return HttpResponse.json({ success: true });
   })
 );
@@ -44,9 +45,16 @@ describe("SetupStep", () => {
     server.listen();
   });
 
+  beforeEach(() => {
+    // Set auth token in localStorage before each test
+    localStorage.setItem("auth", "mock-token");
+  });
+
   afterEach(() => {
     server.resetHandlers();
     vi.clearAllMocks();
+    // Clear localStorage after each test
+    localStorage.clear();
   });
 
   afterAll(() => {
@@ -57,7 +65,24 @@ describe("SetupStep", () => {
     renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
         preloadedState: {
-          config: MOCK_INSTALL_CONFIG,
+          config: {
+            ...MOCK_INSTALL_CONFIG,
+            dataDirectory: "/var/lib/embedded-cluster",
+            adminConsolePort: 8080,
+            localArtifactMirrorPort: 8081,
+            networkInterface: "eth0",
+            globalCidr: "10.244.0.0/16",
+            clusterName: "",
+            namespace: "",
+            storageClass: "standard",
+            domain: "",
+            useHttps: true,
+            adminUsername: "admin",
+            adminPassword: "",
+            adminEmail: "",
+            databaseType: "internal",
+            useProxy: false,
+          },
           prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
         },
       },
@@ -102,13 +127,13 @@ describe("SetupStep", () => {
 
   it("handles form errors gracefully", async () => {
     server.use(
-      http.get("/api/console/available-network-interfaces", () => {
+      http.get("*/api/console/available-network-interfaces", () => {
         return HttpResponse.json({
           networkInterfaces: MOCK_NETWORK_INTERFACES,
         });
       }),
       // Mock config submission endpoint to return an error
-      http.post("/api/install/config", () => {
+      http.post("*/api/install/config", () => {
         return new HttpResponse(
           JSON.stringify({ message: "Invalid configuration" }),
           { status: 400 }
@@ -119,7 +144,24 @@ describe("SetupStep", () => {
     renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
         preloadedState: {
-          config: MOCK_INSTALL_CONFIG,
+          config: {
+            ...MOCK_INSTALL_CONFIG,
+            dataDirectory: "/var/lib/embedded-cluster",
+            adminConsolePort: 8080,
+            localArtifactMirrorPort: 8081,
+            networkInterface: "eth0",
+            globalCidr: "10.244.0.0/16",
+            clusterName: "",
+            namespace: "",
+            storageClass: "standard",
+            domain: "",
+            useHttps: true,
+            adminUsername: "admin",
+            adminPassword: "",
+            adminEmail: "",
+            databaseType: "internal",
+            useProxy: false,
+          },
           prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
         },
       },
@@ -161,21 +203,47 @@ describe("SetupStep", () => {
     // Mock all required API endpoints
     server.use(
       // Mock install config endpoint
-      http.get("/api/install", () => {
-        return HttpResponse.json({ config: MOCK_INSTALL_CONFIG });
+      http.get("*/api/install", ({ request }) => {
+        // Verify auth header
+        expect(request.headers.get("Authorization")).toBe("Bearer mock-token");
+        return HttpResponse.json({
+          config: {
+            ...MOCK_INSTALL_CONFIG,
+            dataDirectory: "/var/lib/embedded-cluster",
+            adminConsolePort: 8080,
+            localArtifactMirrorPort: 8081,
+            networkInterface: "eth0",
+            globalCidr: "10.244.0.0/16",
+            clusterName: "",
+            namespace: "",
+            storageClass: "standard",
+            domain: "",
+            useHttps: true,
+            adminUsername: "admin",
+            adminPassword: "",
+            adminEmail: "",
+            databaseType: "internal",
+            useProxy: false,
+          },
+        });
       }),
       // Mock network interfaces endpoint
-      http.get("/api/console/available-network-interfaces", () => {
+      http.get("*/api/console/available-network-interfaces", ({ request }) => {
+        // Verify auth header
+        expect(request.headers.get("Authorization")).toBe("Bearer mock-token");
         return HttpResponse.json({
           networkInterfaces: MOCK_NETWORK_INTERFACES,
         });
       }),
       // Mock config submission endpoint
-      http.post("/api/install/config", async ({ request }) => {
+      http.post("*/api/install/config", async ({ request }) => {
+        // Verify auth header
+        expect(request.headers.get("Authorization")).toBe("Bearer mock-token");
         const body = await request.json();
+        console.log("Actual request body:", body);
         // Verify the request body has all required fields
         expect(body).toMatchObject({
-          clusterName: "",
+          clusterName: "clusterName",
           namespace: "",
           storageClass: "standard",
           domain: "",
@@ -189,9 +257,14 @@ describe("SetupStep", () => {
           adminConsolePort: 8080,
           localArtifactMirrorPort: 8081,
           networkInterface: "eth0",
-          globalCidr: "10.0.0.0/24",
+          globalCidr: "10.244.0.0/16",
         });
-        return HttpResponse.json({ success: true });
+        return new HttpResponse(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
       })
     );
 
@@ -204,7 +277,17 @@ describe("SetupStep", () => {
             adminConsolePort: 8080,
             localArtifactMirrorPort: 8081,
             networkInterface: "eth0",
-            globalCidr: "10.0.0.0/24",
+            globalCidr: "10.244.0.0/16",
+            clusterName: "clusterName",
+            namespace: "",
+            storageClass: "standard",
+            domain: "",
+            useHttps: true,
+            adminUsername: "admin",
+            adminPassword: "",
+            adminEmail: "",
+            databaseType: "internal",
+            useProxy: false,
           },
           prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
         },
@@ -232,7 +315,7 @@ describe("SetupStep", () => {
     fireEvent.change(adminPortInput, { target: { value: "8080" } });
     fireEvent.change(mirrorPortInput, { target: { value: "8081" } });
     fireEvent.change(networkInterfaceSelect, { target: { value: "eth0" } });
-    fireEvent.change(globalCidrInput, { target: { value: "10.0.0.0/24" } });
+    fireEvent.change(globalCidrInput, { target: { value: "10.244.0.0/16" } });
 
     // Get the next button and ensure it's not disabled
     const nextButton = screen.getByText("Next: Start Installation");

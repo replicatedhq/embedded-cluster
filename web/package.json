@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:unit": "vitest run --sequence.shuffle"
+    "test:unit": "vitest run"
   },
   "dependencies": {
     "@tailwindcss/forms": "^0.5.10",
