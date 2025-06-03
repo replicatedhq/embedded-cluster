@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
+	"runtime"
 	"testing"
 	"testing/fstest"
 
@@ -328,14 +330,24 @@ func TestRegisterRoutesWithDevEnv(t *testing.T) {
 	web, err := New(initialState, WithLogger(logger), WithAssetsFS(createMockFS()))
 	require.NoError(t, err, "Failed to create Web instance")
 
+	// We need to change the current working directory because in `go test` this will be the package directory
+	// We want to mimic prod/local dev behaviour where cwd will be under the root of the project
+	_, filename, _, _ := runtime.Caller(0)
+	dir := path.Join(path.Dir(filename), "..")
+	err = os.Chdir(dir)
+	if err != nil {
+		t.Fatalf("failed to change cwd to root of the project: %s", err)
+	}
+	defer os.Chdir(path.Dir(filename))
+
 	// Create temporary dist directory structure for development
-	err = os.MkdirAll("dist/assets", 0755)
+	err = os.MkdirAll("./web/dist/assets", 0755)
 	require.NoError(t, err, "Failed to create dist directory")
-	defer os.RemoveAll("dist/assets") // Clean up after test
+	defer os.RemoveAll("./web/dist/assets") // Clean up after test
 
 	// Create a test file in the dist/assets directory
 	devFileContent := "console.log('Development mode!');"
-	err = os.WriteFile("dist/assets/test-file-dev-app.js", []byte(devFileContent), 0644)
+	err = os.WriteFile("./web/dist/assets/test-file-dev-app.js", []byte(devFileContent), 0644)
 	require.NoError(t, err, "Failed to write dev file")
 
 	// Set the development environment variable

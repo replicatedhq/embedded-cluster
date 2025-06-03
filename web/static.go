@@ -9,8 +9,6 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
-	"path"
-	"runtime"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -131,18 +129,11 @@ func (web *Web) RegisterRoutes(router *mux.Router) {
 
 	var webFS http.Handler
 	if os.Getenv("EC_DEV_ENV") == "true" {
-		webFS = http.FileServer(http.FS(os.DirFS(getDistPathInSource())))
+		webFS = http.FileServer(http.FS(os.DirFS("./web/dist")))
 	} else {
 		webFS = http.FileServer(http.FS(web.assets))
 	}
 
 	router.PathPrefix("/assets").Methods("GET").Handler(webFS)
 	router.PathPrefix("/").Methods("GET").HandlerFunc(web.rootHandler)
-}
-
-// getDistPathInSource is a utility method to get the path to the dist folder under this source code. This is relevant for local dev purposes.
-// We cannnot simply use "./web/dist" because "go test" will run in the root of the web package VS the root of project when running in prod.
-func getDistPathInSource() string {
-	_, filePath, _, _ := runtime.Caller(0)
-	return path.Join(path.Dir(filePath), "dist")
 }
