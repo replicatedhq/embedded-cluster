@@ -151,7 +151,8 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             {text.setupTitle}
           </h2>
           <p className="text-gray-600 mt-1">
-            {prototypeSettings.clusterMode === "embedded"
+            {prototypeSettings.clusterMode === "embedded" &&
+            phase === "configuration"
               ? "Configure the installation settings."
               : text.setupDescription}
           </p>
