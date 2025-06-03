@@ -126,10 +126,9 @@ func (web *Web) rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (web *Web) RegisterRoutes(router *mux.Router) {
-
 	var webFS http.Handler
 	if os.Getenv("EC_DEV_ENV") == "true" {
-		webFS = http.FileServer(http.FS(os.DirFS("./dist")))
+		webFS = http.FileServer(http.FS(os.DirFS("./web/dist")))
 	} else {
 		webFS = http.FileServer(http.FS(web.assets))
 	}

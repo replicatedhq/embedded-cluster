@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ClusterConfig } from "../../../contexts/ConfigContext";
-import { validateHostPreflights } from "../../../utils/validation";
 import { XCircle, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 interface LinuxPreflightCheckProps {
   config: ClusterConfig;
@@ -26,38 +26,74 @@ interface PreflightStatus {
 }
 
 interface PreflightResponse {
-  status: PreflightStatus;
+  titles: string[];
   output?: PreflightOutput;
+  status?: PreflightStatus;
 }
 
 const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({
-  config,
   onComplete,
 }) => {
   const [isChecking, setIsChecking] = useState(true);
-  const [preflightResponse, setPreflightResponse] =
-    useState<PreflightResponse | null>(null);
+
+  // Mutation to run preflight checks
+  const { mutate: runPreflights } = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/install/host-preflights/run", {
+        method: "POST",
+        headers: {
+          ...(localStorage.getItem("auth") && {
+            Authorization: `Bearer ${localStorage.getItem("auth")}`,
+          }),
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to run preflight checks");
+      }
+      return response.json() as Promise<PreflightResponse>;
+    },
+    onSuccess: () => {
+      setIsChecking(true);
+    },
+    onError: () => {
+      setIsChecking(false);
+      onComplete(false);
+    },
+  });
+
+  // Query to poll preflight status
+  const { data: preflightResponse } = useQuery<PreflightResponse, Error>({
+    queryKey: ["preflightStatus"],
+    queryFn: async () => {
+      const response = await fetch("/api/install/host-preflights/status", {
+        headers: {
+          ...(localStorage.getItem("auth") && {
+            Authorization: `Bearer ${localStorage.getItem("auth")}`,
+          }),
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to get preflight status");
+      }
+      return response.json() as Promise<PreflightResponse>;
+    },
+    enabled: isChecking,
+    refetchInterval: 1000,
+  });
+
+  // Handle preflight status changes
+  useEffect(() => {
+    if (preflightResponse?.status?.state === "Succeeded" || preflightResponse?.status?.state === "Failed") {
+      setIsChecking(false);
+      // Consider it successful if there are no failures
+      const hasFailures = (preflightResponse.output?.fail?.length ?? 0) > 0;
+      onComplete(!hasFailures);
+    }
+  }, [preflightResponse, onComplete]);
 
   useEffect(() => {
-    runPreflightChecks();
-  }, []);
-
-  const runPreflightChecks = async () => {
-    setIsChecking(true);
-    try {
-      const response = await validateHostPreflights(config);
-      setPreflightResponse(response);
-
-      // Consider it successful if there are no failures
-      const hasFailures = (response.output?.fail?.length ?? 0) > 0;
-      onComplete(!hasFailures);
-    } catch (error) {
-      console.error("Preflight check error:", error);
-      onComplete(false);
-    } finally {
-      setIsChecking(false);
-    }
-  };
+    runPreflights();
+  }, [runPreflights]);
 
   const renderCheckStatus = (
     result: PreflightResult,
@@ -133,17 +169,17 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({
           </div>
         ) : preflightResponse?.output ? (
           <>
-            {preflightResponse.output.pass.map((result, index) => (
+            {preflightResponse.output.pass?.map((result: PreflightResult, index: number) => (
               <div key={`pass-${index}`}>
                 {renderCheckStatus(result, "pass")}
               </div>
             ))}
-            {preflightResponse.output.warn.map((result, index) => (
+            {preflightResponse.output.warn?.map((result: PreflightResult, index: number) => (
               <div key={`warn-${index}`}>
                 {renderCheckStatus(result, "warn")}
               </div>
             ))}
-            {preflightResponse.output.fail.map((result, index) => (
+            {preflightResponse.output.fail?.map((result: PreflightResult, index: number) => (
               <div key={`fail-${index}`}>
                 {renderCheckStatus(result, "fail")}
               </div>

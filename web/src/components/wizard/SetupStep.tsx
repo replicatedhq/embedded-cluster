@@ -29,7 +29,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   const { isLoading: isConfigLoading } = useQuery({
     queryKey: ["installConfig"],
     queryFn: async () => {
-      const response = await fetch("/api/install", {
+      const response = await fetch("/api/install/installation/config", {
         headers: {
           ...(localStorage.getItem("auth") && {
             Authorization: `Bearer ${localStorage.getItem("auth")}`,
@@ -39,9 +39,9 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
       if (!response.ok) {
         throw new Error("Failed to fetch install configuration");
       }
-      const data = await response.json();
-      updateConfig(data.config);
-      return data;
+      const config = await response.json();
+      updateConfig(config);
+      return config;
     },
   });
 
