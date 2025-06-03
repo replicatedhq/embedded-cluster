@@ -455,19 +455,60 @@ validate_data_dirs() {
     fi
 }
 
-validate_all_pods_healthy() {
+validate_non_job_pods_healthy() {
     local unhealthy_pods
-    unhealthy_pods=$(kubectl get pods -A --no-headers | awk '$4 != "Running" && $4 != "Completed" && $4 != "Succeeded" { print $0 }')
+    # Get pods that are NOT owned by Jobs and check their health
+    unhealthy_pods=$(kubectl get pods -A --no-headers -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata.name,STATUS:.status.phase,OWNER:.metadata.ownerReferences[0].kind" | \
+        awk '$4 != "Job" && ($3 != "Running" && $3 != "Completed" && $3 != "Succeeded") { print $1 "/" $2 " (" $3 ")" }')
     
     if [ -n "$unhealthy_pods" ]; then
-        echo "found pods in unhealthy state:"
+        echo "found non-Job pods in unhealthy state:"
         echo "$unhealthy_pods"
+        return 1
+    fi
+    echo "All non-Job pods are healthy"
+    return 0
+}
+
+validate_jobs_completed() {
+    local failed_jobs
+    # Check that all Jobs have either succeeded or are still running (not failed)
+    failed_jobs=$(kubectl get jobs -A --no-headers -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata.name,COMPLETIONS:.spec.completions,SUCCESSFUL:.status.succeeded,FAILED:.status.failed" | \
+        awk '$5 > 0 { print $1 "/" $2 " (failed: " $5 ")" }')
+    
+    if [ -n "$failed_jobs" ]; then
+        echo "found Jobs that have failed:"
+        echo "$failed_jobs"
         echo ""
-        echo "All pod statuses:"
+        echo "Job details:"
+        kubectl get jobs -A
+        return 1
+    fi
+    echo "All Jobs are either completed successfully or still running"
+    return 0
+}
+
+validate_all_pods_healthy() {
+    local exit_code=0
+    
+    echo "Validating pod and job health..."
+    
+    if ! validate_non_job_pods_healthy; then
+        echo ""
+        echo "Pod status details:"
         kubectl get pods -A
+        exit_code=1
+    fi
+    
+    if ! validate_jobs_completed; then
+        exit_code=1
+    fi
+    
+    if [ $exit_code -eq 0 ]; then
+        echo "All pods and jobs are healthy"
+    else
         exit 1
     fi
-    echo "All pods are healthy (Running, Completed, or Succeeded)"
 }
 
 validate_worker_profile() {
