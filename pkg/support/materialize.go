@@ -6,21 +6,48 @@ import (
 	"os"
 	"text/template"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 type TemplateData struct {
-	DataDir        string
-	K0sDataDir     string
-	OpenEBSDataDir string
+	DataDir          string
+	K0sDataDir       string
+	OpenEBSDataDir   string
+	IsAirgap         bool
+	ReplicatedAppURL string
+	ProxyRegistryURL string
+	HTTPProxy        string
+	HTTPSProxy       string
+	NoProxy          string
 }
 
-func MaterializeSupportBundleSpec() error {
-	data := TemplateData{
-		DataDir:        runtimeconfig.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:     runtimeconfig.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir: runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
+func MaterializeSupportBundleSpec(isAirgap bool, proxy *ecv1beta1.ProxySpec) error {
+	// Get the domain configuration (same as replicatedAppURL() and proxyRegistryURL() functions)
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
+		embCfgSpec = &embCfg.Spec
 	}
+	domains := runtimeconfig.GetDomains(embCfgSpec)
+
+	data := TemplateData{
+		DataDir:          runtimeconfig.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:       runtimeconfig.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:   runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
+		IsAirgap:         isAirgap,
+		ReplicatedAppURL: netutil.MaybeAddHTTPS(domains.ReplicatedAppDomain),
+		ProxyRegistryURL: netutil.MaybeAddHTTPS(domains.ProxyRegistryDomain),
+	}
+
+	// Add proxy configuration if available
+	if proxy != nil {
+		data.HTTPProxy = proxy.HTTPProxy
+		data.HTTPSProxy = proxy.HTTPSProxy
+		data.NoProxy = proxy.NoProxy
+	}
+
 	path := runtimeconfig.PathToEmbeddedClusterSupportFile("host-support-bundle.tmpl.yaml")
 	tmpl, err := os.ReadFile(path)
 	if err != nil {

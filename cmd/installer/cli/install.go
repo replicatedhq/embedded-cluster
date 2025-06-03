@@ -886,7 +886,7 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
 
-	if err := materializeFiles(flags.airgapBundle); err != nil {
+	if err := materializeFiles(flags.airgapBundle, flags.proxy); err != nil {
 		spinner.ErrorClosef("Initialization failed")
 		return fmt.Errorf("unable to materialize files: %w", err)
 	}
@@ -922,12 +922,13 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
 	return nil
 }
 
-func materializeFiles(airgapBundle string) error {
+func materializeFiles(airgapBundle string, proxy *ecv1beta1.ProxySpec) error {
 	materializer := goods.NewMaterializer()
 	if err := materializer.Materialize(); err != nil {
 		return fmt.Errorf("materialize binaries: %w", err)
 	}
-	if err := support.MaterializeSupportBundleSpec(); err != nil {
+	isAirgap := airgapBundle != ""
+	if err := support.MaterializeSupportBundleSpec(isAirgap, proxy); err != nil {
 		return fmt.Errorf("materialize support bundle spec: %w", err)
 	}
 

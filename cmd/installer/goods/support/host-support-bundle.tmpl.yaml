@@ -173,6 +173,21 @@ spec:
       collectorName: "ip-route-table"
       command: "ip"
       args: ["route"]
+  # HTTP connectivity checks (only run for online installations)
+  - http:
+      collectorName: http-replicated-app
+      get:
+        url: '{{ .ReplicatedAppURL }}'
+        timeout: 5s
+        proxy: '{{ .HTTPSProxy }}'
+      exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") }}'
+  - http:
+      collectorName: http-proxy-replicated-com
+      get:
+        url: '{{ .ProxyRegistryURL }}/v2/'
+        timeout: 5s
+        proxy: '{{ .HTTPSProxy }}'
+      exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
   - run:
       collectorName: "sysctl"
       command: "sysctl"
