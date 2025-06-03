@@ -47,7 +47,7 @@ interface InstallationConfigResponse {
 const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({
   onComplete,
 }) => {
-  const [isChecking, setIsChecking] = useState(true);
+  const [isChecking, setIsChecking] = useState(false);
   const [isConfigPolling, setIsConfigPolling] = useState(true);
 
   // Mutation to run preflight checks
@@ -162,6 +162,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({
     }
     if (installationConfigStatus?.state === "Succeeded") {
       runPreflights();
+      setIsChecking(true);
     }
   }, [installationConfigStatus, runPreflights]);
 
