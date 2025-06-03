@@ -15,9 +15,9 @@ import (
 // ConfigureNetworkManager configures the network manager (if the host is using it) to ignore
 // the calico interfaces. This function restarts the NetworkManager service if the configuration
 // was changed.
-func (h *HostUtils) ConfigureNetworkManager(ctx context.Context) error {
+func (h *HostUtils) ConfigureNetworkManager(ctx context.Context, dataDir string) error {
 	if active, err := helpers.IsSystemdServiceActive(ctx, "NetworkManager"); err != nil {
-		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
+		return fmt.Errorf("check if NetworkManager is active: %w", err)
 	} else if !active {
 		logrus.Debugf("NetworkManager is not active, skipping configuration")
 		return nil
@@ -30,14 +30,14 @@ func (h *HostUtils) ConfigureNetworkManager(ctx context.Context) error {
 	}
 
 	logrus.Debugf("creating NetworkManager config file")
-	materializer := goods.NewMaterializer()
+	materializer := goods.NewMaterializer(dataDir)
 	if err := materializer.CalicoNetworkManagerConfig(); err != nil {
-		return fmt.Errorf("unable to materialize configuration: %w", err)
+		return fmt.Errorf("materialize configuration: %w", err)
 	}
 
 	logrus.Debugf("network manager config created, restarting the service")
 	if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
-		return fmt.Errorf("unable to restart network manager: %w", err)
+		return fmt.Errorf("restart network manager: %w", err)
 	}
 	return nil
 }

@@ -5,61 +5,101 @@ import (
 )
 
 // TmpSubDir returns the path to the tmp directory where embedded-cluster stores temporary files.
-func TmpSubDir(homeDir string) string {
-	return filepath.Join(homeDir, "tmp")
+func TmpSubDir(dataDir string) string {
+	return filepath.Join(dataDir, "tmp")
 }
 
 // BinsSubDir returns the path to the directory where embedded-cluster binaries are stored.
-func BinsSubDir(homeDir string) string {
-	return filepath.Join(homeDir, "bin")
+func BinsSubDir(dataDir string) string {
+	return filepath.Join(dataDir, "bin")
 }
 
 // ChartsSubDir returns the path to the directory where embedded-cluster helm charts are stored.
-func ChartsSubDir(homeDir string) string {
-	return filepath.Join(homeDir, "charts")
+func ChartsSubDir(dataDir string) string {
+	return filepath.Join(dataDir, "charts")
 }
 
 // ImagesSubDir returns the path to the directory where docker images are stored.
-func ImagesSubDir(homeDir string) string {
-	return filepath.Join(homeDir, "images")
+func ImagesSubDir(dataDir string) string {
+	return filepath.Join(dataDir, "images")
 }
 
 // K0sSubDir returns the path to the directory where k0s data is stored.
-func K0sSubDir(homeDir string) string {
-	return filepath.Join(homeDir, "k0s")
+func K0sSubDir(dataDir string) string {
+	return filepath.Join(dataDir, "k0s")
 }
 
 // SeaweedfsSubDir returns the path to the directory where seaweedfs data is stored.
-func SeaweedfsSubDir(homeDir string) string {
-	return filepath.Join(homeDir, "seaweedfs")
+func SeaweedfsSubDir(dataDir string) string {
+	return filepath.Join(dataDir, "seaweedfs")
 }
 
 // OpenEBSLocalSubDir returns the path to the directory where OpenEBS local data is stored.
-func OpenEBSLocalSubDir(homeDir string) string {
-	return filepath.Join(homeDir, "openebs-local")
+func OpenEBSLocalSubDir(dataDir string) string {
+	return filepath.Join(dataDir, "openebs-local")
 }
 
 // SupportSubDir returns the path to the directory where embedded-cluster support files are stored.
-func SupportSubDir(homeDir string) string {
-	return filepath.Join(homeDir, "support")
+func SupportSubDir(dataDir string) string {
+	return filepath.Join(dataDir, "support")
 }
 
-// EmbeddedClusterBinaryPath returns the full path to a materialized binary that belongs to embedded-cluster.
-func EmbeddedClusterBinaryPath(homeDir string, name string) string {
-	return filepath.Join(BinsSubDir(homeDir), name)
+// PathToECBinary returns the full path to a materialized binary that belongs to embedded-cluster.
+func PathToECBinary(dataDir string, name string) string {
+	return filepath.Join(BinsSubDir(dataDir), name)
 }
 
-// KubeConfigPath returns the path to the kubeconfig file.
-func KubeConfigPath(homeDir string) string {
-	return filepath.Join(K0sSubDir(homeDir), "pki/admin.conf")
+// PathToKubeConfig returns the path to the kubeconfig file.
+func PathToKubeConfig(k0sDataDir string) string {
+	return filepath.Join(k0sDataDir, "pki/admin.conf")
 }
 
-// KubeletConfigPath returns the path to the kubelet config file.
-func KubeletConfigPath(homeDir string) string {
-	return filepath.Join(K0sSubDir(homeDir), "kubelet.conf")
+// PathToKubeletConfig returns the path to the kubelet config file.
+func PathToKubeletConfig(k0sDataDir string) string {
+	return filepath.Join(k0sDataDir, "kubelet.conf")
 }
 
-// SupportFilePath returns the full path to a materialized support file.
-func SupportFilePath(homeDir string, name string) string {
-	return filepath.Join(SupportSubDir(homeDir), name)
+// PathToSupportFile returns the full path to a materialized support file.
+func PathToSupportFile(dataDir string, name string) string {
+	return filepath.Join(SupportSubDir(dataDir), name)
+}
+
+// EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs
+// are stored.
+func EmbeddedClusterLogsSubDir() string {
+	return "/var/log/embedded-cluster"
+}
+
+// PathToLog returns the full path to a log file. This function does not check
+// if the file exists.
+func PathToLog(name string) string {
+	return filepath.Join(EmbeddedClusterLogsSubDir(), name)
+}
+
+// K0sBinaryPath returns the path to the k0s binary when it is installed on the node. This
+// does not return the binary just after we materialized it but the path we want it to be
+// once it is installed.
+func K0sBinaryPath() string {
+	return "/usr/local/bin/k0s"
+}
+
+// PathToK0sStatusSocket returns the full path to the k0s status socket.
+func PathToK0sStatusSocket() string {
+	return "/run/k0s/status.sock"
+}
+
+// PathToK0sConfig returns the full path to the k0s configuration file.
+func PathToK0sConfig() string {
+	return "/etc/k0s/k0s.yaml"
+}
+
+// PathToK0sContainerdConfig returns the full path to the k0s containerd configuration directory
+func PathToK0sContainerdConfig() string {
+	return "/etc/k0s/containerd.d/"
+}
+
+// PathToECConfig returns the full path to the embedded cluster configuration file.
+// This file is used to specify the embedded cluster data directory.
+func PathToECConfig() string {
+	return "/etc/embedded-cluster/ec.yaml"
 }

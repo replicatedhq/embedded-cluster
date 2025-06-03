@@ -276,7 +276,7 @@ func getArtifactJobForNode(
 	job.ObjectMeta.Labels = applyECOperatorLabels(job.ObjectMeta.Labels, "upgrader")
 	job.ObjectMeta.Annotations = applyArtifactsJobAnnotations(job.GetAnnotations(), in, hash)
 	job.Spec.Template.Spec.NodeName = node.Name
-	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = runtimeconfig.EmbeddedClusterHomeDirectory()
+	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = runtimeconfig.EmbeddedClusterDataDirectory()
 	if in.Spec.AirGap {
 		job.Spec.Template.Spec.Containers[0].Command = copyArtifactsJobCommandAirgap
 	} else {

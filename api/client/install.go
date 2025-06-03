@@ -35,7 +35,7 @@ func (c *client) GetInstallationConfig() (*types.InstallationConfig, error) {
 	return &config, nil
 }
 
-func (c *client) ConfigureInstallation(cfg *types.InstallationConfig) (*types.InstallationConfig, error) {
+func (c *client) ConfigureInstallation(cfg *types.InstallationConfig) (*types.Status, error) {
 	b, err := json.Marshal(cfg)
 	if err != nil {
 		return nil, err
@@ -58,13 +58,13 @@ func (c *client) ConfigureInstallation(cfg *types.InstallationConfig) (*types.In
 		return nil, errorFromResponse(resp)
 	}
 
-	var config types.InstallationConfig
-	err = json.NewDecoder(resp.Body).Decode(&config)
+	var status types.Status
+	err = json.NewDecoder(resp.Body).Decode(&status)
 	if err != nil {
 		return nil, err
 	}
 
-	return &config, nil
+	return &status, nil
 }
 
 func (c *client) GetInstallationStatus() (*types.Status, error) {

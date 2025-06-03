@@ -338,7 +338,7 @@ func constructHostPreflightResultsJob(in *v1beta1.Installation, nodeName string)
 
 	job.Spec.Template.Labels, job.Labels = labels, labels
 	job.Spec.Template.Spec.NodeName = nodeName
-	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = runtimeconfig.EmbeddedClusterHomeDirectory()
+	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = runtimeconfig.EmbeddedClusterDataDirectory()
 	job.Spec.Template.Spec.Containers[0].Env = append(
 		job.Spec.Template.Spec.Containers[0].Env,
 		corev1.EnvVar{Name: "EC_NODE_NAME", Value: nodeName},

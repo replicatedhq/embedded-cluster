@@ -32,8 +32,8 @@ func (m *MockHostUtils) ConfigureKernelModules() error {
 }
 
 // ConfigureNetworkManager mocks the ConfigureNetworkManager method
-func (m *MockHostUtils) ConfigureNetworkManager(ctx context.Context) error {
-	args := m.Called(ctx)
+func (m *MockHostUtils) ConfigureNetworkManager(ctx context.Context, dataDir string) error {
+	args := m.Called(ctx, dataDir)
 	return args.Error(0)
 }
 
@@ -50,7 +50,7 @@ func (m *MockHostUtils) ResetFirewalld(ctx context.Context) error {
 }
 
 // MaterializeFiles mocks the MaterializeFiles method
-func (m *MockHostUtils) MaterializeFiles(airgapBundle string) error {
-	args := m.Called(airgapBundle)
+func (m *MockHostUtils) MaterializeFiles(dataDir string, airgapBundle string) error {
+	args := m.Called(dataDir, airgapBundle)
 	return args.Error(0)
 }

@@ -34,7 +34,7 @@ func MaterializeCmd(ctx context.Context, name string) *cobra.Command {
 			runtimeconfig.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			materializer := goods.NewMaterializer()
+			materializer := goods.NewMaterializer(dataDir)
 			if err := materializer.Materialize(); err != nil {
 				return fmt.Errorf("unable to materialize: %v", err)
 			}

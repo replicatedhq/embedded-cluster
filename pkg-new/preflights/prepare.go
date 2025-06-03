@@ -7,7 +7,6 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
@@ -79,11 +78,6 @@ func Prepare(ctx context.Context, opts PrepareOptions) (*v1beta2.HostPreflightSp
 	for _, h := range chpfs {
 		hpf.Collectors = append(hpf.Collectors, h.Spec.Collectors...)
 		hpf.Analyzers = append(hpf.Analyzers, h.Spec.Analyzers...)
-	}
-
-	if dryrun.Enabled() {
-		dryrun.RecordHostPreflightSpec(hpf)
-		return hpf, nil
 	}
 
 	return hpf, nil

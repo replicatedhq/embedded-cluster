@@ -164,20 +164,24 @@ func TestConfigureInstallation(t *testing.T) {
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(config)
+		json.NewEncoder(w).Encode(types.Status{
+			State:       types.StateRunning,
+			Description: "Configuring installation",
+		})
 	}))
 	defer server.Close()
 
-	// Test successful set
+	// Test successful configure
 	c := New(server.URL, WithToken("test-token"))
 	config := types.InstallationConfig{
 		GlobalCIDR:              "20.0.0.0/24",
 		LocalArtifactMirrorPort: 9081,
 	}
-	newConfig, err := c.ConfigureInstallation(&config)
+	status, err := c.ConfigureInstallation(&config)
 	assert.NoError(t, err)
-	assert.NotNil(t, newConfig)
-	assert.Equal(t, config, *newConfig)
+	assert.NotNil(t, status)
+	assert.Equal(t, types.StateRunning, status.State)
+	assert.Equal(t, "Configuring installation", status.Description)
 
 	// Test error response
 	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -190,9 +194,9 @@ func TestConfigureInstallation(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	newConfig, err = c.ConfigureInstallation(&config)
+	status, err = c.ConfigureInstallation(&config)
 	assert.Error(t, err)
-	assert.Nil(t, newConfig)
+	assert.Nil(t, status)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")

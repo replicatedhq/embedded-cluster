@@ -134,7 +134,7 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHo
 	}()
 
 	// Run the preflights using the shared core function
-	output, stderr, err := preflights.Run(ctx, opts.HostPreflightSpec, opts.Proxy)
+	output, stderr, err := preflights.Run(ctx, opts.HostPreflightSpec, opts.Proxy, opts.DataDirectory)
 	if err != nil {
 		errMsg := fmt.Sprintf("Host preflights failed to run: %v", err)
 		if stderr != "" {
@@ -146,11 +146,11 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHo
 		return
 	}
 
-	if err := preflights.SaveToDisk(output, paths.SupportFilePath(opts.DataDirectory, "host-preflight-results.json")); err != nil {
+	if err := preflights.SaveToDisk(output, paths.PathToSupportFile(opts.DataDirectory, "host-preflight-results.json")); err != nil {
 		m.logger.WithField("error", err).Warn("save preflights output")
 	}
 
-	if err := preflights.CopyBundleTo(paths.SupportFilePath(opts.DataDirectory, "preflight-bundle.tar.gz")); err != nil {
+	if err := preflights.CopyBundleTo(paths.PathToSupportFile(opts.DataDirectory, "preflight-bundle.tar.gz")); err != nil {
 		m.logger.WithField("error", err).Warn("copy preflight bundle to embedded-cluster support dir")
 	}
 

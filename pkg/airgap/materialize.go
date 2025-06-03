@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 const K0sImagePath = "images/ec-images-amd64.tar"
@@ -18,7 +18,7 @@ const K0sImagePath = "images/ec-images-amd64.tar"
 // MaterializeAirgap places the airgap image bundle for k0s and the embedded cluster charts on disk.
 // - image bundle should be located at 'images-amd64.tar' within the embedded-cluster directory within the airgap bundle.
 // - charts should be located at 'charts.tar.gz' within the embedded-cluster directory within the airgap bundle.
-func MaterializeAirgap(airgapReader io.Reader) error {
+func MaterializeAirgap(dataDir string, airgapReader io.Reader) error {
 	// decompress tarball
 	ungzip, err := gzip.NewReader(airgapReader)
 	if err != nil {
@@ -40,7 +40,7 @@ func MaterializeAirgap(airgapReader io.Reader) error {
 		}
 
 		if nextFile.Name == "embedded-cluster/images-amd64.tar" {
-			err = writeOneFile(tarreader, filepath.Join(runtimeconfig.EmbeddedClusterK0sSubDir(), K0sImagePath), nextFile.Mode)
+			err = writeOneFile(tarreader, filepath.Join(paths.K0sSubDir(dataDir), K0sImagePath), nextFile.Mode)
 			if err != nil {
 				return fmt.Errorf("failed to write k0s images file: %w", err)
 			}
@@ -48,7 +48,7 @@ func MaterializeAirgap(airgapReader io.Reader) error {
 		}
 
 		if nextFile.Name == "embedded-cluster/charts.tar.gz" {
-			err = writeChartFiles(tarreader)
+			err = writeChartFiles(dataDir, tarreader)
 			if err != nil {
 				return fmt.Errorf("failed to write chart files: %w", err)
 			}
@@ -63,7 +63,7 @@ func MaterializeAirgap(airgapReader io.Reader) error {
 
 // FetchAndWriteArtifacts fetches the k0s images and Helm charts from the KOTS API
 // and writes them to the appropriate directories
-func FetchAndWriteArtifacts(ctx context.Context, kotsAPIAddress string) error {
+func FetchAndWriteArtifacts(ctx context.Context, kotsAPIAddress string, dataDir string) error {
 	// Fetch and write k0s images
 	imagesFile, err := kotsadm.GetK0sImagesFile(ctx, kotsAPIAddress)
 	if err != nil {
@@ -71,7 +71,7 @@ func FetchAndWriteArtifacts(ctx context.Context, kotsAPIAddress string) error {
 	}
 	defer imagesFile.Close()
 
-	if err := writeOneFile(imagesFile, filepath.Join(runtimeconfig.EmbeddedClusterK0sSubDir(), K0sImagePath), 0644); err != nil {
+	if err := writeOneFile(imagesFile, filepath.Join(paths.K0sSubDir(dataDir), K0sImagePath), 0644); err != nil {
 		return fmt.Errorf("failed to write k0s images file: %w", err)
 	}
 
@@ -82,7 +82,7 @@ func FetchAndWriteArtifacts(ctx context.Context, kotsAPIAddress string) error {
 	}
 	defer chartsTGZ.Close()
 
-	if err := writeChartFiles(chartsTGZ); err != nil {
+	if err := writeChartFiles(dataDir, chartsTGZ); err != nil {
 		return fmt.Errorf("failed to write chart files: %w", err)
 	}
 	return nil
@@ -112,7 +112,7 @@ func writeOneFile(reader io.Reader, path string, mode int64) error {
 }
 
 // take in a stream of a tarball and write the charts contained within to disk
-func writeChartFiles(reader io.Reader) error {
+func writeChartFiles(dataDir string, reader io.Reader) error {
 	// decompress tarball
 	ungzip, err := gzip.NewReader(reader)
 	if err != nil {
@@ -136,7 +136,7 @@ func writeChartFiles(reader io.Reader) error {
 			continue
 		}
 
-		subdir := runtimeconfig.EmbeddedClusterChartsSubDir()
+		subdir := paths.ChartsSubDir(dataDir)
 		dst := filepath.Join(subdir, nextFile.Name)
 		if err := writeOneFile(tarreader, dst, nextFile.Mode); err != nil {
 			return fmt.Errorf("failed to write chart file: %w", err)

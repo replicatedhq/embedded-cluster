@@ -21,6 +21,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
@@ -375,7 +376,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	}
 
 	logrus.Debugf("configuring network manager")
-	if err := hostutils.ConfigureNetworkManager(ctx); err != nil {
+	if err := hostutils.ConfigureNetworkManager(ctx, runtimeconfig.EmbeddedClusterDataDirectory()); err != nil {
 		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
@@ -385,7 +386,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	}
 
 	logrus.Debugf("materializing binaries")
-	if err := hostutils.MaterializeFiles(flags.airgapBundle); err != nil {
+	if err := hostutils.MaterializeFiles(runtimeconfig.EmbeddedClusterDataDirectory(), flags.airgapBundle); err != nil {
 		return fmt.Errorf("unable to materialize binaries: %w", err)
 	}
 
@@ -397,7 +398,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		return fmt.Errorf("unable to run install preflights: %w", err)
 	}
 
-	_, err = installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, nil)
+	_, err = installAndStartCluster(ctx, flags, nil)
 	if err != nil {
 		return err
 	}
@@ -447,6 +448,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 
 	logrus.Debugf("configuring velero backup storage location")
 	if err := kotscli.VeleroConfigureOtherS3(kotscli.VeleroConfigureOtherS3Options{
+		ECDataDir:       runtimeconfig.EmbeddedClusterDataDirectory(),
 		Endpoint:        s3Store.endpoint,
 		Region:          s3Store.region,
 		Bucket:          s3Store.bucket,
@@ -509,7 +511,7 @@ func runRestoreECInstall(ctx context.Context, backupToRestore *disasterrecovery.
 	}
 
 	logrus.Debugf("updating local artifact mirror service from backup %q", backupToRestore.GetName())
-	if err := updateLocalArtifactMirrorService(); err != nil {
+	if err := updateLocalArtifactMirrorService(runtimeconfig.EmbeddedClusterDataDirectory()); err != nil {
 		return fmt.Errorf("unable to update local artifact mirror service from backup: %w", err)
 	}
 
@@ -1059,7 +1061,7 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 		}
 	}
 
-	if v := backup.Annotations["kots.io/embedded-cluster-data-dir"]; v != "" && v != runtimeconfig.EmbeddedClusterHomeDirectory() {
+	if v := backup.Annotations["kots.io/embedded-cluster-data-dir"]; v != "" && v != runtimeconfig.EmbeddedClusterDataDirectory() {
 		return false, fmt.Sprintf("has a different data directory than the current cluster. Please rerun with '--data-dir %s'.", v)
 	}
 
@@ -1166,7 +1168,7 @@ func pickBackupToRestore(backups []disasterrecovery.ReplicatedBackup) *disasterr
 
 // getK0sConfigFromDisk reads and returns the k0s config from disk.
 func getK0sConfigFromDisk() (*k0sv1beta1.ClusterConfig, error) {
-	cfgBytes, err := os.ReadFile(runtimeconfig.PathToK0sConfig())
+	cfgBytes, err := os.ReadFile(paths.PathToK0sConfig())
 	if err != nil {
 		return nil, fmt.Errorf("unable to read k0s config file: %w", err)
 	}
@@ -1734,8 +1736,8 @@ func (e *invalidBackupsError) Error() string {
 }
 
 // updateLocalArtifactMirrorService updates the port on which the local artifact mirror is served.
-func updateLocalArtifactMirrorService() error {
-	if err := writeLocalArtifactMirrorDropInFile(); err != nil {
+func updateLocalArtifactMirrorService(dataDir string) error {
+	if err := writeLocalArtifactMirrorDropInFile(dataDir); err != nil {
 		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
 	}
 

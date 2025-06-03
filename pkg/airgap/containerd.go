@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 )
 
 const registryConfigTemplate = `
@@ -18,7 +18,7 @@ const registryConfigTemplate = `
 // AddInsecureRegistry adds a registry to the list of registries that
 // are allowed to be accessed over HTTP.
 func AddInsecureRegistry(registry string) error {
-	parentDir := runtimeconfig.PathToK0sContainerdConfig()
+	parentDir := paths.PathToK0sContainerdConfig()
 	contents := fmt.Sprintf(registryConfigTemplate, registry)
 
 	if err := os.MkdirAll(parentDir, 0755); err != nil {

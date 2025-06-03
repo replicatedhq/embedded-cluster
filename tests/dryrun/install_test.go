@@ -443,7 +443,7 @@ func TestRestrictiveUmask(t *testing.T) {
 
 	// check that folders created in this test have the right permissions
 	folderList := []string{
-		runtimeconfig.EmbeddedClusterHomeDirectory(),
+		runtimeconfig.EmbeddedClusterDataDirectory(),
 		runtimeconfig.EmbeddedClusterBinsSubDir(),
 		runtimeconfig.EmbeddedClusterChartsSubDir(),
 		runtimeconfig.PathToEmbeddedClusterBinary("kubectl-preflight"),

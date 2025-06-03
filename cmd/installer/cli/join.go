@@ -15,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
@@ -242,12 +243,6 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinComm
 		return fmt.Errorf("unable to write runtime config: %w", err)
 	}
 
-	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
-		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
-		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
-		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
-	}
-
 	// if the application version is set, check to make sure that it matches the version we are running
 	channelRelease := release.GetChannelRelease()
 	if jcmd.AppVersionLabel != "" && channelRelease != nil {
@@ -294,14 +289,13 @@ func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResp
 	// this does not return an error - it returns the previous umask
 	_ = syscall.Umask(0o022)
 
-	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
-		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
-		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
-		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
+	logrus.Debugf("initializing data dir: %s", runtimeconfig.EmbeddedClusterDataDirectory())
+	if err := paths.InitDataDir(runtimeconfig.EmbeddedClusterDataDirectory(), logrus.StandardLogger()); err != nil {
+		return nil, fmt.Errorf("initialize data dir: %w", err)
 	}
 
 	logrus.Debugf("materializing %s binaries", name)
-	if err := materializeFilesForJoin(ctx, jcmd, kotsAPIAddress); err != nil {
+	if err := materializeFilesForJoin(ctx, jcmd, kotsAPIAddress, runtimeconfig.EmbeddedClusterDataDirectory()); err != nil {
 		return nil, fmt.Errorf("failed to materialize files: %w", err)
 	}
 
@@ -316,7 +310,7 @@ func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResp
 	}
 
 	logrus.Debugf("configuring network manager")
-	if err := hostutils.ConfigureNetworkManager(ctx); err != nil {
+	if err := hostutils.ConfigureNetworkManager(ctx, runtimeconfig.EmbeddedClusterDataDirectory()); err != nil {
 		return nil, fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
@@ -333,17 +327,17 @@ func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResp
 	return cidrCfg, nil
 }
 
-func materializeFilesForJoin(ctx context.Context, jcmd *join.JoinCommandResponse, kotsAPIAddress string) error {
-	materializer := goods.NewMaterializer()
+func materializeFilesForJoin(ctx context.Context, jcmd *join.JoinCommandResponse, kotsAPIAddress string, dataDir string) error {
+	materializer := goods.NewMaterializer(dataDir)
 	if err := materializer.Materialize(); err != nil {
 		return fmt.Errorf("materialize binaries: %w", err)
 	}
-	if err := support.MaterializeSupportBundleSpec(); err != nil {
+	if err := support.MaterializeSupportBundleSpec(dataDir); err != nil {
 		return fmt.Errorf("materialize support bundle spec: %w", err)
 	}
 
 	if jcmd.InstallationSpec.AirGap {
-		if err := airgap.FetchAndWriteArtifacts(ctx, kotsAPIAddress); err != nil {
+		if err := airgap.FetchAndWriteArtifacts(ctx, kotsAPIAddress, dataDir); err != nil {
 			return fmt.Errorf("failed to fetch artifacts: %w", err)
 		}
 	}
@@ -390,7 +384,7 @@ func installAndJoinCluster(ctx context.Context, jcmd *join.JoinCommandResponse, 
 	}
 
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(ctx, isWorker, jcmd.InstallationSpec.Proxy); err != nil {
+	if err := createSystemdUnitFiles(ctx, runtimeconfig.EmbeddedClusterDataDirectory(), isWorker, jcmd.InstallationSpec.Proxy); err != nil {
 		return fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 
@@ -436,7 +430,7 @@ func saveTokenToDisk(token string) error {
 // installK0sBinary moves the embedded k0s binary to its destination.
 func installK0sBinary() error {
 	ourbin := runtimeconfig.PathToEmbeddedClusterBinary("k0s")
-	hstbin := runtimeconfig.K0sBinaryPath()
+	hstbin := paths.K0sBinaryPath()
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
 	}
@@ -469,7 +463,7 @@ func applyNetworkConfiguration(networkInterface string, jcmd *join.JoinCommandRe
 		if err != nil {
 			return fmt.Errorf("unable to marshal cluster spec: %w", err)
 		}
-		err = os.WriteFile(runtimeconfig.PathToK0sConfig(), clusterSpecYaml, 0644)
+		err = os.WriteFile(paths.PathToK0sConfig(), clusterSpecYaml, 0644)
 		if err != nil {
 			return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
 		}
@@ -480,7 +474,7 @@ func applyNetworkConfiguration(networkInterface string, jcmd *join.JoinCommandRe
 // startAndWaitForK0s starts the k0s service and waits for the node to be ready.
 func startAndWaitForK0s(name string) error {
 	logrus.Debugf("starting %s service", name)
-	if _, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath(), "start"); err != nil {
+	if _, err := helpers.RunCommand(paths.K0sBinaryPath(), "start"); err != nil {
 		return fmt.Errorf("unable to start service: %w", err)
 	}
 
@@ -503,7 +497,7 @@ func applyJoinConfigurationOverrides(jcmd *join.JoinCommandResponse) error {
 		if data, err := yaml.Marshal(patch); err != nil {
 			return fmt.Errorf("unable to marshal embedded overrides: %w", err)
 		} else if err := k0s.PatchK0sConfig(
-			runtimeconfig.PathToK0sConfig(), string(data),
+			paths.PathToK0sConfig(), string(data),
 		); err != nil {
 			return fmt.Errorf("unable to patch config with embedded data: %w", err)
 		}
@@ -516,7 +510,7 @@ func applyJoinConfigurationOverrides(jcmd *join.JoinCommandResponse) error {
 	if data, err := yaml.Marshal(patch); err != nil {
 		return fmt.Errorf("unable to marshal embedded overrides: %w", err)
 	} else if err := k0s.PatchK0sConfig(
-		runtimeconfig.PathToK0sConfig(), string(data),
+		paths.PathToK0sConfig(), string(data),
 	); err != nil {
 		return fmt.Errorf("unable to patch config with embedded data: %w", err)
 	}
@@ -524,7 +518,7 @@ func applyJoinConfigurationOverrides(jcmd *join.JoinCommandResponse) error {
 }
 
 func getFirstDefinedProfile() (string, error) {
-	k0scfg, err := os.Open(runtimeconfig.PathToK0sConfig())
+	k0scfg, err := os.Open(paths.PathToK0sConfig())
 	if err != nil {
 		return "", fmt.Errorf("unable to open k0s config: %w", err)
 	}

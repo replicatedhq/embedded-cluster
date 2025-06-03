@@ -13,7 +13,7 @@ type Client interface {
 	Authenticate(password string) error
 	GetInstallationConfig() (*types.InstallationConfig, error)
 	GetInstallationStatus() (*types.Status, error)
-	ConfigureInstallation(config *types.InstallationConfig) (*types.InstallationConfig, error)
+	ConfigureInstallation(config *types.InstallationConfig) (*types.Status, error)
 	SetInstallStatus(status *types.Status) (*types.Status, error)
 }
 

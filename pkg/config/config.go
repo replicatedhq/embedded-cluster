@@ -11,6 +11,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
 
@@ -124,7 +125,7 @@ func InstallFlags(nodeIP string) ([]string, error) {
 		"--labels", strings.Join(nodeLabels(), ","),
 		"--enable-worker",
 		"--no-taints",
-		"-c", runtimeconfig.PathToK0sConfig(),
+		"-c", paths.PathToK0sConfig(),
 	}
 	profile, err := ProfileInstallFlag()
 	if err != nil {
@@ -211,7 +212,7 @@ func additionalControllerLabels() map[string]string {
 
 func controllerWorkerProfile() (string, error) {
 	// Read the k0s config file
-	k0sPath := runtimeconfig.PathToK0sConfig()
+	k0sPath := paths.PathToK0sConfig()
 	if k0sConfigPathOverride != "" {
 		k0sPath = k0sConfigPathOverride
 	}

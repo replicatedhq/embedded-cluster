@@ -266,20 +266,17 @@ func TestRunHostPreflights(t *testing.T) {
 	}
 
 	tests := []struct {
-		name                  string
-		setupInstallationMock func(*installation.MockInstallationManager)
-		setupPreflightMock    func(*preflight.MockHostPreflightManager)
-		expectedErr           bool
+		name        string
+		setupMocks  func(*installation.MockInstallationManager, *preflight.MockHostPreflightManager)
+		expectedErr bool
 	}{
 		{
 			name: "successful run preflights",
-			setupInstallationMock: func(m *installation.MockInstallationManager) {
-				m.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: "/data/dir"}, nil)
-			},
-			setupPreflightMock: func(m *preflight.MockHostPreflightManager) {
+			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					m.On("PrepareHostPreflights", context.Background(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
-					m.On("RunHostPreflights", context.Background(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
+					im.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: "/data/dir"}, nil),
+					pm.On("PrepareHostPreflights", context.Background(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
+					pm.On("RunHostPreflights", context.Background(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec && expectedProxy == opts.Proxy
 					})).Return(nil),
 				)
@@ -288,23 +285,21 @@ func TestRunHostPreflights(t *testing.T) {
 		},
 		{
 			name: "prepare preflights error",
-			setupInstallationMock: func(m *installation.MockInstallationManager) {
-				m.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: "/data/dir"}, nil)
-			},
-			setupPreflightMock: func(m *preflight.MockHostPreflightManager) {
-				m.On("PrepareHostPreflights", context.Background(), mock.Anything).Return(nil, nil, errors.New("prepare error"))
+			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
+				mock.InOrder(
+					im.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: "/data/dir"}, nil),
+					pm.On("PrepareHostPreflights", context.Background(), mock.Anything).Return(nil, nil, errors.New("prepare error")),
+				)
 			},
 			expectedErr: true,
 		},
 		{
 			name: "run preflights error",
-			setupInstallationMock: func(m *installation.MockInstallationManager) {
-				m.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: "/data/dir"}, nil)
-			},
-			setupPreflightMock: func(m *preflight.MockHostPreflightManager) {
+			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					m.On("PrepareHostPreflights", context.Background(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
-					m.On("RunHostPreflights", context.Background(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
+					im.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: "/data/dir"}, nil),
+					pm.On("PrepareHostPreflights", context.Background(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
+					pm.On("RunHostPreflights", context.Background(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec && expectedProxy == opts.Proxy
 					})).Return(errors.New("run preflights error")),
 				)
@@ -316,10 +311,8 @@ func TestRunHostPreflights(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockInstallationManager := &installation.MockInstallationManager{}
-			tt.setupInstallationMock(mockInstallationManager)
-
 			mockPreflightManager := &preflight.MockHostPreflightManager{}
-			tt.setupPreflightMock(mockPreflightManager)
+			tt.setupMocks(mockInstallationManager, mockPreflightManager)
 
 			controller, err := NewInstallController(
 				WithInstallationManager(mockInstallationManager),
@@ -593,7 +586,7 @@ func TestSetupNode(t *testing.T) {
 				mock.InOrder(
 					m.On("GetHostPreflightStatus", context.Background()).Return(preflightStatus, nil),
 					m.On("GetHostPreflightOutput", context.Background()).Return(preflightOutput, nil),
-					r.On("ReportPreflightsFailed", context.Background(), *preflightOutput).Return(nil),
+					r.On("ReportPreflightsFailed", context.Background(), preflightOutput).Return(nil),
 				)
 			},
 			expectedErr: false,

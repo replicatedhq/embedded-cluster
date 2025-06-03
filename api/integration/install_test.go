@@ -455,7 +455,7 @@ func TestGetInstallationConfig(t *testing.T) {
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install", nil)
+		req := httptest.NewRequest(http.MethodGet, "/install/installation/config", nil)
 		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -668,14 +668,14 @@ func TestSetInstallStatus(t *testing.T) {
 		t.Logf("Response body: %s", rec.Body.String())
 
 		// Parse the response body
-		var install types.Install
-		err = json.NewDecoder(rec.Body).Decode(&install)
+		var respStatus types.Status
+		err = json.NewDecoder(rec.Body).Decode(&respStatus)
 		require.NoError(t, err)
 
 		// Verify that the status was properly set
-		assert.Equal(t, status.State, install.Status.State)
-		assert.Equal(t, status.Description, install.Status.Description)
-		assert.Equal(t, now.Format(time.RFC3339), install.Status.LastUpdated.Format(time.RFC3339))
+		assert.Equal(t, status.State, respStatus.State)
+		assert.Equal(t, status.Description, respStatus.Description)
+		assert.Equal(t, now.Format(time.RFC3339), respStatus.LastUpdated.Format(time.RFC3339))
 
 		// Also verify that the status is in the store
 		storedStatus, err := installController.GetStatus(t.Context())
@@ -838,18 +838,17 @@ func TestInstallWithAPIClient(t *testing.T) {
 			NetworkInterface:        "eth0",
 		}
 
-		// Set the config using the client
-		newConfig, err := c.ConfigureInstallation(&config)
+		// Configure the installation using the client
+		status, err := c.ConfigureInstallation(&config)
 		require.NoError(t, err, "ConfigureInstallation should succeed with valid config")
-		assert.NotNil(t, newConfig, "InstallationConfig should not be nil")
+		assert.NotNil(t, status, "Status should not be nil")
 
-		// Verify the config was set correctly
-		assert.Equal(t, config.DataDirectory, newConfig.DataDirectory)
-		assert.Equal(t, config.AdminConsolePort, newConfig.AdminConsolePort)
-		assert.Equal(t, config.NetworkInterface, newConfig.NetworkInterface)
+		// Verify the status was set correctly
+		assert.Equal(t, types.StateRunning, status.State)
+		assert.Equal(t, "Configuring installation", status.Description)
 
 		// Get the config to verify it persisted
-		newConfig, err = c.GetInstallationConfig()
+		newConfig, err := c.GetInstallationConfig()
 		require.NoError(t, err, "GetInstallationConfig should succeed after setting config")
 		assert.Equal(t, config.DataDirectory, newConfig.DataDirectory)
 		assert.Equal(t, config.AdminConsolePort, newConfig.AdminConsolePort)
@@ -867,7 +866,7 @@ func TestInstallWithAPIClient(t *testing.T) {
 			NetworkInterface:        "eth0",
 		}
 
-		// Set the config using the client
+		// Configure the installation using the client
 		_, err := c.ConfigureInstallation(config)
 		require.Error(t, err, "ConfigureInstallation should fail with invalid config")
 

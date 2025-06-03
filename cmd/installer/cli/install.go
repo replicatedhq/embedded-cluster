@@ -26,6 +26,7 @@ import (
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -111,6 +112,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			if err := preRunInstall(cmd, &flags); err != nil {
 				return err
 			}
+
 			clusterID := metrics.ClusterID()
 			installReporter := newInstallReporter(
 				replicatedAppURL(), clusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
@@ -316,8 +318,8 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		}
 
 		apiConfig := APIConfig{
-			// TODO NOW: add metrics reporter
-			// MetricsReporter: installReporter,
+			// TODO (@salah): implement reporting in api
+			// MetricsReporter: reporter,
 			Password:     flags.adminConsolePassword,
 			ManagerPort:  flags.managerPort,
 			LicenseFile:  flags.licenseFile,
@@ -397,6 +399,10 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 				return fmt.Errorf("local artifact mirror port cannot be the same as admin console port")
 			}
 		}
+
+		if err := paths.InitDataDir(flags.dataDir, logrus.StandardLogger()); err != nil {
+			return fmt.Errorf("initialize data dir: %w", err)
+		}
 	}
 
 	// TODO: validate that a single port isn't used for multiple services
@@ -419,17 +425,11 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		return fmt.Errorf("unable to write runtime config to disk: %w", err)
 	}
 
-	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
-		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
-		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
-		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
-	}
-
 	return nil
 }
 
 func runInstall(ctx context.Context, name string, flags InstallCmdFlags, installReporter *InstallReporter) error {
-	if err := runInstallVerifyAndPrompt(ctx, name, &flags, prompts.New()); err != nil {
+	if err := runInstallVerifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
 		return err
 	}
 
@@ -448,7 +448,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, install
 		}
 	}
 
-	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, nil)
+	k0sCfg, err := installAndStartCluster(ctx, flags, nil)
 	if err != nil {
 		return fmt.Errorf("unable to install cluster: %w", err)
 	}
@@ -527,6 +527,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, install
 		EndUserConfigSpec:       euCfgSpec,
 		KotsInstaller: func(msg *spinner.MessageWriter) error {
 			opts := kotscli.InstallOptions{
+				ECDataDir:             flags.dataDir,
 				AppSlug:               flags.license.Spec.AppSlug,
 				LicenseFile:           flags.licenseFile,
 				Namespace:             runtimeconfig.KotsadmNamespace,
@@ -566,7 +567,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, install
 	return nil
 }
 
-func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *InstallCmdFlags, prompt prompts.Prompt) error {
+func runInstallVerifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "reinstall")
 	if err != nil {
@@ -773,31 +774,31 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
 		ServiceCIDR:  flags.cidrCfg.ServiceCIDR,
 	}); err != nil {
 		spinner.ErrorClosef("Initialization failed")
-		return fmt.Errorf("unable to initialize install: %w", err)
+		return fmt.Errorf("configure host for install: %w", err)
 	}
 
 	spinner.Closef("Initialization complete")
 	return nil
 }
 
-func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, proxy *ecv1beta1.ProxySpec, cidrCfg *newconfig.CIDRConfig, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	loading.Infof("Installing node")
 	logrus.Debugf("creating k0s configuration file")
 
-	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides, mutate)
+	cfg, err := k0s.WriteK0sConfig(ctx, flags.networkInterface, flags.airgapBundle, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR, flags.overrides, mutate)
 	if err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(ctx, false, proxy); err != nil {
+	if err := createSystemdUnitFiles(ctx, flags.dataDir, false, flags.proxy); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
 	logrus.Debugf("installing k0s")
-	if err := k0s.Install(networkInterface); err != nil {
+	if err := k0s.Install(flags.networkInterface); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
@@ -965,7 +966,7 @@ func proxyRegistryURL() string {
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(ctx context.Context, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
+func createSystemdUnitFiles(ctx context.Context, dataDir string, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
 	dst := systemdUnitFileName()
 	if _, err := os.Lstat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
@@ -989,7 +990,7 @@ func createSystemdUnitFiles(ctx context.Context, isWorker bool, proxy *ecv1beta1
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
-	if err := installAndEnableLocalArtifactMirror(ctx); err != nil {
+	if err := installAndEnableLocalArtifactMirror(ctx, dataDir); err != nil {
 		return fmt.Errorf("unable to install and enable local artifact mirror: %w", err)
 	}
 	return nil
@@ -1024,12 +1025,12 @@ Environment="NO_PROXY=%s"`, httpProxy, httpsProxy, noProxy)
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
 // service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
-func installAndEnableLocalArtifactMirror(ctx context.Context) error {
-	materializer := goods.NewMaterializer()
+func installAndEnableLocalArtifactMirror(ctx context.Context, dataDir string) error {
+	materializer := goods.NewMaterializer(dataDir)
 	if err := materializer.LocalArtifactMirrorUnitFile(); err != nil {
 		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
 	}
-	if err := writeLocalArtifactMirrorDropInFile(); err != nil {
+	if err := writeLocalArtifactMirrorDropInFile(dataDir); err != nil {
 		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
 	}
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
@@ -1089,11 +1090,11 @@ ExecStart=%s serve
 `
 )
 
-func writeLocalArtifactMirrorDropInFile() error {
+func writeLocalArtifactMirrorDropInFile(dataDir string) error {
 	contents := fmt.Sprintf(
 		localArtifactMirrorDropInFileContents,
 		runtimeconfig.LocalArtifactMirrorPort(),
-		runtimeconfig.EmbeddedClusterHomeDirectory(),
+		dataDir,
 		runtimeconfig.PathToEmbeddedClusterBinary("local-artifact-mirror"),
 	)
 	err := systemd.WriteDropInFile("local-artifact-mirror.service", "embedded-cluster.conf", []byte(contents))
@@ -1110,7 +1111,7 @@ func waitForK0s() error {
 		var success bool
 		for i := 0; i < 30; i++ {
 			time.Sleep(2 * time.Second)
-			spath := runtimeconfig.PathToK0sStatusSocket()
+			spath := paths.PathToK0sStatusSocket()
 			if _, err := os.Stat(spath); err != nil {
 				continue
 			}
@@ -1123,7 +1124,7 @@ func waitForK0s() error {
 	}
 
 	for i := 1; ; i++ {
-		_, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath(), "status")
+		_, err := helpers.RunCommand(paths.K0sBinaryPath(), "status")
 		if err == nil {
 			return nil
 		} else if i == 30 {

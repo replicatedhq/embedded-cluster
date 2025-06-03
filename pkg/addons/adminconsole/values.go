@@ -31,7 +31,7 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	}
 
 	copiedValues["embeddedClusterID"] = metrics.ClusterID().String()
-	copiedValues["embeddedClusterDataDir"] = runtimeconfig.EmbeddedClusterHomeDirectory()
+	copiedValues["embeddedClusterDataDir"] = runtimeconfig.EmbeddedClusterDataDirectory()
 	copiedValues["embeddedClusterK0sDir"] = runtimeconfig.EmbeddedClusterK0sSubDir()
 	copiedValues["isHA"] = a.IsHA
 	copiedValues["isMultiNodeEnabled"] = a.IsMultiNodeEnabled

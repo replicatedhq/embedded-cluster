@@ -13,6 +13,7 @@ import (
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/k0sproject/k0s/pkg/etcd"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
@@ -148,7 +149,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("failed to reset firewalld: %w", err)
 			}
 
-			if err := helpers.RemoveAll(runtimeconfig.PathToK0sConfig()); err != nil {
+			if err := helpers.RemoveAll(paths.PathToK0sConfig()); err != nil {
 				return fmt.Errorf("failed to remove k0s config: %w", err)
 			}
 
@@ -180,7 +181,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			// Now that k0s is nested under the data directory, we see the following error in the
 			// dev environment because k0s is mounted in the docker container:
 			//  "failed to remove embedded cluster directory: remove k0s: unlinkat /var/lib/embedded-cluster/k0s: device or resource busy"
-			if err := helpers.RemoveAll(runtimeconfig.EmbeddedClusterHomeDirectory()); err != nil {
+			if err := helpers.RemoveAll(runtimeconfig.EmbeddedClusterDataDirectory()); err != nil {
 				logrus.Debugf("Failed to remove embedded cluster directory: %v", err)
 			}
 
@@ -200,7 +201,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("failed to remove k0s binary: %w", err)
 			}
 
-			if err := helpers.RemoveAll(runtimeconfig.PathToECConfig()); err != nil {
+			if err := helpers.RemoveAll(paths.PathToECConfig()); err != nil {
 				return fmt.Errorf("failed to remove embedded cluster data config: %w", err)
 			}
 

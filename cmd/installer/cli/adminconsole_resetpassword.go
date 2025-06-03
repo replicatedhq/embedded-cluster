@@ -8,6 +8,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -55,7 +56,7 @@ func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Comma
 				}
 			}
 
-			if err := kotscli.ResetPassword(password); err != nil {
+			if err := kotscli.ResetPassword(runtimeconfig.EmbeddedClusterDataDirectory(), password); err != nil {
 				return err
 			}
 

@@ -52,6 +52,7 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if err := kotscli.AirgapUpdate(kotscli.AirgapUpdateOptions{
+				ECDataDir:    runtimeconfig.EmbeddedClusterDataDirectory(),
 				AppSlug:      rel.AppSlug,
 				Namespace:    runtimeconfig.KotsadmNamespace,
 				AirgapBundle: airgapBundle,

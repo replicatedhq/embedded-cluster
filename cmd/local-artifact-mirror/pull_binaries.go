@@ -107,7 +107,7 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 				return fmt.Errorf("unable to change permissions on %s: %w", bin, err)
 			}
 
-			materializeCmdArgs := []string{"materialize", "--data-dir", runtimeconfig.EmbeddedClusterHomeDirectory()}
+			materializeCmdArgs := []string{"materialize", "--data-dir", runtimeconfig.EmbeddedClusterDataDirectory()}
 			materializeCmd := exec.Command(namedBin, materializeCmdArgs...)
 
 			logrus.Infof("running command: %s with args: %v", namedBin, materializeCmdArgs)

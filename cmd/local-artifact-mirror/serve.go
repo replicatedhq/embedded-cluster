@@ -45,7 +45,7 @@ func ServeCmd(cli *CLI) *cobra.Command {
 
 			handler := http.NewServeMux()
 
-			fileServer := http.FileServer(http.Dir(runtimeconfig.EmbeddedClusterHomeDirectory()))
+			fileServer := http.FileServer(http.Dir(runtimeconfig.EmbeddedClusterDataDirectory()))
 			loggedFileServer := logAndFilterRequest(fileServer)
 			handler.Handle("/", loggedFileServer)
 

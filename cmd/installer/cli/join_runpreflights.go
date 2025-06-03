@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -61,8 +62,13 @@ func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, 
 		return err
 	}
 
+	logrus.Debugf("initializing data dir: %s", runtimeconfig.EmbeddedClusterDataDirectory())
+	if err := paths.InitDataDir(runtimeconfig.EmbeddedClusterDataDirectory(), logrus.StandardLogger()); err != nil {
+		return fmt.Errorf("initialize data dir: %w", err)
+	}
+
 	logrus.Debugf("materializing %s binaries", name)
-	if err := materializeFilesForJoin(ctx, jcmd, kotsAPIAddress); err != nil {
+	if err := materializeFilesForJoin(ctx, jcmd, kotsAPIAddress, runtimeconfig.EmbeddedClusterDataDirectory()); err != nil {
 		return fmt.Errorf("failed to materialize files: %w", err)
 	}
 
@@ -108,7 +114,7 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		ProxyRegistryURL:        netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
 		AdminConsolePort:        runtimeconfig.AdminConsolePort(),
 		LocalArtifactMirrorPort: runtimeconfig.LocalArtifactMirrorPort(),
-		DataDir:                 runtimeconfig.EmbeddedClusterHomeDirectory(),
+		DataDir:                 runtimeconfig.EmbeddedClusterDataDirectory(),
 		K0sDataDir:              runtimeconfig.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
 		Proxy:                   jcmd.InstallationSpec.Proxy,
@@ -123,7 +129,16 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		return err
 	}
 
-	if err := runHostPreflights(ctx, hpf, jcmd.InstallationSpec.Proxy, flags.skipHostPreflights, flags.ignoreHostPreflights, flags.assumeYes, metricsReporter); err != nil {
+	if err := runHostPreflights(
+		ctx,
+		hpf,
+		jcmd.InstallationSpec.Proxy,
+		runtimeconfig.EmbeddedClusterDataDirectory(),
+		flags.skipHostPreflights,
+		flags.ignoreHostPreflights,
+		flags.assumeYes,
+		metricsReporter,
+	); err != nil {
 		return err
 	}
 

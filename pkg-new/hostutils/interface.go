@@ -18,10 +18,10 @@ type HostUtilsInterface interface {
 	ConfigureForInstall(ctx context.Context, opts InitForInstallOptions) error
 	ConfigureSysctl() error
 	ConfigureKernelModules() error
-	ConfigureNetworkManager(ctx context.Context) error
+	ConfigureNetworkManager(ctx context.Context, dataDir string) error
 	ConfigureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) error
 	ResetFirewalld(ctx context.Context) error
-	MaterializeFiles(airgapBundle string) error
+	MaterializeFiles(dataDir string, airgapBundle string) error
 }
 
 // Convenience functions
@@ -39,8 +39,8 @@ func ConfigureKernelModules() error {
 	return h.ConfigureKernelModules()
 }
 
-func ConfigureNetworkManager(ctx context.Context) error {
-	return h.ConfigureNetworkManager(ctx)
+func ConfigureNetworkManager(ctx context.Context, dataDir string) error {
+	return h.ConfigureNetworkManager(ctx, dataDir)
 }
 
 func ConfigureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) error {
@@ -51,6 +51,6 @@ func ResetFirewalld(ctx context.Context) error {
 	return h.ResetFirewalld(ctx)
 }
 
-func MaterializeFiles(airgapBundle string) error {
-	return h.MaterializeFiles(airgapBundle)
+func MaterializeFiles(dataDir string, airgapBundle string) error {
+	return h.MaterializeFiles(dataDir, airgapBundle)
 }

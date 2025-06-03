@@ -57,12 +57,12 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 }
 
 func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdFlags) error {
-	if err := runInstallVerifyAndPrompt(ctx, name, &flags, prompts.New()); err != nil {
+	if err := runInstallVerifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
 		return err
 	}
 
 	logrus.Debugf("materializing binaries")
-	if err := hostutils.MaterializeFiles(flags.airgapBundle); err != nil {
+	if err := hostutils.MaterializeFiles(runtimeconfig.EmbeddedClusterDataDirectory(), flags.airgapBundle); err != nil {
 		return fmt.Errorf("unable to materialize files: %w", err)
 	}
 
@@ -104,7 +104,7 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsRep
 		ProxyRegistryURL:        proxyRegistryURL,
 		AdminConsolePort:        runtimeconfig.AdminConsolePort(),
 		LocalArtifactMirrorPort: runtimeconfig.LocalArtifactMirrorPort(),
-		DataDir:                 runtimeconfig.EmbeddedClusterHomeDirectory(),
+		DataDir:                 runtimeconfig.EmbeddedClusterDataDirectory(),
 		K0sDataDir:              runtimeconfig.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
 		Proxy:                   flags.proxy,
@@ -118,7 +118,16 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsRep
 		return err
 	}
 
-	if err := runHostPreflights(ctx, hpf, flags.proxy, flags.skipHostPreflights, flags.ignoreHostPreflights, flags.assumeYes, metricsReporter); err != nil {
+	if err := runHostPreflights(
+		ctx,
+		hpf,
+		flags.proxy,
+		runtimeconfig.EmbeddedClusterDataDirectory(),
+		flags.skipHostPreflights,
+		flags.ignoreHostPreflights,
+		flags.assumeYes,
+		metricsReporter,
+	); err != nil {
 		return err
 	}
 

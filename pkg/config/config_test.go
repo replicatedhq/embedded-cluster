@@ -10,6 +10,7 @@ import (
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
@@ -159,7 +160,7 @@ func TestInstallFlags(t *testing.T) {
 				"--labels", "kots.io/embedded-cluster-role-0=controller,kots.io/embedded-cluster-role=total-1",
 				"--enable-worker",
 				"--no-taints",
-				"-c", runtimeconfig.PathToK0sConfig(),
+				"-c", paths.PathToK0sConfig(),
 				"--kubelet-extra-args", "--node-ip=192.168.1.10",
 				"--data-dir", runtimeconfig.EmbeddedClusterK0sSubDir(),
 				"--disable-components", "konnectivity-server",
@@ -191,7 +192,7 @@ spec:
 				"--labels", "environment=test,kots.io/embedded-cluster-role-0=custom-controller,kots.io/embedded-cluster-role=total-1",
 				"--enable-worker",
 				"--no-taints",
-				"-c", runtimeconfig.PathToK0sConfig(),
+				"-c", paths.PathToK0sConfig(),
 				"--profile=test-profile",
 				"--kubelet-extra-args", "--node-ip=192.168.1.10",
 				"--data-dir", runtimeconfig.EmbeddedClusterK0sSubDir(),

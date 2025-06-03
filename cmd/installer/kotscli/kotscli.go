@@ -22,6 +22,7 @@ var (
 )
 
 type InstallOptions struct {
+	ECDataDir             string
 	AppSlug               string
 	LicenseFile           string
 	Namespace             string
@@ -31,7 +32,7 @@ type InstallOptions struct {
 }
 
 func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
-	materializer := goods.NewMaterializer()
+	materializer := goods.NewMaterializer(opts.ECDataDir)
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -91,8 +92,8 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 	return nil
 }
 
-func ResetPassword(password string) error {
-	materializer := goods.NewMaterializer()
+func ResetPassword(ecDataDir string, password string) error {
+	materializer := goods.NewMaterializer(ecDataDir)
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -113,13 +114,14 @@ func ResetPassword(password string) error {
 }
 
 type AirgapUpdateOptions struct {
+	ECDataDir    string
 	AppSlug      string
 	Namespace    string
 	AirgapBundle string
 }
 
 func AirgapUpdate(opts AirgapUpdateOptions) error {
-	materializer := goods.NewMaterializer()
+	materializer := goods.NewMaterializer(opts.ECDataDir)
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -161,6 +163,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 }
 
 type VeleroConfigureOtherS3Options struct {
+	ECDataDir       string
 	Endpoint        string
 	Region          string
 	Bucket          string
@@ -171,7 +174,7 @@ type VeleroConfigureOtherS3Options struct {
 }
 
 func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
-	materializer := goods.NewMaterializer()
+	materializer := goods.NewMaterializer(opts.ECDataDir)
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -243,8 +246,8 @@ func MaskKotsOutputForAirgap() spinner.MaskFn {
 	}
 }
 
-func GetJoinCommand(ctx context.Context) (string, error) {
-	materializer := goods.NewMaterializer()
+func GetJoinCommand(ctx context.Context, ecDataDir string) (string, error) {
+	materializer := goods.NewMaterializer(ecDataDir)
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return "", fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
