@@ -8,73 +8,113 @@ import (
 func TestRenderTemplate(t *testing.T) {
 	tests := []struct {
 		name     string
-		isAirgap bool
+		data     TemplateData
 		want     []string
 		dontWant []string
 	}{
 		{
-			name:     "airgap installation",
-			isAirgap: true,
+			name: "airgap installation",
+			data: TemplateData{
+				IsAirgap:   true,
+				HTTPSProxy: "https://proxy:8080",
+			},
 			want: []string{
-				"local-artifact-mirror-status",
-				"airgap-artifacts",
-				"airgap-registry-check",
+				"airgap-test-collector",
+				"offline-check",
+				"local-service-status",
 			},
 			dontWant: []string{
-				"internet-connectivity-check",
-				"dns-resolution-check",
+				"online-test-collector",
+				"internet-check",
+				"proxy-test-collector",
 			},
 		},
 		{
-			name:     "online installation",
-			isAirgap: false,
+			name: "online installation with proxy",
+			data: TemplateData{
+				IsAirgap:         false,
+				HTTPSProxy:       "https://proxy:8080",
+				ReplicatedAppURL: "https://api.replicated.com",
+			},
 			want: []string{
-				"internet-connectivity-check",
-				"dns-resolution-check",
+				"online-test-collector",
+				"internet-check",
+				"proxy-test-collector",
+				"--proxy", "https://proxy:8080",
 			},
 			dontWant: []string{
-				"local-artifact-mirror-status",
-				"airgap-artifacts",
-				"airgap-registry-check",
+				"airgap-test-collector",
+				"offline-check",
+				"no-proxy-collector",
+			},
+		},
+		{
+			name: "online installation without proxy",
+			data: TemplateData{
+				IsAirgap:         false,
+				HTTPSProxy:       "",
+				ReplicatedAppURL: "https://api.replicated.com",
+			},
+			want: []string{
+				"online-test-collector",
+				"internet-check",
+				"no-proxy-collector",
+			},
+			dontWant: []string{
+				"airgap-test-collector",
+				"offline-check",
+				"proxy-test-collector",
 			},
 		},
 	}
 
 	tmpl := `{{- if .IsAirgap }}
-# Airgap-specific collectors
+# Airgap-specific test collectors
 - run:
-    collectorName: local-artifact-mirror-status
+    collectorName: airgap-test-collector
+    command: echo
+    args: ["airgap mode enabled"]
+- run:
+    collectorName: offline-check
+    command: test
+    args: ["-f", "{{ .DataDir }}/offline-mode"]
+- run:
+    collectorName: local-service-status
     command: systemctl
-    args: ["status", "local-artifact-mirror"]
-- copy:
-    collectorName: airgap-artifacts
-    path: {{ .DataDir }}/artifacts/*
-- run:
-    collectorName: airgap-registry-check
-    command: sh
-    args: ["-c", "find {{ .DataDir }} -name '*registry*' -o -name '*airgap*' | head -20"]
+    args: ["status", "local-test-service"]
 {{- else }}
-# Online installation collectors
+# Online installation test collectors
 - run:
-    collectorName: internet-connectivity-check
+    collectorName: online-test-collector
+    command: echo
+    args: ["online mode enabled"]
+- run:
+    collectorName: internet-check
+    command: ping
+    args: ["-c", "1", "example.com"]
+{{- if .HTTPSProxy }}
+- run:
+    collectorName: proxy-test-collector
     command: curl
-    args: ["--connect-timeout", "5", "--max-time", "10", "-I", "https://proxy.replicated.com"]
+    args: ["--proxy", "{{ .HTTPSProxy }}", "{{ .ReplicatedAppURL }}"]
+    exclude: '{{ eq .ReplicatedAppURL "" }}'
+{{- else }}
 - run:
-    collectorName: dns-resolution-check
-    command: nslookup
-    args: ["proxy.replicated.com"]
+    collectorName: no-proxy-collector
+    command: curl
+    args: ["{{ .ReplicatedAppURL }}"]
+    exclude: '{{ eq .ReplicatedAppURL "" }}'
+{{- end }}
 {{- end }}`
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			data := TemplateData{
-				DataDir:        "/var/lib/embedded-cluster",
-				K0sDataDir:     "/var/lib/k0s",
-				OpenEBSDataDir: "/var/openebs/local",
-				IsAirgap:       tt.isAirgap,
-			}
+			// Set default test data paths
+			tt.data.DataDir = "/test/data"
+			tt.data.K0sDataDir = "/test/k0s"
+			tt.data.OpenEBSDataDir = "/test/openebs"
 
-			result, err := renderTemplate(tmpl, data)
+			result, err := renderTemplate(tmpl, tt.data)
 			if err != nil {
 				t.Fatalf("renderTemplate() error = %v", err)
 			}
