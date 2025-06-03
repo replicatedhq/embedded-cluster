@@ -471,20 +471,21 @@ validate_non_job_pods_healthy() {
 }
 
 validate_jobs_completed() {
-    local failed_jobs
-    # Check that all Jobs have either succeeded or are still running (not failed)
-    failed_jobs=$(kubectl get jobs -A --no-headers -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata.name,COMPLETIONS:.spec.completions,SUCCESSFUL:.status.succeeded,FAILED:.status.failed" | \
-        awk '$5 > 0 { print $1 "/" $2 " (failed: " $5 ")" }')
+    local incomplete_jobs
+    # Check that all Jobs have succeeded (status.succeeded should equal spec.completions)
+    # Flag any job that hasn't fully succeeded
+    incomplete_jobs=$(kubectl get jobs -A --no-headers -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata.name,COMPLETIONS:.spec.completions,SUCCESSFUL:.status.succeeded" | \
+        awk '$4 != $3 { print $1 "/" $2 " (succeeded: " $4 "/" $3 ")" }')
     
-    if [ -n "$failed_jobs" ]; then
-        echo "found Jobs that have failed:"
-        echo "$failed_jobs"
+    if [ -n "$incomplete_jobs" ]; then
+        echo "found Jobs that have not completed successfully:"
+        echo "$incomplete_jobs"
         echo ""
         echo "Job details:"
         kubectl get jobs -A
         return 1
     fi
-    echo "All Jobs are either completed successfully or still running"
+    echo "All Jobs have completed successfully"
     return 0
 }
 
