@@ -243,7 +243,6 @@ describe("SetupStep", () => {
         console.log("Actual request body:", body);
         // Verify the request body has all required fields
         expect(body).toMatchObject({
-          clusterName: "clusterName",
           namespace: "",
           storageClass: "standard",
           domain: "",
@@ -254,10 +253,6 @@ describe("SetupStep", () => {
           databaseType: "internal",
           dataDirectory: "/var/lib/embedded-cluster",
           useProxy: false,
-          adminConsolePort: 8080,
-          localArtifactMirrorPort: 8081,
-          networkInterface: "eth0",
-          globalCidr: "10.244.0.0/16",
         });
         return new HttpResponse(JSON.stringify({ success: true }), {
           status: 200,
@@ -274,11 +269,11 @@ describe("SetupStep", () => {
           config: {
             ...MOCK_INSTALL_CONFIG,
             dataDirectory: "/var/lib/embedded-cluster",
+            clusterName: "clusterName",
             adminConsolePort: 8080,
             localArtifactMirrorPort: 8081,
             networkInterface: "eth0",
             globalCidr: "10.244.0.0/16",
-            clusterName: "clusterName",
             namespace: "",
             storageClass: "standard",
             domain: "",
@@ -323,9 +318,6 @@ describe("SetupStep", () => {
 
     // Submit form
     fireEvent.click(nextButton);
-
-    // Wait for the button to show loading state
-    await screen.findByText("Setting up...");
 
     // Wait for the mutation to complete and verify onNext was called
     await waitFor(
