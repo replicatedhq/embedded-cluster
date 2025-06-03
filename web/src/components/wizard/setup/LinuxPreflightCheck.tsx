@@ -348,8 +348,8 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({
             )}
         </>
       )}
-      {/* if preflights is successful, show install btn */}
-      {preflightResponse?.output?.fail?.length === 0 && (
+      {/* doesn't matter if preflights is running or not, show install btn */}
+      {!isChecking && (
         <Button
           onClick={runInstall}
           icon={<ChevronRight className="w-5 h-5" />}
