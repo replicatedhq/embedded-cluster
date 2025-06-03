@@ -112,21 +112,48 @@ jobs:
     name: Check operator CRDs
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Make manifests
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: make -C operator manifests
-    - name: Check CRDs
-      run: |
-        git diff --exit-code --name-only
-        if [ $? -eq 0 ]; then
-          echo "CRDs are up to date"
-        else
-          echo "CRDs are out of date"
-          exit 1
-        fi
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+      - name: Make manifests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: make -C operator manifests
+      - name: Check CRDs
+        run: |
+          git diff --exit-code --name-only
+          if [ $? -eq 0 ]; then
+            echo "CRDs are up to date"
+          else
+            echo "CRDs are out of date"
+            exit 1
+          fi
+
+  check-swagger-docs:
+    name: Check swagger docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+      - name: Check swagger docs
+        run: |
+          make -C api swagger
+          git diff --exit-code --name-only
+          if [ $? -eq 0 ]; then
+            echo "Swagger docs are up to date"
+          else
+            echo "Swagger docs are out of date"
+            exit 1
+          fi
 
   buildtools:
     name: Build buildtools
@@ -173,6 +200,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./web/.nvmrc
 
       - uses: oras-project/setup-oras@v1
 
@@ -247,6 +279,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./web/.nvmrc
 
       - uses: oras-project/setup-oras@v1
 
@@ -356,6 +393,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./web/.nvmrc
 
       - uses: oras-project/setup-oras@v1
 
@@ -739,8 +781,6 @@ jobs:
             is-lxd: true
           - test: TestProxiedCustomCIDR
             is-lxd: true
-          - test: TestInstallWithPrivateCAs
-            is-lxd: true
           - test: TestInstallWithMITMProxy
             is-lxd: true
     steps:
@@ -817,6 +857,7 @@ jobs:
       - dryrun-tests
       - check-images
       - check-operator-crds
+      - check-swagger-docs
     if: always()
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
@@ -840,6 +881,9 @@ jobs:
         run: exit 1
       - name: fail if check-operator-crds job was not successful
         if: needs.check-operator-crds.result != 'success'
+        run: exit 1
+      - name: fail if check-swagger-docs job was not successful
+        if: needs.check-swagger-docs.result != 'success'
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Validation succeeded"

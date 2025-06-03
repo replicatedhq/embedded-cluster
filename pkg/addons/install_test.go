@@ -350,6 +350,38 @@ defaultDomains:
 				assert.Equal(t, "registry.example.com", adminConsole.ReplicatedRegistryDomain)
 			},
 		},
+		{
+			name: "with host CA bundle path",
+			opts: InstallOptions{
+				IsAirgap:                false,
+				DisasterRecoveryEnabled: true, // Enable disaster recovery to also check Velero
+				AdminConsolePwd:         "password123",
+				HostCABundlePath:        "/etc/ssl/certs/ca-certificates.crt",
+			},
+			verify: func(t *testing.T, addons []types.AddOn) {
+				// Find Velero and AdminConsole add-ons to verify HostCABundlePath
+				var vel *velero.Velero
+				var adminConsole *adminconsole.AdminConsole
+
+				for _, addon := range addons {
+					switch a := addon.(type) {
+					case *velero.Velero:
+						vel = a
+					case *adminconsole.AdminConsole:
+						adminConsole = a
+					}
+				}
+
+				require.NotNil(t, vel, "Velero add-on should be present")
+				require.NotNil(t, adminConsole, "AdminConsole add-on should be present")
+
+				// Verify HostCABundlePath is properly passed
+				assert.Equal(t, "/etc/ssl/certs/ca-certificates.crt", vel.HostCABundlePath,
+					"Velero should have the correct HostCABundlePath")
+				assert.Equal(t, "/etc/ssl/certs/ca-certificates.crt", adminConsole.HostCABundlePath,
+					"AdminConsole should have the correct HostCABundlePath")
+			},
+		},
 	}
 
 	for _, tt := range tests {

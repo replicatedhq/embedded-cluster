@@ -5,10 +5,13 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"gopkg.in/yaml.v3"
 )
+
+var _ types.AddOn = (*SeaweedFS)(nil)
 
 type SeaweedFS struct {
 	ServiceCIDR         string

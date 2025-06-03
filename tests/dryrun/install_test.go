@@ -19,6 +19,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestDefaultInstallation(t *testing.T) {
@@ -587,12 +589,8 @@ func TestNoDomains(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-// this test is to ensure that http proxy settings are passed through correctly
-func TestInstall_HTTPProxy(t *testing.T) {
-	t.Setenv("HTTP_PROXY", "http://localhost:3128")
-	t.Setenv("HTTPS_PROXY", "http://localhost:3128")
-	t.Setenv("NO_PROXY", "localhost,127.0.0.1,10.0.0.0/8")
-
+// this test is to verify HTTP proxy + CA bundle configuration together in Helm values for addons
+func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 	hostCABundle := findHostCABundle(t)
 
 	hcli := &helm.MockClient{}
@@ -602,6 +600,11 @@ func TestInstall_HTTPProxy(t *testing.T) {
 		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
+
+	// Set HTTP proxy environment variables
+	t.Setenv("HTTP_PROXY", "http://localhost:3128")
+	t.Setenv("HTTPS_PROXY", "https://localhost:3128")
+	t.Setenv("NO_PROXY", "localhost,127.0.0.1,10.0.0.0/8")
 
 	dr := dryrunInstall(t, &dryrun.Client{HelmClient: hcli})
 
@@ -632,26 +635,20 @@ func TestInstall_HTTPProxy(t *testing.T) {
 			},
 			{
 				"name":  "HTTPS_PROXY",
-				"value": "http://localhost:3128",
+				"value": "https://localhost:3128",
 			},
 			{
 				"name":  "NO_PROXY",
 				"value": noProxy,
 			},
-		},
-	})
-	// TODO: CA
-
-	// velero
-	assert.Equal(t, "Install", hcli.Calls[2].Method)
-	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
-	assert.Equal(t, "velero", veleroOpts.ReleaseName)
-	assertHelmValues(t, veleroOpts.Values, map[string]any{
-		"configuration.extraEnvVars": map[string]any{
-			"HTTPS_PROXY":  "http://localhost:3128",
-			"HTTP_PROXY":   "http://localhost:3128",
-			"NO_PROXY":     noProxy,
-			"SSL_CERT_DIR": "/certs",
+			{
+				"name":  "SSL_CERT_DIR",
+				"value": "/certs",
+			},
+			{
+				"name":  "PRIVATE_CA_BUNDLE_PATH",
+				"value": "/certs/ca-certificates.crt",
+			},
 		},
 		"extraVolumes": []map[string]any{{
 			"name": "host-ca-bundle",
@@ -666,10 +663,59 @@ func TestInstall_HTTPProxy(t *testing.T) {
 		}},
 	})
 
+	// velero
+	assert.Equal(t, "Install", hcli.Calls[2].Method)
+	veleroOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "velero", veleroOpts.ReleaseName)
+
+	assertHelmValues(t, veleroOpts.Values, map[string]any{
+		"configuration.extraEnvVars": []map[string]any{
+			{
+				"name":  "HTTP_PROXY",
+				"value": "http://localhost:3128",
+			},
+			{
+				"name":  "HTTPS_PROXY",
+				"value": "https://localhost:3128",
+			},
+			{
+				"name":  "NO_PROXY",
+				"value": noProxy,
+			},
+			{
+				"name":  "SSL_CERT_DIR",
+				"value": "/certs",
+			},
+		},
+		"extraVolumes": []map[string]any{{
+			"name": "host-ca-bundle",
+			"hostPath": map[string]any{
+				"path": hostCABundle,
+				"type": "FileOrCreate",
+			},
+		}},
+		"extraVolumeMounts": []map[string]any{{
+			"mountPath": "/certs/ca-certificates.crt",
+			"name":      "host-ca-bundle",
+		}},
+		"nodeAgent.extraVolumes": []map[string]any{{
+			"name": "host-ca-bundle",
+			"hostPath": map[string]any{
+				"path": hostCABundle,
+				"type": "FileOrCreate",
+			},
+		}},
+		"nodeAgent.extraVolumeMounts": []map[string]any{{
+			"mountPath": "/certs/ca-certificates.crt",
+			"name":      "host-ca-bundle",
+		}},
+	})
+
 	// admin console
 	assert.Equal(t, "Install", hcli.Calls[3].Method)
 	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
+
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
 		"extraEnv": []map[string]any{
 			{
@@ -682,15 +728,29 @@ func TestInstall_HTTPProxy(t *testing.T) {
 			},
 			{
 				"name":  "HTTPS_PROXY",
-				"value": "http://localhost:3128",
+				"value": "https://localhost:3128",
 			},
 			{
 				"name":  "NO_PROXY",
 				"value": noProxy,
 			},
+			{
+				"name":  "SSL_CERT_DIR",
+				"value": "/certs",
+			},
 		},
+		"extraVolumes": []map[string]any{{
+			"name": "host-ca-bundle",
+			"hostPath": map[string]any{
+				"path": hostCABundle,
+				"type": "FileOrCreate",
+			},
+		}},
+		"extraVolumeMounts": []map[string]any{{
+			"mountPath": "/certs/ca-certificates.crt",
+			"name":      "host-ca-bundle",
+		}},
 	})
-	// TODO: CA
 
 	// --- validate host preflight spec --- //
 	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {
@@ -702,7 +762,7 @@ func TestInstall_HTTPProxy(t *testing.T) {
 				return hc.HTTP != nil && hc.HTTP.CollectorName == "http-replicated-app"
 			},
 			validate: func(hc *troubleshootv1beta2.HostCollect) {
-				assert.Equal(t, "http://localhost:3128", hc.HTTP.Get.Proxy)
+				assert.Equal(t, "https://localhost:3128", hc.HTTP.Get.Proxy)
 			},
 		},
 		"http-proxy-replicated-com": {
@@ -710,7 +770,7 @@ func TestInstall_HTTPProxy(t *testing.T) {
 				return hc.HTTP != nil && hc.HTTP.CollectorName == "http-proxy-replicated-com"
 			},
 			validate: func(hc *troubleshootv1beta2.HostCollect) {
-				assert.Equal(t, "http://localhost:3128", hc.HTTP.Get.Proxy)
+				assert.Equal(t, "https://localhost:3128", hc.HTTP.Get.Proxy)
 			},
 		},
 	})
@@ -721,10 +781,6 @@ func TestInstall_HTTPProxy(t *testing.T) {
 		t.Fatalf("failed to create kube client: %v", err)
 	}
 
-	// TODO: CA
-	// assertConfigMapExists(t, kcli, "private-cas", "kotsadm")
-	// assertConfigMapExists(t, kcli, "kotsadm-private-cas", "embedded-cluster")
-
 	// --- validate installation object --- //
 	in, err := kubeutils.GetLatestInstallation(context.TODO(), kcli)
 	if err != nil {
@@ -732,6 +788,15 @@ func TestInstall_HTTPProxy(t *testing.T) {
 	}
 
 	assert.Equal(t, hostCABundle, in.Spec.RuntimeConfig.HostCABundlePath)
+
+	var caConfigMap corev1.ConfigMap
+	if err = kcli.Get(context.TODO(), client.ObjectKey{Namespace: "kotsadm", Name: "kotsadm-private-cas"}, &caConfigMap); err != nil {
+		t.Fatalf("failed to get kotsadm-private-cas configmap: %v", err)
+	}
+	assert.Contains(t, caConfigMap.Data, "ca_0.crt", "kotsadm-private-cas configmap should contain ca_0.crt")
+
+	// Verify some metrics were captured
+	assert.NotEmpty(t, dr.Metrics)
 }
 
 func findHostCABundle(t *testing.T) string {

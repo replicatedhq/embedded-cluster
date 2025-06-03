@@ -27,6 +27,7 @@ configMaps:
 {{- end }}
 nodeAgent:
   podVolumePath: /var/lib/embedded-cluster/k0s/kubelet/pods
+  pluginVolumePath: /var/lib/embedded-cluster/k0s/kubelet/plugins
 snapshotsEnabled: false
 affinity:
   nodeAffinity:

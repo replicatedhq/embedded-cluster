@@ -274,8 +274,9 @@ envtest:
 .PHONY: unit-tests
 unit-tests: envtest
 	KUBEBUILDER_ASSETS="$(shell ./operator/bin/setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/operator/bin -p path)" \
-		go test -tags $(GO_BUILD_TAGS) -v ./pkg/... ./cmd/...
+		go test -tags $(GO_BUILD_TAGS) -v ./pkg/... ./cmd/... ./api/... ./web/... ./pkg-new/...
 	$(MAKE) -C operator test
+	$(MAKE) -C utils unit-tests
 
 .PHONY: vet
 vet:
@@ -283,11 +284,11 @@ vet:
 
 .PHONY: e2e-tests
 e2e-tests: embedded-release
-	go test -tags $(GO_BUILD_TAGS) -timeout 60m -ldflags="$(LD_FLAGS)" -parallel 1 -failfast -v ./e2e
+	go test -tags $(GO_BUILD_TAGS) -timeout 70m -ldflags="$(LD_FLAGS)" -parallel 1 -failfast -v ./e2e
 
 .PHONY: e2e-test
 e2e-test:
-	go test -tags $(GO_BUILD_TAGS) -timeout 60m -ldflags="$(LD_FLAGS)" -v ./e2e -run ^$(TEST_NAME)$$
+	go test -tags $(GO_BUILD_TAGS) -timeout 70m -ldflags="$(LD_FLAGS)" -v ./e2e -run ^$(TEST_NAME)$$
 
 .PHONY: dryrun-tests
 dryrun-tests: export DRYRUN_MATCH = Test
@@ -337,6 +338,7 @@ list-distros:
 .PHONY: create-node%
 create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
+create-node%: MANAGER_NODE_PORT = 30080
 create-node%: K0S_DATA_DIR = /var/lib/embedded-cluster/k0s
 create-node%:
 	@docker run -d \
@@ -348,7 +350,9 @@ create-node%:
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
+		$(if $(filter node0,node$*),-p $(MANAGER_NODE_PORT):$(MANAGER_NODE_PORT)) \
 		$(if $(filter node0,node$*),-p 30003:30003) \
+		-e EC_PUBLIC_ADDRESS=localhost \
 		replicated/ec-distro:$(DISTRO)
 
 	@$(MAKE) ssh-node$*

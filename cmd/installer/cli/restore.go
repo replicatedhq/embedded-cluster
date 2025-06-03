@@ -434,11 +434,10 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, hcli, addons.InstallOptions{
+	if err := addons.Install(ctx, logrus.Debugf, hcli, addons.InstallOptions{
 		IsAirgap:           flags.airgapBundle != "",
 		Proxy:              flags.proxy,
 		HostCABundlePath:   runtimeconfig.HostCABundlePath(),
-		PrivateCAs:         flags.privateCAs,
 		ServiceCIDR:        flags.cidrCfg.ServiceCIDR,
 		IsRestore:          true,
 		EmbeddedConfigSpec: embCfgSpec,
@@ -560,6 +559,11 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		return fmt.Errorf("unable to create metadata client: %w", err)
+	}
+
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("get latest installation: %w", err)
@@ -580,7 +584,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	}
 	defer hcli.Close()
 
-	err = addons.EnableAdminConsoleHA(ctx, kcli, hcli, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config, in.Spec.LicenseInfo)
+	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, kcli, mcli, hcli, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config, in.Spec.LicenseInfo)
 	if err != nil {
 		return err
 	}
@@ -1579,7 +1583,7 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkI
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
-	adminConsoleURL := getAdminConsoleURL(networkInterface, runtimeconfig.AdminConsolePort())
+	adminConsoleURL := getAdminConsoleURL("", networkInterface, runtimeconfig.AdminConsolePort())
 
 	successColor := "\033[32m"
 	colorReset := "\033[0m"

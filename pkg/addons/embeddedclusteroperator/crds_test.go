@@ -2,6 +2,7 @@ package embeddedclusteroperator
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -75,7 +76,11 @@ func TestEnsureInstallationCRD(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup the test environment
-			log := testr.NewWithOptions(t, testr.Options{Verbosity: 0})
+			verbosity := 1
+			if os.Getenv("DEBUG") != "" {
+				verbosity = 10
+			}
+			log := testr.NewWithOptions(t, testr.Options{Verbosity: verbosity})
 			ctx := logr.NewContext(context.Background(), log)
 
 			testEnv := &envtest.Environment{}

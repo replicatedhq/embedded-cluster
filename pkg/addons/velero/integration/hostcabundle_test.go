@@ -24,7 +24,7 @@ func TestHostCABundle(t *testing.T) {
 	hcli, err := helm.NewClient(helm.HelmOptions{})
 	require.NoError(t, err, "NewClient should not return an error")
 
-	err = addon.Install(context.Background(), nil, hcli, nil, nil)
+	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, nil, nil)
 	require.NoError(t, err, "velero.Install should not return an error")
 
 	manifests := addon.DryRunManifests()
@@ -45,6 +45,28 @@ func TestHostCABundle(t *testing.T) {
 
 	require.NotNil(t, veleroDeploy, "Velero deployment should not be nil")
 	require.NotNil(t, nodeAgentDaemonSet, "NodeAgent daemonset should not be nil")
+
+	var envVar *corev1.EnvVar
+	for _, v := range veleroDeploy.Spec.Template.Spec.Containers[0].Env {
+		if v.Name == "SSL_CERT_DIR" {
+			envVar = &v
+			break
+		}
+	}
+	if assert.NotNil(t, envVar, "Velero SSL_CERT_DIR environment variable should not be nil") {
+		assert.Equal(t, envVar.Value, "/certs")
+	}
+
+	envVar = nil
+	for _, v := range nodeAgentDaemonSet.Spec.Template.Spec.Containers[0].Env {
+		if v.Name == "SSL_CERT_DIR" {
+			envVar = &v
+			break
+		}
+	}
+	if assert.NotNil(t, envVar, "NodeAgent daemonset SSL_CERT_DIR environment variable should not be nil") {
+		assert.Equal(t, envVar.Value, "/certs")
+	}
 
 	var volume *corev1.Volume
 	for _, v := range veleroDeploy.Spec.Template.Spec.Volumes {

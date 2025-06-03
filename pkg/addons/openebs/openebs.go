@@ -5,9 +5,12 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"gopkg.in/yaml.v3"
 )
+
+var _ types.AddOn = (*OpenEBS)(nil)
 
 type OpenEBS struct {
 	ProxyRegistryDomain string

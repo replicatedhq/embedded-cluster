@@ -6,21 +6,45 @@ import (
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"gopkg.in/yaml.v3"
+	"k8s.io/apimachinery/pkg/runtime"
+	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
+
+var (
+	_ types.AddOn = (*EmbeddedClusterOperator)(nil)
+
+	serializer runtime.Serializer
+)
+
+func init() {
+	scheme := kubeutils.Scheme
+	serializer = jsonserializer.NewSerializerWithOptions(jsonserializer.DefaultMetaFactory, scheme, scheme, jsonserializer.SerializerOptions{
+		Yaml: true,
+	})
+}
 
 type EmbeddedClusterOperator struct {
 	IsAirgap              bool
 	Proxy                 *ecv1beta1.ProxySpec
-	PrivateCAs            []string
+	HostCABundlePath      string
 	ChartLocationOverride string
 	ChartVersionOverride  string
 	ImageRepoOverride     string
 	ImageTagOverride      string
 	UtilsImageOverride    string
 	ProxyRegistryDomain   string
+
+	// DryRun is a flag to enable dry-run mode for Velero.
+	// If true, Velero will only render the helm template and additional manifests, but not install
+	// the release.
+	DryRun bool
+
+	dryRunManifests [][]byte
 }
 
 const (
@@ -86,6 +110,10 @@ func (e *EmbeddedClusterOperator) ChartVersion() string {
 		return e.ChartVersionOverride
 	}
 	return Metadata.Version
+}
+
+func (v *EmbeddedClusterOperator) DryRunManifests() [][]byte {
+	return v.dryRunManifests
 }
 
 func getBackupLabels() map[string]string {

@@ -12,9 +12,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/google/uuid"
-	"golang.org/x/sync/errgroup"
 )
 
 type ClusterInput struct {
@@ -36,8 +33,9 @@ type Cluster struct {
 }
 
 type Node struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	NetworkID string `json:"network_id"`
 
 	privateIP       string `json:"-"`
 	sshEndpoint     string `json:"-"`
@@ -45,78 +43,31 @@ type Node struct {
 }
 
 type Network struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID string `json:"id"`
 }
 
 func NewCluster(in *ClusterInput) *Cluster {
 	c := &Cluster{t: in.T, supportBundleNodeIndex: in.SupportBundleNodeIndex}
-	c.Nodes = make([]Node, in.Nodes)
+	c.t.Cleanup(c.Destroy)
 
-	network, err := NewNetwork(in)
+	nodes, err := NewNodes(in)
 	if err != nil {
-		in.T.Fatalf("failed to create network: %v", err)
-	}
-	c.network = network
-
-	g := new(errgroup.Group)
-	var mu sync.Mutex
-
-	for i := range c.Nodes {
-		func(i int) {
-			g.Go(func() error {
-				node, err := NewNode(in, i, network.ID)
-				if err != nil {
-					return fmt.Errorf("create node %d: %w", i, err)
-				}
-				in.T.Logf("node%d created with ID %s", i, node.ID)
-				mu.Lock()
-				c.Nodes[i] = *node
-				mu.Unlock()
-				return nil
-			})
-		}(i)
-	}
-
-	if err := g.Wait(); err != nil {
 		in.T.Fatalf("failed to create nodes: %v", err)
 	}
+	in.T.Logf("cluster created with network ID %s", nodes[0].NetworkID)
+	c.Nodes = nodes
+	c.network = &Network{ID: nodes[0].NetworkID}
 
 	return c
 }
 
-func NewNetwork(in *ClusterInput) (*Network, error) {
-	name := fmt.Sprintf("ec-e2e-%s", uuid.New().String())
-	in.T.Logf("creating network %s", name)
-
-	output, err := exec.Command("replicated", "network", "create", "--name", name, "--wait", "5m", "-ojson").Output() // stderr can break json parsing
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("create network %s: %w: stderr: %s: stdout: %s", name, err, string(exitErr.Stderr), string(output))
-		}
-		return nil, fmt.Errorf("create network %s: %w: stdout: %s", name, err, string(output))
-	}
-
-	var networks []Network
-	if err := json.Unmarshal(output, &networks); err != nil {
-		return nil, fmt.Errorf("parse networks output: %v: %s", err, string(output))
-	}
-	if len(networks) != 1 {
-		return nil, fmt.Errorf("expected 1 network, got %d", len(networks))
-	}
-	network := &networks[0]
-	in.T.Logf("Network created with ID %s", network.ID)
-	return network, nil
-}
-
-func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
-	nodeName := fmt.Sprintf("node%d", index)
-	in.T.Logf("creating node %s", nodeName)
+func NewNodes(in *ClusterInput) ([]Node, error) {
+	in.T.Logf("creating %s nodes", strconv.Itoa(in.Nodes))
 
 	args := []string{
 		"vm", "create",
-		"--name", nodeName,
-		"--network", networkID,
+		"--name", "ec-test-suite",
+		"--count", strconv.Itoa(in.Nodes),
 		"--wait", "5m",
 		"-ojson",
 	}
@@ -139,54 +90,54 @@ func NewNode(in *ClusterInput, index int, networkID string) (*Node, error) {
 	output, err := exec.Command("replicated", args...).Output() // stderr can break json parsing
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("create node %s: %w: stderr: %s: stdout: %s", nodeName, err, string(exitErr.Stderr), string(output))
+			return nil, fmt.Errorf("create nodes: %w: stderr: %s: stdout: %s", err, string(exitErr.Stderr), string(output))
 		}
-		return nil, fmt.Errorf("create node %s: %w: stdout: %s", nodeName, err, string(output))
+		return nil, fmt.Errorf("create nodes: %w: stdout: %s", err, string(output))
 	}
 
 	var nodes []Node
 	if err := json.Unmarshal(output, &nodes); err != nil {
 		return nil, fmt.Errorf("unmarshal node: %v: %s", err, string(output))
 	}
-	if len(nodes) != 1 {
-		return nil, fmt.Errorf("expected 1 node, got %d", len(nodes))
-	}
-	node := nodes[0]
 
 	// TODO (@salah): remove this once the bug is fixed in CMX
 	// note: the vm gets marked as ready before the services are actually running
 	time.Sleep(30 * time.Second)
 
-	sshEndpoint, err := getSSHEndpoint(node.ID)
-	if err != nil {
-		return nil, fmt.Errorf("get ssh endpoint for node %s: %v", nodeName, err)
-	}
-	node.sshEndpoint = sshEndpoint
-
-	privateIP, err := discoverPrivateIP(node)
-	if err != nil {
-		return nil, fmt.Errorf("discover node private IP: %v", err)
-	}
-	node.privateIP = privateIP
-
-	if err := ensureAssetsDir(node); err != nil {
-		return nil, fmt.Errorf("ensure assets dir on node %s: %v", node.Name, err)
-	}
-
-	if err := copyScriptsToNode(node); err != nil {
-		return nil, fmt.Errorf("copy scripts to node %s: %v", node.Name, err)
-	}
-
-	if index == 0 {
-		in.T.Logf("exposing port 30003 on node %s", node.Name)
-		hostname, err := exposePort(node, "30003")
+	for i := range nodes {
+		sshEndpoint, err := getSSHEndpoint(nodes[i].ID)
 		if err != nil {
-			return nil, fmt.Errorf("expose port: %v", err)
+			return nil, fmt.Errorf("get ssh endpoint for node %s: %v", nodes[i].ID, err)
 		}
-		node.adminConsoleURL = fmt.Sprintf("http://%s", hostname)
+		nodes[i].sshEndpoint = sshEndpoint
+
+		privateIP, err := discoverPrivateIP(nodes[i])
+		if err != nil {
+			return nil, fmt.Errorf("discover node private IP: %v", err)
+		}
+		nodes[i].privateIP = privateIP
+
+		if err := ensureAssetsDir(nodes[i]); err != nil {
+			return nil, fmt.Errorf("ensure assets dir on node %s: %v", nodes[i].ID, err)
+		}
+
+		if err := copyScriptsToNode(nodes[i]); err != nil {
+			return nil, fmt.Errorf("copy scripts to node %s: %v", nodes[i].ID, err)
+		}
+
+		if i == 0 {
+			in.T.Logf("exposing port 30003 on node %s", nodes[i].ID)
+			hostname, err := exposePort(nodes[i], "30003")
+			if err != nil {
+				return nil, fmt.Errorf("expose port: %v", err)
+			}
+			nodes[i].adminConsoleURL = fmt.Sprintf("http://%s", hostname)
+		}
+
+		in.T.Logf("node %d created with ID %s and private IP %s", i, nodes[i].ID, nodes[i].privateIP)
 	}
 
-	return &node, nil
+	return nodes, nil
 }
 
 func discoverPrivateIP(node Node) (string, error) {
@@ -314,7 +265,7 @@ func (c *Cluster) waitForClockSync(node int) {
 		select {
 		case <-timeout:
 			stdout, stderr, err := c.RunCommandOnNode(node, []string{"timedatectl show -p NTP -p NTPSynchronized"})
-			c.t.Fatalf("timeout waiting for clock sync: %v: %s: %s", err, stdout, stderr)
+			c.t.Fatalf("timeout waiting for clock sync on node %d: %v: %s: %s", node, err, stdout, stderr)
 		case <-tick:
 			status, _, _ := c.RunCommandOnNode(node, []string{"timedatectl show -p NTP -p NTPSynchronized"})
 			if strings.Contains(status, "NTP=yes") && strings.Contains(status, "NTPSynchronized=yes") {
@@ -331,11 +282,31 @@ func (c *Cluster) Cleanup(envs ...map[string]string) {
 }
 
 func (c *Cluster) Destroy() {
+	if os.Getenv("SKIP_CMX_CLEANUP") != "" {
+		c.t.Logf("Skipping CMX cleanup")
+		return
+	}
+
 	for _, node := range c.Nodes {
-		output, err := exec.Command("replicated", "vm", "rm", node.ID).CombinedOutput()
-		if err != nil {
-			c.t.Logf("failed to destroy node %s: %v: %s", node.Name, err, string(output))
-		}
+		c.removeNode(node)
+	}
+
+	if c.network != nil {
+		c.removeNetwork(*c.network)
+	}
+}
+
+func (c *Cluster) removeNode(node Node) {
+	output, err := exec.Command("replicated", "vm", "rm", node.ID).CombinedOutput()
+	if err != nil {
+		c.t.Logf("failed to destroy node %s: %v: %s", node.ID, err, string(output))
+	}
+}
+
+func (c *Cluster) removeNetwork(network Network) {
+	output, err := exec.Command("replicated", "network", "rm", network.ID).CombinedOutput()
+	if err != nil {
+		c.t.Logf("failed to destroy network %s: %v: %s", network.ID, err, string(output))
 	}
 }
 
@@ -402,7 +373,7 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		return stdout.String(), stderr.String(), fmt.Errorf("run playwright test %s: %v", testName, err)
+		return stdout.String(), stderr.String(), err
 	}
 	return stdout.String(), stderr.String(), nil
 }

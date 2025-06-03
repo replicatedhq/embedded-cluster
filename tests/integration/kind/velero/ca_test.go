@@ -18,12 +18,13 @@ func TestVelero_HostCABundle(t *testing.T) {
 	kubeconfig := util.SetupKindCluster(t, clusterName, nil)
 
 	kcli := util.CtrlClient(t, kubeconfig)
+	mcli := util.MetadataClient(t, kubeconfig)
 	hcli := util.HelmClient(t, kubeconfig)
 
 	addon := &velero.Velero{
 		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
 	}
-	if err := addon.Install(t.Context(), kcli, hcli, nil, nil); err != nil {
+	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, nil, nil); err != nil {
 		t.Fatalf("failed to install velero: %v", err)
 	}
 

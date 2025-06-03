@@ -9,6 +9,7 @@ const (
 	DefaultAdminConsolePort        = 30000
 	DefaultLocalArtifactMirrorPort = 50000
 	DefaultNetworkCIDR             = "10.244.0.0/16"
+	DefaultManagerPort             = 30080
 )
 
 // RuntimeConfigSpec defines the configuration for the Embedded Cluster at runtime.
@@ -29,6 +30,8 @@ type RuntimeConfigSpec struct {
 	AdminConsole AdminConsoleSpec `json:"adminConsole,omitempty"`
 	// LocalArtifactMirrorPort holds the Local Artifact Mirror configuration.
 	LocalArtifactMirror LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
+	// Manager holds the Manager configuration.
+	Manager ManagerSpec `json:"manager,omitempty"`
 }
 
 func (c *RuntimeConfigSpec) UnmarshalJSON(data []byte) error {
@@ -53,6 +56,7 @@ func runtimeConfigSetDefaults(c *RuntimeConfigSpec) {
 	}
 	adminConsoleSpecSetDefaults(&c.AdminConsole)
 	localArtifactMirrorSpecSetDefaults(&c.LocalArtifactMirror)
+	managerSpecSetDefaults(&c.Manager)
 }
 
 func adminConsoleSpecSetDefaults(s *AdminConsoleSpec) {
@@ -64,5 +68,11 @@ func adminConsoleSpecSetDefaults(s *AdminConsoleSpec) {
 func localArtifactMirrorSpecSetDefaults(s *LocalArtifactMirrorSpec) {
 	if s.Port == 0 {
 		s.Port = DefaultLocalArtifactMirrorPort
+	}
+}
+
+func managerSpecSetDefaults(s *ManagerSpec) {
+	if s.Port == 0 {
+		s.Port = DefaultManagerPort
 	}
 }

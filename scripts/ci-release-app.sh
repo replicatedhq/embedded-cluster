@@ -88,7 +88,7 @@ function create_release() {
             helm package -u e2e/helm-charts/$CHART -d output/tmp/release
             
             # Get the packaged chart filename
-            CHART_FILENAME=$(ls output/tmp/release/$CHART-*.tgz | head -1)
+            CHART_FILENAME=$(find output/tmp/release -name "$CHART-*.tgz" -type f | head -1)
             if [ -n "$CHART_FILENAME" ]; then
                 echo "Created Helm chart package: $CHART_FILENAME"
             else

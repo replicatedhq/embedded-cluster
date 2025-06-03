@@ -148,6 +148,11 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./web/.nvmrc
+
       - uses: oras-project/setup-oras@v1
 
       - uses: imjasonh/setup-crane@v0.4
@@ -167,6 +172,12 @@ jobs:
           OPERATOR_IMAGE: ${{ needs.publish-operator-image.outputs.image }}
         run: |
           ./scripts/ci-update-operator-metadata.sh
+
+      - name: Build web
+        working-directory: ./web
+        run: |
+          npm ci
+          npm run build
 
       - name: Build linux-amd64
         run: |
@@ -570,8 +581,6 @@ jobs:
           - test: TestProxiedEnvironment
             is-lxd: true
           - test: TestProxiedCustomCIDR
-            is-lxd: true
-          - test: TestInstallWithPrivateCAs
             is-lxd: true
           - test: TestInstallWithMITMProxy
             is-lxd: true

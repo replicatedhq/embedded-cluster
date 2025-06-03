@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -14,10 +15,13 @@ import (
 	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
 
+var _ types.AddOn = (*Velero)(nil)
+
 type Velero struct {
-	Proxy               *ecv1beta1.ProxySpec
-	ProxyRegistryDomain string
-	HostCABundlePath    string
+	Proxy                    *ecv1beta1.ProxySpec
+	ProxyRegistryDomain      string
+	HostCABundlePath         string
+	EmbeddedClusterK0sSubDir string
 
 	// DryRun is a flag to enable dry-run mode for Velero.
 	// If true, Velero will only render the helm template and additional manifests, but not install
