@@ -49,7 +49,7 @@ type API struct {
 	airgapBundle      string
 	configChan        chan<- *types.InstallationConfig
 	logger            logrus.FieldLogger
-	hostUtils         *hostutils.HostUtils
+	hostUtils         hostutils.HostUtilsInterface
 	metricsReporter   metrics.ReporterInterface
 }
 
@@ -85,7 +85,7 @@ func WithLogger(logger logrus.FieldLogger) APIOption {
 	}
 }
 
-func WithHostUtils(hostUtils *hostutils.HostUtils) APIOption {
+func WithHostUtils(hostUtils hostutils.HostUtilsInterface) APIOption {
 	return func(a *API) {
 		a.hostUtils = hostUtils
 	}
