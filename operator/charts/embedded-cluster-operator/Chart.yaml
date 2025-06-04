@@ -2,7 +2,7 @@ apiVersion: v2
 name: embedded-cluster-operator
 description: Embedded Cluster Operator
 type: application
-version: 2.4.0+k8s-1.30-70-g56ce-salah
+version: 0.0.0
 dependencies:
   - name: crds
     version: "0.0.0"
