@@ -209,7 +209,7 @@ func (m *installationManager) ConfigureForInstall(ctx context.Context, config *t
 		return fmt.Errorf("set running status: %w", err)
 	}
 
-	go m.configureForInstall(ctx, config)
+	go m.configureForInstall(context.Background(), config)
 
 	return nil
 }

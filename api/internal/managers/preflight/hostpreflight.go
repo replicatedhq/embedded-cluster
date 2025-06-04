@@ -50,7 +50,7 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, opts RunHo
 	}
 
 	// Run preflights in background
-	go m.runHostPreflights(ctx, opts)
+	go m.runHostPreflights(context.Background(), opts)
 
 	return nil
 }
