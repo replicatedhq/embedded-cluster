@@ -152,6 +152,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
     }
     if (installationConfigStatus?.state === "Succeeded") {
       runPreflights();
+      setIsConfigPolling(false);
       setIsPreflightsPolling(true);
     }
   }, [installationConfigStatus, runPreflights]);
@@ -223,7 +224,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
               </div>
             </div>
           )}{" "}
-          {isConfigPolling && (
+          {isConfigPolling && preflightResponse?.status?.state !== "Succeeded" && (
             <div className="py-3">
               <div className="flex items-start">
                 <div className="flex-shrink-0 text-blue-500">
