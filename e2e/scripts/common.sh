@@ -457,6 +457,7 @@ validate_data_dirs() {
 
 validate_non_job_pods_healthy() {
     local unhealthy_pods
+    local unready_pods
     
     # Check for environment variable override (used by specific tests)
     if [ "${ALLOW_PENDING_PODS:-}" = "true" ]; then
@@ -471,11 +472,28 @@ validate_non_job_pods_healthy() {
         echo "All non-Job pods are healthy"
     fi
     
+    # Check container readiness for Running pods (skip Completed/Succeeded pods as they don't need to be ready)
+    unready_pods=$(kubectl get pods -A --no-headers -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata.name,STATUS:.status.phase,READY:.status.containerStatuses[*].ready,OWNER:.metadata.ownerReferences[0].kind" | \
+        awk '$5 != "Job" && $3 == "Running" && ($4 == "" || $4 !~ /^(true[[:space:]]*)*$/) { print $1 "/" $2 " (not ready)" }')
+    
+    local has_issues=0
+    
     if [ -n "$unhealthy_pods" ]; then
         echo "found non-Job pods in unhealthy state:"
         echo "$unhealthy_pods"
+        has_issues=1
+    fi
+    
+    if [ -n "$unready_pods" ]; then
+        echo "found non-Job pods that are Running but not ready:"
+        echo "$unready_pods"
+        has_issues=1
+    fi
+    
+    if [ $has_issues -eq 1 ]; then
         return 1
     fi
+    
     return 0
 }
 
