@@ -81,7 +81,7 @@ main() {
     # scale the second deployment back down so that they aren't restored in the DR test
     kubectl scale -n "$APP_NAMESPACE" deployment/second --replicas=0
 
-    validate_no_pods_in_crashloop
+    validate_all_pods_healthy
 }
 
 main "$@"

@@ -43,7 +43,7 @@ main() {
         exit 1
     fi
 
-    validate_no_pods_in_crashloop
+    validate_all_pods_healthy
 }
 
 main "$@"

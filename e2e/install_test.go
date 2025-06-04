@@ -1325,6 +1325,9 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 
 	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
 		node: 2,
+		withEnv: map[string]string{
+			"ALLOW_PENDING_PODS": "true",
+		},
 	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -1450,6 +1453,9 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 
 	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
 		node: 2,
+		withEnv: map[string]string{
+			"ALLOW_PENDING_PODS": "true",
+		},
 	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
