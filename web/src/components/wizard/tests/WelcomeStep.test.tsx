@@ -1,13 +1,5 @@
 import React from "react";
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeAll,
-  afterEach,
-  afterAll,
-} from "vitest";
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";

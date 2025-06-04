@@ -1,24 +1,11 @@
 import React from "react";
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeAll,
-  afterEach,
-  afterAll,
-  beforeEach,
-} from "vitest";
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from "vitest";
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import SetupStep from "../SetupStep.tsx";
-import {
-  MOCK_INSTALL_CONFIG,
-  MOCK_NETWORK_INTERFACES,
-  MOCK_PROTOTYPE_SETTINGS,
-} from "../../../test/testData.ts";
+import { MOCK_INSTALL_CONFIG, MOCK_NETWORK_INTERFACES, MOCK_PROTOTYPE_SETTINGS } from "../../../test/testData.ts";
 
 const server = setupServer(
   // Mock install config endpoint
@@ -134,10 +121,7 @@ describe("SetupStep", () => {
       }),
       // Mock config submission endpoint to return an error
       http.post("*/api/install/config", () => {
-        return new HttpResponse(
-          JSON.stringify({ message: "Invalid configuration" }),
-          { status: 400 }
-        );
+        return new HttpResponse(JSON.stringify({ message: "Invalid configuration" }), { status: 400 });
       })
     );
 
@@ -191,9 +175,7 @@ describe("SetupStep", () => {
     fireEvent.click(nextButton);
 
     // Verify error message is displayed
-    await screen.findByText(
-      "Please fix the errors in the form above before proceeding."
-    );
+    await screen.findByText("Please fix the errors in the form above before proceeding.");
 
     // Verify onNext was not called
     expect(mockOnNext).not.toHaveBeenCalled();

@@ -34,9 +34,7 @@ describe("CompletionStep", () => {
     });
 
     // Check if admin console link is present
-    const adminLink = screen
-      .getByText(/Access Admin Dashboard/)
-      .closest("button");
+    const adminLink = screen.getByText(/Access Admin Dashboard/).closest("button");
     expect(adminLink).toBeInTheDocument();
   });
 
@@ -52,11 +50,7 @@ describe("CompletionStep", () => {
     // Check if next steps are rendered
     expect(screen.getByText(/Next Steps/)).toBeInTheDocument();
     expect(screen.getByText(/Log in to your/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/Configure additional settings/)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Create your first organization/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Configure additional settings/)).toBeInTheDocument();
+    expect(screen.getByText(/Create your first organization/)).toBeInTheDocument();
   });
 });
