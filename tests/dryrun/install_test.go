@@ -723,6 +723,10 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 				"value": "true",
 			},
 			{
+				"name":  "SSL_CERT_CONFIGMAP",
+				"value": "kotsadm-private-cas",
+			},
+			{
 				"name":  "HTTP_PROXY",
 				"value": "http://localhost:3128",
 			},

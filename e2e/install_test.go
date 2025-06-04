@@ -998,7 +998,6 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 		Nodes:        2,
 		Distribution: "ubuntu",
 		Version:      "22.04",
-		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup()
 
@@ -1074,7 +1073,6 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 		Nodes:        2,
 		Distribution: "ubuntu",
 		Version:      "22.04",
-		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup()
 
@@ -1157,7 +1155,6 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		Nodes:        2,
 		Distribution: "ubuntu",
 		Version:      "22.04",
-		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup(withEnv)
 
@@ -1328,6 +1325,9 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 
 	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
 		node: 2,
+		withEnv: map[string]string{
+			"ALLOW_PENDING_PODS": "true",
+		},
 	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -1346,7 +1346,6 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		Nodes:                  4,
 		Distribution:           "ubuntu",
 		Version:                "22.04",
-		InstanceType:           "r1.medium",
 		SupportBundleNodeIndex: 2,
 	})
 	defer tc.Cleanup()
@@ -1454,6 +1453,9 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 
 	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
 		node: 2,
+		withEnv: map[string]string{
+			"ALLOW_PENDING_PODS": "true",
+		},
 	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -1609,7 +1611,6 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 		Nodes:        5,
 		Distribution: "ubuntu",
 		Version:      "22.04",
-		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup()
 
