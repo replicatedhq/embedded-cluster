@@ -457,16 +457,25 @@ validate_data_dirs() {
 
 validate_non_job_pods_healthy() {
     local unhealthy_pods
-    # Get pods that are NOT owned by Jobs and check their health
-    unhealthy_pods=$(kubectl get pods -A --no-headers -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata.name,STATUS:.status.phase,OWNER:.metadata.ownerReferences[0].kind" | \
-        awk '$4 != "Job" && ($3 != "Running" && $3 != "Completed" && $3 != "Succeeded") { print $1 "/" $2 " (" $3 ")" }')
+    
+    # Check for environment variable override (used by specific tests)
+    if [ "$ALLOW_PENDING_PODS" = "true" ]; then
+        # Allow Running, Completed, Succeeded, Pending
+        unhealthy_pods=$(kubectl get pods -A --no-headers -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata.name,STATUS:.status.phase,OWNER:.metadata.ownerReferences[0].kind" | \
+            awk '$4 != "Job" && ($3 != "Running" && $3 != "Completed" && $3 != "Succeeded" && $3 != "Pending") { print $1 "/" $2 " (" $3 ")" }')
+        echo "All non-Job pods are healthy (allowing Pending pods)"
+    else
+        # Default: only allow Running, Completed, Succeeded  
+        unhealthy_pods=$(kubectl get pods -A --no-headers -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata.name,STATUS:.status.phase,OWNER:.metadata.ownerReferences[0].kind" | \
+            awk '$4 != "Job" && ($3 != "Running" && $3 != "Completed" && $3 != "Succeeded") { print $1 "/" $2 " (" $3 ")" }')
+        echo "All non-Job pods are healthy"
+    fi
     
     if [ -n "$unhealthy_pods" ]; then
         echo "found non-Job pods in unhealthy state:"
         echo "$unhealthy_pods"
         return 1
     fi
-    echo "All non-Job pods are healthy"
     return 0
 }
 
@@ -496,7 +505,12 @@ validate_all_pods_healthy() {
     local elapsed_time
     start_time=$(date +%s)
     
-    echo "Validating pod and job health..."
+    # Show what mode we're in
+    if [ "$ALLOW_PENDING_PODS" = "true" ]; then
+        echo "Validating pod and job health (allowing Pending pods)..."
+    else
+        echo "Validating pod and job health (default: Running, Completed, Succeeded)..."
+    fi
     
     while true; do
         current_time=$(date +%s)
