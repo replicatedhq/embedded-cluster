@@ -27,6 +27,7 @@ import (
 
 // APIConfig holds the configuration for the API server
 type APIConfig struct {
+	RuntimeConfig   runtimeconfig.RuntimeConfig
 	Logger          logrus.FieldLogger
 	MetricsReporter metrics.ReporterInterface
 	Password        string
@@ -77,6 +78,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 	api, err := api.New(
 		config.Password,
 		api.WithLogger(logger),
+		api.WithRuntimeConfig(config.RuntimeConfig),
 		api.WithMetricsReporter(config.MetricsReporter),
 		api.WithReleaseData(config.ReleaseData),
 		api.WithLicenseFile(config.LicenseFile),

@@ -320,12 +320,13 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 		apiConfig := APIConfig{
 			// TODO (@salah): implement reporting in api
 			// MetricsReporter: reporter,
-			Password:     flags.adminConsolePassword,
-			ManagerPort:  flags.managerPort,
-			LicenseFile:  flags.licenseFile,
-			AirgapBundle: flags.airgapBundle,
-			ConfigChan:   configChan,
-			ReleaseData:  release.GetReleaseData(),
+			RuntimeConfig: rc,
+			Password:      flags.adminConsolePassword,
+			ManagerPort:   flags.managerPort,
+			LicenseFile:   flags.licenseFile,
+			AirgapBundle:  flags.airgapBundle,
+			ConfigChan:    configChan,
+			ReleaseData:   release.GetReleaseData(),
 		}
 
 		if err := startAPI(cmd.Context(), flags.tlsCert, apiConfig); err != nil {

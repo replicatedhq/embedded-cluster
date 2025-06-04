@@ -42,6 +42,11 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config *t
 		return fmt.Errorf("write: %w", err)
 	}
 
+	// update the runtime config
+	c.rc.SetDataDir(config.DataDirectory)
+	c.rc.SetLocalArtifactMirrorPort(config.LocalArtifactMirrorPort)
+	c.rc.SetAdminConsolePort(config.AdminConsolePort)
+
 	if err := c.installationManager.ConfigureForInstall(ctx, config); err != nil {
 		return fmt.Errorf("configure: %w", err)
 	}
