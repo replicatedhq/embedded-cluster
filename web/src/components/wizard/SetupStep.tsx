@@ -5,8 +5,6 @@ import { useConfig } from "../../contexts/ConfigContext";
 import { useWizardMode } from "../../contexts/WizardModeContext";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import LinuxSetup from "./setup/LinuxSetup";
-import KubernetesSetup from "./setup/KubernetesSetup";
-import LinuxPreflightCheck from "./setup/LinuxPreflightCheck";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
 interface SetupStepProps {
@@ -14,16 +12,11 @@ interface SetupStepProps {
   onBack: () => void;
 }
 
-type SetupPhase = "configuration" | "validation";
-
 const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   const { config, updateConfig, prototypeSettings } = useConfig();
   const { text } = useWizardMode();
   const [showAdvanced, setShowAdvanced] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [preflightComplete, setPreflightComplete] = useState(false);
-  const [preflightSuccess, setPreflightSuccess] = useState(false);
-  const [phase, setPhase] = useState<SetupPhase>("configuration");
 
   // Query for fetching install configuration
   const { isLoading: isConfigLoading } = useQuery({
@@ -70,7 +63,6 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   // Mutation for submitting the configuration
   const {
     mutate: submitConfig,
-    isPending: isSubmitting,
     error: submitError,
   } = useMutation({
     mutationFn: async (configData: typeof config) => {
@@ -92,12 +84,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
       return response.json();
     },
     onSuccess: () => {
-      // Call the original onNext function to proceed to the next step
-      if (phase === "configuration") {
-        setPhase("validation");
-      } else {
-        onNext();
-      }
+      onNext();
     },
     onError: (err: any) => {
       setError(err.message || "Failed to setup cluster");
@@ -126,19 +113,6 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     submitConfig(config);
   };
 
-  const handlePreflightComplete = (success: boolean) => {
-    setPreflightComplete(true);
-    setPreflightSuccess(success);
-  };
-
-  const handleBackPhase = () => {
-    if (phase === "validation") {
-      setPhase("configuration");
-    } else {
-      onBack();
-    }
-  };
-
   const isLoading = isConfigLoading || isInterfacesLoading;
   const availableNetworkInterfaces =
     networkInterfacesData?.networkInterfaces || [];
@@ -151,10 +125,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             {text.setupTitle}
           </h2>
           <p className="text-gray-600 mt-1">
-            {prototypeSettings.clusterMode === "embedded" &&
-            phase === "configuration"
-              ? "Configure the installation settings."
-              : text.setupDescription}
+            Configure the installation settings.
           </p>
         </div>
 
@@ -163,26 +134,17 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
             <p className="mt-2 text-gray-600">Loading configuration...</p>
           </div>
-        ) : prototypeSettings?.clusterMode === "embedded" ? (
-          phase === "configuration" ? (
-            <LinuxSetup
-              config={config}
-              prototypeSettings={prototypeSettings}
-              showAdvanced={showAdvanced}
-              onShowAdvancedChange={setShowAdvanced}
-              onInputChange={handleInputChange}
-              onSelectChange={handleSelectChange}
-              availableNetworkInterfaces={availableNetworkInterfaces}
-              fieldErrors={submitError?.errors || []}
-            />
-          ) : (
-            <LinuxPreflightCheck
-              config={config}
-              onComplete={handlePreflightComplete}
-            />
-          )
         ) : (
-          <KubernetesSetup config={config} onInputChange={handleInputChange} />
+          <LinuxSetup
+            config={config}
+            prototypeSettings={prototypeSettings}
+            showAdvanced={showAdvanced}
+            onShowAdvancedChange={setShowAdvanced}
+            onInputChange={handleInputChange}
+            onSelectChange={handleSelectChange}
+            availableNetworkInterfaces={availableNetworkInterfaces}
+            fieldErrors={submitError?.errors || []}
+          />
         )}
 
         {error && (
@@ -195,28 +157,17 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
       <div className="flex justify-between">
         <Button
           variant="outline"
-          onClick={handleBackPhase}
+          onClick={onBack}
           icon={<ChevronLeft className="w-5 h-5" />}
         >
           Back
         </Button>
-        {prototypeSettings?.clusterMode === "embedded" &&
-          (phase === "configuration" ? (
-            <Button
-              onClick={handleNext}
-              icon={<ChevronRight className="w-5 h-5" />}
-            >
-              Next: Validate Host
-            </Button>
-          ) : (
-            <Button
-              onClick={handleNext}
-              disabled={!preflightComplete || !preflightSuccess}
-              icon={<ChevronRight className="w-5 h-5" />}
-            >
-              {isSubmitting ? "Setting up..." : text.nextButtonText}
-            </Button>
-          ))}
+        <Button
+          onClick={handleNext}
+          icon={<ChevronRight className="w-5 h-5" />}
+        >
+          Next: Validate Host
+        </Button>
       </div>
     </div>
   );

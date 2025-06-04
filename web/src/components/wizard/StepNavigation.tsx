@@ -1,6 +1,6 @@
 import React from 'react';
 import { WizardStep } from '../../types';
-import { ClipboardList, Settings, Download } from 'lucide-react';
+import { ClipboardList, Settings, Download, CheckCircle } from 'lucide-react';
 import { useWizardMode } from '../../contexts/WizardModeContext';
 import { useConfig } from '../../contexts/ConfigContext';
 
@@ -16,6 +16,7 @@ const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep }) => {
   const steps = [
     { id: 'welcome', name: 'Welcome', icon: ClipboardList },
     { id: 'setup', name: 'Setup', icon: Settings },
+    { id: 'validation', name: 'Validation', icon: CheckCircle },
     { id: 'installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
   ];
 

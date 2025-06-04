@@ -11,12 +11,10 @@ interface WizardText {
   welcomeDescription: string;
   setupTitle: string;
   setupDescription: string;
-  configurationTitle: string;
-  configurationDescription: string;
+  validationTitle: string;
+  validationDescription: string;
   installationTitle: string;
   installationDescription: string;
-  completionTitle: string;
-  completionDescription: string;
   welcomeButtonText: string;
   nextButtonText: string;
 }
@@ -30,13 +28,11 @@ const getTextVariations = (isEmbedded: boolean, title: string): Record<WizardMod
       isEmbedded ? "Linux machine" : "Kubernetes cluster"
     }.`,
     setupTitle: "Setup",
-    setupDescription: "Validate the host requirements before proceeding with installation.",
-    configurationTitle: "Configuration",
-    configurationDescription: `Configure your ${title} installation by providing the information below.`,
+    setupDescription: "Configure the host settings for this installation.",
+    validationTitle: "Validation",
+    validationDescription: "Validate the host requirements before proceeding with installation.",
     installationTitle: `Installing ${title}`,
     installationDescription: "",
-    completionTitle: "Installation Complete!",
-    completionDescription: `${title} has been installed successfully.`,
     welcomeButtonText: "Start",
     nextButtonText: "Next: Start Installation",
   },
@@ -48,13 +44,11 @@ const getTextVariations = (isEmbedded: boolean, title: string): Record<WizardMod
       isEmbedded ? "Linux machine" : "Kubernetes cluster"
     }.`,
     setupTitle: "Setup",
-    setupDescription: "Set up the hosts to use for this installation.",
-    configurationTitle: "Upgrade Configuration",
-    configurationDescription: `Configure your ${title} installation by providing the information below.`,
+    setupDescription: "Set up the hosts to use for this upgrade.",
+    validationTitle: "Validation",
+    validationDescription: "Validate the host requirements before proceeding with the upgrade.",
     installationTitle: `Upgrading ${title}`,
     installationDescription: "",
-    completionTitle: "Upgrade Complete!",
-    completionDescription: `${title} has been successfully upgraded.`,
     welcomeButtonText: "Start Upgrade",
     nextButtonText: "Next: Start Upgrade",
   },

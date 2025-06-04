@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Card from "../common/Card";
+import Button from "../common/Button";
 import { useConfig } from "../../contexts/ConfigContext";
 import { ExternalLink } from "lucide-react";
 import { useQuery, Query } from "@tanstack/react-query";
@@ -8,7 +9,7 @@ interface InstallStatus {
   state: "Succeeded" | "Failed" | "InProgress";
 }
 
-const ValidationInstallStep: React.FC = () => {
+const InstallationStep: React.FC = () => {
   const { config } = useConfig();
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,15 +76,12 @@ const ValidationInstallStep: React.FC = () => {
           )}
 
           {showAdminLink && (
-            <a
-              href={`http://${window.location.hostname}:${config.adminConsolePort}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            <Button
+              onClick={() => window.open(`http://${window.location.hostname}:${config.adminConsolePort}`, '_blank')}
+              icon={<ExternalLink className="ml-2 -mr-1 h-5 w-5" />}
             >
               Visit Admin Console
-              <ExternalLink className="ml-2 -mr-1 h-5 w-5" />
-            </a>
+            </Button>
           )}
         </div>
       </Card>
@@ -91,4 +89,4 @@ const ValidationInstallStep: React.FC = () => {
   );
 };
 
-export default ValidationInstallStep;
+export default InstallationStep;

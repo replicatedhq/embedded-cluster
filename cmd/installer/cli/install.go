@@ -336,6 +336,7 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 		// TODO: fix this message
 		logrus.Info("")
 		logrus.Infof("Visit %s to configure your cluster", getManagerURL(flags.hostname, flags.managerPort))
+		logrus.Info("")
 
 		installConfig, ok := <-configChan
 		if !ok {
