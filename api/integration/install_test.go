@@ -18,6 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -96,9 +97,13 @@ func TestConfigureInstallation(t *testing.T) {
 	mockHostUtils := &hostutils.MockHostUtils{}
 	mockHostUtils.On("ConfigureForInstall", mock.Anything, mock.Anything).Return(nil).Once() // for the successful test
 
+	// Create a runtime config
+	rc := runtimeconfig.New(nil)
+
 	// Create an install controller with the config manager
 	installController, err := install.NewInstallController(
 		install.WithHostUtils(mockHostUtils),
+		install.WithRuntimeConfig(rc),
 	)
 	require.NoError(t, err)
 
@@ -201,6 +206,11 @@ func TestConfigureInstallation(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tc.config.DataDirectory, storedConfig.DataDirectory)
 				assert.Equal(t, tc.config.AdminConsolePort, storedConfig.AdminConsolePort)
+
+				// Verify that the runtime config is updated
+				assert.Equal(t, tc.config.DataDirectory, rc.EmbeddedClusterHomeDirectory())
+				assert.Equal(t, tc.config.AdminConsolePort, rc.AdminConsolePort())
+				assert.Equal(t, tc.config.LocalArtifactMirrorPort, rc.LocalArtifactMirrorPort())
 			}
 		})
 	}
