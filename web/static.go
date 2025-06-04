@@ -154,9 +154,7 @@ func (web *Web) rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (web *Web) RegisterRoutes(router *mux.Router) {
-	var webFS http.Handler
-	webFS = http.FileServer(http.FS(web.assets))
-
+	webFS := http.FileServer(http.FS(web.assets))
 	router.PathPrefix("/assets").Methods("GET").Handler(webFS)
 	router.PathPrefix("/").Methods("GET").HandlerFunc(web.rootHandler)
 }
