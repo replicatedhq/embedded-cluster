@@ -6,7 +6,7 @@ import (
 	"os"
 	"text/template"
 
-	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 type TemplateData struct {
@@ -15,13 +15,13 @@ type TemplateData struct {
 	OpenEBSDataDir string
 }
 
-func MaterializeSupportBundleSpec(dataDir string) error {
+func MaterializeSupportBundleSpec(rc runtimeconfig.RuntimeConfig) error {
 	data := TemplateData{
-		DataDir:        dataDir,
-		K0sDataDir:     paths.K0sSubDir(dataDir),
-		OpenEBSDataDir: paths.OpenEBSLocalSubDir(dataDir),
+		DataDir:        rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:     rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir: rc.EmbeddedClusterOpenEBSLocalSubDir(),
 	}
-	path := paths.PathToSupportFile(dataDir, "host-support-bundle.tmpl.yaml")
+	path := rc.PathToEmbeddedClusterSupportFile("host-support-bundle.tmpl.yaml")
 	tmpl, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read support bundle template: %w", err)
@@ -30,7 +30,7 @@ func MaterializeSupportBundleSpec(dataDir string) error {
 	if err != nil {
 		return fmt.Errorf("render support bundle template: %w", err)
 	}
-	path = paths.PathToSupportFile(dataDir, "host-support-bundle.yaml")
+	path = rc.PathToEmbeddedClusterSupportFile("host-support-bundle.yaml")
 	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
 		return fmt.Errorf("write support bundle spec: %w", err)
 	}

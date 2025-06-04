@@ -127,8 +127,9 @@ func Test_proxyEnv(t *testing.T) {
 }
 
 func Test_pathEnv(t *testing.T) {
-	runtimeconfig.SetDataDir(t.TempDir())
-	binDir := runtimeconfig.EmbeddedClusterBinsSubDir()
+	rc := runtimeconfig.New(nil)
+	rc.SetDataDir(t.TempDir())
+	binDir := rc.EmbeddedClusterBinsSubDir()
 
 	type args struct {
 		env []string
@@ -166,7 +167,7 @@ func Test_pathEnv(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := pathEnv(tt.args.env)
+			got := pathEnv(tt.args.env, rc)
 			gotMap := make(map[string]string)
 			for _, e := range got {
 				parts := strings.SplitN(e, "=", 2)

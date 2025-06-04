@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers/firewalld"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/multierr"
 )
@@ -15,7 +16,7 @@ import (
 // ConfigureNetworkManager configures the network manager (if the host is using it) to ignore
 // the calico interfaces. This function restarts the NetworkManager service if the configuration
 // was changed.
-func (h *HostUtils) ConfigureNetworkManager(ctx context.Context, dataDir string) error {
+func (h *HostUtils) ConfigureNetworkManager(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	if active, err := helpers.IsSystemdServiceActive(ctx, "NetworkManager"); err != nil {
 		return fmt.Errorf("check if NetworkManager is active: %w", err)
 	} else if !active {
@@ -30,7 +31,7 @@ func (h *HostUtils) ConfigureNetworkManager(ctx context.Context, dataDir string)
 	}
 
 	logrus.Debugf("creating NetworkManager config file")
-	materializer := goods.NewMaterializer(dataDir)
+	materializer := goods.NewMaterializer(rc)
 	if err := materializer.CalicoNetworkManagerConfig(); err != nil {
 		return fmt.Errorf("materialize configuration: %w", err)
 	}

@@ -14,8 +14,8 @@ import (
 
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"sigs.k8s.io/yaml"
 )
@@ -34,7 +34,7 @@ func serializeSpec(spec *troubleshootv1beta2.HostPreflightSpec) ([]byte, error) 
 
 // Run runs the provided host preflight spec locally. This function is meant to be
 // used when upgrading a local node.
-func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, dataDir string) (*apitypes.HostPreflightOutput, string, error) {
+func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightOutput, string, error) {
 	// Deduplicate collectors and analyzers before running preflights
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)
@@ -45,12 +45,12 @@ func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy
 	}
 	defer os.Remove(fpath)
 
-	binpath := paths.PathToECBinary(dataDir, "kubectl-preflight")
+	binpath := rc.PathToEmbeddedClusterBinary("kubectl-preflight")
 	cmd := exec.Command(binpath, "--interactive=false", "--format=json", fpath)
 
 	cmdEnv := cmd.Environ()
 	cmdEnv = proxyEnv(cmdEnv, proxy)
-	cmdEnv = pathEnv(cmdEnv, dataDir)
+	cmdEnv = pathEnv(cmdEnv, rc)
 	cmd.Env = cmdEnv
 
 	stdout := bytes.NewBuffer(nil)
@@ -151,7 +151,7 @@ func proxyEnv(env []string, proxy *ecv1beta1.ProxySpec) []string {
 	return next
 }
 
-func pathEnv(env []string, dataDir string) []string {
+func pathEnv(env []string, rc runtimeconfig.RuntimeConfig) []string {
 	path := ""
 	next := []string{}
 	for _, e := range env {
@@ -164,9 +164,9 @@ func pathEnv(env []string, dataDir string) []string {
 		}
 	}
 	if path != "" {
-		next = append(next, fmt.Sprintf("PATH=%s:%s", path, paths.BinsSubDir(dataDir)))
+		next = append(next, fmt.Sprintf("PATH=%s:%s", path, rc.EmbeddedClusterBinsSubDir()))
 	} else {
-		next = append(next, fmt.Sprintf("PATH=%s", paths.BinsSubDir(dataDir)))
+		next = append(next, fmt.Sprintf("PATH=%s", rc.EmbeddedClusterBinsSubDir()))
 	}
 	return next
 }

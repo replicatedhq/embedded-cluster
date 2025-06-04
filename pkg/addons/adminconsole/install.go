@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
@@ -34,14 +35,14 @@ func init() {
 	})
 }
 
-func (a *AdminConsole) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
+func (a *AdminConsole) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, overrides []string, writer *spinner.MessageWriter) error {
 	// some resources are not part of the helm chart and need to be created before the chart is installed
 	// TODO: move this to the helm chart
 	if err := a.createPreRequisites(ctx, logf, kcli, mcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := a.GenerateHelmValues(ctx, kcli, overrides)
+	values, err := a.GenerateHelmValues(ctx, kcli, rc, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}

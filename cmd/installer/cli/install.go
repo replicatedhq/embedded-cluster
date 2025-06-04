@@ -26,7 +26,6 @@ import (
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -100,16 +99,17 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	var flags InstallCmdFlags
 
 	ctx, cancel := context.WithCancel(ctx)
+	rc := runtimeconfig.New(nil)
 
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: fmt.Sprintf("Install %s", name),
 		PostRun: func(cmd *cobra.Command, args []string) {
-			runtimeconfig.Cleanup()
+			rc.Cleanup()
 			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &flags); err != nil {
+			if err := preRunInstall(cmd, &flags, rc); err != nil {
 				return err
 			}
 
@@ -125,7 +125,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				installReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runInstall(cmd.Context(), name, flags, installReporter); err != nil {
+			if err := runInstall(cmd.Context(), name, flags, rc, installReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
 					installReporter.ReportSignalAborted(ctx, syscall.SIGINT)
@@ -241,7 +241,7 @@ func addManagerExperienceFlags(cmd *cobra.Command, flags *InstallCmdFlags) error
 	return nil
 }
 
-func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
+func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
 	if os.Getuid() != 0 {
 		return fmt.Errorf("install command must be run as root")
 	}
@@ -399,48 +399,50 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 				return fmt.Errorf("local artifact mirror port cannot be the same as admin console port")
 			}
 		}
-
-		if err := paths.InitDataDir(flags.dataDir, logrus.StandardLogger()); err != nil {
-			return fmt.Errorf("initialize data dir: %w", err)
-		}
 	}
 
 	// TODO: validate that a single port isn't used for multiple services
-	runtimeconfig.SetDataDir(flags.dataDir)
-	runtimeconfig.SetManagerPort(flags.managerPort)
-	runtimeconfig.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
-	runtimeconfig.SetAdminConsolePort(flags.adminConsolePort)
+	rc.SetDataDir(flags.dataDir)
+	rc.SetManagerPort(flags.managerPort)
+	rc.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
+	rc.SetAdminConsolePort(flags.adminConsolePort)
 
-	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig()) // this is needed for restore as well since it shares this function
-	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+	os.Setenv("KUBECONFIG", rc.PathToKubeConfig()) // this is needed for restore as well since it shares this function
+	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
 	hostCABundlePath, err := findHostCABundle()
 	if err != nil {
 		return fmt.Errorf("unable to find host CA bundle: %w", err)
 	}
-	runtimeconfig.SetHostCABundlePath(hostCABundlePath)
+	rc.SetHostCABundlePath(hostCABundlePath)
 	logrus.Debugf("using host CA bundle: %s", hostCABundlePath)
 
-	if err := runtimeconfig.WriteToDisk(); err != nil {
+	if err := rc.WriteToDisk(); err != nil {
 		return fmt.Errorf("unable to write runtime config to disk: %w", err)
+	}
+
+	if err := os.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
+		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
+		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
 	}
 
 	return nil
 }
 
-func runInstall(ctx context.Context, name string, flags InstallCmdFlags, installReporter *InstallReporter) error {
+func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) error {
 	if err := runInstallVerifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
 		return err
 	}
 
 	if !flags.enableManagerExperience {
 		logrus.Debug("initializing install")
-		if err := initializeInstall(ctx, flags); err != nil {
+		if err := initializeInstall(ctx, flags, rc); err != nil {
 			return fmt.Errorf("unable to initialize install: %w", err)
 		}
 
 		logrus.Debugf("running install preflights")
-		if err := runInstallPreflights(ctx, flags, installReporter.reporter); err != nil {
+		if err := runInstallPreflights(ctx, flags, rc, installReporter.reporter); err != nil {
 			if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 				return NewErrorNothingElseToAdd(err)
 			}
@@ -448,7 +450,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, install
 		}
 	}
 
-	k0sCfg, err := installAndStartCluster(ctx, flags, nil)
+	k0sCfg, err := installAndStartCluster(ctx, flags, rc, nil)
 	if err != nil {
 		return fmt.Errorf("unable to install cluster: %w", err)
 	}
@@ -461,7 +463,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, install
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	in, err := recordInstallation(ctx, kcli, flags, k0sCfg, flags.license)
+	in, err := recordInstallation(ctx, kcli, flags, rc, k0sCfg, flags.license)
 	if err != nil {
 		return fmt.Errorf("unable to record installation: %w", err)
 	}
@@ -497,11 +499,11 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, install
 
 	airgapChartsPath := ""
 	if flags.isAirgap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		KubeConfig: rc.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
@@ -511,12 +513,12 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, install
 	defer hcli.Close()
 
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, hcli, addons.InstallOptions{
+	if err := addons.Install(ctx, logrus.Debugf, hcli, rc, addons.InstallOptions{
 		AdminConsolePwd:         flags.adminConsolePassword,
 		License:                 flags.license,
 		IsAirgap:                flags.airgapBundle != "",
 		Proxy:                   flags.proxy,
-		HostCABundlePath:        runtimeconfig.HostCABundlePath(),
+		HostCABundlePath:        rc.HostCABundlePath(),
 		TLSCertBytes:            flags.tlsCertBytes,
 		TLSKeyBytes:             flags.tlsKeyBytes,
 		Hostname:                flags.hostname,
@@ -527,7 +529,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, install
 		EndUserConfigSpec:       euCfgSpec,
 		KotsInstaller: func(msg *spinner.MessageWriter) error {
 			opts := kotscli.InstallOptions{
-				ECDataDir:             flags.dataDir,
+				RuntimeConfig:         rc,
 				AppSlug:               flags.license.Spec.AppSlug,
 				LicenseFile:           flags.licenseFile,
 				Namespace:             runtimeconfig.KotsadmNamespace,
@@ -559,7 +561,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, install
 			return fmt.Errorf("unable to mark ui install complete: %w", err)
 		}
 	} else {
-		if err := printSuccessMessage(flags.license, flags.hostname, flags.networkInterface); err != nil {
+		if err := printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc); err != nil {
 			return err
 		}
 	}
@@ -761,15 +763,14 @@ func verifyNoInstallation(name string, cmdName string) error {
 	return nil
 }
 
-func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
+func initializeInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
 	logrus.Info("")
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
 
-	if err := hostutils.ConfigureForInstall(ctx, hostutils.InitForInstallOptions{
+	if err := hostutils.ConfigureForInstall(ctx, rc, hostutils.InitForInstallOptions{
 		LicenseFile:  flags.licenseFile,
 		AirgapBundle: flags.airgapBundle,
-		DataDir:      flags.dataDir,
 		PodCIDR:      flags.cidrCfg.PodCIDR,
 		ServiceCIDR:  flags.cidrCfg.ServiceCIDR,
 	}); err != nil {
@@ -781,7 +782,7 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
 	return nil
 }
 
-func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	loading.Infof("Installing node")
 	logrus.Debugf("creating k0s configuration file")
@@ -792,13 +793,13 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, mutate f
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(ctx, flags.dataDir, false, flags.proxy); err != nil {
+	if err := createSystemdUnitFiles(ctx, rc, false, flags.proxy); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
 	logrus.Debugf("installing k0s")
-	if err := k0s.Install(flags.networkInterface); err != nil {
+	if err := k0s.Install(rc, flags.networkInterface); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
@@ -966,7 +967,7 @@ func proxyRegistryURL() string {
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(ctx context.Context, dataDir string, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
+func createSystemdUnitFiles(ctx context.Context, rc runtimeconfig.RuntimeConfig, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
 	dst := systemdUnitFileName()
 	if _, err := os.Lstat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
@@ -990,7 +991,7 @@ func createSystemdUnitFiles(ctx context.Context, dataDir string, isWorker bool, 
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
-	if err := installAndEnableLocalArtifactMirror(ctx, dataDir); err != nil {
+	if err := installAndEnableLocalArtifactMirror(ctx, rc); err != nil {
 		return fmt.Errorf("unable to install and enable local artifact mirror: %w", err)
 	}
 	return nil
@@ -1025,12 +1026,12 @@ Environment="NO_PROXY=%s"`, httpProxy, httpsProxy, noProxy)
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
 // service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
-func installAndEnableLocalArtifactMirror(ctx context.Context, dataDir string) error {
-	materializer := goods.NewMaterializer(dataDir)
+func installAndEnableLocalArtifactMirror(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
+	materializer := goods.NewMaterializer(rc)
 	if err := materializer.LocalArtifactMirrorUnitFile(); err != nil {
 		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
 	}
-	if err := writeLocalArtifactMirrorDropInFile(dataDir); err != nil {
+	if err := writeLocalArtifactMirrorDropInFile(rc); err != nil {
 		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
 	}
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
@@ -1090,12 +1091,12 @@ ExecStart=%s serve
 `
 )
 
-func writeLocalArtifactMirrorDropInFile(dataDir string) error {
+func writeLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {
 	contents := fmt.Sprintf(
 		localArtifactMirrorDropInFileContents,
-		runtimeconfig.LocalArtifactMirrorPort(),
-		dataDir,
-		runtimeconfig.PathToEmbeddedClusterBinary("local-artifact-mirror"),
+		rc.LocalArtifactMirrorPort(),
+		rc.EmbeddedClusterHomeDirectory(),
+		rc.PathToEmbeddedClusterBinary("local-artifact-mirror"),
 	)
 	err := systemd.WriteDropInFile("local-artifact-mirror.service", "embedded-cluster.conf", []byte(contents))
 	if err != nil {
@@ -1111,7 +1112,7 @@ func waitForK0s() error {
 		var success bool
 		for i := 0; i < 30; i++ {
 			time.Sleep(2 * time.Second)
-			spath := paths.PathToK0sStatusSocket()
+			spath := runtimeconfig.K0sStatusSocketPath
 			if _, err := os.Stat(spath); err != nil {
 				continue
 			}
@@ -1124,7 +1125,7 @@ func waitForK0s() error {
 	}
 
 	for i := 1; ; i++ {
-		_, err := helpers.RunCommand(paths.K0sBinaryPath(), "status")
+		_, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath, "status")
 		if err == nil {
 			return nil
 		} else if i == 30 {
@@ -1151,7 +1152,7 @@ func waitForNode(ctx context.Context) error {
 }
 
 func recordInstallation(
-	ctx context.Context, kcli client.Client, flags InstallCmdFlags,
+	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig,
 	k0sCfg *k0sv1beta1.ClusterConfig, license *kotsv1beta1.License,
 ) (*ecv1beta1.Installation, error) {
 	// ensure that the embedded-cluster namespace exists
@@ -1196,7 +1197,7 @@ func recordInstallation(
 			Proxy:                     flags.proxy,
 			Network:                   networkSpecFromK0sConfig(k0sCfg),
 			Config:                    cfgspec,
-			RuntimeConfig:             runtimeconfig.Get(),
+			RuntimeConfig:             rc.Get(),
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                runtimeconfig.BinaryName(),
 			LicenseInfo: &ecv1beta1.LicenseInfo{
@@ -1379,8 +1380,8 @@ func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName 
 	return pflag.NormalizedName(name)
 }
 
-func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string) error {
-	adminConsoleURL := getAdminConsoleURL(hostname, networkInterface, runtimeconfig.AdminConsolePort())
+func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig) error {
+	adminConsoleURL := getAdminConsoleURL(hostname, networkInterface, rc.AdminConsolePort())
 
 	// Create the message content
 	message := fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)

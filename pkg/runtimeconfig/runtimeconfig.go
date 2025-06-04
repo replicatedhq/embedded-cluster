@@ -6,30 +6,52 @@ import (
 	"path/filepath"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 )
 
-var (
-	runtimeConfig = ecv1beta1.GetDefaultRuntimeConfig()
-)
+type runtimeConfig struct {
+	spec *ecv1beta1.RuntimeConfigSpec
+}
 
-func Set(rc *ecv1beta1.RuntimeConfigSpec) {
-	if rc == nil {
+// New creates a new RuntimeConfig instance
+func New(spec *ecv1beta1.RuntimeConfigSpec) RuntimeConfig {
+	if spec == nil {
+		spec = ecv1beta1.GetDefaultRuntimeConfig()
+	}
+	return &runtimeConfig{spec: spec}
+}
+
+func NewFromDisk() (RuntimeConfig, error) {
+	location := ECConfigPath
+	data, err := os.ReadFile(location)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read runtime config: %w", err)
+	}
+
+	var spec ecv1beta1.RuntimeConfigSpec
+	if err := yaml.Unmarshal(data, &spec); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal runtime config: %w", err)
+	}
+
+	return New(&spec), nil
+}
+
+func (rc *runtimeConfig) Get() *ecv1beta1.RuntimeConfigSpec {
+	return rc.spec
+}
+
+func (rc *runtimeConfig) Set(spec *ecv1beta1.RuntimeConfigSpec) {
+	if spec == nil {
 		// runtime config is nil in old installation objects so this keeps the default.
 		return
 	}
-	runtimeConfig = rc
+	rc.spec = spec
 }
 
-func Get() *ecv1beta1.RuntimeConfigSpec {
-	return runtimeConfig
-}
-
-func Cleanup() {
-	tmpDir := EmbeddedClusterTmpSubDir()
+func (rc *runtimeConfig) Cleanup() {
+	tmpDir := rc.EmbeddedClusterTmpSubDir()
 	// We should not delete the tmp dir, rather we should empty its contents leaving
 	// it in place. This is because commands such as `kubectl edit <resource>`
 	// will create files in the tmp dir
@@ -38,20 +60,19 @@ func Cleanup() {
 	}
 }
 
-// EmbeddedClusterDataDirectory returns the parent directory. Inside this parent directory we
+// EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
 // store all the embedded-cluster related files.
-func EmbeddedClusterDataDirectory() string {
-	if runtimeConfig.DataDir != "" {
-		return runtimeConfig.DataDir
+func (rc *runtimeConfig) EmbeddedClusterHomeDirectory() string {
+	if rc.spec.DataDir != "" {
+		return rc.spec.DataDir
 	}
 	return ecv1beta1.DefaultDataDir
 }
 
 // EmbeddedClusterTmpSubDir returns the path to the tmp directory where embedded-cluster
 // stores temporary files.
-func EmbeddedClusterTmpSubDir() string {
-	path := paths.TmpSubDir(EmbeddedClusterDataDirectory())
-
+func (rc *runtimeConfig) EmbeddedClusterTmpSubDir() string {
+	path := filepath.Join(rc.EmbeddedClusterHomeDirectory(), "tmp")
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster tmp dir: %s", err)
 	}
@@ -60,9 +81,8 @@ func EmbeddedClusterTmpSubDir() string {
 
 // EmbeddedClusterBinsSubDir returns the path to the directory where embedded-cluster binaries
 // are stored.
-func EmbeddedClusterBinsSubDir() string {
-	path := paths.BinsSubDir(EmbeddedClusterDataDirectory())
-
+func (rc *runtimeConfig) EmbeddedClusterBinsSubDir() string {
+	path := filepath.Join(rc.EmbeddedClusterHomeDirectory(), "bin")
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster bin dir: %s", err)
 	}
@@ -71,9 +91,8 @@ func EmbeddedClusterBinsSubDir() string {
 
 // EmbeddedClusterChartsSubDir returns the path to the directory where embedded-cluster helm charts
 // are stored.
-func EmbeddedClusterChartsSubDir() string {
-	path := paths.ChartsSubDir(EmbeddedClusterDataDirectory())
-
+func (rc *runtimeConfig) EmbeddedClusterChartsSubDir() string {
+	path := filepath.Join(rc.EmbeddedClusterHomeDirectory(), "charts")
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster charts dir: %s", err)
 	}
@@ -82,13 +101,13 @@ func EmbeddedClusterChartsSubDir() string {
 
 // EmbeddedClusterChartsSubDirNoCreate returns the path to the directory where embedded-cluster helm charts
 // are stored without creating the directory if it does not exist.
-func EmbeddedClusterChartsSubDirNoCreate() string {
-	return paths.ChartsSubDir(EmbeddedClusterDataDirectory())
+func (rc *runtimeConfig) EmbeddedClusterChartsSubDirNoCreate() string {
+	return filepath.Join(rc.EmbeddedClusterHomeDirectory(), "charts")
 }
 
 // EmbeddedClusterImagesSubDir returns the path to the directory where docker images are stored.
-func EmbeddedClusterImagesSubDir() string {
-	path := paths.ImagesSubDir(EmbeddedClusterDataDirectory())
+func (rc *runtimeConfig) EmbeddedClusterImagesSubDir() string {
+	path := filepath.Join(rc.EmbeddedClusterHomeDirectory(), "images")
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster images dir: %s", err)
 	}
@@ -96,48 +115,48 @@ func EmbeddedClusterImagesSubDir() string {
 }
 
 // EmbeddedClusterK0sSubDir returns the path to the directory where k0s data is stored.
-func EmbeddedClusterK0sSubDir() string {
-	if runtimeConfig.K0sDataDirOverride != "" {
-		return runtimeConfig.K0sDataDirOverride
+func (rc *runtimeConfig) EmbeddedClusterK0sSubDir() string {
+	if rc.spec.K0sDataDirOverride != "" {
+		return rc.spec.K0sDataDirOverride
 	}
-	return paths.K0sSubDir(EmbeddedClusterDataDirectory())
+	return filepath.Join(rc.EmbeddedClusterHomeDirectory(), "k0s")
 }
 
 // EmbeddedClusterSeaweedfsSubDir returns the path to the directory where seaweedfs data is stored.
-func EmbeddedClusterSeaweedfsSubDir() string {
-	return paths.SeaweedfsSubDir(EmbeddedClusterDataDirectory())
+func (rc *runtimeConfig) EmbeddedClusterSeaweedfsSubDir() string {
+	return filepath.Join(rc.EmbeddedClusterHomeDirectory(), "seaweedfs")
 }
 
 // EmbeddedClusterOpenEBSLocalSubDir returns the path to the directory where OpenEBS local data is stored.
-func EmbeddedClusterOpenEBSLocalSubDir() string {
-	if runtimeConfig.OpenEBSDataDirOverride != "" {
-		return runtimeConfig.OpenEBSDataDirOverride
+func (rc *runtimeConfig) EmbeddedClusterOpenEBSLocalSubDir() string {
+	if rc.spec.OpenEBSDataDirOverride != "" {
+		return rc.spec.OpenEBSDataDirOverride
 	}
-	return paths.OpenEBSLocalSubDir(EmbeddedClusterDataDirectory())
+	return filepath.Join(rc.EmbeddedClusterHomeDirectory(), "openebs-local")
 }
 
 // PathToEmbeddedClusterBinary is an utility function that returns the full path to a
 // materialized binary that belongs to embedded-cluster. This function does not check
 // if the file exists.
-func PathToEmbeddedClusterBinary(name string) string {
-	return paths.PathToECBinary(EmbeddedClusterDataDirectory(), name)
+func (rc *runtimeConfig) PathToEmbeddedClusterBinary(name string) string {
+	return filepath.Join(rc.EmbeddedClusterBinsSubDir(), name)
 }
 
 // PathToKubeConfig returns the path to the kubeconfig file.
-func PathToKubeConfig() string {
-	return paths.PathToKubeConfig(EmbeddedClusterK0sSubDir())
+func (rc *runtimeConfig) PathToKubeConfig() string {
+	return filepath.Join(rc.EmbeddedClusterK0sSubDir(), "pki/admin.conf")
 }
 
 // PathToKubeletConfig returns the path to the kubelet config file.
-func PathToKubeletConfig() string {
-	return paths.PathToKubeletConfig(EmbeddedClusterK0sSubDir())
+func (rc *runtimeConfig) PathToKubeletConfig() string {
+	return filepath.Join(rc.EmbeddedClusterK0sSubDir(), "kubelet.conf")
 }
 
 // EmbeddedClusterSupportSubDir returns the path to the directory where embedded-cluster
 // support files are stored. Things that are useful when providing end user support in
 // a running cluster should be stored into this directory.
-func EmbeddedClusterSupportSubDir() string {
-	path := paths.SupportSubDir(EmbeddedClusterDataDirectory())
+func (rc *runtimeConfig) EmbeddedClusterSupportSubDir() string {
+	path := filepath.Join(rc.EmbeddedClusterHomeDirectory(), "support")
 	if err := os.MkdirAll(path, 0700); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster support dir: %s", err)
 	}
@@ -146,13 +165,12 @@ func EmbeddedClusterSupportSubDir() string {
 
 // PathToEmbeddedClusterSupportFile is an utility function that returns the full path to
 // a materialized support file. This function does not check if the file exists.
-func PathToEmbeddedClusterSupportFile(name string) string {
-	return paths.PathToSupportFile(EmbeddedClusterDataDirectory(), name)
+func (rc *runtimeConfig) PathToEmbeddedClusterSupportFile(name string) string {
+	return filepath.Join(rc.EmbeddedClusterSupportSubDir(), name)
 }
 
-func WriteToDisk() error {
-	location := paths.PathToECConfig()
-
+func (rc *runtimeConfig) WriteToDisk() error {
+	location := ECConfigPath
 	err := os.MkdirAll(filepath.Dir(location), 0755)
 	if err != nil {
 		return fmt.Errorf("unable to create runtime config directory: %w", err)
@@ -164,7 +182,7 @@ func WriteToDisk() error {
 		return fmt.Errorf("unable to remove existing runtime config: %w", err)
 	}
 
-	yml, err := yaml.Marshal(runtimeConfig)
+	yml, err := yaml.Marshal(rc.spec)
 	if err != nil {
 		return fmt.Errorf("unable to marshal runtime config: %w", err)
 	}
@@ -177,56 +195,40 @@ func WriteToDisk() error {
 	return nil
 }
 
-func ReadFromDisk() (*ecv1beta1.RuntimeConfigSpec, error) {
-	location := paths.PathToECConfig()
-
-	data, err := os.ReadFile(location)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read runtime config: %w", err)
-	}
-
-	var spec ecv1beta1.RuntimeConfigSpec
-	if err := yaml.Unmarshal(data, &spec); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal runtime config: %w", err)
-	}
-
-	return &spec, nil
-}
-
-func LocalArtifactMirrorPort() int {
-	if runtimeConfig.LocalArtifactMirror.Port > 0 {
-		return runtimeConfig.LocalArtifactMirror.Port
+func (rc *runtimeConfig) LocalArtifactMirrorPort() int {
+	if rc.spec.LocalArtifactMirror.Port > 0 {
+		return rc.spec.LocalArtifactMirror.Port
 	}
 	return ecv1beta1.DefaultLocalArtifactMirrorPort
 }
 
-func AdminConsolePort() int {
-	if runtimeConfig.AdminConsole.Port > 0 {
-		return runtimeConfig.AdminConsole.Port
+func (rc *runtimeConfig) AdminConsolePort() int {
+	if rc.spec.AdminConsole.Port > 0 {
+		return rc.spec.AdminConsole.Port
 	}
 	return ecv1beta1.DefaultAdminConsolePort
 }
 
-func HostCABundlePath() string {
-	return runtimeConfig.HostCABundlePath
+func (rc *runtimeConfig) HostCABundlePath() string {
+	return rc.spec.HostCABundlePath
 }
 
-func SetDataDir(dataDir string) {
-	runtimeConfig.DataDir = dataDir
+func (rc *runtimeConfig) SetDataDir(dataDir string) {
+	rc.spec.DataDir = dataDir
 }
 
-func SetLocalArtifactMirrorPort(port int) {
-	runtimeConfig.LocalArtifactMirror.Port = port
+func (rc *runtimeConfig) SetLocalArtifactMirrorPort(port int) {
+	rc.spec.LocalArtifactMirror.Port = port
 }
 
-func SetAdminConsolePort(port int) {
-	runtimeConfig.AdminConsole.Port = port
+func (rc *runtimeConfig) SetAdminConsolePort(port int) {
+	rc.spec.AdminConsole.Port = port
 }
 
-func SetManagerPort(port int) {
-	runtimeConfig.Manager.Port = port
+func (rc *runtimeConfig) SetManagerPort(port int) {
+	rc.spec.Manager.Port = port
 }
 
-func SetHostCABundlePath(hostCABundlePath string) {
-	runtimeConfig.HostCABundlePath = hostCABundlePath
+func (rc *runtimeConfig) SetHostCABundlePath(hostCABundlePath string) {
+	rc.spec.HostCABundlePath = hostCABundlePath
 }

@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Client, overrides []string) (map[string]interface{}, error) {
+func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, overrides []string) (map[string]interface{}, error) {
 	// create a copy of the helm values so we don't modify the original
 	marshalled, err := helm.MarshalValues(helmValues)
 	if err != nil {
@@ -31,8 +31,8 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	}
 
 	copiedValues["embeddedClusterID"] = metrics.ClusterID().String()
-	copiedValues["embeddedClusterDataDir"] = runtimeconfig.EmbeddedClusterDataDirectory()
-	copiedValues["embeddedClusterK0sDir"] = runtimeconfig.EmbeddedClusterK0sSubDir()
+	copiedValues["embeddedClusterDataDir"] = rc.EmbeddedClusterHomeDirectory()
+	copiedValues["embeddedClusterK0sDir"] = rc.EmbeddedClusterK0sSubDir()
 	copiedValues["isHA"] = a.IsHA
 	copiedValues["isMultiNodeEnabled"] = a.IsMultiNodeEnabled
 
@@ -103,7 +103,7 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	copiedValues["extraVolumes"] = extraVolumes
 	copiedValues["extraVolumeMounts"] = extraVolumeMounts
 
-	err = helm.SetValue(copiedValues, "kurlProxy.nodePort", runtimeconfig.AdminConsolePort())
+	err = helm.SetValue(copiedValues, "kurlProxy.nodePort", rc.AdminConsolePort())
 	if err != nil {
 		return nil, errors.Wrap(err, "set kurlProxy.nodePort")
 	}

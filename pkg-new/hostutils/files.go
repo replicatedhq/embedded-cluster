@@ -6,15 +6,16 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 )
 
-func (h *HostUtils) MaterializeFiles(dataDir string, airgapBundle string) error {
-	materializer := goods.NewMaterializer(dataDir)
+func (h *HostUtils) MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error {
+	materializer := goods.NewMaterializer(rc)
 	if err := materializer.Materialize(); err != nil {
 		return fmt.Errorf("materialize binaries: %w", err)
 	}
-	if err := support.MaterializeSupportBundleSpec(dataDir); err != nil {
+	if err := support.MaterializeSupportBundleSpec(rc); err != nil {
 		return fmt.Errorf("materialize support bundle spec: %w", err)
 	}
 
@@ -26,7 +27,7 @@ func (h *HostUtils) MaterializeFiles(dataDir string, airgapBundle string) error 
 		}
 		defer rawfile.Close()
 
-		if err := airgap.MaterializeAirgap(dataDir, rawfile); err != nil {
+		if err := airgap.MaterializeAirgap(rc, rawfile); err != nil {
 			return fmt.Errorf("materialize airgap files: %w", err)
 		}
 	}

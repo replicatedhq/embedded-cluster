@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +14,9 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
 	}
 
-	values, err := e.GenerateHelmValues(context.Background(), nil, nil)
+	rc := runtimeconfig.New(nil)
+
+	values, err := e.GenerateHelmValues(context.Background(), nil, rc, nil)
 	require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 	require.NotEmpty(t, values["extraVolumes"])

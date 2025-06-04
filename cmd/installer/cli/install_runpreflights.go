@@ -22,23 +22,24 @@ var ErrPreflightsHaveFail = metrics.NewErrorNoFail(fmt.Errorf("host preflight fa
 
 func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var flags InstallCmdFlags
+	rc := runtimeconfig.New(nil)
 
 	cmd := &cobra.Command{
 		Use:    "run-preflights",
 		Short:  "Run install host preflights",
 		Hidden: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &flags); err != nil {
+			if err := preRunInstall(cmd, &flags, rc); err != nil {
 				return err
 			}
 
 			return nil
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
-			runtimeconfig.Cleanup()
+			rc.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runInstallRunPreflights(cmd.Context(), name, flags); err != nil {
+			if err := runInstallRunPreflights(cmd.Context(), name, flags, rc); err != nil {
 				return err
 			}
 
@@ -56,13 +57,13 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdFlags) error {
+func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
 	if err := runInstallVerifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
 		return err
 	}
 
 	logrus.Debugf("materializing binaries")
-	if err := hostutils.MaterializeFiles(runtimeconfig.EmbeddedClusterDataDirectory(), flags.airgapBundle); err != nil {
+	if err := hostutils.MaterializeFiles(rc, flags.airgapBundle); err != nil {
 		return fmt.Errorf("unable to materialize files: %w", err)
 	}
 
@@ -77,7 +78,7 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, nil); err != nil {
+	if err := runInstallPreflights(ctx, flags, rc, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -89,7 +90,7 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsReporter metrics.ReporterInterface) error {
+func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, metricsReporter metrics.ReporterInterface) error {
 	replicatedAppURL := replicatedAppURL()
 	proxyRegistryURL := proxyRegistryURL()
 
@@ -102,11 +103,11 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsRep
 		HostPreflightSpec:       release.GetHostPreflights(),
 		ReplicatedAppURL:        replicatedAppURL,
 		ProxyRegistryURL:        proxyRegistryURL,
-		AdminConsolePort:        runtimeconfig.AdminConsolePort(),
-		LocalArtifactMirrorPort: runtimeconfig.LocalArtifactMirrorPort(),
-		DataDir:                 runtimeconfig.EmbeddedClusterDataDirectory(),
-		K0sDataDir:              runtimeconfig.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:          runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
+		AdminConsolePort:        rc.AdminConsolePort(),
+		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
+		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
 		Proxy:                   flags.proxy,
 		PodCIDR:                 flags.cidrCfg.PodCIDR,
 		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
@@ -118,16 +119,7 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsRep
 		return err
 	}
 
-	if err := runHostPreflights(
-		ctx,
-		hpf,
-		flags.proxy,
-		runtimeconfig.EmbeddedClusterDataDirectory(),
-		flags.skipHostPreflights,
-		flags.ignoreHostPreflights,
-		flags.assumeYes,
-		metricsReporter,
-	); err != nil {
+	if err := runHostPreflights(ctx, hpf, flags.proxy, rc, flags.skipHostPreflights, flags.ignoreHostPreflights, flags.assumeYes, metricsReporter); err != nil {
 		return err
 	}
 

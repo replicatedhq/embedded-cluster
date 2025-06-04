@@ -37,7 +37,6 @@ func (c *InstallController) RunHostPreflights(ctx context.Context) error {
 	return c.hostPreflightManager.RunHostPreflights(ctx, preflight.RunHostPreflightOptions{
 		HostPreflightSpec: hpf,
 		Proxy:             proxy,
-		DataDirectory:     config.DataDirectory,
 	})
 }
 

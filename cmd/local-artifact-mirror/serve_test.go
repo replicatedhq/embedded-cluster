@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,6 +21,9 @@ func TestServeCmd(t *testing.T) {
 	// Create temporary directory for test
 	dataDir := t.TempDir()
 	t.Setenv("TMPDIR", dataDir) // hack as the cli sets TMPDIR, this will reset it after the test
+
+	rc := runtimeconfig.New(nil)
+	rc.SetDataDir(dataDir)
 
 	// Detect a free port
 	listener, err := net.Listen("tcp", ":0")
@@ -102,6 +106,7 @@ func TestServeCmd(t *testing.T) {
 
 			// Setup the commands
 			cli := &CLI{
+				RC:   rc,
 				Name: "local-artifact-mirror",
 				V:    viper.New(),
 			}

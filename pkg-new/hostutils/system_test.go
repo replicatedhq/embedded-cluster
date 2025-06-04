@@ -22,7 +22,8 @@ func TestSysctlConfig(t *testing.T) {
 		sysctlConfigPath = orig
 	}()
 
-	runtimeconfig.SetDataDir(basedir)
+	rc := runtimeconfig.New(nil)
+	rc.SetDataDir(basedir)
 
 	// happy path.
 	dstdir, err := os.MkdirTemp("", "embedded-cluster-test")

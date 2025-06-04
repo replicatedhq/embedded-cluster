@@ -13,6 +13,8 @@ import (
 )
 
 func ResetFirewalldCmd(ctx context.Context, name string) *cobra.Command {
+	var rc runtimeconfig.RuntimeConfig
+
 	cmd := &cobra.Command{
 		Use:    "firewalld",
 		Short:  "Remove %s firewalld configuration from the current node",
@@ -22,10 +24,10 @@ func ResetFirewalldCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("reset firewalld command must be run as root")
 			}
 
-			rcutil.InitBestRuntimeConfig(cmd.Context())
+			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
 
-			os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
-			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+			os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
+			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
 			return nil
 		},

@@ -19,8 +19,9 @@ import (
 // It is called by KOTS admin console and will preposition images before creating a job to truly upgrade the cluster.
 func UpgradeCmd() *cobra.Command {
 	var installationFile, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion string
-
 	var installation *ecv1beta1.Installation
+
+	rc := runtimeconfig.New(nil)
 
 	cmd := &cobra.Command{
 		Use:          "upgrade",
@@ -34,7 +35,7 @@ func UpgradeCmd() *cobra.Command {
 			}
 
 			// set the runtime config from the installation spec
-			runtimeconfig.Set(installation.Spec.RuntimeConfig)
+			rc.Set(installation.Spec.RuntimeConfig)
 
 			return nil
 		},
@@ -59,7 +60,7 @@ func UpgradeCmd() *cobra.Command {
 			}
 
 			err = upgrade.CreateUpgradeJob(
-				cmd.Context(), cli, installation,
+				cmd.Context(), cli, rc, installation,
 				localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion,
 				previousInstallation.Spec.Config.Version,
 			)

@@ -3,6 +3,7 @@ package hostutils
 import (
 	"context"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -14,7 +15,7 @@ type MockHostUtils struct {
 }
 
 // ConfigureForInstall mocks the ConfigureForInstall method
-func (m *MockHostUtils) ConfigureForInstall(ctx context.Context, opts InitForInstallOptions) error {
+func (m *MockHostUtils) ConfigureForInstall(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
 	args := m.Called(ctx, opts)
 	return args.Error(0)
 }
@@ -32,8 +33,8 @@ func (m *MockHostUtils) ConfigureKernelModules() error {
 }
 
 // ConfigureNetworkManager mocks the ConfigureNetworkManager method
-func (m *MockHostUtils) ConfigureNetworkManager(ctx context.Context, dataDir string) error {
-	args := m.Called(ctx, dataDir)
+func (m *MockHostUtils) ConfigureNetworkManager(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
+	args := m.Called(ctx, rc)
 	return args.Error(0)
 }
 
@@ -50,7 +51,7 @@ func (m *MockHostUtils) ResetFirewalld(ctx context.Context) error {
 }
 
 // MaterializeFiles mocks the MaterializeFiles method
-func (m *MockHostUtils) MaterializeFiles(dataDir string, airgapBundle string) error {
-	args := m.Called(dataDir, airgapBundle)
+func (m *MockHostUtils) MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error {
+	args := m.Called(rc, airgapBundle)
 	return args.Error(0)
 }

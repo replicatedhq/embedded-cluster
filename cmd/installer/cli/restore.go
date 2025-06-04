@@ -21,7 +21,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
@@ -91,21 +90,23 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	var s3Store s3BackupStore
 	var skipStoreValidation bool
 
+	rc := runtimeconfig.New(nil)
+
 	cmd := &cobra.Command{
 		Use:   "restore",
 		Short: fmt.Sprintf("Restore %s from a backup", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &flags); err != nil {
+			if err := preRunInstall(cmd, &flags, rc); err != nil {
 				return err
 			}
 
 			return nil
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
-			runtimeconfig.Cleanup()
+			rc.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runRestore(cmd.Context(), name, flags, s3Store, skipStoreValidation); err != nil {
+			if err := runRestore(cmd.Context(), name, flags, rc, s3Store, skipStoreValidation); err != nil {
 				return err
 			}
 
@@ -123,7 +124,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store s3BackupStore, skipStoreValidation bool) error {
+func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, s3Store s3BackupStore, skipStoreValidation bool) error {
 	err := verifyChannelRelease("restore", flags.isAirgap, flags.assumeYes)
 	if err != nil {
 		return err
@@ -156,7 +157,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store
 	if state != ecRestoreStateNew {
 		logrus.Debugf("getting backup from restore state")
 		var err error
-		backupToRestore, err = getBackupFromRestoreState(ctx, flags.isAirgap)
+		backupToRestore, err = getBackupFromRestoreState(ctx, flags.isAirgap, rc)
 		if err != nil {
 			return fmt.Errorf("unable to resume: %w", err)
 		}
@@ -164,29 +165,29 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store
 			completionTimestamp := backupToRestore.GetCompletionTimestamp().Format("2006-01-02 15:04:05 UTC")
 			logrus.Infof("Resuming restore from backup %q (%s)\n", backupToRestore.GetName(), completionTimestamp)
 
-			if err := overrideRuntimeConfigFromBackup(flags.localArtifactMirrorPort, *backupToRestore); err != nil {
+			if err := overrideRuntimeConfigFromBackup(flags.localArtifactMirrorPort, *backupToRestore, rc); err != nil {
 				return fmt.Errorf("unable to override runtime config from backup: %w", err)
 			}
 		}
 	}
 
 	// If the installation is available, we can further augment the runtime config from the installation.
-	rc, err := getRuntimeConfigFromInstallation(ctx)
+	rcSpec, err := getRuntimeConfigFromInstallation(ctx)
 	if err != nil {
 		logrus.Debugf(
 			"Unable to get runtime config from installation, this is expected if the installation is not yet available (restore state=%s): %v",
 			state, err,
 		)
 	} else {
-		runtimeconfig.Set(rc)
+		rc.Set(rcSpec)
 	}
 
-	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
-	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+	os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
+	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
 	switch state {
 	case ecRestoreStateNew:
-		err = runRestoreStepNew(ctx, name, flags, &s3Store, skipStoreValidation)
+		err = runRestoreStepNew(ctx, name, flags, rc, &s3Store, skipStoreValidation)
 		if err != nil {
 			return err
 		}
@@ -200,7 +201,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		backup, ok, err := runRestoreStepConfirmBackup(ctx, flags)
+		backup, ok, err := runRestoreStepConfirmBackup(ctx, flags, rc)
 		if err != nil {
 			return err
 		} else if !ok {
@@ -217,7 +218,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		err = runRestoreECInstall(ctx, backupToRestore)
+		err = runRestoreECInstall(ctx, rc, backupToRestore)
 		if err != nil {
 			return err
 		}
@@ -245,7 +246,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		err = runRestoreWaitForNodes(ctx, flags, backupToRestore)
+		err = runRestoreWaitForNodes(ctx, flags, rc, backupToRestore)
 		if err != nil {
 			return err
 		}
@@ -287,7 +288,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		err = runRestoreEnableAdminConsoleHA(ctx, flags, backupToRestore)
+		err = runRestoreEnableAdminConsoleHA(ctx, flags, rc, backupToRestore)
 		if err != nil {
 			return err
 		}
@@ -315,7 +316,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store
 			return fmt.Errorf("unable to set restore state: %w", err)
 		}
 
-		err = runRestoreExtensions(ctx, flags)
+		err = runRestoreExtensions(ctx, flags, rc)
 		if err != nil {
 			return err
 		}
@@ -341,7 +342,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, s3Store
 	return nil
 }
 
-func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, s3Store *s3BackupStore, skipStoreValidation bool) error {
+func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, s3Store *s3BackupStore, skipStoreValidation bool) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "restore")
 	if err != nil {
@@ -376,7 +377,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	}
 
 	logrus.Debugf("configuring network manager")
-	if err := hostutils.ConfigureNetworkManager(ctx, runtimeconfig.EmbeddedClusterDataDirectory()); err != nil {
+	if err := hostutils.ConfigureNetworkManager(ctx, rc); err != nil {
 		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
@@ -386,19 +387,19 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	}
 
 	logrus.Debugf("materializing binaries")
-	if err := hostutils.MaterializeFiles(runtimeconfig.EmbeddedClusterDataDirectory(), flags.airgapBundle); err != nil {
+	if err := hostutils.MaterializeFiles(rc, flags.airgapBundle); err != nil {
 		return fmt.Errorf("unable to materialize binaries: %w", err)
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, nil); err != nil {
+	if err := runInstallPreflights(ctx, flags, rc, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
 		return fmt.Errorf("unable to run install preflights: %w", err)
 	}
 
-	_, err = installAndStartCluster(ctx, flags, nil)
+	_, err = installAndStartCluster(ctx, flags, rc, nil)
 	if err != nil {
 		return err
 	}
@@ -416,11 +417,11 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 
 	airgapChartsPath := ""
 	if flags.isAirgap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		KubeConfig: rc.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
@@ -435,10 +436,10 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, hcli, addons.InstallOptions{
+	if err := addons.Install(ctx, logrus.Debugf, hcli, rc, addons.InstallOptions{
 		IsAirgap:           flags.airgapBundle != "",
 		Proxy:              flags.proxy,
-		HostCABundlePath:   runtimeconfig.HostCABundlePath(),
+		HostCABundlePath:   rc.HostCABundlePath(),
 		ServiceCIDR:        flags.cidrCfg.ServiceCIDR,
 		IsRestore:          true,
 		EmbeddedConfigSpec: embCfgSpec,
@@ -448,7 +449,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 
 	logrus.Debugf("configuring velero backup storage location")
 	if err := kotscli.VeleroConfigureOtherS3(kotscli.VeleroConfigureOtherS3Options{
-		ECDataDir:       runtimeconfig.EmbeddedClusterDataDirectory(),
+		RuntimeConfig:   rc,
 		Endpoint:        s3Store.endpoint,
 		Region:          s3Store.region,
 		Bucket:          s3Store.bucket,
@@ -463,7 +464,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	return nil
 }
 
-func runRestoreStepConfirmBackup(ctx context.Context, flags InstallCmdFlags) (*disasterrecovery.ReplicatedBackup, bool, error) {
+func runRestoreStepConfirmBackup(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (*disasterrecovery.ReplicatedBackup, bool, error) {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return nil, false, fmt.Errorf("unable to create kube client: %w", err)
@@ -475,7 +476,7 @@ func runRestoreStepConfirmBackup(ctx context.Context, flags InstallCmdFlags) (*d
 	}
 
 	logrus.Debugf("waiting for backups to become available")
-	backups, err := waitForBackups(ctx, os.Stdout, kcli, k0sCfg, flags.isAirgap)
+	backups, err := waitForBackups(ctx, os.Stdout, kcli, k0sCfg, rc, flags.isAirgap)
 	if err != nil {
 		return nil, false, err
 	}
@@ -499,19 +500,19 @@ func runRestoreStepConfirmBackup(ctx context.Context, flags InstallCmdFlags) (*d
 	return backupToRestore, true, nil
 }
 
-func runRestoreECInstall(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+func runRestoreECInstall(ctx context.Context, rc runtimeconfig.RuntimeConfig, backupToRestore *disasterrecovery.ReplicatedBackup) error {
 	logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.GetName())
 	if err := restoreFromReplicatedBackup(ctx, *backupToRestore, disasterRecoveryComponentECInstall, true); err != nil {
 		return fmt.Errorf("unable to restore from backup: %w", err)
 	}
 
 	logrus.Debugf("updating installation from backup %q", backupToRestore.GetName())
-	if err := restoreReconcileInstallationFromRuntimeConfig(ctx); err != nil {
+	if err := restoreReconcileInstallationFromRuntimeConfig(ctx, rc); err != nil {
 		return fmt.Errorf("unable to update installation from backup: %w", err)
 	}
 
 	logrus.Debugf("updating local artifact mirror service from backup %q", backupToRestore.GetName())
-	if err := updateLocalArtifactMirrorService(runtimeconfig.EmbeddedClusterDataDirectory()); err != nil {
+	if err := updateLocalArtifactMirrorService(rc); err != nil {
 		return fmt.Errorf("unable to update local artifact mirror service from backup: %w", err)
 	}
 
@@ -527,7 +528,7 @@ func runRestoreAdminConsole(ctx context.Context, backupToRestore *disasterrecove
 	return nil
 }
 
-func runRestoreWaitForNodes(ctx context.Context, flags InstallCmdFlags, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+func runRestoreWaitForNodes(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, backupToRestore *disasterrecovery.ReplicatedBackup) error {
 	logrus.Debugf("checking if backup is high availability")
 	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
 	if err != nil {
@@ -536,14 +537,14 @@ func runRestoreWaitForNodes(ctx context.Context, flags InstallCmdFlags, backupTo
 
 	logrus.Debugf("waiting for additional nodes to be added")
 
-	if err := waitForAdditionalNodes(ctx, highAvailability, flags.networkInterface); err != nil {
+	if err := waitForAdditionalNodes(ctx, highAvailability, flags.networkInterface, rc); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, backupToRestore *disasterrecovery.ReplicatedBackup) error {
 	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
 	if err != nil {
 		return err
@@ -573,11 +574,11 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 
 	airgapChartsPath := ""
 	if flags.isAirgap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		KubeConfig: rc.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
@@ -586,7 +587,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	}
 	defer hcli.Close()
 
-	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, kcli, mcli, hcli, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config, in.Spec.LicenseInfo)
+	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, kcli, mcli, hcli, rc, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config, in.Spec.LicenseInfo)
 	if err != nil {
 		return err
 	}
@@ -645,14 +646,14 @@ func runRestoreECO(ctx context.Context, backupToRestore *disasterrecovery.Replic
 	return nil
 }
 
-func runRestoreExtensions(ctx context.Context, flags InstallCmdFlags) error {
+func runRestoreExtensions(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
 	airgapChartsPath := ""
 	if flags.isAirgap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		KubeConfig: rc.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
@@ -829,7 +830,7 @@ func resetECRestoreState(ctx context.Context) error {
 // It returns an error if a backup is defined in the restore state but:
 //   - is not found by Velero anymore.
 //   - is not restorable by the current binary.
-func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*disasterrecovery.ReplicatedBackup, error) {
+func getBackupFromRestoreState(ctx context.Context, isAirgap bool, rc runtimeconfig.RuntimeConfig) (*disasterrecovery.ReplicatedBackup, error) {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create kube client: %w", err)
@@ -867,7 +868,7 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*disasterrec
 		return nil, fmt.Errorf("unable to get k0s config from disk: %w", err)
 	}
 
-	if restorable, reason := isReplicatedBackupRestorable(backup, rel, isAirgap, k0sCfg); !restorable {
+	if restorable, reason := isReplicatedBackupRestorable(backup, rel, isAirgap, k0sCfg, rc); !restorable {
 		return nil, fmt.Errorf("backup %q %s", backup.GetName(), reason)
 	}
 
@@ -965,7 +966,7 @@ func validateS3BackupStore(s *s3BackupStore) error {
 	return nil
 }
 
-func isReplicatedBackupRestorable(backup disasterrecovery.ReplicatedBackup, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig) (bool, string) {
+func isReplicatedBackupRestorable(backup disasterrecovery.ReplicatedBackup, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig, rc runtimeconfig.RuntimeConfig) (bool, string) {
 	if backup.GetExpectedBackupCount() != len(backup) {
 		return false, fmt.Sprintf("has a different number of backups (%d) than the expected number (%d)", len(backup), backup.GetExpectedBackupCount())
 	}
@@ -983,7 +984,7 @@ func isReplicatedBackupRestorable(backup disasterrecovery.ReplicatedBackup, rel 
 	}
 
 	for _, b := range backup {
-		restorable, reason := isBackupRestorable(&b, rel, isAirgap, k0sCfg)
+		restorable, reason := isBackupRestorable(&b, rel, isAirgap, k0sCfg, rc)
 		if !restorable {
 			return false, reason
 		}
@@ -991,7 +992,7 @@ func isReplicatedBackupRestorable(backup disasterrecovery.ReplicatedBackup, rel 
 	return true, ""
 }
 
-func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig) (bool, string) {
+func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig, rc runtimeconfig.RuntimeConfig) (bool, string) {
 	if backup.Annotations[disasterrecovery.BackupIsECAnnotation] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
@@ -1061,7 +1062,7 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 		}
 	}
 
-	if v := backup.Annotations["kots.io/embedded-cluster-data-dir"]; v != "" && v != runtimeconfig.EmbeddedClusterDataDirectory() {
+	if v := backup.Annotations["kots.io/embedded-cluster-data-dir"]; v != "" && v != rc.EmbeddedClusterHomeDirectory() {
 		return false, fmt.Sprintf("has a different data directory than the current cluster. Please rerun with '--data-dir %s'.", v)
 	}
 
@@ -1079,7 +1080,7 @@ func isHighAvailabilityReplicatedBackup(backup disasterrecovery.ReplicatedBackup
 
 // waitForBackups waits for backups to become available.
 // It returns a list of restorable backups, or an error if none are found.
-func waitForBackups(ctx context.Context, out io.Writer, kcli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, isAirgap bool) ([]disasterrecovery.ReplicatedBackup, error) {
+func waitForBackups(ctx context.Context, out io.Writer, kcli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, rc runtimeconfig.RuntimeConfig, isAirgap bool) ([]disasterrecovery.ReplicatedBackup, error) {
 	loading := spinner.Start(spinner.WithWriter(func(format string, a ...any) (int, error) {
 		return fmt.Fprintf(out, format, a...)
 	}))
@@ -1103,7 +1104,7 @@ func waitForBackups(ctx context.Context, out io.Writer, kcli client.Client, k0sC
 	invalidReasons := []string{}
 
 	for _, backup := range replicatedBackups {
-		restorable, reason := isReplicatedBackupRestorable(backup, rel, isAirgap, k0sCfg)
+		restorable, reason := isReplicatedBackupRestorable(backup, rel, isAirgap, k0sCfg, rc)
 		if restorable {
 			validBackups = append(validBackups, backup)
 		} else {
@@ -1168,7 +1169,7 @@ func pickBackupToRestore(backups []disasterrecovery.ReplicatedBackup) *disasterr
 
 // getK0sConfigFromDisk reads and returns the k0s config from disk.
 func getK0sConfigFromDisk() (*k0sv1beta1.ClusterConfig, error) {
-	cfgBytes, err := os.ReadFile(paths.PathToK0sConfig())
+	cfgBytes, err := os.ReadFile(runtimeconfig.K0sConfigPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read k0s config file: %w", err)
 	}
@@ -1579,13 +1580,13 @@ func ensureImprovedDrMetadata(restore *velerov1.Restore, backup *velerov1.Backup
 }
 
 // waitForAdditionalNodes waits for for user to add additional nodes to the cluster.
-func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkInterface string) error {
+func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkInterface string, rc runtimeconfig.RuntimeConfig) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
-	adminConsoleURL := getAdminConsoleURL("", networkInterface, runtimeconfig.AdminConsolePort())
+	adminConsoleURL := getAdminConsoleURL("", networkInterface, rc.AdminConsolePort())
 
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
@@ -1631,7 +1632,7 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkI
 
 // restoreReconcileInstallationFromRuntimeConfig will update the installation to match the runtime
 // config from the original installation.
-func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context) error {
+func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("create kube client: %w", err)
@@ -1647,7 +1648,7 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context) error {
 	}
 
 	err = kubeutils.UpdateInstallation(ctx, kcli, in, func(in *ecv1beta1.Installation) {
-		in.Spec.RuntimeConfig.LocalArtifactMirror.Port = runtimeconfig.LocalArtifactMirrorPort()
+		in.Spec.RuntimeConfig.LocalArtifactMirror.Port = rc.LocalArtifactMirrorPort()
 	})
 	if err != nil {
 		return fmt.Errorf("update installation: %w", err)
@@ -1664,7 +1665,7 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context) error {
 // overrideRuntimeConfigFromBackup will update the runtime config from the backup. These values may
 // be used during the install and set in the Installation object via the
 // restoreReconcileInstallationFromRuntimeConfig function.
-func overrideRuntimeConfigFromBackup(localArtifactMirrorPort int, backup disasterrecovery.ReplicatedBackup) error {
+func overrideRuntimeConfigFromBackup(localArtifactMirrorPort int, backup disasterrecovery.ReplicatedBackup, rc runtimeconfig.RuntimeConfig) error {
 	if localArtifactMirrorPort != 0 {
 		if val, _ := backup.GetAnnotation("kots.io/embedded-cluster-local-artifact-mirror-port"); val != "" {
 			port, err := k8snet.ParsePort(val, false)
@@ -1672,7 +1673,7 @@ func overrideRuntimeConfigFromBackup(localArtifactMirrorPort int, backup disaste
 				return fmt.Errorf("parse local artifact mirror port: %w", err)
 			}
 			logrus.Debugf("updating local artifact mirror port to %d from backup %q", port, backup.GetName())
-			runtimeconfig.SetLocalArtifactMirrorPort(port)
+			rc.SetLocalArtifactMirrorPort(port)
 		}
 	}
 
@@ -1736,8 +1737,8 @@ func (e *invalidBackupsError) Error() string {
 }
 
 // updateLocalArtifactMirrorService updates the port on which the local artifact mirror is served.
-func updateLocalArtifactMirrorService(dataDir string) error {
-	if err := writeLocalArtifactMirrorDropInFile(dataDir); err != nil {
+func updateLocalArtifactMirrorService(rc runtimeconfig.RuntimeConfig) error {
+	if err := writeLocalArtifactMirrorDropInFile(rc); err != nil {
 		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
 	}
 

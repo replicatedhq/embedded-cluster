@@ -14,7 +14,8 @@ func JoinPrintCommandCmd(ctx context.Context, name string) *cobra.Command {
 		Use:   "print-command",
 		Short: fmt.Sprintf("Print controller join command for %s", name),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			jcmd, err := kotscli.GetJoinCommand(cmd.Context(), runtimeconfig.EmbeddedClusterDataDirectory())
+			rc := runtimeconfig.New(nil)
+			jcmd, err := kotscli.GetJoinCommand(cmd.Context(), rc)
 			if err != nil {
 				return fmt.Errorf("unable to get join command: %w", err)
 			}

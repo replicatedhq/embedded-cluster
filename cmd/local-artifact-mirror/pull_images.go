@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -48,7 +47,7 @@ func PullImagesCmd(cli *CLI) *cobra.Command {
 				os.RemoveAll(location)
 			}()
 
-			dst := filepath.Join(runtimeconfig.EmbeddedClusterImagesSubDir(), ImagesDstArtifactName)
+			dst := filepath.Join(cli.RC.EmbeddedClusterImagesSubDir(), ImagesDstArtifactName)
 			src := filepath.Join(location, ImagesSrcArtifactName)
 			logrus.Infof("%s > %s", src, dst)
 			if err := helpers.MoveFile(src, dst); err != nil {

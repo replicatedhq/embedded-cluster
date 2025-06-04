@@ -2,6 +2,8 @@ package hostutils
 
 import (
 	"context"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 var h HostUtilsInterface
@@ -15,20 +17,20 @@ func Set(_h HostUtilsInterface) {
 }
 
 type HostUtilsInterface interface {
-	ConfigureForInstall(ctx context.Context, opts InitForInstallOptions) error
+	ConfigureForInstall(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error
 	ConfigureSysctl() error
 	ConfigureKernelModules() error
-	ConfigureNetworkManager(ctx context.Context, dataDir string) error
+	ConfigureNetworkManager(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
 	ConfigureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) error
 	ResetFirewalld(ctx context.Context) error
-	MaterializeFiles(dataDir string, airgapBundle string) error
+	MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error
 }
 
 // Convenience functions
 // TODO (@salah): can be removed once CLI uses API for host operations)
 
-func ConfigureForInstall(ctx context.Context, opts InitForInstallOptions) error {
-	return h.ConfigureForInstall(ctx, opts)
+func ConfigureForInstall(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
+	return h.ConfigureForInstall(ctx, rc, opts)
 }
 
 func ConfigureSysctl() error {
@@ -39,8 +41,8 @@ func ConfigureKernelModules() error {
 	return h.ConfigureKernelModules()
 }
 
-func ConfigureNetworkManager(ctx context.Context, dataDir string) error {
-	return h.ConfigureNetworkManager(ctx, dataDir)
+func ConfigureNetworkManager(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
+	return h.ConfigureNetworkManager(ctx, rc)
 }
 
 func ConfigureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) error {
@@ -51,6 +53,6 @@ func ResetFirewalld(ctx context.Context) error {
 	return h.ResetFirewalld(ctx)
 }
 
-func MaterializeFiles(dataDir string, airgapBundle string) error {
-	return h.MaterializeFiles(dataDir, airgapBundle)
+func MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error {
+	return h.MaterializeFiles(rc, airgapBundle)
 }

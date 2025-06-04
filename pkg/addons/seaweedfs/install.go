@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -18,12 +19,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (s *SeaweedFS) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
+func (s *SeaweedFS) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, overrides []string, writer *spinner.MessageWriter) error {
 	if err := s.ensurePreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := s.GenerateHelmValues(ctx, kcli, overrides)
+	values, err := s.GenerateHelmValues(ctx, kcli, rc, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}

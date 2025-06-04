@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -389,7 +390,8 @@ defaultDomains:
 			if tt.before != nil {
 				tt.before()
 			}
-			addons := getAddOnsForInstall(tt.opts)
+			rc := runtimeconfig.New(nil)
+			addons := getAddOnsForInstall(rc, tt.opts)
 			tt.verify(t, addons)
 			if tt.after != nil {
 				tt.after()

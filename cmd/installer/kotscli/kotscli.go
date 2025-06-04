@@ -22,7 +22,7 @@ var (
 )
 
 type InstallOptions struct {
-	ECDataDir             string
+	RuntimeConfig         runtimeconfig.RuntimeConfig
 	AppSlug               string
 	LicenseFile           string
 	Namespace             string
@@ -32,7 +32,7 @@ type InstallOptions struct {
 }
 
 func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
-	materializer := goods.NewMaterializer(opts.ECDataDir)
+	materializer := goods.NewMaterializer(opts.RuntimeConfig)
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -92,8 +92,8 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 	return nil
 }
 
-func ResetPassword(ecDataDir string, password string) error {
-	materializer := goods.NewMaterializer(ecDataDir)
+func ResetPassword(rc runtimeconfig.RuntimeConfig, password string) error {
+	materializer := goods.NewMaterializer(rc)
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -101,7 +101,7 @@ func ResetPassword(ecDataDir string, password string) error {
 	defer os.Remove(kotsBinPath)
 
 	runCommandOptions := helpers.RunCommandOptions{
-		Env:   map[string]string{"KUBECONFIG": runtimeconfig.PathToKubeConfig()},
+		Env:   map[string]string{"KUBECONFIG": rc.PathToKubeConfig()},
 		Stdin: strings.NewReader(fmt.Sprintf("%s\n", password)),
 	}
 
@@ -114,14 +114,14 @@ func ResetPassword(ecDataDir string, password string) error {
 }
 
 type AirgapUpdateOptions struct {
-	ECDataDir    string
-	AppSlug      string
-	Namespace    string
-	AirgapBundle string
+	RuntimeConfig runtimeconfig.RuntimeConfig
+	AppSlug       string
+	Namespace     string
+	AirgapBundle  string
 }
 
 func AirgapUpdate(opts AirgapUpdateOptions) error {
-	materializer := goods.NewMaterializer(opts.ECDataDir)
+	materializer := goods.NewMaterializer(opts.RuntimeConfig)
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -163,7 +163,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 }
 
 type VeleroConfigureOtherS3Options struct {
-	ECDataDir       string
+	RuntimeConfig   runtimeconfig.RuntimeConfig
 	Endpoint        string
 	Region          string
 	Bucket          string
@@ -174,7 +174,7 @@ type VeleroConfigureOtherS3Options struct {
 }
 
 func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
-	materializer := goods.NewMaterializer(opts.ECDataDir)
+	materializer := goods.NewMaterializer(opts.RuntimeConfig)
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -246,8 +246,8 @@ func MaskKotsOutputForAirgap() spinner.MaskFn {
 	}
 }
 
-func GetJoinCommand(ctx context.Context, ecDataDir string) (string, error) {
-	materializer := goods.NewMaterializer(ecDataDir)
+func GetJoinCommand(ctx context.Context, rc runtimeconfig.RuntimeConfig) (string, error) {
+	materializer := goods.NewMaterializer(rc)
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return "", fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -257,7 +257,7 @@ func GetJoinCommand(ctx context.Context, ecDataDir string) (string, error) {
 	outBuffer := bytes.NewBuffer(nil)
 	runCommandOptions := helpers.RunCommandOptions{
 		Context: ctx,
-		Env:     map[string]string{"KUBECONFIG": runtimeconfig.PathToKubeConfig()},
+		Env:     map[string]string{"KUBECONFIG": rc.PathToKubeConfig()},
 		Stdin:   strings.NewReader(""),
 		Stdout:  outBuffer,
 	}

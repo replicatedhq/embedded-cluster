@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
@@ -42,6 +43,7 @@ type API struct {
 	authController    auth.Controller
 	consoleController console.Controller
 	installController install.Controller
+	rc                runtimeconfig.RuntimeConfig
 	releaseData       *release.ReleaseData
 	licenseFile       string
 	airgapBundle      string
@@ -68,6 +70,12 @@ func WithConsoleController(consoleController console.Controller) APIOption {
 func WithInstallController(installController install.Controller) APIOption {
 	return func(a *API) {
 		a.installController = installController
+	}
+}
+
+func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) APIOption {
+	return func(a *API) {
+		a.rc = rc
 	}
 }
 
@@ -120,6 +128,10 @@ func New(password string, opts ...APIOption) (*API, error) {
 		opt(api)
 	}
 
+	if api.rc == nil {
+		api.rc = runtimeconfig.New(nil)
+	}
+
 	if api.logger == nil {
 		l, err := logger.NewLogger()
 		if err != nil {
@@ -152,6 +164,7 @@ func New(password string, opts ...APIOption) (*API, error) {
 
 	if api.installController == nil {
 		installController, err := install.NewInstallController(
+			install.WithRuntimeConfig(api.rc),
 			install.WithLogger(api.logger),
 			install.WithHostUtils(api.hostUtils),
 			install.WithMetricsReporter(api.metricsReporter),

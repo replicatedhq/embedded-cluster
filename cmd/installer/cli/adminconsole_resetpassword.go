@@ -15,6 +15,8 @@ import (
 )
 
 func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Command {
+	var rc runtimeconfig.RuntimeConfig
+
 	cmd := &cobra.Command{
 		Use:   "reset-password [password]",
 		Args:  cobra.MaximumNArgs(1),
@@ -24,8 +26,10 @@ func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Comma
 				return fmt.Errorf("reset-password command must be run as root")
 			}
 
-			if err := rcutil.InitRuntimeConfigFromCluster(cmd.Context()); err != nil {
-				return fmt.Errorf("failed to init runtime config from cluster: %w", err)
+			var err error
+			rc, err = rcutil.GetRuntimeConfigFromCluster(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get runtime config from cluster: %w", err)
 			}
 
 			return nil
@@ -56,7 +60,7 @@ func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Comma
 				}
 			}
 
-			if err := kotscli.ResetPassword(runtimeconfig.EmbeddedClusterDataDirectory(), password); err != nil {
+			if err := kotscli.ResetPassword(rc, password); err != nil {
 				return err
 			}
 

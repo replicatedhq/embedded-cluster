@@ -313,7 +313,6 @@ func TestConfigureForInstall(t *testing.T) {
 					hum.On("ConfigureForInstall", mock.Anything, hostutils.InitForInstallOptions{
 						LicenseFile:  "license.yaml",
 						AirgapBundle: "bundle.tar",
-						DataDir:      "/var/lib/embedded-cluster",
 						PodCIDR:      "10.0.0.0/16",
 						ServiceCIDR:  "10.1.0.0/16",
 					}).Return(nil),
@@ -344,7 +343,6 @@ func TestConfigureForInstall(t *testing.T) {
 					hum.On("ConfigureForInstall", mock.Anything, hostutils.InitForInstallOptions{
 						LicenseFile:  "license.yaml",
 						AirgapBundle: "bundle.tar",
-						DataDir:      "/var/lib/embedded-cluster",
 					}).Return(errors.New("configuration failed")),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateFailed })).Return(nil),
 				)

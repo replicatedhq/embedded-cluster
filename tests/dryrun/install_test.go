@@ -442,11 +442,12 @@ func TestRestrictiveUmask(t *testing.T) {
 	testDefaultInstallationImpl(t)
 
 	// check that folders created in this test have the right permissions
+	rc := runtimeconfig.New(nil)
 	folderList := []string{
-		runtimeconfig.EmbeddedClusterDataDirectory(),
-		runtimeconfig.EmbeddedClusterBinsSubDir(),
-		runtimeconfig.EmbeddedClusterChartsSubDir(),
-		runtimeconfig.PathToEmbeddedClusterBinary("kubectl-preflight"),
+		rc.EmbeddedClusterHomeDirectory(),
+		rc.EmbeddedClusterBinsSubDir(),
+		rc.EmbeddedClusterChartsSubDir(),
+		rc.PathToEmbeddedClusterBinary("kubectl-preflight"),
 	}
 	gotFailure := false
 	for _, folder := range folderList {

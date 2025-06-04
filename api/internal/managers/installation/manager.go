@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 )
 
@@ -28,6 +29,7 @@ type InstallationManager interface {
 type installationManager struct {
 	installation      *types.Installation
 	installationStore InstallationStore
+	rc                runtimeconfig.RuntimeConfig
 	licenseFile       string
 	airgapBundle      string
 	netUtils          utils.NetUtils
@@ -37,6 +39,12 @@ type installationManager struct {
 }
 
 type InstallationManagerOption func(*installationManager)
+
+func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) InstallationManagerOption {
+	return func(c *installationManager) {
+		c.rc = rc
+	}
+}
 
 func WithLogger(logger logrus.FieldLogger) InstallationManagerOption {
 	return func(c *installationManager) {
@@ -86,6 +94,10 @@ func NewInstallationManager(opts ...InstallationManagerOption) *installationMana
 
 	for _, opt := range opts {
 		opt(manager)
+	}
+
+	if manager.rc == nil {
+		manager.rc = runtimeconfig.New(nil)
 	}
 
 	if manager.logger == nil {

@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
@@ -14,7 +13,7 @@ import (
 
 func NewLogger() (*logrus.Logger, error) {
 	fname := fmt.Sprintf("%s-%s.api.log", runtimeconfig.BinaryName(), time.Now().Format("20060102150405.000"))
-	logpath := paths.PathToLog(fname)
+	logpath := runtimeconfig.PathToLog(fname)
 	logfile, err := os.OpenFile(logpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0400)
 	if err != nil {
 		return nil, fmt.Errorf("open log file: %w", err)

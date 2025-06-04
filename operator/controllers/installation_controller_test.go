@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -38,7 +39,8 @@ func TestInstallationReconciler_constructCreateCMCommand(t *testing.T) {
 			},
 		},
 	}
-	job := constructHostPreflightResultsJob(in, "my-node")
+	rc := runtimeconfig.New(nil)
+	job := constructHostPreflightResultsJob(rc, in, "my-node")
 	require.Len(t, job.Spec.Template.Spec.Volumes, 1)
 	require.Equal(t, "/var/lib/embedded-cluster", job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path)
 	require.Len(t, job.Spec.Template.Spec.Containers, 1)
@@ -224,6 +226,7 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 			reconciler := &InstallationReconciler{
 				Client:         kcli,
 				MetadataClient: mcli,
+				RuntimeConfig:  runtimeconfig.New(nil),
 			}
 
 			// Create a mock logger

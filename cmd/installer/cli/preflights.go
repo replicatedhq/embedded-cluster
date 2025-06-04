@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
@@ -19,7 +19,7 @@ func runHostPreflights(
 	ctx context.Context,
 	hpf *troubleshootv1beta2.HostPreflightSpec,
 	proxy *ecv1beta1.ProxySpec,
-	dataDir string,
+	rc runtimeconfig.RuntimeConfig,
 	skipHostPreflights bool,
 	ignoreHostPreflights bool,
 	assumeYes bool,
@@ -43,7 +43,7 @@ func runHostPreflights(
 
 	spinner.Infof("Running host preflights")
 
-	output, stderr, err := preflights.Run(ctx, hpf, proxy, dataDir)
+	output, stderr, err := preflights.Run(ctx, hpf, proxy, rc)
 	if err != nil {
 		spinner.ErrorClosef("Failed to run host preflights")
 		return fmt.Errorf("host preflights failed to run: %w", err)
@@ -52,12 +52,12 @@ func runHostPreflights(
 		logrus.Debugf("preflight stderr: %s", stderr)
 	}
 
-	err = preflights.SaveToDisk(output, paths.PathToSupportFile(dataDir, "host-preflight-results.json"))
+	err = preflights.SaveToDisk(output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json"))
 	if err != nil {
 		logrus.Warnf("save preflights output: %v", err)
 	}
 
-	err = preflights.CopyBundleTo(paths.PathToSupportFile(dataDir, "preflight-bundle.tar.gz"))
+	err = preflights.CopyBundleTo(rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz"))
 	if err != nil {
 		logrus.Warnf("copy preflight bundle to embedded-cluster support dir: %v", err)
 	}

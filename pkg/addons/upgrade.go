@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
+func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return errors.Wrap(err, "create kube client")
@@ -35,12 +35,12 @@ func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, in *ecv1
 		return errors.Wrap(err, "create metadata client")
 	}
 
-	addons, err := getAddOnsForUpgrade(in, meta)
+	addons, err := getAddOnsForUpgrade(rc, in, meta)
 	if err != nil {
 		return errors.Wrap(err, "get addons for upgrade")
 	}
 	for _, addon := range addons {
-		if err := upgradeAddOn(ctx, logf, hcli, kcli, mcli, in, addon); err != nil {
+		if err := upgradeAddOn(ctx, logf, hcli, kcli, mcli, rc, in, addon); err != nil {
 			return errors.Wrapf(err, "addon %s", addon.Name())
 		}
 	}
@@ -48,7 +48,7 @@ func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, in *ecv1
 	return nil
 }
 
-func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
+func getAddOnsForUpgrade(rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
 	domains := runtimeconfig.GetDomains(in.Spec.Config)
 
 	addOns := []types.AddOn{
@@ -111,7 +111,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 			Proxy:                    in.Spec.Proxy,
 			ProxyRegistryDomain:      domains.ProxyRegistryDomain,
 			HostCABundlePath:         hostCABundlePath,
-			EmbeddedClusterK0sSubDir: runtimeconfig.EmbeddedClusterK0sSubDir(),
+			EmbeddedClusterK0sSubDir: rc.EmbeddedClusterK0sSubDir(),
 		})
 	}
 
@@ -129,7 +129,7 @@ func getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetada
 	return addOns, nil
 }
 
-func upgradeAddOn(ctx context.Context, logf types.LogFunc, hcli helm.Client, kcli client.Client, mcli metadata.Interface, in *ecv1beta1.Installation, addon types.AddOn) error {
+func upgradeAddOn(ctx context.Context, logf types.LogFunc, hcli helm.Client, kcli client.Client, mcli metadata.Interface, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, addon types.AddOn) error {
 	// check if we already processed this addon
 	if kubeutils.CheckInstallationConditionStatus(in.Status, conditionName(addon)) == metav1.ConditionTrue {
 		slog.Info(addon.Name() + " is ready")
@@ -146,7 +146,7 @@ func upgradeAddOn(ctx context.Context, logf types.LogFunc, hcli helm.Client, kcl
 	// TODO (@salah): add support for end user overrides
 	overrides := addOnOverrides(addon, in.Spec.Config, nil)
 
-	err := addon.Upgrade(ctx, logf, kcli, mcli, hcli, overrides)
+	err := addon.Upgrade(ctx, logf, kcli, mcli, hcli, rc, overrides)
 	if err != nil {
 		message := helpers.CleanErrorMessage(err)
 		if err := setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionFalse, "UpgradeFailed", message); err != nil {

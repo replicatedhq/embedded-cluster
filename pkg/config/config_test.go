@@ -10,7 +10,6 @@ import (
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
@@ -140,6 +139,8 @@ func TestInstallFlags(t *testing.T) {
 	err = os.WriteFile(profileTmpFile.Name(), k0sProfileConfigBytes, 0644)
 	require.NoError(t, err)
 
+	rc := runtimeconfig.New(nil)
+
 	tests := []struct {
 		name           string
 		nodeIP         string
@@ -160,9 +161,9 @@ func TestInstallFlags(t *testing.T) {
 				"--labels", "kots.io/embedded-cluster-role-0=controller,kots.io/embedded-cluster-role=total-1",
 				"--enable-worker",
 				"--no-taints",
-				"-c", paths.PathToK0sConfig(),
+				"-c", runtimeconfig.K0sConfigPath,
 				"--kubelet-extra-args", "--node-ip=192.168.1.10",
-				"--data-dir", runtimeconfig.EmbeddedClusterK0sSubDir(),
+				"--data-dir", rc.EmbeddedClusterK0sSubDir(),
 				"--disable-components", "konnectivity-server",
 				"--enable-dynamic-config",
 			},
@@ -192,10 +193,10 @@ spec:
 				"--labels", "environment=test,kots.io/embedded-cluster-role-0=custom-controller,kots.io/embedded-cluster-role=total-1",
 				"--enable-worker",
 				"--no-taints",
-				"-c", paths.PathToK0sConfig(),
+				"-c", runtimeconfig.K0sConfigPath,
 				"--profile=test-profile",
 				"--kubelet-extra-args", "--node-ip=192.168.1.10",
-				"--data-dir", runtimeconfig.EmbeddedClusterK0sSubDir(),
+				"--data-dir", rc.EmbeddedClusterK0sSubDir(),
 				"--disable-components", "konnectivity-server",
 				"--enable-dynamic-config",
 			},
@@ -219,7 +220,7 @@ spec:
 			})
 
 			// Run test
-			flags, err := InstallFlags(tt.nodeIP)
+			flags, err := InstallFlags(rc, tt.nodeIP)
 			if tt.expectedError {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErrMsg)

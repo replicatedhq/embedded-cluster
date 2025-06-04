@@ -11,7 +11,6 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
 
@@ -118,14 +117,14 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string, respectImmuta
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags(nodeIP string) ([]string, error) {
+func InstallFlags(rc runtimeconfig.RuntimeConfig, nodeIP string) ([]string, error) {
 	flags := []string{
 		"install",
 		"controller",
 		"--labels", strings.Join(nodeLabels(), ","),
 		"--enable-worker",
 		"--no-taints",
-		"-c", paths.PathToK0sConfig(),
+		"-c", runtimeconfig.K0sConfigPath,
 	}
 	profile, err := ProfileInstallFlag()
 	if err != nil {
@@ -134,17 +133,17 @@ func InstallFlags(nodeIP string) ([]string, error) {
 	if profile != "" {
 		flags = append(flags, profile)
 	}
-	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
+	flags = append(flags, AdditionalInstallFlags(rc, nodeIP)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
 	return flags, nil
 }
 
-func AdditionalInstallFlags(nodeIP string) []string {
+func AdditionalInstallFlags(rc runtimeconfig.RuntimeConfig, nodeIP string) []string {
 	return []string{
 		// NOTE: quotes are not supported in older systemd
 		// kardianos/service will escape spaces with "\x20"
 		"--kubelet-extra-args", fmt.Sprintf("--node-ip=%s", nodeIP),
-		"--data-dir", runtimeconfig.EmbeddedClusterK0sSubDir(),
+		"--data-dir", rc.EmbeddedClusterK0sSubDir(),
 	}
 }
 
@@ -212,7 +211,7 @@ func additionalControllerLabels() map[string]string {
 
 func controllerWorkerProfile() (string, error) {
 	// Read the k0s config file
-	k0sPath := paths.PathToK0sConfig()
+	k0sPath := runtimeconfig.K0sConfigPath
 	if k0sConfigPathOverride != "" {
 		k0sPath = k0sConfigPathOverride
 	}

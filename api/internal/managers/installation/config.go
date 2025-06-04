@@ -226,11 +226,10 @@ func (m *installationManager) configureForInstall(ctx context.Context, config *t
 	opts := hostutils.InitForInstallOptions{
 		LicenseFile:  m.licenseFile,
 		AirgapBundle: m.airgapBundle,
-		DataDir:      config.DataDirectory,
 		PodCIDR:      config.PodCIDR,
 		ServiceCIDR:  config.ServiceCIDR,
 	}
-	if err := m.hostUtils.ConfigureForInstall(ctx, opts); err != nil {
+	if err := m.hostUtils.ConfigureForInstall(ctx, m.rc, opts); err != nil {
 		if err := m.setFailedStatus(fmt.Sprintf("configure installation: %v", err)); err != nil {
 			m.logger.WithField("error", err).Error("set failed status")
 		}

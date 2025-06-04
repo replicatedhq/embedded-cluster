@@ -8,7 +8,6 @@ import (
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -21,9 +20,9 @@ import (
 
 // Install runs the k0s install command and waits for it to finish. If no configuration
 // is found one is generated.
-func Install(networkInterface string) error {
-	ourbin := runtimeconfig.PathToEmbeddedClusterBinary("k0s")
-	hstbin := paths.K0sBinaryPath()
+func Install(rc runtimeconfig.RuntimeConfig, networkInterface string) error {
+	ourbin := rc.PathToEmbeddedClusterBinary("k0s")
+	hstbin := runtimeconfig.K0sBinaryPath
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
 	}
@@ -32,7 +31,7 @@ func Install(networkInterface string) error {
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
-	flags, err := config.InstallFlags(nodeIP)
+	flags, err := config.InstallFlags(rc, nodeIP)
 	if err != nil {
 		return fmt.Errorf("unable to get install flags: %w", err)
 	}
@@ -48,7 +47,7 @@ func Install(networkInterface string) error {
 // IsInstalled checks if the embedded cluster is already installed by looking for
 // the k0s configuration file existence.
 func IsInstalled() (bool, error) {
-	_, err := os.Stat(paths.PathToK0sConfig())
+	_, err := os.Stat(runtimeconfig.K0sConfigPath)
 	if err == nil {
 		return true, nil
 	} else if os.IsNotExist(err) {
@@ -59,10 +58,10 @@ func IsInstalled() (bool, error) {
 }
 
 // WriteK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
-// global location (as returned by paths.PathToK0sConfig()). If a file already sits
+// global location (as returned by runtimeconfig.K0sConfigPath). If a file already sits
 // there, this function returns an error.
 func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
-	cfgpath := paths.PathToK0sConfig()
+	cfgpath := runtimeconfig.K0sConfigPath
 	if _, err := os.Stat(cfgpath); err == nil {
 		return nil, fmt.Errorf("configuration file already exists")
 	}

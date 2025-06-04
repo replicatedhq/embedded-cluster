@@ -17,11 +17,11 @@ import (
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/cli"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	dryruntypes "github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -138,7 +138,7 @@ func runInstallerCmd(args ...string) error {
 }
 
 func readK0sConfig(t *testing.T) k0sv1beta1.ClusterConfig {
-	stdout, err := exec.Command("cat", paths.PathToK0sConfig()).Output()
+	stdout, err := exec.Command("cat", runtimeconfig.K0sConfigPath).Output()
 	if err != nil {
 		t.Fatalf("fail to get k0s config: %v", err)
 	}

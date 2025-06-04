@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 )
@@ -24,12 +25,19 @@ type HostPreflightManager interface {
 type hostPreflightManager struct {
 	hostPreflight      *types.HostPreflight
 	hostPreflightStore HostPreflightStore
+	rc                 runtimeconfig.RuntimeConfig
 	logger             logrus.FieldLogger
 	metricsReporter    metrics.ReporterInterface
 	mu                 sync.RWMutex
 }
 
 type HostPreflightManagerOption func(*hostPreflightManager)
+
+func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) HostPreflightManagerOption {
+	return func(m *hostPreflightManager) {
+		m.rc = rc
+	}
+}
 
 func WithLogger(logger logrus.FieldLogger) HostPreflightManagerOption {
 	return func(m *hostPreflightManager) {
@@ -61,6 +69,10 @@ func NewHostPreflightManager(opts ...HostPreflightManagerOption) HostPreflightMa
 
 	for _, opt := range opts {
 		opt(manager)
+	}
+
+	if manager.rc == nil {
+		manager.rc = runtimeconfig.New(nil)
 	}
 
 	if manager.logger == nil {

@@ -5,33 +5,27 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 type InitForInstallOptions struct {
 	LicenseFile  string
 	AirgapBundle string
-	DataDir      string
 	PodCIDR      string
 	ServiceCIDR  string
 }
 
-func (h *HostUtils) ConfigureForInstall(ctx context.Context, opts InitForInstallOptions) error {
-	h.logger.Debugf("initializing data dir: %s", opts.DataDir)
-	if err := paths.InitDataDir(opts.DataDir, h.logger); err != nil {
-		return fmt.Errorf("initialize data dir: %w", err)
-	}
-
+func (h *HostUtils) ConfigureForInstall(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
 	h.logger.Debugf("materializing files")
-	if err := h.MaterializeFiles(opts.DataDir, opts.AirgapBundle); err != nil {
+	if err := h.MaterializeFiles(rc, opts.AirgapBundle); err != nil {
 		return fmt.Errorf("materialize files: %w", err)
 	}
 
-	h.logger.Debugf("copy license file to %s", opts.DataDir)
-	if err := helpers.CopyFile(opts.LicenseFile, filepath.Join(opts.DataDir, "license.yaml"), 0400); err != nil {
+	h.logger.Debugf("copy license file to %s", rc.EmbeddedClusterHomeDirectory())
+	if err := helpers.CopyFile(opts.LicenseFile, filepath.Join(rc.EmbeddedClusterHomeDirectory(), "license.yaml"), 0400); err != nil {
 		// We have decided not to report this error
-		h.logger.Warnf("copy license file to %s: %v", opts.DataDir, err)
+		h.logger.Warnf("copy license file to %s: %v", rc.EmbeddedClusterHomeDirectory(), err)
 	}
 
 	h.logger.Debugf("configuring sysctl")
@@ -45,7 +39,7 @@ func (h *HostUtils) ConfigureForInstall(ctx context.Context, opts InitForInstall
 	}
 
 	h.logger.Debugf("configuring network manager")
-	if err := h.ConfigureNetworkManager(ctx, opts.DataDir); err != nil {
+	if err := h.ConfigureNetworkManager(ctx, rc); err != nil {
 		return fmt.Errorf("configure network manager: %w", err)
 	}
 

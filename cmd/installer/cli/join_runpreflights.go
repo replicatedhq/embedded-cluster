@@ -8,7 +8,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/paths"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -21,6 +20,7 @@ import (
 
 func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var flags JoinCmdFlags
+	rc := runtimeconfig.New(nil)
 
 	cmd := &cobra.Command{
 		Use:   "run-preflights",
@@ -34,7 +34,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			return nil
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
-			runtimeconfig.Cleanup()
+			rc.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logrus.Debugf("fetching join token remotely")
@@ -42,7 +42,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
-			if err := runJoinRunPreflights(cmd.Context(), name, flags, jcmd, args[0]); err != nil {
+			if err := runJoinRunPreflights(cmd.Context(), name, flags, rc, jcmd, args[0]); err != nil {
 				return err
 			}
 
@@ -57,18 +57,13 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse, kotsAPIAddress string) error {
-	if err := runJoinVerifyAndPrompt(name, flags, jcmd); err != nil {
+func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string) error {
+	if err := runJoinVerifyAndPrompt(name, flags, rc, jcmd); err != nil {
 		return err
 	}
 
-	logrus.Debugf("initializing data dir: %s", runtimeconfig.EmbeddedClusterDataDirectory())
-	if err := paths.InitDataDir(runtimeconfig.EmbeddedClusterDataDirectory(), logrus.StandardLogger()); err != nil {
-		return fmt.Errorf("initialize data dir: %w", err)
-	}
-
 	logrus.Debugf("materializing %s binaries", name)
-	if err := materializeFilesForJoin(ctx, jcmd, kotsAPIAddress, runtimeconfig.EmbeddedClusterDataDirectory()); err != nil {
+	if err := materializeFilesForJoin(ctx, rc, jcmd, kotsAPIAddress); err != nil {
 		return fmt.Errorf("failed to materialize files: %w", err)
 	}
 
@@ -88,7 +83,7 @@ func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, 
 	}
 
 	logrus.Debugf("running join preflights")
-	if err := runJoinPreflights(ctx, jcmd, flags, cidrCfg, nil); err != nil {
+	if err := runJoinPreflights(ctx, jcmd, flags, rc, cidrCfg, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -100,7 +95,7 @@ func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, 
 	return nil
 }
 
-func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flags JoinCmdFlags, cidrCfg *newconfig.CIDRConfig, metricsReporter metrics.ReporterInterface) error {
+func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, cidrCfg *newconfig.CIDRConfig, metricsReporter metrics.ReporterInterface) error {
 	nodeIP, err := netutils.FirstValidAddress(flags.networkInterface)
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
@@ -112,11 +107,11 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		HostPreflightSpec:       release.GetHostPreflights(),
 		ReplicatedAppURL:        netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
 		ProxyRegistryURL:        netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
-		AdminConsolePort:        runtimeconfig.AdminConsolePort(),
-		LocalArtifactMirrorPort: runtimeconfig.LocalArtifactMirrorPort(),
-		DataDir:                 runtimeconfig.EmbeddedClusterDataDirectory(),
-		K0sDataDir:              runtimeconfig.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:          runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
+		AdminConsolePort:        rc.AdminConsolePort(),
+		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
+		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
 		Proxy:                   jcmd.InstallationSpec.Proxy,
 		PodCIDR:                 cidrCfg.PodCIDR,
 		ServiceCIDR:             cidrCfg.ServiceCIDR,
@@ -129,16 +124,7 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		return err
 	}
 
-	if err := runHostPreflights(
-		ctx,
-		hpf,
-		jcmd.InstallationSpec.Proxy,
-		runtimeconfig.EmbeddedClusterDataDirectory(),
-		flags.skipHostPreflights,
-		flags.ignoreHostPreflights,
-		flags.assumeYes,
-		metricsReporter,
-	); err != nil {
+	if err := runHostPreflights(ctx, hpf, jcmd.InstallationSpec.Proxy, rc, flags.skipHostPreflights, flags.ignoreHostPreflights, flags.assumeYes, metricsReporter); err != nil {
 		return err
 	}
 

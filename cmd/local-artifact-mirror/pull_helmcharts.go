@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/tgzutils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -48,7 +47,7 @@ func PullHelmChartsCmd(cli *CLI) *cobra.Command {
 				os.RemoveAll(location)
 			}()
 
-			dst := runtimeconfig.EmbeddedClusterChartsSubDir()
+			dst := cli.RC.EmbeddedClusterChartsSubDir()
 			src := filepath.Join(location, HelmChartsArtifactName)
 			logrus.Infof("uncompressing %s", src)
 			if err := tgzutils.Decompress(src, dst); err != nil {
