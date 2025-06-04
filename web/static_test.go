@@ -317,30 +317,26 @@ func TestRegisterRoutes(t *testing.T) {
 	})
 }
 func TestRegisterRoutesWithDevEnv(t *testing.T) {
-	// Create initial state
-	initialState := InitialState{
-		Title: "Test Title",
-		Icon:  "test-icon.png",
-	}
-
-	// Create a test logger
-	logger, _ := logtest.NewNullLogger()
-
-	// Create a new Web instance
-	web, err := New(initialState, WithLogger(logger), WithAssetsFS(createMockFS()))
-	require.NoError(t, err, "Failed to create Web instance")
-
 	// We need to change the current working directory because in `go test` this will be the package directory
 	// We want to mimic prod/local dev behaviour where cwd will be under the root of the project
 	_, filename, _, _ := runtime.Caller(0)
 	dir := path.Join(path.Dir(filename), "..")
-	err = os.Chdir(dir)
+	err := os.Chdir(dir)
 	if err != nil {
 		t.Fatalf("failed to change cwd to root of the project: %s", err)
 	}
 	defer os.Chdir(path.Dir(filename))
 
-	// Create temporary dist directory structure for development
+	// Create a test logger
+	logger, _ := logtest.NewNullLogger()
+	// Set the development environment variable
+	t.Setenv("EC_DEV_ENV", "true")
+
+	// Create a new Web instance
+	web, err := New(InitialState{}, WithLogger(logger))
+	require.NoError(t, err, "Failed to create Web instance")
+
+	// Create temporary dist directory structure to mimic what we use for development
 	err = os.MkdirAll("./web/dist/assets", 0755)
 	require.NoError(t, err, "Failed to create dist directory")
 	defer os.RemoveAll("./web/dist/assets") // Clean up after test
@@ -350,8 +346,6 @@ func TestRegisterRoutesWithDevEnv(t *testing.T) {
 	err = os.WriteFile("./web/dist/assets/test-file-dev-app.js", []byte(devFileContent), 0644)
 	require.NoError(t, err, "Failed to write dev file")
 
-	// Set the development environment variable
-	t.Setenv("EC_DEV_ENV", "true")
 	// Create router and register routes
 	router := mux.NewRouter()
 	web.RegisterRoutes(router)
@@ -368,6 +362,22 @@ func TestRegisterRoutesWithDevEnv(t *testing.T) {
 
 		// Check that the dev file content is served from local filesystem
 		assert.Equal(t, devFileContent, recorder.Body.String(), "Response should contain the dev file content from local filesystem")
+	})
+
+	t.Run("Changes to the file are reflected and served", func(t *testing.T) {
+		newDevFileContent := devFileContent + "console.log('such a change, very wow');"
+		err = os.WriteFile("./web/dist/assets/test-file-dev-app.js", []byte(newDevFileContent), 0644)
+		req := httptest.NewRequest("GET", "/assets/test-file-dev-app.js", nil)
+		recorder := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(recorder, req)
+
+		// Check status code
+		assert.Equal(t, http.StatusOK, recorder.Code, "Should return status OK for dev file")
+
+		// Check that the new dev file content is served from local filesystem
+		assert.Equal(t, newDevFileContent, recorder.Body.String(), "Response should contain the dev file content from local filesystem")
 	})
 
 	t.Run("Non-existent File Returns 404", func(t *testing.T) {

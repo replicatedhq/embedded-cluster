@@ -39,7 +39,9 @@ type Web struct {
 	assets fs.FS
 	// initialState is the initial state to be passed to the React app
 	initialState InitialState
-	logger       logrus.FieldLogger
+	// wheter we're running in dev mode or not
+	isDev  bool
+	logger logrus.FieldLogger
 }
 
 type WebOption func(*Web)
@@ -68,23 +70,43 @@ func New(initialState InitialState, opts ...WebOption) (*Web, error) {
 		opt(web)
 	}
 
+	// TODO we might consider moving this env var evaluation to the CLI and make it an overarching property of the project
+	if os.Getenv("EC_DEV_ENV") == "true" {
+		web.isDev = true
+	}
+
 	if web.logger == nil {
 		web.logger = logrus.New().WithField("component", "web")
 	}
 
 	if web.assets == nil {
-		web.assets = DefaultAssetsFS()
+		// By default, when running in dev mode we want to dinamically read our assets from source
+		if web.isDev {
+			web.assets = os.DirFS("./web/dist")
+		} else {
+			web.assets = DefaultAssetsFS()
+		}
 	}
 
 	if web.htmlTemplate == nil {
-		htmlTemplate, err := template.ParseFS(web.assets, "index.html")
+		err := web.loadHTMLTemplate()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse HTML template: %w", err)
+			return nil, err
 		}
-		web.htmlTemplate = htmlTemplate
 	}
 
 	return web, nil
+}
+
+// loadHTMLTemplate parses the `index.html` file from the `web.assets` FS and stores it in the struct's `htmlTemplate`
+// property
+func (web *Web) loadHTMLTemplate() error {
+	htmlTemplate, err := template.ParseFS(web.assets, "index.html")
+	if err != nil {
+		return fmt.Errorf("failed to parse HTML template: %w", err)
+	}
+	web.htmlTemplate = htmlTemplate
+	return nil
 }
 
 func (web *Web) rootHandler(w http.ResponseWriter, r *http.Request) {
@@ -108,6 +130,12 @@ func (web *Web) rootHandler(w http.ResponseWriter, r *http.Request) {
 	// Create a buffer to store the rendered template
 	buf := new(bytes.Buffer)
 
+	// When running in dev mode we need to parse the HTML template on every requeest since the JS build might have
+	// generated a new index.html and set of assets.
+	if web.isDev {
+		web.loadHTMLTemplate()
+	}
+
 	// Execute the template and write to the buffer
 	err = web.htmlTemplate.Execute(buf, data)
 	if err != nil {
@@ -126,13 +154,8 @@ func (web *Web) rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (web *Web) RegisterRoutes(router *mux.Router) {
-
 	var webFS http.Handler
-	if os.Getenv("EC_DEV_ENV") == "true" {
-		webFS = http.FileServer(http.FS(os.DirFS("./web/dist")))
-	} else {
-		webFS = http.FileServer(http.FS(web.assets))
-	}
+	webFS = http.FileServer(http.FS(web.assets))
 
 	router.PathPrefix("/assets").Methods("GET").Handler(webFS)
 	router.PathPrefix("/").Methods("GET").HandlerFunc(web.rootHandler)
