@@ -173,6 +173,63 @@ spec:
       collectorName: "ip-route-table"
       command: "ip"
       args: ["route"]
+  # Network interface information and statistics
+  - run:
+      collectorName: "ip-addr-show"
+      command: "ip"
+      args: ["addr", "show"]
+  - run:
+      collectorName: "ip-link-show"
+      command: "ip"
+      args: ["link", "show"]
+  - run:
+      collectorName: "ip-link-statistics"
+      command: "ip"
+      args: ["-s", "link", "show"]
+  - run:
+      collectorName: "ip-neighbor-show"
+      command: "ip"
+      args: ["neigh", "show"]
+  # HTTP connectivity checks (only run for online installations)
+  - http:
+      collectorName: http-replicated-app
+      get:
+        url: '{{ .ReplicatedAppURL }}/healthz'
+        timeout: 5s
+        proxy: '{{ .HTTPSProxy }}'
+      exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") }}'
+  - http:
+      collectorName: http-proxy-replicated-com
+      get:
+        url: '{{ .ProxyRegistryURL }}/v2/'
+        timeout: 5s
+        proxy: '{{ .HTTPSProxy }}'
+      exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
+  # Curl-based connectivity checks (for comparison with HTTP collectors)
+  - run:
+      collectorName: curl-replicated-app
+      command: sh
+      args: 
+        - -c
+        - |
+          if [ -n "{{ .HTTPSProxy }}" ]; then
+            curl --connect-timeout 5 --max-time 10 -v --proxy "{{ .HTTPSProxy }}" "{{ .ReplicatedAppURL }}/healthz"
+          else
+            curl --connect-timeout 5 --max-time 10 -v "{{ .ReplicatedAppURL }}"
+          fi
+      exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") }}'
+  - run:
+      collectorName: curl-proxy-replicated-com
+      command: sh
+      args:
+        - -c
+        - |
+          if [ -n "{{ .HTTPSProxy }}" ]; then
+            curl --connect-timeout 5 --max-time 10 -v --proxy "{{ .HTTPSProxy }}" "{{ .ProxyRegistryURL }}/v2/"
+          else
+            curl --connect-timeout 5 --max-time 10 -v "{{ .ProxyRegistryURL }}/v2/"
+          fi
+      exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
   - run:
       collectorName: "sysctl"
       command: "sysctl"

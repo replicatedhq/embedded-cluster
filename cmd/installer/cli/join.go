@@ -338,7 +338,7 @@ func materializeFilesForJoin(ctx context.Context, jcmd *join.JoinCommandResponse
 	if err := materializer.Materialize(); err != nil {
 		return fmt.Errorf("materialize binaries: %w", err)
 	}
-	if err := support.MaterializeSupportBundleSpec(); err != nil {
+	if err := support.MaterializeSupportBundleSpec(jcmd.InstallationSpec.AirGap, jcmd.InstallationSpec.Proxy); err != nil {
 		return fmt.Errorf("materialize support bundle spec: %w", err)
 	}
 

@@ -56,7 +56,7 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	}
 
 	logrus.Debugf("materializing binaries")
-	if err := materializeFiles(flags.airgapBundle); err != nil {
+	if err := materializeFiles(flags.airgapBundle, flags.proxy); err != nil {
 		return fmt.Errorf("unable to materialize files: %w", err)
 	}
 
