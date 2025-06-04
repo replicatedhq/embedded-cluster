@@ -490,26 +490,49 @@ validate_jobs_completed() {
 }
 
 validate_all_pods_healthy() {
-    local exit_code=0
+    local timeout=300  # 5 minutes
+    local start_time
+    local current_time
+    local elapsed_time
+    start_time=$(date +%s)
     
     echo "Validating pod and job health..."
     
-    if ! validate_non_job_pods_healthy; then
-        echo ""
-        echo "Pod status details:"
-        kubectl get pods -A
-        exit_code=1
-    fi
-    
-    if ! validate_jobs_completed; then
-        exit_code=1
-    fi
-    
-    if [ $exit_code -eq 0 ]; then
-        echo "All pods and jobs are healthy"
-    else
-        exit 1
-    fi
+    while true; do
+        current_time=$(date +%s)
+        elapsed_time=$((current_time - start_time))
+        
+        if [ "$elapsed_time" -ge "$timeout" ]; then
+            echo "Timed out waiting for pods and jobs to be healthy after 5 minutes"
+            
+            # Show detailed failure info
+            validate_non_job_pods_healthy || true
+            echo ""
+            validate_jobs_completed || true
+            
+            return 1
+        fi
+        
+        # Check if both validations pass
+        local pods_healthy=0
+        local jobs_healthy=0
+        
+        if validate_non_job_pods_healthy >/dev/null 2>&1; then
+            pods_healthy=1
+        fi
+        
+        if validate_jobs_completed >/dev/null 2>&1; then
+            jobs_healthy=1
+        fi
+        
+        if [ $pods_healthy -eq 1 ] && [ $jobs_healthy -eq 1 ]; then
+            echo "All pods and jobs are healthy"
+            return 0
+        fi
+        
+        echo "Waiting for pods and jobs to be healthy... (${elapsed_time}s elapsed)"
+        sleep 10
+    done
 }
 
 validate_worker_profile() {
