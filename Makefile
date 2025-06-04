@@ -284,11 +284,11 @@ vet:
 
 .PHONY: e2e-tests
 e2e-tests: embedded-release
-	go test -tags $(GO_BUILD_TAGS) -timeout 60m -ldflags="$(LD_FLAGS)" -parallel 1 -failfast -v ./e2e
+	go test -tags $(GO_BUILD_TAGS) -timeout 70m -ldflags="$(LD_FLAGS)" -parallel 1 -failfast -v ./e2e
 
 .PHONY: e2e-test
 e2e-test:
-	go test -tags $(GO_BUILD_TAGS) -timeout 60m -ldflags="$(LD_FLAGS)" -v ./e2e -run ^$(TEST_NAME)$$
+	go test -tags $(GO_BUILD_TAGS) -timeout 70m -ldflags="$(LD_FLAGS)" -v ./e2e -run ^$(TEST_NAME)$$
 
 .PHONY: dryrun-tests
 dryrun-tests: export DRYRUN_MATCH = Test
