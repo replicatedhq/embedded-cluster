@@ -998,7 +998,6 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 		Nodes:        2,
 		Distribution: "ubuntu",
 		Version:      "22.04",
-		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup()
 
@@ -1074,7 +1073,6 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 		Nodes:        2,
 		Distribution: "ubuntu",
 		Version:      "22.04",
-		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup()
 
@@ -1157,7 +1155,6 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		Nodes:        2,
 		Distribution: "ubuntu",
 		Version:      "22.04",
-		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup(withEnv)
 
@@ -1346,7 +1343,6 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		Nodes:                  4,
 		Distribution:           "ubuntu",
 		Version:                "22.04",
-		InstanceType:           "r1.medium",
 		SupportBundleNodeIndex: 2,
 	})
 	defer tc.Cleanup()
@@ -1609,7 +1605,6 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 		Nodes:        5,
 		Distribution: "ubuntu",
 		Version:      "22.04",
-		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup()
 
