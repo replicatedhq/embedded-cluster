@@ -31,6 +31,19 @@ func overrideDefaultFS(mockFS fstest.MapFS) func() {
 	}
 }
 
+var htmlTemplate = []byte(`<!DOCTYPE html>
+				<html>
+				<head>
+					<title>{{.Title}}</title>
+				</head>
+				<body>
+					<script>
+						window.__INITIAL_STATE__ = {{.InitialState}};
+					</script>
+				</body>
+				</html>`,
+)
+
 // createMockFS creates a standard mock filesystem for testing
 func createMockFS() fstest.MapFS {
 	// Create mock assets
@@ -44,18 +57,7 @@ func createMockFS() fstest.MapFS {
 			Mode: 0644,
 		},
 		"index.html": &fstest.MapFile{
-			Data: []byte(`<!DOCTYPE html>
-				<html>
-				<head>
-					<title>{{.Title}}</title>
-				</head>
-				<body>
-					<script>
-						window.__INITIAL_STATE__ = {{.InitialState}};
-					</script>
-				</body>
-				</html>`,
-			),
+			Data: htmlTemplate,
 			Mode: 0644,
 		},
 	}
@@ -332,10 +334,6 @@ func TestRegisterRoutesWithDevEnv(t *testing.T) {
 	// Set the development environment variable
 	t.Setenv("EC_DEV_ENV", "true")
 
-	// Create a new Web instance
-	web, err := New(InitialState{}, WithLogger(logger))
-	require.NoError(t, err, "Failed to create Web instance")
-
 	// Create temporary dist directory structure to mimic what we use for development
 	err = os.MkdirAll("./web/dist/assets", 0755)
 	require.NoError(t, err, "Failed to create dist directory")
@@ -345,6 +343,14 @@ func TestRegisterRoutesWithDevEnv(t *testing.T) {
 	devFileContent := "console.log('Development mode!');"
 	err = os.WriteFile("./web/dist/assets/test-file-dev-app.js", []byte(devFileContent), 0644)
 	require.NoError(t, err, "Failed to write dev file")
+
+	// Create a index.hmtl test file in the dist/ directory to be used as template by the web server
+	err = os.WriteFile("./web/dist/index.html", []byte(htmlTemplate), 0644)
+	require.NoError(t, err, "Failed to write dev file")
+
+	// Create a new Web instance
+	web, err := New(InitialState{}, WithLogger(logger))
+	require.NoError(t, err, "Failed to create Web instance")
 
 	// Create router and register routes
 	router := mux.NewRouter()
