@@ -62,15 +62,6 @@ const InstallationStep: React.FC = () => {
           </div>
         )}
 
-        {installStatus?.state === "Succeeded" && (
-          <div className="flex flex-col items-center justify-center mb-6">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6">
-              <CheckCircle className="w-10 h-10" style={{ color: "blue" }} />
-            </div>
-            <p className="text-gray-600 mt-2">{text.installationSuccessTitle}</p>
-          </div>
-        )}
-
         <div className="flex flex-col items-center text-center py-6">
           {isLoading && (
             <div className="flex flex-col items-center pt-6">
@@ -88,12 +79,21 @@ const InstallationStep: React.FC = () => {
           )}
 
           {showAdminLink && (
-            <Button
-              onClick={() => window.open(`http://${window.location.hostname}:${config.adminConsolePort}`, "_blank")}
-              icon={<ExternalLink className="ml-2 -mr-1 h-5 w-5" />}
-            >
-              Visit Admin Console
-            </Button>
+            <div className="flex flex-col items-center justify-center mb-6">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6">
+                <CheckCircle className="w-10 h-10" style={{ color: "blue" }} />
+              </div>
+              <p className="text-gray-600 mt-4">
+                Visit the Admin Console to configure and install {text.installationTitle}
+              </p>
+              <Button
+                className="mt-4"
+                onClick={() => window.open(`http://${window.location.hostname}:${config.adminConsolePort}`, "_blank")}
+                icon={<ExternalLink className="ml-2 -mr-1 h-5 w-5" />}
+              >
+                Visit Admin Console
+              </Button>
+            </div>
           )}
         </div>
       </Card>

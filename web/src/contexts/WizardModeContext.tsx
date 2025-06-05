@@ -17,7 +17,6 @@ interface WizardText {
   installationDescription: string;
   welcomeButtonText: string;
   nextButtonText: string;
-  installationSuccessTitle: string;
 }
 
 const getTextVariations = (isEmbedded: boolean, title: string): Record<WizardMode, WizardText> => ({
@@ -36,7 +35,6 @@ const getTextVariations = (isEmbedded: boolean, title: string): Record<WizardMod
     installationDescription: "",
     welcomeButtonText: "Start",
     nextButtonText: "Next: Start Installation",
-    installationSuccessTitle: `Visit the Admin Console to configure and install ${title}`,
   },
   upgrade: {
     title: title || "",
@@ -53,7 +51,6 @@ const getTextVariations = (isEmbedded: boolean, title: string): Record<WizardMod
     installationDescription: "",
     welcomeButtonText: "Start Upgrade",
     nextButtonText: "Next: Start Upgrade",
-    installationSuccessTitle: "Upgrade Complete!",
   },
 });
 
