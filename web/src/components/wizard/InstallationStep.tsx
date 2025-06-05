@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Card from "../common/Card";
 import Button from "../common/Button";
 import { useConfig } from "../../contexts/ConfigContext";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { CheckCircle, ExternalLink, Loader2 } from "lucide-react";
 import { useQuery, Query } from "@tanstack/react-query";
 import { useWizardMode } from "../../contexts/WizardModeContext";
 
@@ -12,7 +12,7 @@ interface InstallStatus {
 
 const InstallationStep: React.FC = () => {
   const { config } = useConfig();
-  const { text } = useWizardMode(); 
+  const { text } = useWizardMode();
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,10 +38,7 @@ const InstallationStep: React.FC = () => {
     },
     refetchInterval: (query: Query<InstallStatus, Error>) => {
       // Continue polling until we get a final state
-      return query.state.data?.state === "Succeeded" ||
-        query.state.data?.state === "Failed"
-        ? false
-        : 5000;
+      return query.state.data?.state === "Succeeded" || query.state.data?.state === "Failed" ? false : 5000;
     },
   });
 
@@ -58,18 +55,25 @@ const InstallationStep: React.FC = () => {
   return (
     <div className="space-y-6">
       <Card>
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {text.installationTitle}
-          </h2>
-          <p className="text-gray-600 mt-1">
-            {text.installationDescription}
-          </p>
-        </div>
+        {installStatus?.state !== "Succeeded" && (
+          <div className="my-6">
+            <h2 className="text-2xl font-bold text-gray-900">{text.installationTitle}</h2>
+            <p className="text-gray-600 mt-1">{text.installationDescription}</p>
+          </div>
+        )}
 
-        <div className="flex flex-col items-center text-center py-12">
+        {installStatus?.state === "Succeeded" && (
+          <div className="flex flex-col items-center justify-center mb-6">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6">
+              <CheckCircle className="w-10 h-10" style={{ color: "blue" }} />
+            </div>
+            <p className="text-gray-600 mt-2">{text.installationSuccessTitle}</p>
+          </div>
+        )}
+
+        <div className="flex flex-col items-center text-center py-6">
           {isLoading && (
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center pt-6">
               <Loader2 className="h-8 w-8 animate-spin text-gray-600 mb-4" />
               <p className="text-lg font-medium text-gray-900">Please wait while we complete the installation...</p>
               <p className="text-sm text-gray-500 mt-2">This may take a few minutes.</p>
@@ -85,7 +89,7 @@ const InstallationStep: React.FC = () => {
 
           {showAdminLink && (
             <Button
-              onClick={() => window.open(`http://${window.location.hostname}:${config.adminConsolePort}`, '_blank')}
+              onClick={() => window.open(`http://${window.location.hostname}:${config.adminConsolePort}`, "_blank")}
               icon={<ExternalLink className="ml-2 -mr-1 h-5 w-5" />}
             >
               Visit Admin Console
