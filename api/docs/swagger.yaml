@@ -228,7 +228,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.InstallationConfig'
+                $ref: '#/components/schemas/types.Status'
           description: OK
       security:
       - bearerauth: []
