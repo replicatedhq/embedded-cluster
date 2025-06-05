@@ -455,12 +455,116 @@ validate_data_dirs() {
     fi
 }
 
-validate_no_pods_in_crashloop() {
-    if kubectl get pods -A | grep CrashLoopBackOff -q ; then
-        echo "found pods in CrashLoopBackOff state"
-        kubectl get pods -A | grep CrashLoopBackOff
-        exit 1
+validate_non_job_pods_healthy() {
+    local unhealthy_pods
+    local unready_pods
+    
+    # Check for environment variable override (used by specific tests)
+    if [ "${ALLOW_PENDING_PODS:-}" = "true" ]; then
+        # Allow Running, Completed, Succeeded, Pending
+        unhealthy_pods=$(kubectl get pods -A --no-headers -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata.name,STATUS:.status.phase,OWNER:.metadata.ownerReferences[0].kind" | \
+            awk '$4 != "Job" && ($3 != "Running" && $3 != "Completed" && $3 != "Succeeded" && $3 != "Pending") { print $1 "/" $2 " (" $3 ")" }')
+        echo "All non-Job pods are healthy (allowing Pending pods)"
+    else
+        # Default: only allow Running, Completed, Succeeded  
+        unhealthy_pods=$(kubectl get pods -A --no-headers -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata.name,STATUS:.status.phase,OWNER:.metadata.ownerReferences[0].kind" | \
+            awk '$4 != "Job" && ($3 != "Running" && $3 != "Completed" && $3 != "Succeeded") { print $1 "/" $2 " (" $3 ")" }')
+        echo "All non-Job pods are healthy"
     fi
+    
+    # Check container readiness for Running pods (skip Completed/Succeeded pods as they don't need to be ready)
+    unready_pods=$(kubectl get pods -A --no-headers -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata.name,STATUS:.status.phase,READY:.status.containerStatuses[*].ready,OWNER:.metadata.ownerReferences[0].kind" | \
+        awk '$5 != "Job" && $3 == "Running" && ($4 == "" || $4 !~ /^(true[[:space:]]*)*$/) { print $1 "/" $2 " (not ready)" }')
+    
+    local has_issues=0
+    
+    if [ -n "$unhealthy_pods" ]; then
+        echo "found non-Job pods in unhealthy state:"
+        echo "$unhealthy_pods"
+        has_issues=1
+    fi
+    
+    if [ -n "$unready_pods" ]; then
+        echo "found non-Job pods that are Running but not ready:"
+        echo "$unready_pods"
+        has_issues=1
+    fi
+    
+    if [ $has_issues -eq 1 ]; then
+        return 1
+    fi
+    
+    return 0
+}
+
+validate_jobs_completed() {
+    local incomplete_jobs
+    # Check that all Jobs have succeeded (status.succeeded should equal spec.completions)
+    # Flag any job that hasn't fully succeeded
+    incomplete_jobs=$(kubectl get jobs -A --no-headers -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata.name,COMPLETIONS:.spec.completions,SUCCESSFUL:.status.succeeded" | \
+        awk '$4 != $3 { print $1 "/" $2 " (succeeded: " $4 "/" $3 ")" }')
+    
+    if [ -n "$incomplete_jobs" ]; then
+        echo "found Jobs that have not completed successfully:"
+        echo "$incomplete_jobs"
+        echo ""
+        echo "Job details:"
+        kubectl get jobs -A
+        return 1
+    fi
+    echo "All Jobs have completed successfully"
+    return 0
+}
+
+validate_all_pods_healthy() {
+    local timeout=300  # 5 minutes
+    local start_time
+    local current_time
+    local elapsed_time
+    start_time=$(date +%s)
+    
+    # Show what mode we're in
+    if [ "${ALLOW_PENDING_PODS:-}" = "true" ]; then
+        echo "Validating pod and job health (allowing Pending pods)..."
+    else
+        echo "Validating pod and job health (default: Running, Completed, Succeeded)..."
+    fi
+    
+    while true; do
+        current_time=$(date +%s)
+        elapsed_time=$((current_time - start_time))
+        
+        if [ "$elapsed_time" -ge "$timeout" ]; then
+            echo "Timed out waiting for pods and jobs to be healthy after 5 minutes"
+            
+            # Show detailed failure info
+            validate_non_job_pods_healthy || true
+            echo ""
+            validate_jobs_completed || true
+            
+            return 1
+        fi
+        
+        # Check if both validations pass
+        local pods_healthy=0
+        local jobs_healthy=0
+        
+        if validate_non_job_pods_healthy >/dev/null 2>&1; then
+            pods_healthy=1
+        fi
+        
+        if validate_jobs_completed >/dev/null 2>&1; then
+            jobs_healthy=1
+        fi
+        
+        if [ $pods_healthy -eq 1 ] && [ $jobs_healthy -eq 1 ]; then
+            echo "All pods and jobs are healthy"
+            return 0
+        fi
+        
+        echo "Waiting for pods and jobs to be healthy... (${elapsed_time}s elapsed)"
+        sleep 10
+    done
 }
 
 validate_worker_profile() {

@@ -68,7 +68,7 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 		"vm", "create",
 		"--name", "ec-test-suite",
 		"--count", strconv.Itoa(in.Nodes),
-		"--wait", "5m",
+		"--wait", "10m",
 		"-ojson",
 	}
 	if in.Distribution != "" {
@@ -110,6 +110,10 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 			return nil, fmt.Errorf("get ssh endpoint for node %s: %v", nodes[i].ID, err)
 		}
 		nodes[i].sshEndpoint = sshEndpoint
+
+		if err := waitForSSH(nodes[i]); err != nil {
+			return nil, fmt.Errorf("wait for ssh to be available on node %d: %v", i, err)
+		}
 
 		privateIP, err := discoverPrivateIP(nodes[i])
 		if err != nil {
@@ -206,6 +210,25 @@ func getSSHEndpoint(nodeID string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
+func waitForSSH(node Node) error {
+	timeout := time.After(5 * time.Minute)
+	tick := time.Tick(5 * time.Second)
+	var lastErr error
+
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("timed out after 5 minutes: last error: %w", lastErr)
+		case <-tick:
+			stdout, stderr, err := runCommandOnNode(node, []string{"uptime"})
+			if err == nil {
+				return nil
+			}
+			lastErr = fmt.Errorf("%w: stdout: %s: stderr: %s", err, stdout, stderr)
+		}
+	}
+}
+
 func (c *Cluster) Airgap() error {
 	// Update network policy to airgap
 	output, err := exec.Command("replicated", "network", "update", "policy", "--id", c.network.ID, "--policy=airgap").CombinedOutput()
@@ -245,17 +268,15 @@ func (c *Cluster) waitUntilAirgapped(node int) error {
 func (c *Cluster) WaitForReboot() {
 	time.Sleep(30 * time.Second)
 	for i := range c.Nodes {
-		c.refreshSSHEndpoint(i)
+		c.waitForSSH(i)
 		c.waitForClockSync(i)
 	}
 }
 
-func (c *Cluster) refreshSSHEndpoint(node int) {
-	sshEndpoint, err := getSSHEndpoint(c.Nodes[node].ID)
-	if err != nil {
-		c.t.Fatalf("failed to refresh ssh endpoint for node %d: %v", node, err)
+func (c *Cluster) waitForSSH(node int) {
+	if err := waitForSSH(c.Nodes[node]); err != nil {
+		c.t.Fatalf("failed to wait for ssh to be available on node %d: %v", node, err)
 	}
-	c.Nodes[node].sshEndpoint = sshEndpoint
 }
 
 func (c *Cluster) waitForClockSync(node int) {

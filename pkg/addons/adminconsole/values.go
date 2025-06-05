@@ -57,6 +57,10 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 			"name":  "ENABLE_IMPROVED_DR",
 			"value": "true",
 		},
+		{
+			"name":  "SSL_CERT_CONFIGMAP",
+			"value": "kotsadm-private-cas",
+		},
 	}
 
 	if a.Proxy != nil {
