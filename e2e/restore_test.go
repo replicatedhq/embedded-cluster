@@ -359,6 +359,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		Nodes:        1,
 		Distribution: "ubuntu",
 		Version:      "22.04",
+		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup()
 
@@ -641,6 +642,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		Nodes:        3,
 		Distribution: "ubuntu",
 		Version:      "22.04",
+		InstanceType: "r1.medium",
 	})
 	defer tc.Cleanup(withEnv)
 
