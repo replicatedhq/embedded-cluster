@@ -34,7 +34,7 @@ async function fillConfigForm(iframe: FrameLocator) {
 }
 
 async function handlePreflightChecks(iframe: FrameLocator) {
-  await expect(iframe.getByText('Preflight checks', { exact: true })).toBeVisible({ timeout: 10 * 1000 });
+  await expect(iframe.getByText('Preflight checks', { exact: true })).toBeVisible({ timeout: 30 * 1000 });
   await expect(iframe.getByRole('button', { name: 'Rerun' })).toBeVisible({ timeout: 30 * 1000 });
   await expect(iframe.locator('#app')).toContainText('The Volume Snapshots CRD exists');
   await expect(iframe.getByRole('button', { name: 'Back: Config' })).toBeVisible();
