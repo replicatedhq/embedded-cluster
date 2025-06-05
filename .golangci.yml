@@ -21,7 +21,9 @@ linters:
 
     # Our own extras:
     - gofmt
-    - nolintlint # lints nolint directives
+    # We disable nolintlint on purpose given there's directives only applicable on latest which fail on previous release
+    # branches
+    # - nolintlint # lints nolint directives
     # - revive
 
 linters-settings:
