@@ -220,11 +220,11 @@ func waitForSSH(node Node) error {
 		case <-timeout:
 			return fmt.Errorf("timed out after 5 minutes: last error: %w", lastErr)
 		case <-tick:
-			_, _, err := runCommandOnNode(node, []string{"uptime"})
+			stdout, stderr, err := runCommandOnNode(node, []string{"uptime"})
 			if err == nil {
 				return nil
 			}
-			lastErr = err
+			lastErr = fmt.Errorf("%w: stdout: %s: stderr: %s", err, stdout, stderr)
 		}
 	}
 }
