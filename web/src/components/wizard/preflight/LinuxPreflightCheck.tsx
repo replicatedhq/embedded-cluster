@@ -178,16 +178,24 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
 
   if (isConfigPolling) {
     return (
-      <div className="py-3">
-        <div className="flex items-start">
-          <div className="flex-shrink-0 text-blue-500">
-            <Loader2 className="w-5 h-5 animate-spin" />
-          </div>
-          <div className="ml-3">
-            <h4 className="text-sm font-medium text-gray-900">Initializing...</h4>
-            <p>Preparing the host.</p>
-          </div>
-        </div>
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 
+          className="w-8 h-8 animate-spin mb-4"
+        />
+        <p className="text-lg font-medium text-gray-900">Initializing...</p>
+        <p className="text-sm text-gray-500 mt-2">Preparing the host.</p>
+      </div>
+    );
+  }
+
+  if (isPreflightsPolling) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 
+          className="w-8 h-8 animate-spin mb-4"
+        />
+        <p className="text-lg font-medium text-gray-900">Validating host requirements...</p>
+        <p className="text-sm text-gray-500 mt-2">Please wait while we check your system.</p>
       </div>
     );
   }
@@ -195,7 +203,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   return (
     <div>
       {/* Header for Host Requirements Not Met */}
-      {!isPreflightsPolling && (preflightResponse?.output?.fail?.length ?? 0) > 0 && (
+      {(preflightResponse?.output?.fail?.length ?? 0) > 0 && (
         <div className="mb-6">
           <div className="flex items-center mb-2">
             <XCircle className="w-7 h-7 text-red-500 mr-2" />
@@ -207,18 +215,6 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
         </div>
       )}{" "}
       <div className="space-y-2 divide-y divide-gray-200">
-        {isPreflightsPolling && (
-          <div className="py-3">
-            <div className="flex items-start">
-              <div className="flex-shrink-0 text-blue-500">
-                <Loader2 className="w-5 h-5 animate-spin" />
-              </div>
-              <div className="ml-3">
-                <h4 className="text-sm font-medium text-gray-900">Running checks...</h4>
-              </div>
-            </div>
-          </div>
-        )}{" "}
         {preflightResponse?.output && (
           <>
             {/* Failures Box */}

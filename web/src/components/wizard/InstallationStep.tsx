@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import Card from "../common/Card";
 import Button from "../common/Button";
 import { useConfig } from "../../contexts/ConfigContext";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Loader2 } from "lucide-react";
 import { useQuery, Query } from "@tanstack/react-query";
+import { useWizardMode } from "../../contexts/WizardModeContext";
 
 interface InstallStatus {
   state: "Succeeded" | "Failed" | "InProgress";
@@ -11,6 +12,7 @@ interface InstallStatus {
 
 const InstallationStep: React.FC = () => {
   const { config } = useConfig();
+  const { text } = useWizardMode(); 
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,16 +58,22 @@ const InstallationStep: React.FC = () => {
   return (
     <div className="space-y-6">
       <Card>
-        <div className="flex flex-col items-center text-center py-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Installing Embedded Cluster
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">
+            {text.installationTitle}
           </h2>
+          <p className="text-gray-600 mt-1">
+            {text.installationDescription}
+          </p>
+        </div>
 
+        <div className="flex flex-col items-center text-center py-12">
           {isLoading && (
-            <p className="text-xl text-gray-600 mb-8">
-              Please wait while we complete the installation...
-              {/* TODO: Add a loader for now */}
-            </p>
+            <div className="flex flex-col items-center">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-600 mb-4" />
+              <p className="text-lg font-medium text-gray-900">Please wait while we complete the installation...</p>
+              <p className="text-sm text-gray-500 mt-2">This may take a few minutes.</p>
+            </div>
           )}
 
           {error && (
