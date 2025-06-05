@@ -802,6 +802,14 @@ func TestInstallWithAPIClient(t *testing.T) {
 	err = installationManager.SetConfig(initialConfig)
 	require.NoError(t, err)
 
+	// Set some initial status
+	initialStatus := types.Status{
+		State:       types.StateRunning,
+		Description: "Configuring installation",
+	}
+	err = installationManager.SetStatus(initialStatus)
+	require.NoError(t, err)
+
 	// Create the API with controllers
 	apiInstance, err := api.New(
 		password,
@@ -835,6 +843,15 @@ func TestInstallWithAPIClient(t *testing.T) {
 		assert.Equal(t, 9081, config.LocalArtifactMirrorPort)
 		assert.Equal(t, "192.168.0.0/16", config.GlobalCIDR)
 		assert.Equal(t, "eth1", config.NetworkInterface)
+	})
+
+	// Test GetInstallationStatus
+	t.Run("GetInstallationStatus", func(t *testing.T) {
+		status, err := c.GetInstallationStatus()
+		require.NoError(t, err, "GetInstallationStatus should succeed")
+		assert.NotNil(t, status, "InstallationStatus should not be nil")
+		assert.Equal(t, types.StateRunning, status.State)
+		assert.Equal(t, "Configuring installation", status.Description)
 	})
 
 	// Test ConfigureInstallation

@@ -150,7 +150,7 @@ func TestConfigureInstallation(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check request method and path
-		assert.Equal(t, "POST", r.Method) // Corrected from PUT to POST based on implementation
+		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/api/install/installation/configure", r.URL.Path)
 
 		// Check headers

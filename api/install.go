@@ -36,7 +36,7 @@ func (a *API) getInstallInstallationConfig(w http.ResponseWriter, r *http.Reques
 //	@Accept			json
 //	@Produce		json
 //	@Param			installationConfig	body		types.InstallationConfig	true	"Installation config"
-//	@Success		200					{object}	types.InstallationConfig
+//	@Success		200					{object}	types.Status
 //	@Router			/install/installation/configure [post]
 func (a *API) postInstallConfigureInstallation(w http.ResponseWriter, r *http.Request) {
 	var config types.InstallationConfig

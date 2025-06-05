@@ -88,7 +88,7 @@ func WithHostUtils(hostUtils hostutils.HostUtilsInterface) InstallationManagerOp
 	}
 }
 
-// NewInstallationManager creates a new InstallationManager with the provided network utilities
+// NewInstallationManager creates a new InstallationManager with the provided options
 func NewInstallationManager(opts ...InstallationManagerOption) *installationManager {
 	manager := &installationManager{}
 
