@@ -68,7 +68,7 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 		"vm", "create",
 		"--name", "ec-test-suite",
 		"--count", strconv.Itoa(in.Nodes),
-		"--wait", "5m",
+		"--wait", "10m",
 		"-ojson",
 	}
 	if in.Distribution != "" {
