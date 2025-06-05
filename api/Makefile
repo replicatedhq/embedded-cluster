@@ -1,5 +1,7 @@
 SHELL := /bin/bash
 
+include ../common.mk
+
 .PHONY: swagger
 swagger: swag
 	swag fmt -g api.go
@@ -11,4 +13,4 @@ swag:
 
 .PHONY: unit-tests
 unit-tests:
-	go test -v ./...
+	go test -tags $(GO_BUILD_TAGS) -v ./...

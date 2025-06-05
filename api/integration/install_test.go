@@ -804,8 +804,8 @@ func TestInstallWithAPIClient(t *testing.T) {
 
 	// Set some initial status
 	initialStatus := types.Status{
-		State:       types.StateRunning,
-		Description: "Configuring installation",
+		State:       types.StatePending,
+		Description: "Installation pending",
 	}
 	err = installationManager.SetStatus(initialStatus)
 	require.NoError(t, err)
@@ -850,8 +850,8 @@ func TestInstallWithAPIClient(t *testing.T) {
 		status, err := c.GetInstallationStatus()
 		require.NoError(t, err, "GetInstallationStatus should succeed")
 		assert.NotNil(t, status, "InstallationStatus should not be nil")
-		assert.Equal(t, types.StateRunning, status.State)
-		assert.Equal(t, "Configuring installation", status.Description)
+		assert.Equal(t, types.StatePending, status.State)
+		assert.Equal(t, "Installation pending", status.Description)
 	})
 
 	// Test ConfigureInstallation
