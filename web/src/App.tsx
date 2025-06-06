@@ -4,7 +4,7 @@ import { WizardModeProvider } from "./contexts/WizardModeContext";
 import { BrandingProvider } from "./contexts/BrandingContext";
 import InstallWizard from "./components/wizard/InstallWizard";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { getQueryClient } from "../query-client";
+import { getQueryClient } from "./query-client";
 
 function App() {
   const queryClient = getQueryClient();

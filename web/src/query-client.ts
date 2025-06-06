@@ -1,7 +1,7 @@
 // @ts-strict
 import { QueryClient, type QueryClientConfig } from "@tanstack/react-query";
 
-const shouldRetryAfterError = (error: any) => {
+const shouldRetryAfterError = (error: Error) => {
   const message = error?.message;
   if (!message) {
     return false;

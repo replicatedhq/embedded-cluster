@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from "react";
 
 export interface ClusterConfig {
   clusterName: string;
@@ -11,7 +11,7 @@ export interface ClusterConfig {
   adminEmail: string;
   adminConsolePort?: number;
   localArtifactMirrorPort?: number;
-  databaseType: 'internal' | 'external';
+  databaseType: "internal" | "external";
   dataDirectory: string;
   useProxy: boolean;
   httpProxy?: string;
@@ -33,7 +33,7 @@ interface PrototypeSettings {
   failPreflights: boolean;
   failInstallation: boolean;
   failHostPreflights: boolean;
-  clusterMode: 'existing' | 'embedded';
+  clusterMode: "existing" | "embedded";
   themeColor: string;
   skipNodeValidation: boolean;
   useSelfSignedCert: boolean;
@@ -52,16 +52,16 @@ interface ConfigContextType {
 }
 
 const defaultConfig: ClusterConfig = {
-  clusterName: '',
-  namespace: '',
-  storageClass: 'standard',
-  domain: '',
+  clusterName: "",
+  namespace: "",
+  storageClass: "standard",
+  domain: "",
   useHttps: true,
-  adminUsername: 'admin',
-  adminPassword: '',
-  adminEmail: '',
-  databaseType: 'internal',
-  dataDirectory: '/var/lib/embedded-cluster',
+  adminUsername: "admin",
+  adminPassword: "",
+  adminEmail: "",
+  databaseType: "internal",
+  dataDirectory: "/var/lib/embedded-cluster",
   useProxy: false,
 };
 
@@ -70,31 +70,40 @@ const defaultPrototypeSettings: PrototypeSettings = {
   failPreflights: false,
   failInstallation: false,
   failHostPreflights: false,
-  clusterMode: 'embedded',
-  themeColor: '#316DE6',
+  clusterMode: "embedded",
+  themeColor: "#316DE6",
   skipNodeValidation: false,
   useSelfSignedCert: false,
   enableMultiNode: true,
-  availableNetworkInterfaces: []
+  availableNetworkInterfaces: [],
 };
 
-const PROTOTYPE_SETTINGS_KEY = 'app-prototype-settings';
+const PROTOTYPE_SETTINGS_KEY = "app-prototype-settings";
 
-const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
+export const ConfigContext = createContext<ConfigContextType | undefined>(
+  undefined
+);
 
-export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [config, setConfig] = useState<ClusterConfig>(defaultConfig);
-  const [prototypeSettings, setPrototypeSettings] = useState<PrototypeSettings>(() => {
-    const saved = localStorage.getItem(PROTOTYPE_SETTINGS_KEY);
-    const settings = saved ? JSON.parse(saved) : defaultPrototypeSettings;
-    if (!settings.themeColor) {
-      settings.themeColor = defaultPrototypeSettings.themeColor;
+  const [prototypeSettings, setPrototypeSettings] = useState<PrototypeSettings>(
+    () => {
+      const saved = localStorage.getItem(PROTOTYPE_SETTINGS_KEY);
+      const settings = saved ? JSON.parse(saved) : defaultPrototypeSettings;
+      if (!settings.themeColor) {
+        settings.themeColor = defaultPrototypeSettings.themeColor;
+      }
+      return settings;
     }
-    return settings;
-  });
+  );
 
   useEffect(() => {
-    localStorage.setItem(PROTOTYPE_SETTINGS_KEY, JSON.stringify(prototypeSettings));
+    localStorage.setItem(
+      PROTOTYPE_SETTINGS_KEY,
+      JSON.stringify(prototypeSettings)
+    );
   }, [prototypeSettings]);
 
   const updateConfig = (newConfig: Partial<ClusterConfig>) => {
@@ -116,7 +125,15 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   return (
-    <ConfigContext.Provider value={{ config, prototypeSettings, updateConfig, updatePrototypeSettings, resetConfig }}>
+    <ConfigContext.Provider
+      value={{
+        config,
+        prototypeSettings,
+        updateConfig,
+        updatePrototypeSettings,
+        resetConfig,
+      }}
+    >
       {children}
     </ConfigContext.Provider>
   );
@@ -125,7 +142,7 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 export const useConfig = (): ConfigContextType => {
   const context = useContext(ConfigContext);
   if (context === undefined) {
-    throw new Error('useConfig must be used within a ConfigProvider');
+    throw new Error("useConfig must be used within a ConfigProvider");
   }
   return context;
 };

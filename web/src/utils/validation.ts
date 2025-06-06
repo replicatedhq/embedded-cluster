@@ -92,7 +92,7 @@ interface PreflightResponse {
   output?: PreflightOutput;
 }
 
-export const validateHostPreflights = async (config: ClusterConfig): Promise<PreflightResponse> => {
+export const validateHostPreflights = async (): Promise<PreflightResponse> => {
   // Simulate status
   const status: PreflightStatus = {
     state: 'Succeeded',
@@ -107,7 +107,7 @@ export const validateHostPreflights = async (config: ClusterConfig): Promise<Pre
   // Simulate preflight checks
   await new Promise(resolve => setTimeout(resolve, 2000));
 
-  let output: PreflightOutput = {
+  const output: PreflightOutput = {
     pass: [],
     warn: [],
     fail: [],

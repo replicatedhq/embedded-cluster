@@ -20,9 +20,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
   const { text } = useWizardMode();
   const { prototypeSettings } = useConfig();
   const [password, setPassword] = useState("");
-  const [showPasswordInput, setShowPasswordInput] = useState(
-    !prototypeSettings.useSelfSignedCert
-  );
+  const [showPasswordInput, setShowPasswordInput] = useState(!prototypeSettings.useSelfSignedCert);
 
   const {
     mutate: login,
@@ -78,12 +76,8 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
       <Card>
         <div className="flex flex-col items-center text-center py-12">
           <AppIcon className="h-20 w-20 mb-6" />
-          <h2 className="text-3xl font-bold text-gray-900">
-            {text.welcomeTitle}
-          </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mb-8">
-            {text.welcomeDescription}
-          </p>
+          <h2 className="text-3xl font-bold text-gray-900">{text.welcomeTitle}</h2>
+          <p className="text-xl text-gray-600 max-w-2xl mb-8">{text.welcomeDescription}</p>
           {prototypeSettings.useSelfSignedCert && !showPasswordInput && (
             <>
               <div className="w-full max-w-2xl mb-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
@@ -92,38 +86,24 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
                     <AlertTriangle className="h-5 w-5 text-amber-400" />
                   </div>
                   <div className="ml-3 text-left">
-                    <h3 className="text-sm font-medium text-amber-800">
-                      Self-Signed Certificate Warning
-                    </h3>
+                    <h3 className="text-sm font-medium text-amber-800">Self-Signed Certificate Warning</h3>
                     <div className="mt-2 text-sm text-amber-700">
                       <p>
-                        When you click "Continue", you'll be redirected to a
-                        secure HTTPS connection. Your browser will show a
-                        security warning because this wizard uses a self-signed
-                        certificate.
+                        When you click "Continue", you'll be redirected to a secure HTTPS connection. Your browser will
+                        show a security warning because this wizard uses a self-signed certificate.
                       </p>
                       <p className="mt-2">To proceed:</p>
                       <ol className="list-decimal list-inside mt-1 space-y-1">
-                        <li>
-                          Click "Advanced" or "Show Details" in your browser's
-                          warning
-                        </li>
+                        <li>Click "Advanced" or "Show Details" in your browser's warning</li>
                         <li>Choose "Proceed" or "Continue" to the site</li>
-                        <li>
-                          You'll return to this page to enter your password
-                        </li>
+                        <li>You'll return to this page to enter your password</li>
                       </ol>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <Button
-                onClick={handleSubmit}
-                size="lg"
-                icon={<ChevronRight className="w-5 h-5" />}
-                disabled={isLoading}
-              >
+              <Button onClick={handleSubmit} size="lg" icon={<ChevronRight className="w-5 h-5" />} disabled={isLoading}>
                 Continue Securely
               </Button>
             </>
