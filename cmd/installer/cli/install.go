@@ -483,7 +483,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		return fmt.Errorf("unable to add insecure registry: %w", err)
 	}
 
-	opts, err := getAddonInstallOpts(flags)
+	opts, err := getAddonInstallOpts(in, flags)
 	if err != nil {
 		return fmt.Errorf("unable to get addon install options: %w", err)
 	}
@@ -536,11 +536,8 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	return nil
 }
 
-func getAddonInstallOpts(flags InstallCmdFlags) (*addonstypes.InstallOptions, error) {
-	var embCfgSpec *ecv1beta1.ConfigSpec
-	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
-		embCfgSpec = &embCfg.Spec
-	}
+func getAddonInstallOpts(in *ecv1beta1.Installation, flags InstallCmdFlags) (*addonstypes.InstallOptions, error) {
+	opts := addons.InstallOptionsFromInstallationSpec(in.Spec)
 
 	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
 	if err != nil {
@@ -551,33 +548,24 @@ func getAddonInstallOpts(flags InstallCmdFlags) (*addonstypes.InstallOptions, er
 		euCfgSpec = &euCfg.Spec
 	}
 
-	return &addonstypes.InstallOptions{
-		ClusterID:                 metrics.ClusterID().String(),
-		AdminConsolePassword:      flags.adminConsolePassword,
-		IsAirgap:                  flags.isAirgap,
-		IsHA:                      false,
-		Proxy:                     flags.proxy,
-		TLSCertBytes:              flags.tlsCertBytes,
-		TLSKeyBytes:               flags.tlsKeyBytes,
-		Hostname:                  flags.hostname,
-		ServiceCIDR:               flags.cidrCfg.ServiceCIDR,
-		IsDisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
-		IsMultiNodeEnabled:        flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
-		EmbeddedConfigSpec:        embCfgSpec,
-		EndUserConfigSpec:         euCfgSpec,
-		Domains:                   runtimeconfig.GetDomains(embCfgSpec),
-		KotsInstaller: func(msg *spinner.MessageWriter) error {
-			opts := kotscli.InstallOptions{
-				AppSlug:               flags.license.Spec.AppSlug,
-				LicenseFile:           flags.licenseFile,
-				Namespace:             runtimeconfig.KotsadmNamespace,
-				AirgapBundle:          flags.airgapBundle,
-				ConfigValuesFile:      flags.configValues,
-				ReplicatedAppEndpoint: replicatedAppURL(),
-			}
-			return kotscli.Install(opts, msg)
-		},
-	}, nil
+	opts.AdminConsolePassword = flags.adminConsolePassword
+	opts.TLSCertBytes = flags.tlsCertBytes
+	opts.TLSKeyBytes = flags.tlsKeyBytes
+	opts.Hostname = flags.hostname
+	opts.EndUserConfigSpec = euCfgSpec
+	opts.KotsInstaller = func(msg *spinner.MessageWriter) error {
+		opts := kotscli.InstallOptions{
+			AppSlug:               flags.license.Spec.AppSlug,
+			LicenseFile:           flags.licenseFile,
+			Namespace:             runtimeconfig.KotsadmNamespace,
+			AirgapBundle:          flags.airgapBundle,
+			ConfigValuesFile:      flags.configValues,
+			ReplicatedAppEndpoint: replicatedAppURL(),
+		}
+		return kotscli.Install(opts, msg)
+	}
+
+	return &opts, nil
 }
 
 func runInstallVerifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt) error {

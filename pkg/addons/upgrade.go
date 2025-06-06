@@ -35,7 +35,7 @@ func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 		return errors.Wrap(err, "create metadata client")
 	}
 
-	opts := getUpgradeOpts(in.Spec)
+	opts := InstallOptionsFromInstallationSpec(in.Spec)
 
 	addons, err := getAddOnsForUpgrade(logf, hcli, kcli, mcli, rc, meta, opts)
 	if err != nil {
@@ -48,34 +48,6 @@ func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 	}
 
 	return nil
-}
-
-func getUpgradeOpts(inSpec ecv1beta1.InstallationSpec) types.InstallOptions {
-	serviceCIDR := ""
-	if inSpec.Network != nil {
-		serviceCIDR = inSpec.Network.ServiceCIDR
-	}
-
-	return types.InstallOptions{
-		ClusterID:                 inSpec.ClusterID,
-		IsAirgap:                  inSpec.AirGap,
-		IsHA:                      inSpec.HighAvailability,
-		Proxy:                     inSpec.Proxy,
-		ServiceCIDR:               serviceCIDR,
-		IsDisasterRecoveryEnabled: inSpec.LicenseInfo != nil && inSpec.LicenseInfo.IsDisasterRecoverySupported,
-		IsMultiNodeEnabled:        inSpec.LicenseInfo != nil && inSpec.LicenseInfo.IsMultiNodeEnabled,
-		EmbeddedConfigSpec:        inSpec.Config,
-		Domains:                   runtimeconfig.GetDomains(inSpec.Config),
-
-		// The following is unset on upgrades
-		AdminConsolePassword: "",
-		TLSCertBytes:         nil,
-		TLSKeyBytes:          nil,
-		Hostname:             "",
-		// TODO (@salah): add support for end user overrides
-		EndUserConfigSpec: nil,
-		KotsInstaller:     nil,
-	}
 }
 
 func getAddOnsForUpgrade(logf types.LogFunc, hcli helm.Client, kcli client.Client, mcli metadata.Interface, rc runtimeconfig.RuntimeConfig, meta *ectypes.ReleaseMetadata, opts types.InstallOptions) ([]types.AddOn, error) {

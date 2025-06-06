@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
@@ -613,6 +612,7 @@ func Test_verifyProxyConfig(t *testing.T) {
 func Test_getAddonInstallOpts(t *testing.T) {
 	tests := []struct {
 		name   string
+		in     *ecv1beta1.Installation
 		flags  InstallCmdFlags
 		before func()
 		verify func(t *testing.T, opts *addonstypes.InstallOptions)
@@ -620,18 +620,19 @@ func Test_getAddonInstallOpts(t *testing.T) {
 	}{
 		{
 			name: "online installation",
-			flags: InstallCmdFlags{
-				isAirgap:     false,
-				airgapBundle: "",
-				license: &kotsv1beta1.License{
-					Spec: kotsv1beta1.LicenseSpec{
+			in: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					AirGap: false,
+					LicenseInfo: &ecv1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: false,
 					},
+					Network: &ecv1beta1.NetworkSpec{
+						ServiceCIDR: "10.96.0.0/12",
+					},
 				},
+			},
+			flags: InstallCmdFlags{
 				adminConsolePassword: "password123",
-				cidrCfg: &newconfig.CIDRConfig{
-					ServiceCIDR: "10.96.0.0/12",
-				},
 			},
 			verify: func(t *testing.T, opts *addonstypes.InstallOptions) {
 				assert.False(t, opts.IsAirgap, "Should not be in airgap mode")
@@ -646,17 +647,18 @@ func Test_getAddonInstallOpts(t *testing.T) {
 		},
 		{
 			name: "online installation with default domains",
-			flags: InstallCmdFlags{
-				isAirgap:     false,
-				airgapBundle: "",
-				license: &kotsv1beta1.License{
-					Spec: kotsv1beta1.LicenseSpec{
+			in: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					AirGap: false,
+					LicenseInfo: &ecv1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: false,
 					},
+					Network: &ecv1beta1.NetworkSpec{
+						ServiceCIDR: "10.96.0.0/12",
+					},
 				},
-				cidrCfg: &newconfig.CIDRConfig{
-					ServiceCIDR: "10.96.0.0/12",
-				},
+			},
+			flags: InstallCmdFlags{
 				adminConsolePassword: "password123",
 			},
 			before: func() {
@@ -687,17 +689,25 @@ defaultDomains:
 		},
 		{
 			name: "online installation with custom domains",
-			flags: InstallCmdFlags{
-				isAirgap:     false,
-				airgapBundle: "",
-				license: &kotsv1beta1.License{
-					Spec: kotsv1beta1.LicenseSpec{
+			in: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					AirGap: false,
+					LicenseInfo: &ecv1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: false,
 					},
+					Network: &ecv1beta1.NetworkSpec{
+						ServiceCIDR: "10.96.0.0/12",
+					},
+					Config: &ecv1beta1.ConfigSpec{
+						Domains: ecv1beta1.Domains{
+							ReplicatedAppDomain:      "app.example.com",
+							ProxyRegistryDomain:      "proxy.example.com",
+							ReplicatedRegistryDomain: "registry.example.com",
+						},
+					},
 				},
-				cidrCfg: &newconfig.CIDRConfig{
-					ServiceCIDR: "10.96.0.0/12",
-				},
+			},
+			flags: InstallCmdFlags{
 				adminConsolePassword: "password123",
 			},
 			before: func() {
@@ -708,17 +718,6 @@ defaultDomains:
   replicatedAppDomain: "staging.replicated.app"
   proxyRegistryDomain: "proxy.staging.replicated.com"
   replicatedRegistryDomain: "registry.staging.replicated.com"
-`),
-					"clusterconfig.yaml": []byte(`
-apiVersion: embeddedcluster.replicated.com/v1beta1
-kind: Config
-metadata:
-  name: "testconfig"
-spec:
-  domains:
-    replicatedAppDomain: "app.example.com"
-    proxyRegistryDomain: "proxy.example.com"
-    replicatedRegistryDomain: "registry.example.com"
 `),
 				})
 				require.NoError(t, err)
@@ -739,17 +738,18 @@ spec:
 		},
 		{
 			name: "airgap installation",
-			flags: InstallCmdFlags{
-				isAirgap:     true,
-				airgapBundle: "test-bundle",
-				license: &kotsv1beta1.License{
-					Spec: kotsv1beta1.LicenseSpec{
+			in: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					AirGap: true,
+					LicenseInfo: &ecv1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: false,
 					},
+					Network: &ecv1beta1.NetworkSpec{
+						ServiceCIDR: "10.96.0.0/12",
+					},
 				},
-				cidrCfg: &newconfig.CIDRConfig{
-					ServiceCIDR: "10.96.0.0/12",
-				},
+			},
+			flags: InstallCmdFlags{
 				adminConsolePassword: "password123",
 			},
 			verify: func(t *testing.T, opts *addonstypes.InstallOptions) {
@@ -765,17 +765,18 @@ spec:
 		},
 		{
 			name: "disaster recovery enabled",
-			flags: InstallCmdFlags{
-				isAirgap:     false,
-				airgapBundle: "",
-				license: &kotsv1beta1.License{
-					Spec: kotsv1beta1.LicenseSpec{
+			in: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					AirGap: false,
+					LicenseInfo: &ecv1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: true,
 					},
+					Network: &ecv1beta1.NetworkSpec{
+						ServiceCIDR: "10.96.0.0/12",
+					},
 				},
-				cidrCfg: &newconfig.CIDRConfig{
-					ServiceCIDR: "10.96.0.0/12",
-				},
+			},
+			flags: InstallCmdFlags{
 				adminConsolePassword: "password123",
 			},
 			verify: func(t *testing.T, opts *addonstypes.InstallOptions) {
@@ -792,23 +793,24 @@ spec:
 		},
 		{
 			name: "airgap with disaster recovery and proxy",
-			flags: InstallCmdFlags{
-				isAirgap:     true,
-				airgapBundle: "test-bundle",
-				license: &kotsv1beta1.License{
-					Spec: kotsv1beta1.LicenseSpec{
+			in: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					AirGap: true,
+					LicenseInfo: &ecv1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: true,
 					},
+					Network: &ecv1beta1.NetworkSpec{
+						ServiceCIDR: "10.96.0.0/12",
+					},
+					Proxy: &ecv1beta1.ProxySpec{
+						HTTPProxy:  "http://proxy.example.com",
+						HTTPSProxy: "https://proxy.example.com",
+						NoProxy:    "localhost,127.0.0.1",
+					},
 				},
-				cidrCfg: &newconfig.CIDRConfig{
-					ServiceCIDR: "10.96.0.0/12",
-				},
+			},
+			flags: InstallCmdFlags{
 				adminConsolePassword: "password123",
-				proxy: &ecv1beta1.ProxySpec{
-					HTTPProxy:  "http://proxy.example.com",
-					HTTPSProxy: "https://proxy.example.com",
-					NoProxy:    "localhost,127.0.0.1",
-				},
 			},
 			verify: func(t *testing.T, opts *addonstypes.InstallOptions) {
 				assert.True(t, opts.IsAirgap, "Should be in airgap mode")
@@ -826,16 +828,25 @@ spec:
 		},
 		{
 			name: "airgap with disaster recovery and custom domains",
-			flags: InstallCmdFlags{
-				isAirgap: true,
-				license: &kotsv1beta1.License{
-					Spec: kotsv1beta1.LicenseSpec{
+			in: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					AirGap: true,
+					LicenseInfo: &ecv1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: true,
 					},
+					Network: &ecv1beta1.NetworkSpec{
+						ServiceCIDR: "10.96.0.0/12",
+					},
+					Config: &ecv1beta1.ConfigSpec{
+						Domains: ecv1beta1.Domains{
+							ReplicatedAppDomain:      "app.example.com",
+							ProxyRegistryDomain:      "proxy.example.com",
+							ReplicatedRegistryDomain: "registry.example.com",
+						},
+					},
 				},
-				cidrCfg: &newconfig.CIDRConfig{
-					ServiceCIDR: "10.96.0.0/12",
-				},
+			},
+			flags: InstallCmdFlags{
 				adminConsolePassword: "password123",
 			},
 			before: func() {
@@ -846,17 +857,6 @@ defaultDomains:
   replicatedAppDomain: "staging.replicated.app"
   proxyRegistryDomain: "proxy.staging.replicated.com"
   replicatedRegistryDomain: "registry.staging.replicated.com"
-`),
-					"clusterconfig.yaml": []byte(`
-apiVersion: embeddedcluster.replicated.com/v1beta1
-kind: Config
-metadata:
-  name: "testconfig"
-spec:
-  domains:
-    replicatedAppDomain: "app.example.com"
-    proxyRegistryDomain: "proxy.example.com"
-    replicatedRegistryDomain: "registry.example.com"
 `),
 				})
 				require.NoError(t, err)
@@ -880,7 +880,7 @@ spec:
 			if tt.before != nil {
 				tt.before()
 			}
-			opts, err := getAddonInstallOpts(tt.flags)
+			opts, err := getAddonInstallOpts(tt.in, tt.flags)
 			require.NoError(t, err)
 			tt.verify(t, opts)
 			if tt.after != nil {

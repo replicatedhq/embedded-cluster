@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
@@ -17,6 +18,34 @@ import (
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+func InstallOptionsFromInstallationSpec(inSpec ecv1beta1.InstallationSpec) types.InstallOptions {
+	serviceCIDR := ""
+	if inSpec.Network != nil {
+		serviceCIDR = inSpec.Network.ServiceCIDR
+	}
+
+	// - AdminConsolePassword
+	// - TLSCertBytes
+	// - TLSKeyBytes
+	// - Hostname
+	// - EndUserConfigSpec
+	// - KotsInstaller
+
+	// TODO (@salah): add support for end user overrides from the installation spec
+
+	return types.InstallOptions{
+		ClusterID:                 inSpec.ClusterID,
+		IsAirgap:                  inSpec.AirGap,
+		IsHA:                      inSpec.HighAvailability,
+		Proxy:                     inSpec.Proxy,
+		ServiceCIDR:               serviceCIDR,
+		IsDisasterRecoveryEnabled: inSpec.LicenseInfo != nil && inSpec.LicenseInfo.IsDisasterRecoverySupported,
+		IsMultiNodeEnabled:        inSpec.LicenseInfo != nil && inSpec.LicenseInfo.IsMultiNodeEnabled,
+		EmbeddedConfigSpec:        inSpec.Config,
+		Domains:                   runtimeconfig.GetDomains(inSpec.Config),
+	}
+}
 
 func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runtimeconfig.RuntimeConfig, opts types.InstallOptions) error {
 	kcli, err := kubeutils.KubeClient()
