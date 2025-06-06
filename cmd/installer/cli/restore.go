@@ -473,6 +473,7 @@ func getRestoreAddonInstallOpts(flags InstallCmdFlags) (*addonstypes.InstallOpti
 	}
 
 	return &addonstypes.InstallOptions{
+		ClusterID:                 metrics.ClusterID().String(),
 		IsAirgap:                  flags.airgapBundle != "",
 		IsHA:                      false,
 		Proxy:                     flags.proxy,
@@ -481,13 +482,11 @@ func getRestoreAddonInstallOpts(flags InstallCmdFlags) (*addonstypes.InstallOpti
 		EmbeddedConfigSpec:        embCfgSpec,
 		EndUserConfigSpec:         euCfgSpec,
 		Domains:                   runtimeconfig.GetDomains(embCfgSpec),
-		ClusterID:                 metrics.ClusterID().String(),
 
 		IsRestore: true,
 
-		// The following is unset on retore
+		// The following is unused by restore
 		AdminConsolePassword: "",
-		License:              nil,
 		TLSCertBytes:         nil,
 		TLSKeyBytes:          nil,
 		Hostname:             "",

@@ -552,8 +552,8 @@ func getAddonInstallOpts(flags InstallCmdFlags) (*addonstypes.InstallOptions, er
 	}
 
 	return &addonstypes.InstallOptions{
+		ClusterID:                 metrics.ClusterID().String(),
 		AdminConsolePassword:      flags.adminConsolePassword,
-		License:                   flags.license,
 		IsAirgap:                  flags.isAirgap,
 		IsHA:                      false,
 		Proxy:                     flags.proxy,
@@ -577,7 +577,6 @@ func getAddonInstallOpts(flags InstallCmdFlags) (*addonstypes.InstallOptions, er
 			}
 			return kotscli.Install(opts, msg)
 		},
-		ClusterID: metrics.ClusterID().String(),
 	}, nil
 }
 
