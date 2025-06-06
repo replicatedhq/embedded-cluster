@@ -58,7 +58,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 }
 
 func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
-	if err := runInstallVerifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
+	if err := verifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
 		return err
 	}
 

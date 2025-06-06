@@ -109,6 +109,9 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := verifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
+				return err
+			}
 			if err := preRunInstall(cmd, &flags, rc); err != nil {
 				return err
 			}
@@ -125,7 +128,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				installReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runInstall(cmd.Context(), name, flags, rc, installReporter); err != nil {
+			if err := runInstall(cmd.Context(), flags, rc, installReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
 					installReporter.ReportSignalAborted(ctx, syscall.SIGINT)
@@ -273,6 +276,17 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 
 	flags.isAirgap = flags.airgapBundle != ""
 
+	proxy, err := parseProxyFlags(cmd)
+	if err != nil {
+		return err
+	}
+	flags.proxy = proxy
+
+	if err := verifyProxyConfig(flags.proxy, prompts.New(), flags.assumeYes); err != nil {
+		return err
+	}
+	logrus.Debug("User confirmed prompt to proceed installing with `http_proxy` set and `https_proxy` unset")
+
 	// restore command doesn't have a password flag
 	if cmd.Flags().Lookup("admin-console-password") != nil {
 		if err := ensureAdminConsolePassword(flags); err != nil {
@@ -371,12 +385,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 		flags.localArtifactMirrorPort = installConfig.LocalArtifactMirrorPort
 
 	} else {
-		proxy, err := parseProxyFlags(cmd)
-		if err != nil {
-			return err
-		}
-		flags.proxy = proxy
-
 		if err := validateCIDRFlags(cmd); err != nil {
 			return err
 		}
@@ -432,11 +440,7 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 	return nil
 }
 
-func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) error {
-	if err := runInstallVerifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
-		return err
-	}
-
+func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) error {
 	if !flags.enableManagerExperience {
 		logrus.Debug("initializing install")
 		if err := initializeInstall(ctx, flags, rc); err != nil {
@@ -571,7 +575,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	return nil
 }
 
-func runInstallVerifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt) error {
+func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "reinstall")
 	if err != nil {
@@ -605,11 +609,6 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags InstallCm
 			logrus.Debugf("WARNING: Failed to check for newer app versions: %v", err)
 		}
 	}
-
-	if err := verifyProxyConfig(flags.proxy, prompt, flags.assumeYes); err != nil {
-		return err
-	}
-	logrus.Debug("User confirmed prompt to proceed installing with `http_proxy` set and `https_proxy` unset")
 
 	if err := release.ValidateECConfig(); err != nil {
 		return err
