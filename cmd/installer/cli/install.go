@@ -539,20 +539,19 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 func getAddonInstallOpts(in *ecv1beta1.Installation, flags InstallCmdFlags) (*addonstypes.InstallOptions, error) {
 	opts := addons.InstallOptionsFromInstallationSpec(in.Spec)
 
-	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
-	if err != nil {
-		return nil, fmt.Errorf("unable to process overrides file: %w", err)
-	}
-	var euCfgSpec *ecv1beta1.ConfigSpec
-	if euCfg != nil {
-		euCfgSpec = &euCfg.Spec
-	}
-
 	opts.AdminConsolePassword = flags.adminConsolePassword
 	opts.TLSCertBytes = flags.tlsCertBytes
 	opts.TLSKeyBytes = flags.tlsKeyBytes
 	opts.Hostname = flags.hostname
-	opts.EndUserConfigSpec = euCfgSpec
+
+	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return nil, fmt.Errorf("unable to process overrides file: %w", err)
+	}
+	if euCfg != nil {
+		opts.EndUserConfigSpec = &euCfg.Spec
+	}
+
 	opts.KotsInstaller = func(msg *spinner.MessageWriter) error {
 		opts := kotscli.InstallOptions{
 			AppSlug:               flags.license.Spec.AppSlug,
