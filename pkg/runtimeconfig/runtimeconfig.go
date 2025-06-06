@@ -65,21 +65,25 @@ func (rc *runtimeConfig) Cleanup() {
 	}
 }
 
-// MustEnsureDirs ensures that certain directories for the RuntimeConfig exist. It will log a fatal
-// error if it fails to create any of the directories.
-func (rc *runtimeConfig) MustEnsureDirs() {
-	mustMkdirAll(rc.EmbeddedClusterHomeDirectory())
-	mustMkdirAll(rc.EmbeddedClusterTmpSubDir())
-	mustMkdirAll(rc.EmbeddedClusterBinsSubDir())
-	mustMkdirAll(rc.EmbeddedClusterChartsSubDir())
-	mustMkdirAll(rc.EmbeddedClusterImagesSubDir())
-	mustMkdirAll(rc.EmbeddedClusterSupportSubDir())
+// SetEnv sets the KUBECONFIG and TMPDIR environment variables from the RuntimeConfig.
+func (rc *runtimeConfig) SetEnv() {
+	rc.SetEnvKubeConfig(false)
+	rc.SetEnvTmpDir()
+}
+
+// SetEnvKubeConfig sets the KUBECONFIG environment variable from the RuntimeConfig. If isWorker is
+// true, it will set the KUBECONFIG to the kubelet config file.
+func (rc *runtimeConfig) SetEnvKubeConfig(isWorker bool) {
+	if isWorker {
+		_ = os.Setenv("KUBECONFIG", rc.PathToKubeletConfig())
+	} else {
+		_ = os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
+	}
 }
 
 // SetEnv sets the KUBECONFIG and TMPDIR environment variables from the RuntimeConfig.
-func (rc *runtimeConfig) SetEnv() {
-	os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+func (rc *runtimeConfig) SetEnvTmpDir() {
+	_ = os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 }
 
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
