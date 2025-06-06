@@ -25,8 +25,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// APIConfig holds the configuration for the API server
-type APIConfig struct {
+// apiConfig holds the configuration for the API server
+type apiConfig struct {
 	RuntimeConfig   runtimeconfig.RuntimeConfig
 	Logger          logrus.FieldLogger
 	MetricsReporter metrics.ReporterInterface
@@ -39,7 +39,7 @@ type APIConfig struct {
 	WebAssetsFS     fs.FS
 }
 
-func startAPI(ctx context.Context, cert tls.Certificate, config APIConfig) error {
+func startAPI(ctx context.Context, cert tls.Certificate, config apiConfig) error {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", config.ManagerPort))
 	if err != nil {
 		return fmt.Errorf("unable to create listener: %w", err)
@@ -60,7 +60,7 @@ func startAPI(ctx context.Context, cert tls.Certificate, config APIConfig) error
 	return nil
 }
 
-func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, config APIConfig) error {
+func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, config apiConfig) error {
 	router := mux.NewRouter()
 
 	if config.ReleaseData == nil {
@@ -116,7 +116,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 	return server.ServeTLS(listener, "", "")
 }
 
-func loggerFromConfig(config APIConfig) (logrus.FieldLogger, error) {
+func loggerFromConfig(config apiConfig) (logrus.FieldLogger, error) {
 	if config.Logger != nil {
 		return config.Logger, nil
 	}

@@ -317,7 +317,7 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 			flags.tlsKeyBytes = keyData
 		}
 
-		apiConfig := APIConfig{
+		apiConfig := apiConfig{
 			// TODO (@salah): implement reporting in api
 			// MetricsReporter: reporter,
 			RuntimeConfig: rc,

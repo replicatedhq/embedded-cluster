@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -253,64 +252,41 @@ func TestCopyFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			require := require.New(t)
+
 			// Setup test case
-			if err := tt.setup(); err != nil {
-				t.Fatalf("Setup failed: %v", err)
-			}
+			require.NoError(tt.setup(), "Setup failed")
 
 			// Run CopyFile
 			err := CopyFile(tt.src, tt.dst, tt.mode)
 
 			// Check error
 			if tt.wantErr {
-				if err == nil {
-					t.Error("CopyFile() error = nil, want error")
-				} else if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
-					t.Errorf("CopyFile() error = %v, want error containing %q", err, tt.errContains)
+				assert.Error(err, "CopyFile() should return error")
+				if tt.errContains != "" {
+					assert.Contains(err.Error(), tt.errContains, "Error message should contain expected text")
 				}
 				return
 			}
 
-			if err != nil {
-				t.Errorf("CopyFile() error = %v, want nil", err)
-				return
-			}
-
-			// Verify file was copied correctly
-			if tt.wantErr {
-				return
-			}
+			require.NoError(err, "CopyFile() should not return error")
 
 			// Check if destination file exists
-			if _, err := os.Stat(tt.dst); err != nil {
-				t.Errorf("Destination file does not exist: %v", err)
-				return
-			}
+			_, err = os.Stat(tt.dst)
+			require.NoError(err, "Destination file should exist")
 
 			// Check file mode
 			info, err := os.Stat(tt.dst)
-			if err != nil {
-				t.Errorf("Failed to stat destination file: %v", err)
-				return
-			}
-			if info.Mode() != tt.mode {
-				t.Errorf("Destination file mode = %v, want %v", info.Mode(), tt.mode)
-			}
+			require.NoError(err, "Should be able to stat destination file")
+			assert.Equal(tt.mode, info.Mode(), "Destination file mode should match expected mode")
 
 			// Check file contents
 			srcContent, err := os.ReadFile(tt.src)
-			if err != nil {
-				t.Errorf("Failed to read source file: %v", err)
-				return
-			}
+			require.NoError(err, "Should be able to read source file")
 			dstContent, err := os.ReadFile(tt.dst)
-			if err != nil {
-				t.Errorf("Failed to read destination file: %v", err)
-				return
-			}
-			if string(srcContent) != string(dstContent) {
-				t.Errorf("Destination file content = %q, want %q", string(dstContent), string(srcContent))
-			}
+			require.NoError(err, "Should be able to read destination file")
+			assert.Equal(string(srcContent), string(dstContent), "Destination file content should match source content")
 		})
 	}
 }

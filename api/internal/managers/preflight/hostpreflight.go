@@ -151,7 +151,6 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHo
 		m.logger.WithField("error", err).Warn("copy preflight bundle to embedded-cluster support dir")
 	}
 
-	// TODO (@salah): report bypassing preflights on a separate api endpoint if the user chooses to bypass and continue
 	if output.HasFail() || output.HasWarn() {
 		if m.metricsReporter != nil {
 			m.metricsReporter.ReportPreflightsFailed(ctx, output)

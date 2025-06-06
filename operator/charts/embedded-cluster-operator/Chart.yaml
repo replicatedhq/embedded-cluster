@@ -1,3 +1,4 @@
+# DEVELOPMENT USE ONLY! THIE FILE IS NOT USED FOR DEPLOYS!
 apiVersion: v2
 name: embedded-cluster-operator
 description: Embedded Cluster Operator
