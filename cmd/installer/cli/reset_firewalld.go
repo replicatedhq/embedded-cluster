@@ -25,7 +25,6 @@ func ResetFirewalldCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
-			rc.MustEnsureDirs()
 			rc.SetEnv()
 
 			return nil

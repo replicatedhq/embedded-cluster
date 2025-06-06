@@ -231,15 +231,10 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, rc runtimeconfig.Ru
 	}
 
 	rc.Set(jcmd.InstallationSpec.RuntimeConfig)
-	rc.MustEnsureDirs()
 
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
-	if isWorker {
-		os.Setenv("KUBECONFIG", rc.PathToKubeletConfig())
-	} else {
-		os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-	}
-	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+	rc.SetEnvKubeConfig(isWorker)
+	rc.SetEnvTmpDir()
 
 	if err := rc.WriteToDisk(); err != nil {
 		return fmt.Errorf("unable to write runtime config: %w", err)

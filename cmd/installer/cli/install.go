@@ -417,10 +417,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 	rc.SetAdminConsolePort(flags.adminConsolePort)
 	rc.SetHostCABundlePath(hostCABundlePath)
 
-	os.Setenv("KUBECONFIG", rc.PathToKubeConfig()) // this is needed for restore as well since it shares this function
-	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
-
-	rc.MustEnsureDirs()
 	rc.SetEnv()
 
 	if err := rc.WriteToDisk(); err != nil {

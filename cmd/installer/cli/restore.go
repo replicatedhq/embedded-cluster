@@ -184,7 +184,6 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		rc.Set(rcSpec)
 	}
 
-	rc.MustEnsureDirs()
 	rc.SetEnv()
 
 	switch state {

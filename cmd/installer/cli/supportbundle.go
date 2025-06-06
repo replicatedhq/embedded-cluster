@@ -29,8 +29,7 @@ func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
-			rc.MustEnsureDirs()
-			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+			rc.SetEnvTmpDir()
 
 			return nil
 		},

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -50,5 +49,5 @@ func (cli *CLI) setupDataDir() {
 		cli.RC.SetDataDir(dataDir)
 	}
 
-	os.Setenv("TMPDIR", cli.RC.EmbeddedClusterTmpSubDir())
+	cli.RC.SetEnvTmpDir()
 }
