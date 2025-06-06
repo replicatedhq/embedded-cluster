@@ -12,7 +12,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/client"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/installation"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,7 +39,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 		password,
 		api.WithAuthController(authController),
 		api.WithInstallController(installController),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 
@@ -108,7 +109,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 
 	// Test access to protected route without token
 	t.Run("access protected route without token", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/install", nil)
+		req := httptest.NewRequest(http.MethodGet, "/install/installation/config", nil)
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -120,7 +121,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 
 	// Test access to protected route with invalid token
 	t.Run("access protected route with invalid token", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/install", nil)
+		req := httptest.NewRequest(http.MethodGet, "/install/installation/config", nil)
 		req.Header.Set("Authorization", "Bearer "+"invalid-token")
 		rec := httptest.NewRecorder()
 
@@ -135,22 +136,10 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 func TestAPIClientLogin(t *testing.T) {
 	password := "test-password"
 
-	// Create an auth controller
-	authController, err := auth.NewAuthController(password)
-	require.NoError(t, err)
-
-	// Create an install controller
-	installController, err := install.NewInstallController(
-		install.WithInstallationManager(installation.NewInstallationManager()),
-	)
-	require.NoError(t, err)
-
 	// Create the API with the auth controller
 	apiInstance, err := api.New(
 		password,
-		api.WithAuthController(authController),
-		api.WithInstallController(installController),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 
@@ -172,9 +161,9 @@ func TestAPIClientLogin(t *testing.T) {
 		require.NoError(t, err, "API client login should succeed with correct password")
 
 		// Verify we can make authenticated requests after login
-		install, err := c.GetInstall()
-		require.NoError(t, err, "API client should be able to get install after successful login")
-		assert.NotNil(t, install, "Install should not be nil")
+		status, err := c.GetInstallationStatus()
+		require.NoError(t, err, "API client should be able to get installation status after successful login")
+		assert.NotNil(t, status, "Installation status should not be nil")
 	})
 
 	// Test failed login with incorrect password
@@ -192,7 +181,7 @@ func TestAPIClientLogin(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode, "Error should have Unauthorized status code")
 
 		// Verify we can't make authenticated requests
-		_, err = c.GetInstall()
-		require.Error(t, err, "API client should not be able to get install after failed login")
+		_, err = c.GetInstallationStatus()
+		require.Error(t, err, "API client should not be able to get installation status after failed login")
 	})
 }

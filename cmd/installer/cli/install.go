@@ -7,9 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
-	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -19,17 +16,17 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2/terminal"
-	"github.com/gorilla/mux"
 	"github.com/gosimple/slug"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/api"
-	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -46,16 +43,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
-	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -105,40 +99,42 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	var flags InstallCmdFlags
 
 	ctx, cancel := context.WithCancel(ctx)
+	rc := runtimeconfig.New(nil)
 
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: fmt.Sprintf("Install %s", name),
 		PostRun: func(cmd *cobra.Command, args []string) {
-			runtimeconfig.Cleanup()
+			rc.Cleanup()
 			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &flags); err != nil {
+			if err := preRunInstall(cmd, &flags, rc); err != nil {
 				return err
 			}
+
 			clusterID := metrics.ClusterID()
-			metricsReporter := NewInstallReporter(
+			installReporter := newInstallReporter(
 				replicatedAppURL(), clusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 				flags.license.Spec.LicenseID, flags.license.Spec.AppSlug,
 			)
-			metricsReporter.ReportInstallationStarted(ctx)
+			installReporter.ReportInstallationStarted(ctx)
 
 			// Setup signal handler with the metrics reporter cleanup function
 			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
-				metricsReporter.ReportSignalAborted(ctx, sig)
+				installReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runInstall(cmd.Context(), name, flags, metricsReporter); err != nil {
+			if err := runInstall(cmd.Context(), name, flags, rc, installReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
-					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+					installReporter.ReportSignalAborted(ctx, syscall.SIGINT)
 				} else {
-					metricsReporter.ReportInstallationFailed(ctx, err)
+					installReporter.ReportInstallationFailed(ctx, err)
 				}
 				return err
 			}
-			metricsReporter.ReportInstallationSucceeded(ctx)
+			installReporter.ReportInstallationSucceeded(ctx)
 
 			// If in guided UI mode, keep the process running until interrupted
 			if flags.enableManagerExperience {
@@ -245,7 +241,7 @@ func addManagerExperienceFlags(cmd *cobra.Command, flags *InstallCmdFlags) error
 	return nil
 }
 
-func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
+func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
 	if os.Getuid() != 0 {
 		return fmt.Errorf("install command must be run as root")
 	}
@@ -321,17 +317,30 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 			flags.tlsKeyBytes = keyData
 		}
 
-		if err := preRunInstallAPI(cmd.Context(), flags.tlsCert, flags.adminConsolePassword, flags.managerPort, configChan); err != nil {
-			return fmt.Errorf("unable to start install API: %w", err)
+		apiConfig := APIConfig{
+			// TODO (@salah): implement reporting in api
+			// MetricsReporter: reporter,
+			RuntimeConfig: rc,
+			Password:      flags.adminConsolePassword,
+			ManagerPort:   flags.managerPort,
+			LicenseFile:   flags.licenseFile,
+			AirgapBundle:  flags.airgapBundle,
+			ConfigChan:    configChan,
+			ReleaseData:   release.GetReleaseData(),
+		}
+
+		if err := startAPI(cmd.Context(), flags.tlsCert, apiConfig); err != nil {
+			return fmt.Errorf("unable to start api: %w", err)
 		}
 
 		// TODO: fix this message
 		logrus.Info("")
 		logrus.Infof("Visit %s to configure your cluster", getManagerURL(flags.hostname, flags.managerPort))
+		logrus.Info("")
 
 		installConfig, ok := <-configChan
 		if !ok {
-			return fmt.Errorf("install API closed channel")
+			return fmt.Errorf("api closed channel")
 		}
 
 		proxy, err := newconfig.GetProxySpec(
@@ -395,26 +404,26 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	}
 
 	// TODO: validate that a single port isn't used for multiple services
-	runtimeconfig.SetDataDir(flags.dataDir)
-	runtimeconfig.SetManagerPort(flags.managerPort)
-	runtimeconfig.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
-	runtimeconfig.SetAdminConsolePort(flags.adminConsolePort)
+	rc.SetDataDir(flags.dataDir)
+	rc.SetManagerPort(flags.managerPort)
+	rc.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
+	rc.SetAdminConsolePort(flags.adminConsolePort)
 
-	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig()) // this is needed for restore as well since it shares this function
-	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+	os.Setenv("KUBECONFIG", rc.PathToKubeConfig()) // this is needed for restore as well since it shares this function
+	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
 	hostCABundlePath, err := findHostCABundle()
 	if err != nil {
 		return fmt.Errorf("unable to find host CA bundle: %w", err)
 	}
-	runtimeconfig.SetHostCABundlePath(hostCABundlePath)
+	rc.SetHostCABundlePath(hostCABundlePath)
 	logrus.Debugf("using host CA bundle: %s", hostCABundlePath)
 
-	if err := runtimeconfig.WriteToDisk(); err != nil {
+	if err := rc.WriteToDisk(); err != nil {
 		return fmt.Errorf("unable to write runtime config to disk: %w", err)
 	}
 
-	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+	if err := os.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
 		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
 		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
 		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
@@ -423,124 +432,27 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	return nil
 }
 
-func preRunInstallAPI(ctx context.Context, cert tls.Certificate, password string, managerPort int, configChan chan<- *apitypes.InstallationConfig) error {
-	logger, err := api.NewLogger()
-	if err != nil {
-		logrus.Warnf("Unable to setup API logging: %v", err)
-	}
-
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", managerPort))
-	if err != nil {
-		return fmt.Errorf("unable to create listener: %w", err)
-	}
-
-	go func() {
-		if err := runInstallAPI(ctx, listener, cert, logger, password, configChan); err != nil {
-			if !errors.Is(err, http.ErrServerClosed) {
-				logrus.Errorf("install API error: %v", err)
-			}
-		}
-	}()
-
-	if err := waitForInstallAPI(ctx, listener.Addr().String()); err != nil {
-		return fmt.Errorf("unable to wait for install API: %w", err)
-	}
-
-	return nil
-}
-
-func runInstallAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, logger logrus.FieldLogger, password string, configChan chan<- *apitypes.InstallationConfig) error {
-	router := mux.NewRouter()
-
-	api, err := api.New(
-		password,
-		api.WithLogger(logger),
-		api.WithConfigChan(configChan),
-	)
-	if err != nil {
-		return fmt.Errorf("new api: %w", err)
-	}
-	app := release.GetApplication()
-	if app == nil {
-		return fmt.Errorf("application not found")
-	}
-
-	webServer, err := web.New(web.InitialState{
-		Title: app.Spec.Title,
-		Icon:  app.Spec.Icon,
-	}, web.WithLogger(logger), web.WithAssetsFS(webAssetsFS))
-	if err != nil {
-		return fmt.Errorf("new web server: %w", err)
-	}
-
-	api.RegisterRoutes(router.PathPrefix("/api").Subrouter())
-	webServer.RegisterRoutes(router.PathPrefix("/").Subrouter())
-
-	server := &http.Server{
-		// ErrorLog outputs TLS errors and warnings to the console, we want to make sure we use the same logrus logger for them
-		ErrorLog:  log.New(logger.WithField("http-server", "std-log").Writer(), "", 0),
-		Handler:   router,
-		TLSConfig: tlsutils.GetTLSConfig(cert),
-	}
-
-	go func() {
-		<-ctx.Done()
-		logrus.Debugf("Shutting down install API")
-		server.Shutdown(context.Background())
-	}()
-
-	return server.ServeTLS(listener, "", "")
-}
-
-func waitForInstallAPI(ctx context.Context, addr string) error {
-	httpClient := http.Client{
-		Timeout: 2 * time.Second,
-		Transport: &http.Transport{
-			Proxy: nil,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
-	timeout := time.After(10 * time.Second)
-	var lastErr error
-	for {
-		select {
-		case <-timeout:
-			if lastErr != nil {
-				return fmt.Errorf("install API did not start in time: %w", lastErr)
-			}
-			return fmt.Errorf("install API did not start in time")
-		case <-time.Tick(1 * time.Second):
-			resp, err := httpClient.Get(fmt.Sprintf("https://%s/api/health", addr))
-			if err != nil {
-				lastErr = fmt.Errorf("unable to connect to install API: %w", err)
-			} else if resp.StatusCode == http.StatusOK {
-				return nil
-			}
-		}
-	}
-}
-
-func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metricsReporter preflights.MetricsReporter) error {
-	if err := runInstallVerifyAndPrompt(ctx, name, &flags, prompts.New()); err != nil {
+func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) error {
+	if err := runInstallVerifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
 		return err
 	}
 
-	logrus.Debug("initializing install")
-	if err := initializeInstall(ctx, flags); err != nil {
-		return fmt.Errorf("unable to initialize install: %w", err)
-	}
-
-	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, metricsReporter); err != nil {
-		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
-			return NewErrorNothingElseToAdd(err)
+	if !flags.enableManagerExperience {
+		logrus.Debug("initializing install")
+		if err := initializeInstall(ctx, flags, rc); err != nil {
+			return fmt.Errorf("unable to initialize install: %w", err)
 		}
-		return fmt.Errorf("unable to run install preflights: %w", err)
+
+		logrus.Debugf("running install preflights")
+		if err := runInstallPreflights(ctx, flags, rc, installReporter.reporter); err != nil {
+			if errors.Is(err, preflights.ErrPreflightsHaveFail) {
+				return NewErrorNothingElseToAdd(err)
+			}
+			return fmt.Errorf("unable to run install preflights: %w", err)
+		}
 	}
 
-	k0sCfg, err := installAndStartCluster(ctx, flags.networkInterface, flags.airgapBundle, flags.proxy, flags.cidrCfg, flags.overrides, nil)
+	k0sCfg, err := installAndStartCluster(ctx, flags, rc, nil)
 	if err != nil {
 		return fmt.Errorf("unable to install cluster: %w", err)
 	}
@@ -553,7 +465,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	in, err := recordInstallation(ctx, kcli, flags, k0sCfg, flags.license)
+	in, err := recordInstallation(ctx, kcli, flags, rc, k0sCfg, flags.license)
 	if err != nil {
 		return fmt.Errorf("unable to record installation: %w", err)
 	}
@@ -589,11 +501,11 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 
 	airgapChartsPath := ""
 	if flags.isAirgap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		KubeConfig: rc.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
@@ -603,12 +515,12 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	defer hcli.Close()
 
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, hcli, addons.InstallOptions{
+	if err := addons.Install(ctx, logrus.Debugf, hcli, rc, addons.InstallOptions{
 		AdminConsolePwd:         flags.adminConsolePassword,
 		License:                 flags.license,
 		IsAirgap:                flags.airgapBundle != "",
 		Proxy:                   flags.proxy,
-		HostCABundlePath:        runtimeconfig.HostCABundlePath(),
+		HostCABundlePath:        rc.HostCABundlePath(),
 		TLSCertBytes:            flags.tlsCertBytes,
 		TLSKeyBytes:             flags.tlsKeyBytes,
 		Hostname:                flags.hostname,
@@ -619,6 +531,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 		EndUserConfigSpec:       euCfgSpec,
 		KotsInstaller: func(msg *spinner.MessageWriter) error {
 			opts := kotscli.InstallOptions{
+				RuntimeConfig:         rc,
 				AppSlug:               flags.license.Spec.AppSlug,
 				LicenseFile:           flags.licenseFile,
 				Namespace:             runtimeconfig.KotsadmNamespace,
@@ -650,7 +563,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 			return fmt.Errorf("unable to mark ui install complete: %w", err)
 		}
 	} else {
-		if err := printSuccessMessage(flags.license, flags.hostname, flags.networkInterface); err != nil {
+		if err := printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc); err != nil {
 			return err
 		}
 	}
@@ -658,36 +571,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, metrics
 	return nil
 }
 
-func markUIInstallComplete(password string, managerPort int) error {
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			Proxy: nil, // This is a local client so no proxy is needed
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
-	apiClient := apiclient.New(
-		fmt.Sprintf("https://localhost:%d", managerPort),
-		apiclient.WithHTTPClient(httpClient),
-	)
-	if err := apiClient.Authenticate(password); err != nil {
-		return fmt.Errorf("unable to authenticate: %w", err)
-	}
-
-	_, err := apiClient.SetInstallStatus(apitypes.InstallationStatus{
-		State:       apitypes.InstallationStateSucceeded,
-		Description: "Install Complete",
-		LastUpdated: time.Now(),
-	})
-	if err != nil {
-		return fmt.Errorf("unable to set install status: %w", err)
-	}
-
-	return nil
-}
-
-func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *InstallCmdFlags, prompt prompts.Prompt) error {
+func runInstallVerifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "reinstall")
 	if err != nil {
@@ -727,7 +611,7 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *InstallC
 	}
 	logrus.Debug("User confirmed prompt to proceed installing with `http_proxy` set and `https_proxy` unset")
 
-	if err := preflights.ValidateApp(); err != nil {
+	if err := release.ValidateECConfig(); err != nil {
 		return err
 	}
 
@@ -881,91 +765,43 @@ func verifyNoInstallation(name string, cmdName string) error {
 	return nil
 }
 
-func initializeInstall(ctx context.Context, flags InstallCmdFlags) error {
+func initializeInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
 	logrus.Info("")
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
 
-	if err := materializeFiles(flags.airgapBundle); err != nil {
+	if err := hostutils.ConfigureForInstall(ctx, rc, hostutils.InitForInstallOptions{
+		LicenseFile:  flags.licenseFile,
+		AirgapBundle: flags.airgapBundle,
+		PodCIDR:      flags.cidrCfg.PodCIDR,
+		ServiceCIDR:  flags.cidrCfg.ServiceCIDR,
+	}); err != nil {
 		spinner.ErrorClosef("Initialization failed")
-		return fmt.Errorf("unable to materialize files: %w", err)
-	}
-
-	logrus.Debugf("copy license file to %s", flags.dataDir)
-	if err := copyLicenseFileToDataDir(flags.licenseFile, flags.dataDir); err != nil {
-		// We have decided not to report this error
-		logrus.Warnf("Unable to copy license file to %s: %v", flags.dataDir, err)
-	}
-
-	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
-		logrus.Debugf("unable to configure sysctl: %v", err)
-	}
-
-	logrus.Debugf("configuring kernel modules")
-	if err := configutils.ConfigureKernelModules(); err != nil {
-		logrus.Debugf("unable to configure kernel modules: %v", err)
-	}
-
-	logrus.Debugf("configuring network manager")
-	if err := configureNetworkManager(ctx); err != nil {
-		spinner.ErrorClosef("Initialization failed")
-		return fmt.Errorf("unable to configure network manager: %w", err)
-	}
-
-	logrus.Debugf("configuring firewalld")
-	if err := configureFirewalld(ctx, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR); err != nil {
-		logrus.Debugf("unable to configure firewalld: %v", err)
+		return fmt.Errorf("configure host for install: %w", err)
 	}
 
 	spinner.Closef("Initialization complete")
 	return nil
 }
 
-func materializeFiles(airgapBundle string) error {
-	materializer := goods.NewMaterializer()
-	if err := materializer.Materialize(); err != nil {
-		return fmt.Errorf("materialize binaries: %w", err)
-	}
-	if err := support.MaterializeSupportBundleSpec(); err != nil {
-		return fmt.Errorf("materialize support bundle spec: %w", err)
-	}
-
-	if airgapBundle != "" {
-		// read file from path
-		rawfile, err := os.Open(airgapBundle)
-		if err != nil {
-			return fmt.Errorf("failed to open airgap file: %w", err)
-		}
-		defer rawfile.Close()
-
-		if err := airgap.MaterializeAirgap(rawfile); err != nil {
-			err = fmt.Errorf("materialize airgap files: %w", err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, proxy *ecv1beta1.ProxySpec, cidrCfg *newconfig.CIDRConfig, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	loading.Infof("Installing node")
 	logrus.Debugf("creating k0s configuration file")
 
-	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides, mutate)
+	cfg, err := k0s.WriteK0sConfig(ctx, flags.networkInterface, flags.airgapBundle, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR, flags.overrides, mutate)
 	if err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(ctx, false, proxy); err != nil {
+	if err := createSystemdUnitFiles(ctx, rc, false, flags.proxy); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
 	logrus.Debugf("installing k0s")
-	if err := k0s.Install(networkInterface); err != nil {
+	if err := k0s.Install(rc, flags.networkInterface); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
@@ -985,36 +821,6 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 
 	loading.Closef("Node is ready")
 	return cfg, nil
-}
-
-// configureNetworkManager configures the network manager (if the host is using it) to ignore
-// the calico interfaces. This function restarts the NetworkManager service if the configuration
-// was changed.
-func configureNetworkManager(ctx context.Context) error {
-	if active, err := helpers.IsSystemdServiceActive(ctx, "NetworkManager"); err != nil {
-		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
-	} else if !active {
-		logrus.Debugf("NetworkManager is not active, skipping configuration")
-		return nil
-	}
-
-	dir := "/etc/NetworkManager/conf.d"
-	if _, err := os.Stat(dir); err != nil {
-		logrus.Debugf("skiping NetworkManager config (%s): %v", dir, err)
-		return nil
-	}
-
-	logrus.Debugf("creating NetworkManager config file")
-	materializer := goods.NewMaterializer()
-	if err := materializer.CalicoNetworkManagerConfig(); err != nil {
-		return fmt.Errorf("unable to materialize configuration: %w", err)
-	}
-
-	logrus.Debugf("network manager config created, restarting the service")
-	if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
-		return fmt.Errorf("unable to restart network manager: %w", err)
-	}
-	return nil
 }
 
 func checkAirgapMatches(airgapBundle string) error {
@@ -1149,7 +955,7 @@ func replicatedAppURL() string {
 		embCfgSpec = &embCfg.Spec
 	}
 	domains := runtimeconfig.GetDomains(embCfgSpec)
-	return netutil.MaybeAddHTTPS(domains.ReplicatedAppDomain)
+	return netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain)
 }
 
 func proxyRegistryURL() string {
@@ -1158,12 +964,12 @@ func proxyRegistryURL() string {
 		embCfgSpec = &embCfg.Spec
 	}
 	domains := runtimeconfig.GetDomains(embCfgSpec)
-	return netutil.MaybeAddHTTPS(domains.ProxyRegistryDomain)
+	return netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain)
 }
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(ctx context.Context, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
+func createSystemdUnitFiles(ctx context.Context, rc runtimeconfig.RuntimeConfig, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
 	dst := systemdUnitFileName()
 	if _, err := os.Lstat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
@@ -1187,7 +993,7 @@ func createSystemdUnitFiles(ctx context.Context, isWorker bool, proxy *ecv1beta1
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
-	if err := installAndEnableLocalArtifactMirror(ctx); err != nil {
+	if err := installAndEnableLocalArtifactMirror(ctx, rc); err != nil {
 		return fmt.Errorf("unable to install and enable local artifact mirror: %w", err)
 	}
 	return nil
@@ -1222,12 +1028,12 @@ Environment="NO_PROXY=%s"`, httpProxy, httpsProxy, noProxy)
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
 // service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
-func installAndEnableLocalArtifactMirror(ctx context.Context) error {
-	materializer := goods.NewMaterializer()
+func installAndEnableLocalArtifactMirror(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
+	materializer := goods.NewMaterializer(rc)
 	if err := materializer.LocalArtifactMirrorUnitFile(); err != nil {
 		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
 	}
-	if err := writeLocalArtifactMirrorDropInFile(); err != nil {
+	if err := writeLocalArtifactMirrorDropInFile(rc); err != nil {
 		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
 	}
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
@@ -1287,12 +1093,12 @@ ExecStart=%s serve
 `
 )
 
-func writeLocalArtifactMirrorDropInFile() error {
+func writeLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {
 	contents := fmt.Sprintf(
 		localArtifactMirrorDropInFileContents,
-		runtimeconfig.LocalArtifactMirrorPort(),
-		runtimeconfig.EmbeddedClusterHomeDirectory(),
-		runtimeconfig.PathToEmbeddedClusterBinary("local-artifact-mirror"),
+		rc.LocalArtifactMirrorPort(),
+		rc.EmbeddedClusterHomeDirectory(),
+		rc.PathToEmbeddedClusterBinary("local-artifact-mirror"),
 	)
 	err := systemd.WriteDropInFile("local-artifact-mirror.service", "embedded-cluster.conf", []byte(contents))
 	if err != nil {
@@ -1308,7 +1114,7 @@ func waitForK0s() error {
 		var success bool
 		for i := 0; i < 30; i++ {
 			time.Sleep(2 * time.Second)
-			spath := runtimeconfig.PathToK0sStatusSocket()
+			spath := runtimeconfig.K0sStatusSocketPath
 			if _, err := os.Stat(spath); err != nil {
 				continue
 			}
@@ -1321,7 +1127,7 @@ func waitForK0s() error {
 	}
 
 	for i := 1; ; i++ {
-		_, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath(), "status")
+		_, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath, "status")
 		if err == nil {
 			return nil
 		} else if i == 30 {
@@ -1348,7 +1154,7 @@ func waitForNode(ctx context.Context) error {
 }
 
 func recordInstallation(
-	ctx context.Context, kcli client.Client, flags InstallCmdFlags,
+	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig,
 	k0sCfg *k0sv1beta1.ClusterConfig, license *kotsv1beta1.License,
 ) (*ecv1beta1.Installation, error) {
 	// ensure that the embedded-cluster namespace exists
@@ -1393,7 +1199,7 @@ func recordInstallation(
 			Proxy:                     flags.proxy,
 			Network:                   networkSpecFromK0sConfig(k0sCfg),
 			Config:                    cfgspec,
-			RuntimeConfig:             runtimeconfig.Get(),
+			RuntimeConfig:             rc.Get(),
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                runtimeconfig.BinaryName(),
 			LicenseInfo: &ecv1beta1.LicenseInfo{
@@ -1536,7 +1342,7 @@ func gatherVersionMetadata(withChannelRelease bool) (*types.ReleaseMetadata, err
 		Repositories:     append(repconfig, additionalRepos...),
 	}
 
-	k0sCfg := config.RenderK0sConfig(runtimeconfig.DefaultProxyRegistryDomain)
+	k0sCfg := config.RenderK0sConfig(domains.DefaultProxyRegistryDomain)
 	meta.K0sImages = config.ListK0sImages(k0sCfg)
 	meta.K0sImages = append(meta.K0sImages, addons.GetAdditionalImages()...)
 	meta.K0sImages = helpers.UniqueStringSlice(meta.K0sImages)
@@ -1576,22 +1382,8 @@ func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName 
 	return pflag.NormalizedName(name)
 }
 
-func copyLicenseFileToDataDir(licenseFile, dataDir string) error {
-	if licenseFile == "" {
-		return nil
-	}
-	licenseData, err := os.ReadFile(licenseFile)
-	if err != nil {
-		return fmt.Errorf("unable to read license file: %w", err)
-	}
-	if err := os.WriteFile(filepath.Join(dataDir, "license.yaml"), licenseData, 0400); err != nil {
-		return fmt.Errorf("unable to write license file: %w", err)
-	}
-	return nil
-}
-
-func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string) error {
-	adminConsoleURL := getAdminConsoleURL(hostname, networkInterface, runtimeconfig.AdminConsolePort())
+func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig) error {
+	adminConsoleURL := getAdminConsoleURL(hostname, networkInterface, rc.AdminConsolePort())
 
 	// Create the message content
 	message := fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)
@@ -1619,22 +1411,6 @@ func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkI
 	logrus.Infof("%s%s%s\n", boldStart, divider, boldEnd)
 
 	return nil
-}
-
-func getManagerURL(hostname string, port int) string {
-	if hostname != "" {
-		return fmt.Sprintf("https://%s:%v", hostname, port)
-	}
-	ipaddr := runtimeconfig.TryDiscoverPublicIP()
-	if ipaddr == "" {
-		if addr := os.Getenv("EC_PUBLIC_ADDRESS"); addr != "" {
-			ipaddr = addr
-		} else {
-			logrus.Errorf("Unable to determine node IP address")
-			ipaddr = "NODE-IP-ADDRESS"
-		}
-	}
-	return fmt.Sprintf("https://%s:%v", ipaddr, port)
 }
 
 func getAdminConsoleURL(hostname string, networkInterface string, port int) string {

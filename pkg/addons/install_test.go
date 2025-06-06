@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
@@ -36,7 +37,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 
 				openEBS, ok := addons[0].(*openebs.OpenEBS)
 				require.True(t, ok, "first addon should be OpenEBS")
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, openEBS.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, openEBS.ProxyRegistryDomain)
 
 				eco, ok := addons[1].(*embeddedclusteroperator.EmbeddedClusterOperator)
 				require.True(t, ok, "second addon should be EmbeddedClusterOperator")
@@ -47,7 +48,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				assert.Empty(t, eco.ImageRepoOverride, "ECO should not have an image repo override")
 				assert.Empty(t, eco.ImageTagOverride, "ECO should not have an image tag override")
 				assert.Empty(t, eco.UtilsImageOverride, "ECO should not have a utils image override")
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, eco.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, eco.ProxyRegistryDomain)
 
 				adminConsole, ok := addons[2].(*adminconsole.AdminConsole)
 				require.True(t, ok, "third addon should be AdminConsole")
@@ -56,9 +57,9 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				assert.Nil(t, adminConsole.Proxy, "AdminConsole should not have a proxy")
 				assert.Empty(t, adminConsole.ServiceCIDR, "AdminConsole should not have a service CIDR")
 				assert.Equal(t, "password123", adminConsole.Password)
-				assert.Equal(t, runtimeconfig.DefaultReplicatedAppDomain, adminConsole.ReplicatedAppDomain)
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, adminConsole.ProxyRegistryDomain)
-				assert.Equal(t, runtimeconfig.DefaultReplicatedRegistryDomain, adminConsole.ReplicatedRegistryDomain)
+				assert.Equal(t, domains.DefaultReplicatedAppDomain, adminConsole.ReplicatedAppDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, adminConsole.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultReplicatedRegistryDomain, adminConsole.ReplicatedRegistryDomain)
 			},
 		},
 		{
@@ -161,7 +162,7 @@ defaultDomains:
 
 				openEBS, ok := addons[0].(*openebs.OpenEBS)
 				require.True(t, ok, "first addon should be OpenEBS")
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, openEBS.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, openEBS.ProxyRegistryDomain)
 
 				eco, ok := addons[1].(*embeddedclusteroperator.EmbeddedClusterOperator)
 				require.True(t, ok, "second addon should be EmbeddedClusterOperator")
@@ -172,12 +173,12 @@ defaultDomains:
 				assert.Empty(t, eco.ImageRepoOverride, "ECO should not have an image repo override")
 				assert.Empty(t, eco.ImageTagOverride, "ECO should not have an image tag override")
 				assert.Empty(t, eco.UtilsImageOverride, "ECO should not have a utils image override")
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, eco.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, eco.ProxyRegistryDomain)
 
 				reg, ok := addons[2].(*registry.Registry)
 				require.True(t, ok, "third addon should be Registry")
 				assert.Equal(t, "10.96.0.0/12", reg.ServiceCIDR)
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, reg.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, reg.ProxyRegistryDomain)
 
 				adminConsole, ok := addons[3].(*adminconsole.AdminConsole)
 				require.True(t, ok, "fourth addon should be AdminConsole")
@@ -186,9 +187,9 @@ defaultDomains:
 				assert.Nil(t, adminConsole.Proxy, "AdminConsole should not have a proxy")
 				assert.Equal(t, "10.96.0.0/12", adminConsole.ServiceCIDR)
 				assert.Equal(t, "password123", adminConsole.Password)
-				assert.Equal(t, runtimeconfig.DefaultReplicatedAppDomain, adminConsole.ReplicatedAppDomain)
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, adminConsole.ProxyRegistryDomain)
-				assert.Equal(t, runtimeconfig.DefaultReplicatedRegistryDomain, adminConsole.ReplicatedRegistryDomain)
+				assert.Equal(t, domains.DefaultReplicatedAppDomain, adminConsole.ReplicatedAppDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, adminConsole.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultReplicatedRegistryDomain, adminConsole.ReplicatedRegistryDomain)
 			},
 		},
 		{
@@ -204,7 +205,7 @@ defaultDomains:
 
 				openEBS, ok := addons[0].(*openebs.OpenEBS)
 				require.True(t, ok, "first addon should be OpenEBS")
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, openEBS.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, openEBS.ProxyRegistryDomain)
 
 				eco, ok := addons[1].(*embeddedclusteroperator.EmbeddedClusterOperator)
 				require.True(t, ok, "second addon should be EmbeddedClusterOperator")
@@ -215,12 +216,12 @@ defaultDomains:
 				assert.Empty(t, eco.ImageRepoOverride, "ECO should not have an image repo override")
 				assert.Empty(t, eco.ImageTagOverride, "ECO should not have an image tag override")
 				assert.Empty(t, eco.UtilsImageOverride, "ECO should not have a utils image override")
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, eco.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, eco.ProxyRegistryDomain)
 
 				vel, ok := addons[2].(*velero.Velero)
 				require.True(t, ok, "third addon should be Velero")
 				assert.Nil(t, vel.Proxy, "Velero should not have a proxy")
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, vel.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, vel.ProxyRegistryDomain)
 
 				adminConsole, ok := addons[3].(*adminconsole.AdminConsole)
 				require.True(t, ok, "fourth addon should be AdminConsole")
@@ -229,9 +230,9 @@ defaultDomains:
 				assert.Nil(t, adminConsole.Proxy, "AdminConsole should not have a proxy")
 				assert.Equal(t, "10.96.0.0/12", adminConsole.ServiceCIDR)
 				assert.Equal(t, "password123", adminConsole.Password)
-				assert.Equal(t, runtimeconfig.DefaultReplicatedAppDomain, adminConsole.ReplicatedAppDomain)
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, adminConsole.ProxyRegistryDomain)
-				assert.Equal(t, runtimeconfig.DefaultReplicatedRegistryDomain, adminConsole.ReplicatedRegistryDomain)
+				assert.Equal(t, domains.DefaultReplicatedAppDomain, adminConsole.ReplicatedAppDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, adminConsole.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultReplicatedRegistryDomain, adminConsole.ReplicatedRegistryDomain)
 			},
 		},
 		{
@@ -252,7 +253,7 @@ defaultDomains:
 
 				openEBS, ok := addons[0].(*openebs.OpenEBS)
 				require.True(t, ok, "first addon should be OpenEBS")
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, openEBS.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, openEBS.ProxyRegistryDomain)
 
 				eco, ok := addons[1].(*embeddedclusteroperator.EmbeddedClusterOperator)
 				require.True(t, ok, "second addon should be EmbeddedClusterOperator")
@@ -265,20 +266,20 @@ defaultDomains:
 				assert.Empty(t, eco.ImageRepoOverride, "ECO should not have an image repo override")
 				assert.Empty(t, eco.ImageTagOverride, "ECO should not have an image tag override")
 				assert.Empty(t, eco.UtilsImageOverride, "ECO should not have a utils image override")
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, eco.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, eco.ProxyRegistryDomain)
 
 				reg, ok := addons[2].(*registry.Registry)
 				require.True(t, ok, "third addon should be Registry")
 				assert.Equal(t, "10.96.0.0/12", reg.ServiceCIDR)
 				assert.False(t, reg.IsHA, "Registry should not be in high availability mode")
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, reg.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, reg.ProxyRegistryDomain)
 
 				vel, ok := addons[3].(*velero.Velero)
 				require.True(t, ok, "fourth addon should be Velero")
 				assert.Equal(t, "http://proxy.example.com", vel.Proxy.HTTPProxy)
 				assert.Equal(t, "https://proxy.example.com", vel.Proxy.HTTPSProxy)
 				assert.Equal(t, "localhost,127.0.0.1", vel.Proxy.NoProxy)
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, vel.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, vel.ProxyRegistryDomain)
 
 				adminConsole, ok := addons[4].(*adminconsole.AdminConsole)
 				require.True(t, ok, "fifth addon should be AdminConsole")
@@ -289,9 +290,9 @@ defaultDomains:
 				assert.Equal(t, "localhost,127.0.0.1", adminConsole.Proxy.NoProxy)
 				assert.Equal(t, "10.96.0.0/12", adminConsole.ServiceCIDR)
 				assert.Equal(t, "password123", adminConsole.Password)
-				assert.Equal(t, runtimeconfig.DefaultReplicatedAppDomain, adminConsole.ReplicatedAppDomain)
-				assert.Equal(t, runtimeconfig.DefaultProxyRegistryDomain, adminConsole.ProxyRegistryDomain)
-				assert.Equal(t, runtimeconfig.DefaultReplicatedRegistryDomain, adminConsole.ReplicatedRegistryDomain)
+				assert.Equal(t, domains.DefaultReplicatedAppDomain, adminConsole.ReplicatedAppDomain)
+				assert.Equal(t, domains.DefaultProxyRegistryDomain, adminConsole.ProxyRegistryDomain)
+				assert.Equal(t, domains.DefaultReplicatedRegistryDomain, adminConsole.ReplicatedRegistryDomain)
 			},
 		},
 		{
@@ -389,7 +390,8 @@ defaultDomains:
 			if tt.before != nil {
 				tt.before()
 			}
-			addons := getAddOnsForInstall(tt.opts)
+			rc := runtimeconfig.New(nil)
+			addons := getAddOnsForInstall(rc, tt.opts)
 			tt.verify(t, addons)
 			if tt.after != nil {
 				tt.after()

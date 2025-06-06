@@ -8,6 +8,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -25,7 +26,9 @@ func TestK0sDir(t *testing.T) {
 	hcli, err := helm.NewClient(helm.HelmOptions{})
 	require.NoError(t, err, "NewClient should not return an error")
 
-	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, nil, nil)
+	rc := runtimeconfig.New(nil)
+
+	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, rc, nil, nil)
 	require.NoError(t, err, "velero.Install should not return an error")
 
 	manifests := addon.DryRunManifests()

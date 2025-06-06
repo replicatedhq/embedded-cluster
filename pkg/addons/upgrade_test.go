@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -261,7 +262,8 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			addons, err := getAddOnsForUpgrade(tt.in, tt.meta)
+			rc := runtimeconfig.New(nil)
+			addons, err := getAddOnsForUpgrade(rc, tt.in, tt.meta)
 			tt.verify(t, addons, err)
 		})
 	}

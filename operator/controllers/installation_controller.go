@@ -133,6 +133,7 @@ type InstallationReconciler struct {
 	Discovery      discovery.DiscoveryInterface
 	Scheme         *runtime.Scheme
 	Recorder       record.EventRecorder
+	RuntimeConfig  runtimeconfig.RuntimeConfig
 }
 
 // NodeHasChanged returns true if the node configuration has changed when compared to
@@ -308,7 +309,7 @@ func (r *InstallationReconciler) CopyHostPreflightResultsFromNodes(ctx context.C
 	for _, event := range events.NodesAdded {
 		log.Info("Creating job to copy host preflight results from node", "node", event.NodeName, "installation", in.Name)
 
-		job := constructHostPreflightResultsJob(in, event.NodeName)
+		job := constructHostPreflightResultsJob(r.RuntimeConfig, in, event.NodeName)
 
 		// overrides the job image if the environment says so.
 		if img := os.Getenv("EMBEDDEDCLUSTER_UTILS_IMAGE"); img != "" {
@@ -327,7 +328,7 @@ func (r *InstallationReconciler) CopyHostPreflightResultsFromNodes(ctx context.C
 	return nil
 }
 
-func constructHostPreflightResultsJob(in *v1beta1.Installation, nodeName string) *batchv1.Job {
+func constructHostPreflightResultsJob(rc runtimeconfig.RuntimeConfig, in *v1beta1.Installation, nodeName string) *batchv1.Job {
 	labels := map[string]string{
 		"embedded-cluster/node-name":    nodeName,
 		"embedded-cluster/installation": in.Name,
@@ -338,7 +339,7 @@ func constructHostPreflightResultsJob(in *v1beta1.Installation, nodeName string)
 
 	job.Spec.Template.Labels, job.Labels = labels, labels
 	job.Spec.Template.Spec.NodeName = nodeName
-	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = runtimeconfig.EmbeddedClusterHomeDirectory()
+	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = rc.EmbeddedClusterHomeDirectory()
 	job.Spec.Template.Spec.Containers[0].Env = append(
 		job.Spec.Template.Spec.Containers[0].Env,
 		corev1.EnvVar{Name: "EC_NODE_NAME", Value: nodeName},
@@ -384,7 +385,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	in := r.CoalesceInstallations(ctx, items)
 
 	// set the runtime config from the installation spec
-	runtimeconfig.Set(in.Spec.RuntimeConfig)
+	r.RuntimeConfig.Set(in.Spec.RuntimeConfig)
 
 	// if this cluster has no id we bail out immediately.
 	if in.Spec.ClusterID == "" {

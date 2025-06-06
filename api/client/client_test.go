@@ -99,33 +99,31 @@ func TestLogin(t *testing.T) {
 	assert.Equal(t, "Invalid password", apiErr.Message)
 }
 
-func TestGetInstall(t *testing.T) {
+func TestGetInstallationConfig(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
-		assert.Equal(t, "/api/install", r.URL.Path)
+		assert.Equal(t, "/api/install/installation/config", r.URL.Path)
 
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(types.Install{
-			Config: types.InstallationConfig{
-				GlobalCIDR:       "10.0.0.0/24",
-				AdminConsolePort: 8080,
-			},
+		json.NewEncoder(w).Encode(types.InstallationConfig{
+			GlobalCIDR:       "10.0.0.0/24",
+			AdminConsolePort: 8080,
 		})
 	}))
 	defer server.Close()
 
 	// Test successful get
 	c := New(server.URL, WithToken("test-token"))
-	install, err := c.GetInstall()
+	config, err := c.GetInstallationConfig()
 	assert.NoError(t, err)
-	assert.NotNil(t, install)
-	assert.Equal(t, "10.0.0.0/24", install.Config.GlobalCIDR)
-	assert.Equal(t, 8080, install.Config.AdminConsolePort)
+	assert.NotNil(t, config)
+	assert.Equal(t, "10.0.0.0/24", config.GlobalCIDR)
+	assert.Equal(t, 8080, config.AdminConsolePort)
 
 	// Test error response
 	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -138,9 +136,9 @@ func TestGetInstall(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	install, err = c.GetInstall()
+	config, err = c.GetInstallationConfig()
 	assert.Error(t, err)
-	assert.Nil(t, install)
+	assert.Nil(t, config)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -148,12 +146,12 @@ func TestGetInstall(t *testing.T) {
 	assert.Equal(t, "Internal Server Error", apiErr.Message)
 }
 
-func TestSetInstallConfig(t *testing.T) {
+func TestConfigureInstallation(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check request method and path
-		assert.Equal(t, "POST", r.Method) // Corrected from PUT to POST based on implementation
-		assert.Equal(t, "/api/install/config", r.URL.Path)
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/api/install/installation/configure", r.URL.Path)
 
 		// Check headers
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
@@ -166,22 +164,24 @@ func TestSetInstallConfig(t *testing.T) {
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(types.Install{
-			Config: config,
+		json.NewEncoder(w).Encode(types.Status{
+			State:       types.StateRunning,
+			Description: "Configuring installation",
 		})
 	}))
 	defer server.Close()
 
-	// Test successful set
+	// Test successful configure
 	c := New(server.URL, WithToken("test-token"))
 	config := types.InstallationConfig{
 		GlobalCIDR:              "20.0.0.0/24",
 		LocalArtifactMirrorPort: 9081,
 	}
-	install, err := c.SetInstallConfig(config)
+	status, err := c.ConfigureInstallation(&config)
 	assert.NoError(t, err)
-	assert.NotNil(t, install)
-	assert.Equal(t, config, install.Config)
+	assert.NotNil(t, status)
+	assert.Equal(t, types.StateRunning, status.State)
+	assert.Equal(t, "Configuring installation", status.Description)
 
 	// Test error response
 	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -194,9 +194,9 @@ func TestSetInstallConfig(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	install, err = c.SetInstallConfig(config)
+	status, err = c.ConfigureInstallation(&config)
 	assert.Error(t, err)
-	assert.Nil(t, install)
+	assert.Nil(t, status)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -214,28 +214,26 @@ func TestSetInstallStatus(t *testing.T) {
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 
 		// Decode request body
-		var status types.InstallationStatus
+		var status types.Status
 		err := json.NewDecoder(r.Body).Decode(&status)
 		require.NoError(t, err, "Failed to decode request body")
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(types.Install{
-			Status: status,
-		})
+		json.NewEncoder(w).Encode(status)
 	}))
 	defer server.Close()
 
 	// Test successful set
 	c := New(server.URL, WithToken("test-token"))
-	status := types.InstallationStatus{
-		State:       types.InstallationStateSucceeded,
+	status := &types.Status{
+		State:       types.StateSucceeded,
 		Description: "Installation successful",
 	}
-	install, err := c.SetInstallStatus(status)
+	newStatus, err := c.SetInstallStatus(status)
 	assert.NoError(t, err)
-	assert.NotNil(t, install)
-	assert.Equal(t, status, install.Status)
+	assert.NotNil(t, newStatus)
+	assert.Equal(t, status, newStatus)
 
 	// Test error response
 	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -248,9 +246,9 @@ func TestSetInstallStatus(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	install, err = c.SetInstallStatus(status)
+	newStatus, err = c.SetInstallStatus(status)
 	assert.Error(t, err)
-	assert.Nil(t, install)
+	assert.Nil(t, newStatus)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")

@@ -28,6 +28,8 @@ const welcome = `
 `
 
 func ShellCmd(ctx context.Context, name string) *cobra.Command {
+	var rc runtimeconfig.RuntimeConfig
+
 	cmd := &cobra.Command{
 		Use:   "shell",
 		Short: fmt.Sprintf("Start a shell with access to the %s cluster", name),
@@ -36,11 +38,11 @@ func ShellCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("shell command must be run as root")
 			}
 
-			rcutil.InitBestRuntimeConfig(cmd.Context())
-			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
+			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
-			if _, err := os.Stat(runtimeconfig.PathToKubeConfig()); err != nil {
-				return fmt.Errorf("kubeconfig not found at %s", runtimeconfig.PathToKubeConfig())
+			if _, err := os.Stat(rc.PathToKubeConfig()); err != nil {
+				return fmt.Errorf("kubeconfig not found at %s", rc.PathToKubeConfig())
 			}
 
 			return nil
@@ -83,12 +85,12 @@ func ShellCmd(ctx context.Context, name string) *cobra.Command {
 				_ = term.Restore(fd, state)
 			}()
 
-			kcpath := runtimeconfig.PathToKubeConfig()
+			kcpath := rc.PathToKubeConfig()
 			config := fmt.Sprintf("export KUBECONFIG=%q\n", kcpath)
 			_, _ = shellpty.WriteString(config)
 			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
-			bindir := runtimeconfig.EmbeddedClusterBinsSubDir()
+			bindir := rc.EmbeddedClusterBinsSubDir()
 			config = fmt.Sprintf("export PATH=\"$PATH:%s\"\n", bindir)
 			_, _ = shellpty.WriteString(config)
 			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
@@ -99,7 +101,7 @@ func ShellCmd(ctx context.Context, name string) *cobra.Command {
 				_, _ = shellpty.WriteString(config)
 				_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
-				comppath := runtimeconfig.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
+				comppath := rc.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
 				config = fmt.Sprintf("source <(cat %s)\n", comppath)
 				_, _ = shellpty.WriteString(config)
 				_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))

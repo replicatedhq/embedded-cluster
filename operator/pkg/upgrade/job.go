@@ -39,7 +39,7 @@ const (
 // created to copy the images to the cluster. A configmap is then created containing the target installation
 // spec and the upgrade job is created. The upgrade job will update the cluster version, and then update the operator chart.
 func CreateUpgradeJob(
-	ctx context.Context, cli client.Client, in *ecv1beta1.Installation,
+	ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation,
 	localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion string,
 	previousInstallVersion string,
 ) error {
@@ -60,7 +60,7 @@ func CreateUpgradeJob(
 		return fmt.Errorf("copy version metadata to cluster: %w", err)
 	}
 
-	err = distributeArtifacts(ctx, cli, in, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion)
+	err = distributeArtifacts(ctx, cli, rc, in, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion)
 	if err != nil {
 		return fmt.Errorf("distribute artifacts: %w", err)
 	}
@@ -198,7 +198,7 @@ func CreateUpgradeJob(
 								HostPath: &corev1.HostPathVolumeSource{
 									// the job gets created by a process inside the kotsadm pod during an upgrade,
 									// and kots doesn't (and shouldn't) have permissions to create this directory
-									Path: runtimeconfig.EmbeddedClusterChartsSubDirNoCreate(),
+									Path: rc.EmbeddedClusterChartsSubDirNoCreate(),
 								},
 							},
 						},
@@ -224,7 +224,7 @@ func CreateUpgradeJob(
 								},
 								{
 									Name:      "ec-charts-dir",
-									MountPath: runtimeconfig.EmbeddedClusterChartsSubDirNoCreate(),
+									MountPath: rc.EmbeddedClusterChartsSubDirNoCreate(),
 									ReadOnly:  true,
 								},
 							},
@@ -301,12 +301,12 @@ func operatorImageName(ctx context.Context, cli client.Client, in *ecv1beta1.Ins
 }
 
 func distributeArtifacts(
-	ctx context.Context, cli client.Client, in *ecv1beta1.Installation,
+	ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation,
 	localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion string,
 ) error {
 	// let's make sure all assets have been copied to nodes.
 	// this may take some time so we only move forward when 'ready'.
-	err := ensureArtifactsOnNodes(ctx, cli, in, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion)
+	err := ensureArtifactsOnNodes(ctx, cli, rc, in, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion)
 	if err != nil {
 		return fmt.Errorf("ensure artifacts: %w", err)
 	}
@@ -314,7 +314,7 @@ func distributeArtifacts(
 	if in.Spec.AirGap {
 		// once all assets are in place we can create the autopilot plan to push the images to
 		// containerd.
-		err := ensureAirgapArtifactsInCluster(ctx, cli, in)
+		err := ensureAirgapArtifactsInCluster(ctx, cli, rc, in)
 		if err != nil {
 			return fmt.Errorf("autopilot copy airgap artifacts: %w", err)
 		}
@@ -324,7 +324,7 @@ func distributeArtifacts(
 }
 
 func ensureArtifactsOnNodes(
-	ctx context.Context, cli client.Client, in *ecv1beta1.Installation,
+	ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation,
 	localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion string,
 ) error {
 	log := controllerruntime.LoggerFrom(ctx)
@@ -340,7 +340,7 @@ func ensureArtifactsOnNodes(
 		}
 	}
 
-	err := artifacts.EnsureArtifactsJobForNodes(ctx, cli, in, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion)
+	err := artifacts.EnsureArtifactsJobForNodes(ctx, cli, rc, in, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion)
 	if err != nil {
 		return fmt.Errorf("ensure artifacts job for nodes: %w", err)
 	}
@@ -391,12 +391,12 @@ func ensureArtifactsOnNodes(
 	return nil
 }
 
-func ensureAirgapArtifactsInCluster(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+func ensureAirgapArtifactsInCluster(ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) error {
 	log := controllerruntime.LoggerFrom(ctx)
 
 	log.Info("Uploading container images...")
 
-	err := autopilotEnsureAirgapArtifactsPlan(ctx, cli, in)
+	err := autopilotEnsureAirgapArtifactsPlan(ctx, cli, rc, in)
 	if err != nil {
 		return fmt.Errorf("ensure autopilot plan: %w", err)
 	}
@@ -433,8 +433,8 @@ func ensureAirgapArtifactsInCluster(ctx context.Context, cli client.Client, in *
 	return nil
 }
 
-func autopilotEnsureAirgapArtifactsPlan(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
-	plan, err := getAutopilotAirgapArtifactsPlan(ctx, cli, in)
+func autopilotEnsureAirgapArtifactsPlan(ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) error {
+	plan, err := getAutopilotAirgapArtifactsPlan(ctx, cli, rc, in)
 	if err != nil {
 		return fmt.Errorf("get autopilot airgap artifacts plan: %w", err)
 	}
@@ -451,13 +451,13 @@ func autopilotEnsureAirgapArtifactsPlan(ctx context.Context, cli client.Client, 
 	return nil
 }
 
-func getAutopilotAirgapArtifactsPlan(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) (*v1beta2.Plan, error) {
+func getAutopilotAirgapArtifactsPlan(ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) (*v1beta2.Plan, error) {
 	var commands []v1beta2.PlanCommand
 
 	// if we are running in an airgap environment all assets are already present in the
 	// node and are served by the local-artifact-mirror binary listening on localhost
 	// port 50000. we just need to get autopilot to fetch the k0s binary from there.
-	command, err := artifacts.CreateAutopilotAirgapPlanCommand(ctx, cli, in)
+	command, err := artifacts.CreateAutopilotAirgapPlanCommand(ctx, cli, rc, in)
 	if err != nil {
 		return nil, fmt.Errorf("create autopilot airgap plan command: %w", err)
 	}

@@ -18,6 +18,8 @@ import (
 
 // EnableHACmd is the command for enabling HA mode.
 func EnableHACmd(ctx context.Context, name string) *cobra.Command {
+	var rc runtimeconfig.RuntimeConfig
+
 	cmd := &cobra.Command{
 		Use:   "enable-ha",
 		Short: fmt.Sprintf("Enable high availability for the %s cluster", name),
@@ -26,18 +28,18 @@ func EnableHACmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("enable-ha command must be run as root")
 			}
 
-			rcutil.InitBestRuntimeConfig(cmd.Context())
+			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
 
-			os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
-			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+			os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
+			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
 			return nil
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
-			runtimeconfig.Cleanup()
+			rc.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runEnableHA(cmd.Context()); err != nil {
+			if err := runEnableHA(cmd.Context(), rc); err != nil {
 				return err
 			}
 
@@ -48,7 +50,7 @@ func EnableHACmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runEnableHA(ctx context.Context) error {
+func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to get kube client: %w", err)
@@ -80,11 +82,11 @@ func runEnableHA(ctx context.Context) error {
 
 	airgapChartsPath := ""
 	if in.Spec.AirGap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		KubeConfig: rc.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
@@ -96,5 +98,5 @@ func runEnableHA(ctx context.Context) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addons.EnableHA(ctx, logrus.Debugf, kcli, mcli, kclient, hcli, in.Spec.Network.ServiceCIDR, in.Spec, loading)
+	return addons.EnableHA(ctx, logrus.Debugf, kcli, mcli, kclient, hcli, rc, in.Spec.Network.ServiceCIDR, in.Spec, loading)
 }

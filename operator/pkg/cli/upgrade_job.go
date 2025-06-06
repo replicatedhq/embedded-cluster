@@ -29,6 +29,8 @@ func UpgradeJobCmd() *cobra.Command {
 	var inFile, previousInVersion string
 	var in *ecv1beta1.Installation
 
+	rc := runtimeconfig.New(nil)
+
 	cmd := &cobra.Command{
 		Use:          "upgrade-job",
 		Short:        "Upgrade k0s and then all addons from within a job that may be restarted",
@@ -41,7 +43,7 @@ func UpgradeJobCmd() *cobra.Command {
 			}
 
 			// set the runtime config from the installation spec
-			runtimeconfig.Set(in.Spec.RuntimeConfig)
+			rc.Set(in.Spec.RuntimeConfig)
 
 			// initialize the cluster ID
 			clusterUUID, err := uuid.Parse(in.Spec.ClusterID)
@@ -63,7 +65,7 @@ func UpgradeJobCmd() *cobra.Command {
 
 			airgapChartsPath := ""
 			if in.Spec.AirGap {
-				airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDirNoCreate()
+				airgapChartsPath = rc.EmbeddedClusterChartsSubDirNoCreate()
 			}
 
 			hcli, err := helm.NewClient(helm.HelmOptions{
@@ -78,7 +80,7 @@ func UpgradeJobCmd() *cobra.Command {
 			}
 			defer hcli.Close()
 
-			if upgradeErr := performUpgrade(cmd.Context(), kcli, hcli, in); upgradeErr != nil {
+			if upgradeErr := performUpgrade(cmd.Context(), kcli, hcli, rc, in); upgradeErr != nil {
 				// if this is the last attempt, mark the installation as failed
 				if err := maybeMarkAsFailed(cmd.Context(), kcli, in, upgradeErr); err != nil {
 					slog.Error("Failed to mark installation as failed", "error", err)
@@ -106,7 +108,7 @@ func UpgradeJobCmd() *cobra.Command {
 	return cmd
 }
 
-func performUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation) (finalErr error) {
+func performUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("upgrade recovered from panic: %v: %s", r, string(debug.Stack()))
@@ -117,7 +119,7 @@ func performUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, i
 		return fmt.Errorf("failed to run v2 migration: %w", err)
 	}
 
-	if err := upgrade.Upgrade(ctx, kcli, hcli, in); err != nil {
+	if err := upgrade.Upgrade(ctx, kcli, hcli, rc, in); err != nil {
 		return err
 	}
 	return nil

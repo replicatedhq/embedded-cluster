@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
@@ -17,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *Registry) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
+func (r *Registry) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, overrides []string, writer *spinner.MessageWriter) error {
 	registryIP, err := GetRegistryClusterIP(r.ServiceCIDR)
 	if err != nil {
 		return errors.Wrap(err, "get registry cluster IP")
@@ -27,7 +28,7 @@ func (r *Registry) Install(ctx context.Context, logf types.LogFunc, kcli client.
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := r.GenerateHelmValues(ctx, kcli, overrides)
+	values, err := r.GenerateHelmValues(ctx, kcli, rc, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}

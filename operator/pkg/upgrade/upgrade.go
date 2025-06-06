@@ -27,7 +27,7 @@ import (
 
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
-func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1beta1.Installation) error {
+func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) error {
 	slog.Info("Upgrading Embedded Cluster", "version", in.Spec.Config.Version)
 
 	// Augment the installation with data dirs that may not be present in the previous version.
@@ -40,9 +40,9 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1b
 
 	// In case the previous version was < 1.15, update the runtime config after we override the
 	// installation data dirs from the previous installation.
-	runtimeconfig.Set(in.Spec.RuntimeConfig)
+	rc.Set(in.Spec.RuntimeConfig)
 
-	err = upgradeK0s(ctx, cli, in)
+	err = upgradeK0s(ctx, cli, rc, in)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
 	}
@@ -56,7 +56,7 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1b
 	}
 
 	slog.Info("Upgrading addons")
-	err = upgradeAddons(ctx, cli, hcli, in)
+	err = upgradeAddons(ctx, cli, hcli, rc, in)
 	if err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
@@ -92,7 +92,7 @@ func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, i
 	return &next, nil
 }
 
-func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+func upgradeK0s(ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) error {
 	meta, err := release.MetadataFor(ctx, in, cli)
 	if err != nil {
 		return fmt.Errorf("get release metadata: %w", err)
@@ -117,7 +117,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installati
 	}
 
 	// create an autopilot upgrade plan if one does not yet exist
-	if err := createAutopilotPlan(ctx, cli, desiredVersion, in, meta); err != nil {
+	if err := createAutopilotPlan(ctx, cli, rc, desiredVersion, in, meta); err != nil {
 		return fmt.Errorf("create autpilot upgrade plan: %w", err)
 	}
 
@@ -147,7 +147,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, in *ecv1beta1.Installati
 		if err != nil {
 			return fmt.Errorf("delete autopilot plan: %w", err)
 		}
-		return upgradeK0s(ctx, cli, in)
+		return upgradeK0s(ctx, cli, rc, in)
 	}
 
 	match, err = clusterNodesMatchVersion(ctx, cli, desiredVersion)
@@ -248,7 +248,7 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 	return nil
 }
 
-func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1beta1.Installation) error {
+func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) error {
 	err := kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateAddonsInstalling, "Upgrading addons")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
@@ -262,7 +262,7 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, in 
 		return fmt.Errorf("no images available")
 	}
 
-	if err := addons.Upgrade(ctx, slog.Info, hcli, in, meta); err != nil {
+	if err := addons.Upgrade(ctx, slog.Info, hcli, rc, in, meta); err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 
@@ -297,7 +297,7 @@ func upgradeExtensions(ctx context.Context, cli client.Client, hcli helm.Client,
 	return nil
 }
 
-func createAutopilotPlan(ctx context.Context, cli client.Client, desiredVersion string, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
+func createAutopilotPlan(ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, desiredVersion string, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
 	var plan apv1b2.Plan
 	okey := client.ObjectKey{Name: "autopilot"}
 	if err := cli.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
@@ -309,7 +309,7 @@ func createAutopilotPlan(ctx context.Context, cli client.Client, desiredVersion 
 		// there is no autopilot plan in the cluster so we are free to
 		// start our own plan. here we link the plan to the installation
 		// by its name.
-		if err := startAutopilotUpgrade(ctx, cli, in, meta); err != nil {
+		if err := startAutopilotUpgrade(ctx, cli, rc, in, meta); err != nil {
 			return fmt.Errorf("start upgrade: %w", err)
 		}
 	}

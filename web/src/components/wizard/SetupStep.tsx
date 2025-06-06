@@ -5,7 +5,6 @@ import { useConfig } from "../../contexts/ConfigContext";
 import { useWizardMode } from "../../contexts/WizardModeContext";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import LinuxSetup from "./setup/LinuxSetup";
-import KubernetesSetup from "./setup/KubernetesSetup";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
 interface SetupStepProps {
@@ -23,7 +22,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   const { isLoading: isConfigLoading } = useQuery({
     queryKey: ["installConfig"],
     queryFn: async () => {
-      const response = await fetch("/api/install", {
+      const response = await fetch("/api/install/installation/config", {
         headers: {
           ...(localStorage.getItem("auth") && {
             Authorization: `Bearer ${localStorage.getItem("auth")}`,
@@ -33,9 +32,9 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
       if (!response.ok) {
         throw new Error("Failed to fetch install configuration");
       }
-      const data = await response.json();
-      updateConfig(data.config);
-      return data;
+      const config = await response.json();
+      updateConfig(config);
+      return config;
     },
   });
 
@@ -64,11 +63,10 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   // Mutation for submitting the configuration
   const {
     mutate: submitConfig,
-    isPending: isSubmitting,
     error: submitError,
   } = useMutation({
     mutationFn: async (configData: typeof config) => {
-      const response = await fetch("/api/install/config", {
+      const response = await fetch("/api/install/installation/configure", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -90,17 +88,9 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     },
     onError: (err: any) => {
       setError(err.message || "Failed to setup cluster");
+      return err;
     },
   });
-
-  // Helper function to get field error message
-  const getFieldError = (fieldName: string) => {
-    if (!submitError?.errors) return undefined;
-    const fieldError = submitError.errors.find(
-      (err: any) => err.field === fieldName
-    );
-    return fieldError?.message;
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -119,7 +109,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     updateConfig({ [id]: value });
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     submitConfig(config);
   };
 
@@ -135,9 +125,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             {text.setupTitle}
           </h2>
           <p className="text-gray-600 mt-1">
-            {prototypeSettings.clusterMode === "embedded"
-              ? "Configure the installation settings."
-              : text.setupDescription}
+            Configure the installation settings.
           </p>
         </div>
 
@@ -146,7 +134,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
             <p className="mt-2 text-gray-600">Loading configuration...</p>
           </div>
-        ) : prototypeSettings?.clusterMode === "embedded" ? (
+        ) : (
           <LinuxSetup
             config={config}
             prototypeSettings={prototypeSettings}
@@ -157,11 +145,9 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             availableNetworkInterfaces={availableNetworkInterfaces}
             fieldErrors={submitError?.errors || []}
           />
-        ) : (
-          <KubernetesSetup config={config} onInputChange={handleInputChange} />
         )}
 
-        {submitError && (
+        {error && (
           <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
             Please fix the errors in the form above before proceeding.
           </div>
@@ -179,9 +165,8 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
         <Button
           onClick={handleNext}
           icon={<ChevronRight className="w-5 h-5" />}
-          disabled={isSubmitting || isLoading}
         >
-          {isSubmitting ? "Setting up..." : text.nextButtonText}
+          Next: Validate Host
         </Button>
       </div>
     </div>

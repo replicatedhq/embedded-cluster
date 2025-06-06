@@ -1,5 +1,7 @@
 SHELL := /bin/bash
 
+include ../common.mk
+
 .PHONY: swagger
 swagger: swag
 	swag fmt -g api.go
@@ -8,3 +10,7 @@ swagger: swag
 .PHONY: swag
 swag:
 	which swag || (go install github.com/swaggo/swag/v2/cmd/swag@latest)
+
+.PHONY: unit-tests
+unit-tests:
+	go test -tags $(GO_BUILD_TAGS) -v ./...

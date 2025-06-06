@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, kcli client.Client, overrides []string) (map[string]interface{}, error) {
+func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, overrides []string) (map[string]interface{}, error) {
 	// create a copy of the helm values so we don't modify the original
 	marshalled, err := helm.MarshalValues(helmValues)
 	if err != nil {
@@ -28,13 +28,13 @@ func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, kcli client.Client, 
 		return nil, errors.Wrap(err, "unmarshal helm values")
 	}
 
-	dataPath := filepath.Join(runtimeconfig.EmbeddedClusterSeaweedfsSubDir(), "ssd")
+	dataPath := filepath.Join(rc.EmbeddedClusterSeaweedfsSubDir(), "ssd")
 	err = helm.SetValue(copiedValues, "master.data.hostPathPrefix", dataPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm values global.data.hostPathPrefix")
 	}
 
-	logsPath := filepath.Join(runtimeconfig.EmbeddedClusterSeaweedfsSubDir(), "storage")
+	logsPath := filepath.Join(rc.EmbeddedClusterSeaweedfsSubDir(), "storage")
 	err = helm.SetValue(copiedValues, "master.logs.hostPathPrefix", logsPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm values global.logs.hostPathPrefix")

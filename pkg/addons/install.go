@@ -36,7 +36,7 @@ type InstallOptions struct {
 	IsRestore               bool
 }
 
-func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, opts InstallOptions) error {
+func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runtimeconfig.RuntimeConfig, opts InstallOptions) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return errors.Wrap(err, "create kube client")
@@ -47,9 +47,9 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, opts Ins
 		return errors.Wrap(err, "create metadata client")
 	}
 
-	addons := getAddOnsForInstall(opts)
+	addons := getAddOnsForInstall(rc, opts)
 	if opts.IsRestore {
-		addons = getAddOnsForRestore(opts)
+		addons = getAddOnsForRestore(rc, opts)
 	}
 
 	for _, addon := range addons {
@@ -58,7 +58,7 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, opts Ins
 
 		overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
-		if err := addon.Install(ctx, logf, kcli, mcli, hcli, overrides, loading); err != nil {
+		if err := addon.Install(ctx, logf, kcli, mcli, hcli, rc, overrides, loading); err != nil {
 			loading.ErrorClosef("Failed to install %s", addon.Name())
 			return errors.Wrapf(err, "install %s", addon.Name())
 		}
@@ -69,7 +69,7 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, opts Ins
 	return nil
 }
 
-func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
+func getAddOnsForInstall(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
 	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
 
 	addOns := []types.AddOn{
@@ -96,7 +96,7 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 			ProxyRegistryDomain:      domains.ProxyRegistryDomain,
 			Proxy:                    opts.Proxy,
 			HostCABundlePath:         opts.HostCABundlePath,
-			EmbeddedClusterK0sSubDir: runtimeconfig.EmbeddedClusterK0sSubDir(),
+			EmbeddedClusterK0sSubDir: rc.EmbeddedClusterK0sSubDir(),
 		})
 	}
 
@@ -120,7 +120,7 @@ func getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	return addOns
 }
 
-func getAddOnsForRestore(opts InstallOptions) []types.AddOn {
+func getAddOnsForRestore(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
 	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
 
 	addOns := []types.AddOn{
@@ -131,7 +131,7 @@ func getAddOnsForRestore(opts InstallOptions) []types.AddOn {
 			Proxy:                    opts.Proxy,
 			ProxyRegistryDomain:      domains.ProxyRegistryDomain,
 			HostCABundlePath:         opts.HostCABundlePath,
-			EmbeddedClusterK0sSubDir: runtimeconfig.EmbeddedClusterK0sSubDir(),
+			EmbeddedClusterK0sSubDir: rc.EmbeddedClusterK0sSubDir(),
 		},
 	}
 	return addOns
