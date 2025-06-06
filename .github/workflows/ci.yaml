@@ -58,6 +58,10 @@ jobs:
         run: |
           cd web
           npm install
+      - name: Run web lint
+        run: |
+          cd web
+          npm run lint
       - name: Run web unit tests
         run: |
           cd web
@@ -874,6 +878,7 @@ jobs:
       - sanitize
       - test
       - int-tests
+      - web-tests
       - dryrun-tests
       - check-images
       - check-operator-crds
