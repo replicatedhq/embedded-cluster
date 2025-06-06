@@ -79,7 +79,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     onSuccess: () => {
       onNext();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setError(err.message || "Failed to setup cluster");
       return err;
     },

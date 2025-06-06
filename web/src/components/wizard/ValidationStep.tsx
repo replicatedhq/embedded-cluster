@@ -44,7 +44,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
     onSuccess: () => {
       onNext();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setError(err.message || "Failed to start installation");
       return err;
     },
@@ -54,32 +54,17 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
     <div className="space-y-6">
       <Card>
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {text.validationTitle}
-          </h2>
-          <p className="text-gray-600 mt-1">
-            {text.validationDescription}
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900">{text.validationTitle}</h2>
+          <p className="text-gray-600 mt-1">{text.validationDescription}</p>
         </div>
 
-        <LinuxPreflightCheck
-          config={config}
-          onComplete={handlePreflightComplete}
-        />
+        <LinuxPreflightCheck config={config} onComplete={handlePreflightComplete} />
 
-        {error && (
-          <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
-            {error}
-          </div>
-        )}
+        {error && <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">{error}</div>}
       </Card>
 
       <div className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          icon={<ChevronLeft className="w-5 h-5" />}
-        >
+        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
           Back
         </Button>
         <Button

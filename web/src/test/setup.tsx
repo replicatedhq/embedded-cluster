@@ -1,17 +1,28 @@
 import React from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { render, RenderOptions } from "@testing-library/react";
-import {
-  createMemoryRouter,
-  RouterProvider,
-  RouteObject,
-} from "react-router-dom";
+import { createMemoryRouter, RouterProvider, RouteObject } from "react-router-dom";
 import { vi } from "vitest";
 
 import { createQueryClient } from "../query-client";
 import { ConfigContext, ClusterConfig } from "../contexts/ConfigContext";
 import { WizardModeContext, WizardMode } from "../contexts/WizardModeContext";
 import { BrandingContext } from "../contexts/BrandingContext";
+
+interface PrototypeSettings {
+  skipValidation: boolean;
+  failPreflights: boolean;
+  failInstallation: boolean;
+  failHostPreflights: boolean;
+  clusterMode: "existing" | "embedded";
+  themeColor: string;
+  skipNodeValidation: boolean;
+  useSelfSignedCert: boolean;
+  enableMultiNode: boolean;
+  availableNetworkInterfaces: Array<{
+    name: string;
+  }>;
+}
 
 interface MockProviderProps {
   children: React.ReactNode;
@@ -23,22 +34,9 @@ interface MockProviderProps {
     };
     configContext: {
       config: ClusterConfig;
-      prototypeSettings: {
-        skipValidation: boolean;
-        failPreflights: boolean;
-        failInstallation: boolean;
-        failHostPreflights: boolean;
-        clusterMode: "existing" | "embedded";
-        themeColor: string;
-        skipNodeValidation: boolean;
-        useSelfSignedCert: boolean;
-        enableMultiNode: boolean;
-        availableNetworkInterfaces: Array<{
-          name: string;
-        }>;
-      };
+      prototypeSettings: PrototypeSettings;
       updateConfig: (newConfig: Partial<ClusterConfig>) => void;
-      updatePrototypeSettings: (newSettings: any) => void;
+      updatePrototypeSettings: (newSettings: Partial<PrototypeSettings>) => void;
       resetConfig: () => void;
     };
     wizardModeContext: {
@@ -50,12 +48,10 @@ interface MockProviderProps {
         welcomeDescription: string;
         setupTitle: string;
         setupDescription: string;
-        configurationTitle: string;
-        configurationDescription: string;
+        validationTitle: string;
+        validationDescription: string;
         installationTitle: string;
         installationDescription: string;
-        completionTitle: string;
-        completionDescription: string;
         welcomeButtonText: string;
         nextButtonText: string;
       };
@@ -63,18 +59,12 @@ interface MockProviderProps {
   };
 }
 
-const MockProvider = ({
-  children,
-  queryClient,
-  contexts,
-}: MockProviderProps) => {
+const MockProvider = ({ children, queryClient, contexts }: MockProviderProps) => {
   return (
     <QueryClientProvider client={queryClient}>
       <ConfigContext.Provider value={contexts.configContext}>
         <BrandingContext.Provider value={contexts.brandingContext}>
-          <WizardModeContext.Provider value={contexts.wizardModeContext}>
-            {children}
-          </WizardModeContext.Provider>
+          <WizardModeContext.Provider value={contexts.wizardModeContext}>{children}</WizardModeContext.Provider>
         </BrandingContext.Provider>
       </ConfigContext.Provider>
     </QueryClientProvider>
@@ -84,7 +74,7 @@ const MockProvider = ({
 interface RenderWithProvidersOptions extends RenderOptions {
   wrapperProps?: {
     initialEntries?: string[];
-    preloadedState?: Record<string, any>;
+    preloadedState?: Record<string, unknown>;
     routePath?: string;
     authenticated?: boolean;
   };
@@ -131,17 +121,13 @@ export const renderWithProviders = (
         title: "My App",
         subtitle: "Installation Wizard",
         welcomeTitle: "Welcome to My App",
-        welcomeDescription:
-          "This wizard will guide you through installing My App on your Linux machine.",
+        welcomeDescription: "This wizard will guide you through installing My App on your Linux machine.",
         setupTitle: "Setup",
         setupDescription: "Set up the hosts to use for this installation.",
-        configurationTitle: "Configuration",
-        configurationDescription:
-          "Configure your My App installation by providing the information below.",
+        validationTitle: "Validation",
+        validationDescription: "Validate the host requirements before proceeding with installation.",
         installationTitle: "Installing My App",
         installationDescription: "",
-        completionTitle: "Installation Complete!",
-        completionDescription: "My App has been installed successfully.",
         welcomeButtonText: "Start",
         nextButtonText: "Next: Start Installation",
       },
@@ -160,7 +146,7 @@ export const renderWithProviders = (
     },
   });
   vi.mock("../query-client", async (importOriginal) => {
-    const original: any = await importOriginal();
+    const original = (await importOriginal()) as Record<string, unknown>;
     return {
       ...original,
       getQueryClient: () => queryClient,
