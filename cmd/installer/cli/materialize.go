@@ -24,6 +24,9 @@ func MaterializeCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("materialize command must be run as root")
 			}
 
+			rc.SetDataDir(dataDir)
+			rc.SetEnvTmpDir()
+
 			return nil
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
