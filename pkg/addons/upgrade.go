@@ -57,6 +57,7 @@ func getUpgradeOpts(inSpec ecv1beta1.InstallationSpec) types.InstallOptions {
 	}
 
 	return types.InstallOptions{
+		ClusterID:                 inSpec.ClusterID,
 		IsAirgap:                  inSpec.AirGap,
 		IsHA:                      inSpec.HighAvailability,
 		Proxy:                     inSpec.Proxy,
@@ -65,11 +66,9 @@ func getUpgradeOpts(inSpec ecv1beta1.InstallationSpec) types.InstallOptions {
 		IsMultiNodeEnabled:        inSpec.LicenseInfo != nil && inSpec.LicenseInfo.IsMultiNodeEnabled,
 		EmbeddedConfigSpec:        inSpec.Config,
 		Domains:                   runtimeconfig.GetDomains(inSpec.Config),
-		ClusterID:                 inSpec.ClusterID,
 
 		// The following is unset on upgrades
 		AdminConsolePassword: "",
-		License:              nil,
 		TLSCertBytes:         nil,
 		TLSKeyBytes:          nil,
 		Hostname:             "",

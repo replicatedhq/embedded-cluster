@@ -5,7 +5,6 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 type LogFunc func(format string, args ...interface{})
@@ -22,8 +21,8 @@ type AddOn interface {
 }
 
 type InstallOptions struct {
+	ClusterID                 string
 	AdminConsolePassword      string
-	License                   *kotsv1beta1.License
 	IsAirgap                  bool
 	IsHA                      bool
 	Proxy                     *ecv1beta1.ProxySpec
@@ -37,8 +36,8 @@ type InstallOptions struct {
 	EndUserConfigSpec         *ecv1beta1.ConfigSpec
 	Domains                   ecv1beta1.Domains
 	KotsInstaller             KotsInstaller
-	ClusterID                 string
-	IsRestore                 bool
+
+	IsRestore bool
 
 	// IsDryRun is a flag to enable dry-run mode.
 	// If true, Install and Upgrade will only render the helm template and additional manifests,
