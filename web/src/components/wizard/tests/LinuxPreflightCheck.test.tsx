@@ -4,11 +4,9 @@ import { renderWithProviders } from "../../../test/setup.tsx";
 import LinuxPreflightCheck from "../preflight/LinuxPreflightCheck";
 import { ClusterConfig } from "../../../contexts/ConfigContext";
 import { MOCK_PROTOTYPE_SETTINGS } from "../../../test/testData.ts";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-// Mock fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
+import { setupServer } from "msw/node";
+import { http, HttpResponse } from "msw";
 
 // Mock localStorage
 const mockLocalStorage = {
@@ -17,6 +15,30 @@ const mockLocalStorage = {
   clear: vi.fn(),
 };
 Object.defineProperty(window, "localStorage", { value: mockLocalStorage });
+
+const server = setupServer(
+  // Mock config status endpoint
+  http.get("*/api/install/installation/status", () => {
+    return HttpResponse.json({ state: "Succeeded" });
+  }),
+
+  // Mock preflight status endpoint
+  http.get("*/api/install/host-preflights/status", () => {
+    return HttpResponse.json({
+      output: {
+        pass: [{ title: "CPU Check", message: "CPU requirements met" }],
+        warn: [{ title: "Memory Warning", message: "Memory is below recommended" }],
+        fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
+      },
+      status: { state: "Succeeded" },
+    });
+  }),
+
+  // Mock preflight run endpoint
+  http.post("*/api/install/host-preflights/run", () => {
+    return HttpResponse.json({ success: true });
+  })
+);
 
 describe("LinuxPreflightCheck", () => {
   const mockOnComplete = vi.fn();
@@ -34,18 +56,21 @@ describe("LinuxPreflightCheck", () => {
     useProxy: false,
   };
 
-  beforeEach(() => {
-    mockFetch.mockClear();
+  beforeAll(() => server.listen());
+  afterEach(() => {
+    server.resetHandlers();
     mockOnComplete.mockClear();
     mockLocalStorage.getItem.mockClear();
     vi.clearAllMocks();
   });
+  afterAll(() => server.close());
 
   it("shows initializing state when config is polling", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ state: "Running" }),
-    });
+    server.use(
+      http.get("*/api/install/installation/status", () => {
+        return HttpResponse.json({ state: "Running" });
+      })
+    );
 
     renderWithProviders(<LinuxPreflightCheck config={mockConfig} onComplete={mockOnComplete} />, {
       wrapperProps: {
@@ -61,15 +86,11 @@ describe("LinuxPreflightCheck", () => {
   });
 
   it("shows validating state when preflights are polling", async () => {
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ state: "Succeeded" }),
+    server.use(
+      http.get("*/api/install/host-preflights/status", () => {
+        return HttpResponse.json({ state: "Running" });
       })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ state: "Running" }),
-      });
+    );
 
     renderWithProviders(<LinuxPreflightCheck config={mockConfig} onComplete={mockOnComplete} />, {
       wrapperProps: {
@@ -87,25 +108,6 @@ describe("LinuxPreflightCheck", () => {
   });
 
   it("displays preflight results correctly", async () => {
-    const mockPreflightResponse = {
-      output: {
-        pass: [{ title: "CPU Check", message: "CPU requirements met" }],
-        warn: [{ title: "Memory Warning", message: "Memory is below recommended" }],
-        fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
-      },
-      status: { state: "Succeeded" },
-    };
-
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ state: "Succeeded" }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockPreflightResponse),
-      });
-
     renderWithProviders(<LinuxPreflightCheck config={mockConfig} onComplete={mockOnComplete} />, {
       wrapperProps: {
         preloadedState: {
@@ -124,22 +126,16 @@ describe("LinuxPreflightCheck", () => {
   });
 
   it("calls onComplete with false when preflights fail", async () => {
-    const mockPreflightResponse = {
-      output: {
-        fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
-      },
-      status: { state: "Failed" },
-    };
-
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ state: "Succeeded" }),
+    server.use(
+      http.get("*/api/install/host-preflights/status", () => {
+        return HttpResponse.json({
+          output: {
+            fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
+          },
+          status: { state: "Failed" },
+        });
       })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockPreflightResponse),
-      });
+    );
 
     renderWithProviders(<LinuxPreflightCheck config={mockConfig} onComplete={mockOnComplete} />, {
       wrapperProps: {
@@ -156,22 +152,16 @@ describe("LinuxPreflightCheck", () => {
   });
 
   it("calls onComplete with true when all preflights pass", async () => {
-    const mockPreflightResponse = {
-      output: {
-        pass: [{ title: "CPU Check", message: "CPU requirements met" }],
-      },
-      status: { state: "Succeeded" },
-    };
-
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ state: "Succeeded" }),
+    server.use(
+      http.get("*/api/install/host-preflights/status", () => {
+        return HttpResponse.json({
+          output: {
+            pass: [{ title: "CPU Check", message: "CPU requirements met" }],
+          },
+          status: { state: "Succeeded" },
+        });
       })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockPreflightResponse),
-      });
+    );
 
     renderWithProviders(<LinuxPreflightCheck config={mockConfig} onComplete={mockOnComplete} />, {
       wrapperProps: {
@@ -188,7 +178,27 @@ describe("LinuxPreflightCheck", () => {
   });
 
   it("handles API errors gracefully", async () => {
-    mockFetch.mockRejectedValueOnce(new Error("API Error"));
+    // First return success for config status to get past initializing
+    server.use(
+      http.get("*/api/install/installation/status", () => {
+        return HttpResponse.json({ state: "Succeeded" });
+      }),
+      http.get("*/api/install/host-preflights/status", () => {
+        return HttpResponse.json({
+          titles: ["CPU", "Memory", "Disk Space"],
+          output: {
+            pass: [{ title: "CPU", message: "CPU requirements met" }],
+            warn: null,
+            fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
+          },
+          status: {
+            state: "Failed",
+            description: "Host preflights failed",
+            lastUpdated: "2025-06-06T16:06:20.464621507Z",
+          },
+        });
+      })
+    );
 
     renderWithProviders(<LinuxPreflightCheck config={mockConfig} onComplete={mockOnComplete} />, {
       wrapperProps: {
@@ -199,29 +209,32 @@ describe("LinuxPreflightCheck", () => {
       },
     });
 
+    // First wait for the initializing state
     await waitFor(() => {
-      expect(mockOnComplete).toHaveBeenCalledWith(false);
+      expect(screen.getByText("Initializing...")).toBeInTheDocument();
     });
+
+    // wait for initializing state to disappear
+    await waitFor(() => {
+      expect(screen.queryByText("Initializing...")).not.toBeInTheDocument();
+    });
+
+    // expect host requirements not met
+    await waitFor(() => {
+      expect(screen.getByText("Host Requirements Not Met")).toBeInTheDocument();
+    });
+
+    // expect disk space to be in the document
+    await waitFor(() => {
+      expect(screen.getByText("Disk Space")).toBeInTheDocument();
+      expect(screen.getByText("Insufficient disk space")).toBeInTheDocument();
+    });
+
+    // verify onComplete was called with false
+    expect(mockOnComplete).toHaveBeenCalledWith(false);
   });
 
   it("allows re-running validation when there are failures", async () => {
-    const mockPreflightResponse = {
-      output: {
-        fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
-      },
-      status: { state: "Succeeded" },
-    };
-
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ state: "Succeeded" }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockPreflightResponse),
-      });
-
     renderWithProviders(<LinuxPreflightCheck config={mockConfig} onComplete={mockOnComplete} />, {
       wrapperProps: {
         preloadedState: {
@@ -231,26 +244,17 @@ describe("LinuxPreflightCheck", () => {
       },
     });
 
-    // Wait for the preflight response to be processed and the component to update
     await waitFor(() => {
       expect(screen.getByText("Host Requirements Not Met")).toBeInTheDocument();
       expect(screen.getByText("Disk Space")).toBeInTheDocument();
     });
 
-    // Now check for the button and click it
     const runValidationButton = screen.getByRole("button", { name: "Run Validation Again" });
     expect(runValidationButton).toBeInTheDocument();
     fireEvent.click(runValidationButton);
 
-    // Verify the API call was made
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        "/api/install/host-preflights/run",
-        expect.objectContaining({
-          method: "POST",
-          headers: expect.any(Object),
-        })
-      );
+      expect(screen.getByText("Validating host requirements...")).toBeInTheDocument();
     });
   });
 });

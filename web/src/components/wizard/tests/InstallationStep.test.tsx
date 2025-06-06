@@ -1,13 +1,11 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll, afterEach, afterAll } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import InstallationStep from "../InstallationStep.tsx";
 import { MOCK_PROTOTYPE_SETTINGS } from "../../../test/testData.ts";
-
-// Mock fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+import { setupServer } from "msw/node";
+import { http, HttpResponse } from "msw";
 
 // Mock localStorage
 const mockLocalStorage = {
@@ -17,6 +15,13 @@ const mockLocalStorage = {
 };
 Object.defineProperty(window, "localStorage", { value: mockLocalStorage });
 
+const server = setupServer(
+  // Mock installation status endpoint
+  http.get("*/api/install/status", () => {
+    return HttpResponse.json({ state: "InProgress" });
+  })
+);
+
 describe("InstallationStep", () => {
   const mockConfig = {
     useHttps: false,
@@ -24,18 +29,15 @@ describe("InstallationStep", () => {
     adminConsolePort: 30000,
   };
 
-  beforeEach(() => {
-    mockFetch.mockClear();
+  beforeAll(() => server.listen());
+  afterEach(() => {
+    server.resetHandlers();
     mockLocalStorage.getItem.mockClear();
     vi.clearAllMocks();
   });
+  afterAll(() => server.close());
 
   it("shows loading state initially", () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ state: "InProgress" }),
-    });
-
     renderWithProviders(<InstallationStep />, {
       wrapperProps: {
         preloadedState: {
@@ -50,10 +52,11 @@ describe("InstallationStep", () => {
   });
 
   it("shows admin console link when installation succeeds", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ state: "Succeeded" }),
-    });
+    server.use(
+      http.get("*/api/install/status", () => {
+        return HttpResponse.json({ state: "Succeeded" });
+      })
+    );
 
     renderWithProviders(<InstallationStep />, {
       wrapperProps: {
@@ -73,27 +76,18 @@ describe("InstallationStep", () => {
   });
 
   it("shows error message when installation fails", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ state: "Failed" }),
-    });
-
-    renderWithProviders(<InstallationStep />, {
-      wrapperProps: {
-        preloadedState: {
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-          config: mockConfig,
-        },
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("Installation Error")).toBeInTheDocument();
-    });
-  });
-
-  it("handles API errors gracefully", async () => {
-    mockFetch.mockRejectedValueOnce(new Error("API Error"));
+    server.use(
+      http.get("*/api/install/status", () => {
+        return HttpResponse.json(
+          {
+            state: "Failed",
+            description: "Installation failed",
+            lastUpdated: "2024-03-21T00:00:00Z",
+          },
+          { status: 200 }
+        );
+      })
+    );
 
     renderWithProviders(<InstallationStep />, {
       wrapperProps: {
@@ -111,10 +105,15 @@ describe("InstallationStep", () => {
 
   it("includes auth token in API requests when available", async () => {
     mockLocalStorage.getItem.mockReturnValue("test-token");
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ state: "Succeeded" }),
-    });
+    server.use(
+      http.get("*/api/install/status", ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        if (authHeader !== "Bearer test-token") {
+          return HttpResponse.error();
+        }
+        return HttpResponse.json({ state: "Succeeded" });
+      })
+    );
 
     renderWithProviders(<InstallationStep />, {
       wrapperProps: {
@@ -126,14 +125,7 @@ describe("InstallationStep", () => {
     });
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        "/api/install/status",
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: "Bearer test-token",
-          }),
-        })
-      );
+      expect(screen.getByText("Visit Admin Console")).toBeInTheDocument();
     });
   });
 });

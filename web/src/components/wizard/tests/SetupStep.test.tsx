@@ -222,7 +222,6 @@ describe("SetupStep", () => {
         // Verify auth header
         expect(request.headers.get("Authorization")).toBe("Bearer mock-token");
         const body = await request.json();
-        console.log("Actual request body:", body);
         // Verify the request body has all required fields
         expect(body).toMatchObject({
           namespace: "",

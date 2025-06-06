@@ -8,6 +8,8 @@ import { useWizardMode } from "../../contexts/WizardModeContext";
 
 interface InstallStatus {
   state: "Succeeded" | "Failed" | "InProgress";
+  description?: string;
+  lastUpdated?: string;
 }
 
 const InstallationStep: React.FC = () => {
@@ -31,7 +33,9 @@ const InstallationStep: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Installation failed: ${response.statusText}`);
+        const error = await response.json();
+        setError(error.message || "Installation failed");
+        throw new Error(error.message || "Installation failed");
       }
 
       return response.json();
@@ -68,6 +72,12 @@ const InstallationStep: React.FC = () => {
               <Loader2 className="h-8 w-8 animate-spin text-gray-600 mb-4" />
               <p className="text-lg font-medium text-gray-900">Please wait while we complete the installation...</p>
               <p className="text-sm text-gray-500 mt-2">This may take a few minutes.</p>
+              {installStatus?.description && <p className="text-sm text-gray-500 mt-2">{installStatus.description}</p>}
+              {installStatus?.lastUpdated && (
+                <p className="text-xs text-gray-400 mt-1">
+                  Last updated: {new Date(installStatus.lastUpdated).toLocaleString()}
+                </p>
+              )}
             </div>
           )}
 

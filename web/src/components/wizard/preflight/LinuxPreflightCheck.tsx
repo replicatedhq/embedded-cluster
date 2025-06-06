@@ -68,10 +68,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   });
 
   // Query to poll installation config status
-  const { data: installationConfigStatus } = useQuery<
-    InstallationConfigResponse,
-    Error
-  >({
+  const { data: installationConfigStatus } = useQuery<InstallationConfigResponse, Error>({
     queryKey: ["installationConfigStatus"],
     queryFn: async () => {
       const response = await fetch("/api/install/installation/status", {
@@ -116,6 +113,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
       setIsPreflightsPolling(false);
       // Consider it successful if there are no failures
       const hasFailures = (preflightResponse.output?.fail?.length ?? 0) > 0;
+      console.log("hasFailures", hasFailures);
       onComplete(!hasFailures);
     }
   }, [preflightResponse, onComplete]);
@@ -179,9 +177,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   if (isConfigPolling) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 
-          className="w-8 h-8 animate-spin mb-4"
-        />
+        <Loader2 className="w-8 h-8 animate-spin mb-4" />
         <p className="text-lg font-medium text-gray-900">Initializing...</p>
         <p className="text-sm text-gray-500 mt-2">Preparing the host.</p>
       </div>
@@ -191,9 +187,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   if (isPreflightsPolling) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 
-          className="w-8 h-8 animate-spin mb-4"
-        />
+        <Loader2 className="w-8 h-8 animate-spin mb-4" />
         <p className="text-lg font-medium text-gray-900">Validating host requirements...</p>
         <p className="text-sm text-gray-500 mt-2">Please wait while we check your system.</p>
       </div>
@@ -221,10 +215,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
             {preflightResponse.output.fail && preflightResponse.output.fail.length > 0 && (
               <div className="mb-6 border border-red-200 bg-red-50 rounded-lg p-4">
                 {preflightResponse.output.fail.map((result: PreflightResult, index: number) => (
-                  <div
-                    key={`fail-${index}`}
-                    className="py-3 border-b last:border-b-0 border-red-100 flex items-start"
-                  >
+                  <div key={`fail-${index}`} className="py-3 border-b last:border-b-0 border-red-100 flex items-start">
                     <div className="flex-shrink-0 text-red-500 mt-1">
                       <XCircle className="w-5 h-5" />
                     </div>
