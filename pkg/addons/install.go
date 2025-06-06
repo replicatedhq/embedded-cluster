@@ -25,6 +25,7 @@ func InstallOptionsFromInstallationSpec(inSpec ecv1beta1.InstallationSpec) types
 		serviceCIDR = inSpec.Network.ServiceCIDR
 	}
 
+	// The following fields are from installation flags:
 	// - AdminConsolePassword
 	// - TLSCertBytes
 	// - TLSKeyBytes
