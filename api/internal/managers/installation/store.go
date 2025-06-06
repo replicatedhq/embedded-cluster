@@ -6,6 +6,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
+// TODO (@team): discuss the idea of having a generic store interface that can be used for all stores
 type InstallationStore interface {
 	GetConfig() (*types.InstallationConfig, error)
 	SetConfig(cfg types.InstallationConfig) error

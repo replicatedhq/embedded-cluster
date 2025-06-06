@@ -42,6 +42,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config *t
 		return fmt.Errorf("write: %w", err)
 	}
 
+	// TODO (@team): discuss the distinction between the runtime config and the installation config
 	// update the runtime config
 	c.rc.SetDataDir(config.DataDirectory)
 	c.rc.SetLocalArtifactMirrorPort(config.LocalArtifactMirrorPort)

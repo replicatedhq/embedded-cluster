@@ -162,6 +162,7 @@ func New(password string, opts ...APIOption) (*API, error) {
 		api.consoleController = consoleController
 	}
 
+	// TODO (@team): discuss which of these should / should not be pointers
 	if api.installController == nil {
 		installController, err := install.NewInstallController(
 			install.WithRuntimeConfig(api.rc),
