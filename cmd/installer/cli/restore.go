@@ -31,7 +31,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -400,7 +399,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		return fmt.Errorf("unable to run install preflights: %w", err)
 	}
 
-	_, err = installAndStartCluster(ctx, flags, rc, nil)
+	k0sCfg, err := installAndStartCluster(ctx, flags, rc, nil)
 	if err != nil {
 		return err
 	}
@@ -425,13 +424,15 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	}
 	defer hcli.Close()
 
-	opts, err := getRestoreAddonInstallOpts(flags)
-	if err != nil {
-		return fmt.Errorf("unable to get addon install options: %w", err)
-	}
-
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
+
+	in, err := newInstallationFromInstallFlags(flags, rc, k0sCfg)
+	if err != nil {
+		return fmt.Errorf("new installation: %w", err)
+	}
+
+	opts := getRestoreAddonInstallOpts(in)
 
 	// TODO (@salah): update installation status to reflect what's happening
 
@@ -457,42 +458,10 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	return nil
 }
 
-func getRestoreAddonInstallOpts(flags InstallCmdFlags) (*addonstypes.InstallOptions, error) {
-	var embCfgSpec *ecv1beta1.ConfigSpec
-	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
-		embCfgSpec = &embCfg.Spec
-	}
-
-	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
-	if err != nil {
-		return nil, fmt.Errorf("unable to process overrides file: %w", err)
-	}
-	var euCfgSpec *ecv1beta1.ConfigSpec
-	if euCfg != nil {
-		euCfgSpec = &euCfg.Spec
-	}
-
-	return &addonstypes.InstallOptions{
-		ClusterID:                 metrics.ClusterID().String(),
-		IsAirgap:                  flags.airgapBundle != "",
-		IsHA:                      false,
-		Proxy:                     flags.proxy,
-		ServiceCIDR:               flags.cidrCfg.ServiceCIDR,
-		IsDisasterRecoveryEnabled: true,
-		EmbeddedConfigSpec:        embCfgSpec,
-		EndUserConfigSpec:         euCfgSpec,
-		Domains:                   runtimeconfig.GetDomains(embCfgSpec),
-
-		IsRestore: true,
-
-		// The following is unused by restore
-		AdminConsolePassword: "",
-		TLSCertBytes:         nil,
-		TLSKeyBytes:          nil,
-		Hostname:             "",
-		IsMultiNodeEnabled:   false,
-		KotsInstaller:        nil,
-	}, nil
+func getRestoreAddonInstallOpts(in *ecv1beta1.Installation) *addonstypes.InstallOptions {
+	opts := addons.InstallOptionsFromInstallationSpec(in.Spec)
+	opts.IsRestore = true
+	return &opts
 }
 
 func runRestoreStepConfirmBackup(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (*disasterrecovery.ReplicatedBackup, bool, error) {
@@ -613,18 +582,13 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	}
 	defer hcli.Close()
 
-	opts, err := getRestoreAddonInstallOpts(flags)
-	if err != nil {
-		return fmt.Errorf("unable to get addon install options: %w", err)
-	}
-	opts.IsHA = true
-
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("get latest installation: %w", err)
 	}
 
-	opts.IsMultiNodeEnabled = in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled
+	opts := getRestoreAddonInstallOpts(in)
+	opts.IsHA = true
 
 	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, kcli, mcli, hcli, rc, *opts)
 	if err != nil {
