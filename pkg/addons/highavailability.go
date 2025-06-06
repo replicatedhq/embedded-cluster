@@ -55,9 +55,12 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, string, error) 
 // EnableHA enables high availability.
 func EnableHA(
 	ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, kclient kubernetes.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig,
-	serviceCIDR string, inSpec ecv1beta1.InstallationSpec,
+	inSpec ecv1beta1.InstallationSpec,
 	spinner *spinner.MessageWriter,
 ) error {
+	opts := getUpgradeOpts(inSpec)
+	opts.IsHA = true
+
 	if inSpec.AirGap {
 		logrus.Debugf("Enabling high availability")
 		spinner.Infof("Enabling high availability")
@@ -67,7 +70,7 @@ func EnableHA(
 			return errors.Wrap(err, "check if registry data has been migrated")
 		} else if !hasMigrated {
 			logrus.Debugf("Installing seaweedfs")
-			err = ensureSeaweedfs(ctx, logf, kcli, mcli, hcli, rc, serviceCIDR, inSpec.Config)
+			err = ensureSeaweedfs(ctx, logf, kcli, mcli, hcli, rc, opts)
 			if err != nil {
 				return errors.Wrap(err, "ensure seaweedfs")
 			}
@@ -91,7 +94,7 @@ func EnableHA(
 
 			logrus.Debugf("Enabling high availability for the registry")
 			spinner.Infof("Enabling high availability for the registry")
-			err = enableRegistryHA(ctx, logf, kcli, mcli, hcli, rc, serviceCIDR, inSpec.Config)
+			err = enableRegistryHA(ctx, logf, kcli, mcli, hcli, rc, opts)
 			if err != nil {
 				return errors.Wrap(err, "enable registry high availability")
 			}
@@ -101,7 +104,7 @@ func EnableHA(
 
 	logrus.Debugf("Updating the Admin Console for high availability")
 	spinner.Infof("Updating the Admin Console for high availability")
-	err := EnableAdminConsoleHA(ctx, logf, kcli, mcli, hcli, rc, inSpec.AirGap, serviceCIDR, inSpec.Proxy, inSpec.Config, inSpec.LicenseInfo)
+	err := EnableAdminConsoleHA(ctx, logf, kcli, mcli, hcli, rc, opts)
 	if err != nil {
 		return errors.Wrap(err, "enable admin console high availability")
 	}
@@ -203,16 +206,16 @@ func migrateRegistryData(ctx context.Context, kcli client.Client, kclient kubern
 }
 
 // ensureSeaweedfs ensures that seaweedfs is installed.
-func ensureSeaweedfs(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, serviceCIDR string, cfgspec *ecv1beta1.ConfigSpec) error {
-	domains := runtimeconfig.GetDomains(cfgspec)
+func ensureSeaweedfs(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, opts types.InstallOptions) error {
+	addon := seaweedfs.New(
+		seaweedfs.WithLogFunc(logf),
+		seaweedfs.WithClients(kcli, mcli, hcli),
+		seaweedfs.WithRuntimeConfig(rc),
+	)
 
-	// TODO (@salah): add support for end user overrides
-	sw := &seaweedfs.SeaweedFS{
-		ServiceCIDR:         serviceCIDR,
-		ProxyRegistryDomain: domains.ProxyRegistryDomain,
-	}
+	overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
-	if err := sw.Upgrade(ctx, logf, kcli, mcli, hcli, rc, addOnOverrides(sw, cfgspec, nil)); err != nil {
+	if err := addon.Upgrade(ctx, opts, overrides); err != nil {
 		return errors.Wrap(err, "upgrade seaweedfs")
 	}
 
@@ -221,16 +224,16 @@ func ensureSeaweedfs(ctx context.Context, logf types.LogFunc, kcli client.Client
 
 // enableRegistryHA enables high availability for the registry and scales the registry deployment
 // to the desired number of replicas.
-func enableRegistryHA(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, serviceCIDR string, cfgspec *ecv1beta1.ConfigSpec) error {
-	domains := runtimeconfig.GetDomains(cfgspec)
+func enableRegistryHA(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, opts types.InstallOptions) error {
+	addon := registry.New(
+		registry.WithLogFunc(logf),
+		registry.WithClients(kcli, mcli, hcli),
+		registry.WithRuntimeConfig(rc),
+	)
 
-	// TODO (@salah): add support for end user overrides
-	r := &registry.Registry{
-		ServiceCIDR:         serviceCIDR,
-		ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		IsHA:                true,
-	}
-	if err := r.Upgrade(ctx, logf, kcli, mcli, hcli, rc, addOnOverrides(r, cfgspec, nil)); err != nil {
+	overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
+
+	if err := addon.Upgrade(ctx, opts, overrides); err != nil {
 		return errors.Wrap(err, "upgrade registry")
 	}
 
@@ -239,32 +242,19 @@ func enableRegistryHA(ctx context.Context, logf types.LogFunc, kcli client.Clien
 
 // EnableAdminConsoleHA enables high availability for the admin console.
 func EnableAdminConsoleHA(
-	ctx context.Context,
-	logf types.LogFunc,
-	kcli client.Client,
-	mcli metadata.Interface,
-	hcli helm.Client,
-	rc runtimeconfig.RuntimeConfig,
-	isAirgap bool,
-	serviceCIDR string,
-	proxy *ecv1beta1.ProxySpec,
-	cfgspec *ecv1beta1.ConfigSpec,
-	licenseInfo *ecv1beta1.LicenseInfo,
+	ctx context.Context, logf types.LogFunc,
+	kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig,
+	opts types.InstallOptions,
 ) error {
-	domains := runtimeconfig.GetDomains(cfgspec)
+	addon := adminconsole.New(
+		adminconsole.WithLogFunc(logf),
+		adminconsole.WithClients(kcli, mcli, hcli),
+		adminconsole.WithRuntimeConfig(rc),
+	)
 
-	// TODO (@salah): add support for end user overrides
-	ac := &adminconsole.AdminConsole{
-		IsAirgap:                 isAirgap,
-		IsHA:                     true,
-		Proxy:                    proxy,
-		ServiceCIDR:              serviceCIDR,
-		IsMultiNodeEnabled:       licenseInfo != nil && licenseInfo.IsMultiNodeEnabled,
-		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
-		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
-		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,
-	}
-	if err := ac.Upgrade(ctx, logf, kcli, mcli, hcli, rc, addOnOverrides(ac, cfgspec, nil)); err != nil {
+	overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
+
+	if err := addon.Upgrade(ctx, opts, overrides); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
 	}
 

@@ -9,37 +9,35 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (s *SeaweedFS) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, overrides []string, writer *spinner.MessageWriter) error {
-	if err := s.ensurePreRequisites(ctx, kcli); err != nil {
+func (s *SeaweedFS) Install(ctx context.Context, writer *spinner.MessageWriter, opts types.InstallOptions, overrides []string) error {
+	if err := s.ensurePreRequisites(ctx, opts); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := s.GenerateHelmValues(ctx, kcli, rc, overrides)
+	values, err := s.GenerateHelmValues(ctx, opts, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	err = ensurePostInstallHooksDeleted(ctx, kcli)
+	err = s.ensurePostInstallHooksDeleted(ctx)
 	if err != nil {
 		return errors.Wrap(err, "ensure hooks deleted")
 	}
 
-	_, err = hcli.Install(ctx, helm.InstallOptions{
+	_, err = s.hcli.Install(ctx, helm.InstallOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    s.ChartLocation(),
+		ChartPath:    s.ChartLocation(opts.Domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    s.Namespace(),
 		Labels:       getBackupLabels(),
 	})
 	if err != nil {
@@ -48,46 +46,46 @@ func (s *SeaweedFS) Install(ctx context.Context, logf types.LogFunc, kcli client
 	return nil
 }
 
-func (s *SeaweedFS) ensurePreRequisites(ctx context.Context, kcli client.Client) error {
-	if err := ensureNamespace(ctx, kcli, namespace); err != nil {
+func (s *SeaweedFS) ensurePreRequisites(ctx context.Context, opts types.InstallOptions) error {
+	if err := s.ensureNamespace(ctx); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
 
-	if err := ensureService(ctx, kcli, s.ServiceCIDR); err != nil {
+	if err := s.ensureService(ctx, opts); err != nil {
 		return errors.Wrap(err, "create s3 service")
 	}
 
-	if err := ensureS3Secret(ctx, kcli); err != nil {
+	if err := s.ensureS3Secret(ctx); err != nil {
 		return errors.Wrap(err, "create s3 secret")
 	}
 
 	return nil
 }
 
-func ensureNamespace(ctx context.Context, kcli client.Client, namespace string) error {
+func (s *SeaweedFS) ensureNamespace(ctx context.Context) error {
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+			Name: s.Namespace(),
 		},
 	}
-	if err := kcli.Create(ctx, &ns); client.IgnoreAlreadyExists(err) != nil {
+	if err := s.kcli.Create(ctx, &ns); client.IgnoreAlreadyExists(err) != nil {
 		return err
 	}
 	return nil
 }
 
-func ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) error {
-	if serviceCIDR == "" {
+func (s *SeaweedFS) ensureService(ctx context.Context, opts types.InstallOptions) error {
+	if opts.ServiceCIDR == "" {
 		return errors.New("service CIDR not present")
 	}
 
-	clusterIP, err := getServiceIP(serviceCIDR)
+	clusterIP, err := getServiceIP(opts.ServiceCIDR)
 	if err != nil {
 		return errors.Wrap(err, "get s3 service IP")
 	}
 
 	obj := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: s3SVCName, Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: s3SVCName, Namespace: s.Namespace()},
 		Spec: corev1.ServiceSpec{
 			ClusterIP: clusterIP,
 			Ports: []corev1.ServicePort{
@@ -108,27 +106,27 @@ func ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) 
 	obj.ObjectMeta.Labels = ApplyLabels(obj.ObjectMeta.Labels, "s3")
 
 	var existingObj corev1.Service
-	if err := kcli.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: obj.Namespace}, &existingObj); client.IgnoreNotFound(err) != nil {
+	if err := s.kcli.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: obj.Namespace}, &existingObj); client.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, "get s3 service")
 	} else if err == nil {
 		// if the service already exists and has the correct cluster IP, do not recreate it
 		if existingObj.Spec.ClusterIP == clusterIP {
 			return nil
 		}
-		err := kcli.Delete(ctx, &existingObj)
+		err := s.kcli.Delete(ctx, &existingObj)
 		if err != nil {
 			return errors.Wrap(err, "delete existing s3 service")
 		}
 	}
 
-	if err := kcli.Create(ctx, obj); err != nil {
+	if err := s.kcli.Create(ctx, obj); err != nil {
 		return errors.Wrap(err, "create s3 service")
 	}
 
 	return nil
 }
 
-func ensureS3Secret(ctx context.Context, kcli client.Client) error {
+func (s *SeaweedFS) ensureS3Secret(ctx context.Context) error {
 	var config seaweedfsConfig
 	config.Identities = append(config.Identities, seaweedfsIdentity{
 		Name: "anvAdmin",
@@ -153,7 +151,7 @@ func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 	}
 
 	obj := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: s3SecretName, Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: s3SecretName, Namespace: s.Namespace()},
 		Data: map[string][]byte{
 			"seaweedfs_s3_config": configData,
 		},
@@ -161,7 +159,7 @@ func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 
 	obj.ObjectMeta.Labels = ApplyLabels(obj.ObjectMeta.Labels, "s3")
 
-	if err := kcli.Create(ctx, obj); client.IgnoreAlreadyExists(err) != nil {
+	if err := s.kcli.Create(ctx, obj); client.IgnoreAlreadyExists(err) != nil {
 		return errors.Wrap(err, "create s3 secret")
 	}
 
@@ -170,14 +168,14 @@ func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 
 // ensurePostInstallHooksDeleted will delete helm hooks if for some reason they fail. It is
 // necessary if the hook does not have the "before-hook-creation" delete policy.
-func ensurePostInstallHooksDeleted(ctx context.Context, kcli client.Client) error {
+func (s *SeaweedFS) ensurePostInstallHooksDeleted(ctx context.Context) error {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
+			Namespace: s.Namespace(),
 			Name:      fmt.Sprintf("%s-bucket-hook", releaseName),
 		},
 	}
-	err := kcli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground))
+	err := s.kcli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground))
 	if client.IgnoreNotFound(err) != nil {
 		return errors.Wrapf(err, "delete %s-bucket-hook job", releaseName)
 	}

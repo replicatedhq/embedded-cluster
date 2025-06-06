@@ -9,6 +9,8 @@ type RuntimeConfig interface {
 	Get() *ecv1beta1.RuntimeConfigSpec
 	Set(spec *ecv1beta1.RuntimeConfigSpec)
 	Cleanup()
+	MustEnsureDirs()
+	SetEnv()
 	EmbeddedClusterHomeDirectory() string
 	EmbeddedClusterTmpSubDir() string
 	EmbeddedClusterBinsSubDir() string

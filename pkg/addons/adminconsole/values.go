@@ -6,14 +6,36 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"gopkg.in/yaml.v3"
 )
 
-func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, overrides []string) (map[string]interface{}, error) {
+var (
+	//go:embed static/values.tpl.yaml
+	rawvalues []byte
+	// helmValues is the unmarshal version of rawvalues.
+	helmValues map[string]interface{}
+)
+
+func init() {
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(errors.Wrap(err, "unmarshal metadata"))
+	}
+
+	hv, err := release.RenderHelmValues(rawvalues, Metadata)
+	if err != nil {
+		panic(errors.Wrap(err, "unmarshal values"))
+	}
+	helmValues = hv
+
+	helmValues["embeddedClusterVersion"] = versions.Version
+}
+
+func (a *AdminConsole) GenerateHelmValues(ctx context.Context, opts types.InstallOptions, overrides []string) (map[string]interface{}, error) {
 	// create a copy of the helm values so we don't modify the original
 	marshalled, err := helm.MarshalValues(helmValues)
 	if err != nil {
@@ -21,8 +43,8 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	}
 
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
-	if a.ProxyRegistryDomain != "" {
-		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", a.ProxyRegistryDomain)
+	if opts.Domains.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", opts.Domains.ProxyRegistryDomain)
 	}
 
 	copiedValues, err := helm.UnmarshalValues(marshalled)
@@ -30,26 +52,26 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 		return nil, errors.Wrap(err, "unmarshal helm values")
 	}
 
-	copiedValues["embeddedClusterID"] = metrics.ClusterID().String()
-	copiedValues["embeddedClusterDataDir"] = rc.EmbeddedClusterHomeDirectory()
-	copiedValues["embeddedClusterK0sDir"] = rc.EmbeddedClusterK0sSubDir()
-	copiedValues["isHA"] = a.IsHA
-	copiedValues["isMultiNodeEnabled"] = a.IsMultiNodeEnabled
+	copiedValues["embeddedClusterID"] = opts.ClusterID
+	copiedValues["embeddedClusterDataDir"] = a.runtimeConfig.EmbeddedClusterHomeDirectory()
+	copiedValues["embeddedClusterK0sDir"] = a.runtimeConfig.EmbeddedClusterK0sSubDir()
+	copiedValues["isHA"] = opts.IsHA
+	copiedValues["isMultiNodeEnabled"] = opts.IsMultiNodeEnabled
 
-	if a.IsAirgap {
+	if opts.IsAirgap {
 		copiedValues["isAirgap"] = "true"
 	} else {
 		copiedValues["isAirgap"] = "false"
 	}
 
-	if a.ReplicatedAppDomain != "" {
-		copiedValues["replicatedAppEndpoint"] = netutils.MaybeAddHTTPS(a.ReplicatedAppDomain)
+	if opts.Domains.ReplicatedAppDomain != "" {
+		copiedValues["replicatedAppEndpoint"] = netutils.MaybeAddHTTPS(opts.Domains.ReplicatedAppDomain)
 	}
-	if a.ReplicatedRegistryDomain != "" {
-		copiedValues["replicatedRegistryDomain"] = a.ReplicatedRegistryDomain
+	if opts.Domains.ReplicatedRegistryDomain != "" {
+		copiedValues["replicatedRegistryDomain"] = opts.Domains.ReplicatedRegistryDomain
 	}
-	if a.ProxyRegistryDomain != "" {
-		copiedValues["proxyRegistryDomain"] = a.ProxyRegistryDomain
+	if opts.Domains.ProxyRegistryDomain != "" {
+		copiedValues["proxyRegistryDomain"] = opts.Domains.ProxyRegistryDomain
 	}
 
 	extraEnv := []map[string]interface{}{
@@ -63,19 +85,19 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 		},
 	}
 
-	if a.Proxy != nil {
+	if opts.Proxy != nil {
 		extraEnv = append(extraEnv,
 			map[string]interface{}{
 				"name":  "HTTP_PROXY",
-				"value": a.Proxy.HTTPProxy,
+				"value": opts.Proxy.HTTPProxy,
 			},
 			map[string]interface{}{
 				"name":  "HTTPS_PROXY",
-				"value": a.Proxy.HTTPSProxy,
+				"value": opts.Proxy.HTTPSProxy,
 			},
 			map[string]interface{}{
 				"name":  "NO_PROXY",
-				"value": a.Proxy.NoProxy,
+				"value": opts.Proxy.NoProxy,
 			},
 		)
 	}
@@ -83,11 +105,11 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	extraVolumes := []map[string]interface{}{}
 	extraVolumeMounts := []map[string]interface{}{}
 
-	if a.HostCABundlePath != "" {
+	if a.runtimeConfig.HostCABundlePath() != "" {
 		extraVolumes = append(extraVolumes, map[string]interface{}{
 			"name": "host-ca-bundle",
 			"hostPath": map[string]interface{}{
-				"path": a.HostCABundlePath,
+				"path": a.runtimeConfig.HostCABundlePath(),
 				"type": "FileOrCreate",
 			},
 		})
@@ -107,7 +129,7 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	copiedValues["extraVolumes"] = extraVolumes
 	copiedValues["extraVolumeMounts"] = extraVolumeMounts
 
-	err = helm.SetValue(copiedValues, "kurlProxy.nodePort", rc.AdminConsolePort())
+	err = helm.SetValue(copiedValues, "kurlProxy.nodePort", a.runtimeConfig.AdminConsolePort())
 	if err != nil {
 		return nil, errors.Wrap(err, "set kurlProxy.nodePort")
 	}

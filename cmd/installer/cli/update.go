@@ -31,8 +31,8 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("failed to init runtime config from cluster: %w", err)
 			}
 
-			os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+			rc.MustEnsureDirs()
+			rc.SetEnv()
 
 			return nil
 		},

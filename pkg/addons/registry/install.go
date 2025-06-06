@@ -9,38 +9,38 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *Registry) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, overrides []string, writer *spinner.MessageWriter) error {
-	registryIP, err := GetRegistryClusterIP(r.ServiceCIDR)
+func (r *Registry) Install(ctx context.Context, writer *spinner.MessageWriter, opts types.InstallOptions, overrides []string) error {
+	registryIP, err := GetRegistryClusterIP(opts.ServiceCIDR)
 	if err != nil {
 		return errors.Wrap(err, "get registry cluster IP")
 	}
 
-	if err := r.createPreRequisites(ctx, kcli, registryIP); err != nil {
+	if err := r.createPreRequisites(ctx, opts, registryIP); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := r.GenerateHelmValues(ctx, kcli, rc, overrides)
+	values, err := r.GenerateHelmValues(ctx, opts, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	_, err = hcli.Install(ctx, helm.InstallOptions{
+	helmOpts := helm.InstallOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    r.ChartLocation(),
+		ChartPath:    r.ChartLocation(opts.Domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    r.Namespace(),
 		Labels:       getBackupLabels(),
-	})
+	}
+
+	_, err = r.hcli.Install(ctx, helmOpts)
 	if err != nil {
 		return errors.Wrap(err, "helm install")
 	}
@@ -48,35 +48,35 @@ func (r *Registry) Install(ctx context.Context, logf types.LogFunc, kcli client.
 	return nil
 }
 
-func (r *Registry) createPreRequisites(ctx context.Context, kcli client.Client, registryIP string) error {
-	if err := createNamespace(ctx, kcli, namespace); err != nil {
+func (r *Registry) createPreRequisites(ctx context.Context, opts types.InstallOptions, registryIP string) error {
+	if err := r.createNamespace(ctx); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
 
-	if err := createAuthSecret(ctx, kcli); err != nil {
+	if err := r.createAuthSecret(ctx); err != nil {
 		return errors.Wrap(err, "create registry-auth secret")
 	}
 
-	if err := createTLSSecret(ctx, kcli, registryIP); err != nil {
+	if err := r.createTLSSecret(ctx, registryIP); err != nil {
 		return errors.Wrap(err, "create registry tls secret")
 	}
 
 	return nil
 }
 
-func createNamespace(ctx context.Context, kcli client.Client, namespace string) error {
+func (r *Registry) createNamespace(ctx context.Context) error {
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+			Name: r.Namespace(),
 		},
 	}
-	if err := kcli.Create(ctx, &ns); client.IgnoreAlreadyExists(err) != nil {
+	if err := r.kcli.Create(ctx, &ns); client.IgnoreAlreadyExists(err) != nil {
 		return err
 	}
 	return nil
 }
 
-func createAuthSecret(ctx context.Context, kcli client.Client) error {
+func (r *Registry) createAuthSecret(ctx context.Context) error {
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(registryPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return errors.Wrap(err, "hash registry password")
@@ -89,7 +89,7 @@ func createAuthSecret(ctx context.Context, kcli client.Client) error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "registry-auth",
-			Namespace: namespace,
+			Namespace: r.Namespace(),
 			Labels: map[string]string{
 				"app": "docker-registry", // this is the backup/restore label for the registry component
 			},
@@ -99,15 +99,15 @@ func createAuthSecret(ctx context.Context, kcli client.Client) error {
 		},
 		Type: "Opaque",
 	}
-	if err := kcli.Create(ctx, &htpasswd); err != nil {
+	if err := r.kcli.Create(ctx, &htpasswd); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func createTLSSecret(ctx context.Context, kcli client.Client, registryIP string) error {
-	tlsCert, tlsKey, err := generateRegistryTLS(registryIP)
+func (r *Registry) createTLSSecret(ctx context.Context, registryIP string) error {
+	tlsCert, tlsKey, err := r.generateRegistryTLS(registryIP)
 	if err != nil {
 		return errors.Wrap(err, "generate registry tls")
 	}
@@ -116,7 +116,7 @@ func createTLSSecret(ctx context.Context, kcli client.Client, registryIP string)
 		TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      tlsSecretName,
-			Namespace: namespace,
+			Namespace: r.Namespace(),
 			Labels: map[string]string{
 				"app": "docker-registry", // this is the backup/restore label for the registry component
 			},
@@ -124,14 +124,14 @@ func createTLSSecret(ctx context.Context, kcli client.Client, registryIP string)
 		StringData: map[string]string{"tls.crt": tlsCert, "tls.key": tlsKey},
 		Type:       "Opaque",
 	}
-	if err := kcli.Create(ctx, tlsSecret); err != nil {
+	if err := r.kcli.Create(ctx, tlsSecret); err != nil {
 		return errors.Wrap(err, "create registry tls secret")
 	}
 
 	return nil
 }
 
-func generateRegistryTLS(registryIP string) (string, string, error) {
+func (r *Registry) generateRegistryTLS(registryIP string) (string, string, error) {
 	opts := []certs.Option{
 		certs.WithCommonName("registry"),
 		certs.WithDuration(365 * 24 * time.Hour),
@@ -140,15 +140,15 @@ func generateRegistryTLS(registryIP string) (string, string, error) {
 
 	for _, name := range []string{
 		"registry",
-		fmt.Sprintf("registry.%s.svc", namespace),
-		fmt.Sprintf("registry.%s.svc.cluster.local", namespace),
+		fmt.Sprintf("registry.%s.svc", r.Namespace()),
+		fmt.Sprintf("registry.%s.svc.cluster.local", r.Namespace()),
 	} {
 		opts = append(opts, certs.WithDNSName(name))
 	}
 
 	builder, err := certs.NewBuilder(opts...)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create cert builder: %w", err)
+		return "", "", errors.Wrap(err, "create cert builder")
 	}
 	return builder.Generate()
 }

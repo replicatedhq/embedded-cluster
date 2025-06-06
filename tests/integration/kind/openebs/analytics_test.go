@@ -3,7 +3,9 @@ package openebs
 import (
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
 	"github.com/stretchr/testify/assert"
@@ -16,16 +18,24 @@ func TestOpenEBS_AnalyticsDisabled(t *testing.T) {
 	clusterName := util.GenerateClusterName(t)
 	kubeconfig := util.SetupKindCluster(t, clusterName, nil)
 
+	opts := types.InstallOptions{
+		Domains: ecv1beta1.Domains{
+			ProxyRegistryDomain: "proxy.replicated.com",
+		},
+	}
+
 	kcli := util.CtrlClient(t, kubeconfig)
 	mcli := util.MetadataClient(t, kubeconfig)
 	hcli := util.HelmClient(t, kubeconfig)
 
 	rc := runtimeconfig.New(nil)
 
-	addon := &openebs.OpenEBS{
-		ProxyRegistryDomain: "proxy.replicated.com",
-	}
-	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, rc, nil, nil); err != nil {
+	addon := openebs.New(
+		openebs.WithLogFunc(t.Logf),
+		openebs.WithClients(kcli, mcli, hcli),
+		openebs.WithRuntimeConfig(rc),
+	)
+	if err := addon.Install(t.Context(), nil, opts, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 

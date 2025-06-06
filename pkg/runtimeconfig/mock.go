@@ -31,6 +31,16 @@ func (m *MockRuntimeConfig) Cleanup() {
 	m.Called()
 }
 
+// MustEnsureDirs mocks the MustEnsureDirs method
+func (m *MockRuntimeConfig) MustEnsureDirs() {
+	m.Called()
+}
+
+// SetEnv mocks the SetEnv method
+func (m *MockRuntimeConfig) SetEnv() {
+	m.Called()
+}
+
 // EmbeddedClusterHomeDirectory mocks the EmbeddedClusterHomeDirectory method
 func (m *MockRuntimeConfig) EmbeddedClusterHomeDirectory() string {
 	args := m.Called()

@@ -3,11 +3,9 @@ package types
 import (
 	"context"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	"k8s.io/client-go/metadata"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 type LogFunc func(format string, args ...interface{})
@@ -17,7 +15,35 @@ type AddOn interface {
 	Version() string
 	ReleaseName() string
 	Namespace() string
-	GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, overrides []string) (map[string]interface{}, error)
-	Install(ctx context.Context, logf LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, overrides []string, writer *spinner.MessageWriter) error
-	Upgrade(ctx context.Context, logf LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, overrides []string) error
+	GenerateHelmValues(ctx context.Context, opts InstallOptions, overrides []string) (map[string]interface{}, error)
+	Install(ctx context.Context, writer *spinner.MessageWriter, opts InstallOptions, overrides []string) error
+	// TODO: message writer for enable HA
+	Upgrade(ctx context.Context, opts InstallOptions, overrides []string) error
 }
+
+type InstallOptions struct {
+	AdminConsolePassword      string
+	License                   *kotsv1beta1.License
+	IsAirgap                  bool
+	IsHA                      bool
+	Proxy                     *ecv1beta1.ProxySpec
+	TLSCertBytes              []byte
+	TLSKeyBytes               []byte
+	Hostname                  string
+	ServiceCIDR               string
+	IsDisasterRecoveryEnabled bool
+	IsMultiNodeEnabled        bool
+	EmbeddedConfigSpec        *ecv1beta1.ConfigSpec
+	EndUserConfigSpec         *ecv1beta1.ConfigSpec
+	Domains                   ecv1beta1.Domains
+	KotsInstaller             KotsInstaller
+	ClusterID                 string
+	IsRestore                 bool
+
+	// IsDryRun is a flag to enable dry-run mode.
+	// If true, Install and Upgrade will only render the helm template and additional manifests,
+	// but not install the release.
+	IsDryRun bool
+}
+
+type KotsInstaller func(msg *spinner.MessageWriter) error

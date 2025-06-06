@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -603,6 +605,286 @@ func Test_verifyProxyConfig(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func Test_getAddonInstallOpts(t *testing.T) {
+	tests := []struct {
+		name   string
+		flags  InstallCmdFlags
+		before func()
+		verify func(t *testing.T, opts *addonstypes.InstallOptions)
+		after  func()
+	}{
+		{
+			name: "online installation",
+			flags: InstallCmdFlags{
+				isAirgap:     false,
+				airgapBundle: "",
+				license: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						IsDisasterRecoverySupported: false,
+					},
+				},
+				adminConsolePassword: "password123",
+				cidrCfg: &newconfig.CIDRConfig{
+					ServiceCIDR: "10.96.0.0/12",
+				},
+			},
+			verify: func(t *testing.T, opts *addonstypes.InstallOptions) {
+				assert.False(t, opts.IsAirgap, "Should not be in airgap mode")
+				assert.False(t, opts.IsHA, "Should not be in high availability mode")
+				assert.Nil(t, opts.Proxy, "Should not have a proxy")
+				assert.Equal(t, "10.96.0.0/12", opts.ServiceCIDR, "Service CIDR should be set")
+				assert.Equal(t, "password123", opts.AdminConsolePassword, "Admin console password should be set")
+				assert.Equal(t, "replicated.app", opts.Domains.ReplicatedAppDomain, "Replicated app domain should be set")
+				assert.Equal(t, "proxy.replicated.com", opts.Domains.ProxyRegistryDomain, "Proxy registry domain should be set")
+				assert.Equal(t, "registry.replicated.com", opts.Domains.ReplicatedRegistryDomain, "Replicated registry domain should be set")
+			},
+		},
+		{
+			name: "online installation with default domains",
+			flags: InstallCmdFlags{
+				isAirgap:     false,
+				airgapBundle: "",
+				license: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						IsDisasterRecoverySupported: false,
+					},
+				},
+				cidrCfg: &newconfig.CIDRConfig{
+					ServiceCIDR: "10.96.0.0/12",
+				},
+				adminConsolePassword: "password123",
+			},
+			before: func() {
+				err := release.SetReleaseDataForTests(map[string][]byte{
+					"release.yaml": []byte(`
+# channel release object
+defaultDomains:
+  replicatedAppDomain: "staging.replicated.app"
+  proxyRegistryDomain: "proxy.staging.replicated.com"
+  replicatedRegistryDomain: "registry.staging.replicated.com"
+`),
+				})
+				require.NoError(t, err)
+			},
+			verify: func(t *testing.T, opts *addonstypes.InstallOptions) {
+				assert.False(t, opts.IsAirgap, "Should not be in airgap mode")
+				assert.False(t, opts.IsHA, "Should not be in high availability mode")
+				assert.Nil(t, opts.Proxy, "Should not have a proxy")
+				assert.Equal(t, "10.96.0.0/12", opts.ServiceCIDR, "Service CIDR should be set")
+				assert.Equal(t, "password123", opts.AdminConsolePassword, "Admin console password should be set")
+				assert.Equal(t, "staging.replicated.app", opts.Domains.ReplicatedAppDomain, "Replicated app domain should be set")
+				assert.Equal(t, "proxy.staging.replicated.com", opts.Domains.ProxyRegistryDomain, "Proxy registry domain should be set")
+				assert.Equal(t, "registry.staging.replicated.com", opts.Domains.ReplicatedRegistryDomain, "Replicated registry domain should be set")
+			},
+			after: func() {
+				release.SetReleaseDataForTests(nil)
+			},
+		},
+		{
+			name: "online installation with custom domains",
+			flags: InstallCmdFlags{
+				isAirgap:     false,
+				airgapBundle: "",
+				license: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						IsDisasterRecoverySupported: false,
+					},
+				},
+				cidrCfg: &newconfig.CIDRConfig{
+					ServiceCIDR: "10.96.0.0/12",
+				},
+				adminConsolePassword: "password123",
+			},
+			before: func() {
+				err := release.SetReleaseDataForTests(map[string][]byte{
+					"release.yaml": []byte(`
+# channel release object
+defaultDomains:
+  replicatedAppDomain: "staging.replicated.app"
+  proxyRegistryDomain: "proxy.staging.replicated.com"
+  replicatedRegistryDomain: "registry.staging.replicated.com"
+`),
+					"clusterconfig.yaml": []byte(`
+apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+metadata:
+  name: "testconfig"
+spec:
+  domains:
+    replicatedAppDomain: "app.example.com"
+    proxyRegistryDomain: "proxy.example.com"
+    replicatedRegistryDomain: "registry.example.com"
+`),
+				})
+				require.NoError(t, err)
+			},
+			verify: func(t *testing.T, opts *addonstypes.InstallOptions) {
+				assert.False(t, opts.IsAirgap, "Should not be in airgap mode")
+				assert.False(t, opts.IsHA, "Should not be in high availability mode")
+				assert.Nil(t, opts.Proxy, "Should not have a proxy")
+				assert.Equal(t, "10.96.0.0/12", opts.ServiceCIDR, "Service CIDR should be set")
+				assert.Equal(t, "password123", opts.AdminConsolePassword, "Admin console password should be set")
+				assert.Equal(t, "app.example.com", opts.Domains.ReplicatedAppDomain, "Replicated app domain should be overridden")
+				assert.Equal(t, "proxy.example.com", opts.Domains.ProxyRegistryDomain, "Proxy registry domain should be overridden")
+				assert.Equal(t, "registry.example.com", opts.Domains.ReplicatedRegistryDomain, "Replicated registry domain should be overridden")
+			},
+			after: func() {
+				release.SetReleaseDataForTests(nil)
+			},
+		},
+		{
+			name: "airgap installation",
+			flags: InstallCmdFlags{
+				isAirgap:     true,
+				airgapBundle: "test-bundle",
+				license: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						IsDisasterRecoverySupported: false,
+					},
+				},
+				cidrCfg: &newconfig.CIDRConfig{
+					ServiceCIDR: "10.96.0.0/12",
+				},
+				adminConsolePassword: "password123",
+			},
+			verify: func(t *testing.T, opts *addonstypes.InstallOptions) {
+				assert.True(t, opts.IsAirgap, "Should be in airgap mode")
+				assert.False(t, opts.IsHA, "Should not be in high availability mode")
+				assert.Nil(t, opts.Proxy, "Should not have a proxy")
+				assert.Equal(t, "10.96.0.0/12", opts.ServiceCIDR, "Service CIDR should be set")
+				assert.Equal(t, "password123", opts.AdminConsolePassword, "Admin console password should be set")
+				assert.Equal(t, "replicated.app", opts.Domains.ReplicatedAppDomain, "Replicated app domain should be set")
+				assert.Equal(t, "proxy.replicated.com", opts.Domains.ProxyRegistryDomain, "Proxy registry domain should be set")
+				assert.Equal(t, "registry.replicated.com", opts.Domains.ReplicatedRegistryDomain, "Replicated registry domain should be set")
+			},
+		},
+		{
+			name: "disaster recovery enabled",
+			flags: InstallCmdFlags{
+				isAirgap:     false,
+				airgapBundle: "",
+				license: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						IsDisasterRecoverySupported: true,
+					},
+				},
+				cidrCfg: &newconfig.CIDRConfig{
+					ServiceCIDR: "10.96.0.0/12",
+				},
+				adminConsolePassword: "password123",
+			},
+			verify: func(t *testing.T, opts *addonstypes.InstallOptions) {
+				assert.False(t, opts.IsAirgap, "Should not be in airgap mode")
+				assert.False(t, opts.IsHA, "Should not be in high availability mode")
+				assert.Nil(t, opts.Proxy, "Should not have a proxy")
+				assert.Equal(t, "10.96.0.0/12", opts.ServiceCIDR, "Service CIDR should be set")
+				assert.Equal(t, "password123", opts.AdminConsolePassword, "Admin console password should be set")
+				assert.True(t, opts.IsDisasterRecoveryEnabled, "Disaster recovery should be enabled")
+				assert.Equal(t, "replicated.app", opts.Domains.ReplicatedAppDomain, "Replicated app domain should be set")
+				assert.Equal(t, "proxy.replicated.com", opts.Domains.ProxyRegistryDomain, "Proxy registry domain should be set")
+				assert.Equal(t, "registry.replicated.com", opts.Domains.ReplicatedRegistryDomain, "Replicated registry domain should be set")
+			},
+		},
+		{
+			name: "airgap with disaster recovery and proxy",
+			flags: InstallCmdFlags{
+				isAirgap:     true,
+				airgapBundle: "test-bundle",
+				license: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						IsDisasterRecoverySupported: true,
+					},
+				},
+				cidrCfg: &newconfig.CIDRConfig{
+					ServiceCIDR: "10.96.0.0/12",
+				},
+				adminConsolePassword: "password123",
+				proxy: &ecv1beta1.ProxySpec{
+					HTTPProxy:  "http://proxy.example.com",
+					HTTPSProxy: "https://proxy.example.com",
+					NoProxy:    "localhost,127.0.0.1",
+				},
+			},
+			verify: func(t *testing.T, opts *addonstypes.InstallOptions) {
+				assert.True(t, opts.IsAirgap, "Should be in airgap mode")
+				assert.False(t, opts.IsHA, "Should not be in high availability mode")
+				assert.NotNil(t, opts.Proxy, "Should have a proxy")
+				assert.Equal(t, "http://proxy.example.com", opts.Proxy.HTTPProxy)
+				assert.Equal(t, "https://proxy.example.com", opts.Proxy.HTTPSProxy)
+				assert.Equal(t, "localhost,127.0.0.1", opts.Proxy.NoProxy)
+				assert.Equal(t, "10.96.0.0/12", opts.ServiceCIDR, "Service CIDR should be set")
+				assert.Equal(t, "password123", opts.AdminConsolePassword, "Admin console password should be set")
+				assert.Equal(t, "registry.replicated.com", opts.Domains.ReplicatedRegistryDomain, "Replicated registry domain should be set")
+				assert.Equal(t, "replicated.app", opts.Domains.ReplicatedAppDomain, "Replicated app domain should be set")
+				assert.Equal(t, "proxy.replicated.com", opts.Domains.ProxyRegistryDomain, "Proxy registry domain should be set")
+			},
+		},
+		{
+			name: "airgap with disaster recovery and custom domains",
+			flags: InstallCmdFlags{
+				isAirgap: true,
+				license: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						IsDisasterRecoverySupported: true,
+					},
+				},
+				cidrCfg: &newconfig.CIDRConfig{
+					ServiceCIDR: "10.96.0.0/12",
+				},
+				adminConsolePassword: "password123",
+			},
+			before: func() {
+				err := release.SetReleaseDataForTests(map[string][]byte{
+					"release.yaml": []byte(`
+# channel release object
+defaultDomains:
+  replicatedAppDomain: "staging.replicated.app"
+  proxyRegistryDomain: "proxy.staging.replicated.com"
+  replicatedRegistryDomain: "registry.staging.replicated.com"
+`),
+					"clusterconfig.yaml": []byte(`
+apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+metadata:
+  name: "testconfig"
+spec:
+  domains:
+    replicatedAppDomain: "app.example.com"
+    proxyRegistryDomain: "proxy.example.com"
+    replicatedRegistryDomain: "registry.example.com"
+`),
+				})
+				require.NoError(t, err)
+			},
+			verify: func(t *testing.T, opts *addonstypes.InstallOptions) {
+				assert.True(t, opts.IsAirgap, "Should be in airgap mode")
+				assert.False(t, opts.IsHA, "Should not be in high availability mode")
+				assert.Nil(t, opts.Proxy, "Should not have a proxy")
+				assert.Equal(t, "10.96.0.0/12", opts.ServiceCIDR, "Service CIDR should be set")
+				assert.Equal(t, "password123", opts.AdminConsolePassword, "Admin console password should be set")
+				assert.True(t, opts.IsDisasterRecoveryEnabled, "Disaster recovery should be enabled")
+				assert.Equal(t, "app.example.com", opts.Domains.ReplicatedAppDomain, "Replicated app domain should be overridden")
+				assert.Equal(t, "proxy.example.com", opts.Domains.ProxyRegistryDomain, "Proxy registry domain should be overridden")
+				assert.Equal(t, "registry.example.com", opts.Domains.ReplicatedRegistryDomain, "Replicated registry domain should be overridden")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.before != nil {
+				tt.before()
+			}
+			opts, err := getAddonInstallOpts(tt.flags)
+			require.NoError(t, err)
+			tt.verify(t, opts)
+			if tt.after != nil {
+				tt.after()
 			}
 		})
 	}

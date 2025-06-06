@@ -39,6 +39,7 @@ func ShellCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
+			rc.MustEnsureDirs()
 			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
 			if _, err := os.Stat(rc.PathToKubeConfig()); err != nil {

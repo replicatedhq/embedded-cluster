@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
@@ -19,20 +20,27 @@ import (
 )
 
 func TestHostCABundle(t *testing.T) {
-	addon := &adminconsole.AdminConsole{
-		DryRun:           true,
-		HostCABundlePath: filepath.Join(t.TempDir(), "ca-certificates.crt"),
-	}
-
-	rc := runtimeconfig.New(nil)
-
-	err := os.WriteFile(addon.HostCABundlePath, []byte("test"), 0644)
-	require.NoError(t, err, "Failed to write CA bundle file")
-
 	hcli, err := helm.NewClient(helm.HelmOptions{})
 	require.NoError(t, err, "NewClient should not return an error")
 
-	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, rc, nil, nil)
+	rc := runtimeconfig.New(nil)
+	rc.SetDataDir(t.TempDir())
+	rc.SetHostCABundlePath(filepath.Join(t.TempDir(), "ca-certificates.crt"))
+
+	addon := adminconsole.New(
+		adminconsole.WithLogFunc(t.Logf),
+		adminconsole.WithClients(nil, nil, hcli),
+		adminconsole.WithRuntimeConfig(rc),
+	)
+
+	opts := types.InstallOptions{
+		IsDryRun: true,
+	}
+
+	err = os.WriteFile(rc.HostCABundlePath(), []byte("test"), 0644)
+	require.NoError(t, err, "Failed to write CA bundle file")
+
+	err = addon.Install(context.Background(), nil, opts, nil)
 	require.NoError(t, err, "adminconsole.Install should not return an error")
 
 	manifests := addon.DryRunManifests()
@@ -59,7 +67,7 @@ func TestHostCABundle(t *testing.T) {
 		}
 	}
 	if assert.NotNil(t, volume, "Admin Console host-ca-bundle volume should not be nil") {
-		assert.Equal(t, addon.HostCABundlePath, volume.VolumeSource.HostPath.Path)
+		assert.Equal(t, rc.HostCABundlePath(), volume.VolumeSource.HostPath.Path)
 		assert.Equal(t, ptr.To(corev1.HostPathFileOrCreate), volume.VolumeSource.HostPath.Type)
 	}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
@@ -15,28 +14,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"k8s.io/client-go/metadata"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type InstallOptions struct {
-	AdminConsolePwd         string
-	License                 *kotsv1beta1.License
-	IsAirgap                bool
-	Proxy                   *ecv1beta1.ProxySpec
-	HostCABundlePath        string
-	TLSCertBytes            []byte
-	TLSKeyBytes             []byte
-	Hostname                string
-	ServiceCIDR             string
-	DisasterRecoveryEnabled bool
-	IsMultiNodeEnabled      bool
-	EmbeddedConfigSpec      *ecv1beta1.ConfigSpec
-	EndUserConfigSpec       *ecv1beta1.ConfigSpec
-	KotsInstaller           adminconsole.KotsInstaller
-	IsRestore               bool
-}
-
-func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runtimeconfig.RuntimeConfig, opts InstallOptions) error {
+func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runtimeconfig.RuntimeConfig, opts types.InstallOptions) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return errors.Wrap(err, "create kube client")
@@ -47,9 +29,9 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 		return errors.Wrap(err, "create metadata client")
 	}
 
-	addons := getAddOnsForInstall(rc, opts)
+	addons := getAddOnsForInstall(logf, kcli, mcli, hcli, rc, opts)
 	if opts.IsRestore {
-		addons = getAddOnsForRestore(rc, opts)
+		addons = getAddOnsForRestore(logf, kcli, mcli, hcli, rc)
 	}
 
 	for _, addon := range addons {
@@ -58,7 +40,7 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 
 		overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
-		if err := addon.Install(ctx, logf, kcli, mcli, hcli, rc, overrides, loading); err != nil {
+		if err := addon.Install(ctx, loading, opts, overrides); err != nil {
 			loading.ErrorClosef("Failed to install %s", addon.Name())
 			return errors.Wrapf(err, "install %s", addon.Name())
 		}
@@ -69,70 +51,57 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 	return nil
 }
 
-func getAddOnsForInstall(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
-	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
-
+func getAddOnsForInstall(logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, opts types.InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		},
-		&embeddedclusteroperator.EmbeddedClusterOperator{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-			IsAirgap:            opts.IsAirgap,
-			Proxy:               opts.Proxy,
-			HostCABundlePath:    opts.HostCABundlePath,
-		},
+		openebs.New(
+			openebs.WithLogFunc(logf),
+			openebs.WithClients(kcli, mcli, hcli),
+			openebs.WithRuntimeConfig(rc),
+		),
+		embeddedclusteroperator.New(
+			embeddedclusteroperator.WithLogFunc(logf),
+			embeddedclusteroperator.WithClients(kcli, mcli, hcli),
+			embeddedclusteroperator.WithRuntimeConfig(rc),
+		),
 	}
 
 	if opts.IsAirgap {
-		addOns = append(addOns, &registry.Registry{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-			ServiceCIDR:         opts.ServiceCIDR,
-		})
+		addOns = append(addOns, registry.New(
+			registry.WithLogFunc(logf),
+			registry.WithClients(kcli, mcli, hcli),
+			registry.WithRuntimeConfig(rc),
+		))
 	}
 
-	if opts.DisasterRecoveryEnabled {
-		addOns = append(addOns, &velero.Velero{
-			ProxyRegistryDomain:      domains.ProxyRegistryDomain,
-			Proxy:                    opts.Proxy,
-			HostCABundlePath:         opts.HostCABundlePath,
-			EmbeddedClusterK0sSubDir: rc.EmbeddedClusterK0sSubDir(),
-		})
+	if opts.IsDisasterRecoveryEnabled {
+		addOns = append(addOns, velero.New(
+			velero.WithLogFunc(logf),
+			velero.WithClients(kcli, mcli, hcli),
+			velero.WithRuntimeConfig(rc),
+		))
 	}
 
-	adminConsoleAddOn := &adminconsole.AdminConsole{
-		IsAirgap:                 opts.IsAirgap,
-		Proxy:                    opts.Proxy,
-		ServiceCIDR:              opts.ServiceCIDR,
-		Password:                 opts.AdminConsolePwd,
-		TLSCertBytes:             opts.TLSCertBytes,
-		TLSKeyBytes:              opts.TLSKeyBytes,
-		Hostname:                 opts.Hostname,
-		KotsInstaller:            opts.KotsInstaller,
-		IsMultiNodeEnabled:       opts.IsMultiNodeEnabled,
-		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
-		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
-		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,
-		HostCABundlePath:         opts.HostCABundlePath,
-	}
-	addOns = append(addOns, adminConsoleAddOn)
+	addOns = append(addOns, adminconsole.New(
+		adminconsole.WithLogFunc(logf),
+		adminconsole.WithClients(kcli, mcli, hcli),
+		adminconsole.WithRuntimeConfig(rc),
+	))
 
 	return addOns
 }
 
-func getAddOnsForRestore(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
-	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
-
+func getAddOnsForRestore(logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig) []types.AddOn {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		},
-		&velero.Velero{
-			Proxy:                    opts.Proxy,
-			ProxyRegistryDomain:      domains.ProxyRegistryDomain,
-			HostCABundlePath:         opts.HostCABundlePath,
-			EmbeddedClusterK0sSubDir: rc.EmbeddedClusterK0sSubDir(),
-		},
+		openebs.New(
+			openebs.WithLogFunc(logf),
+			openebs.WithClients(kcli, mcli, hcli),
+			openebs.WithRuntimeConfig(rc),
+		),
+		velero.New(
+			velero.WithLogFunc(logf),
+			velero.WithClients(kcli, mcli, hcli),
+			velero.WithRuntimeConfig(rc),
+		),
 	}
 	return addOns
 }

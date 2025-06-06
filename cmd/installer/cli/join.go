@@ -215,7 +215,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, rc runtimecon
 		return nil
 	}
 
-	if err := maybeEnableHA(ctx, kcli, mcli, flags, rc, cidrCfg.ServiceCIDR, jcmd); err != nil {
+	if err := maybeEnableHA(ctx, kcli, mcli, flags, rc, jcmd); err != nil {
 		return fmt.Errorf("unable to enable high availability: %w", err)
 	}
 
@@ -231,6 +231,8 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, rc runtimeconfig.Ru
 	}
 
 	rc.Set(jcmd.InstallationSpec.RuntimeConfig)
+	rc.MustEnsureDirs()
+
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if isWorker {
 		os.Setenv("KUBECONFIG", rc.PathToKubeletConfig())
@@ -573,7 +575,7 @@ func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string,
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interface, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, serviceCIDR string, jcmd *join.JoinCommandResponse) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interface, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
 	if flags.noHA {
 		logrus.Debug("--no-ha flag provided, skipping high availability")
 		return nil
@@ -639,7 +641,6 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		kclient,
 		hcli,
 		rc,
-		serviceCIDR,
 		jcmd.InstallationSpec,
 		loading,
 	)
