@@ -53,7 +53,7 @@ const InstallationStep: React.FC = () => {
   }, [installStatus]);
 
   return (
-    <div className="space-y-6" data-testid="validation-install-step">
+    <div className="space-y-6">
       <Card>
         {installStatus?.state !== "Succeeded" && (
           <div className="my-6">
