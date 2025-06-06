@@ -26,16 +26,18 @@ type InstallOptions struct {
 	IsAirgap                  bool
 	IsHA                      bool
 	Proxy                     *ecv1beta1.ProxySpec
-	TLSCertBytes              []byte
-	TLSKeyBytes               []byte
-	Hostname                  string
 	ServiceCIDR               string
 	IsDisasterRecoveryEnabled bool
 	IsMultiNodeEnabled        bool
 	EmbeddedConfigSpec        *ecv1beta1.ConfigSpec
-	EndUserConfigSpec         *ecv1beta1.ConfigSpec
-	Domains                   ecv1beta1.Domains
-	KotsInstaller             KotsInstaller
+
+	// The following fields are from installation flags and are not used by restore or upgrade:
+	TLSCertBytes      []byte
+	TLSKeyBytes       []byte
+	Hostname          string
+	EndUserConfigSpec *ecv1beta1.ConfigSpec
+	Domains           ecv1beta1.Domains
+	KotsInstaller     KotsInstaller
 
 	IsRestore bool
 

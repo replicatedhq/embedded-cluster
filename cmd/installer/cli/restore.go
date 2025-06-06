@@ -432,7 +432,10 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		return fmt.Errorf("new installation: %w", err)
 	}
 
-	opts := getRestoreAddonInstallOpts(in)
+	opts, err := getRestoreAddonInstallOpts(in, flags)
+	if err != nil {
+		return fmt.Errorf("get restore addon install opts: %w", err)
+	}
 
 	// TODO (@salah): update installation status to reflect what's happening
 
@@ -458,10 +461,19 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	return nil
 }
 
-func getRestoreAddonInstallOpts(in *ecv1beta1.Installation) *addonstypes.InstallOptions {
+func getRestoreAddonInstallOpts(in *ecv1beta1.Installation, flags InstallCmdFlags) (*addonstypes.InstallOptions, error) {
 	opts := addons.InstallOptionsFromInstallationSpec(in.Spec)
 	opts.IsRestore = true
-	return &opts
+
+	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return nil, fmt.Errorf("unable to process overrides file: %w", err)
+	}
+	if euCfg != nil {
+		opts.EndUserConfigSpec = &euCfg.Spec
+	}
+
+	return &opts, nil
 }
 
 func runRestoreStepConfirmBackup(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (*disasterrecovery.ReplicatedBackup, bool, error) {
@@ -587,7 +599,10 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		return fmt.Errorf("get latest installation: %w", err)
 	}
 
-	opts := getRestoreAddonInstallOpts(in)
+	opts, err := getRestoreAddonInstallOpts(in, flags)
+	if err != nil {
+		return fmt.Errorf("get restore addon install opts: %w", err)
+	}
 	opts.IsHA = true
 
 	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, kcli, mcli, hcli, rc, *opts)
