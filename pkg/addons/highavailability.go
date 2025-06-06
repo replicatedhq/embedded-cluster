@@ -58,7 +58,7 @@ func EnableHA(
 	inSpec ecv1beta1.InstallationSpec,
 	spinner *spinner.MessageWriter,
 ) error {
-	opts := getUpgradeOpts(inSpec)
+	opts := InstallOptionsFromInstallationSpec(inSpec)
 	opts.IsHA = true
 
 	if inSpec.AirGap {
