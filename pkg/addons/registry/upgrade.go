@@ -7,12 +7,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -23,37 +21,39 @@ const (
 )
 
 // Upgrade upgrades the registry chart to the latest version.
-func (r *Registry) Upgrade(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, overrides []string) error {
-	exists, err := hcli.ReleaseExists(ctx, namespace, releaseName)
+func (r *Registry) Upgrade(ctx context.Context, opts types.InstallOptions, overrides []string) error {
+	exists, err := r.hcli.ReleaseExists(ctx, r.Namespace(), releaseName)
 	if err != nil {
 		return errors.Wrap(err, "check if release exists")
 	}
 	if !exists {
-		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, namespace)
-		if err := r.Install(ctx, logf, kcli, mcli, hcli, rc, overrides, nil); err != nil {
+		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, r.Namespace())
+		if err := r.Install(ctx, nil, opts, overrides); err != nil {
 			return errors.Wrap(err, "install")
 		}
 		return nil
 	}
 
-	if err := r.createUpgradePreRequisites(ctx, kcli); err != nil {
+	if err := r.createUpgradePreRequisites(ctx, opts); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := r.GenerateHelmValues(ctx, kcli, rc, overrides)
+	values, err := r.GenerateHelmValues(ctx, opts, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
+	helmOpts := helm.UpgradeOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    r.ChartLocation(),
+		ChartPath:    r.ChartLocation(opts.Domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    r.Namespace(),
 		Labels:       getBackupLabels(),
 		Force:        false,
-	})
+	}
+
+	_, err = r.hcli.Upgrade(ctx, helmOpts)
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")
 	}
@@ -61,9 +61,9 @@ func (r *Registry) Upgrade(ctx context.Context, logf types.LogFunc, kcli client.
 	return nil
 }
 
-func (r *Registry) createUpgradePreRequisites(ctx context.Context, kcli client.Client) error {
-	if r.IsHA {
-		if err := ensureS3Secret(ctx, kcli); err != nil {
+func (r *Registry) createUpgradePreRequisites(ctx context.Context, opts types.InstallOptions) error {
+	if opts.IsHA {
+		if err := ensureS3Secret(ctx, r.kcli); err != nil {
 			return errors.Wrap(err, "create s3 secret")
 		}
 	}

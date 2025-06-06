@@ -4,32 +4,16 @@ import (
 	_ "embed"
 	"strings"
 
-	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/runtime"
 	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/client-go/metadata"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-var _ types.AddOn = (*Velero)(nil)
-
-type Velero struct {
-	Proxy                    *ecv1beta1.ProxySpec
-	ProxyRegistryDomain      string
-	HostCABundlePath         string
-	EmbeddedClusterK0sSubDir string
-
-	// DryRun is a flag to enable dry-run mode for Velero.
-	// If true, Velero will only render the helm template and additional manifests, but not install
-	// the release.
-	DryRun bool
-
-	dryRunManifests [][]byte
-}
 
 const (
 	releaseName           = "velero"
@@ -38,34 +22,56 @@ const (
 )
 
 var (
-	//go:embed static/values.tpl.yaml
-	rawvalues []byte
-	// helmValues is the unmarshal version of rawvalues.
-	helmValues map[string]interface{}
-	//go:embed static/metadata.yaml
-	rawmetadata []byte
-	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.AddonMetadata
-)
-
-var (
 	serializer runtime.Serializer
 )
 
 func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal metadata"))
-	}
-	hv, err := release.RenderHelmValues(rawvalues, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal values"))
-	}
-	helmValues = hv
-
 	scheme := kubeutils.Scheme
 	serializer = jsonserializer.NewSerializerWithOptions(jsonserializer.DefaultMetaFactory, scheme, scheme, jsonserializer.SerializerOptions{
 		Yaml: true,
 	})
+}
+
+var _ types.AddOn = (*Velero)(nil)
+
+type Velero struct {
+	logf          types.LogFunc
+	kcli          client.Client
+	mcli          metadata.Interface
+	hcli          helm.Client
+	runtimeConfig runtimeconfig.RuntimeConfig
+
+	dryRunManifests [][]byte
+}
+
+type Option func(*Velero)
+
+func New(opts ...Option) *Velero {
+	addon := &Velero{}
+	for _, opt := range opts {
+		opt(addon)
+	}
+	return addon
+}
+
+func WithLogFunc(logf types.LogFunc) Option {
+	return func(a *Velero) {
+		a.logf = logf
+	}
+}
+
+func WithClients(kcli client.Client, mcli metadata.Interface, hcli helm.Client) Option {
+	return func(a *Velero) {
+		a.kcli = kcli
+		a.mcli = mcli
+		a.hcli = hcli
+	}
+}
+
+func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) Option {
+	return func(a *Velero) {
+		a.runtimeConfig = rc
+	}
 }
 
 func (v *Velero) Name() string {
@@ -84,11 +90,11 @@ func (v *Velero) Namespace() string {
 	return namespace
 }
 
-func (v *Velero) ChartLocation() string {
-	if v.ProxyRegistryDomain == "" {
+func (v *Velero) ChartLocation(domains ecv1beta1.Domains) string {
+	if domains.ProxyRegistryDomain == "" {
 		return Metadata.Location
 	}
-	return strings.Replace(Metadata.Location, "proxy.replicated.com", v.ProxyRegistryDomain, 1)
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 }
 
 func (v *Velero) DryRunManifests() [][]byte {

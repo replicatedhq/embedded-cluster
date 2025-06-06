@@ -13,9 +13,7 @@ import (
 )
 
 func TestSysctlConfig(t *testing.T) {
-	basedir, err := os.MkdirTemp("", "embedded-cluster-test-base-dir")
-	assert.NoError(t, err)
-	defer os.RemoveAll(basedir)
+	basedir := t.TempDir()
 
 	orig := sysctlConfigPath
 	defer func() {

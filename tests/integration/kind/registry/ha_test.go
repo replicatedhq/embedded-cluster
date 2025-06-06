@@ -20,6 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -65,6 +66,15 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 	kubeconfig := util.SetupKindClusterFromConfig(t, kindConfig)
 
+	opts := types.InstallOptions{
+		IsAirgap: true,
+		IsHA:     false,
+		Domains: ecv1beta1.Domains{
+			ProxyRegistryDomain: "proxy.replicated.com",
+		},
+		ServiceCIDR: "10.96.0.0/12",
+	}
+
 	kcli := util.CtrlClient(t, kubeconfig)
 	mcli := util.MetadataClient(t, kubeconfig)
 	kclient := util.KubeClient(t, kubeconfig)
@@ -73,10 +83,12 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	rc := runtimeconfig.New(nil)
 
 	t.Logf("%s installing openebs", formattedTime())
-	addon := &openebs.OpenEBS{
-		ProxyRegistryDomain: "proxy.replicated.com",
-	}
-	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, nil, nil); err != nil {
+	addon := openebs.New(
+		openebs.WithLogFunc(t.Logf),
+		openebs.WithClients(kcli, mcli, hcli),
+		openebs.WithRuntimeConfig(rc),
+	)
+	if err := addon.Install(ctx, nil, opts, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 
@@ -84,24 +96,23 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	util.WaitForStorageClass(t, kubeconfig, "openebs-hostpath", 30*time.Second)
 
 	t.Logf("%s installing registry", formattedTime())
-	registryAddon := &registry.Registry{
-		ServiceCIDR:         "10.96.0.0/12",
-		ProxyRegistryDomain: "proxy.replicated.com",
-		IsHA:                false,
-	}
-	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, nil, nil))
+	registryAddon := registry.New(
+		registry.WithLogFunc(t.Logf),
+		registry.WithClients(kcli, mcli, hcli),
+		registry.WithRuntimeConfig(rc),
+	)
+	require.NoError(t, registryAddon.Install(ctx, nil, opts, nil))
 
 	t.Logf("%s creating hostport service", formattedTime())
 	registryAddr := createHostPortService(t, clusterName, kubeconfig)
 
 	t.Logf("%s installing admin console", formattedTime())
-	adminConsoleAddon := &adminconsole.AdminConsole{
-		IsAirgap:            true,
-		ServiceCIDR:         "10.96.0.0/12",
-		ProxyRegistryDomain: "proxy.replicated.com",
-		IsHA:                false,
-	}
-	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, nil, nil))
+	adminConsoleAddon := adminconsole.New(
+		adminconsole.WithLogFunc(t.Logf),
+		adminconsole.WithClients(kcli, mcli, hcli),
+		adminconsole.WithRuntimeConfig(rc),
+	)
+	require.NoError(t, adminConsoleAddon.Install(ctx, nil, opts, nil))
 
 	t.Logf("%s pushing image to registry", formattedTime())
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")
@@ -120,6 +131,9 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 			Domains: ecv1beta1.Domains{
 				ProxyRegistryDomain: "proxy.replicated.com",
 			},
+		},
+		Network: &ecv1beta1.NetworkSpec{
+			ServiceCIDR: "10.96.0.0/12",
 		},
 	}
 
@@ -143,7 +157,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	loading := newTestingSpinner(t)
 	func() {
 		defer loading.Close()
-		err = addons.EnableHA(ctx, t.Logf, kcli, mcli, kclient, hcli, rc, "10.96.0.0/12", inSpec, loading)
+		err = addons.EnableHA(ctx, t.Logf, kcli, mcli, kclient, hcli, rc, inSpec, loading)
 		require.NoError(t, err)
 	}()
 
@@ -158,7 +172,9 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 }
 
 func enableHAAndCancelContextOnMessage(
-	t *testing.T, kcli client.Client, mcli metadata.Interface, kclient kubernetes.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig,
+	t *testing.T,
+	kcli client.Client, mcli metadata.Interface, kclient kubernetes.Interface, hcli helm.Client,
+	rc runtimeconfig.RuntimeConfig,
 	inSpec ecv1beta1.InstallationSpec,
 	re *regexp.Regexp,
 ) {
@@ -205,7 +221,7 @@ func enableHAAndCancelContextOnMessage(
 	defer loading.Close()
 
 	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
-	err = addons.EnableHA(ctx, t.Logf, kcli, mcli, kclient, hcli, rc, "10.96.0.0/12", inSpec, loading)
+	err = addons.EnableHA(ctx, t.Logf, kcli, mcli, kclient, hcli, rc, inSpec, loading)
 	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
 	t.Logf("%s cancelled context and got error: %v", formattedTime(), err)
 }

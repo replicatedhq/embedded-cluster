@@ -23,6 +23,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
@@ -30,6 +31,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -172,7 +174,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	}
 
 	// If the installation is available, we can further augment the runtime config from the installation.
-	rcSpec, err := getRuntimeConfigFromInstallation(ctx)
+	rcSpec, err := getRuntimeConfigSpecFromInstallation(ctx)
 	if err != nil {
 		logrus.Debugf(
 			"Unable to get runtime config from installation, this is expected if the installation is not yet available (restore state=%s): %v",
@@ -182,8 +184,8 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		rc.Set(rcSpec)
 	}
 
-	os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+	rc.MustEnsureDirs()
+	rc.SetEnv()
 
 	switch state {
 	case ecRestoreStateNew:
@@ -409,12 +411,6 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
-	embCfg := release.GetEmbeddedClusterConfig()
-	var embCfgSpec *ecv1beta1.ConfigSpec
-	if embCfg != nil {
-		embCfgSpec = &embCfg.Spec
-	}
-
 	airgapChartsPath := ""
 	if flags.isAirgap {
 		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
@@ -430,20 +426,18 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	}
 	defer hcli.Close()
 
+	opts, err := getRestoreAddonInstallOpts(flags)
+	if err != nil {
+		return fmt.Errorf("unable to get addon install options: %w", err)
+	}
+
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
 	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, hcli, rc, addons.InstallOptions{
-		IsAirgap:           flags.airgapBundle != "",
-		Proxy:              flags.proxy,
-		HostCABundlePath:   rc.HostCABundlePath(),
-		ServiceCIDR:        flags.cidrCfg.ServiceCIDR,
-		IsRestore:          true,
-		EmbeddedConfigSpec: embCfgSpec,
-	}); err != nil {
+	if err := addons.Install(ctx, logrus.Debugf, hcli, rc, *opts); err != nil {
 		return err
 	}
 
@@ -462,6 +456,45 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	}
 
 	return nil
+}
+
+func getRestoreAddonInstallOpts(flags InstallCmdFlags) (*addonstypes.InstallOptions, error) {
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
+
+	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return nil, fmt.Errorf("unable to process overrides file: %w", err)
+	}
+	var euCfgSpec *ecv1beta1.ConfigSpec
+	if euCfg != nil {
+		euCfgSpec = &euCfg.Spec
+	}
+
+	return &addonstypes.InstallOptions{
+		IsAirgap:                  flags.airgapBundle != "",
+		IsHA:                      false,
+		Proxy:                     flags.proxy,
+		ServiceCIDR:               flags.cidrCfg.ServiceCIDR,
+		IsDisasterRecoveryEnabled: true,
+		EmbeddedConfigSpec:        embCfgSpec,
+		EndUserConfigSpec:         euCfgSpec,
+		Domains:                   runtimeconfig.GetDomains(embCfgSpec),
+		ClusterID:                 metrics.ClusterID().String(),
+
+		IsRestore: true,
+
+		// The following is unset on retore
+		AdminConsolePassword: "",
+		License:              nil,
+		TLSCertBytes:         nil,
+		TLSKeyBytes:          nil,
+		Hostname:             "",
+		IsMultiNodeEnabled:   false,
+		KotsInstaller:        nil,
+	}, nil
 }
 
 func runRestoreStepConfirmBackup(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (*disasterrecovery.ReplicatedBackup, bool, error) {
@@ -567,11 +600,6 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		return fmt.Errorf("unable to create metadata client: %w", err)
 	}
 
-	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
-	if err != nil {
-		return fmt.Errorf("get latest installation: %w", err)
-	}
-
 	airgapChartsPath := ""
 	if flags.isAirgap {
 		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
@@ -587,7 +615,20 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	}
 	defer hcli.Close()
 
-	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, kcli, mcli, hcli, rc, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config, in.Spec.LicenseInfo)
+	opts, err := getRestoreAddonInstallOpts(flags)
+	if err != nil {
+		return fmt.Errorf("unable to get addon install options: %w", err)
+	}
+	opts.IsHA = true
+
+	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get latest installation: %w", err)
+	}
+
+	opts.IsMultiNodeEnabled = in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled
+
+	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, kcli, mcli, hcli, rc, *opts)
 	if err != nil {
 		return err
 	}
@@ -1672,6 +1713,7 @@ func overrideRuntimeConfigFromBackup(localArtifactMirrorPort int, backup disaste
 			if err != nil {
 				return fmt.Errorf("parse local artifact mirror port: %w", err)
 			}
+
 			logrus.Debugf("updating local artifact mirror port to %d from backup %q", port, backup.GetName())
 			rc.SetLocalArtifactMirrorPort(port)
 		}
@@ -1680,8 +1722,8 @@ func overrideRuntimeConfigFromBackup(localArtifactMirrorPort int, backup disaste
 	return nil
 }
 
-// getRuntimeConfigFromInstallation returns the runtime config from the latest installation.
-func getRuntimeConfigFromInstallation(ctx context.Context) (*ecv1beta1.RuntimeConfigSpec, error) {
+// getRuntimeConfigSpecFromInstallation returns the runtime config from the latest installation.
+func getRuntimeConfigSpecFromInstallation(ctx context.Context) (*ecv1beta1.RuntimeConfigSpec, error) {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create kube client: %w", err)

@@ -32,6 +32,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
@@ -403,21 +404,24 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 		}
 	}
 
+	hostCABundlePath, err := findHostCABundle()
+	if err != nil {
+		return fmt.Errorf("unable to find host CA bundle: %w", err)
+	}
+	logrus.Debugf("using host CA bundle: %s", hostCABundlePath)
+
 	// TODO: validate that a single port isn't used for multiple services
 	rc.SetDataDir(flags.dataDir)
 	rc.SetManagerPort(flags.managerPort)
 	rc.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
 	rc.SetAdminConsolePort(flags.adminConsolePort)
+	rc.SetHostCABundlePath(hostCABundlePath)
 
 	os.Setenv("KUBECONFIG", rc.PathToKubeConfig()) // this is needed for restore as well since it shares this function
 	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
-	hostCABundlePath, err := findHostCABundle()
-	if err != nil {
-		return fmt.Errorf("unable to find host CA bundle: %w", err)
-	}
-	rc.SetHostCABundlePath(hostCABundlePath)
-	logrus.Debugf("using host CA bundle: %s", hostCABundlePath)
+	rc.MustEnsureDirs()
+	rc.SetEnv()
 
 	if err := rc.WriteToDisk(); err != nil {
 		return fmt.Errorf("unable to write runtime config to disk: %w", err)
@@ -474,8 +478,6 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		return fmt.Errorf("unable to create version metadata configmap: %w", err)
 	}
 
-	// TODO (@salah): update installation status to reflect what's happening
-
 	logrus.Debugf("adding insecure registry")
 	registryIP, err := registry.GetRegistryClusterIP(flags.cidrCfg.ServiceCIDR)
 	if err != nil {
@@ -485,18 +487,9 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		return fmt.Errorf("unable to add insecure registry: %w", err)
 	}
 
-	var embCfgSpec *ecv1beta1.ConfigSpec
-	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
-		embCfgSpec = &embCfg.Spec
-	}
-
-	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	opts, err := getAddonInstallOpts(flags)
 	if err != nil {
-		return fmt.Errorf("unable to process overrides file: %w", err)
-	}
-	var euCfgSpec *ecv1beta1.ConfigSpec
-	if euCfg != nil {
-		euCfgSpec = &euCfg.Spec
+		return fmt.Errorf("unable to get addon install options: %w", err)
 	}
 
 	airgapChartsPath := ""
@@ -514,34 +507,10 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	}
 	defer hcli.Close()
 
+	// TODO (@salah): update installation status to reflect what's happening
+
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, hcli, rc, addons.InstallOptions{
-		AdminConsolePwd:         flags.adminConsolePassword,
-		License:                 flags.license,
-		IsAirgap:                flags.airgapBundle != "",
-		Proxy:                   flags.proxy,
-		HostCABundlePath:        rc.HostCABundlePath(),
-		TLSCertBytes:            flags.tlsCertBytes,
-		TLSKeyBytes:             flags.tlsKeyBytes,
-		Hostname:                flags.hostname,
-		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
-		DisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
-		IsMultiNodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
-		EmbeddedConfigSpec:      embCfgSpec,
-		EndUserConfigSpec:       euCfgSpec,
-		KotsInstaller: func(msg *spinner.MessageWriter) error {
-			opts := kotscli.InstallOptions{
-				RuntimeConfig:         rc,
-				AppSlug:               flags.license.Spec.AppSlug,
-				LicenseFile:           flags.licenseFile,
-				Namespace:             runtimeconfig.KotsadmNamespace,
-				AirgapBundle:          flags.airgapBundle,
-				ConfigValuesFile:      flags.configValues,
-				ReplicatedAppEndpoint: replicatedAppURL(),
-			}
-			return kotscli.Install(opts, msg)
-		},
-	}); err != nil {
+	if err := addons.Install(ctx, logrus.Debugf, hcli, rc, *opts); err != nil {
 		return fmt.Errorf("unable to install addons: %w", err)
 	}
 
@@ -569,6 +538,51 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	}
 
 	return nil
+}
+
+func getAddonInstallOpts(flags InstallCmdFlags) (*addonstypes.InstallOptions, error) {
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
+
+	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return nil, fmt.Errorf("unable to process overrides file: %w", err)
+	}
+	var euCfgSpec *ecv1beta1.ConfigSpec
+	if euCfg != nil {
+		euCfgSpec = &euCfg.Spec
+	}
+
+	return &addonstypes.InstallOptions{
+		AdminConsolePassword:      flags.adminConsolePassword,
+		License:                   flags.license,
+		IsAirgap:                  flags.isAirgap,
+		IsHA:                      false,
+		Proxy:                     flags.proxy,
+		TLSCertBytes:              flags.tlsCertBytes,
+		TLSKeyBytes:               flags.tlsKeyBytes,
+		Hostname:                  flags.hostname,
+		ServiceCIDR:               flags.cidrCfg.ServiceCIDR,
+		IsDisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
+		IsMultiNodeEnabled:        flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
+		EmbeddedConfigSpec:        embCfgSpec,
+		EndUserConfigSpec:         euCfgSpec,
+		Domains:                   runtimeconfig.GetDomains(embCfgSpec),
+		KotsInstaller: func(msg *spinner.MessageWriter) error {
+			opts := kotscli.InstallOptions{
+				AppSlug:               flags.license.Spec.AppSlug,
+				LicenseFile:           flags.licenseFile,
+				Namespace:             runtimeconfig.KotsadmNamespace,
+				AirgapBundle:          flags.airgapBundle,
+				ConfigValuesFile:      flags.configValues,
+				ReplicatedAppEndpoint: replicatedAppURL(),
+			}
+			return kotscli.Install(opts, msg)
+		},
+		ClusterID: metrics.ClusterID().String(),
+	}, nil
 }
 
 func runInstallVerifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt) error {

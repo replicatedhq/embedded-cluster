@@ -6,38 +6,37 @@ import (
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
-	"k8s.io/client-go/metadata"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (o *OpenEBS) Upgrade(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, overrides []string) error {
-	exists, err := hcli.ReleaseExists(ctx, namespace, releaseName)
+func (o *OpenEBS) Upgrade(ctx context.Context, opts types.InstallOptions, overrides []string) error {
+	exists, err := o.hcli.ReleaseExists(ctx, o.Namespace(), releaseName)
 	if err != nil {
 		return errors.Wrap(err, "check if release exists")
 	}
 	if !exists {
-		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, namespace)
-		if err := o.Install(ctx, logf, kcli, mcli, hcli, rc, overrides, nil); err != nil {
+		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, o.Namespace())
+		if err := o.Install(ctx, nil, opts, overrides); err != nil {
 			return errors.Wrap(err, "install")
 		}
 		return nil
 	}
 
-	values, err := o.GenerateHelmValues(ctx, kcli, rc, overrides)
+	values, err := o.GenerateHelmValues(ctx, opts, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
+	helmOpts := helm.UpgradeOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    o.ChartLocation(),
+		ChartPath:    o.ChartLocation(opts.Domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    o.Namespace(),
 		Force:        false,
-	})
+	}
+
+	_, err = o.hcli.Upgrade(ctx, helmOpts)
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")
 	}

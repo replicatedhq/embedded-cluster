@@ -4,19 +4,13 @@ import (
 	_ "embed"
 	"strings"
 
-	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"gopkg.in/yaml.v3"
+	"k8s.io/client-go/metadata"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-var _ types.AddOn = (*SeaweedFS)(nil)
-
-type SeaweedFS struct {
-	ServiceCIDR         string
-	ProxyRegistryDomain string
-}
 
 const (
 	releaseName = "seaweedfs"
@@ -35,26 +29,46 @@ const (
 	s3SecretName = "secret-seaweedfs-s3"
 )
 
-var (
-	//go:embed static/values.tpl.yaml
-	rawvalues []byte
-	// helmValues is the unmarshal version of rawvalues.
-	helmValues map[string]interface{}
-	//go:embed static/metadata.yaml
-	rawmetadata []byte
-	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.AddonMetadata
-)
+var _ types.AddOn = (*SeaweedFS)(nil)
 
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal metadata"))
+type SeaweedFS struct {
+	logf          types.LogFunc
+	kcli          client.Client
+	mcli          metadata.Interface
+	hcli          helm.Client
+	runtimeConfig runtimeconfig.RuntimeConfig
+
+	dryRunManifests [][]byte
+}
+
+type Option func(*SeaweedFS)
+
+func New(opts ...Option) *SeaweedFS {
+	addon := &SeaweedFS{}
+	for _, opt := range opts {
+		opt(addon)
 	}
-	hv, err := release.RenderHelmValues(rawvalues, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal values"))
+	return addon
+}
+
+func WithLogFunc(logf types.LogFunc) Option {
+	return func(a *SeaweedFS) {
+		a.logf = logf
 	}
-	helmValues = hv
+}
+
+func WithClients(kcli client.Client, mcli metadata.Interface, hcli helm.Client) Option {
+	return func(a *SeaweedFS) {
+		a.kcli = kcli
+		a.mcli = mcli
+		a.hcli = hcli
+	}
+}
+
+func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) Option {
+	return func(a *SeaweedFS) {
+		a.runtimeConfig = rc
+	}
 }
 
 func (s *SeaweedFS) Name() string {
@@ -79,9 +93,9 @@ func getBackupLabels() map[string]string {
 	}
 }
 
-func (s *SeaweedFS) ChartLocation() string {
-	if s.ProxyRegistryDomain == "" {
+func (s *SeaweedFS) ChartLocation(domains ecv1beta1.Domains) string {
+	if domains.ProxyRegistryDomain == "" {
 		return Metadata.Location
 	}
-	return strings.Replace(Metadata.Location, "proxy.replicated.com", s.ProxyRegistryDomain, 1)
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 }

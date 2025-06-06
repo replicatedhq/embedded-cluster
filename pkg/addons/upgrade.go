@@ -35,12 +35,14 @@ func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 		return errors.Wrap(err, "create metadata client")
 	}
 
-	addons, err := getAddOnsForUpgrade(rc, in, meta)
+	opts := getUpgradeOpts(in.Spec)
+
+	addons, err := getAddOnsForUpgrade(logf, hcli, kcli, mcli, rc, meta, opts)
 	if err != nil {
 		return errors.Wrap(err, "get addons for upgrade")
 	}
 	for _, addon := range addons {
-		if err := upgradeAddOn(ctx, logf, hcli, kcli, mcli, rc, in, addon); err != nil {
+		if err := upgradeAddOn(ctx, kcli, in, addon, opts); err != nil {
 			return errors.Wrapf(err, "addon %s", addon.Name())
 		}
 	}
@@ -48,23 +50,42 @@ func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 	return nil
 }
 
-func getAddOnsForUpgrade(rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
-	domains := runtimeconfig.GetDomains(in.Spec.Config)
-
-	addOns := []types.AddOn{
-		&openebs.OpenEBS{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		},
-	}
-
+func getUpgradeOpts(inSpec ecv1beta1.InstallationSpec) types.InstallOptions {
 	serviceCIDR := ""
-	if in.Spec.Network != nil {
-		serviceCIDR = in.Spec.Network.ServiceCIDR
+	if inSpec.Network != nil {
+		serviceCIDR = inSpec.Network.ServiceCIDR
 	}
 
-	hostCABundlePath := ""
-	if in.Spec.RuntimeConfig != nil {
-		hostCABundlePath = in.Spec.RuntimeConfig.HostCABundlePath
+	return types.InstallOptions{
+		IsAirgap:                  inSpec.AirGap,
+		IsHA:                      inSpec.HighAvailability,
+		Proxy:                     inSpec.Proxy,
+		ServiceCIDR:               serviceCIDR,
+		IsDisasterRecoveryEnabled: inSpec.LicenseInfo != nil && inSpec.LicenseInfo.IsDisasterRecoverySupported,
+		IsMultiNodeEnabled:        inSpec.LicenseInfo != nil && inSpec.LicenseInfo.IsMultiNodeEnabled,
+		EmbeddedConfigSpec:        inSpec.Config,
+		Domains:                   runtimeconfig.GetDomains(inSpec.Config),
+		ClusterID:                 inSpec.ClusterID,
+
+		// The following is unset on upgrades
+		AdminConsolePassword: "",
+		License:              nil,
+		TLSCertBytes:         nil,
+		TLSKeyBytes:          nil,
+		Hostname:             "",
+		// TODO (@salah): add support for end user overrides
+		EndUserConfigSpec: nil,
+		KotsInstaller:     nil,
+	}
+}
+
+func getAddOnsForUpgrade(logf types.LogFunc, hcli helm.Client, kcli client.Client, mcli metadata.Interface, rc runtimeconfig.RuntimeConfig, meta *ectypes.ReleaseMetadata, opts types.InstallOptions) ([]types.AddOn, error) {
+	addOns := []types.AddOn{
+		openebs.New(
+			openebs.WithLogFunc(logf),
+			openebs.WithClients(kcli, mcli, hcli),
+			openebs.WithRuntimeConfig(rc),
+		),
 	}
 
 	// ECO's embedded (wrong) metadata values do not match the published (correct) metadata values.
@@ -75,64 +96,61 @@ func getAddOnsForUpgrade(rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installat
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator chart location")
 	}
-	ecoImageRepo, ecoImageTag, ecoUtilsImage, err := operatorImages(meta.Images, domains.ProxyRegistryDomain)
+	ecoImageRepo, ecoImageTag, ecoUtilsImage, err := operatorImages(meta.Images, opts.Domains.ProxyRegistryDomain)
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator images")
 	}
-	addOns = append(addOns, &embeddedclusteroperator.EmbeddedClusterOperator{
-		IsAirgap:              in.Spec.AirGap,
-		Proxy:                 in.Spec.Proxy,
-		ChartLocationOverride: ecoChartLocation,
-		ChartVersionOverride:  ecoChartVersion,
-		ImageRepoOverride:     ecoImageRepo,
-		ImageTagOverride:      ecoImageTag,
-		UtilsImageOverride:    ecoUtilsImage,
-		ProxyRegistryDomain:   domains.ProxyRegistryDomain,
-		HostCABundlePath:      hostCABundlePath,
-	})
 
-	if in.Spec.AirGap {
-		addOns = append(addOns, &registry.Registry{
-			ServiceCIDR:         serviceCIDR,
-			IsHA:                in.Spec.HighAvailability,
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		})
+	ecAddOn := embeddedclusteroperator.New(
+		embeddedclusteroperator.WithLogFunc(logf),
+		embeddedclusteroperator.WithClients(kcli, mcli, hcli),
+		embeddedclusteroperator.WithRuntimeConfig(rc),
+	)
+	ecAddOn.ChartLocationOverride = ecoChartLocation
+	ecAddOn.ChartVersionOverride = ecoChartVersion
+	ecAddOn.ImageRepoOverride = ecoImageRepo
+	ecAddOn.ImageTagOverride = ecoImageTag
+	ecAddOn.UtilsImageOverride = ecoUtilsImage
 
-		if in.Spec.HighAvailability {
-			addOns = append(addOns, &seaweedfs.SeaweedFS{
-				ServiceCIDR:         serviceCIDR,
-				ProxyRegistryDomain: domains.ProxyRegistryDomain,
-			})
+	addOns = append(addOns, ecAddOn)
+
+	if opts.IsAirgap {
+		addOns = append(addOns, registry.New(
+			registry.WithLogFunc(logf),
+			registry.WithClients(kcli, mcli, hcli),
+			registry.WithRuntimeConfig(rc),
+		))
+
+		if opts.IsHA {
+			addOns = append(addOns, seaweedfs.New(
+				seaweedfs.WithLogFunc(logf),
+				seaweedfs.WithClients(kcli, mcli, hcli),
+				seaweedfs.WithRuntimeConfig(rc),
+			))
 		}
 	}
 
-	if in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
-		addOns = append(addOns, &velero.Velero{
-			Proxy:                    in.Spec.Proxy,
-			ProxyRegistryDomain:      domains.ProxyRegistryDomain,
-			HostCABundlePath:         hostCABundlePath,
-			EmbeddedClusterK0sSubDir: rc.EmbeddedClusterK0sSubDir(),
-		})
+	if opts.IsDisasterRecoveryEnabled {
+		addOns = append(addOns, velero.New(
+			velero.WithLogFunc(logf),
+			velero.WithClients(kcli, mcli, hcli),
+			velero.WithRuntimeConfig(rc),
+		))
 	}
 
-	addOns = append(addOns, &adminconsole.AdminConsole{
-		IsAirgap:                 in.Spec.AirGap,
-		IsHA:                     in.Spec.HighAvailability,
-		Proxy:                    in.Spec.Proxy,
-		ServiceCIDR:              serviceCIDR,
-		IsMultiNodeEnabled:       in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
-		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
-		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
-		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,
-	})
+	addOns = append(addOns, adminconsole.New(
+		adminconsole.WithLogFunc(logf),
+		adminconsole.WithClients(kcli, mcli, hcli),
+		adminconsole.WithRuntimeConfig(rc),
+	))
 
 	return addOns, nil
 }
 
-func upgradeAddOn(ctx context.Context, logf types.LogFunc, hcli helm.Client, kcli client.Client, mcli metadata.Interface, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, addon types.AddOn) error {
+func upgradeAddOn(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, addon types.AddOn, opts types.InstallOptions) error {
 	// check if we already processed this addon
 	if kubeutils.CheckInstallationConditionStatus(in.Status, conditionName(addon)) == metav1.ConditionTrue {
-		slog.Info(addon.Name() + " is ready")
+		slog.Info("Addon is ready", "name", addon.Name(), "version", addon.Version())
 		return nil
 	}
 
@@ -143,14 +161,15 @@ func upgradeAddOn(ctx context.Context, logf types.LogFunc, hcli helm.Client, kcl
 		return errors.Wrap(err, "failed to set condition status")
 	}
 
-	// TODO (@salah): add support for end user overrides
-	overrides := addOnOverrides(addon, in.Spec.Config, nil)
+	overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
-	err := addon.Upgrade(ctx, logf, kcli, mcli, hcli, rc, overrides)
+	err := addon.Upgrade(ctx, opts, overrides)
 	if err != nil {
 		message := helpers.CleanErrorMessage(err)
 		if err := setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionFalse, "UpgradeFailed", message); err != nil {
-			slog.Error("Failed to set condition upgrade failed", "error", err)
+			slog.Error("Failed to set addon condition upgrade failed",
+				"name", addon.Name(), "version", addon.Version(), "error", err,
+			)
 		}
 		return errors.Wrap(err, "upgrade addon")
 	}
@@ -160,7 +179,7 @@ func upgradeAddOn(ctx context.Context, logf types.LogFunc, hcli helm.Client, kcl
 		return errors.Wrap(err, "set condition upgrade succeeded")
 	}
 
-	slog.Info(addon.Name() + " is ready")
+	slog.Info("Addon is ready", "name", addon.Name(), "version", addon.Version())
 	return nil
 }
 
