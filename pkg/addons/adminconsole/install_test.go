@@ -180,10 +180,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 			rc.SetDataDir(t.TempDir())
 			rc.SetHostCABundlePath(tt.caPath)
 
-			clients := types.Clients{
-				K8sClient:      kcli,
-				MetadataClient: mcli,
-			}
+			clients := types.NewClients(kcli, mcli, nil)
 
 			inSpec := ecv1beta1.InstallationSpec{
 				RuntimeConfig: rc.Get(),

@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -628,13 +629,13 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 	loading := spinner.Start()
 	defer loading.Close()
 
+	clients := addonstypes.NewClients(kcli, mcli, hcli)
+
 	return addons.EnableHA(
 		ctx,
 		logrus.Debugf,
-		kcli,
-		mcli,
+		clients,
 		kclient,
-		hcli,
 		jcmd.InstallationSpec,
 		loading,
 	)

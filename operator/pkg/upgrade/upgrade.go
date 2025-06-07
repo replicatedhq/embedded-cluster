@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -263,7 +264,9 @@ func upgradeAddons(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		return fmt.Errorf("no images available")
 	}
 
-	if err := addons.Upgrade(ctx, slog.Info, kcli, mcli, hcli, in, meta); err != nil {
+	clients := addonstypes.NewClients(kcli, mcli, hcli)
+
+	if err := addons.Upgrade(ctx, slog.Info, clients, in, meta); err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 

@@ -15,25 +15,20 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func Upgrade(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
+func Upgrade(
+	ctx context.Context, logf types.LogFunc, clients types.Clients,
+	in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata,
+) error {
 	addons, err := getAddOnsForUpgrade(logf, in.Spec, meta)
 	if err != nil {
 		return errors.Wrap(err, "get addons for upgrade")
-	}
-
-	clients := types.Clients{
-		K8sClient:      kcli,
-		MetadataClient: mcli,
-		HelmClient:     hcli,
 	}
 
 	for _, addon := range addons {

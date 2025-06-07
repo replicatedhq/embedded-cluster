@@ -417,7 +417,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		return fmt.Errorf("new installation: %w", err)
 	}
 
-	opts, err := getRestoreAddonInstallOpts(flags)
+	installOpts, err := getRestoreAddonInstallOpts(flags)
 	if err != nil {
 		return fmt.Errorf("get restore addon install opts: %w", err)
 	}
@@ -442,10 +442,12 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	}
 	defer hcli.Close()
 
+	clients := addonstypes.NewClients(kcli, mcli, hcli)
+
 	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, kcli, mcli, hcli, in.Spec, *opts); err != nil {
+	if err := addons.Install(ctx, logrus.Debugf, clients, in.Spec, *installOpts); err != nil {
 		return err
 	}
 
@@ -599,8 +601,10 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		return fmt.Errorf("get latest installation: %w", err)
 	}
 
+	clients := addonstypes.NewClients(kcli, mcli, hcli)
+
 	// TODO: support for end user overrides
-	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, kcli, mcli, hcli, in.Spec)
+	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, clients, in.Spec)
 	if err != nil {
 		return err
 	}
