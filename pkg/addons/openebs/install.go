@@ -4,27 +4,31 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	"k8s.io/client-go/metadata"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (o *OpenEBS) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, overrides []string, writer *spinner.MessageWriter) error {
-	values, err := o.GenerateHelmValues(ctx, kcli, rc, overrides)
+func (o *OpenEBS) Install(
+	ctx context.Context, clients types.Clients, writer *spinner.MessageWriter,
+	inSpec ecv1beta1.InstallationSpec, overrides []string, installOpts types.InstallOptions,
+) error {
+	values, err := o.GenerateHelmValues(ctx, inSpec, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	_, err = hcli.Install(ctx, helm.InstallOptions{
+	helmOpts := helm.InstallOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    o.ChartLocation(),
+		ChartPath:    o.ChartLocation(runtimeconfig.GetDomains(inSpec.Config)),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
-	})
+		Namespace:    o.Namespace(),
+	}
+
+	_, err = clients.HelmClient.Install(ctx, helmOpts)
 	if err != nil {
 		return errors.Wrap(err, "helm install")
 	}

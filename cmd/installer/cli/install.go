@@ -32,6 +32,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
@@ -403,21 +404,20 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 		}
 	}
 
+	hostCABundlePath, err := findHostCABundle()
+	if err != nil {
+		return fmt.Errorf("unable to find host CA bundle: %w", err)
+	}
+	logrus.Debugf("using host CA bundle: %s", hostCABundlePath)
+
 	// TODO: validate that a single port isn't used for multiple services
 	rc.SetDataDir(flags.dataDir)
 	rc.SetManagerPort(flags.managerPort)
 	rc.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
 	rc.SetAdminConsolePort(flags.adminConsolePort)
-
-	os.Setenv("KUBECONFIG", rc.PathToKubeConfig()) // this is needed for restore as well since it shares this function
-	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
-
-	hostCABundlePath, err := findHostCABundle()
-	if err != nil {
-		return fmt.Errorf("unable to find host CA bundle: %w", err)
-	}
 	rc.SetHostCABundlePath(hostCABundlePath)
-	logrus.Debugf("using host CA bundle: %s", hostCABundlePath)
+
+	rc.SetEnv()
 
 	if err := rc.WriteToDisk(); err != nil {
 		return fmt.Errorf("unable to write runtime config to disk: %w", err)
@@ -465,7 +465,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	in, err := recordInstallation(ctx, kcli, flags, rc, k0sCfg, flags.license)
+	in, err := recordInstallation(ctx, kcli, flags, rc, k0sCfg)
 	if err != nil {
 		return fmt.Errorf("unable to record installation: %w", err)
 	}
@@ -473,8 +473,6 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	if err := createVersionMetadataConfigmap(ctx, kcli); err != nil {
 		return fmt.Errorf("unable to create version metadata configmap: %w", err)
 	}
-
-	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("adding insecure registry")
 	registryIP, err := registry.GetRegistryClusterIP(flags.cidrCfg.ServiceCIDR)
@@ -485,23 +483,19 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		return fmt.Errorf("unable to add insecure registry: %w", err)
 	}
 
-	var embCfgSpec *ecv1beta1.ConfigSpec
-	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
-		embCfgSpec = &embCfg.Spec
-	}
-
-	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	installOpts, err := getAddonInstallOpts(flags)
 	if err != nil {
-		return fmt.Errorf("unable to process overrides file: %w", err)
-	}
-	var euCfgSpec *ecv1beta1.ConfigSpec
-	if euCfg != nil {
-		euCfgSpec = &euCfg.Spec
+		return fmt.Errorf("unable to get addon install options: %w", err)
 	}
 
 	airgapChartsPath := ""
 	if flags.isAirgap {
 		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
+	}
+
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		return fmt.Errorf("unable to create metadata client: %w", err)
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
@@ -514,34 +508,12 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	}
 	defer hcli.Close()
 
+	clients := addonstypes.NewClients(kcli, mcli, hcli)
+
+	// TODO (@salah): update installation status to reflect what's happening
+
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, hcli, rc, addons.InstallOptions{
-		AdminConsolePwd:         flags.adminConsolePassword,
-		License:                 flags.license,
-		IsAirgap:                flags.airgapBundle != "",
-		Proxy:                   flags.proxy,
-		HostCABundlePath:        rc.HostCABundlePath(),
-		TLSCertBytes:            flags.tlsCertBytes,
-		TLSKeyBytes:             flags.tlsKeyBytes,
-		Hostname:                flags.hostname,
-		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
-		DisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
-		IsMultiNodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
-		EmbeddedConfigSpec:      embCfgSpec,
-		EndUserConfigSpec:       euCfgSpec,
-		KotsInstaller: func(msg *spinner.MessageWriter) error {
-			opts := kotscli.InstallOptions{
-				RuntimeConfig:         rc,
-				AppSlug:               flags.license.Spec.AppSlug,
-				LicenseFile:           flags.licenseFile,
-				Namespace:             runtimeconfig.KotsadmNamespace,
-				AirgapBundle:          flags.airgapBundle,
-				ConfigValuesFile:      flags.configValues,
-				ReplicatedAppEndpoint: replicatedAppURL(),
-			}
-			return kotscli.Install(opts, msg)
-		},
-	}); err != nil {
+	if err := addons.Install(ctx, logrus.Debugf, clients, in.Spec, *installOpts); err != nil {
 		return fmt.Errorf("unable to install addons: %w", err)
 	}
 
@@ -569,6 +541,37 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	}
 
 	return nil
+}
+
+func getAddonInstallOpts(flags InstallCmdFlags) (*addonstypes.InstallOptions, error) {
+	opts := addonstypes.InstallOptions{
+		AdminConsolePassword: flags.adminConsolePassword,
+		TLSCertBytes:         flags.tlsCertBytes,
+		TLSKeyBytes:          flags.tlsKeyBytes,
+		Hostname:             flags.hostname,
+	}
+
+	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return nil, fmt.Errorf("parse end user overrides: %w", err)
+	}
+	if euCfg != nil {
+		opts.EndUserConfigSpec = &euCfg.Spec
+	}
+
+	opts.KotsInstaller = func(msg *spinner.MessageWriter) error {
+		opts := kotscli.InstallOptions{
+			AppSlug:               flags.license.Spec.AppSlug,
+			LicenseFile:           flags.licenseFile,
+			Namespace:             runtimeconfig.KotsadmNamespace,
+			AirgapBundle:          flags.airgapBundle,
+			ConfigValuesFile:      flags.configValues,
+			ReplicatedAppEndpoint: replicatedAppURL(),
+		}
+		return kotscli.Install(opts, msg)
+	}
+
+	return &opts, nil
 }
 
 func runInstallVerifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt) error {
@@ -1153,20 +1156,9 @@ func waitForNode(ctx context.Context) error {
 	return nil
 }
 
-func recordInstallation(
-	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig,
-	k0sCfg *k0sv1beta1.ClusterConfig, license *kotsv1beta1.License,
+func newInstallationFromInstallFlags(
+	flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, k0sCfg *k0sv1beta1.ClusterConfig,
 ) (*ecv1beta1.Installation, error) {
-	// ensure that the embedded-cluster namespace exists
-	if err := createECNamespace(ctx, kcli); err != nil {
-		return nil, fmt.Errorf("create embedded-cluster namespace: %w", err)
-	}
-
-	// ensure that the installation CRD exists
-	if err := embeddedclusteroperator.EnsureInstallationCRD(ctx, kcli); err != nil {
-		return nil, fmt.Errorf("create installation CRD: %w", err)
-	}
-
 	cfg := release.GetEmbeddedClusterConfig()
 	var cfgspec *ecv1beta1.ConfigSpec
 	if cfg != nil {
@@ -1203,17 +1195,39 @@ func recordInstallation(
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                runtimeconfig.BinaryName(),
 			LicenseInfo: &ecv1beta1.LicenseInfo{
-				IsDisasterRecoverySupported: license.Spec.IsDisasterRecoverySupported,
-				IsMultiNodeEnabled:          license.Spec.IsEmbeddedClusterMultiNodeEnabled,
+				IsDisasterRecoverySupported: flags.license != nil && flags.license.Spec.IsDisasterRecoverySupported,
+				IsMultiNodeEnabled:          flags.license != nil && flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 			},
 		},
 	}
+	return installation, nil
+}
+
+func recordInstallation(
+	ctx context.Context, kcli client.Client,
+	flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, k0sCfg *k0sv1beta1.ClusterConfig,
+) (*ecv1beta1.Installation, error) {
+	// ensure that the embedded-cluster namespace exists
+	if err := createECNamespace(ctx, kcli); err != nil {
+		return nil, fmt.Errorf("create embedded-cluster namespace: %w", err)
+	}
+
+	// ensure that the installation CRD exists
+	if err := embeddedclusteroperator.EnsureInstallationCRD(ctx, kcli); err != nil {
+		return nil, fmt.Errorf("create installation CRD: %w", err)
+	}
+
+	installation, err := newInstallationFromInstallFlags(flags, rc, k0sCfg)
+	if err != nil {
+		return nil, fmt.Errorf("new installation: %w", err)
+	}
+
 	if err := kubeutils.CreateInstallation(ctx, kcli, installation); err != nil {
 		return nil, fmt.Errorf("create installation: %w", err)
 	}
 
 	// the kubernetes api does not allow us to set the state of an object when creating it
-	err := kubeutils.SetInstallationState(ctx, kcli, installation, ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed")
+	err = kubeutils.SetInstallationState(ctx, kcli, installation, ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed")
 	if err != nil {
 		return nil, fmt.Errorf("set installation state to KubernetesInstalled: %w", err)
 	}

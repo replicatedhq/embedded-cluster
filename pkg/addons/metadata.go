@@ -44,7 +44,7 @@ func GenerateChartConfigs() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) 
 	repositories := []k0sv1beta1.Repository{}
 
 	// openebs
-	chart, repos, err := openebs.GenerateChartConfig()
+	chart, repos, err := openebs.GenerateChartConfig(ecv1beta1.Domains{})
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "generate chart config for openebs")
 	}

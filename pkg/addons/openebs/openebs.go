@@ -2,45 +2,43 @@ package openebs
 
 import (
 	_ "embed"
+	"log/slog"
 	"strings"
 
-	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"gopkg.in/yaml.v3"
 )
-
-var _ types.AddOn = (*OpenEBS)(nil)
-
-type OpenEBS struct {
-	ProxyRegistryDomain string
-}
 
 const (
 	releaseName = "openebs"
 	namespace   = "openebs"
 )
 
-var (
-	//go:embed static/values.tpl.yaml
-	rawvalues []byte
-	// helmValues is the unmarshal version of rawvalues.
-	helmValues map[string]interface{}
-	//go:embed static/metadata.yaml
-	rawmetadata []byte
-	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.AddonMetadata
-)
+var _ types.AddOn = (*OpenEBS)(nil)
 
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal metadata"))
+type OpenEBS struct {
+	logf types.LogFunc
+
+	dryRunManifests [][]byte
+}
+
+type Option func(*OpenEBS)
+
+func New(opts ...Option) *OpenEBS {
+	addon := &OpenEBS{}
+	for _, opt := range opts {
+		opt(addon)
 	}
-	hv, err := release.RenderHelmValues(rawvalues, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal values"))
+	if addon.logf == nil {
+		addon.logf = slog.Info
 	}
-	helmValues = hv
+	return addon
+}
+
+func WithLogFunc(logf types.LogFunc) Option {
+	return func(a *OpenEBS) {
+		a.logf = logf
+	}
 }
 
 func (o *OpenEBS) Name() string {
@@ -59,9 +57,9 @@ func (o *OpenEBS) Namespace() string {
 	return namespace
 }
 
-func (o *OpenEBS) ChartLocation() string {
-	if o.ProxyRegistryDomain == "" {
+func (o *OpenEBS) ChartLocation(domains ecv1beta1.Domains) string {
+	if domains.ProxyRegistryDomain == "" {
 		return Metadata.Location
 	}
-	return strings.Replace(Metadata.Location, "proxy.replicated.com", o.ProxyRegistryDomain, 1)
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 }

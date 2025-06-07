@@ -31,6 +31,7 @@ func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Comma
 			if err != nil {
 				return fmt.Errorf("failed to get runtime config from cluster: %w", err)
 			}
+			rc.SetEnv()
 
 			return nil
 		},

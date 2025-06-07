@@ -2,21 +2,53 @@ package registry
 
 import (
 	"context"
+	_ "embed"
 	"strings"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	k8stypes "k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"gopkg.in/yaml.v3"
 )
 
-func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, overrides []string) (map[string]interface{}, error) {
+var (
+	//go:embed static/values.tpl.yaml
+	rawvalues []byte
+	// helmValues is the unmarshal version of rawvalues.
+	helmValues map[string]interface{}
+	//go:embed static/values-ha.tpl.yaml
+	rawvaluesha []byte
+	// helmValuesHA is the unmarshal version of rawvaluesha.
+	helmValuesHA map[string]interface{}
+)
+
+func init() {
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(errors.Wrap(err, "unable to unmarshal metadata"))
+	}
+
+	hv, err := release.RenderHelmValues(rawvalues, Metadata)
+	if err != nil {
+		panic(errors.Wrap(err, "unable to unmarshal values"))
+	}
+	helmValues = hv
+
+	hvHA, err := release.RenderHelmValues(rawvaluesha, Metadata)
+	if err != nil {
+		panic(errors.Wrap(err, "unable to unmarshal ha values"))
+	}
+	helmValuesHA = hvHA
+}
+
+func (r *Registry) GenerateHelmValues(ctx context.Context, inSpec ecv1beta1.InstallationSpec, overrides []string) (map[string]interface{}, error) {
+	domains := runtimeconfig.GetDomains(inSpec.Config)
+
 	var values map[string]interface{}
-	if r.IsHA {
+	if inSpec.HighAvailability {
 		values = helmValuesHA
 	} else {
 		values = helmValues
@@ -29,8 +61,8 @@ func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, r
 	}
 
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
-	if r.ProxyRegistryDomain != "" {
-		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", r.ProxyRegistryDomain)
+	if domains.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", domains.ProxyRegistryDomain)
 	}
 
 	copiedValues, err := helm.UnmarshalValues(marshalled)
@@ -38,18 +70,18 @@ func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, r
 		return nil, errors.Wrap(err, "unmarshal helm values")
 	}
 
-	// only add tls secret value if the secret exists
-	// this is for backwards compatibility when the registry was deployed without TLS
-	var secret corev1.Secret
-	if err := kcli.Get(ctx, k8stypes.NamespacedName{Namespace: namespace, Name: tlsSecretName}, &secret); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return nil, errors.Wrap(err, "get tls secret")
-		}
+	var serviceCIDR string
+	if inSpec.Network != nil && inSpec.Network.ServiceCIDR != "" {
+		serviceCIDR = inSpec.Network.ServiceCIDR
 	} else {
-		copiedValues["tlsSecretName"] = tlsSecretName
+		var err error
+		_, serviceCIDR, err = netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
+		if err != nil {
+			return nil, errors.Wrap(err, "split default network CIDR")
+		}
 	}
 
-	registryIP, err := GetRegistryClusterIP(r.ServiceCIDR)
+	registryIP, err := GetRegistryClusterIP(serviceCIDR)
 	if err != nil {
 		return nil, errors.Wrap(err, "get registry cluster IP")
 	}
@@ -57,8 +89,8 @@ func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, r
 		"clusterIP": registryIP,
 	}
 
-	if r.IsHA {
-		seaweedFSEndpoint, err := seaweedfs.GetS3Endpoint(r.ServiceCIDR)
+	if inSpec.HighAvailability {
+		seaweedFSEndpoint, err := seaweedfs.GetS3Endpoint(serviceCIDR)
 		if err != nil {
 			return nil, errors.Wrap(err, "get seaweedfs s3 endpoint")
 		}

@@ -31,6 +31,21 @@ func (m *MockRuntimeConfig) Cleanup() {
 	m.Called()
 }
 
+// SetEnv mocks the SetEnv method
+func (m *MockRuntimeConfig) SetEnv() {
+	m.Called()
+}
+
+// SetEnvTmpDir mocks the SetEnvTmpDir method
+func (m *MockRuntimeConfig) SetEnvTmpDir() {
+	m.Called()
+}
+
+// SetEnvKubeConfig mocks the SetEnvKubeConfig method
+func (m *MockRuntimeConfig) SetEnvKubeConfig(isWorker bool) {
+	m.Called(isWorker)
+}
+
 // EmbeddedClusterHomeDirectory mocks the EmbeddedClusterHomeDirectory method
 func (m *MockRuntimeConfig) EmbeddedClusterHomeDirectory() string {
 	args := m.Called()

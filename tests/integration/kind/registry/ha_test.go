@@ -20,7 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -29,8 +29,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/metadata"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestRegistry_EnableHAAirgap(t *testing.T) {
@@ -65,43 +63,60 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 	kubeconfig := util.SetupKindClusterFromConfig(t, kindConfig)
 
-	kcli := util.CtrlClient(t, kubeconfig)
-	mcli := util.MetadataClient(t, kubeconfig)
-	kclient := util.KubeClient(t, kubeconfig)
-	hcli := util.HelmClient(t, kubeconfig)
+	inSpec := ecv1beta1.InstallationSpec{
+		AirGap:           true,
+		HighAvailability: false,
+		Config: &ecv1beta1.ConfigSpec{
+			Domains: ecv1beta1.Domains{
+				ProxyRegistryDomain: "proxy.replicated.com",
+			},
+		},
+		Network: &ecv1beta1.NetworkSpec{
+			ServiceCIDR: "10.96.0.0/12",
+		},
+		RuntimeConfig: runtimeconfig.New(nil).Get(),
+	}
 
-	rc := runtimeconfig.New(nil)
+	clients := addonstypes.NewClients(
+		util.CtrlClient(t, kubeconfig),
+		util.MetadataClient(t, kubeconfig),
+		util.HelmClient(t, kubeconfig),
+	)
+
+	kclient := util.KubeClient(t, kubeconfig)
 
 	t.Logf("%s installing openebs", formattedTime())
-	addon := &openebs.OpenEBS{
-		ProxyRegistryDomain: "proxy.replicated.com",
-	}
-	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, nil, nil); err != nil {
-		t.Fatalf("failed to install openebs: %v", err)
-	}
+	addon := openebs.New(
+		openebs.WithLogFunc(t.Logf),
+	)
+	require.NoError(t,
+		addon.Install(ctx, clients, nil, inSpec, nil, addonstypes.InstallOptions{}),
+		"failed to install openebs",
+	)
 
 	t.Logf("%s waiting for storageclass", formattedTime())
 	util.WaitForStorageClass(t, kubeconfig, "openebs-hostpath", 30*time.Second)
 
 	t.Logf("%s installing registry", formattedTime())
-	registryAddon := &registry.Registry{
-		ServiceCIDR:         "10.96.0.0/12",
-		ProxyRegistryDomain: "proxy.replicated.com",
-		IsHA:                false,
-	}
-	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, nil, nil))
+	registryAddon := registry.New(
+		registry.WithLogFunc(t.Logf),
+	)
+	require.NoError(t,
+		registryAddon.Install(ctx, clients, nil, inSpec, nil, addonstypes.InstallOptions{}),
+		"failed to install registry",
+	)
 
 	t.Logf("%s creating hostport service", formattedTime())
 	registryAddr := createHostPortService(t, clusterName, kubeconfig)
 
 	t.Logf("%s installing admin console", formattedTime())
-	adminConsoleAddon := &adminconsole.AdminConsole{
-		IsAirgap:            true,
-		ServiceCIDR:         "10.96.0.0/12",
-		ProxyRegistryDomain: "proxy.replicated.com",
-		IsHA:                false,
-	}
-	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, nil, nil))
+	adminConsoleAddon := adminconsole.New(
+		adminconsole.WithLogFunc(t.Logf),
+	)
+	require.NoError(t,
+		adminConsoleAddon.Install(ctx, clients, nil, inSpec, nil, addonstypes.InstallOptions{}),
+		"failed to install admin console",
+	)
 
 	t.Logf("%s pushing image to registry", formattedTime())
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")
@@ -110,32 +125,23 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	runPodAndValidateImagePull(t, kubeconfig, "pod-1", "pod1.yaml")
 
 	t.Logf("%s creating installation with HA disabled", formattedTime())
-	util.EnsureInstallation(t, kcli, ecv1beta1.InstallationSpec{
+	util.EnsureInstallation(t, clients.K8sClient, ecv1beta1.InstallationSpec{
 		HighAvailability: false,
 	})
 
-	inSpec := ecv1beta1.InstallationSpec{
-		AirGap: true,
-		Config: &ecv1beta1.ConfigSpec{
-			Domains: ecv1beta1.Domains{
-				ProxyRegistryDomain: "proxy.replicated.com",
-			},
-		},
-	}
-
-	enableHAAndCancelContextOnMessage(t, kcli, mcli, kclient, hcli, rc, inSpec,
+	enableHAAndCancelContextOnMessage(t, clients, kclient, inSpec,
 		regexp.MustCompile(`StatefulSet is ready: seaweedfs`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, kcli, mcli, kclient, hcli, rc, inSpec,
+	enableHAAndCancelContextOnMessage(t, clients, kclient, inSpec,
 		regexp.MustCompile(`Migrating data for high availability \(`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, kcli, mcli, kclient, hcli, rc, inSpec,
+	enableHAAndCancelContextOnMessage(t, clients, kclient, inSpec,
 		regexp.MustCompile(`Updating the Admin Console for high availability`),
 	)
 
-	canEnable, reason, err := addons.CanEnableHA(t.Context(), kcli)
+	canEnable, reason, err := addons.CanEnableHA(t.Context(), clients.K8sClient)
 	require.NoError(t, err)
 	require.True(t, canEnable, "should be able to enable HA: %s", reason)
 
@@ -143,7 +149,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	loading := newTestingSpinner(t)
 	func() {
 		defer loading.Close()
-		err = addons.EnableHA(ctx, t.Logf, kcli, mcli, kclient, hcli, rc, "10.96.0.0/12", inSpec, loading)
+		err = addons.EnableHA(ctx, t.Logf, clients, kclient, inSpec, loading)
 		require.NoError(t, err)
 	}()
 
@@ -158,11 +164,12 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 }
 
 func enableHAAndCancelContextOnMessage(
-	t *testing.T, kcli client.Client, mcli metadata.Interface, kclient kubernetes.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig,
+	t *testing.T,
+	clients addonstypes.Clients, kclient kubernetes.Interface,
 	inSpec ecv1beta1.InstallationSpec,
 	re *regexp.Regexp,
 ) {
-	canEnable, reason, err := addons.CanEnableHA(t.Context(), kcli)
+	canEnable, reason, err := addons.CanEnableHA(t.Context(), clients.K8sClient)
 	require.NoError(t, err)
 	require.True(t, canEnable, "should be able to enable HA: %s", reason)
 
@@ -205,7 +212,7 @@ func enableHAAndCancelContextOnMessage(
 	defer loading.Close()
 
 	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
-	err = addons.EnableHA(ctx, t.Logf, kcli, mcli, kclient, hcli, rc, "10.96.0.0/12", inSpec, loading)
+	err = addons.EnableHA(ctx, t.Logf, clients, kclient, inSpec, loading)
 	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
 	t.Logf("%s cancelled context and got error: %v", formattedTime(), err)
 }

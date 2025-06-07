@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -29,9 +30,7 @@ func EnableHACmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
-
-			os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+			rc.SetEnv()
 
 			return nil
 		},
@@ -98,5 +97,7 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addons.EnableHA(ctx, logrus.Debugf, kcli, mcli, kclient, hcli, rc, in.Spec.Network.ServiceCIDR, in.Spec, loading)
+	clients := addonstypes.NewClients(kcli, mcli, hcli)
+
+	return addons.EnableHA(ctx, logrus.Debugf, clients, kclient, in.Spec, loading)
 }

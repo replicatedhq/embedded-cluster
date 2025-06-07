@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util/kind"
@@ -30,14 +32,25 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 	rc := runtimeconfig.New(nil)
 	rc.SetDataDir("/custom")
 
-	kcli := util.CtrlClient(t, kubeconfig)
-	mcli := util.MetadataClient(t, kubeconfig)
-	hcli := util.HelmClient(t, kubeconfig)
-
-	addon := &openebs.OpenEBS{
-		ProxyRegistryDomain: "proxy.replicated.com",
+	inSpec := ecv1beta1.InstallationSpec{
+		Config: &ecv1beta1.ConfigSpec{
+			Domains: ecv1beta1.Domains{
+				ProxyRegistryDomain: "proxy.replicated.com",
+			},
+		},
+		RuntimeConfig: rc.Get(),
 	}
-	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, rc, nil, nil); err != nil {
+
+	clients := addonstypes.NewClients(
+		util.CtrlClient(t, kubeconfig),
+		util.MetadataClient(t, kubeconfig),
+		util.HelmClient(t, kubeconfig),
+	)
+
+	addon := openebs.New(
+		openebs.WithLogFunc(t.Logf),
+	)
+	if err := addon.Install(t.Context(), clients, nil, inSpec, nil, addonstypes.InstallOptions{}); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 

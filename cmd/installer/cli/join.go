@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -215,7 +216,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, rc runtimecon
 		return nil
 	}
 
-	if err := maybeEnableHA(ctx, kcli, mcli, flags, rc, cidrCfg.ServiceCIDR, jcmd); err != nil {
+	if err := maybeEnableHA(ctx, kcli, mcli, flags, rc, jcmd); err != nil {
 		return fmt.Errorf("unable to enable high availability: %w", err)
 	}
 
@@ -231,13 +232,10 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, rc runtimeconfig.Ru
 	}
 
 	rc.Set(jcmd.InstallationSpec.RuntimeConfig)
+
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
-	if isWorker {
-		os.Setenv("KUBECONFIG", rc.PathToKubeletConfig())
-	} else {
-		os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-	}
-	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+	rc.SetEnvKubeConfig(isWorker)
+	rc.SetEnvTmpDir()
 
 	if err := rc.WriteToDisk(); err != nil {
 		return fmt.Errorf("unable to write runtime config: %w", err)
@@ -573,7 +571,7 @@ func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string,
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interface, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, serviceCIDR string, jcmd *join.JoinCommandResponse) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interface, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
 	if flags.noHA {
 		logrus.Debug("--no-ha flag provided, skipping high availability")
 		return nil
@@ -631,15 +629,13 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 	loading := spinner.Start()
 	defer loading.Close()
 
+	clients := addonstypes.NewClients(kcli, mcli, hcli)
+
 	return addons.EnableHA(
 		ctx,
 		logrus.Debugf,
-		kcli,
-		mcli,
+		clients,
 		kclient,
-		hcli,
-		rc,
-		serviceCIDR,
 		jcmd.InstallationSpec,
 		loading,
 	)

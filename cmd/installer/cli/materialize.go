@@ -25,7 +25,7 @@ func MaterializeCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			rc.SetDataDir(dataDir)
-			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+			rc.SetEnvTmpDir()
 
 			return nil
 		},

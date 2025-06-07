@@ -4,40 +4,41 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
-	"k8s.io/client-go/metadata"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (o *OpenEBS) Upgrade(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, overrides []string) error {
-	exists, err := hcli.ReleaseExists(ctx, namespace, releaseName)
+func (o *OpenEBS) Upgrade(ctx context.Context, clients types.Clients, inSpec ecv1beta1.InstallationSpec, overrides []string) error {
+	exists, err := clients.HelmClient.ReleaseExists(ctx, o.Namespace(), releaseName)
 	if err != nil {
 		return errors.Wrap(err, "check if release exists")
 	}
 	if !exists {
-		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, namespace)
-		if err := o.Install(ctx, logf, kcli, mcli, hcli, rc, overrides, nil); err != nil {
+		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, o.Namespace())
+		if err := o.Install(ctx, clients, nil, inSpec, overrides, types.InstallOptions{}); err != nil {
 			return errors.Wrap(err, "install")
 		}
 		return nil
 	}
 
-	values, err := o.GenerateHelmValues(ctx, kcli, rc, overrides)
+	values, err := o.GenerateHelmValues(ctx, inSpec, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
+	helmOpts := helm.UpgradeOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    o.ChartLocation(),
+		ChartPath:    o.ChartLocation(runtimeconfig.GetDomains(inSpec.Config)),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    o.Namespace(),
 		Force:        false,
-	})
+	}
+
+	_, err = clients.HelmClient.Upgrade(ctx, helmOpts)
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")
 	}

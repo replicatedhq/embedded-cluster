@@ -4,19 +4,24 @@ import (
 	"context"
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
-	v := &Velero{
-		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
+	rc := runtimeconfig.New(nil)
+	rc.SetDataDir(t.TempDir())
+	rc.SetHostCABundlePath("/etc/ssl/certs/ca-certificates.crt")
+
+	inSpec := ecv1beta1.InstallationSpec{
+		RuntimeConfig: rc.Get(),
 	}
 
-	rc := runtimeconfig.New(nil)
+	addon := &Velero{}
 
-	values, err := v.GenerateHelmValues(context.Background(), nil, rc, nil)
+	values, err := addon.GenerateHelmValues(context.Background(), inSpec, nil)
 	require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 	require.NotEmpty(t, values["extraVolumes"])
