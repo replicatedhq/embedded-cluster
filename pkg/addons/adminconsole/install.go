@@ -8,10 +8,13 @@ import (
 	"io/fs"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
@@ -33,42 +36,45 @@ func init() {
 	})
 }
 
-func (a *AdminConsole) Install(ctx context.Context, writer *spinner.MessageWriter, opts types.InstallOptions, overrides []string) error {
+func (a *AdminConsole) Install(
+	ctx context.Context, clients types.Clients, writer *spinner.MessageWriter,
+	inSpec ecv1beta1.InstallationSpec, overrides []string, installOpts types.InstallOptions,
+) error {
 	// some resources are not part of the helm chart and need to be created before the chart is installed
 	// TODO: move this to the helm chart
-	if err := a.createPreRequisites(ctx, opts); err != nil {
+	if err := a.createPreRequisites(ctx, clients, inSpec, installOpts); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := a.GenerateHelmValues(ctx, opts, overrides)
+	values, err := a.GenerateHelmValues(ctx, inSpec, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
 	helmOpts := helm.InstallOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    a.ChartLocation(opts.Domains),
+		ChartPath:    a.ChartLocation(runtimeconfig.GetDomains(inSpec.Config)),
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    a.Namespace(),
 		Labels:       getBackupLabels(),
 	}
 
-	if opts.IsDryRun {
-		manifests, err := a.hcli.Render(ctx, helmOpts)
+	if clients.IsDryRun {
+		manifests, err := clients.HelmClient.Render(ctx, helmOpts)
 		if err != nil {
 			return errors.Wrap(err, "dry run render")
 		}
 		a.dryRunManifests = append(a.dryRunManifests, manifests...)
 	} else {
-		_, err = a.hcli.Install(ctx, helmOpts)
+		_, err = clients.HelmClient.Install(ctx, helmOpts)
 		if err != nil {
 			return errors.Wrap(err, "helm install")
 		}
 
 		// install the application
-		if opts.KotsInstaller != nil {
-			err := opts.KotsInstaller(writer)
+		if installOpts.KotsInstaller != nil {
+			err := installOpts.KotsInstaller(writer)
 			if err != nil {
 				return err
 			}
@@ -78,29 +84,40 @@ func (a *AdminConsole) Install(ctx context.Context, writer *spinner.MessageWrite
 	return nil
 }
 
-func (a *AdminConsole) createPreRequisites(ctx context.Context, opts types.InstallOptions) error {
-	if err := a.createNamespace(ctx, opts); err != nil {
+func (a *AdminConsole) createPreRequisites(ctx context.Context, clients types.Clients, inSpec ecv1beta1.InstallationSpec, installOpts types.InstallOptions) error {
+	if err := a.createNamespace(ctx, clients); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
 
-	if err := a.createPasswordSecret(ctx, opts); err != nil {
+	if err := a.createPasswordSecret(ctx, clients, installOpts); err != nil {
 		return errors.Wrap(err, "create kots password secret")
 	}
 
-	if err := a.createTLSSecret(ctx, opts); err != nil {
+	if err := a.createTLSSecret(ctx, clients, installOpts); err != nil {
 		return errors.Wrap(err, "create kots TLS secret")
 	}
 
-	if err := a.ensureCAConfigmap(ctx, opts); err != nil {
+	if err := a.ensureCAConfigmap(ctx, clients, inSpec); err != nil {
 		return errors.Wrap(err, "ensure CA configmap")
 	}
 
-	if opts.IsAirgap {
-		registryIP, err := registry.GetRegistryClusterIP(opts.ServiceCIDR)
+	if inSpec.AirGap {
+		var serviceCIDR string
+		if inSpec.Network != nil && inSpec.Network.ServiceCIDR != "" {
+			serviceCIDR = inSpec.Network.ServiceCIDR
+		} else {
+			var err error
+			_, serviceCIDR, err = netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
+			if err != nil {
+				return fmt.Errorf("split default network CIDR: %w", err)
+			}
+		}
+
+		registryIP, err := registry.GetRegistryClusterIP(serviceCIDR)
 		if err != nil {
 			return errors.Wrap(err, "get registry cluster IP")
 		}
-		if err := a.createRegistrySecret(ctx, opts, registryIP); err != nil {
+		if err := a.createRegistrySecret(ctx, clients, registryIP); err != nil {
 			return errors.Wrap(err, "create registry secret")
 		}
 	}
@@ -108,29 +125,29 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, opts types.Insta
 	return nil
 }
 
-func (a *AdminConsole) createNamespace(ctx context.Context, opts types.InstallOptions) error {
+func (a *AdminConsole) createNamespace(ctx context.Context, clients types.Clients) error {
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: a.Namespace(),
 		},
 	}
 
-	if opts.IsDryRun {
+	if clients.IsDryRun {
 		b := bytes.NewBuffer(nil)
 		if err := serializer.Encode(&ns, b); err != nil {
 			return errors.Wrap(err, "serialize namespace")
 		}
 		a.dryRunManifests = append(a.dryRunManifests, b.Bytes())
 	} else {
-		if err := a.kcli.Create(ctx, &ns); client.IgnoreAlreadyExists(err) != nil {
+		if err := clients.K8sClient.Create(ctx, &ns); client.IgnoreAlreadyExists(err) != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (a *AdminConsole) createPasswordSecret(ctx context.Context, opts types.InstallOptions) error {
-	passwordBcrypt, err := bcrypt.GenerateFromPassword([]byte(opts.AdminConsolePassword), 10)
+func (a *AdminConsole) createPasswordSecret(ctx context.Context, clients types.Clients, installOpts types.InstallOptions) error {
+	passwordBcrypt, err := bcrypt.GenerateFromPassword([]byte(installOpts.AdminConsolePassword), 10)
 	if err != nil {
 		return errors.Wrap(err, "generate bcrypt from password")
 	}
@@ -154,14 +171,14 @@ func (a *AdminConsole) createPasswordSecret(ctx context.Context, opts types.Inst
 		},
 	}
 
-	if opts.IsDryRun {
+	if clients.IsDryRun {
 		b := bytes.NewBuffer(nil)
 		if err := serializer.Encode(&kotsPasswordSecret, b); err != nil {
 			return errors.Wrap(err, "serialize password secret")
 		}
 		a.dryRunManifests = append(a.dryRunManifests, b.Bytes())
 	} else {
-		err = a.kcli.Create(ctx, &kotsPasswordSecret)
+		err = clients.K8sClient.Create(ctx, &kotsPasswordSecret)
 		if err != nil {
 			return errors.Wrap(err, "create kotsadm-password secret")
 		}
@@ -170,7 +187,7 @@ func (a *AdminConsole) createPasswordSecret(ctx context.Context, opts types.Inst
 	return nil
 }
 
-func (a *AdminConsole) createRegistrySecret(ctx context.Context, opts types.InstallOptions, registryIP string) error {
+func (a *AdminConsole) createRegistrySecret(ctx context.Context, clients types.Clients, registryIP string) error {
 	authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
 	authConfig := fmt.Sprintf(`{"auths":{"%s:5000":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`, registryIP, registry.GetRegistryPassword(), authString)
 
@@ -194,14 +211,14 @@ func (a *AdminConsole) createRegistrySecret(ctx context.Context, opts types.Inst
 		Type: "kubernetes.io/dockerconfigjson",
 	}
 
-	if opts.IsDryRun {
+	if clients.IsDryRun {
 		b := bytes.NewBuffer(nil)
 		if err := serializer.Encode(&registryCreds, b); err != nil {
 			return errors.Wrap(err, "serialize registry secret")
 		}
 		a.dryRunManifests = append(a.dryRunManifests, b.Bytes())
 	} else {
-		err := a.kcli.Create(ctx, &registryCreds)
+		err := clients.K8sClient.Create(ctx, &registryCreds)
 		if err != nil {
 			return errors.Wrap(err, "create registry-auth secret")
 		}
@@ -210,8 +227,8 @@ func (a *AdminConsole) createRegistrySecret(ctx context.Context, opts types.Inst
 	return nil
 }
 
-func (a *AdminConsole) createTLSSecret(ctx context.Context, opts types.InstallOptions) error {
-	if len(opts.TLSCertBytes) == 0 || len(opts.TLSKeyBytes) == 0 {
+func (a *AdminConsole) createTLSSecret(ctx context.Context, clients types.Clients, installOpts types.InstallOptions) error {
+	if len(installOpts.TLSCertBytes) == 0 || len(installOpts.TLSKeyBytes) == 0 {
 		return nil
 	}
 
@@ -234,22 +251,22 @@ func (a *AdminConsole) createTLSSecret(ctx context.Context, opts types.InstallOp
 		},
 		Type: "kubernetes.io/tls",
 		Data: map[string][]byte{
-			"tls.crt": opts.TLSCertBytes,
-			"tls.key": opts.TLSKeyBytes,
+			"tls.crt": installOpts.TLSCertBytes,
+			"tls.key": installOpts.TLSKeyBytes,
 		},
 		StringData: map[string]string{
-			"hostname": opts.Hostname,
+			"hostname": installOpts.Hostname,
 		},
 	}
 
-	if opts.IsDryRun {
+	if clients.IsDryRun {
 		b := bytes.NewBuffer(nil)
 		if err := serializer.Encode(secret, b); err != nil {
 			return errors.Wrap(err, "serialize TLS secret")
 		}
 		a.dryRunManifests = append(a.dryRunManifests, b.Bytes())
 	} else {
-		err := a.kcli.Create(ctx, secret)
+		err := clients.K8sClient.Create(ctx, secret)
 		if err != nil {
 			return errors.Wrap(err, "create kotsadm-tls secret")
 		}
@@ -258,17 +275,19 @@ func (a *AdminConsole) createTLSSecret(ctx context.Context, opts types.InstallOp
 	return nil
 }
 
-func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, opts types.InstallOptions) error {
-	if a.runtimeConfig.HostCABundlePath() == "" {
+func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, clients types.Clients, inSpec ecv1beta1.InstallationSpec) error {
+	rc := runtimeconfig.New(inSpec.RuntimeConfig)
+
+	if rc.HostCABundlePath() == "" {
 		return nil
 	}
 
-	if opts.IsDryRun {
-		checksum, err := calculateFileChecksum(a.runtimeConfig.HostCABundlePath())
+	if clients.IsDryRun {
+		checksum, err := calculateFileChecksum(rc.HostCABundlePath())
 		if err != nil {
 			return fmt.Errorf("calculate checksum: %w", err)
 		}
-		new, err := newCAConfigMap(a.runtimeConfig.HostCABundlePath(), checksum)
+		new, err := newCAConfigMap(rc.HostCABundlePath(), checksum)
 		if err != nil {
 			return fmt.Errorf("create map: %w", err)
 		}
@@ -280,7 +299,7 @@ func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, opts types.Install
 		return nil
 	}
 
-	err := EnsureCAConfigmap(ctx, a.logf, a.kcli, a.mcli, a.runtimeConfig.HostCABundlePath())
+	err := EnsureCAConfigmap(ctx, a.logf, clients.K8sClient, clients.MetadataClient, rc.HostCABundlePath())
 
 	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
 		// This can result in issues installing in environments with a MITM HTTP proxy.

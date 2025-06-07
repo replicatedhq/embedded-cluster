@@ -4,39 +4,41 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 )
 
-func (v *Velero) Upgrade(ctx context.Context, opts types.InstallOptions, overrides []string) error {
-	exists, err := v.hcli.ReleaseExists(ctx, v.Namespace(), releaseName)
+func (v *Velero) Upgrade(ctx context.Context, clients types.Clients, inSpec ecv1beta1.InstallationSpec, overrides []string) error {
+	exists, err := clients.HelmClient.ReleaseExists(ctx, v.Namespace(), releaseName)
 	if err != nil {
 		return errors.Wrap(err, "check if release exists")
 	}
 	if !exists {
 		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, v.Namespace())
-		if err := v.Install(ctx, nil, opts, overrides); err != nil {
+		if err := v.Install(ctx, clients, nil, inSpec, overrides, types.InstallOptions{}); err != nil {
 			return errors.Wrap(err, "install")
 		}
 		return nil
 	}
 
-	values, err := v.GenerateHelmValues(ctx, opts, overrides)
+	values, err := v.GenerateHelmValues(ctx, inSpec, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
 	helmOpts := helm.UpgradeOptions{
 		ReleaseName:  releaseName,
-		ChartPath:    v.ChartLocation(opts.Domains),
+		ChartPath:    v.ChartLocation(runtimeconfig.GetDomains(inSpec.Config)),
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    v.Namespace(),
 		Force:        false,
 	}
 
-	_, err = v.hcli.Upgrade(ctx, helmOpts)
+	_, err = clients.HelmClient.Upgrade(ctx, helmOpts)
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")
 	}

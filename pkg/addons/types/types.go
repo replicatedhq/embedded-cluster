@@ -4,7 +4,10 @@ import (
 	"context"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"k8s.io/client-go/metadata"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type LogFunc func(format string, args ...interface{})
@@ -14,37 +17,27 @@ type AddOn interface {
 	Version() string
 	ReleaseName() string
 	Namespace() string
-	GenerateHelmValues(ctx context.Context, opts InstallOptions, overrides []string) (map[string]interface{}, error)
-	Install(ctx context.Context, writer *spinner.MessageWriter, opts InstallOptions, overrides []string) error
+	GenerateHelmValues(ctx context.Context, inSpec ecv1beta1.InstallationSpec, overrides []string) (map[string]interface{}, error)
+	Install(ctx context.Context, clients Clients, writer *spinner.MessageWriter, inSpec ecv1beta1.InstallationSpec, overrides []string, installOpts InstallOptions) error
 	// TODO: message writer for enable HA
-	Upgrade(ctx context.Context, opts InstallOptions, overrides []string) error
+	Upgrade(ctx context.Context, clients Clients, inSpec ecv1beta1.InstallationSpec, overrides []string) error
+}
+
+type Clients struct {
+	K8sClient      client.Client
+	MetadataClient metadata.Interface
+	HelmClient     helm.Client
+	IsDryRun       bool
 }
 
 type InstallOptions struct {
-	ClusterID                 string
-	AdminConsolePassword      string
-	IsAirgap                  bool
-	IsHA                      bool
-	Proxy                     *ecv1beta1.ProxySpec
-	ServiceCIDR               string
-	IsDisasterRecoveryEnabled bool
-	IsMultiNodeEnabled        bool
-	EmbeddedConfigSpec        *ecv1beta1.ConfigSpec
-
-	// The following fields are from installation flags and are not used by restore or upgrade:
-	TLSCertBytes      []byte
-	TLSKeyBytes       []byte
-	Hostname          string
-	EndUserConfigSpec *ecv1beta1.ConfigSpec
-	Domains           ecv1beta1.Domains
-	KotsInstaller     KotsInstaller
-
-	IsRestore bool
-
-	// IsDryRun is a flag to enable dry-run mode.
-	// If true, Install and Upgrade will only render the helm template and additional manifests,
-	// but not install the release.
-	IsDryRun bool
+	AdminConsolePassword string
+	TLSCertBytes         []byte
+	TLSKeyBytes          []byte
+	Hostname             string
+	EndUserConfigSpec    *ecv1beta1.ConfigSpec
+	KotsInstaller        KotsInstaller
+	IsRestore            bool
 }
 
 type KotsInstaller func(msg *spinner.MessageWriter) error

@@ -36,15 +36,15 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		opts   types.InstallOptions
+		inSpec ecv1beta1.InstallationSpec
 		meta   *ectypes.ReleaseMetadata
 		verify func(t *testing.T, addons []types.AddOn, err error)
 	}{
 		{
 			name: "online installation",
-			opts: types.InstallOptions{
-				IsAirgap: false,
-				IsHA:     false,
+			inSpec: ecv1beta1.InstallationSpec{
+				AirGap:           false,
+				HighAvailability: false,
 			},
 			meta: meta,
 			verify: func(t *testing.T, addons []types.AddOn, err error) {
@@ -68,10 +68,12 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 		},
 		{
 			name: "airgap installation",
-			opts: types.InstallOptions{
-				IsAirgap:    true,
-				IsHA:        false,
-				ServiceCIDR: "10.96.0.0/12",
+			inSpec: ecv1beta1.InstallationSpec{
+				AirGap:           true,
+				HighAvailability: false,
+				Network: &ecv1beta1.NetworkSpec{
+					ServiceCIDR: "10.96.0.0/12",
+				},
 			},
 			meta: meta,
 			verify: func(t *testing.T, addons []types.AddOn, err error) {
@@ -98,11 +100,15 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 		},
 		{
 			name: "with disaster recovery",
-			opts: types.InstallOptions{
-				IsAirgap:                  false,
-				IsHA:                      false,
-				ServiceCIDR:               "10.96.0.0/12",
-				IsDisasterRecoveryEnabled: true,
+			inSpec: ecv1beta1.InstallationSpec{
+				AirGap:           false,
+				HighAvailability: false,
+				Network: &ecv1beta1.NetworkSpec{
+					ServiceCIDR: "10.96.0.0/12",
+				},
+				LicenseInfo: &ecv1beta1.LicenseInfo{
+					IsDisasterRecoverySupported: true,
+				},
 			},
 			meta: meta,
 			verify: func(t *testing.T, addons []types.AddOn, err error) {
@@ -129,11 +135,15 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 		},
 		{
 			name: "airgap HA with proxy and disaster recovery",
-			opts: types.InstallOptions{
-				IsAirgap:                  true,
-				IsHA:                      true,
-				ServiceCIDR:               "10.96.0.0/12",
-				IsDisasterRecoveryEnabled: true,
+			inSpec: ecv1beta1.InstallationSpec{
+				AirGap:           true,
+				HighAvailability: true,
+				Network: &ecv1beta1.NetworkSpec{
+					ServiceCIDR: "10.96.0.0/12",
+				},
+				LicenseInfo: &ecv1beta1.LicenseInfo{
+					IsDisasterRecoverySupported: true,
+				},
 				Proxy: &ecv1beta1.ProxySpec{
 					HTTPProxy:  "http://proxy.example.com",
 					HTTPSProxy: "https://proxy.example.com",
@@ -171,7 +181,10 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 		},
 		{
 			name: "invalid metadata - missing chart",
-			opts: types.InstallOptions{},
+			inSpec: ecv1beta1.InstallationSpec{
+				AirGap:           false,
+				HighAvailability: false,
+			},
 			meta: &ectypes.ReleaseMetadata{
 				Configs: ecv1beta1.Helm{
 					Charts: []ecv1beta1.Chart{},
@@ -185,7 +198,10 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 		},
 		{
 			name: "invalid metadata - missing images",
-			opts: types.InstallOptions{},
+			inSpec: ecv1beta1.InstallationSpec{
+				AirGap:           false,
+				HighAvailability: false,
+			},
 			meta: &ectypes.ReleaseMetadata{
 				Configs: meta.Configs,
 				Images:  []string{},
@@ -201,7 +217,9 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rc := runtimeconfig.New(nil)
 			rc.SetDataDir(t.TempDir())
-			addons, err := getAddOnsForUpgrade(nil, nil, nil, nil, rc, tt.meta, tt.opts)
+			tt.inSpec.RuntimeConfig = rc.Get()
+
+			addons, err := getAddOnsForUpgrade(nil, tt.inSpec, tt.meta)
 			tt.verify(t, addons, err)
 		})
 	}

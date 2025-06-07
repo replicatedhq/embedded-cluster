@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
@@ -179,15 +180,21 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 			rc.SetDataDir(t.TempDir())
 			rc.SetHostCABundlePath(tt.caPath)
 
+			clients := types.Clients{
+				K8sClient:      kcli,
+				MetadataClient: mcli,
+			}
+
+			inSpec := ecv1beta1.InstallationSpec{
+				RuntimeConfig: rc.Get(),
+			}
+
 			// Run test
 			addon := &AdminConsole{
-				logf:          t.Logf,
-				kcli:          kcli,
-				mcli:          mcli,
-				runtimeConfig: rc,
+				logf: t.Logf,
 			}
-			opts := types.InstallOptions{}
-			err = addon.ensureCAConfigmap(t.Context(), opts)
+
+			err = addon.ensureCAConfigmap(t.Context(), clients, inSpec)
 
 			// Check results
 			if tt.expectedErr {

@@ -24,25 +24,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return errors.Wrap(err, "create kube client")
-	}
-
-	mcli, err := kubeutils.MetadataClient()
-	if err != nil {
-		return errors.Wrap(err, "create metadata client")
-	}
-
-	opts := InstallOptionsFromInstallationSpec(in.Spec)
-
-	addons, err := getAddOnsForUpgrade(logf, hcli, kcli, mcli, rc, meta, opts)
+func Upgrade(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
+	addons, err := getAddOnsForUpgrade(logf, in.Spec, meta)
 	if err != nil {
 		return errors.Wrap(err, "get addons for upgrade")
 	}
+
+	clients := types.Clients{
+		K8sClient:      kcli,
+		MetadataClient: mcli,
+		HelmClient:     hcli,
+	}
+
 	for _, addon := range addons {
-		if err := upgradeAddOn(ctx, kcli, in, addon, opts); err != nil {
+		if err := upgradeAddOn(ctx, clients, in, addon); err != nil {
 			return errors.Wrapf(err, "addon %s", addon.Name())
 		}
 	}
@@ -50,12 +45,12 @@ func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 	return nil
 }
 
-func getAddOnsForUpgrade(logf types.LogFunc, hcli helm.Client, kcli client.Client, mcli metadata.Interface, rc runtimeconfig.RuntimeConfig, meta *ectypes.ReleaseMetadata, opts types.InstallOptions) ([]types.AddOn, error) {
+func getAddOnsForUpgrade(logf types.LogFunc, inSpec ecv1beta1.InstallationSpec, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
+	domains := runtimeconfig.GetDomains(inSpec.Config)
+
 	addOns := []types.AddOn{
 		openebs.New(
 			openebs.WithLogFunc(logf),
-			openebs.WithClients(kcli, mcli, hcli),
-			openebs.WithRuntimeConfig(rc),
 		),
 	}
 
@@ -67,15 +62,13 @@ func getAddOnsForUpgrade(logf types.LogFunc, hcli helm.Client, kcli client.Clien
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator chart location")
 	}
-	ecoImageRepo, ecoImageTag, ecoUtilsImage, err := operatorImages(meta.Images, opts.Domains.ProxyRegistryDomain)
+	ecoImageRepo, ecoImageTag, ecoUtilsImage, err := operatorImages(meta.Images, domains.ProxyRegistryDomain)
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator images")
 	}
 
 	ecAddOn := embeddedclusteroperator.New(
 		embeddedclusteroperator.WithLogFunc(logf),
-		embeddedclusteroperator.WithClients(kcli, mcli, hcli),
-		embeddedclusteroperator.WithRuntimeConfig(rc),
 	)
 	ecAddOn.ChartLocationOverride = ecoChartLocation
 	ecAddOn.ChartVersionOverride = ecoChartVersion
@@ -85,40 +78,32 @@ func getAddOnsForUpgrade(logf types.LogFunc, hcli helm.Client, kcli client.Clien
 
 	addOns = append(addOns, ecAddOn)
 
-	if opts.IsAirgap {
+	if inSpec.AirGap {
 		addOns = append(addOns, registry.New(
 			registry.WithLogFunc(logf),
-			registry.WithClients(kcli, mcli, hcli),
-			registry.WithRuntimeConfig(rc),
 		))
 
-		if opts.IsHA {
+		if inSpec.HighAvailability {
 			addOns = append(addOns, seaweedfs.New(
 				seaweedfs.WithLogFunc(logf),
-				seaweedfs.WithClients(kcli, mcli, hcli),
-				seaweedfs.WithRuntimeConfig(rc),
 			))
 		}
 	}
 
-	if opts.IsDisasterRecoveryEnabled {
+	if inSpec.LicenseInfo != nil && inSpec.LicenseInfo.IsDisasterRecoverySupported {
 		addOns = append(addOns, velero.New(
 			velero.WithLogFunc(logf),
-			velero.WithClients(kcli, mcli, hcli),
-			velero.WithRuntimeConfig(rc),
 		))
 	}
 
 	addOns = append(addOns, adminconsole.New(
 		adminconsole.WithLogFunc(logf),
-		adminconsole.WithClients(kcli, mcli, hcli),
-		adminconsole.WithRuntimeConfig(rc),
 	))
 
 	return addOns, nil
 }
 
-func upgradeAddOn(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, addon types.AddOn, opts types.InstallOptions) error {
+func upgradeAddOn(ctx context.Context, clients types.Clients, in *ecv1beta1.Installation, addon types.AddOn) error {
 	// check if we already processed this addon
 	if kubeutils.CheckInstallationConditionStatus(in.Status, conditionName(addon)) == metav1.ConditionTrue {
 		slog.Info("Addon is ready", "name", addon.Name(), "version", addon.Version())
@@ -128,16 +113,16 @@ func upgradeAddOn(ctx context.Context, kcli client.Client, in *ecv1beta1.Install
 	slog.Info("Upgrading addon", "name", addon.Name(), "version", addon.Version())
 
 	// mark as processing
-	if err := setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionFalse, "Upgrading", ""); err != nil {
+	if err := setCondition(ctx, clients.K8sClient, in, conditionName(addon), metav1.ConditionFalse, "Upgrading", ""); err != nil {
 		return errors.Wrap(err, "failed to set condition status")
 	}
 
-	overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
+	overrides := addOnOverrides(addon, in.Spec.Config, nil)
 
-	err := addon.Upgrade(ctx, opts, overrides)
+	err := addon.Upgrade(ctx, clients, in.Spec, overrides)
 	if err != nil {
 		message := helpers.CleanErrorMessage(err)
-		if err := setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionFalse, "UpgradeFailed", message); err != nil {
+		if err := setCondition(ctx, clients.K8sClient, in, conditionName(addon), metav1.ConditionFalse, "UpgradeFailed", message); err != nil {
 			slog.Error("Failed to set addon condition upgrade failed",
 				"name", addon.Name(), "version", addon.Version(), "error", err,
 			)
@@ -145,7 +130,7 @@ func upgradeAddOn(ctx context.Context, kcli client.Client, in *ecv1beta1.Install
 		return errors.Wrap(err, "upgrade addon")
 	}
 
-	err = setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionTrue, "Upgraded", "")
+	err = setCondition(ctx, clients.K8sClient, in, conditionName(addon), metav1.ConditionTrue, "Upgraded", "")
 	if err != nil {
 		return errors.Wrap(err, "set condition upgrade succeeded")
 	}

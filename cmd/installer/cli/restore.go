@@ -409,9 +409,27 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
+	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
+	defer logKubernetesErrors(errCh)
+
+	in, err := newInstallationFromInstallFlags(flags, rc, k0sCfg)
+	if err != nil {
+		return fmt.Errorf("new installation: %w", err)
+	}
+
+	opts, err := getRestoreAddonInstallOpts(flags)
+	if err != nil {
+		return fmt.Errorf("get restore addon install opts: %w", err)
+	}
+
 	airgapChartsPath := ""
 	if flags.isAirgap {
 		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
+	}
+
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		return fmt.Errorf("unable to create metadata client: %w", err)
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
@@ -424,23 +442,10 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	}
 	defer hcli.Close()
 
-	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
-	defer logKubernetesErrors(errCh)
-
-	in, err := newInstallationFromInstallFlags(flags, rc, k0sCfg)
-	if err != nil {
-		return fmt.Errorf("new installation: %w", err)
-	}
-
-	opts, err := getRestoreAddonInstallOpts(in, flags)
-	if err != nil {
-		return fmt.Errorf("get restore addon install opts: %w", err)
-	}
-
 	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, hcli, rc, *opts); err != nil {
+	if err := addons.Install(ctx, logrus.Debugf, kcli, mcli, hcli, in.Spec, *opts); err != nil {
 		return err
 	}
 
@@ -461,19 +466,14 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	return nil
 }
 
-func getRestoreAddonInstallOpts(in *ecv1beta1.Installation, flags InstallCmdFlags) (*addonstypes.InstallOptions, error) {
-	opts := addons.InstallOptionsFromInstallationSpec(in.Spec)
-	opts.IsRestore = true
-
-	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
+func getRestoreAddonInstallOpts(flags InstallCmdFlags) (*addonstypes.InstallOptions, error) {
+	opts, err := getAddonInstallOpts(flags)
 	if err != nil {
-		return nil, fmt.Errorf("unable to process overrides file: %w", err)
-	}
-	if euCfg != nil {
-		opts.EndUserConfigSpec = &euCfg.Spec
+		return nil, err
 	}
 
-	return &opts, nil
+	opts.IsRestore = true
+	return opts, nil
 }
 
 func runRestoreStepConfirmBackup(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (*disasterrecovery.ReplicatedBackup, bool, error) {
@@ -599,13 +599,8 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		return fmt.Errorf("get latest installation: %w", err)
 	}
 
-	opts, err := getRestoreAddonInstallOpts(in, flags)
-	if err != nil {
-		return fmt.Errorf("get restore addon install opts: %w", err)
-	}
-	opts.IsHA = true
-
-	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, kcli, mcli, hcli, rc, *opts)
+	// TODO: support for end user overrides
+	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, kcli, mcli, hcli, in.Spec)
 	if err != nil {
 		return err
 	}

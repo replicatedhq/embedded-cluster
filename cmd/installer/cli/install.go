@@ -483,7 +483,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		return fmt.Errorf("unable to add insecure registry: %w", err)
 	}
 
-	opts, err := getAddonInstallOpts(in, flags)
+	opts, err := getAddonInstallOpts(flags)
 	if err != nil {
 		return fmt.Errorf("unable to get addon install options: %w", err)
 	}
@@ -491,6 +491,11 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	airgapChartsPath := ""
 	if flags.isAirgap {
 		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
+	}
+
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		return fmt.Errorf("unable to create metadata client: %w", err)
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
@@ -506,7 +511,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, hcli, rc, *opts); err != nil {
+	if err := addons.Install(ctx, logrus.Debugf, kcli, mcli, hcli, in.Spec, *opts); err != nil {
 		return fmt.Errorf("unable to install addons: %w", err)
 	}
 
@@ -536,20 +541,12 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	return nil
 }
 
-func getAddonInstallOpts(in *ecv1beta1.Installation, flags InstallCmdFlags) (*addonstypes.InstallOptions, error) {
-	opts := addons.InstallOptionsFromInstallationSpec(in.Spec)
-
-	opts.AdminConsolePassword = flags.adminConsolePassword
-	opts.TLSCertBytes = flags.tlsCertBytes
-	opts.TLSKeyBytes = flags.tlsKeyBytes
-	opts.Hostname = flags.hostname
-
-	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
-	if err != nil {
-		return nil, fmt.Errorf("unable to process overrides file: %w", err)
-	}
-	if euCfg != nil {
-		opts.EndUserConfigSpec = &euCfg.Spec
+func getAddonInstallOpts(flags InstallCmdFlags) (*addonstypes.InstallOptions, error) {
+	opts := addonstypes.InstallOptions{
+		AdminConsolePassword: flags.adminConsolePassword,
+		TLSCertBytes:         flags.tlsCertBytes,
+		TLSKeyBytes:          flags.tlsKeyBytes,
+		Hostname:             flags.hostname,
 	}
 
 	opts.KotsInstaller = func(msg *spinner.MessageWriter) error {

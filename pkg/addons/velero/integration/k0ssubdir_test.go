@@ -2,9 +2,11 @@ package integration
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -20,19 +22,27 @@ func TestK0sDir(t *testing.T) {
 	hcli, err := helm.NewClient(helm.HelmOptions{})
 	require.NoError(t, err, "NewClient should not return an error")
 
-	rc := runtimeconfig.New(nil)
+	k0sDir := filepath.Join(t.TempDir(), "k0s")
+
+	rcSpec := &ecv1beta1.RuntimeConfigSpec{
+		K0sDataDirOverride: k0sDir,
+	}
+	rc := runtimeconfig.New(rcSpec)
+
+	inSpec := ecv1beta1.InstallationSpec{
+		RuntimeConfig: rc.Get(),
+	}
+
+	clients := types.Clients{
+		HelmClient: hcli,
+		IsDryRun:   true,
+	}
 
 	addon := velero.New(
 		velero.WithLogFunc(t.Logf),
-		velero.WithClients(nil, nil, hcli),
-		velero.WithRuntimeConfig(rc),
 	)
 
-	opts := types.InstallOptions{
-		IsDryRun: true,
-	}
-
-	err = addon.Install(context.Background(), nil, opts, nil)
+	err = addon.Install(context.Background(), clients, nil, inSpec, nil, types.InstallOptions{})
 	require.NoError(t, err, "velero.Install should not return an error")
 
 	manifests := addon.DryRunManifests()
@@ -58,9 +68,9 @@ func TestK0sDir(t *testing.T) {
 		}
 	}
 	if assert.NotNil(t, hostPodsVolume, "Velero host-pods volume should not be nil") {
-		assert.Equal(t, hostPodsVolume.VolumeSource.HostPath.Path, rc.EmbeddedClusterK0sSubDir()+"/kubelet/pods")
+		assert.Equal(t, hostPodsVolume.VolumeSource.HostPath.Path, k0sDir+"/kubelet/pods")
 	}
 	if assert.NotNil(t, hostPluginsVolume, "Velero host-plugins volume should not be nil") {
-		assert.Equal(t, hostPluginsVolume.VolumeSource.HostPath.Path, rc.EmbeddedClusterK0sSubDir()+"/kubelet/plugins")
+		assert.Equal(t, hostPluginsVolume.VolumeSource.HostPath.Path, k0sDir+"/kubelet/plugins")
 	}
 }

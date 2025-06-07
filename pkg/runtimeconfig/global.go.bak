@@ -1,0 +1,155 @@
+package runtimeconfig
+
+import (
+	"path/filepath"
+
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/sirupsen/logrus"
+)
+
+var (
+	_runtimeConfig = &runtimeConfig{ecv1beta1.GetDefaultRuntimeConfig()}
+)
+
+func Get() *runtimeConfig {
+	return _runtimeConfig
+}
+
+func Set(rc *runtimeConfig) {
+	_runtimeConfig = rc
+}
+
+func SetSpec(spec *ecv1beta1.RuntimeConfigSpec) {
+	if spec == nil {
+		// runtime config is nil in old installation objects so this keeps the default.
+		return
+	}
+	_runtimeConfig.spec = spec
+}
+
+func Cleanup() {
+	tmpDir := EmbeddedClusterTmpSubDir()
+	// We should not delete the tmp dir, rather we should empty its contents leaving
+	// it in place. This is because commands such as `kubectl edit <resource>`
+	// will create files in the tmp dir
+	if err := helpers.RemoveAll(tmpDir); err != nil {
+		logrus.Errorf("error removing %s dir: %s", tmpDir, err)
+	}
+}
+
+// EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
+// store all the embedded-cluster related files.
+func EmbeddedClusterHomeDirectory() string {
+	return _runtimeConfig.DataDir()
+}
+
+// EmbeddedClusterTmpSubDir returns the path to the tmp directory where embedded-cluster
+// stores temporary files.
+func EmbeddedClusterTmpSubDir() string {
+	path := _runtimeConfig.TmpDir()
+	mustMkdirAll(path)
+	return path
+}
+
+// EmbeddedClusterBinsSubDir returns the path to the directory where embedded-cluster binaries
+// are stored.
+func EmbeddedClusterBinsSubDir() string {
+	path := _runtimeConfig.BinDir()
+	mustMkdirAll(path)
+	return path
+}
+
+// EmbeddedClusterChartsSubDir returns the path to the directory where embedded-cluster helm charts
+// are stored.
+func EmbeddedClusterChartsSubDir() string {
+	path := _runtimeConfig.ChartsDir()
+	mustMkdirAll(path)
+	return path
+}
+
+// EmbeddedClusterChartsSubDirNoCreate returns the path to the directory where embedded-cluster helm charts
+// are stored without creating the directory if it does not exist.
+func EmbeddedClusterChartsSubDirNoCreate() string {
+	return _runtimeConfig.ChartsDir()
+}
+
+// EmbeddedClusterImagesSubDir returns the path to the directory where docker images are stored.
+func EmbeddedClusterImagesSubDir() string {
+	path := _runtimeConfig.ImagesDir()
+	mustMkdirAll(path)
+	return path
+}
+
+// EmbeddedClusterK0sSubDir returns the path to the directory where k0s data is stored.
+func EmbeddedClusterK0sSubDir() string {
+	return _runtimeConfig.K0sDir()
+}
+
+// EmbeddedClusterSupportSubDir returns the path to the directory where embedded-cluster
+// support files are stored. Things that are useful when providing end user support in
+// a running cluster should be stored into this directory.
+func EmbeddedClusterSupportSubDir() string {
+	path := _runtimeConfig.SupportDir()
+	mustMkdirAll(path)
+	return path
+}
+
+// EmbeddedClusterSeaweedfsSubDir returns the path to the directory where seaweedfs data is stored.
+func EmbeddedClusterSeaweedfsSubDir() string {
+	return _runtimeConfig.SeaweedFSDir()
+}
+
+// EmbeddedClusterOpenEBSLocalSubDir returns the path to the directory where OpenEBS local data is stored.
+func EmbeddedClusterOpenEBSLocalSubDir() string {
+	return _runtimeConfig.OpenEBSLocalDir()
+}
+
+// PathToEmbeddedClusterBinary is an utility function that returns the full path to a
+// materialized binary that belongs to embedded-cluster. This function does not check
+// if the file exists.
+func PathToEmbeddedClusterBinary(name string) string {
+	EmbeddedClusterBinsSubDir() // creates directory for backwards compatibility
+	return _runtimeConfig.PathToEmbeddedClusterBinary(name)
+}
+
+// PathToKubeConfig returns the path to the kubeconfig file.
+func PathToKubeConfig() string {
+	return _runtimeConfig.PathToKubeConfig()
+}
+
+// PathToKubeletConfig returns the path to the kubelet config file.
+func PathToKubeletConfig() string {
+	return _runtimeConfig.PathToKubeletConfig()
+}
+
+// PathToEmbeddedClusterSupportFile is an utility function that returns the full path to
+// a materialized support file. This function does not check if the file exists.
+func PathToEmbeddedClusterSupportFile(name string) string {
+	return filepath.Join(EmbeddedClusterSupportSubDir(), name)
+}
+
+func LocalArtifactMirrorPort() int {
+	return _runtimeConfig.LocalArtifactMirrorPort()
+}
+
+func AdminConsolePort() int {
+	return _runtimeConfig.AdminConsolePort()
+}
+
+func HostCABundlePath() string {
+	return _runtimeConfig.HostCABundlePath()
+}
+
+func WriteToDisk() error {
+	return _runtimeConfig.WriteToDisk()
+}
+
+func LoadFromDisk() error {
+	rc, err := NewFromDisk()
+	if err != nil {
+		return err
+	}
+	Set(&rc)
+	return nil
+}

@@ -6,10 +6,11 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"gopkg.in/yaml.v3"
 )
@@ -35,7 +36,10 @@ func init() {
 	helmValues["embeddedClusterVersion"] = versions.Version
 }
 
-func (a *AdminConsole) GenerateHelmValues(ctx context.Context, opts types.InstallOptions, overrides []string) (map[string]interface{}, error) {
+func (a *AdminConsole) GenerateHelmValues(ctx context.Context, inSpec ecv1beta1.InstallationSpec, overrides []string) (map[string]interface{}, error) {
+	rc := runtimeconfig.New(inSpec.RuntimeConfig)
+	domains := runtimeconfig.GetDomains(inSpec.Config)
+
 	// create a copy of the helm values so we don't modify the original
 	marshalled, err := helm.MarshalValues(helmValues)
 	if err != nil {
@@ -43,8 +47,8 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, opts types.Instal
 	}
 
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
-	if opts.Domains.ProxyRegistryDomain != "" {
-		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", opts.Domains.ProxyRegistryDomain)
+	if domains.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", domains.ProxyRegistryDomain)
 	}
 
 	copiedValues, err := helm.UnmarshalValues(marshalled)
@@ -52,26 +56,26 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, opts types.Instal
 		return nil, errors.Wrap(err, "unmarshal helm values")
 	}
 
-	copiedValues["embeddedClusterID"] = opts.ClusterID
-	copiedValues["embeddedClusterDataDir"] = a.runtimeConfig.EmbeddedClusterHomeDirectory()
-	copiedValues["embeddedClusterK0sDir"] = a.runtimeConfig.EmbeddedClusterK0sSubDir()
-	copiedValues["isHA"] = opts.IsHA
-	copiedValues["isMultiNodeEnabled"] = opts.IsMultiNodeEnabled
+	copiedValues["embeddedClusterID"] = inSpec.ClusterID
+	copiedValues["embeddedClusterDataDir"] = rc.EmbeddedClusterHomeDirectory()
+	copiedValues["embeddedClusterK0sDir"] = rc.EmbeddedClusterK0sSubDir()
+	copiedValues["isHA"] = inSpec.HighAvailability
+	copiedValues["isMultiNodeEnabled"] = inSpec.LicenseInfo != nil && inSpec.LicenseInfo.IsMultiNodeEnabled
 
-	if opts.IsAirgap {
+	if inSpec.AirGap {
 		copiedValues["isAirgap"] = "true"
 	} else {
 		copiedValues["isAirgap"] = "false"
 	}
 
-	if opts.Domains.ReplicatedAppDomain != "" {
-		copiedValues["replicatedAppEndpoint"] = netutils.MaybeAddHTTPS(opts.Domains.ReplicatedAppDomain)
+	if domains.ReplicatedAppDomain != "" {
+		copiedValues["replicatedAppEndpoint"] = netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain)
 	}
-	if opts.Domains.ReplicatedRegistryDomain != "" {
-		copiedValues["replicatedRegistryDomain"] = opts.Domains.ReplicatedRegistryDomain
+	if domains.ReplicatedRegistryDomain != "" {
+		copiedValues["replicatedRegistryDomain"] = domains.ReplicatedRegistryDomain
 	}
-	if opts.Domains.ProxyRegistryDomain != "" {
-		copiedValues["proxyRegistryDomain"] = opts.Domains.ProxyRegistryDomain
+	if domains.ProxyRegistryDomain != "" {
+		copiedValues["proxyRegistryDomain"] = domains.ProxyRegistryDomain
 	}
 
 	extraEnv := []map[string]interface{}{
@@ -85,19 +89,19 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, opts types.Instal
 		},
 	}
 
-	if opts.Proxy != nil {
+	if inSpec.Proxy != nil {
 		extraEnv = append(extraEnv,
 			map[string]interface{}{
 				"name":  "HTTP_PROXY",
-				"value": opts.Proxy.HTTPProxy,
+				"value": inSpec.Proxy.HTTPProxy,
 			},
 			map[string]interface{}{
 				"name":  "HTTPS_PROXY",
-				"value": opts.Proxy.HTTPSProxy,
+				"value": inSpec.Proxy.HTTPSProxy,
 			},
 			map[string]interface{}{
 				"name":  "NO_PROXY",
-				"value": opts.Proxy.NoProxy,
+				"value": inSpec.Proxy.NoProxy,
 			},
 		)
 	}
@@ -105,11 +109,11 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, opts types.Instal
 	extraVolumes := []map[string]interface{}{}
 	extraVolumeMounts := []map[string]interface{}{}
 
-	if a.runtimeConfig.HostCABundlePath() != "" {
+	if rc.HostCABundlePath() != "" {
 		extraVolumes = append(extraVolumes, map[string]interface{}{
 			"name": "host-ca-bundle",
 			"hostPath": map[string]interface{}{
-				"path": a.runtimeConfig.HostCABundlePath(),
+				"path": rc.HostCABundlePath(),
 				"type": "FileOrCreate",
 			},
 		})
@@ -129,7 +133,7 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, opts types.Instal
 	copiedValues["extraVolumes"] = extraVolumes
 	copiedValues["extraVolumeMounts"] = extraVolumeMounts
 
-	err = helm.SetValue(copiedValues, "kurlProxy.nodePort", a.runtimeConfig.AdminConsolePort())
+	err = helm.SetValue(copiedValues, "kurlProxy.nodePort", rc.AdminConsolePort())
 	if err != nil {
 		return nil, errors.Wrap(err, "set kurlProxy.nodePort")
 	}

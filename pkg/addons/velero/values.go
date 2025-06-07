@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"gopkg.in/yaml.v3"
 )
 
@@ -31,7 +32,10 @@ func init() {
 	helmValues = hv
 }
 
-func (v *Velero) GenerateHelmValues(ctx context.Context, opts types.InstallOptions, overrides []string) (map[string]interface{}, error) {
+func (v *Velero) GenerateHelmValues(ctx context.Context, inSpec ecv1beta1.InstallationSpec, overrides []string) (map[string]interface{}, error) {
+	rc := runtimeconfig.New(inSpec.RuntimeConfig)
+	domains := runtimeconfig.GetDomains(inSpec.Config)
+
 	// create a copy of the helm values so we don't modify the original
 	marshalled, err := helm.MarshalValues(helmValues)
 	if err != nil {
@@ -39,8 +43,8 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, opts types.InstallOptio
 	}
 
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
-	if opts.Domains.ProxyRegistryDomain != "" {
-		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", opts.Domains.ProxyRegistryDomain)
+	if domains.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", domains.ProxyRegistryDomain)
 	}
 
 	copiedValues, err := helm.UnmarshalValues(marshalled)
@@ -52,28 +56,28 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, opts types.InstallOptio
 	extraVolumes := []map[string]any{}
 	extraVolumeMounts := []map[string]any{}
 
-	if opts.Proxy != nil {
+	if inSpec.Proxy != nil {
 		extraEnvVars = append(extraEnvVars, []map[string]any{
 			{
 				"name":  "HTTP_PROXY",
-				"value": opts.Proxy.HTTPProxy,
+				"value": inSpec.Proxy.HTTPProxy,
 			},
 			{
 				"name":  "HTTPS_PROXY",
-				"value": opts.Proxy.HTTPSProxy,
+				"value": inSpec.Proxy.HTTPSProxy,
 			},
 			{
 				"name":  "NO_PROXY",
-				"value": opts.Proxy.NoProxy,
+				"value": inSpec.Proxy.NoProxy,
 			},
 		}...)
 	}
 
-	if v.runtimeConfig.HostCABundlePath() != "" {
+	if rc.HostCABundlePath() != "" {
 		extraVolumes = append(extraVolumes, map[string]any{
 			"name": "host-ca-bundle",
 			"hostPath": map[string]any{
-				"path": v.runtimeConfig.HostCABundlePath(),
+				"path": rc.HostCABundlePath(),
 				"type": "FileOrCreate",
 			},
 		})
@@ -100,12 +104,12 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, opts types.InstallOptio
 		"extraVolumeMounts": extraVolumeMounts,
 	}
 
-	podVolumePath := filepath.Join(v.runtimeConfig.EmbeddedClusterK0sSubDir(), "kubelet/pods")
+	podVolumePath := filepath.Join(rc.EmbeddedClusterK0sSubDir(), "kubelet/pods")
 	err = helm.SetValue(copiedValues, "nodeAgent.podVolumePath", podVolumePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm value nodeAgent.podVolumePath")
 	}
-	pluginVolumePath := filepath.Join(v.runtimeConfig.EmbeddedClusterK0sSubDir(), "kubelet/plugins")
+	pluginVolumePath := filepath.Join(rc.EmbeddedClusterK0sSubDir(), "kubelet/plugins")
 	err = helm.SetValue(copiedValues, "nodeAgent.pluginVolumePath", pluginVolumePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm value nodeAgent.pluginVolumePath")

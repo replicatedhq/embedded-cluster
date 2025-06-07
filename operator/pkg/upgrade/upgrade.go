@@ -22,18 +22,19 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
-func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) error {
+func Upgrade(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) error {
 	slog.Info("Upgrading Embedded Cluster", "version", in.Spec.Config.Version)
 
 	// Augment the installation with data dirs that may not be present in the previous version.
 	// This is important to do ahead of updating the cluster config.
 	// We still cannot update the installation object as the CRDs are not updated yet.
-	in, err := maybeOverrideInstallationDataDirs(ctx, cli, in)
+	in, err := maybeOverrideInstallationDataDirs(ctx, kcli, in)
 	if err != nil {
 		return fmt.Errorf("override installation data dirs: %w", err)
 	}
@@ -42,7 +43,7 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtim
 	// installation data dirs from the previous installation.
 	rc.Set(in.Spec.RuntimeConfig)
 
-	err = upgradeK0s(ctx, cli, rc, in)
+	err = upgradeK0s(ctx, kcli, rc, in)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
 	}
@@ -50,19 +51,19 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtim
 	// We must update the cluster config after we upgrade k0s as it is possible that the schema
 	// between versions has changed. One drawback of this is that the sandbox (pause) image does
 	// not get updated, and possibly others but I cannot confirm this.
-	err = updateClusterConfig(ctx, cli, in)
+	err = updateClusterConfig(ctx, kcli, in)
 	if err != nil {
 		return fmt.Errorf("cluster config update: %w", err)
 	}
 
 	slog.Info("Upgrading addons")
-	err = upgradeAddons(ctx, cli, hcli, rc, in)
+	err = upgradeAddons(ctx, kcli, mcli, hcli, in)
 	if err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 
 	slog.Info("Upgrading extensions")
-	err = upgradeExtensions(ctx, cli, hcli, in)
+	err = upgradeExtensions(ctx, kcli, hcli, in)
 	if err != nil {
 		return fmt.Errorf("upgrade extensions: %w", err)
 	}
@@ -72,7 +73,7 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtim
 		slog.Error("Failed to upgrade host support bundle", "error", err)
 	}
 
-	err = kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateInstalled, "Installed")
+	err = kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateInstalled, "Installed")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
@@ -248,13 +249,13 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 	return nil
 }
 
-func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) error {
-	err := kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateAddonsInstalling, "Upgrading addons")
+func upgradeAddons(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, in *ecv1beta1.Installation) error {
+	err := kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateAddonsInstalling, "Upgrading addons")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
 
-	meta, err := release.MetadataFor(ctx, in, cli)
+	meta, err := release.MetadataFor(ctx, in, kcli)
 	if err != nil {
 		return fmt.Errorf("get release metadata: %w", err)
 	}
@@ -262,11 +263,11 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc 
 		return fmt.Errorf("no images available")
 	}
 
-	if err := addons.Upgrade(ctx, slog.Info, hcli, rc, in, meta); err != nil {
+	if err := addons.Upgrade(ctx, slog.Info, kcli, mcli, hcli, in, meta); err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 
-	err = kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateAddonsInstalled, "Addons upgraded")
+	err = kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateAddonsInstalled, "Addons upgraded")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}

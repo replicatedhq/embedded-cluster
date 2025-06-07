@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -29,18 +30,21 @@ func TestHostCABundle(t *testing.T) {
 	rc.SetDataDir(t.TempDir())
 	rc.SetHostCABundlePath("/etc/ssl/certs/ca-certificates.crt")
 
+	inSpec := ecv1beta1.InstallationSpec{
+		RuntimeConfig: rc.Get(),
+	}
+
+	clients := types.Clients{
+		HelmClient: hcli,
+		IsDryRun:   true,
+	}
+
 	addon := embeddedclusteroperator.New(
 		embeddedclusteroperator.WithLogFunc(t.Logf),
-		embeddedclusteroperator.WithClients(nil, nil, hcli),
-		embeddedclusteroperator.WithRuntimeConfig(rc),
 	)
 	addon.ChartLocationOverride = chartLocation
 
-	opts := types.InstallOptions{
-		IsDryRun: true,
-	}
-
-	err = addon.Install(context.Background(), nil, opts, nil)
+	err = addon.Install(context.Background(), clients, nil, inSpec, nil, types.InstallOptions{})
 	require.NoError(t, err, "embeddedclusteroperator.Install should not return an error")
 
 	manifests := addon.DryRunManifests()
