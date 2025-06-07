@@ -42,7 +42,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
     onSuccess: () => {
       onNext();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setError(err.message || "Failed to start installation");
       return err;
     },
