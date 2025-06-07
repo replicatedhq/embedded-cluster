@@ -87,15 +87,7 @@ export const renderWithProviders = (
     brandingContext: { title: "My App" },
     configContext: {
       config: {
-        clusterName: "",
-        namespace: "",
         storageClass: "standard",
-        domain: "",
-        useHttps: true,
-        adminUsername: "admin",
-        adminPassword: "",
-        adminEmail: "",
-        databaseType: "internal",
         dataDirectory: "/var/lib/embedded-cluster",
         useProxy: false,
       },
