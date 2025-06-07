@@ -80,6 +80,9 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
     onSuccess: () => {
       setIsPreflightsPolling(true);
     },
+    onError: () => {
+      setIsPreflightsPolling(false);
+    },
   });
 
   // Query to poll installation status
@@ -141,6 +144,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
       return; // Prevent running preflights if failed
     }
     if (installationStatus?.state === "Succeeded") {
+      setIsPreflightsPolling(true);
       setIsInstallationStatusPolling(false);
       runPreflights();
     }
