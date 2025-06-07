@@ -48,17 +48,11 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   const isSuccessful = (response?: PreflightResponse) => response?.status?.state === "Succeeded";
 
   const getErrorMessage = () => {
-    if (installationStatusError) {
-      return installationStatusError.message;
-    }
     if (installationStatus?.state === "Failed") {
       return installationStatus?.description;
     }
     if (preflightsRunError) {
       return preflightsRunError.message;
-    }
-    if (preflightsStatusError) {
-      return preflightsStatusError.message;
     }
     if (preflightResponse?.status?.state === "Failed") {
       return preflightResponse?.status?.description;
@@ -89,7 +83,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   });
 
   // Query to poll installation status
-  const { data: installationStatus, error: installationStatusError } = useQuery<
+  const { data: installationStatus } = useQuery<
     InstallationStatusResponse,
     Error
   >({
@@ -113,7 +107,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   });
 
   // Query to poll preflight status
-  const { data: preflightResponse, error: preflightsStatusError } = useQuery<PreflightResponse, Error>({
+  const { data: preflightResponse } = useQuery<PreflightResponse, Error>({
     queryKey: ["preflightStatus"],
     queryFn: async () => {
       const response = await fetch("/api/install/host-preflights/status", {

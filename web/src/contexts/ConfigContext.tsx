@@ -57,7 +57,7 @@ const defaultPrototypeSettings: PrototypeSettings = {
 
 const PROTOTYPE_SETTINGS_KEY = 'app-prototype-settings';
 
-const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
+export const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 
 export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [config, setConfig] = useState<ClusterConfig>(defaultConfig);
