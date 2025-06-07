@@ -54,14 +54,18 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, string, error) 
 
 // EnableHA enables high availability.
 func EnableHA(
-	ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, kclient kubernetes.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig,
+	ctx context.Context, logf types.LogFunc,
+	kcli client.Client, mcli metadata.Interface, kclient kubernetes.Interface, hcli helm.Client,
 	inSpec ecv1beta1.InstallationSpec,
 	spinner *spinner.MessageWriter,
 ) error {
-	opts := InstallOptionsFromInstallationSpec(inSpec)
-	opts.IsHA = true
-
 	if inSpec.AirGap {
+		clients := types.Clients{
+			K8sClient:      kcli,
+			MetadataClient: mcli,
+			HelmClient:     hcli,
+		}
+
 		logrus.Debugf("Enabling high availability")
 		spinner.Infof("Enabling high availability")
 
@@ -70,7 +74,7 @@ func EnableHA(
 			return errors.Wrap(err, "check if registry data has been migrated")
 		} else if !hasMigrated {
 			logrus.Debugf("Installing seaweedfs")
-			err = ensureSeaweedfs(ctx, logf, kcli, mcli, hcli, rc, opts)
+			err = ensureSeaweedfs(ctx, logf, clients, inSpec)
 			if err != nil {
 				return errors.Wrap(err, "ensure seaweedfs")
 			}
@@ -94,7 +98,7 @@ func EnableHA(
 
 			logrus.Debugf("Enabling high availability for the registry")
 			spinner.Infof("Enabling high availability for the registry")
-			err = enableRegistryHA(ctx, logf, kcli, mcli, hcli, rc, opts)
+			err = enableRegistryHA(ctx, logf, clients, inSpec)
 			if err != nil {
 				return errors.Wrap(err, "enable registry high availability")
 			}
@@ -104,7 +108,7 @@ func EnableHA(
 
 	logrus.Debugf("Updating the Admin Console for high availability")
 	spinner.Infof("Updating the Admin Console for high availability")
-	err := EnableAdminConsoleHA(ctx, logf, kcli, mcli, hcli, rc, opts)
+	err := EnableAdminConsoleHA(ctx, logf, kcli, mcli, hcli, inSpec)
 	if err != nil {
 		return errors.Wrap(err, "enable admin console high availability")
 	}
@@ -206,16 +210,19 @@ func migrateRegistryData(ctx context.Context, kcli client.Client, kclient kubern
 }
 
 // ensureSeaweedfs ensures that seaweedfs is installed.
-func ensureSeaweedfs(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, opts types.InstallOptions) error {
+func ensureSeaweedfs(
+	ctx context.Context, logf types.LogFunc,
+	clients types.Clients,
+	inSpec ecv1beta1.InstallationSpec,
+) error {
 	addon := seaweedfs.New(
 		seaweedfs.WithLogFunc(logf),
-		seaweedfs.WithClients(kcli, mcli, hcli),
-		seaweedfs.WithRuntimeConfig(rc),
 	)
 
-	overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
+	// TODO: support for end user overrides
+	overrides := addOnOverrides(addon, inSpec.Config, nil)
 
-	if err := addon.Upgrade(ctx, opts, overrides); err != nil {
+	if err := addon.Upgrade(ctx, clients, inSpec, overrides); err != nil {
 		return errors.Wrap(err, "upgrade seaweedfs")
 	}
 
@@ -224,16 +231,19 @@ func ensureSeaweedfs(ctx context.Context, logf types.LogFunc, kcli client.Client
 
 // enableRegistryHA enables high availability for the registry and scales the registry deployment
 // to the desired number of replicas.
-func enableRegistryHA(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, opts types.InstallOptions) error {
+func enableRegistryHA(
+	ctx context.Context, logf types.LogFunc,
+	clients types.Clients,
+	inSpec ecv1beta1.InstallationSpec,
+) error {
 	addon := registry.New(
 		registry.WithLogFunc(logf),
-		registry.WithClients(kcli, mcli, hcli),
-		registry.WithRuntimeConfig(rc),
 	)
 
-	overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
+	// TODO: support for end user overrides
+	overrides := addOnOverrides(addon, inSpec.Config, nil)
 
-	if err := addon.Upgrade(ctx, opts, overrides); err != nil {
+	if err := addon.Upgrade(ctx, clients, inSpec, overrides); err != nil {
 		return errors.Wrap(err, "upgrade registry")
 	}
 
@@ -243,18 +253,23 @@ func enableRegistryHA(ctx context.Context, logf types.LogFunc, kcli client.Clien
 // EnableAdminConsoleHA enables high availability for the admin console.
 func EnableAdminConsoleHA(
 	ctx context.Context, logf types.LogFunc,
-	kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig,
-	opts types.InstallOptions,
+	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
+	inSpec ecv1beta1.InstallationSpec,
 ) error {
 	addon := adminconsole.New(
 		adminconsole.WithLogFunc(logf),
-		adminconsole.WithClients(kcli, mcli, hcli),
-		adminconsole.WithRuntimeConfig(rc),
 	)
 
-	overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
+	clients := types.Clients{
+		K8sClient:      kcli,
+		MetadataClient: mcli,
+		HelmClient:     hcli,
+	}
 
-	if err := addon.Upgrade(ctx, opts, overrides); err != nil {
+	// TODO: support for end user overrides
+	overrides := addOnOverrides(addon, inSpec.Config, nil)
+
+	if err := addon.Upgrade(ctx, clients, inSpec, overrides); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
 	}
 

@@ -3,14 +3,12 @@ package adminconsole
 import (
 	_ "embed"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"k8s.io/client-go/metadata"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -30,11 +28,7 @@ var (
 var _ types.AddOn = (*AdminConsole)(nil)
 
 type AdminConsole struct {
-	logf          types.LogFunc
-	kcli          client.Client
-	mcli          metadata.Interface
-	hcli          helm.Client
-	runtimeConfig runtimeconfig.RuntimeConfig
+	logf types.LogFunc
 
 	dryRunManifests [][]byte
 }
@@ -46,26 +40,15 @@ func New(opts ...Option) *AdminConsole {
 	for _, opt := range opts {
 		opt(addon)
 	}
+	if addon.logf == nil {
+		addon.logf = slog.Info
+	}
 	return addon
 }
 
 func WithLogFunc(logf types.LogFunc) Option {
 	return func(a *AdminConsole) {
 		a.logf = logf
-	}
-}
-
-func WithClients(kcli client.Client, mcli metadata.Interface, hcli helm.Client) Option {
-	return func(a *AdminConsole) {
-		a.kcli = kcli
-		a.mcli = mcli
-		a.hcli = hcli
-	}
-}
-
-func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) Option {
-	return func(a *AdminConsole) {
-		a.runtimeConfig = rc
 	}
 }
 

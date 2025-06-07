@@ -6,10 +6,11 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"sigs.k8s.io/yaml"
 )
@@ -36,7 +37,10 @@ func init() {
 	helmValues["embeddedClusterK0sVersion"] = versions.K0sVersion
 }
 
-func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, opts types.InstallOptions, overrides []string) (map[string]interface{}, error) {
+func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, inSpec ecv1beta1.InstallationSpec, overrides []string) (map[string]interface{}, error) {
+	rc := runtimeconfig.New(inSpec.RuntimeConfig)
+	domains := runtimeconfig.GetDomains(inSpec.Config)
+
 	// create a copy of the helm values so we don't modify the original
 	marshalled, err := helm.MarshalValues(helmValues)
 	if err != nil {
@@ -44,8 +48,8 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, opts t
 	}
 
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
-	if opts.Domains.ProxyRegistryDomain != "" {
-		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", opts.Domains.ProxyRegistryDomain)
+	if domains.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", domains.ProxyRegistryDomain)
 	}
 
 	copiedValues, err := helm.UnmarshalValues(marshalled)
@@ -65,7 +69,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, opts t
 
 	copiedValues["embeddedClusterID"] = metrics.ClusterID().String()
 
-	if opts.IsAirgap {
+	if inSpec.AirGap {
 		copiedValues["isAirgap"] = "true"
 	}
 
@@ -73,28 +77,28 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, opts t
 	extraVolumes := []map[string]any{}
 	extraVolumeMounts := []map[string]any{}
 
-	if opts.Proxy != nil {
+	if inSpec.Proxy != nil {
 		extraEnvVars = append(extraEnvVars, []map[string]any{
 			{
 				"name":  "HTTP_PROXY",
-				"value": opts.Proxy.HTTPProxy,
+				"value": inSpec.Proxy.HTTPProxy,
 			},
 			{
 				"name":  "HTTPS_PROXY",
-				"value": opts.Proxy.HTTPSProxy,
+				"value": inSpec.Proxy.HTTPSProxy,
 			},
 			{
 				"name":  "NO_PROXY",
-				"value": opts.Proxy.NoProxy,
+				"value": inSpec.Proxy.NoProxy,
 			},
 		}...)
 	}
 
-	if e.runtimeConfig.HostCABundlePath() != "" {
+	if rc.HostCABundlePath() != "" {
 		extraVolumes = append(extraVolumes, map[string]any{
 			"name": "host-ca-bundle",
 			"hostPath": map[string]any{
-				"path": e.runtimeConfig.HostCABundlePath(),
+				"path": rc.HostCABundlePath(),
 				"type": "FileOrCreate",
 			},
 		})

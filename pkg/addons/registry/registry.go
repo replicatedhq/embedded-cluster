@@ -4,16 +4,15 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -32,11 +31,7 @@ var (
 var _ types.AddOn = (*Registry)(nil)
 
 type Registry struct {
-	logf          types.LogFunc
-	kcli          client.Client
-	mcli          metadata.Interface
-	hcli          helm.Client
-	runtimeConfig runtimeconfig.RuntimeConfig
+	logf types.LogFunc
 
 	dryRunManifests [][]byte
 }
@@ -48,26 +43,15 @@ func New(opts ...Option) *Registry {
 	for _, opt := range opts {
 		opt(addon)
 	}
+	if addon.logf == nil {
+		addon.logf = slog.Info
+	}
 	return addon
 }
 
 func WithLogFunc(logf types.LogFunc) Option {
 	return func(a *Registry) {
 		a.logf = logf
-	}
-}
-
-func WithClients(kcli client.Client, mcli metadata.Interface, hcli helm.Client) Option {
-	return func(a *Registry) {
-		a.kcli = kcli
-		a.mcli = mcli
-		a.hcli = hcli
-	}
-}
-
-func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) Option {
-	return func(a *Registry) {
-		a.runtimeConfig = rc
 	}
 }
 

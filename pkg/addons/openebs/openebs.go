@@ -2,14 +2,11 @@ package openebs
 
 import (
 	_ "embed"
+	"log/slog"
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"k8s.io/client-go/metadata"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -20,11 +17,7 @@ const (
 var _ types.AddOn = (*OpenEBS)(nil)
 
 type OpenEBS struct {
-	logf          types.LogFunc
-	kcli          client.Client
-	mcli          metadata.Interface
-	hcli          helm.Client
-	runtimeConfig runtimeconfig.RuntimeConfig
+	logf types.LogFunc
 
 	dryRunManifests [][]byte
 }
@@ -36,26 +29,15 @@ func New(opts ...Option) *OpenEBS {
 	for _, opt := range opts {
 		opt(addon)
 	}
+	if addon.logf == nil {
+		addon.logf = slog.Info
+	}
 	return addon
 }
 
 func WithLogFunc(logf types.LogFunc) Option {
 	return func(a *OpenEBS) {
 		a.logf = logf
-	}
-}
-
-func WithClients(kcli client.Client, mcli metadata.Interface, hcli helm.Client) Option {
-	return func(a *OpenEBS) {
-		a.kcli = kcli
-		a.mcli = mcli
-		a.hcli = hcli
-	}
-}
-
-func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) Option {
-	return func(a *OpenEBS) {
-		a.runtimeConfig = rc
 	}
 }
 

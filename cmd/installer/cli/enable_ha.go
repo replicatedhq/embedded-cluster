@@ -96,5 +96,5 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addons.EnableHA(ctx, logrus.Debugf, kcli, mcli, kclient, hcli, rc, in.Spec, loading)
+	return addons.EnableHA(ctx, logrus.Debugf, kcli, mcli, kclient, hcli, in.Spec, loading)
 }

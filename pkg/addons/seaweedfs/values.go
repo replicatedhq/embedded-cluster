@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"gopkg.in/yaml.v3"
 )
 
@@ -31,7 +32,10 @@ func init() {
 	helmValues = hv
 }
 
-func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, opts types.InstallOptions, overrides []string) (map[string]interface{}, error) {
+func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, inSpec ecv1beta1.InstallationSpec, overrides []string) (map[string]interface{}, error) {
+	rc := runtimeconfig.New(inSpec.RuntimeConfig)
+	domains := runtimeconfig.GetDomains(inSpec.Config)
+
 	// create a copy of the helm values so we don't modify the original
 	marshalled, err := helm.MarshalValues(helmValues)
 	if err != nil {
@@ -39,8 +43,8 @@ func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, opts types.InstallOp
 	}
 
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
-	if opts.Domains.ProxyRegistryDomain != "" {
-		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", opts.Domains.ProxyRegistryDomain)
+	if domains.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", domains.ProxyRegistryDomain)
 	}
 
 	copiedValues, err := helm.UnmarshalValues(marshalled)
@@ -48,13 +52,13 @@ func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, opts types.InstallOp
 		return nil, errors.Wrap(err, "unmarshal helm values")
 	}
 
-	dataPath := filepath.Join(s.runtimeConfig.EmbeddedClusterSeaweedfsSubDir(), "ssd")
+	dataPath := filepath.Join(rc.EmbeddedClusterSeaweedfsSubDir(), "ssd")
 	err = helm.SetValue(copiedValues, "master.data.hostPathPrefix", dataPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm values global.data.hostPathPrefix")
 	}
 
-	logsPath := filepath.Join(s.runtimeConfig.EmbeddedClusterSeaweedfsSubDir(), "storage")
+	logsPath := filepath.Join(rc.EmbeddedClusterSeaweedfsSubDir(), "storage")
 	err = helm.SetValue(copiedValues, "master.logs.hostPathPrefix", logsPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm values global.logs.hostPathPrefix")

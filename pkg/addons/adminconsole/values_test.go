@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,11 +16,13 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 		rc.SetDataDir(t.TempDir())
 		rc.SetHostCABundlePath("/etc/ssl/certs/ca-certificates.crt")
 
-		addon := &AdminConsole{
-			runtimeConfig: rc,
+		inSpec := ecv1beta1.InstallationSpec{
+			RuntimeConfig: rc.Get(),
 		}
 
-		values, err := addon.GenerateHelmValues(context.Background(), types.InstallOptions{}, nil)
+		addon := &AdminConsole{}
+
+		values, err := addon.GenerateHelmValues(context.Background(), inSpec, nil)
 		require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 		// Verify structure types
@@ -66,11 +68,13 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 		rc := runtimeconfig.New(nil)
 		rc.SetDataDir(t.TempDir())
 
-		addon := &AdminConsole{
-			runtimeConfig: rc,
+		inSpec := ecv1beta1.InstallationSpec{
+			RuntimeConfig: rc.Get(),
 		}
 
-		values, err := addon.GenerateHelmValues(context.Background(), types.InstallOptions{}, nil)
+		addon := &AdminConsole{}
+
+		values, err := addon.GenerateHelmValues(context.Background(), inSpec, nil)
 		require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 		// Verify structure types

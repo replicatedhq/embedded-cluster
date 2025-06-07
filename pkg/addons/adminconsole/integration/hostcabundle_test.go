@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -27,20 +28,23 @@ func TestHostCABundle(t *testing.T) {
 	rc.SetDataDir(t.TempDir())
 	rc.SetHostCABundlePath(filepath.Join(t.TempDir(), "ca-certificates.crt"))
 
-	addon := adminconsole.New(
-		adminconsole.WithLogFunc(t.Logf),
-		adminconsole.WithClients(nil, nil, hcli),
-		adminconsole.WithRuntimeConfig(rc),
-	)
-
-	opts := types.InstallOptions{
-		IsDryRun: true,
+	inSpec := ecv1beta1.InstallationSpec{
+		RuntimeConfig: rc.Get(),
 	}
 
-	err = os.WriteFile(rc.HostCABundlePath(), []byte("test"), 0644)
+	clients := types.Clients{
+		HelmClient: hcli,
+		IsDryRun:   true,
+	}
+
+	addon := adminconsole.New(
+		adminconsole.WithLogFunc(t.Logf),
+	)
+
+	err = os.WriteFile(rc.HostCABundlePath(), []byte("test"), 0600)
 	require.NoError(t, err, "Failed to write CA bundle file")
 
-	err = addon.Install(context.Background(), nil, opts, nil)
+	err = addon.Install(context.Background(), clients, nil, inSpec, nil, types.InstallOptions{})
 	require.NoError(t, err, "adminconsole.Install should not return an error")
 
 	manifests := addon.DryRunManifests()

@@ -635,7 +635,6 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		mcli,
 		kclient,
 		hcli,
-		rc,
 		jcmd.InstallationSpec,
 		loading,
 	)

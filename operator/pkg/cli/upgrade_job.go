@@ -20,6 +20,7 @@ import (
 	"github.com/spf13/cobra"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -68,6 +69,11 @@ func UpgradeJobCmd() *cobra.Command {
 				airgapChartsPath = rc.EmbeddedClusterChartsSubDirNoCreate()
 			}
 
+			mcli, err := kubeutils.MetadataClient()
+			if err != nil {
+				return fmt.Errorf("failed to create metadata client: %w", err)
+			}
+
 			hcli, err := helm.NewClient(helm.HelmOptions{
 				K0sVersion: versions.K0sVersion,
 				AirgapPath: airgapChartsPath,
@@ -80,7 +86,7 @@ func UpgradeJobCmd() *cobra.Command {
 			}
 			defer hcli.Close()
 
-			if upgradeErr := performUpgrade(cmd.Context(), kcli, hcli, rc, in); upgradeErr != nil {
+			if upgradeErr := performUpgrade(cmd.Context(), kcli, mcli, hcli, rc, in); upgradeErr != nil {
 				// if this is the last attempt, mark the installation as failed
 				if err := maybeMarkAsFailed(cmd.Context(), kcli, in, upgradeErr); err != nil {
 					slog.Error("Failed to mark installation as failed", "error", err)
@@ -108,7 +114,7 @@ func UpgradeJobCmd() *cobra.Command {
 	return cmd
 }
 
-func performUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) (finalErr error) {
+func performUpgrade(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("upgrade recovered from panic: %v: %s", r, string(debug.Stack()))
@@ -119,7 +125,7 @@ func performUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, r
 		return fmt.Errorf("failed to run v2 migration: %w", err)
 	}
 
-	if err := upgrade.Upgrade(ctx, kcli, hcli, rc, in); err != nil {
+	if err := upgrade.Upgrade(ctx, kcli, mcli, hcli, rc, in); err != nil {
 		return err
 	}
 	return nil
