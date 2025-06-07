@@ -3,7 +3,8 @@ package velero
 import (
 	"testing"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
@@ -19,21 +20,23 @@ func TestVelero_HostCABundle(t *testing.T) {
 	clusterName := util.GenerateClusterName(t)
 	kubeconfig := util.SetupKindCluster(t, clusterName, nil)
 
-	opts := types.InstallOptions{}
-
-	kcli := util.CtrlClient(t, kubeconfig)
-	mcli := util.MetadataClient(t, kubeconfig)
-	hcli := util.HelmClient(t, kubeconfig)
-
 	rc := runtimeconfig.New(nil)
 	rc.SetHostCABundlePath("/etc/ssl/certs/ca-certificates.crt")
 
+	inSpec := ecv1beta1.InstallationSpec{
+		RuntimeConfig: rc.Get(),
+	}
+
+	clients := addonstypes.NewClients(
+		util.CtrlClient(t, kubeconfig),
+		util.MetadataClient(t, kubeconfig),
+		util.HelmClient(t, kubeconfig),
+	)
+
 	addon := velero.New(
 		velero.WithLogFunc(t.Logf),
-		velero.WithClients(kcli, mcli, hcli),
-		velero.WithRuntimeConfig(rc),
 	)
-	if err := addon.Install(t.Context(), nil, opts, nil); err != nil {
+	if err := addon.Install(t.Context(), clients, nil, inSpec, nil, addonstypes.InstallOptions{}); err != nil {
 		t.Fatalf("failed to install velero: %v", err)
 	}
 
