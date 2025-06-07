@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useConfig, ClusterConfig } from "../../../contexts/ConfigContext";
+import { useConfig } from "../../../contexts/ConfigContext";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Button from "../../common/Button";
