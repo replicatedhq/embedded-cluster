@@ -57,6 +57,8 @@ func EnableHA(
 	inSpec ecv1beta1.InstallationSpec,
 	spinner *spinner.MessageWriter,
 ) error {
+	inSpec.HighAvailability = true
+
 	if inSpec.AirGap {
 		logrus.Debugf("Enabling high availability")
 		spinner.Infof("Enabling high availability")
@@ -214,6 +216,8 @@ func ensureSeaweedfs(
 	// TODO: support for end user overrides
 	overrides := addOnOverrides(addon, inSpec.Config, nil)
 
+	inSpec.HighAvailability = true
+
 	if err := addon.Upgrade(ctx, clients, inSpec, overrides); err != nil {
 		return errors.Wrap(err, "upgrade seaweedfs")
 	}
@@ -235,6 +239,8 @@ func enableRegistryHA(
 	// TODO: support for end user overrides
 	overrides := addOnOverrides(addon, inSpec.Config, nil)
 
+	inSpec.HighAvailability = true
+
 	if err := addon.Upgrade(ctx, clients, inSpec, overrides); err != nil {
 		return errors.Wrap(err, "upgrade registry")
 	}
@@ -254,6 +260,8 @@ func EnableAdminConsoleHA(
 
 	// TODO: support for end user overrides
 	overrides := addOnOverrides(addon, inSpec.Config, nil)
+
+	inSpec.HighAvailability = true
 
 	if err := addon.Upgrade(ctx, clients, inSpec, overrides); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
