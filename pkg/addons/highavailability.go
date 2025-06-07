@@ -13,7 +13,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -21,7 +20,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/metadata"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -55,21 +53,15 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, string, error) 
 // EnableHA enables high availability.
 func EnableHA(
 	ctx context.Context, logf types.LogFunc,
-	kcli client.Client, mcli metadata.Interface, kclient kubernetes.Interface, hcli helm.Client,
+	clients types.Clients, kclient kubernetes.Interface,
 	inSpec ecv1beta1.InstallationSpec,
 	spinner *spinner.MessageWriter,
 ) error {
 	if inSpec.AirGap {
-		clients := types.Clients{
-			K8sClient:      kcli,
-			MetadataClient: mcli,
-			HelmClient:     hcli,
-		}
-
 		logrus.Debugf("Enabling high availability")
 		spinner.Infof("Enabling high availability")
 
-		hasMigrated, err := registry.IsRegistryHA(ctx, kcli)
+		hasMigrated, err := registry.IsRegistryHA(ctx, clients.K8sClient)
 		if err != nil {
 			return errors.Wrap(err, "check if registry data has been migrated")
 		} else if !hasMigrated {
@@ -82,15 +74,15 @@ func EnableHA(
 
 			logrus.Debugf("Scaling registry to 0 replicas")
 			// if the migration fails, we need to scale the registry back to 1
-			defer maybeScaleRegistryBackOnFailure(kcli)
-			err := scaleRegistryDown(ctx, kcli)
+			defer maybeScaleRegistryBackOnFailure(clients.K8sClient)
+			err := scaleRegistryDown(ctx, clients.K8sClient)
 			if err != nil {
 				return errors.Wrap(err, "scale registry to 0 replicas")
 			}
 
 			logrus.Debugf("Migrating data for high availability")
 			spinner.Infof("Migrating data for high availability")
-			err = migrateRegistryData(ctx, kcli, kclient, inSpec.Config, spinner)
+			err = migrateRegistryData(ctx, clients.K8sClient, kclient, inSpec.Config, spinner)
 			if err != nil {
 				return errors.Wrap(err, "migrate registry data")
 			}
@@ -108,18 +100,18 @@ func EnableHA(
 
 	logrus.Debugf("Updating the Admin Console for high availability")
 	spinner.Infof("Updating the Admin Console for high availability")
-	err := EnableAdminConsoleHA(ctx, logf, kcli, mcli, hcli, inSpec)
+	err := EnableAdminConsoleHA(ctx, logf, clients, inSpec)
 	if err != nil {
 		return errors.Wrap(err, "enable admin console high availability")
 	}
 	logrus.Debugf("Admin console high availability enabled!")
 
-	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	in, err := kubeutils.GetLatestInstallation(ctx, clients.K8sClient)
 	if err != nil {
 		return errors.Wrap(err, "get latest installation")
 	}
 
-	if err := kubeutils.UpdateInstallation(ctx, kcli, in, func(in *ecv1beta1.Installation) {
+	if err := kubeutils.UpdateInstallation(ctx, clients.K8sClient, in, func(in *ecv1beta1.Installation) {
 		in.Spec.HighAvailability = true
 	}); err != nil {
 		return errors.Wrap(err, "update installation")
@@ -253,18 +245,12 @@ func enableRegistryHA(
 // EnableAdminConsoleHA enables high availability for the admin console.
 func EnableAdminConsoleHA(
 	ctx context.Context, logf types.LogFunc,
-	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
+	clients types.Clients,
 	inSpec ecv1beta1.InstallationSpec,
 ) error {
 	addon := adminconsole.New(
 		adminconsole.WithLogFunc(logf),
 	)
-
-	clients := types.Clients{
-		K8sClient:      kcli,
-		MetadataClient: mcli,
-		HelmClient:     hcli,
-	}
 
 	// TODO: support for end user overrides
 	overrides := addOnOverrides(addon, inSpec.Config, nil)
@@ -273,7 +259,7 @@ func EnableAdminConsoleHA(
 		return errors.Wrap(err, "upgrade admin console")
 	}
 
-	if err := kubeutils.WaitForStatefulset(ctx, kcli, runtimeconfig.KotsadmNamespace, "kotsadm-rqlite", nil); err != nil {
+	if err := kubeutils.WaitForStatefulset(ctx, clients.K8sClient, runtimeconfig.KotsadmNamespace, "kotsadm-rqlite", nil); err != nil {
 		return errors.Wrap(err, "wait for rqlite to be ready")
 	}
 

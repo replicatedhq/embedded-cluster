@@ -41,3 +41,11 @@ type InstallOptions struct {
 }
 
 type KotsInstaller func(msg *spinner.MessageWriter) error
+
+func NewClients(kcli client.Client, mcli metadata.Interface, hcli helm.Client) Clients {
+	return Clients{
+		K8sClient:      kcli,
+		MetadataClient: mcli,
+		HelmClient:     hcli,
+	}
+}

@@ -29,10 +29,8 @@ func TestHostCABundle(t *testing.T) {
 		RuntimeConfig: rc.Get(),
 	}
 
-	clients := types.Clients{
-		HelmClient: hcli,
-		IsDryRun:   true,
-	}
+	clients := types.NewClients(nil, nil, hcli)
+	clients.IsDryRun = true
 
 	addon := velero.New(
 		velero.WithLogFunc(t.Logf),

@@ -11,26 +11,16 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	"k8s.io/client-go/metadata"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func Install(
-	ctx context.Context, logf types.LogFunc,
-	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
+	ctx context.Context, logf types.LogFunc, clients types.Clients,
 	inSpec ecv1beta1.InstallationSpec, installOpts types.InstallOptions,
 ) error {
 	addons := getAddOnsForInstall(logf, inSpec)
 	if installOpts.IsRestore {
 		addons = getAddOnsForRestore(logf)
-	}
-
-	clients := types.Clients{
-		K8sClient:      kcli,
-		MetadataClient: mcli,
-		HelmClient:     hcli,
 	}
 
 	for _, addon := range addons {

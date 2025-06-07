@@ -483,7 +483,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		return fmt.Errorf("unable to add insecure registry: %w", err)
 	}
 
-	opts, err := getAddonInstallOpts(flags)
+	installOpts, err := getAddonInstallOpts(flags)
 	if err != nil {
 		return fmt.Errorf("unable to get addon install options: %w", err)
 	}
@@ -508,10 +508,12 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	}
 	defer hcli.Close()
 
+	clients := addonstypes.NewClients(kcli, mcli, hcli)
+
 	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, kcli, mcli, hcli, in.Spec, *opts); err != nil {
+	if err := addons.Install(ctx, logrus.Debugf, clients, in.Spec, *installOpts); err != nil {
 		return fmt.Errorf("unable to install addons: %w", err)
 	}
 
