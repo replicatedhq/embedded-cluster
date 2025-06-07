@@ -551,6 +551,14 @@ func getAddonInstallOpts(flags InstallCmdFlags) (*addonstypes.InstallOptions, er
 		Hostname:             flags.hostname,
 	}
 
+	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return nil, fmt.Errorf("parse end user overrides: %w", err)
+	}
+	if euCfg != nil {
+		opts.EndUserConfigSpec = &euCfg.Spec
+	}
+
 	opts.KotsInstaller = func(msg *spinner.MessageWriter) error {
 		opts := kotscli.InstallOptions{
 			AppSlug:               flags.license.Spec.AppSlug,
