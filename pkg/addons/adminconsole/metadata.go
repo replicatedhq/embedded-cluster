@@ -50,11 +50,11 @@ func GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	}
 
 	chartConfig := ecv1beta1.Chart{
-		Name:         releaseName,
-		ChartName:    (&AdminConsole{}).ChartLocation(),
+		Name:         _releaseName,
+		ChartName:    (&AdminConsole{}).ChartLocation(ecv1beta1.Domains{}),
 		Version:      Metadata.Version,
 		Values:       string(values),
-		TargetNS:     namespace,
+		TargetNS:     _namespace,
 		ForceUpgrade: ptr.To(false),
 		Order:        5,
 	}

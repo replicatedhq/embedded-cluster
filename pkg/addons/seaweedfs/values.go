@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -33,7 +34,7 @@ func init() {
 	helmValues = hv
 }
 
-func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, overrides []string) (map[string]interface{}, error) {
+func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error) {
 	// create a copy of the helm values so we don't modify the original
 	marshalled, err := helm.MarshalValues(helmValues)
 	if err != nil {
@@ -41,8 +42,8 @@ func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, kcli client.Client, 
 	}
 
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
-	if s.ProxyRegistryDomain != "" {
-		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", s.ProxyRegistryDomain)
+	if domains.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", domains.ProxyRegistryDomain)
 	}
 
 	copiedValues, err := helm.UnmarshalValues(marshalled)

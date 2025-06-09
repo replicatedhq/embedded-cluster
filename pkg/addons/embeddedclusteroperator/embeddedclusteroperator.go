@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	releaseName = "embedded-cluster-operator"
-	namespace   = "embedded-cluster"
+	_releaseName = "embedded-cluster-operator"
+	_namespace   = "embedded-cluster"
 )
 
 var (
@@ -29,15 +29,14 @@ func init() {
 var _ types.AddOn = (*EmbeddedClusterOperator)(nil)
 
 type EmbeddedClusterOperator struct {
-	IsAirgap              bool
-	Proxy                 *ecv1beta1.ProxySpec
-	HostCABundlePath      string
+	IsAirgap bool
+	Proxy    *ecv1beta1.ProxySpec
+
 	ChartLocationOverride string
 	ChartVersionOverride  string
 	ImageRepoOverride     string
 	ImageTagOverride      string
 	UtilsImageOverride    string
-	ProxyRegistryDomain   string
 
 	// DryRun is a flag to enable dry-run mode for Velero.
 	// If true, Velero will only render the helm template and additional manifests, but not install
@@ -56,22 +55,22 @@ func (e *EmbeddedClusterOperator) Version() string {
 }
 
 func (e *EmbeddedClusterOperator) ReleaseName() string {
-	return releaseName
+	return _releaseName
 }
 
 func (e *EmbeddedClusterOperator) Namespace() string {
-	return namespace
+	return _namespace
 }
 
-func (e *EmbeddedClusterOperator) ChartLocation() string {
+func (e *EmbeddedClusterOperator) ChartLocation(domains ecv1beta1.Domains) string {
 	location := Metadata.Location
 	if e.ChartLocationOverride != "" {
 		location = e.ChartLocationOverride
 	}
-	if e.ProxyRegistryDomain == "" {
+	if domains.ProxyRegistryDomain == "" {
 		return location
 	}
-	return strings.Replace(location, "proxy.replicated.com", e.ProxyRegistryDomain, 1)
+	return strings.Replace(location, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 }
 
 func (e *EmbeddedClusterOperator) ChartVersion() string {

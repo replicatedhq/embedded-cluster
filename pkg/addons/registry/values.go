@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -13,7 +14,6 @@ import (
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	k8stypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -46,7 +46,7 @@ func init() {
 	helmValuesHA = hvHA
 }
 
-func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, overrides []string) (map[string]interface{}, error) {
+func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error) {
 	var values map[string]interface{}
 	if r.IsHA {
 		values = helmValuesHA
@@ -61,8 +61,8 @@ func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, r
 	}
 
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
-	if r.ProxyRegistryDomain != "" {
-		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", r.ProxyRegistryDomain)
+	if domains.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", domains.ProxyRegistryDomain)
 	}
 
 	copiedValues, err := helm.UnmarshalValues(marshalled)
@@ -73,12 +73,12 @@ func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, r
 	// only add tls secret value if the secret exists
 	// this is for backwards compatibility when the registry was deployed without TLS
 	var secret corev1.Secret
-	if err := kcli.Get(ctx, k8stypes.NamespacedName{Namespace: namespace, Name: tlsSecretName}, &secret); err != nil {
+	if err := kcli.Get(ctx, client.ObjectKey{Namespace: r.Namespace(), Name: _tlsSecretName}, &secret); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return nil, errors.Wrap(err, "get tls secret")
 		}
 	} else {
-		copiedValues["tlsSecretName"] = tlsSecretName
+		copiedValues["tlsSecretName"] = _tlsSecretName
 	}
 
 	registryIP, err := GetRegistryClusterIP(r.ServiceCIDR)

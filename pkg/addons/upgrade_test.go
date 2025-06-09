@@ -35,10 +35,11 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 	}
 
 	tests := []struct {
-		name   string
-		in     *ecv1beta1.Installation
-		meta   *ectypes.ReleaseMetadata
-		verify func(t *testing.T, addons []types.AddOn, err error)
+		name    string
+		domains ecv1beta1.Domains
+		in      *ecv1beta1.Installation
+		meta    *ectypes.ReleaseMetadata
+		verify  func(t *testing.T, addons []types.AddOn, err error)
 	}{
 		{
 			name: "online installation",
@@ -263,7 +264,7 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rc := runtimeconfig.New(nil)
-			addons, err := getAddOnsForUpgrade(rc, tt.in, tt.meta)
+			addons, err := getAddOnsForUpgrade(rc, tt.domains, tt.in, tt.meta)
 			tt.verify(t, addons, err)
 		})
 	}

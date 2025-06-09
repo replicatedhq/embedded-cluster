@@ -2,11 +2,11 @@ package integration
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -22,20 +22,18 @@ func TestHostCABundle(t *testing.T) {
 	chartLocation, err := filepath.Abs("../../../../operator/charts/embedded-cluster-operator")
 	require.NoError(t, err, "Failed to get chart location")
 
+	rc := runtimeconfig.New(nil)
+	rc.SetHostCABundlePath("/etc/ssl/certs/ca-certificates.crt")
+
 	addon := &embeddedclusteroperator.EmbeddedClusterOperator{
 		DryRun:                true,
 		ChartLocationOverride: chartLocation,
-		HostCABundlePath:      "/etc/ssl/certs/ca-certificates.crt",
 	}
-
-	fmt.Println(addon.ChartLocation())
 
 	hcli, err := helm.NewClient(helm.HelmOptions{})
 	require.NoError(t, err, "NewClient should not return an error")
 
-	rc := runtimeconfig.New(nil)
-
-	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, rc, nil, nil)
+	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, rc, ecv1beta1.Domains{}, nil, nil)
 	require.NoError(t, err, "embeddedclusteroperator.Install should not return an error")
 
 	manifests := addon.DryRunManifests()

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -16,16 +17,16 @@ import (
 var _ types.AddOn = (*Registry)(nil)
 
 type Registry struct {
-	ServiceCIDR         string
-	IsHA                bool
-	ProxyRegistryDomain string
+	ServiceCIDR string
+	IsHA        bool
 }
 
 const (
-	releaseName      = "docker-registry"
-	namespace        = runtimeconfig.RegistryNamespace
-	tlsSecretName    = "registry-tls"
-	lowerBandIPIndex = 10
+	_releaseName = "docker-registry"
+	_namespace   = runtimeconfig.RegistryNamespace
+
+	_tlsSecretName    = "registry-tls"
+	_lowerBandIPIndex = 10
 )
 
 var (
@@ -42,11 +43,11 @@ func (r *Registry) Version() string {
 }
 
 func (r *Registry) ReleaseName() string {
-	return releaseName
+	return _releaseName
 }
 
 func (r *Registry) Namespace() string {
-	return namespace
+	return _namespace
 }
 
 func GetRegistryPassword() string {
@@ -56,7 +57,7 @@ func GetRegistryPassword() string {
 // GetRegistryClusterIP returns the cluster IP for the registry service.
 // This function is deterministic.
 func GetRegistryClusterIP(serviceCIDR string) (string, error) {
-	svcIP, err := helpers.GetLowerBandIP(serviceCIDR, lowerBandIPIndex)
+	svcIP, err := helpers.GetLowerBandIP(serviceCIDR, _lowerBandIPIndex)
 	if err != nil {
 		return "", errors.Wrap(err, "get cluster IP for registry service")
 	}
@@ -69,17 +70,17 @@ func getBackupLabels() map[string]string {
 	}
 }
 
-func (r *Registry) ChartLocation() string {
-	if r.ProxyRegistryDomain == "" {
+func (r *Registry) ChartLocation(domains ecv1beta1.Domains) string {
+	if domains.ProxyRegistryDomain == "" {
 		return Metadata.Location
 	}
-	return strings.Replace(Metadata.Location, "proxy.replicated.com", r.ProxyRegistryDomain, 1)
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 }
 
 // IsRegistryHA checks if the registry deployment has greater than 1 replica.
 func IsRegistryHA(ctx context.Context, kcli client.Client) (bool, error) {
 	deploy := appsv1.Deployment{}
-	err := kcli.Get(ctx, client.ObjectKey{Namespace: namespace, Name: "registry"}, &deploy)
+	err := kcli.Get(ctx, client.ObjectKey{Namespace: _namespace, Name: _releaseName}, &deploy)
 	if err != nil {
 		return false, fmt.Errorf("get registry deployment: %w", err)
 	}

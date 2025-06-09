@@ -11,27 +11,23 @@ import (
 )
 
 const (
-	releaseName = "admin-console"
-	namespace   = runtimeconfig.KotsadmNamespace
+	_releaseName = "admin-console"
+	_namespace   = runtimeconfig.KotsadmNamespace
 )
 
 var _ types.AddOn = (*AdminConsole)(nil)
 
 type AdminConsole struct {
-	IsAirgap                 bool
-	IsHA                     bool
-	Proxy                    *ecv1beta1.ProxySpec
-	ServiceCIDR              string
-	Password                 string
-	TLSCertBytes             []byte
-	TLSKeyBytes              []byte
-	Hostname                 string
-	KotsInstaller            KotsInstaller
-	IsMultiNodeEnabled       bool
-	ReplicatedAppDomain      string
-	ProxyRegistryDomain      string
-	ReplicatedRegistryDomain string
-	HostCABundlePath         string
+	IsAirgap           bool
+	IsHA               bool
+	Proxy              *ecv1beta1.ProxySpec
+	ServiceCIDR        string
+	Password           string
+	TLSCertBytes       []byte
+	TLSKeyBytes        []byte
+	Hostname           string
+	KotsInstaller      KotsInstaller
+	IsMultiNodeEnabled bool
 
 	// DryRun is a flag to enable dry-run mode for Admin Console.
 	// If true, Admin Console will only render the helm template and additional manifests, but not install
@@ -52,11 +48,11 @@ func (a *AdminConsole) Version() string {
 }
 
 func (a *AdminConsole) ReleaseName() string {
-	return releaseName
+	return _releaseName
 }
 
 func (a *AdminConsole) Namespace() string {
-	return namespace
+	return _namespace
 }
 
 func getBackupLabels() map[string]string {
@@ -66,14 +62,14 @@ func getBackupLabels() map[string]string {
 	}
 }
 
-func (a *AdminConsole) ChartLocation() string {
+func (a *AdminConsole) ChartLocation(domains ecv1beta1.Domains) string {
 	chartName := Metadata.Location
 	if AdminConsoleChartRepoOverride != "" {
 		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", AdminConsoleChartRepoOverride)
 	}
 
-	if a.ProxyRegistryDomain != "" {
-		chartName = strings.Replace(chartName, "proxy.replicated.com", a.ProxyRegistryDomain, 1)
+	if domains.ProxyRegistryDomain != "" {
+		chartName = strings.Replace(chartName, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 	}
 	return chartName
 }

@@ -520,7 +520,6 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		License:                 flags.license,
 		IsAirgap:                flags.airgapBundle != "",
 		Proxy:                   flags.proxy,
-		HostCABundlePath:        rc.HostCABundlePath(),
 		TLSCertBytes:            flags.tlsCertBytes,
 		TLSKeyBytes:             flags.tlsKeyBytes,
 		Hostname:                flags.hostname,

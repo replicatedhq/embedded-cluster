@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	releaseName           = "velero"
-	namespace             = runtimeconfig.VeleroNamespace
-	credentialsSecretName = "cloud-credentials"
+	_releaseName = "velero"
+	_namespace   = runtimeconfig.VeleroNamespace
+
+	_credentialsSecretName = "cloud-credentials"
 )
 
 var (
@@ -31,10 +32,7 @@ func init() {
 var _ types.AddOn = (*Velero)(nil)
 
 type Velero struct {
-	Proxy                    *ecv1beta1.ProxySpec
-	ProxyRegistryDomain      string
-	HostCABundlePath         string
-	EmbeddedClusterK0sSubDir string
+	Proxy *ecv1beta1.ProxySpec
 
 	// DryRun is a flag to enable dry-run mode for Velero.
 	// If true, Velero will only render the helm template and additional manifests, but not install
@@ -53,18 +51,18 @@ func (v *Velero) Version() string {
 }
 
 func (v *Velero) ReleaseName() string {
-	return releaseName
+	return _releaseName
 }
 
 func (v *Velero) Namespace() string {
-	return namespace
+	return _namespace
 }
 
-func (v *Velero) ChartLocation() string {
-	if v.ProxyRegistryDomain == "" {
+func (v *Velero) ChartLocation(domains ecv1beta1.Domains) string {
+	if domains.ProxyRegistryDomain == "" {
 		return Metadata.Location
 	}
-	return strings.Replace(Metadata.Location, "proxy.replicated.com", v.ProxyRegistryDomain, 1)
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 }
 
 func (v *Velero) DryRunManifests() [][]byte {

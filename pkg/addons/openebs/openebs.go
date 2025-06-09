@@ -3,18 +3,18 @@ package openebs
 import (
 	"strings"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 )
 
 const (
-	releaseName = "openebs"
-	namespace   = "openebs"
+	_releaseName = "openebs"
+	_namespace   = "openebs"
 )
 
 var _ types.AddOn = (*OpenEBS)(nil)
 
 type OpenEBS struct {
-	ProxyRegistryDomain string
 }
 
 func (o *OpenEBS) Name() string {
@@ -26,16 +26,16 @@ func (o *OpenEBS) Version() string {
 }
 
 func (o *OpenEBS) ReleaseName() string {
-	return releaseName
+	return _releaseName
 }
 
 func (o *OpenEBS) Namespace() string {
-	return namespace
+	return _namespace
 }
 
-func (o *OpenEBS) ChartLocation() string {
-	if o.ProxyRegistryDomain == "" {
+func (o *OpenEBS) ChartLocation(domains ecv1beta1.Domains) string {
+	if domains.ProxyRegistryDomain == "" {
 		return Metadata.Location
 	}
-	return strings.Replace(Metadata.Location, "proxy.replicated.com", o.ProxyRegistryDomain, 1)
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 }

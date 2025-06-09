@@ -208,11 +208,10 @@ func ensureSeaweedfs(ctx context.Context, logf types.LogFunc, kcli client.Client
 
 	// TODO (@salah): add support for end user overrides
 	sw := &seaweedfs.SeaweedFS{
-		ServiceCIDR:         serviceCIDR,
-		ProxyRegistryDomain: domains.ProxyRegistryDomain,
+		ServiceCIDR: serviceCIDR,
 	}
 
-	if err := sw.Upgrade(ctx, logf, kcli, mcli, hcli, rc, addOnOverrides(sw, cfgspec, nil)); err != nil {
+	if err := sw.Upgrade(ctx, logf, kcli, mcli, hcli, rc, domains, addOnOverrides(sw, cfgspec, nil)); err != nil {
 		return errors.Wrap(err, "upgrade seaweedfs")
 	}
 
@@ -226,11 +225,10 @@ func enableRegistryHA(ctx context.Context, logf types.LogFunc, kcli client.Clien
 
 	// TODO (@salah): add support for end user overrides
 	r := &registry.Registry{
-		ServiceCIDR:         serviceCIDR,
-		ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		IsHA:                true,
+		ServiceCIDR: serviceCIDR,
+		IsHA:        true,
 	}
-	if err := r.Upgrade(ctx, logf, kcli, mcli, hcli, rc, addOnOverrides(r, cfgspec, nil)); err != nil {
+	if err := r.Upgrade(ctx, logf, kcli, mcli, hcli, rc, domains, addOnOverrides(r, cfgspec, nil)); err != nil {
 		return errors.Wrap(err, "upgrade registry")
 	}
 
@@ -255,16 +253,13 @@ func EnableAdminConsoleHA(
 
 	// TODO (@salah): add support for end user overrides
 	ac := &adminconsole.AdminConsole{
-		IsAirgap:                 isAirgap,
-		IsHA:                     true,
-		Proxy:                    proxy,
-		ServiceCIDR:              serviceCIDR,
-		IsMultiNodeEnabled:       licenseInfo != nil && licenseInfo.IsMultiNodeEnabled,
-		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
-		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
-		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,
+		IsAirgap:           isAirgap,
+		IsHA:               true,
+		Proxy:              proxy,
+		ServiceCIDR:        serviceCIDR,
+		IsMultiNodeEnabled: licenseInfo != nil && licenseInfo.IsMultiNodeEnabled,
 	}
-	if err := ac.Upgrade(ctx, logf, kcli, mcli, hcli, rc, addOnOverrides(ac, cfgspec, nil)); err != nil {
+	if err := ac.Upgrade(ctx, logf, kcli, mcli, hcli, rc, domains, addOnOverrides(ac, cfgspec, nil)); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
 	}
 

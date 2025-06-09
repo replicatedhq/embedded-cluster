@@ -37,7 +37,7 @@ func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Clie
 		Group:    "",
 		Version:  "v1",
 		Resource: "configmaps",
-	}).Namespace(namespace).Get(ctx, privateCASConfigMapName, metav1.GetOptions{})
+	}).Namespace(_namespace).Get(ctx, privateCASConfigMapName, metav1.GetOptions{})
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return fmt.Errorf("get configmap metadata: %w", err)
 	}
@@ -118,7 +118,7 @@ func casConfigMap(cas map[string]string, checksum string) *corev1.ConfigMap {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      privateCASConfigMapName,
-			Namespace: namespace,
+			Namespace: _namespace,
 			Labels: map[string]string{
 				"kots.io/kotsadm":                        "true",
 				"replicated.com/disaster-recovery":       "infra",

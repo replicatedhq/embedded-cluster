@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -17,17 +18,17 @@ import (
 )
 
 func TestHostCABundle(t *testing.T) {
+	rc := runtimeconfig.New(nil)
+	rc.SetHostCABundlePath("/etc/ssl/certs/ca-certificates.crt")
+
 	addon := &velero.Velero{
-		DryRun:           true,
-		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
+		DryRun: true,
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{})
 	require.NoError(t, err, "NewClient should not return an error")
 
-	rc := runtimeconfig.New(nil)
-
-	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, rc, nil, nil)
+	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, rc, ecv1beta1.Domains{}, nil, nil)
 	require.NoError(t, err, "velero.Install should not return an error")
 
 	manifests := addon.DryRunManifests()
