@@ -26,7 +26,7 @@ func (o *OpenEBS) Install(
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
 		ReleaseName:  o.ReleaseName(),
-		ChartPath:    o.ChartLocation(ecv1beta1.Domains{}),
+		ChartPath:    o.ChartLocation(domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    o.Namespace(),
