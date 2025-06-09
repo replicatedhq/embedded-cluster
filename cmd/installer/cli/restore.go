@@ -439,7 +439,6 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	if err := addons.Install(ctx, logrus.Debugf, hcli, rc, addons.InstallOptions{
 		IsAirgap:           flags.airgapBundle != "",
 		Proxy:              flags.proxy,
-		HostCABundlePath:   rc.HostCABundlePath(),
 		ServiceCIDR:        flags.cidrCfg.ServiceCIDR,
 		IsRestore:          true,
 		EmbeddedConfigSpec: embCfgSpec,

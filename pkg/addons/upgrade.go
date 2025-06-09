@@ -35,12 +35,14 @@ func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 		return errors.Wrap(err, "create metadata client")
 	}
 
-	addons, err := getAddOnsForUpgrade(rc, in, meta)
+	domains := runtimeconfig.GetDomains(in.Spec.Config)
+
+	addons, err := getAddOnsForUpgrade(rc, domains, in, meta)
 	if err != nil {
 		return errors.Wrap(err, "get addons for upgrade")
 	}
 	for _, addon := range addons {
-		if err := upgradeAddOn(ctx, logf, hcli, kcli, mcli, rc, in, addon); err != nil {
+		if err := upgradeAddOn(ctx, logf, hcli, kcli, mcli, rc, domains, in, addon); err != nil {
 			return errors.Wrapf(err, "addon %s", addon.Name())
 		}
 	}
@@ -48,23 +50,14 @@ func Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 	return nil
 }
 
-func getAddOnsForUpgrade(rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
-	domains := runtimeconfig.GetDomains(in.Spec.Config)
-
+func getAddOnsForUpgrade(rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		},
+		&openebs.OpenEBS{},
 	}
 
 	serviceCIDR := ""
 	if in.Spec.Network != nil {
 		serviceCIDR = in.Spec.Network.ServiceCIDR
-	}
-
-	hostCABundlePath := ""
-	if in.Spec.RuntimeConfig != nil {
-		hostCABundlePath = in.Spec.RuntimeConfig.HostCABundlePath
 	}
 
 	// ECO's embedded (wrong) metadata values do not match the published (correct) metadata values.
@@ -87,49 +80,39 @@ func getAddOnsForUpgrade(rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installat
 		ImageRepoOverride:     ecoImageRepo,
 		ImageTagOverride:      ecoImageTag,
 		UtilsImageOverride:    ecoUtilsImage,
-		ProxyRegistryDomain:   domains.ProxyRegistryDomain,
-		HostCABundlePath:      hostCABundlePath,
 	})
 
 	if in.Spec.AirGap {
 		addOns = append(addOns, &registry.Registry{
-			ServiceCIDR:         serviceCIDR,
-			IsHA:                in.Spec.HighAvailability,
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
+			ServiceCIDR: serviceCIDR,
+			IsHA:        in.Spec.HighAvailability,
 		})
 
 		if in.Spec.HighAvailability {
 			addOns = append(addOns, &seaweedfs.SeaweedFS{
-				ServiceCIDR:         serviceCIDR,
-				ProxyRegistryDomain: domains.ProxyRegistryDomain,
+				ServiceCIDR: serviceCIDR,
 			})
 		}
 	}
 
 	if in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
 		addOns = append(addOns, &velero.Velero{
-			Proxy:                    in.Spec.Proxy,
-			ProxyRegistryDomain:      domains.ProxyRegistryDomain,
-			HostCABundlePath:         hostCABundlePath,
-			EmbeddedClusterK0sSubDir: rc.EmbeddedClusterK0sSubDir(),
+			Proxy: in.Spec.Proxy,
 		})
 	}
 
 	addOns = append(addOns, &adminconsole.AdminConsole{
-		IsAirgap:                 in.Spec.AirGap,
-		IsHA:                     in.Spec.HighAvailability,
-		Proxy:                    in.Spec.Proxy,
-		ServiceCIDR:              serviceCIDR,
-		IsMultiNodeEnabled:       in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
-		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
-		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
-		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,
+		IsAirgap:           in.Spec.AirGap,
+		IsHA:               in.Spec.HighAvailability,
+		Proxy:              in.Spec.Proxy,
+		ServiceCIDR:        serviceCIDR,
+		IsMultiNodeEnabled: in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
 	})
 
 	return addOns, nil
 }
 
-func upgradeAddOn(ctx context.Context, logf types.LogFunc, hcli helm.Client, kcli client.Client, mcli metadata.Interface, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, addon types.AddOn) error {
+func upgradeAddOn(ctx context.Context, logf types.LogFunc, hcli helm.Client, kcli client.Client, mcli metadata.Interface, rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains, in *ecv1beta1.Installation, addon types.AddOn) error {
 	// check if we already processed this addon
 	if kubeutils.CheckInstallationConditionStatus(in.Status, conditionName(addon)) == metav1.ConditionTrue {
 		slog.Info(addon.Name() + " is ready")
@@ -146,7 +129,7 @@ func upgradeAddOn(ctx context.Context, logf types.LogFunc, hcli helm.Client, kcl
 	// TODO (@salah): add support for end user overrides
 	overrides := addOnOverrides(addon, in.Spec.Config, nil)
 
-	err := addon.Upgrade(ctx, logf, kcli, mcli, hcli, rc, overrides)
+	err := addon.Upgrade(ctx, logf, kcli, mcli, hcli, rc, domains, overrides)
 	if err != nil {
 		message := helpers.CleanErrorMessage(err)
 		if err := setCondition(ctx, kcli, in, conditionName(addon), metav1.ConditionFalse, "UpgradeFailed", message); err != nil {

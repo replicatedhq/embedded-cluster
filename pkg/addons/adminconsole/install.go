@@ -8,6 +8,7 @@ import (
 	"io/fs"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -35,24 +36,29 @@ func init() {
 	})
 }
 
-func (a *AdminConsole) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, overrides []string, writer *spinner.MessageWriter) error {
+func (a *AdminConsole) Install(
+	ctx context.Context, logf types.LogFunc,
+	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
+	rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains,
+	overrides []string, writer *spinner.MessageWriter,
+) error {
 	// some resources are not part of the helm chart and need to be created before the chart is installed
 	// TODO: move this to the helm chart
-	if err := a.createPreRequisites(ctx, logf, kcli, mcli); err != nil {
+	if err := a.createPreRequisites(ctx, logf, kcli, mcli, rc); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := a.GenerateHelmValues(ctx, kcli, rc, overrides)
+	values, err := a.GenerateHelmValues(ctx, kcli, rc, domains, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
 	opts := helm.InstallOptions{
-		ReleaseName:  releaseName,
-		ChartPath:    a.ChartLocation(),
+		ReleaseName:  a.ReleaseName(),
+		ChartPath:    a.ChartLocation(domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    a.Namespace(),
 		Labels:       getBackupLabels(),
 	}
 
@@ -80,20 +86,20 @@ func (a *AdminConsole) Install(ctx context.Context, logf types.LogFunc, kcli cli
 	return nil
 }
 
-func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface) error {
-	if err := a.createNamespace(ctx, kcli, namespace); err != nil {
+func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, rc runtimeconfig.RuntimeConfig) error {
+	if err := a.createNamespace(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
 
-	if err := a.createPasswordSecret(ctx, kcli, namespace, a.Password); err != nil {
+	if err := a.createPasswordSecret(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create kots password secret")
 	}
 
-	if err := a.createTLSSecret(ctx, kcli, namespace); err != nil {
+	if err := a.createTLSSecret(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create kots TLS secret")
 	}
 
-	if err := a.ensureCAConfigmap(ctx, logf, kcli, mcli); err != nil {
+	if err := a.ensureCAConfigmap(ctx, logf, kcli, mcli, rc); err != nil {
 		return errors.Wrap(err, "ensure CA configmap")
 	}
 
@@ -102,7 +108,7 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFu
 		if err != nil {
 			return errors.Wrap(err, "get registry cluster IP")
 		}
-		if err := a.createRegistrySecret(ctx, kcli, namespace, registryIP); err != nil {
+		if err := a.createRegistrySecret(ctx, kcli, registryIP); err != nil {
 			return errors.Wrap(err, "create registry secret")
 		}
 	}
@@ -110,10 +116,10 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFu
 	return nil
 }
 
-func (a *AdminConsole) createNamespace(ctx context.Context, kcli client.Client, namespace string) error {
+func (a *AdminConsole) createNamespace(ctx context.Context, kcli client.Client) error {
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+			Name: a.Namespace(),
 		},
 	}
 
@@ -131,8 +137,8 @@ func (a *AdminConsole) createNamespace(ctx context.Context, kcli client.Client, 
 	return nil
 }
 
-func (a *AdminConsole) createPasswordSecret(ctx context.Context, kcli client.Client, namespace string, password string) error {
-	passwordBcrypt, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+func (a *AdminConsole) createPasswordSecret(ctx context.Context, kcli client.Client) error {
+	passwordBcrypt, err := bcrypt.GenerateFromPassword([]byte(a.Password), 10)
 	if err != nil {
 		return errors.Wrap(err, "generate bcrypt from password")
 	}
@@ -144,7 +150,7 @@ func (a *AdminConsole) createPasswordSecret(ctx context.Context, kcli client.Cli
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "kotsadm-password",
-			Namespace: namespace,
+			Namespace: a.Namespace(),
 			Labels: map[string]string{
 				"kots.io/kotsadm":                        "true",
 				"replicated.com/disaster-recovery":       "infra",
@@ -172,7 +178,7 @@ func (a *AdminConsole) createPasswordSecret(ctx context.Context, kcli client.Cli
 	return nil
 }
 
-func (a *AdminConsole) createRegistrySecret(ctx context.Context, kcli client.Client, namespace string, registryIP string) error {
+func (a *AdminConsole) createRegistrySecret(ctx context.Context, kcli client.Client, registryIP string) error {
 	authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
 	authConfig := fmt.Sprintf(`{"auths":{"%s:5000":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`, registryIP, registry.GetRegistryPassword(), authString)
 
@@ -183,7 +189,7 @@ func (a *AdminConsole) createRegistrySecret(ctx context.Context, kcli client.Cli
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "registry-creds",
-			Namespace: namespace,
+			Namespace: a.Namespace(),
 			Labels: map[string]string{
 				"kots.io/kotsadm":                        "true",
 				"replicated.com/disaster-recovery":       "infra",
@@ -212,7 +218,7 @@ func (a *AdminConsole) createRegistrySecret(ctx context.Context, kcli client.Cli
 	return nil
 }
 
-func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client, namespace string) error {
+func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client) error {
 	if len(a.TLSCertBytes) == 0 || len(a.TLSKeyBytes) == 0 {
 		return nil
 	}
@@ -224,7 +230,7 @@ func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client, 
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "kotsadm-tls",
-			Namespace: namespace,
+			Namespace: a.Namespace(),
 			Labels: map[string]string{
 				"kots.io/kotsadm":                        "true",
 				"replicated.com/disaster-recovery":       "infra",
@@ -260,17 +266,17 @@ func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client, 
 	return nil
 }
 
-func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface) error {
-	if a.HostCABundlePath == "" {
+func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, rc runtimeconfig.RuntimeConfig) error {
+	if rc.HostCABundlePath() == "" {
 		return nil
 	}
 
 	if a.DryRun {
-		checksum, err := calculateFileChecksum(a.HostCABundlePath)
+		checksum, err := calculateFileChecksum(rc.HostCABundlePath())
 		if err != nil {
 			return fmt.Errorf("calculate checksum: %w", err)
 		}
-		new, err := newCAConfigMap(a.HostCABundlePath, checksum)
+		new, err := newCAConfigMap(rc.HostCABundlePath(), checksum)
 		if err != nil {
 			return fmt.Errorf("create map: %w", err)
 		}
@@ -282,7 +288,7 @@ func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc
 		return nil
 	}
 
-	err := EnsureCAConfigmap(ctx, logf, kcli, mcli, a.HostCABundlePath)
+	err := EnsureCAConfigmap(ctx, logf, kcli, mcli, rc.HostCABundlePath())
 
 	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
 		// This can result in issues installing in environments with a MITM HTTP proxy.

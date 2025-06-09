@@ -23,7 +23,6 @@ type InstallOptions struct {
 	License                 *kotsv1beta1.License
 	IsAirgap                bool
 	Proxy                   *ecv1beta1.ProxySpec
-	HostCABundlePath        string
 	TLSCertBytes            []byte
 	TLSKeyBytes             []byte
 	Hostname                string
@@ -47,6 +46,8 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 		return errors.Wrap(err, "create metadata client")
 	}
 
+	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
+
 	addons := getAddOnsForInstall(rc, opts)
 	if opts.IsRestore {
 		addons = getAddOnsForRestore(rc, opts)
@@ -58,7 +59,7 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 
 		overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
-		if err := addon.Install(ctx, logf, kcli, mcli, hcli, rc, overrides, loading); err != nil {
+		if err := addon.Install(ctx, logf, kcli, mcli, hcli, rc, domains, overrides, loading); err != nil {
 			loading.ErrorClosef("Failed to install %s", addon.Name())
 			return errors.Wrapf(err, "install %s", addon.Name())
 		}
@@ -70,50 +71,36 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 }
 
 func getAddOnsForInstall(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
-	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
-
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		},
+		&openebs.OpenEBS{},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-			IsAirgap:            opts.IsAirgap,
-			Proxy:               opts.Proxy,
-			HostCABundlePath:    opts.HostCABundlePath,
+			IsAirgap: opts.IsAirgap,
+			Proxy:    opts.Proxy,
 		},
 	}
 
 	if opts.IsAirgap {
 		addOns = append(addOns, &registry.Registry{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-			ServiceCIDR:         opts.ServiceCIDR,
+			ServiceCIDR: opts.ServiceCIDR,
 		})
 	}
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			ProxyRegistryDomain:      domains.ProxyRegistryDomain,
-			Proxy:                    opts.Proxy,
-			HostCABundlePath:         opts.HostCABundlePath,
-			EmbeddedClusterK0sSubDir: rc.EmbeddedClusterK0sSubDir(),
+			Proxy: opts.Proxy,
 		})
 	}
 
 	adminConsoleAddOn := &adminconsole.AdminConsole{
-		IsAirgap:                 opts.IsAirgap,
-		Proxy:                    opts.Proxy,
-		ServiceCIDR:              opts.ServiceCIDR,
-		Password:                 opts.AdminConsolePwd,
-		TLSCertBytes:             opts.TLSCertBytes,
-		TLSKeyBytes:              opts.TLSKeyBytes,
-		Hostname:                 opts.Hostname,
-		KotsInstaller:            opts.KotsInstaller,
-		IsMultiNodeEnabled:       opts.IsMultiNodeEnabled,
-		ReplicatedAppDomain:      domains.ReplicatedAppDomain,
-		ProxyRegistryDomain:      domains.ProxyRegistryDomain,
-		ReplicatedRegistryDomain: domains.ReplicatedRegistryDomain,
-		HostCABundlePath:         opts.HostCABundlePath,
+		IsAirgap:           opts.IsAirgap,
+		Proxy:              opts.Proxy,
+		ServiceCIDR:        opts.ServiceCIDR,
+		Password:           opts.AdminConsolePwd,
+		TLSCertBytes:       opts.TLSCertBytes,
+		TLSKeyBytes:        opts.TLSKeyBytes,
+		Hostname:           opts.Hostname,
+		KotsInstaller:      opts.KotsInstaller,
+		IsMultiNodeEnabled: opts.IsMultiNodeEnabled,
 	}
 	addOns = append(addOns, adminConsoleAddOn)
 
@@ -121,17 +108,10 @@ func getAddOnsForInstall(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []
 }
 
 func getAddOnsForRestore(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
-	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
-
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{
-			ProxyRegistryDomain: domains.ProxyRegistryDomain,
-		},
+		&openebs.OpenEBS{},
 		&velero.Velero{
-			Proxy:                    opts.Proxy,
-			ProxyRegistryDomain:      domains.ProxyRegistryDomain,
-			HostCABundlePath:         opts.HostCABundlePath,
-			EmbeddedClusterK0sSubDir: rc.EmbeddedClusterK0sSubDir(),
+			Proxy: opts.Proxy,
 		},
 	}
 	return addOns

@@ -3,6 +3,7 @@ package openebs
 import (
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
@@ -22,10 +23,12 @@ func TestOpenEBS_AnalyticsDisabled(t *testing.T) {
 
 	rc := runtimeconfig.New(nil)
 
-	addon := &openebs.OpenEBS{
+	domains := ecv1beta1.Domains{
 		ProxyRegistryDomain: "proxy.replicated.com",
 	}
-	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, rc, nil, nil); err != nil {
+
+	addon := &openebs.OpenEBS{}
+	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, rc, domains, nil, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 
