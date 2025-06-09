@@ -1,19 +1,32 @@
 package velero
 
 import (
-	_ "embed"
 	"strings"
 
-	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/runtime"
 	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
+
+const (
+	releaseName           = "velero"
+	namespace             = runtimeconfig.VeleroNamespace
+	credentialsSecretName = "cloud-credentials"
+)
+
+var (
+	serializer runtime.Serializer
+)
+
+func init() {
+	scheme := kubeutils.Scheme
+	serializer = jsonserializer.NewSerializerWithOptions(jsonserializer.DefaultMetaFactory, scheme, scheme, jsonserializer.SerializerOptions{
+		Yaml: true,
+	})
+}
 
 var _ types.AddOn = (*Velero)(nil)
 
@@ -29,43 +42,6 @@ type Velero struct {
 	DryRun bool
 
 	dryRunManifests [][]byte
-}
-
-const (
-	releaseName           = "velero"
-	namespace             = runtimeconfig.VeleroNamespace
-	credentialsSecretName = "cloud-credentials"
-)
-
-var (
-	//go:embed static/values.tpl.yaml
-	rawvalues []byte
-	// helmValues is the unmarshal version of rawvalues.
-	helmValues map[string]interface{}
-	//go:embed static/metadata.yaml
-	rawmetadata []byte
-	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.AddonMetadata
-)
-
-var (
-	serializer runtime.Serializer
-)
-
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal metadata"))
-	}
-	hv, err := release.RenderHelmValues(rawvalues, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal values"))
-	}
-	helmValues = hv
-
-	scheme := kubeutils.Scheme
-	serializer = jsonserializer.NewSerializerWithOptions(jsonserializer.DefaultMetaFactory, scheme, scheme, jsonserializer.SerializerOptions{
-		Yaml: true,
-	})
 }
 
 func (v *Velero) Name() string {

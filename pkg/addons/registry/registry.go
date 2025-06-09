@@ -2,16 +2,13 @@ package registry
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -32,39 +29,9 @@ const (
 )
 
 var (
-	//go:embed static/values.tpl.yaml
-	rawvalues []byte
-	// helmValues is the unmarshal version of rawvalues.
-	helmValues map[string]interface{}
-	//go:embed static/values-ha.tpl.yaml
-	rawvaluesha []byte
-	// helmValuesHA is the unmarshal version of rawvaluesha.
-	helmValuesHA map[string]interface{}
-	//go:embed static/metadata.yaml
-	rawmetadata []byte
-	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.AddonMetadata
 	// registryPassword is the password for the registry.
 	registryPassword = helpers.RandString(20)
 )
-
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal metadata"))
-	}
-
-	hv, err := release.RenderHelmValues(rawvalues, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal values"))
-	}
-	helmValues = hv
-
-	hvHA, err := release.RenderHelmValues(rawvaluesha, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal ha values"))
-	}
-	helmValuesHA = hvHA
-}
 
 func (r *Registry) Name() string {
 	return "Registry"

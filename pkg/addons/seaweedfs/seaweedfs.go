@@ -1,22 +1,11 @@
 package seaweedfs
 
 import (
-	_ "embed"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"gopkg.in/yaml.v3"
 )
-
-var _ types.AddOn = (*SeaweedFS)(nil)
-
-type SeaweedFS struct {
-	ServiceCIDR         string
-	ProxyRegistryDomain string
-}
 
 const (
 	releaseName = "seaweedfs"
@@ -35,26 +24,11 @@ const (
 	s3SecretName = "secret-seaweedfs-s3"
 )
 
-var (
-	//go:embed static/values.tpl.yaml
-	rawvalues []byte
-	// helmValues is the unmarshal version of rawvalues.
-	helmValues map[string]interface{}
-	//go:embed static/metadata.yaml
-	rawmetadata []byte
-	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.AddonMetadata
-)
+var _ types.AddOn = (*SeaweedFS)(nil)
 
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal metadata"))
-	}
-	hv, err := release.RenderHelmValues(rawvalues, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal values"))
-	}
-	helmValues = hv
+type SeaweedFS struct {
+	ServiceCIDR         string
+	ProxyRegistryDomain string
 }
 
 func (s *SeaweedFS) Name() string {

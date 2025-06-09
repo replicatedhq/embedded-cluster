@@ -1,23 +1,21 @@
 package embeddedclusteroperator
 
 import (
-	_ "embed"
 	"strings"
 
-	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
-	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/runtime"
 	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
 
-var (
-	_ types.AddOn = (*EmbeddedClusterOperator)(nil)
+const (
+	releaseName = "embedded-cluster-operator"
+	namespace   = "embedded-cluster"
+)
 
+var (
 	serializer runtime.Serializer
 )
 
@@ -27,6 +25,8 @@ func init() {
 		Yaml: true,
 	})
 }
+
+var _ types.AddOn = (*EmbeddedClusterOperator)(nil)
 
 type EmbeddedClusterOperator struct {
 	IsAirgap              bool
@@ -45,37 +45,6 @@ type EmbeddedClusterOperator struct {
 	DryRun bool
 
 	dryRunManifests [][]byte
-}
-
-const (
-	releaseName = "embedded-cluster-operator"
-	namespace   = "embedded-cluster"
-)
-
-var (
-	//go:embed static/values.tpl.yaml
-	rawvalues []byte
-	// helmValues is the unmarshal version of rawvalues.
-	helmValues map[string]interface{}
-	//go:embed static/metadata.yaml
-	rawmetadata []byte
-	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.AddonMetadata
-)
-
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(errors.Wrap(err, "unmarshal metadata"))
-	}
-
-	hv, err := release.RenderHelmValues(rawvalues, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unmarshal values"))
-	}
-	helmValues = hv
-
-	helmValues["embeddedClusterVersion"] = versions.Version
-	helmValues["embeddedClusterK0sVersion"] = versions.K0sVersion
 }
 
 func (e *EmbeddedClusterOperator) Name() string {

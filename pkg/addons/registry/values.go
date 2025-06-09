@@ -2,17 +2,49 @@ package registry
 
 import (
 	"context"
+	_ "embed"
 	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+var (
+	//go:embed static/values.tpl.yaml
+	rawvalues []byte
+	// helmValues is the unmarshal version of rawvalues.
+	helmValues map[string]interface{}
+	//go:embed static/values-ha.tpl.yaml
+	rawvaluesha []byte
+	// helmValuesHA is the unmarshal version of rawvaluesha.
+	helmValuesHA map[string]interface{}
+)
+
+func init() {
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(errors.Wrap(err, "unable to unmarshal metadata"))
+	}
+
+	hv, err := release.RenderHelmValues(rawvalues, Metadata)
+	if err != nil {
+		panic(errors.Wrap(err, "unable to unmarshal values"))
+	}
+	helmValues = hv
+
+	hvHA, err := release.RenderHelmValues(rawvaluesha, Metadata)
+	if err != nil {
+		panic(errors.Wrap(err, "unable to unmarshal ha values"))
+	}
+	helmValuesHA = hvHA
+}
 
 func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, overrides []string) (map[string]interface{}, error) {
 	var values map[string]interface{}
