@@ -101,7 +101,8 @@ func Test_canEnableHA(t *testing.T) {
 			req := require.New(t)
 			assert := assert.New(t)
 			ctx := context.Background()
-			got, reason, err := CanEnableHA(ctx, tt.args.kcli)
+			addOns := New(WithKubernetesClient(tt.args.kcli))
+			got, reason, err := addOns.CanEnableHA(ctx)
 			if tt.wantErr {
 				req.Error(err)
 				return

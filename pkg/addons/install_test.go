@@ -190,8 +190,8 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				tt.before()
 			}
 			rc := runtimeconfig.New(nil)
-			addons := getAddOnsForInstall(rc, tt.opts)
-			tt.verify(t, addons)
+			addOns := New(WithRuntimeConfig(rc))
+			tt.verify(t, addOns.getAddOnsForInstall(tt.opts))
 			if tt.after != nil {
 				tt.after()
 			}

@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/spf13/pflag"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -154,6 +155,10 @@ func KubeClient() (client.Client, error) {
 
 func MetadataClient() (metadata.Interface, error) {
 	return dr.MetadataClient()
+}
+
+func GetClientSet() (kubernetes.Interface, error) {
+	return dr.GetClientset()
 }
 
 func Enabled() bool {
