@@ -391,7 +391,7 @@ func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, 
 	}
 
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(ctx, rc, isWorker, jcmd.InstallationSpec.Proxy); err != nil {
+	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, isWorker, jcmd.InstallationSpec.Proxy); err != nil {
 		return fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 

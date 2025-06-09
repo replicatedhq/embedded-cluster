@@ -35,7 +35,7 @@ type Client struct {
 	Systemd       *Systemd
 	FirewalldUtil *FirewalldUtil
 	Metrics       *Sender
-	K0sClient     *K0sClient
+	K0sClient     *K0s
 	HelmClient    helm.Client
 	Kotsadm       *Kotsadm
 }
@@ -61,7 +61,7 @@ func Init(outputFile string, client *Client) {
 		client.Metrics = &Sender{}
 	}
 	if client.K0sClient == nil {
-		client.K0sClient = &K0sClient{}
+		client.K0sClient = &K0s{}
 	}
 	if client.Kotsadm == nil {
 		client.Kotsadm = NewKotsadm()

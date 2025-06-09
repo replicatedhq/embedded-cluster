@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -35,11 +34,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -806,8 +803,9 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
+
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(ctx, rc, false, flags.proxy); err != nil {
+	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, false, flags.proxy); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
@@ -819,7 +817,7 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 	}
 
 	logrus.Debugf("waiting for k0s to be ready")
-	if err := waitForK0s(); err != nil {
+	if err := k0s.WaitForK0s(); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("wait for k0s: %w", err)
 	}
@@ -977,176 +975,6 @@ func proxyRegistryURL() string {
 	}
 	domains := runtimeconfig.GetDomains(embCfgSpec)
 	return netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain)
-}
-
-// createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
-// systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(ctx context.Context, rc runtimeconfig.RuntimeConfig, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
-	dst := systemdUnitFileName()
-	if _, err := os.Lstat(dst); err == nil {
-		if err := os.Remove(dst); err != nil {
-			return err
-		}
-	}
-	src := "/etc/systemd/system/k0scontroller.service"
-	if isWorker {
-		src = "/etc/systemd/system/k0sworker.service"
-	}
-	if proxy != nil {
-		if err := ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy); err != nil {
-			return fmt.Errorf("unable to create proxy config: %w", err)
-		}
-	}
-	logrus.Debugf("linking %s to %s", src, dst)
-	if err := os.Symlink(src, dst); err != nil {
-		return fmt.Errorf("failed to create symlink: %w", err)
-	}
-
-	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
-		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
-	}
-	if err := installAndEnableLocalArtifactMirror(ctx, rc); err != nil {
-		return fmt.Errorf("unable to install and enable local artifact mirror: %w", err)
-	}
-	return nil
-}
-
-func systemdUnitFileName() string {
-	return fmt.Sprintf("/etc/systemd/system/%s.service", runtimeconfig.BinaryName())
-}
-
-// ensureProxyConfig creates a new http-proxy.conf configuration file. The file is saved in the
-// systemd directory (/etc/systemd/system/k0scontroller.service.d/).
-func ensureProxyConfig(servicePath string, httpProxy string, httpsProxy string, noProxy string) error {
-	// create the directory
-	if err := os.MkdirAll(servicePath, 0755); err != nil {
-		return fmt.Errorf("unable to create directory: %w", err)
-	}
-
-	// create and write the file
-	content := fmt.Sprintf(`[Service]
-Environment="HTTP_PROXY=%s"
-Environment="HTTPS_PROXY=%s"
-Environment="NO_PROXY=%s"`, httpProxy, httpsProxy, noProxy)
-
-	err := os.WriteFile(filepath.Join(servicePath, "http-proxy.conf"), []byte(content), 0644)
-	if err != nil {
-		return fmt.Errorf("unable to create and write proxy file: %w", err)
-	}
-
-	return nil
-}
-
-// installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
-// service is responsible for serving on localhost, through http, all files that are used
-// during a cluster upgrade.
-func installAndEnableLocalArtifactMirror(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
-	materializer := goods.NewMaterializer(rc)
-	if err := materializer.LocalArtifactMirrorUnitFile(); err != nil {
-		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
-	}
-	if err := writeLocalArtifactMirrorDropInFile(rc); err != nil {
-		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
-	}
-	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
-		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
-	}
-	if _, err := helpers.RunCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
-		return fmt.Errorf("unable to enable the local artifact mirror service: %w", err)
-	}
-	logrus.Debugf("Starting local artifact mirror")
-	if _, err := helpers.RunCommand("systemctl", "start", "local-artifact-mirror"); err != nil {
-		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
-	}
-	if err := waitForLocalArtifactMirror(ctx); err != nil {
-		return fmt.Errorf("unable to wait for the local artifact mirror: %w", err)
-	}
-	logrus.Debugf("Local artifact mirror started")
-	return nil
-}
-
-func waitForLocalArtifactMirror(ctx context.Context) error {
-	consecutiveSuccesses := 0
-	requiredSuccesses := 3
-	maxAttempts := 30
-	checkInterval := 2 * time.Second
-
-	var lastErr error
-	for attempt := 0; attempt < maxAttempts; attempt++ {
-		_, err := helpers.RunCommand("systemctl", "status", "local-artifact-mirror")
-		if err == nil {
-			consecutiveSuccesses++
-			if consecutiveSuccesses >= requiredSuccesses {
-				return nil
-			}
-		} else {
-			consecutiveSuccesses = 0
-			lastErr = err
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(checkInterval):
-			continue
-		}
-	}
-
-	return lastErr
-}
-
-const (
-	localArtifactMirrorDropInFileContents = `[Service]
-Environment="LOCAL_ARTIFACT_MIRROR_PORT=%d"
-Environment="LOCAL_ARTIFACT_MIRROR_DATA_DIR=%s"
-# Empty ExecStart= will clear out the previous ExecStart value
-ExecStart=
-ExecStart=%s serve
-`
-)
-
-func writeLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {
-	contents := fmt.Sprintf(
-		localArtifactMirrorDropInFileContents,
-		rc.LocalArtifactMirrorPort(),
-		rc.EmbeddedClusterHomeDirectory(),
-		rc.PathToEmbeddedClusterBinary("local-artifact-mirror"),
-	)
-	err := systemd.WriteDropInFile("local-artifact-mirror.service", "embedded-cluster.conf", []byte(contents))
-	if err != nil {
-		return fmt.Errorf("write drop-in file: %w", err)
-	}
-	return nil
-}
-
-// waitForK0s waits for the k0s API to be available. We wait for the k0s socket to
-// appear in the system and until the k0s status command to finish.
-func waitForK0s() error {
-	if !dryrun.Enabled() {
-		var success bool
-		for i := 0; i < 30; i++ {
-			time.Sleep(2 * time.Second)
-			spath := runtimeconfig.K0sStatusSocketPath
-			if _, err := os.Stat(spath); err != nil {
-				continue
-			}
-			success = true
-			break
-		}
-		if !success {
-			return fmt.Errorf("timeout waiting for %s", runtimeconfig.BinaryName())
-		}
-	}
-
-	for i := 1; ; i++ {
-		_, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath, "status")
-		if err == nil {
-			return nil
-		} else if i == 30 {
-			return fmt.Errorf("unable to get status: %w", err)
-		}
-		time.Sleep(2 * time.Second)
-	}
 }
 
 func waitForNode(ctx context.Context) error {

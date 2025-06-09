@@ -21,7 +21,7 @@ import (
 func TestUpdateAirgapCurrent(t *testing.T) {
 	updateCmdSetupFilesystem(t, "/var/lib/embedded-cluster", "/var/lib/embedded-cluster/k0s")
 
-	k0sClient := &dryrun.K0sClient{}
+	k0sClient := &dryrun.K0s{}
 	kubeUtils := &dryrun.KubeUtils{}
 
 	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
@@ -81,7 +81,7 @@ func TestUpdateAirgapCurrent(t *testing.T) {
 func TestUpdateAirgapPreFS(t *testing.T) {
 	updateCmdSetupFilesystem(t, "/var/lib/embedded-cluster", "/var/lib/k0s")
 
-	k0sClient := &dryrun.K0sClient{}
+	k0sClient := &dryrun.K0s{}
 	kubeUtils := &dryrun.KubeUtils{}
 
 	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
