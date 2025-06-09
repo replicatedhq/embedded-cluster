@@ -23,6 +23,8 @@ func New(spec *ecv1beta1.RuntimeConfigSpec) RuntimeConfig {
 	return &runtimeConfig{spec: spec}
 }
 
+// NewFromDisk creates a new RuntimeConfig instance from the runtime config file on disk at path
+// /etc/embedded-cluster/ec.yaml.
 func NewFromDisk() (RuntimeConfig, error) {
 	location := ECConfigPath
 	data, err := os.ReadFile(location)
@@ -38,10 +40,12 @@ func NewFromDisk() (RuntimeConfig, error) {
 	return New(&spec), nil
 }
 
+// Get returns the spec for the RuntimeConfig.
 func (rc *runtimeConfig) Get() *ecv1beta1.RuntimeConfigSpec {
 	return rc.spec
 }
 
+// Set sets the spec for the RuntimeConfig.
 func (rc *runtimeConfig) Set(spec *ecv1beta1.RuntimeConfigSpec) {
 	if spec == nil {
 		// runtime config is nil in old installation objects so this keeps the default.
@@ -50,6 +54,7 @@ func (rc *runtimeConfig) Set(spec *ecv1beta1.RuntimeConfigSpec) {
 	rc.spec = spec
 }
 
+// Cleanup removes all files in the runtime config's tmp directory.
 func (rc *runtimeConfig) Cleanup() {
 	tmpDir := rc.EmbeddedClusterTmpSubDir()
 	// We should not delete the tmp dir, rather we should empty its contents leaving
@@ -73,9 +78,7 @@ func (rc *runtimeConfig) EmbeddedClusterHomeDirectory() string {
 // stores temporary files.
 func (rc *runtimeConfig) EmbeddedClusterTmpSubDir() string {
 	path := filepath.Join(rc.EmbeddedClusterHomeDirectory(), "tmp")
-	if err := os.MkdirAll(path, 0755); err != nil {
-		logrus.Fatalf("unable to create embedded-cluster tmp dir: %s", err)
-	}
+	mustMkdirAll(path)
 	return path
 }
 
@@ -83,9 +86,7 @@ func (rc *runtimeConfig) EmbeddedClusterTmpSubDir() string {
 // are stored.
 func (rc *runtimeConfig) EmbeddedClusterBinsSubDir() string {
 	path := filepath.Join(rc.EmbeddedClusterHomeDirectory(), "bin")
-	if err := os.MkdirAll(path, 0755); err != nil {
-		logrus.Fatalf("unable to create embedded-cluster bin dir: %s", err)
-	}
+	mustMkdirAll(path)
 	return path
 }
 
@@ -93,9 +94,7 @@ func (rc *runtimeConfig) EmbeddedClusterBinsSubDir() string {
 // are stored.
 func (rc *runtimeConfig) EmbeddedClusterChartsSubDir() string {
 	path := filepath.Join(rc.EmbeddedClusterHomeDirectory(), "charts")
-	if err := os.MkdirAll(path, 0755); err != nil {
-		logrus.Fatalf("unable to create embedded-cluster charts dir: %s", err)
-	}
+	mustMkdirAll(path)
 	return path
 }
 
@@ -108,9 +107,7 @@ func (rc *runtimeConfig) EmbeddedClusterChartsSubDirNoCreate() string {
 // EmbeddedClusterImagesSubDir returns the path to the directory where docker images are stored.
 func (rc *runtimeConfig) EmbeddedClusterImagesSubDir() string {
 	path := filepath.Join(rc.EmbeddedClusterHomeDirectory(), "images")
-	if err := os.MkdirAll(path, 0755); err != nil {
-		logrus.Fatalf("unable to create embedded-cluster images dir: %s", err)
-	}
+	mustMkdirAll(path)
 	return path
 }
 
@@ -157,9 +154,7 @@ func (rc *runtimeConfig) PathToKubeletConfig() string {
 // a running cluster should be stored into this directory.
 func (rc *runtimeConfig) EmbeddedClusterSupportSubDir() string {
 	path := filepath.Join(rc.EmbeddedClusterHomeDirectory(), "support")
-	if err := os.MkdirAll(path, 0700); err != nil {
-		logrus.Fatalf("unable to create embedded-cluster support dir: %s", err)
-	}
+	mustMkdirAll(path)
 	return path
 }
 
@@ -169,32 +164,36 @@ func (rc *runtimeConfig) PathToEmbeddedClusterSupportFile(name string) string {
 	return filepath.Join(rc.EmbeddedClusterSupportSubDir(), name)
 }
 
+// WriteToDisk writes the spec for the RuntimeConfig to the runtime config file on disk at path
+// /etc/embedded-cluster/ec.yaml.
 func (rc *runtimeConfig) WriteToDisk() error {
 	location := ECConfigPath
 	err := os.MkdirAll(filepath.Dir(location), 0755)
 	if err != nil {
-		return fmt.Errorf("unable to create runtime config directory: %w", err)
+		return fmt.Errorf("create directory: %w", err)
 	}
 
 	// check if the file already exists, if it does delete it
 	err = os.RemoveAll(location)
 	if err != nil {
-		return fmt.Errorf("unable to remove existing runtime config: %w", err)
+		return fmt.Errorf("remove existing file: %w", err)
 	}
 
 	yml, err := yaml.Marshal(rc.spec)
 	if err != nil {
-		return fmt.Errorf("unable to marshal runtime config: %w", err)
+		return fmt.Errorf("marshal spec: %w", err)
 	}
 
 	err = os.WriteFile(location, yml, 0644)
 	if err != nil {
-		return fmt.Errorf("unable to write runtime config: %w", err)
+		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil
 }
 
+// LocalArtifactMirrorPort returns the configured port for the local artifact mirror or the default
+// if not configured.
 func (rc *runtimeConfig) LocalArtifactMirrorPort() int {
 	if rc.spec.LocalArtifactMirror.Port > 0 {
 		return rc.spec.LocalArtifactMirror.Port
@@ -202,6 +201,8 @@ func (rc *runtimeConfig) LocalArtifactMirrorPort() int {
 	return ecv1beta1.DefaultLocalArtifactMirrorPort
 }
 
+// AdminConsolePort returns the configured port for the admin console or the default if not
+// configured.
 func (rc *runtimeConfig) AdminConsolePort() int {
 	if rc.spec.AdminConsole.Port > 0 {
 		return rc.spec.AdminConsole.Port
@@ -209,26 +210,38 @@ func (rc *runtimeConfig) AdminConsolePort() int {
 	return ecv1beta1.DefaultAdminConsolePort
 }
 
+// HostCABundlePath returns the path to the host CA bundle.
 func (rc *runtimeConfig) HostCABundlePath() string {
 	return rc.spec.HostCABundlePath
 }
 
+// SetDataDir sets the data directory for the runtime configuration.
 func (rc *runtimeConfig) SetDataDir(dataDir string) {
 	rc.spec.DataDir = dataDir
 }
 
+// SetLocalArtifactMirrorPort sets the port for the local artifact mirror.
 func (rc *runtimeConfig) SetLocalArtifactMirrorPort(port int) {
 	rc.spec.LocalArtifactMirror.Port = port
 }
 
+// SetAdminConsolePort sets the port for the admin console.
 func (rc *runtimeConfig) SetAdminConsolePort(port int) {
 	rc.spec.AdminConsole.Port = port
 }
 
+// SetManagerPort sets the port for the manager.
 func (rc *runtimeConfig) SetManagerPort(port int) {
 	rc.spec.Manager.Port = port
 }
 
+// SetHostCABundlePath sets the path to the host CA bundle.
 func (rc *runtimeConfig) SetHostCABundlePath(hostCABundlePath string) {
 	rc.spec.HostCABundlePath = hostCABundlePath
+}
+
+func mustMkdirAll(path string) {
+	if err := os.MkdirAll(path, 0755); err != nil {
+		logrus.Fatalf("unable to create dir %q: %v", path, err)
+	}
 }

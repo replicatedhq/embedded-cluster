@@ -53,7 +53,8 @@ func startAPI(ctx context.Context, cert tls.Certificate, config apiConfig) error
 		}
 	}()
 
-	if err := waitForAPI(ctx, listener.Addr().String()); err != nil {
+	addr := fmt.Sprintf("localhost:%d", config.ManagerPort)
+	if err := waitForAPI(ctx, addr); err != nil {
 		return fmt.Errorf("unable to wait for api: %w", err)
 	}
 
