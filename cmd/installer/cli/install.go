@@ -125,36 +125,25 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				installReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			installErr := runInstall(cmd.Context(), name, flags, rc, installReporter)
-
-			if flags.enableManagerExperience {
-				if err := markUIInstallComplete(flags.adminConsolePassword, flags.managerPort, installErr); err != nil {
-					return fmt.Errorf("unable to mark ui install complete: %w", err)
-				}
-			} else {
-				if err := printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc); err != nil {
-					return err
-				}
-			}
-
-			if installErr != nil {
+			err := runInstall(cmd.Context(), name, flags, rc, installReporter)
+			if err != nil {
 				// Check if this is an interrupt error from the terminal
-				if errors.Is(installErr, terminal.InterruptErr) {
+				if errors.Is(err, terminal.InterruptErr) {
 					installReporter.ReportSignalAborted(ctx, syscall.SIGINT)
 				} else {
-					installReporter.ReportInstallationFailed(ctx, installErr)
+					installReporter.ReportInstallationFailed(ctx, err)
 				}
 
 				// If in guided UI mode, keep the process running until interrupted
 				if flags.enableManagerExperience {
 					logrus.Info("")
-					logrus.Errorf("Installation failed: %v", installErr)
+					logrus.Errorf("Installation failed: %v", err)
 					logrus.Error("Press Ctrl+C to exit.")
 					logrus.Info("")
 					<-ctx.Done()
 				}
 
-				return installErr
+				return err
 			}
 
 			installReporter.ReportInstallationSucceeded(ctx)
@@ -455,7 +444,15 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 	return nil
 }
 
-func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) error {
+func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) (finalErr error) {
+	defer func() {
+		if flags.enableManagerExperience && finalErr != nil {
+			if err := markUIInstallComplete(flags.adminConsolePassword, flags.managerPort, finalErr); err != nil {
+				logrus.Errorf("Unable to mark ui install complete: %w", err)
+			}
+		}
+	}()
+
 	if err := runInstallVerifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
 		return err
 	}
@@ -578,6 +575,14 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 
 	if err = support.CreateHostSupportBundle(); err != nil {
 		logrus.Warnf("Unable to create host support bundle: %v", err)
+	}
+
+	if flags.enableManagerExperience {
+		if err := markUIInstallComplete(flags.adminConsolePassword, flags.managerPort, nil); err != nil {
+			return fmt.Errorf("unable to mark ui install complete: %w", err)
+		}
+	} else {
+		printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc)
 	}
 
 	return nil
@@ -1394,7 +1399,7 @@ func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName 
 	return pflag.NormalizedName(name)
 }
 
-func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig) error {
+func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig) {
 	adminConsoleURL := getAdminConsoleURL(hostname, networkInterface, rc.AdminConsolePort())
 
 	// Create the message content
@@ -1421,8 +1426,6 @@ func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkI
 	logrus.Infof("%s%s%s", boldStart, "", boldEnd)
 	logrus.Infof("%s%s%s%s%s", boldStart, greenStart, adminConsoleURL, greenEnd, boldEnd)
 	logrus.Infof("%s%s%s\n", boldStart, divider, boldEnd)
-
-	return nil
 }
 
 func getAdminConsoleURL(hostname string, networkInterface string, port int) string {
