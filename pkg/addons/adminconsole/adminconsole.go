@@ -15,15 +15,6 @@ const (
 	namespace   = runtimeconfig.KotsadmNamespace
 )
 
-var (
-	// Overwritten by -ldflags in Makefile
-	AdminConsoleChartRepoOverride       = ""
-	AdminConsoleImageOverride           = ""
-	AdminConsoleMigrationsImageOverride = ""
-	AdminConsoleKurlProxyImageOverride  = ""
-	KotsVersion                         = ""
-)
-
 var _ types.AddOn = (*AdminConsole)(nil)
 
 type AdminConsole struct {

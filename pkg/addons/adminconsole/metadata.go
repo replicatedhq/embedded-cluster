@@ -18,6 +18,15 @@ var (
 	Metadata release.AddonMetadata
 )
 
+var (
+	// Overwritten by -ldflags in Makefile
+	AdminConsoleChartRepoOverride       = ""
+	AdminConsoleImageOverride           = ""
+	AdminConsoleMigrationsImageOverride = ""
+	AdminConsoleKurlProxyImageOverride  = ""
+	KotsVersion                         = ""
+)
+
 func Version() map[string]string {
 	return map[string]string{"AdminConsole": "v" + Metadata.Version}
 }
