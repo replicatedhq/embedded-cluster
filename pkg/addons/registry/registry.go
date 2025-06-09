@@ -80,7 +80,7 @@ func (r *Registry) ChartLocation(domains ecv1beta1.Domains) string {
 // IsRegistryHA checks if the registry deployment has greater than 1 replica.
 func IsRegistryHA(ctx context.Context, kcli client.Client) (bool, error) {
 	deploy := appsv1.Deployment{}
-	err := kcli.Get(ctx, client.ObjectKey{Namespace: _namespace, Name: _releaseName}, &deploy)
+	err := kcli.Get(ctx, client.ObjectKey{Namespace: _namespace, Name: "registry"}, &deploy)
 	if err != nil {
 		return false, fmt.Errorf("get registry deployment: %w", err)
 	}
