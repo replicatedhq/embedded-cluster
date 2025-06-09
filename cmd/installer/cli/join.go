@@ -486,7 +486,7 @@ func startAndWaitForK0s(name string) error {
 	}
 
 	logrus.Debugf("waiting for k0s to be ready")
-	if err := waitForK0s(); err != nil {
+	if err := k0s.WaitForK0s(); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 

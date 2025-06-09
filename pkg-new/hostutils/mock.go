@@ -63,3 +63,9 @@ func (m *MockHostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logru
 	args := m.Called(ctx, logger, rc, isWorker, proxy)
 	return args.Error(0)
 }
+
+// WriteLocalArtifactMirrorDropInFile mocks the WriteLocalArtifactMirrorDropInFile method
+func (m *MockHostUtils) WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {
+	args := m.Called(rc)
+	return args.Error(0)
+}

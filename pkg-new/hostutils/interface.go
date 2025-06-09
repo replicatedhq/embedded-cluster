@@ -27,6 +27,7 @@ type HostUtilsInterface interface {
 	ResetFirewalld(ctx context.Context) error
 	MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error
 	CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool, proxy *ecv1beta1.ProxySpec) error
+	WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error
 }
 
 // Convenience functions
@@ -62,4 +63,8 @@ func MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error
 
 func CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
 	return h.CreateSystemdUnitFiles(ctx, logger, rc, isWorker, proxy)
+}
+
+func WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {
+	return h.WriteLocalArtifactMirrorDropInFile(rc)
 }

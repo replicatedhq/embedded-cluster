@@ -1758,7 +1758,7 @@ func (e *invalidBackupsError) Error() string {
 
 // updateLocalArtifactMirrorService updates the port on which the local artifact mirror is served.
 func updateLocalArtifactMirrorService(rc runtimeconfig.RuntimeConfig) error {
-	if err := writeLocalArtifactMirrorDropInFile(rc); err != nil {
+	if err := hostutils.WriteLocalArtifactMirrorDropInFile(rc); err != nil {
 		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
 	}
 

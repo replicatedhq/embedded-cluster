@@ -231,7 +231,7 @@ func (h *HostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.Fi
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
-	if err := installAndEnableLocalArtifactMirror(ctx, logger, rc); err != nil {
+	if err := h.installAndEnableLocalArtifactMirror(ctx, logger, rc); err != nil {
 		return fmt.Errorf("unable to install and enable local artifact mirror: %w", err)
 	}
 	return nil
@@ -266,12 +266,12 @@ Environment="NO_PROXY=%s"`, httpProxy, httpsProxy, noProxy)
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
 // service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
-func installAndEnableLocalArtifactMirror(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig) error {
+func (h *HostUtils) installAndEnableLocalArtifactMirror(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig) error {
 	materializer := goods.NewMaterializer(rc)
 	if err := materializer.LocalArtifactMirrorUnitFile(); err != nil {
 		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
 	}
-	if err := writeLocalArtifactMirrorDropInFile(rc); err != nil {
+	if err := h.WriteLocalArtifactMirrorDropInFile(rc); err != nil {
 		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
 	}
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
@@ -331,7 +331,7 @@ ExecStart=%s serve
 `
 )
 
-func writeLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {
+func (h *HostUtils) WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {
 	contents := fmt.Sprintf(
 		localArtifactMirrorDropInFileContents,
 		rc.LocalArtifactMirrorPort(),
