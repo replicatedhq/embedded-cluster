@@ -3,7 +3,7 @@ package dryrun
 import (
 	"context"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
