@@ -24,7 +24,7 @@ func MaterializeCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("materialize command must be run as root")
 			}
 
-			rc.SetDataDir(dataDir)
+			rc.Get().DataDir = dataDir
 			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
 			return nil

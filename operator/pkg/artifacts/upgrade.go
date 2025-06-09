@@ -300,31 +300,27 @@ func getArtifactJobForNode(
 	)
 
 	// Add proxy environment variables if proxy is configured
-	if in.Spec.Proxy != nil {
+	if rc.ProxySpec() != nil {
 		job.Spec.Template.Spec.Containers[0].Env = append(
 			job.Spec.Template.Spec.Containers[0].Env,
-			corev1.EnvVar{Name: "HTTP_PROXY", Value: in.Spec.Proxy.HTTPProxy},
-			corev1.EnvVar{Name: "HTTPS_PROXY", Value: in.Spec.Proxy.HTTPSProxy},
-			corev1.EnvVar{Name: "NO_PROXY", Value: in.Spec.Proxy.NoProxy},
+			corev1.EnvVar{Name: "HTTP_PROXY", Value: rc.ProxySpec().HTTPProxy},
+			corev1.EnvVar{Name: "HTTPS_PROXY", Value: rc.ProxySpec().HTTPSProxy},
+			corev1.EnvVar{Name: "NO_PROXY", Value: rc.ProxySpec().NoProxy},
 		)
 	}
 
 	// Add the host CA bundle volume, mount, and env var if it's available in the installation
 	log := ctrl.LoggerFrom(ctx)
-	hostCABundlePath := ""
-	if in.Spec.RuntimeConfig != nil {
-		hostCABundlePath = in.Spec.RuntimeConfig.HostCABundlePath
-	}
 
-	if hostCABundlePath != "" {
-		log.Info("Using host CA bundle from installation", "path", hostCABundlePath)
+	if rc.HostCABundlePath() != "" {
+		log.Info("Using host CA bundle from installation", "path", rc.HostCABundlePath())
 
 		// Add the CA bundle volume
 		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
 			Name: "host-ca-bundle",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: hostCABundlePath,
+					Path: rc.HostCABundlePath(),
 					Type: ptr.To(corev1.HostPathFileOrCreate),
 				},
 			},

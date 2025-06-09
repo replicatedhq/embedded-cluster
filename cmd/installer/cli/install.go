@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -328,6 +329,11 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 			flags.tlsKeyBytes = keyData
 		}
 
+		// TODO: move this
+		// The default data directory for the manager experience uses the slug from the binary name
+		rc.SetDataDir(filepath.Join("/var/lib", runtimeconfig.BinaryName()))
+		logrus.Debugf("using data directory: %s", rc.EmbeddedClusterHomeDirectory())
+
 		apiConfig := apiConfig{
 			// TODO (@salah): implement reporting in api
 			// MetricsReporter: reporter,
@@ -425,12 +431,24 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 	}
 	logrus.Debugf("using host CA bundle: %s", hostCABundlePath)
 
+	k0sCfg, err := k0s.NewK0sConfig(flags.networkInterface, flags.isAirgap, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR, flags.overrides, nil)
+	if err != nil {
+		return fmt.Errorf("unable to create k0s config: %w", err)
+	}
+	networkSpec := networkSpecFromK0sConfig(k0sCfg)
+	networkSpec.NetworkInterface = flags.networkInterface
+	if flags.cidrCfg.GlobalCIDR != nil {
+		networkSpec.GlobalCIDR = *flags.cidrCfg.GlobalCIDR
+	}
+
 	// TODO: validate that a single port isn't used for multiple services
 	rc.SetDataDir(flags.dataDir)
 	rc.SetManagerPort(flags.managerPort)
 	rc.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
 	rc.SetAdminConsolePort(flags.adminConsolePort)
 	rc.SetHostCABundlePath(hostCABundlePath)
+	rc.SetNetworkSpec(networkSpec)
+	rc.SetProxySpec(flags.proxy)
 
 	os.Setenv("KUBECONFIG", rc.PathToKubeConfig()) // this is needed for restore as well since it shares this function
 	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
@@ -1081,8 +1099,6 @@ func newInstallationFromInstallCmdFlags(flags InstallCmdFlags, rc runtimeconfig.
 			ClusterID:                 metrics.ClusterID().String(),
 			MetricsBaseURL:            replicatedAppURL(),
 			AirGap:                    flags.isAirgap,
-			Proxy:                     flags.proxy,
-			Network:                   networkSpecFromK0sConfig(k0sCfg),
 			Config:                    cfgspec,
 			RuntimeConfig:             rc.Get(),
 			EndUserK0sConfigOverrides: euOverrides,
@@ -1232,8 +1248,8 @@ func gatherVersionMetadata(withChannelRelease bool) (*types.ReleaseMetadata, err
 	return &meta, nil
 }
 
-func networkSpecFromK0sConfig(k0sCfg *k0sv1beta1.ClusterConfig) *ecv1beta1.NetworkSpec {
-	network := &ecv1beta1.NetworkSpec{}
+func networkSpecFromK0sConfig(k0sCfg *k0sv1beta1.ClusterConfig) ecv1beta1.NetworkSpec {
+	network := ecv1beta1.NetworkSpec{}
 
 	if k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil {
 		network.PodCIDR = k0sCfg.Spec.Network.PodCIDR

@@ -180,6 +180,10 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		)
 	} else {
 		rc.Set(rcSpec)
+
+		if err := rc.WriteToDisk(); err != nil {
+			return fmt.Errorf("unable to write runtime config to disk: %w", err)
+		}
 	}
 
 	os.Setenv("KUBECONFIG", rc.PathToKubeConfig())

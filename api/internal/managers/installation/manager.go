@@ -22,12 +22,11 @@ type InstallationManager interface {
 	SetStatus(status types.Status) error
 	ValidateConfig(config *types.InstallationConfig) error
 	SetConfigDefaults(config *types.InstallationConfig) error
-	ConfigureForInstall(ctx context.Context, config *types.InstallationConfig) error
+	ConfigureHost(ctx context.Context) error
 }
 
 // installationManager is an implementation of the InstallationManager interface
 type installationManager struct {
-	installation      *types.Installation
 	installationStore InstallationStore
 	rc                runtimeconfig.RuntimeConfig
 	licenseFile       string
@@ -49,12 +48,6 @@ func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) InstallationManagerOption
 func WithLogger(logger logrus.FieldLogger) InstallationManagerOption {
 	return func(c *installationManager) {
 		c.logger = logger
-	}
-}
-
-func WithInstallation(installation *types.Installation) InstallationManagerOption {
-	return func(c *installationManager) {
-		c.installation = installation
 	}
 }
 
@@ -104,12 +97,8 @@ func NewInstallationManager(opts ...InstallationManagerOption) *installationMana
 		manager.logger = logger.NewDiscardLogger()
 	}
 
-	if manager.installation == nil {
-		manager.installation = types.NewInstallation()
-	}
-
 	if manager.installationStore == nil {
-		manager.installationStore = NewMemoryStore(manager.installation)
+		manager.installationStore = NewMemoryStore(manager.rc, types.NewStatus())
 	}
 
 	if manager.netUtils == nil {

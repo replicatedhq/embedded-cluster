@@ -133,6 +133,42 @@ func (m *MockRuntimeConfig) AdminConsolePort() int {
 	return args.Int(0)
 }
 
+// ProxySpec mocks the ProxySpec method
+func (m *MockRuntimeConfig) ProxySpec() *ecv1beta1.ProxySpec {
+	args := m.Called()
+	return args.Get(0).(*ecv1beta1.ProxySpec)
+}
+
+// GlobalCIDR returns the configured global CIDR or the default if not configured.
+func (m *MockRuntimeConfig) GlobalCIDR() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+// PodCIDR returns the configured pod CIDR or the default if not configured.
+func (m *MockRuntimeConfig) PodCIDR() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+// ServiceCIDR returns the configured service CIDR or the default if not configured.
+func (m *MockRuntimeConfig) ServiceCIDR() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+// NetworkInterface returns the configured network interface or the default if not configured.
+func (m *MockRuntimeConfig) NetworkInterface() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+// NodePortRange returns the configured node port range or the default if not configured.
+func (m *MockRuntimeConfig) NodePortRange() string {
+	args := m.Called()
+	return args.String(0)
+}
+
 // HostCABundlePath mocks the HostCABundlePath method
 func (m *MockRuntimeConfig) HostCABundlePath() string {
 	args := m.Called()
@@ -157,6 +193,16 @@ func (m *MockRuntimeConfig) SetAdminConsolePort(port int) {
 // SetManagerPort mocks the SetManagerPort method
 func (m *MockRuntimeConfig) SetManagerPort(port int) {
 	m.Called(port)
+}
+
+// SetProxySpec mocks the SetProxySpec method
+func (m *MockRuntimeConfig) SetProxySpec(proxySpec *ecv1beta1.ProxySpec) {
+	m.Called(proxySpec)
+}
+
+// SetNetworkSpec mocks the SetNetworkSpec method
+func (m *MockRuntimeConfig) SetNetworkSpec(networkSpec ecv1beta1.NetworkSpec) {
+	m.Called(networkSpec)
 }
 
 // SetHostCABundlePath mocks the SetHostCABundlePath method

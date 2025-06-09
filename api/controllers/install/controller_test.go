@@ -190,65 +190,6 @@ func TestConfigureInstallation(t *testing.T) {
 	}
 }
 
-// TestIntegrationComputeCIDRs tests the CIDR computation with real networking utility
-func TestIntegrationComputeCIDRs(t *testing.T) {
-	tests := []struct {
-		name        string
-		globalCIDR  string
-		expectedPod string
-		expectedSvc string
-		expectedErr bool
-	}{
-		{
-			name:        "valid cidr 10.0.0.0/16",
-			globalCIDR:  "10.0.0.0/16",
-			expectedPod: "10.0.0.0/17",
-			expectedSvc: "10.0.128.0/17",
-			expectedErr: false,
-		},
-		{
-			name:        "valid cidr 192.168.0.0/16",
-			globalCIDR:  "192.168.0.0/16",
-			expectedPod: "192.168.0.0/17",
-			expectedSvc: "192.168.128.0/17",
-			expectedErr: false,
-		},
-		{
-			name:        "no global cidr",
-			globalCIDR:  "",
-			expectedPod: "", // Should remain unchanged
-			expectedSvc: "", // Should remain unchanged
-			expectedErr: false,
-		},
-		{
-			name:        "invalid cidr",
-			globalCIDR:  "not-a-cidr",
-			expectedErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			controller, err := NewInstallController()
-			require.NoError(t, err)
-
-			config := &types.InstallationConfig{
-				GlobalCIDR: tt.globalCIDR,
-			}
-
-			err = controller.computeCIDRs(config)
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedPod, config.PodCIDR)
-				assert.Equal(t, tt.expectedSvc, config.ServiceCIDR)
-			}
-		})
-	}
-}
-
 func TestRunHostPreflights(t *testing.T) {
 	expectedHPF := &troubleshootv1beta2.HostPreflightSpec{
 		Collectors: []*troubleshootv1beta2.HostCollect{

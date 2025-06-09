@@ -127,7 +127,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.installationManager = installation.NewInstallationManager(
 			installation.WithRuntimeConfig(controller.rc),
 			installation.WithLogger(controller.logger),
-			installation.WithInstallation(controller.install.Steps.Installation),
 			installation.WithLicenseFile(controller.licenseFile),
 			installation.WithAirgapBundle(controller.airgapBundle),
 			installation.WithHostUtils(controller.hostUtils),

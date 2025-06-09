@@ -18,7 +18,7 @@ import (
 
 // EnableHACmd is the command for enabling HA mode.
 func EnableHACmd(ctx context.Context, name string) *cobra.Command {
-	var rc runtimeconfig.RuntimeConfig
+	rc := runtimeconfig.New(nil)
 
 	cmd := &cobra.Command{
 		Use:   "enable-ha",
@@ -107,5 +107,5 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addOns.EnableHA(ctx, in.Spec.Network.ServiceCIDR, in.Spec, loading)
+	return addOns.EnableHA(ctx, rc.ServiceCIDR(), in.Spec, loading)
 }

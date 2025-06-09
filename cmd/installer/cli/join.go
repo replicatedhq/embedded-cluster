@@ -157,7 +157,8 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, rc runtimecon
 		logrus.Warn("\nDo not join another node until this node has joined successfully.")
 	}
 
-	if err := runJoinVerifyAndPrompt(name, flags, rc, jcmd); err != nil {
+	rc, err := runJoinVerifyAndPrompt(name, flags, rc, jcmd)
+	if err != nil {
 		return err
 	}
 
@@ -223,14 +224,15 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, rc runtimecon
 	return nil
 }
 
-func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
+func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) (runtimeconfig.RuntimeConfig, error) {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "join a node")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	rc.Set(jcmd.InstallationSpec.RuntimeConfig)
+
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if isWorker {
 		os.Setenv("KUBECONFIG", rc.PathToKubeletConfig())
@@ -238,10 +240,6 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, rc runtimeconfig.Ru
 		os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
 	}
 	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
-
-	if err := rc.WriteToDisk(); err != nil {
-		return fmt.Errorf("unable to write runtime config: %w", err)
-	}
 
 	if err := os.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
 		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
@@ -253,30 +251,32 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, rc runtimeconfig.Ru
 	channelRelease := release.GetChannelRelease()
 	if jcmd.AppVersionLabel != "" && channelRelease != nil {
 		if jcmd.AppVersionLabel != channelRelease.VersionLabel {
-			return fmt.Errorf("embedded cluster application version mismatch - this binary is compiled for app version %q, but the cluster is running version %q", channelRelease.VersionLabel, jcmd.AppVersionLabel)
+			return nil, fmt.Errorf("embedded cluster application version mismatch - this binary is compiled for app version %q, but the cluster is running version %q", channelRelease.VersionLabel, jcmd.AppVersionLabel)
 		}
 	}
 
 	// check to make sure the version returned by the join token is the same as the one we are running
 	if strings.TrimPrefix(jcmd.EmbeddedClusterVersion, "v") != strings.TrimPrefix(versions.Version, "v") {
-		return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
+		return nil, fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
 	}
 
-	newconfig.SetProxyEnv(jcmd.InstallationSpec.Proxy)
+	if proxySpec := rc.ProxySpec(); proxySpec != nil {
+		newconfig.SetProxyEnv(proxySpec)
 
-	proxyOK, localIP, err := newconfig.CheckProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, flags.networkInterface, nil)
-	if err != nil {
-		return fmt.Errorf("failed to check proxy config for local IP: %w", err)
+		proxyOK, localIP, err := newconfig.CheckProxyConfigForLocalIP(proxySpec, flags.networkInterface, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check proxy config for local IP: %w", err)
+		}
+
+		if !proxyOK {
+			logrus.Errorf("\nThis node's IP address %s is not included in the no-proxy list (%s).", localIP, proxySpec.NoProxy)
+			logrus.Infof(`The no-proxy list cannot easily be modified after installing.`)
+			logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
+			return nil, NewErrorNothingElseToAdd(errors.New("node ip address not included in no-proxy list"))
+		}
 	}
 
-	if !proxyOK {
-		logrus.Errorf("\nThis node's IP address %s is not included in the no-proxy list (%s).", localIP, jcmd.InstallationSpec.Proxy.NoProxy)
-		logrus.Infof(`The no-proxy list cannot easily be modified after installing.`)
-		logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
-		return NewErrorNothingElseToAdd(errors.New("node ip address not included in no-proxy list"))
-	}
-
-	return nil
+	return rc, nil
 }
 
 func initializeJoin(ctx context.Context, name string, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string) (cidrCfg *newconfig.CIDRConfig, err error) {
@@ -321,7 +321,7 @@ func initializeJoin(ctx context.Context, name string, rc runtimeconfig.RuntimeCo
 		return nil, fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
-	cidrCfg, err = getJoinCIDRConfig(jcmd)
+	cidrCfg, err = getJoinCIDRConfig(rc)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get join CIDR config: %w", err)
 	}
@@ -352,19 +352,22 @@ func materializeFilesForJoin(ctx context.Context, rc runtimeconfig.RuntimeConfig
 	return nil
 }
 
-func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*newconfig.CIDRConfig, error) {
-	podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
-	if err != nil {
-		return nil, fmt.Errorf("unable to split default network CIDR: %w", err)
+func getJoinCIDRConfig(rc runtimeconfig.RuntimeConfig) (*newconfig.CIDRConfig, error) {
+	globalCIDR := ecv1beta1.DefaultNetworkCIDR
+	if rc.GlobalCIDR() != "" {
+		globalCIDR = rc.GlobalCIDR()
 	}
 
-	if jcmd.InstallationSpec.Network != nil {
-		if jcmd.InstallationSpec.Network.PodCIDR != "" {
-			podCIDR = jcmd.InstallationSpec.Network.PodCIDR
-		}
-		if jcmd.InstallationSpec.Network.ServiceCIDR != "" {
-			serviceCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
-		}
+	podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(globalCIDR)
+	if err != nil {
+		return nil, fmt.Errorf("unable to split global network CIDR: %w", err)
+	}
+
+	if rc.PodCIDR() != "" {
+		podCIDR = rc.PodCIDR()
+	}
+	if rc.ServiceCIDR() != "" {
+		serviceCIDR = rc.ServiceCIDR()
 	}
 
 	return &newconfig.CIDRConfig{
@@ -391,12 +394,12 @@ func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, 
 	}
 
 	logrus.Debugf("creating systemd unit files")
-	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, isWorker, jcmd.InstallationSpec.Proxy); err != nil {
+	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, isWorker, rc.ProxySpec()); err != nil {
 		return fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 
 	logrus.Debugf("overriding network configuration")
-	if err := applyNetworkConfiguration(flags.networkInterface, jcmd); err != nil {
+	if err := applyNetworkConfiguration(flags.networkInterface, rc, jcmd.InstallationSpec); err != nil {
 		return fmt.Errorf("unable to apply network configuration: %w", err)
 	}
 
@@ -444,37 +447,36 @@ func installK0sBinary(rc runtimeconfig.RuntimeConfig) error {
 	return nil
 }
 
-func applyNetworkConfiguration(networkInterface string, jcmd *join.JoinCommandResponse) error {
-	if jcmd.InstallationSpec.Network != nil {
-		domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
-		clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
+func applyNetworkConfiguration(networkInterface string, rc runtimeconfig.RuntimeConfig, inSpec ecv1beta1.InstallationSpec) error {
+	domains := runtimeconfig.GetDomains(inSpec.Config)
+	clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 
-		address, err := netutils.FirstValidAddress(networkInterface)
-		if err != nil {
-			return fmt.Errorf("unable to find first valid address: %w", err)
-		}
-		clusterSpec.Spec.API.Address = address
-		clusterSpec.Spec.Storage.Etcd.PeerAddress = address
-		// NOTE: we should be copying everything from the in cluster config spec and overriding
-		// the node specific config from clusterSpec.GetClusterWideConfig()
-		clusterSpec.Spec.Network.PodCIDR = jcmd.InstallationSpec.Network.PodCIDR
-		clusterSpec.Spec.Network.ServiceCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
-		if jcmd.InstallationSpec.Network.NodePortRange != "" {
-			if clusterSpec.Spec.API.ExtraArgs == nil {
-				clusterSpec.Spec.API.ExtraArgs = map[string]string{}
-			}
-			clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = jcmd.InstallationSpec.Network.NodePortRange
-		}
-		clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
-
-		if err != nil {
-			return fmt.Errorf("unable to marshal cluster spec: %w", err)
-		}
-		err = os.WriteFile(runtimeconfig.K0sConfigPath, clusterSpecYaml, 0644)
-		if err != nil {
-			return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
-		}
+	address, err := netutils.FirstValidAddress(networkInterface)
+	if err != nil {
+		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
+	clusterSpec.Spec.API.Address = address
+	clusterSpec.Spec.Storage.Etcd.PeerAddress = address
+	// NOTE: we should be copying everything from the in cluster config spec and overriding
+	// the node specific config from clusterSpec.GetClusterWideConfig()
+	clusterSpec.Spec.Network.PodCIDR = rc.PodCIDR()
+	clusterSpec.Spec.Network.ServiceCIDR = rc.ServiceCIDR()
+	if rc.NodePortRange() != "" {
+		if clusterSpec.Spec.API.ExtraArgs == nil {
+			clusterSpec.Spec.API.ExtraArgs = map[string]string{}
+		}
+		clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = rc.NodePortRange()
+	}
+	clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
+
+	if err != nil {
+		return fmt.Errorf("unable to marshal cluster spec: %w", err)
+	}
+	err = os.WriteFile(runtimeconfig.K0sConfigPath, clusterSpecYaml, 0644)
+	if err != nil {
+		return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
+	}
+
 	return nil
 }
 
