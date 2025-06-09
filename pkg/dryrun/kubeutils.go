@@ -52,6 +52,10 @@ func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, n
 	}, nil
 }
 
+func (k *KubeUtils) WaitForPodDeleted(ctx context.Context, cli client.Client, ns, name string, opts *kubeutils.WaitOptions) error {
+	return nil
+}
+
 func (k *KubeUtils) WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error {
 	return nil
 }

@@ -30,6 +30,7 @@ type KubeUtilsInterface interface {
 	WaitForService(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForJob(ctx context.Context, cli client.Client, ns, name string, completions int32, opts *WaitOptions) error
 	WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) (*corev1.Pod, error)
+	WaitForPodDeleted(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error
 	WaitForNodes(ctx context.Context, cli client.Client) error
 	WaitForNode(ctx context.Context, kcli client.Client, name string, isWorker bool) error
@@ -85,6 +86,10 @@ func WaitForJob(ctx context.Context, cli client.Client, ns, name string, complet
 
 func WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) (*corev1.Pod, error) {
 	return kb.WaitForPodComplete(ctx, cli, ns, name, opts)
+}
+
+func WaitForPodDeleted(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
+	return kb.WaitForPodDeleted(ctx, cli, ns, name, opts)
 }
 
 func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error {
