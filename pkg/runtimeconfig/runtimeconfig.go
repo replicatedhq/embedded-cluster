@@ -168,14 +168,12 @@ func (rc *runtimeConfig) PathToEmbeddedClusterSupportFile(name string) string {
 // /etc/embedded-cluster/ec.yaml.
 func (rc *runtimeConfig) WriteToDisk() error {
 	location := ECConfigPath
-	err := os.MkdirAll(filepath.Dir(location), 0755)
-	if err != nil {
+	if err := mkdirAll(filepath.Dir(location)); err != nil {
 		return fmt.Errorf("create directory: %w", err)
 	}
 
 	// check if the file already exists, if it does delete it
-	err = os.RemoveAll(location)
-	if err != nil {
+	if err := os.RemoveAll(location); err != nil {
 		return fmt.Errorf("remove existing file: %w", err)
 	}
 
@@ -184,8 +182,7 @@ func (rc *runtimeConfig) WriteToDisk() error {
 		return fmt.Errorf("marshal spec: %w", err)
 	}
 
-	err = os.WriteFile(location, yml, 0644)
-	if err != nil {
+	if err := os.WriteFile(location, yml, 0644); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -240,8 +237,12 @@ func (rc *runtimeConfig) SetHostCABundlePath(hostCABundlePath string) {
 	rc.spec.HostCABundlePath = hostCABundlePath
 }
 
+func mkdirAll(path string) error {
+	return os.MkdirAll(path, 0755)
+}
+
 func mustMkdirAll(path string) {
-	if err := os.MkdirAll(path, 0755); err != nil {
+	if err := mkdirAll(path); err != nil {
 		logrus.Fatalf("unable to create dir %q: %v", path, err)
 	}
 }
