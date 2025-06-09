@@ -208,7 +208,7 @@ func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name 
 	return nil
 }
 
-// WaitForPod waits for a pod to be completed (succeeded or failed).
+// WaitForPodComplete waits for a pod to be completed (succeeded or failed).
 func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) (*corev1.Pod, error) {
 	backoff := opts.GetBackoff()
 	var lasterr error
@@ -240,6 +240,39 @@ func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, n
 		}
 	}
 	return &pod, nil
+}
+
+// WaitForPodDeleted waits for a pod to be deleted from the cluster.
+func (k *KubeUtils) WaitForPodDeleted(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
+	backoff := opts.GetBackoff()
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			var pod corev1.Pod
+			nsn := client.ObjectKey{Namespace: ns, Name: name}
+			err := cli.Get(ctx, nsn, &pod)
+			if k8serrors.IsNotFound(err) {
+				// Pod is deleted
+				return true, nil
+			} else if err != nil {
+				lasterr = fmt.Errorf("get pod: %w", err)
+				return false, nil
+			}
+			return false, nil
+		},
+	); err != nil {
+		if errors.Is(err, context.Canceled) {
+			if lasterr != nil {
+				err = errors.Join(err, lasterr)
+			}
+			return err
+		} else if lasterr != nil {
+			return fmt.Errorf("timed out waiting for pod %s to be deleted: %w", name, lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for pod %s to be deleted", name)
+		}
+	}
+	return nil
 }
 
 func (k *KubeUtils) WaitForNodes(ctx context.Context, cli client.Client) error {

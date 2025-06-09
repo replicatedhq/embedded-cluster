@@ -90,13 +90,34 @@ func ensureDataMigrationPod(ctx context.Context, cli client.Client, image string
 }
 
 func maybeDeleteDataMigrationPod(ctx context.Context, cli client.Client) error {
-	err := cli.Delete(ctx, &corev1.Pod{
+	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: runtimeconfig.RegistryNamespace,
 			Name:      dataMigrationPodName,
 		},
+	}
+
+	err := cli.Delete(ctx, pod)
+	if err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return fmt.Errorf("delete pod: %w", err)
+		}
+		return nil
+	}
+
+	err = kubeutils.WaitForPodDeleted(ctx, cli, runtimeconfig.RegistryNamespace, dataMigrationPodName, &kubeutils.WaitOptions{
+		Backoff: &wait.Backoff{
+			Steps:    30,
+			Duration: 2 * time.Second,
+			Factor:   1.0,
+			Jitter:   0.1,
+		},
 	})
-	return client.IgnoreNotFound(err)
+	if err != nil {
+		return fmt.Errorf("wait for pod deleted: %w", err)
+	}
+
+	return nil
 }
 
 func monitorPodStatus(ctx context.Context, cli client.Client, errCh chan<- error) {
