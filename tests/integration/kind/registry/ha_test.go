@@ -72,11 +72,13 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 	rc := runtimeconfig.New(nil)
 
-	t.Logf("%s installing openebs", formattedTime())
-	addon := &openebs.OpenEBS{
+	domains := ecv1beta1.Domains{
 		ProxyRegistryDomain: "proxy.replicated.com",
 	}
-	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, nil, nil); err != nil {
+
+	t.Logf("%s installing openebs", formattedTime())
+	addon := &openebs.OpenEBS{}
+	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 
@@ -85,23 +87,21 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 	t.Logf("%s installing registry", formattedTime())
 	registryAddon := &registry.Registry{
-		ServiceCIDR:         "10.96.0.0/12",
-		ProxyRegistryDomain: "proxy.replicated.com",
-		IsHA:                false,
+		ServiceCIDR: "10.96.0.0/12",
+		IsHA:        false,
 	}
-	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, nil, nil))
+	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil, nil))
 
 	t.Logf("%s creating hostport service", formattedTime())
 	registryAddr := createHostPortService(t, clusterName, kubeconfig)
 
 	t.Logf("%s installing admin console", formattedTime())
 	adminConsoleAddon := &adminconsole.AdminConsole{
-		IsAirgap:            true,
-		ServiceCIDR:         "10.96.0.0/12",
-		ProxyRegistryDomain: "proxy.replicated.com",
-		IsHA:                false,
+		IsAirgap:    true,
+		IsHA:        false,
+		ServiceCIDR: "10.96.0.0/12",
 	}
-	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, nil, nil))
+	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil, nil))
 
 	t.Logf("%s pushing image to registry", formattedTime())
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")
