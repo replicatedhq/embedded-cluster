@@ -3,7 +3,9 @@ package hostutils
 import (
 	"context"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/sirupsen/logrus"
 )
 
 var h HostUtilsInterface
@@ -24,6 +26,8 @@ type HostUtilsInterface interface {
 	ConfigureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) error
 	ResetFirewalld(ctx context.Context) error
 	MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error
+	CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool, proxy *ecv1beta1.ProxySpec) error
+	WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error
 }
 
 // Convenience functions
@@ -55,4 +59,12 @@ func ResetFirewalld(ctx context.Context) error {
 
 func MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error {
 	return h.MaterializeFiles(rc, airgapBundle)
+}
+
+func CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
+	return h.CreateSystemdUnitFiles(ctx, logger, rc, isWorker, proxy)
+}
+
+func WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {
+	return h.WriteLocalArtifactMirrorDropInFile(rc)
 }

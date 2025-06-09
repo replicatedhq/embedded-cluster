@@ -2,9 +2,12 @@ package k0s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"time"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -17,6 +20,35 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8syaml "sigs.k8s.io/yaml"
 )
+
+const (
+	k0sBinPath = "/usr/local/bin/k0s"
+)
+
+var _ K0sInterface = (*K0s)(nil)
+
+type K0s struct {
+}
+
+// GetStatus calls the k0s status command and returns information about system init, PID, k0s role,
+// kubeconfig and similar.
+func (k *K0s) GetStatus(ctx context.Context) (*K0sStatus, error) {
+	if _, err := os.Stat(k0sBinPath); err != nil {
+		return nil, fmt.Errorf("%s does not seem to be installed on this node", runtimeconfig.BinaryName())
+	}
+
+	// get k0s status json
+	out, err := exec.CommandContext(ctx, k0sBinPath, "status", "-o", "json").Output()
+	if err != nil {
+		return nil, err
+	}
+	var status K0sStatus
+	err = json.Unmarshal(out, &status)
+	if err != nil {
+		return nil, err
+	}
+	return &status, nil
+}
 
 // Install runs the k0s install command and waits for it to finish. If no configuration
 // is found one is generated.
@@ -46,7 +78,7 @@ func Install(rc runtimeconfig.RuntimeConfig, networkInterface string) error {
 
 // IsInstalled checks if the embedded cluster is already installed by looking for
 // the k0s configuration file existence.
-func IsInstalled() (bool, error) {
+func (k *K0s) IsInstalled() (bool, error) {
 	_, err := os.Stat(runtimeconfig.K0sConfigPath)
 	if err == nil {
 		return true, nil
@@ -205,4 +237,32 @@ func PatchK0sConfig(path string, patch string) error {
 		return fmt.Errorf("unable to write node config file: %w", err)
 	}
 	return nil
+}
+
+// WaitForK0s waits for the k0s API to be available. We wait for the k0s socket to
+// appear in the system and until the k0s status command to finish.
+func (k *K0s) WaitForK0s() error {
+	var success bool
+	for i := 0; i < 30; i++ {
+		time.Sleep(2 * time.Second)
+		spath := runtimeconfig.K0sStatusSocketPath
+		if _, err := os.Stat(spath); err != nil {
+			continue
+		}
+		success = true
+		break
+	}
+	if !success {
+		return fmt.Errorf("timeout waiting for %s", runtimeconfig.BinaryName())
+	}
+
+	for i := 1; ; i++ {
+		_, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath, "status")
+		if err == nil {
+			return nil
+		} else if i == 30 {
+			return fmt.Errorf("unable to get status: %w", err)
+		}
+		time.Sleep(2 * time.Second)
+	}
 }

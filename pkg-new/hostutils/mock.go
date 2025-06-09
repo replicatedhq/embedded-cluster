@@ -3,7 +3,9 @@ package hostutils
 import (
 	"context"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -53,5 +55,17 @@ func (m *MockHostUtils) ResetFirewalld(ctx context.Context) error {
 // MaterializeFiles mocks the MaterializeFiles method
 func (m *MockHostUtils) MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error {
 	args := m.Called(rc, airgapBundle)
+	return args.Error(0)
+}
+
+// CreateSystemdUnitFiles mocks the CreateSystemdUnitFiles method
+func (m *MockHostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
+	args := m.Called(ctx, logger, rc, isWorker, proxy)
+	return args.Error(0)
+}
+
+// WriteLocalArtifactMirrorDropInFile mocks the WriteLocalArtifactMirrorDropInFile method
+func (m *MockHostUtils) WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {
+	args := m.Called(rc)
 	return args.Error(0)
 }

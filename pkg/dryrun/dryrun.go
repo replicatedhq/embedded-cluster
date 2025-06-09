@@ -6,12 +6,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers/firewalld"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
-	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -35,7 +35,7 @@ type Client struct {
 	Systemd       *Systemd
 	FirewalldUtil *FirewalldUtil
 	Metrics       *Sender
-	K0sClient     *K0sClient
+	K0sClient     *K0s
 	HelmClient    helm.Client
 	Kotsadm       *Kotsadm
 }
@@ -61,7 +61,7 @@ func Init(outputFile string, client *Client) {
 		client.Metrics = &Sender{}
 	}
 	if client.K0sClient == nil {
-		client.K0sClient = &K0sClient{}
+		client.K0sClient = &K0s{}
 	}
 	if client.Kotsadm == nil {
 		client.Kotsadm = NewKotsadm()

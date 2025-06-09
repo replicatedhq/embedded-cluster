@@ -15,13 +15,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -391,7 +391,7 @@ func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, 
 	}
 
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(ctx, rc, isWorker, jcmd.InstallationSpec.Proxy); err != nil {
+	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, isWorker, jcmd.InstallationSpec.Proxy); err != nil {
 		return fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 
@@ -486,7 +486,7 @@ func startAndWaitForK0s(name string) error {
 	}
 
 	logrus.Debugf("waiting for k0s to be ready")
-	if err := waitForK0s(); err != nil {
+	if err := k0s.WaitForK0s(); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
