@@ -164,7 +164,7 @@ func waitForAPI(ctx context.Context, addr string) error {
 	}
 }
 
-func markUIInstallComplete(password string, managerPort int) error {
+func markUIInstallComplete(password string, managerPort int, installErr error) error {
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			Proxy: nil, // This is a local client so no proxy is needed
@@ -181,9 +181,19 @@ func markUIInstallComplete(password string, managerPort int) error {
 		return fmt.Errorf("unable to authenticate: %w", err)
 	}
 
+	var state apitypes.State
+	var description string
+	if installErr != nil {
+		state = apitypes.StateFailed
+		description = fmt.Sprintf("Installation failed: %v", installErr)
+	} else {
+		state = apitypes.StateSucceeded
+		description = "Installation succeeded"
+	}
+
 	_, err := apiClient.SetInstallStatus(&apitypes.Status{
-		State:       apitypes.StateSucceeded,
-		Description: "Install Complete",
+		State:       state,
+		Description: description,
 		LastUpdated: time.Now(),
 	})
 	if err != nil {

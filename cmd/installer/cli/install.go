@@ -125,15 +125,38 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				installReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runInstall(cmd.Context(), name, flags, rc, installReporter); err != nil {
+			installErr := runInstall(cmd.Context(), name, flags, rc, installReporter)
+
+			if flags.enableManagerExperience {
+				if err := markUIInstallComplete(flags.adminConsolePassword, flags.managerPort, installErr); err != nil {
+					return fmt.Errorf("unable to mark ui install complete: %w", err)
+				}
+			} else {
+				if err := printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc); err != nil {
+					return err
+				}
+			}
+
+			if installErr != nil {
 				// Check if this is an interrupt error from the terminal
-				if errors.Is(err, terminal.InterruptErr) {
+				if errors.Is(installErr, terminal.InterruptErr) {
 					installReporter.ReportSignalAborted(ctx, syscall.SIGINT)
 				} else {
-					installReporter.ReportInstallationFailed(ctx, err)
+					installReporter.ReportInstallationFailed(ctx, installErr)
 				}
-				return err
+
+				// If in guided UI mode, keep the process running until interrupted
+				if flags.enableManagerExperience {
+					logrus.Info("")
+					logrus.Errorf("Installation failed: %v", installErr)
+					logrus.Error("Press Ctrl+C to exit.")
+					logrus.Info("")
+					<-ctx.Done()
+				}
+
+				return installErr
 			}
+
 			installReporter.ReportInstallationSucceeded(ctx)
 
 			// If in guided UI mode, keep the process running until interrupted
@@ -555,16 +578,6 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 
 	if err = support.CreateHostSupportBundle(); err != nil {
 		logrus.Warnf("Unable to create host support bundle: %v", err)
-	}
-
-	if flags.enableManagerExperience {
-		if err := markUIInstallComplete(flags.adminConsolePassword, flags.managerPort); err != nil {
-			return fmt.Errorf("unable to mark ui install complete: %w", err)
-		}
-	} else {
-		if err := printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc); err != nil {
-			return err
-		}
 	}
 
 	return nil
