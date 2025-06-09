@@ -10,7 +10,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/operator/charts"
+	"github.com/replicatedhq/embedded-cluster/pkg/crds"
 	"github.com/stretchr/testify/require"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,7 +28,7 @@ func TestEnsureInstallationCRD(t *testing.T) {
 
 	// Parse CRD for testing
 	var testCRD apiextensionsv1.CustomResourceDefinition
-	crds := strings.Split(charts.InstallationCRDFile, "\n---\n")
+	crds := strings.Split(crds.InstallationCRDFile, "\n---\n")
 	require.NotEmpty(t, crds)
 	require.NoError(t, yaml.Unmarshal([]byte(crds[0]), &testCRD))
 	crdName := testCRD.Name

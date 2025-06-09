@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -29,9 +30,10 @@ type InstallOptions struct {
 	AirgapBundle          string
 	ConfigValuesFile      string
 	ReplicatedAppEndpoint string
+	Stdout                io.Writer
 }
 
-func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
+func Install(opts InstallOptions) error {
 	materializer := goods.NewMaterializer(opts.RuntimeConfig)
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
@@ -71,15 +73,21 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
 	}
 
-	msg.SetMask(maskfn)
-	defer msg.SetMask(nil)
+	if opts.Stdout != nil {
+		if msg, ok := opts.Stdout.(*spinner.MessageWriter); ok {
+			msg.SetMask(maskfn)
+			defer msg.SetMask(nil)
+		}
+	}
 
 	runCommandOptions := helpers.RunCommandOptions{
-		Stdout:       msg,
 		LogOnSuccess: true,
 		Env: map[string]string{
 			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
 		},
+	}
+	if opts.Stdout != nil {
+		runCommandOptions.Stdout = opts.Stdout
 	}
 	if opts.ReplicatedAppEndpoint != "" {
 		runCommandOptions.Env["REPLICATED_APP_ENDPOINT"] = opts.ReplicatedAppEndpoint

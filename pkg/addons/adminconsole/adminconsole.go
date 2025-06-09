@@ -7,7 +7,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 const (
@@ -37,7 +36,7 @@ type AdminConsole struct {
 	dryRunManifests [][]byte
 }
 
-type KotsInstaller func(msg *spinner.MessageWriter) error
+type KotsInstaller func() error
 
 func (a *AdminConsole) Name() string {
 	return "Admin Console"

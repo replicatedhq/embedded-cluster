@@ -135,36 +135,44 @@ func (a *API) getInstallHostPreflightsStatus(w http.ResponseWriter, r *http.Requ
 	a.json(w, r, http.StatusOK, response)
 }
 
-// postInstallSetupNode handler to setup a node
+// postInstallSetupInfra handler to setup infra components
 //
-//	@Summary		Setup a node
-//	@Description	Setup a node
+//	@Summary		Setup infra components
+//	@Description	Setup infra components
 //	@Tags			install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.Status
-//	@Router			/install/node/setup [post]
-func (a *API) postInstallSetupNode(w http.ResponseWriter, r *http.Request) {
-	err := a.installController.SetupNode(r.Context())
+//	@Success		200	{object}	types.Infra
+//	@Router			/install/infra/setup [post]
+func (a *API) postInstallSetupInfra(w http.ResponseWriter, r *http.Request) {
+	err := a.installController.SetupInfra(r.Context())
 	if err != nil {
-		a.logError(r, err, "failed to setup node")
+		a.logError(r, err, "failed to setup infra")
 		a.jsonError(w, r, err)
 		return
 	}
 
-	config, err := a.installController.GetInstallationConfig(r.Context())
+	a.getInstallInfraStatus(w, r)
+}
+
+// getInstallInfraStatus handler to get the status of the infra
+//
+//	@Summary		Get the status of the infra
+//	@Description	Get the current status of the infra
+//	@Tags			install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.Infra
+//	@Router			/install/infra/status [get]
+func (a *API) getInstallInfraStatus(w http.ResponseWriter, r *http.Request) {
+	infra, err := a.installController.GetInfra(r.Context())
 	if err != nil {
-		a.logError(r, err, "failed to get installation config")
+		a.logError(r, err, "failed to get install infra status")
 		a.jsonError(w, r, err)
 		return
 	}
 
-	// TODO: this is a hack to get the config to the CLI
-	if a.configChan != nil {
-		a.configChan <- config
-	}
-
-	a.getInstallStatus(w, r)
+	a.json(w, r, http.StatusOK, infra)
 }
 
 // postInstallSetInstallStatus handler to set the status of the install workflow

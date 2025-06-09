@@ -14,7 +14,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,7 +39,7 @@ func (a *AdminConsole) Install(
 	ctx context.Context, logf types.LogFunc,
 	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
 	rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains,
-	overrides []string, writer *spinner.MessageWriter,
+	overrides []string,
 ) error {
 	// some resources are not part of the helm chart and need to be created before the chart is installed
 	// TODO: move this to the helm chart
@@ -76,7 +75,7 @@ func (a *AdminConsole) Install(
 
 		// install the application
 		if a.KotsInstaller != nil {
-			err := a.KotsInstaller(writer)
+			err := a.KotsInstaller()
 			if err != nil {
 				return err
 			}

@@ -24,7 +24,7 @@ func (s *SeaweedFS) Upgrade(
 	}
 	if !exists {
 		logrus.Debugf("Release not found, installing release %s in namespace %s", s.ReleaseName(), s.Namespace())
-		return s.Install(ctx, logf, kcli, mcli, hcli, rc, domains, overrides, nil)
+		return s.Install(ctx, logf, kcli, mcli, hcli, rc, domains, overrides)
 	}
 
 	if err := s.ensurePreRequisites(ctx, kcli); err != nil {

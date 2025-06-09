@@ -1,41 +1,18 @@
-export interface InstallationStatus {
-  openebs: 'pending' | 'in-progress' | 'completed' | 'failed';
-  registry: 'pending' | 'in-progress' | 'completed' | 'failed';
-  velero: 'pending' | 'in-progress' | 'completed' | 'failed';
-  components: 'pending' | 'in-progress' | 'completed' | 'failed';
-  database: 'pending' | 'in-progress' | 'completed' | 'failed';
-  core: 'pending' | 'in-progress' | 'completed' | 'failed';
-  plugins: 'pending' | 'in-progress' | 'completed' | 'failed';
-  overall: 'pending' | 'in-progress' | 'completed' | 'failed';
-  currentMessage: string;
-  error?: string;
+export interface InfraStatusResponse {
+  components: { [key: string]: InfraComponent };
+  status: InfraStatus;
   logs: string[];
-  progress: number;
+}
+
+export interface InfraComponent {
+  name: string;
+  status: InfraStatus;
+}
+
+export interface InfraStatus {
+  state: 'Pending' | 'Running' | 'Succeeded' | 'Failed';
+  description: string;
+  lastUpdated: string;
 }
 
 export type WizardStep = 'welcome' | 'setup' | 'validation' | 'installation' | 'completion';
-
-export interface ValidationResult {
-  success: boolean;
-  message: string;
-  details?: string;
-}
-
-export interface ValidationStatus {
-  kubernetes: ValidationResult | null;
-  helm: ValidationResult | null;
-  storage: ValidationResult | null;
-  networking: ValidationResult | null;
-  permissions: ValidationResult | null;
-}
-
-export interface HostPreflightStatus {
-  kernelVersion: ValidationResult | null;
-  kernelParameters: ValidationResult | null;
-  dataDirectory: ValidationResult | null;
-  systemMemory: ValidationResult | null;
-  systemCPU: ValidationResult | null;
-  diskSpace: ValidationResult | null;
-  selinux: ValidationResult | null;
-  networkEndpoints: ValidationResult | null;
-}

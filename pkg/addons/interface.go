@@ -31,12 +31,13 @@ type AddOnsInterface interface {
 var _ AddOnsInterface = (*AddOns)(nil)
 
 type AddOns struct {
-	logf    types.LogFunc
-	hcli    helm.Client
-	kcli    client.Client
-	mcli    metadata.Interface
-	kclient kubernetes.Interface
-	rc      runtimeconfig.RuntimeConfig
+	logf     types.LogFunc
+	hcli     helm.Client
+	kcli     client.Client
+	mcli     metadata.Interface
+	kclient  kubernetes.Interface
+	rc       runtimeconfig.RuntimeConfig
+	progress chan<- types.AddOnProgress
 }
 
 type AddOnsOption func(*AddOns)
@@ -74,6 +75,12 @@ func WithKubernetesClientSet(kclient kubernetes.Interface) AddOnsOption {
 func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) AddOnsOption {
 	return func(a *AddOns) {
 		a.rc = rc
+	}
+}
+
+func WithProgressChannel(progress chan types.AddOnProgress) AddOnsOption {
+	return func(a *AddOns) {
+		a.progress = progress
 	}
 }
 

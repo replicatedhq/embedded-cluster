@@ -54,6 +54,23 @@ components:
         title:
           type: string
       type: object
+    types.Infra:
+      properties:
+        components:
+          items:
+            $ref: '#/components/schemas/types.InfraComponent'
+          type: array
+          uniqueItems: false
+        status:
+          $ref: '#/components/schemas/types.Status'
+      type: object
+    types.InfraComponent:
+      properties:
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/types.Status'
+      type: object
     types.InstallHostPreflightsStatusResponse:
       properties:
         output:
@@ -198,6 +215,36 @@ paths:
       summary: Get host preflight status for install
       tags:
       - install
+  /install/infra/setup:
+    post:
+      description: Setup infra components
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Infra'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Setup infra components
+      tags:
+      - install
+  /install/infra/status:
+    get:
+      description: Get the current status of the infra
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Infra'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the status of the infra
+      tags:
+      - install
   /install/installation/config:
     get:
       description: get the installation config
@@ -248,21 +295,6 @@ paths:
       security:
       - bearerauth: []
       summary: Get installation configuration status for install
-      tags:
-      - install
-  /install/node/setup:
-    post:
-      description: Setup a node
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Status'
-          description: OK
-      security:
-      - bearerauth: []
-      summary: Setup a node
       tags:
       - install
   /install/status:

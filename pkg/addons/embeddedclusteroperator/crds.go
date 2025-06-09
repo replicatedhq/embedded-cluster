@@ -7,16 +7,16 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/operator/charts"
+	"github.com/replicatedhq/embedded-cluster/pkg/crds"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
 
 func EnsureInstallationCRD(ctx context.Context, kcli client.Client) error {
 	// decode the CRD file
-	crds := strings.SplitSeq(charts.InstallationCRDFile, "\n---\n")
+	crds := strings.SplitSeq(crds.InstallationCRDFile, "\n---\n")
 
 	for crdYaml := range crds {
 		var crd v1.CustomResourceDefinition

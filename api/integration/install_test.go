@@ -32,7 +32,8 @@ type mockInstallController struct {
 	getHostPreflightStatusError error
 	getHostPreflightOutputError error
 	getHostPreflightTitlesError error
-	setupNodeError              error
+	setupInfraError             error
+	getInfraError               error
 	setStatusError              error
 	readStatusError             error
 }
@@ -80,8 +81,15 @@ func (m *mockInstallController) GetHostPreflightTitles(ctx context.Context) ([]s
 	return []string{}, nil
 }
 
-func (m *mockInstallController) SetupNode(ctx context.Context) error {
-	return m.setupNodeError
+func (m *mockInstallController) SetupInfra(ctx context.Context) error {
+	return m.setupInfraError
+}
+
+func (m *mockInstallController) GetInfra(ctx context.Context) (*types.Infra, error) {
+	if m.getInfraError != nil {
+		return nil, m.getInfraError
+	}
+	return &types.Infra{}, nil
 }
 
 func (m *mockInstallController) SetStatus(ctx context.Context, status *types.Status) error {

@@ -1,108 +1,122 @@
-import React, { useState, useEffect } from "react";
-import Card from "../common/Card";
-import Button from "../common/Button";
-import { useConfig } from "../../contexts/ConfigContext";
-import { CheckCircle, ExternalLink, Loader2 } from "lucide-react";
-import { useQuery, Query } from "@tanstack/react-query";
-import { useWizardMode } from "../../contexts/WizardModeContext";
+import React, { useState, useEffect } from 'react';
+import Card from '../common/Card';
+import Button from '../common/Button';
+import { useQuery } from "@tanstack/react-query";
+import { useConfig } from '../../contexts/ConfigContext';
 import { useAuth } from "../../contexts/AuthContext";
+import { InfraStatusResponse } from '../../types';
+import { ChevronRight } from 'lucide-react';
+import InstallationProgress from './installation/InstallationProgress';
+// import LogViewer from './installation/LogViewer';
+import StatusIndicator from './installation/StatusIndicator';
+import ErrorMessage from './installation/ErrorMessage';
 
-interface InstallStatus {
-  state: "Succeeded" | "Failed" | "InProgress";
-  description?: string;
-  lastUpdated?: string;
+interface InstallationStepProps {
+  onNext: () => void;
 }
 
-const InstallationStep: React.FC = () => {
-  const { config, prototypeSettings } = useConfig();
-  const { text } = useWizardMode();
-  const [showAdminLink, setShowAdminLink] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
   const { token } = useAuth();
-  const themeColor = prototypeSettings.themeColor
+  const { prototypeSettings } = useConfig();
+  const [isInfraPolling, setIsInfraPolling] = useState(true);
+  const [installComplete, setInstallComplete] = useState(false);
+  // const [showLogs, setShowLogs] = useState(false);
+  const themeColor = prototypeSettings.themeColor;
 
-  const { data: installStatus } = useQuery<InstallStatus, Error>({
-    queryKey: ["installStatus"],
+  // Query to poll infra status
+  const { data: infraStatusResponse, error: infraStatusError } = useQuery<InfraStatusResponse, Error>({
+    queryKey: ["infraStatus"],
     queryFn: async () => {
-      const response = await fetch("/api/install/status", {
-        method: "GET",
+      const response = await fetch("/api/install/infra/status", {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
       });
-
       if (!response.ok) {
-        const error = await response.json();
-        setError(error.message || "Installation failed");
-        throw new Error(error.message || "Installation failed");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to get infra status");
       }
-
-      return response.json();
+      return response.json() as Promise<InfraStatusResponse>;
     },
-    refetchInterval: (query: Query<InstallStatus, Error>) => {
-      // Continue polling until we get a final state
-      return query.state.data?.state === "Succeeded" || query.state.data?.state === "Failed" ? false : 5000;
-    },
+    enabled: isInfraPolling,
+    refetchInterval: 1000,
   });
 
+  // Handle infra status changes
   useEffect(() => {
-    if (installStatus?.state === "Succeeded") {
-      setShowAdminLink(true);
-      setIsLoading(false);
-    } else if (installStatus?.state === "Failed") {
-      setError(installStatus.description || "Installation failed");
-      setIsLoading(false);
+    if (infraStatusResponse?.status?.state === "Failed") {
+      setIsInfraPolling(false);
+      return;
     }
-  }, [installStatus]);
+    if (infraStatusResponse?.status?.state === "Succeeded") {
+      setIsInfraPolling(false);
+      setInstallComplete(true);
+    }
+  }, [infraStatusResponse]);
+
+  const getProgress = () => {
+    const totalComponents = Object.keys(infraStatusResponse?.components || {}).length;
+    if (totalComponents === 0) {
+      return 0;
+    }
+    const completedComponents = Object.values(infraStatusResponse?.components || {}).filter(component => component.status?.state === 'Succeeded').length;
+    return Math.round((completedComponents / totalComponents) * 100);
+  }
+
+  const renderInfrastructurePhase = () => (
+    <div className="space-y-6">
+      <InstallationProgress
+        progress={getProgress()}
+        currentMessage={infraStatusResponse?.status?.description || ''}
+        themeColor={themeColor}
+        status={infraStatusResponse?.status?.state}
+      />
+
+      <div className="space-y-2 divide-y divide-gray-200">
+        {Object.entries(infraStatusResponse?.components || {}).map(([key, component]) => (
+          <StatusIndicator 
+            key={key}
+            title={component.name} 
+            status={component.status?.state}
+            themeColor={themeColor}
+          />
+        ))}
+      </div>
+
+      {/* TODO (@salah): add support for installation logs */}
+      {/* <LogViewer
+        title="Installation Logs"
+        logs={infraStatusResponse?.logs || []}
+        isExpanded={showLogs}
+        onToggle={() => setShowLogs(!showLogs)}
+      /> */}
+      
+      {infraStatusError && <ErrorMessage error={infraStatusError?.message} />}
+      {infraStatusResponse?.status?.state === 'Failed' && <ErrorMessage error={infraStatusResponse?.status?.description} />}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
       <Card>
-        {installStatus?.state !== "Succeeded" && (
-          <div className="my-6">
-            <h2 className="text-2xl font-bold text-gray-900">{text.installationTitle}</h2>
-            <p className="text-gray-600 mt-1">{text.installationDescription}</p>
-          </div>
-        )}
-
-        <div className="flex flex-col items-center text-center py-6">
-          {isLoading && (
-            <div className="flex flex-col items-center pt-6">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-600 mb-4" />
-              <p className="text-lg font-medium text-gray-900">Please wait while we complete the installation...</p>
-              <p className="text-sm text-gray-500 mt-2">This may take a few minutes.</p>
-              {installStatus?.description && <p className="text-sm text-gray-500 mt-2">{installStatus.description}</p>}
-            </div>
-          )}
-
-          {error && (
-            <div className="text-red-600 mb-8">
-              <p className="text-xl">Installation Error</p>
-              <p>{error}</p>
-            </div>
-          )}
-
-          {showAdminLink && (
-            <div className="flex flex-col items-center justify-center mb-6">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6">
-                <CheckCircle className="w-10 h-10" style={{ color: themeColor }}/>
-              </div>
-              <p className="text-gray-600 mt-4">
-                Visit the Admin Console to configure and install {text.installationTitle}
-              </p>
-              <Button
-                className="mt-4"
-                onClick={() => window.open(`http://${window.location.hostname}:${config.adminConsolePort}`, "_blank")}
-                icon={<ExternalLink className="ml-2 -mr-1 h-5 w-5" />}
-              >
-                Visit Admin Console
-              </Button>
-            </div>
-          )}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Installation</h2>
+          <p className="text-gray-600 mt-1">Installing infrastructure components</p>
         </div>
+
+        {renderInfrastructurePhase()}
       </Card>
+
+      <div className="flex justify-end">
+        <Button
+          onClick={onNext}
+          disabled={!installComplete}
+          icon={<ChevronRight className="w-5 h-5" />}
+        >
+          Next: Finish
+        </Button>
+      </div>
     </div>
   );
 };

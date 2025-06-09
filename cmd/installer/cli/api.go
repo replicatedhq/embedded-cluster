@@ -31,11 +31,15 @@ type apiConfig struct {
 	Logger          logrus.FieldLogger
 	MetricsReporter metrics.ReporterInterface
 	Password        string
+	TLSCertBytes    []byte
+	TLSKeyBytes     []byte
+	Hostname        string
 	ManagerPort     int
 	LicenseFile     string
 	AirgapBundle    string
-	ConfigChan      chan<- *apitypes.InstallationConfig
+	ConfigValues    string
 	ReleaseData     *release.ReleaseData
+	K0sOverrides    string
 	WebAssetsFS     fs.FS
 }
 
@@ -82,9 +86,13 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		api.WithRuntimeConfig(config.RuntimeConfig),
 		api.WithMetricsReporter(config.MetricsReporter),
 		api.WithReleaseData(config.ReleaseData),
+		api.WithTLSCertBytes(config.TLSCertBytes),
+		api.WithTLSKeyBytes(config.TLSKeyBytes),
+		api.WithHostname(config.Hostname),
 		api.WithLicenseFile(config.LicenseFile),
 		api.WithAirgapBundle(config.AirgapBundle),
-		api.WithConfigChan(config.ConfigChan),
+		api.WithConfigValues(config.ConfigValues),
+		api.WithK0sOverrides(config.K0sOverrides),
 	)
 	if err != nil {
 		return fmt.Errorf("new api: %w", err)

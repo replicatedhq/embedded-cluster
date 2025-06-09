@@ -26,7 +26,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
-	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -694,7 +693,7 @@ func runRestoreExtensions(ctx context.Context, flags InstallCmdFlags, rc runtime
 	defer hcli.Close()
 
 	logrus.Debugf("installing extensions")
-	if err := extensions.Install(ctx, hcli); err != nil {
+	if err := installExtensions(ctx, hcli); err != nil {
 		return fmt.Errorf("unable to install extensions: %w", err)
 	}
 

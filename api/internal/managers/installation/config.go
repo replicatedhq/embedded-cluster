@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -214,14 +216,37 @@ func (m *installationManager) ConfigureForInstall(ctx context.Context, config *t
 	return nil
 }
 
-func (m *installationManager) configureForInstall(ctx context.Context, config *types.InstallationConfig) {
+func (m *installationManager) configureForInstall(ctx context.Context, config *types.InstallationConfig) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if err := m.setFailedStatus(fmt.Sprintf("panic: %v", r)); err != nil {
+			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+		}
+		if finalErr != nil {
+			if err := m.setFailedStatus(finalErr.Error()); err != nil {
 				m.logger.WithField("error", err).Error("set failed status")
+			}
+		} else {
+			if err := m.setCompletedStatus(types.StateSucceeded, "Installation configured"); err != nil {
+				m.logger.WithField("error", err).Error("set succeeded status")
 			}
 		}
 	}()
+
+	// update process env vars from the runtime config
+	os.Setenv("KUBECONFIG", m.rc.PathToKubeConfig())
+	os.Setenv("TMPDIR", m.rc.EmbeddedClusterTmpSubDir())
+
+	// write the runtime config to disk
+	if err := m.rc.WriteToDisk(); err != nil {
+		return fmt.Errorf("unable to write runtime config to disk: %w", err)
+	}
+
+	// ensure correct permissions on the data directory
+	if err := os.Chmod(m.rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
+		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
+		m.logger.Debugf("unable to chmod embedded-cluster home dir: %s", err)
+	}
 
 	opts := hostutils.InitForInstallOptions{
 		LicenseFile:  m.licenseFile,
@@ -230,13 +255,8 @@ func (m *installationManager) configureForInstall(ctx context.Context, config *t
 		ServiceCIDR:  config.ServiceCIDR,
 	}
 	if err := m.hostUtils.ConfigureForInstall(ctx, m.rc, opts); err != nil {
-		if err := m.setFailedStatus(fmt.Sprintf("configure installation: %v", err)); err != nil {
-			m.logger.WithField("error", err).Error("set failed status")
-		}
-		return
+		return fmt.Errorf("configure installation: %w", err)
 	}
 
-	if err := m.setCompletedStatus(types.StateSucceeded, "Installation configured"); err != nil {
-		m.logger.WithField("error", err).Error("set succeeded status")
-	}
+	return nil
 }

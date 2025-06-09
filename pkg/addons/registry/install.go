@@ -11,7 +11,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +22,7 @@ func (r *Registry) Install(
 	ctx context.Context, logf types.LogFunc,
 	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
 	rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains,
-	overrides []string, writer *spinner.MessageWriter,
+	overrides []string,
 ) error {
 	registryIP, err := GetRegistryClusterIP(r.ServiceCIDR)
 	if err != nil {

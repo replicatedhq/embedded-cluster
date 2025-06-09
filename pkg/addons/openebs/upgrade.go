@@ -24,7 +24,7 @@ func (o *OpenEBS) Upgrade(
 	}
 	if !exists {
 		logrus.Debugf("Release not found, installing release %s in namespace %s", o.ReleaseName(), o.Namespace())
-		if err := o.Install(ctx, logf, kcli, mcli, hcli, rc, domains, overrides, nil); err != nil {
+		if err := o.Install(ctx, logf, kcli, mcli, hcli, rc, domains, overrides); err != nil {
 			return errors.Wrap(err, "install")
 		}
 		return nil
