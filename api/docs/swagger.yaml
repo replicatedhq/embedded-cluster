@@ -29,25 +29,25 @@ components:
         status:
           type: string
       type: object
-    types.HostPreflightOutput:
+    types.HostPreflightsOutput:
       properties:
         fail:
           items:
-            $ref: '#/components/schemas/types.HostPreflightRecord'
+            $ref: '#/components/schemas/types.HostPreflightsRecord'
           type: array
           uniqueItems: false
         pass:
           items:
-            $ref: '#/components/schemas/types.HostPreflightRecord'
+            $ref: '#/components/schemas/types.HostPreflightsRecord'
           type: array
           uniqueItems: false
         warn:
           items:
-            $ref: '#/components/schemas/types.HostPreflightRecord'
+            $ref: '#/components/schemas/types.HostPreflightsRecord'
           type: array
           uniqueItems: false
       type: object
-    types.HostPreflightRecord:
+    types.HostPreflightsRecord:
       properties:
         message:
           type: string
@@ -57,7 +57,7 @@ components:
     types.InstallHostPreflightsStatusResponse:
       properties:
         output:
-          $ref: '#/components/schemas/types.HostPreflightOutput'
+          $ref: '#/components/schemas/types.HostPreflightsOutput'
         status:
           $ref: '#/components/schemas/types.Status'
         titles:
