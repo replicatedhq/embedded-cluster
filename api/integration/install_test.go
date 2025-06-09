@@ -93,43 +93,22 @@ func (m *mockInstallController) GetStatus(ctx context.Context) (*types.Status, e
 }
 
 func TestConfigureInstallation(t *testing.T) {
-	// Create a mock host utils
-	mockHostUtils := &hostutils.MockHostUtils{}
-	mockHostUtils.On("ConfigureForInstall", mock.Anything, mock.Anything).Return(nil).Once() // for the successful test
-
-	// Create a runtime config
-	rc := runtimeconfig.New(nil)
-
-	// Create an install controller with the config manager
-	installController, err := install.NewInstallController(
-		install.WithHostUtils(mockHostUtils),
-		install.WithRuntimeConfig(rc),
-	)
-	require.NoError(t, err)
-
-	// Create the API with the install controller
-	apiInstance, err := api.New(
-		"password",
-		api.WithInstallController(installController),
-		api.WithAuthController(&staticAuthController{"TOKEN"}),
-		api.WithLogger(logger.NewDiscardLogger()),
-	)
-	require.NoError(t, err)
-
-	// Create a router and register the API routes
-	router := mux.NewRouter()
-	apiInstance.RegisterRoutes(router)
-
 	// Test scenarios
 	testCases := []struct {
 		name           string
+		mockHostUtils  *hostutils.MockHostUtils
 		token          string
 		config         types.InstallationConfig
 		expectedStatus int
 		expectedError  bool
 	}{
 		{
-			name:  "Valid config",
+			name: "Valid config",
+			mockHostUtils: func() *hostutils.MockHostUtils {
+				mockHostUtils := &hostutils.MockHostUtils{}
+				mockHostUtils.On("ConfigureForInstall", mock.Anything, mock.Anything).Return(nil).Once()
+				return mockHostUtils
+			}(),
 			token: "TOKEN",
 			config: types.InstallationConfig{
 				DataDirectory:           "/tmp/data",
@@ -142,8 +121,9 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedError:  false,
 		},
 		{
-			name:  "Invalid config - port conflict",
-			token: "TOKEN",
+			name:          "Invalid config - port conflict",
+			mockHostUtils: &hostutils.MockHostUtils{},
+			token:         "TOKEN",
 			config: types.InstallationConfig{
 				DataDirectory:           "/tmp/data",
 				AdminConsolePort:        8080,
@@ -156,6 +136,7 @@ func TestConfigureInstallation(t *testing.T) {
 		},
 		{
 			name:           "Unauthorized",
+			mockHostUtils:  &hostutils.MockHostUtils{},
 			token:          "NOT_A_TOKEN",
 			config:         types.InstallationConfig{},
 			expectedStatus: http.StatusUnauthorized,
@@ -165,6 +146,30 @@ func TestConfigureInstallation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// Create a runtime config
+			rc := runtimeconfig.New(nil)
+			rc.SetDataDir(t.TempDir())
+
+			// Create an install controller with the config manager
+			installController, err := install.NewInstallController(
+				install.WithHostUtils(tc.mockHostUtils),
+				install.WithRuntimeConfig(rc),
+			)
+			require.NoError(t, err)
+
+			// Create the API with the install controller
+			apiInstance, err := api.New(
+				"password",
+				api.WithInstallController(installController),
+				api.WithAuthController(&staticAuthController{"TOKEN"}),
+				api.WithLogger(logger.NewDiscardLogger()),
+			)
+			require.NoError(t, err)
+
+			// Create a router and register the API routes
+			router := mux.NewRouter()
+			apiInstance.RegisterRoutes(router)
+
 			// Serialize the config to JSON
 			configJSON, err := json.Marshal(tc.config)
 			require.NoError(t, err)
@@ -201,6 +206,13 @@ func TestConfigureInstallation(t *testing.T) {
 			}
 
 			if !tc.expectedError {
+				// The status is set to succeeded in a goroutine, so we need to wait for it
+				assert.Eventually(t, func() bool {
+					status, err := installController.GetInstallationStatus(t.Context())
+					require.NoError(t, err)
+					return status.State == types.StateSucceeded
+				}, 1*time.Second, 100*time.Millisecond)
+
 				// Verify that the config is in the store
 				storedConfig, err := installController.GetInstallationConfig(t.Context())
 				require.NoError(t, err)
@@ -212,11 +224,11 @@ func TestConfigureInstallation(t *testing.T) {
 				assert.Equal(t, tc.config.AdminConsolePort, rc.AdminConsolePort())
 				assert.Equal(t, tc.config.LocalArtifactMirrorPort, rc.LocalArtifactMirrorPort())
 			}
+
+			// Verify host confiuration was performed for successful tests
+			tc.mockHostUtils.AssertExpectations(t)
 		})
 	}
-
-	// Verify host confiuration was performed for successful tests
-	mockHostUtils.AssertExpectations(t)
 }
 
 // Test that config validation errors are properly returned
