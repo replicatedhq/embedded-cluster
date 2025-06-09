@@ -3,7 +3,6 @@ package addons
 import (
 	"context"
 
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
@@ -17,25 +16,19 @@ import (
 )
 
 type AddOnsInterface interface {
-	// Versions returns the versions of all addons
-	Versions() map[string]string
-	// GenerateChartConfigs generates the chart configurations for all addons
-	GenerateChartConfigs() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error)
-	// GetImages returns all images required by the addons
-	GetImages() []string
-	// GetAdditionalImages returns additional images required by the addons
-	GetAdditionalImages() []string
 	// Install installs all addons
-	Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runtimeconfig.RuntimeConfig, opts InstallOptions) error
+	Install(ctx context.Context, opts InstallOptions) error
 	// Upgrade upgrades all addons
-	Upgrade(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error
+	Upgrade(ctx context.Context, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error
 	// CanEnableHA checks if high availability can be enabled in the cluster
-	CanEnableHA(ctx context.Context, kcli client.Client) (bool, string, error)
+	CanEnableHA(context.Context) (bool, string, error)
 	// EnableHA enables high availability for the cluster
-	EnableHA(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, kclient kubernetes.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, serviceCIDR string, inSpec ecv1beta1.InstallationSpec, spinner *spinner.MessageWriter) error
+	EnableHA(ctx context.Context, serviceCIDR string, inSpec ecv1beta1.InstallationSpec, spinner *spinner.MessageWriter) error
 	// EnableAdminConsoleHA enables high availability for the admin console
-	EnableAdminConsoleHA(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo)
+	EnableAdminConsoleHA(ctx context.Context, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo) error
 }
+
+var _ AddOnsInterface = (*AddOns)(nil)
 
 type AddOns struct {
 	logf    types.LogFunc
