@@ -51,7 +51,7 @@ const InstallationStep: React.FC = () => {
       setShowAdminLink(true);
       setIsLoading(false);
     } else if (installStatus?.state === "Failed") {
-      setError("Installation failed");
+      setError(installStatus.description || "Installation failed");
       setIsLoading(false);
     }
   }, [installStatus]);
