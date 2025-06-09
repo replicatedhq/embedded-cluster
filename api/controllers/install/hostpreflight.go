@@ -22,6 +22,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context) error {
 
 	// Prepare host preflights
 	hpf, proxy, err := c.hostPreflightManager.PrepareHostPreflights(ctx, preflight.PrepareHostPreflightOptions{
+		RuntimeConfig:         c.rc,
 		InstallationConfig:    config,
 		ReplicatedAppURL:      netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
 		ProxyRegistryURL:      netutils.MaybeAddHTTPS(ecDomains.ProxyRegistryDomain),
@@ -35,6 +36,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context) error {
 
 	// Run host preflights
 	return c.hostPreflightManager.RunHostPreflights(ctx, preflight.RunHostPreflightOptions{
+		RuntimeConfig:     c.rc,
 		HostPreflightSpec: hpf,
 		Proxy:             proxy,
 	})

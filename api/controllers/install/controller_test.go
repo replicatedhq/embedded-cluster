@@ -15,6 +15,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
@@ -113,14 +114,21 @@ func TestConfigureInstallation(t *testing.T) {
 		{
 			name: "successful configure installation",
 			config: &types.InstallationConfig{
+				AdminConsolePort:        9001,
 				LocalArtifactMirrorPort: 9000,
 				DataDirectory:           "/data/dir",
 			},
 			setupMock: func(m *installation.MockInstallationManager, config *types.InstallationConfig) {
+				// Set the runtimeconfig with the properties populated from the installation config
+				rc := runtimeconfig.New(nil)
+				rc.SetAdminConsolePort(9001)
+				rc.SetLocalArtifactMirrorPort(9000)
+				rc.SetDataDir("/data/dir")
+
 				mock.InOrder(
 					m.On("ValidateConfig", config).Return(nil),
 					m.On("SetConfig", *config).Return(nil),
-					m.On("ConfigureForInstall", context.Background(), config).Return(nil),
+					m.On("ConfigureForInstall", context.Background(), config, rc).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -150,6 +158,11 @@ func TestConfigureInstallation(t *testing.T) {
 				GlobalCIDR: "10.0.0.0/16",
 			},
 			setupMock: func(m *installation.MockInstallationManager, config *types.InstallationConfig) {
+				// Set the runtimeconfig with the properties populated from the installation config
+				rc := runtimeconfig.New(nil)
+				rc.SetAdminConsolePort(config.AdminConsolePort)
+				rc.SetLocalArtifactMirrorPort(config.LocalArtifactMirrorPort)
+				rc.SetDataDir(config.DataDirectory)
 				// Create a copy with expected CIDR values after computation
 				configWithCIDRs := *config
 				configWithCIDRs.PodCIDR = "10.0.0.0/17"
@@ -158,7 +171,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ValidateConfig", config).Return(nil),
 					m.On("SetConfig", configWithCIDRs).Return(nil),
-					m.On("ConfigureForInstall", context.Background(), &configWithCIDRs).Return(nil),
+					m.On("ConfigureForInstall", context.Background(), &configWithCIDRs, rc).Return(nil),
 				)
 			},
 			expectedErr: false,

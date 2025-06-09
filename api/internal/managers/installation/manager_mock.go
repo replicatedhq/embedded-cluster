@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -57,7 +58,7 @@ func (m *MockInstallationManager) SetConfigDefaults(config *types.InstallationCo
 }
 
 // ConfigureForInstall mocks the ConfigureForInstall method
-func (m *MockInstallationManager) ConfigureForInstall(ctx context.Context, config *types.InstallationConfig) error {
-	args := m.Called(ctx, config)
+func (m *MockInstallationManager) ConfigureForInstall(ctx context.Context, config *types.InstallationConfig, rc runtimeconfig.RuntimeConfig) error {
+	args := m.Called(ctx, config, rc)
 	return args.Error(0)
 }

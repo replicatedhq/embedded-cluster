@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 func TestValidateConfig(t *testing.T) {
@@ -382,7 +383,7 @@ func TestConfigureForInstall(t *testing.T) {
 			)
 
 			// Run the test
-			err := manager.ConfigureForInstall(context.Background(), tt.config)
+			err := manager.ConfigureForInstall(context.Background(), tt.config, runtimeconfig.New(nil))
 
 			// Assertions
 			if tt.expectedErr {

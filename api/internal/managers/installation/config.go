@@ -10,6 +10,7 @@ import (
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 func (m *installationManager) GetConfig() (*types.InstallationConfig, error) {
@@ -193,7 +194,7 @@ func (m *installationManager) setCIDRDefaults(config *types.InstallationConfig) 
 	return nil
 }
 
-func (m *installationManager) ConfigureForInstall(ctx context.Context, config *types.InstallationConfig) error {
+func (m *installationManager) ConfigureForInstall(ctx context.Context, config *types.InstallationConfig, rc runtimeconfig.RuntimeConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -209,12 +210,12 @@ func (m *installationManager) ConfigureForInstall(ctx context.Context, config *t
 		return fmt.Errorf("set running status: %w", err)
 	}
 
-	go m.configureForInstall(context.Background(), config)
+	go m.configureForInstall(context.Background(), config, rc)
 
 	return nil
 }
 
-func (m *installationManager) configureForInstall(ctx context.Context, config *types.InstallationConfig) {
+func (m *installationManager) configureForInstall(ctx context.Context, config *types.InstallationConfig, rc runtimeconfig.RuntimeConfig) {
 	defer func() {
 		if r := recover(); r != nil {
 			if err := m.setFailedStatus(fmt.Sprintf("panic: %v", r)); err != nil {
@@ -229,7 +230,7 @@ func (m *installationManager) configureForInstall(ctx context.Context, config *t
 		PodCIDR:      config.PodCIDR,
 		ServiceCIDR:  config.ServiceCIDR,
 	}
-	if err := m.hostUtils.ConfigureForInstall(ctx, m.rc, opts); err != nil {
+	if err := m.hostUtils.ConfigureForInstall(ctx, rc, opts); err != nil {
 		if err := m.setFailedStatus(fmt.Sprintf("configure installation: %v", err)); err != nil {
 			m.logger.WithField("error", err).Error("set failed status")
 		}
