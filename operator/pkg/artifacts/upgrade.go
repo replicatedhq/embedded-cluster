@@ -89,6 +89,7 @@ var copyArtifactsJobCommandOnline = []string{
 	"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster " +
 		"--app-slug $APP_SLUG --channel-id $CHANNEL_ID --app-version $APP_VERSION " +
 		"$INSTALLATION_DATA; \n" +
+		"sleep 10; \n" + // wait for LAM to restart so k0s can pull from it. LAM restarts when it detects an EC binary update.
 		"echo 'done'",
 }
 
@@ -101,6 +102,7 @@ var copyArtifactsJobCommandAirgap = []string{
 		"/usr/local/bin/local-artifact-mirror pull helmcharts --data-dir /embedded-cluster $INSTALLATION_DATA; \n" +
 		"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade; \n" +
 		"rm /embedded-cluster/images/images-amd64-* || true; \n" +
+		"sleep 10; \n" + // wait for LAM to restart so k0s can pull from it. LAM restarts when it detects an EC binary update.
 		"echo 'done'",
 }
 
