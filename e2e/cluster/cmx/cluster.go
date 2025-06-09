@@ -62,7 +62,7 @@ func NewCluster(in *ClusterInput) *Cluster {
 }
 
 func NewNodes(in *ClusterInput) ([]Node, error) {
-	in.T.Logf("creating %s nodes", strconv.Itoa(in.Nodes))
+	in.T.Logf("%s: creating %s nodes", time.Now().Format(time.RFC3339), strconv.Itoa(in.Nodes))
 
 	args := []string{
 		"vm", "create",
@@ -222,11 +222,11 @@ func waitForSSH(node Node, t *testing.T) error {
 		case <-timeout:
 			return fmt.Errorf("timed out after 5 minutes: last error: %w", lastErr)
 		case <-tick:
-			t.Logf("%s: checking SSH connectivity to node %s", time.Now().Format(time.RFC3339), node.ID)
+			t.Logf("%s: checking SSH connectivity to node ID: %s", time.Now().Format(time.RFC3339), node.ID)
 			stdout, stderr, err := runCommandOnNode(node, []string{"uptime"})
 			t.Logf("%s: SSH attempt - stdout: %s, stderr: %s, err: %v", time.Now().Format(time.RFC3339), stdout, stderr, err)
 			if err == nil {
-				t.Logf("%s: SSH connection successful to node %s", time.Now().Format(time.RFC3339), node.ID)
+				t.Logf("%s: SSH connection successful to node ID: %s", time.Now().Format(time.RFC3339), node.ID)
 				return nil
 			}
 			lastErr = fmt.Errorf("%w: stdout: %s: stderr: %s", err, stdout, stderr)
@@ -506,5 +506,7 @@ func sshArgs() []string {
 		"-o", "StrictHostKeyChecking=no",
 		"-o", "ServerAliveInterval=30",
 		"-o", "ServerAliveCountMax=10",
+		"-o", "ConnectTimeout=5",
+		"-o", "BatchMode=yes",
 	}
 }
