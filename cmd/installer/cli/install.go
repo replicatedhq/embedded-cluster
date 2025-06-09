@@ -125,8 +125,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				installReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			err := runInstall(cmd.Context(), name, flags, rc, installReporter)
-			if err != nil {
+			if err := runInstall(cmd.Context(), name, flags, rc, installReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
 					installReporter.ReportSignalAborted(ctx, syscall.SIGINT)
@@ -448,7 +447,7 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	defer func() {
 		if flags.enableManagerExperience && finalErr != nil {
 			if err := markUIInstallComplete(flags.adminConsolePassword, flags.managerPort, finalErr); err != nil {
-				logrus.Errorf("Unable to mark ui install complete: %w", err)
+				logrus.Errorf("Unable to mark ui install complete: %v", err)
 			}
 		}
 	}()
