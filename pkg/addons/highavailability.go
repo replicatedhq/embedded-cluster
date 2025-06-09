@@ -68,7 +68,7 @@ func EnableHA(
 			return errors.Wrap(err, "check if registry data has been migrated")
 		} else if !hasMigrated {
 			logrus.Debugf("Installing seaweedfs")
-			err = ensureSeaweedfs(ctx, logf, clients, inSpec)
+			err = ensureSeaweedfsHA(ctx, logf, clients, inSpec)
 			if err != nil {
 				return errors.Wrap(err, "ensure seaweedfs")
 			}
@@ -84,7 +84,7 @@ func EnableHA(
 
 			logrus.Debugf("Migrating data for high availability")
 			spinner.Infof("Migrating data for high availability")
-			err = migrateRegistryData(ctx, clients.K8sClient, kclient, inSpec.Config, spinner)
+			err = migrateRegistryDataHA(ctx, clients.K8sClient, kclient, inSpec.Config, spinner)
 			if err != nil {
 				return errors.Wrap(err, "migrate registry data")
 			}
@@ -174,8 +174,8 @@ func scaleRegistryDown(ctx context.Context, cli client.Client) error {
 	return nil
 }
 
-// migrateRegistryData runs the registry data migration.
-func migrateRegistryData(ctx context.Context, kcli client.Client, kclient kubernetes.Interface, cfgspec *ecv1beta1.ConfigSpec, writer *spinner.MessageWriter) error {
+// migrateRegistryDataHA runs the registry data migration.
+func migrateRegistryDataHA(ctx context.Context, kcli client.Client, kclient kubernetes.Interface, cfgspec *ecv1beta1.ConfigSpec, writer *spinner.MessageWriter) error {
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
 		return errors.Wrap(err, "get latest installation")
@@ -203,8 +203,8 @@ func migrateRegistryData(ctx context.Context, kcli client.Client, kclient kubern
 	return nil
 }
 
-// ensureSeaweedfs ensures that seaweedfs is installed.
-func ensureSeaweedfs(
+// ensureSeaweedfsHA ensures that seaweedfs is installed.
+func ensureSeaweedfsHA(
 	ctx context.Context, logf types.LogFunc,
 	clients types.Clients,
 	inSpec ecv1beta1.InstallationSpec,
