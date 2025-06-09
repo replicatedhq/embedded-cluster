@@ -44,7 +44,7 @@ func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (*types.
 	return c.hostPreflightManager.GetHostPreflightStatus(ctx)
 }
 
-func (c *InstallController) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightOutput, error) {
+func (c *InstallController) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error) {
 	return c.hostPreflightManager.GetHostPreflightOutput(ctx)
 }
 

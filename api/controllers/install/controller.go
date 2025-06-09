@@ -21,7 +21,7 @@ type Controller interface {
 	GetInstallationStatus(ctx context.Context) (*types.Status, error)
 	RunHostPreflights(ctx context.Context) error
 	GetHostPreflightStatus(ctx context.Context) (*types.Status, error)
-	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightOutput, error)
+	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupNode(ctx context.Context) error
 	SetStatus(ctx context.Context, status *types.Status) error

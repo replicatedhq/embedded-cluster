@@ -171,7 +171,7 @@ func (r *Reporter) ReportJoinFailed(ctx context.Context, err error) {
 }
 
 // ReportPreflightsFailed reports that the preflights failed.
-func (r *Reporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.HostPreflightOutput) {
+func (r *Reporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
 	outputJSON, err := json.Marshal(output)
 	if err != nil {
 		logrus.Warnf("unable to marshal preflight output: %s", err)
@@ -187,7 +187,7 @@ func (r *Reporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.
 }
 
 // ReportPreflightsBypassed reports that the preflights failed but were bypassed.
-func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.HostPreflightOutput) {
+func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
 	outputJSON, err := json.Marshal(output)
 	if err != nil {
 		logrus.Warnf("unable to marshal preflight output: %s", err)

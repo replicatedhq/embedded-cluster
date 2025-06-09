@@ -66,11 +66,11 @@ func (m *mockInstallController) GetHostPreflightStatus(ctx context.Context) (*ty
 	return &types.Status{}, nil
 }
 
-func (m *mockInstallController) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightOutput, error) {
+func (m *mockInstallController) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error) {
 	if m.getHostPreflightOutputError != nil {
 		return nil, m.getHostPreflightOutputError
 	}
-	return &types.HostPreflightOutput{}, nil
+	return &types.HostPreflightsOutput{}, nil
 }
 
 func (m *mockInstallController) GetHostPreflightTitles(ctx context.Context) ([]string, error) {
