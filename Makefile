@@ -272,7 +272,7 @@ envtest:
 .PHONY: unit-tests
 unit-tests: envtest
 	KUBEBUILDER_ASSETS="$(shell ./operator/bin/setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/operator/bin -p path)" \
-		go test -tags $(GO_BUILD_TAGS) -v ./pkg/... ./cmd/... ./web/... ./pkg-new/...
+		go test -race -tags $(GO_BUILD_TAGS) -v ./pkg/... ./cmd/... ./web/... ./pkg-new/...
 	$(MAKE) -C api unit-tests
 	$(MAKE) -C operator test
 	$(MAKE) -C utils unit-tests

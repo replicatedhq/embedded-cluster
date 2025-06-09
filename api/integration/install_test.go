@@ -794,11 +794,15 @@ func TestSetInstallStatus(t *testing.T) {
 func TestInstallWithAPIClient(t *testing.T) {
 	password := "test-password"
 
+	// Create a runtimeconfig to be used in the install process
+	rc := runtimeconfig.New(nil)
+
 	// Create a config manager
-	installationManager := installation.NewInstallationManager()
+	installationManager := installation.NewInstallationManager(installation.WithRuntimeConfig(rc))
 
 	// Create an install controller with the config manager
 	installController, err := install.NewInstallController(
+		install.WithRuntimeConfig(rc),
 		install.WithInstallationManager(installationManager),
 	)
 	require.NoError(t, err)
