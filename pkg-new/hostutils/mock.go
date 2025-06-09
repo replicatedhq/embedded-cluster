@@ -16,7 +16,7 @@ type MockHostUtils struct {
 
 // ConfigureForInstall mocks the ConfigureForInstall method
 func (m *MockHostUtils) ConfigureForInstall(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
-	args := m.Called(ctx, opts)
+	args := m.Called(ctx, rc, opts)
 	return args.Error(0)
 }
 

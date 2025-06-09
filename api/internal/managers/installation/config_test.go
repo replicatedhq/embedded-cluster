@@ -297,7 +297,7 @@ func TestConfigureForInstall(t *testing.T) {
 	tests := []struct {
 		name        string
 		config      *types.InstallationConfig
-		setupMocks  func(*hostutils.MockHostUtils, *MockInstallationStore)
+		setupMocks  func(runtimeconfig.RuntimeConfig, *hostutils.MockHostUtils, *MockInstallationStore)
 		expectedErr bool
 	}{
 		{
@@ -307,11 +307,11 @@ func TestConfigureForInstall(t *testing.T) {
 				PodCIDR:       "10.0.0.0/16",
 				ServiceCIDR:   "10.1.0.0/16",
 			},
-			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, hum *hostutils.MockHostUtils, im *MockInstallationStore) {
 				mock.InOrder(
 					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
-					hum.On("ConfigureForInstall", mock.Anything, hostutils.InitForInstallOptions{
+					hum.On("ConfigureForInstall", mock.Anything, rc, hostutils.InitForInstallOptions{
 						LicenseFile:  "license.yaml",
 						AirgapBundle: "bundle.tar",
 						PodCIDR:      "10.0.0.0/16",
@@ -327,7 +327,7 @@ func TestConfigureForInstall(t *testing.T) {
 			config: &types.InstallationConfig{
 				DataDirectory: "/var/lib/embedded-cluster",
 			},
-			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, hum *hostutils.MockHostUtils, im *MockInstallationStore) {
 				im.On("GetStatus").Return(&types.Status{State: types.StateRunning}, nil)
 			},
 			expectedErr: true,
@@ -337,11 +337,11 @@ func TestConfigureForInstall(t *testing.T) {
 			config: &types.InstallationConfig{
 				DataDirectory: "/var/lib/embedded-cluster",
 			},
-			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, hum *hostutils.MockHostUtils, im *MockInstallationStore) {
 				mock.InOrder(
 					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
-					hum.On("ConfigureForInstall", mock.Anything, hostutils.InitForInstallOptions{
+					hum.On("ConfigureForInstall", mock.Anything, rc, hostutils.InitForInstallOptions{
 						LicenseFile:  "license.yaml",
 						AirgapBundle: "bundle.tar",
 					}).Return(errors.New("configuration failed")),
@@ -355,7 +355,7 @@ func TestConfigureForInstall(t *testing.T) {
 			config: &types.InstallationConfig{
 				DataDirectory: "/var/lib/embedded-cluster",
 			},
-			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, hum *hostutils.MockHostUtils, im *MockInstallationStore) {
 				mock.InOrder(
 					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
 					im.On("SetStatus", mock.Anything).Return(errors.New("failed to set status")),
@@ -371,8 +371,11 @@ func TestConfigureForInstall(t *testing.T) {
 			mockHostUtils := &hostutils.MockHostUtils{}
 			mockStore := &MockInstallationStore{}
 
+			// Setup runtimeconfig, this should be used across the whole ConfigureForInstall flow
+			rc := runtimeconfig.New(nil)
+
 			// Setup mocks
-			tt.setupMocks(mockHostUtils, mockStore)
+			tt.setupMocks(rc, mockHostUtils, mockStore)
 
 			// Create manager with mocks
 			manager := NewInstallationManager(
@@ -383,7 +386,7 @@ func TestConfigureForInstall(t *testing.T) {
 			)
 
 			// Run the test
-			err := manager.ConfigureForInstall(context.Background(), tt.config, runtimeconfig.New(nil))
+			err := manager.ConfigureForInstall(context.Background(), tt.config, rc)
 
 			// Assertions
 			if tt.expectedErr {
