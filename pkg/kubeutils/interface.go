@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -40,6 +41,7 @@ type KubeUtilsInterface interface {
 	WaitForCRDToBeReady(ctx context.Context, cli client.Client, name string) error
 	KubeClient() (client.Client, error)
 	MetadataClient() (metadata.Interface, error)
+	GetClientset() (kubernetes.Interface, error)
 }
 
 var DefaultBackoff = wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
@@ -127,4 +129,8 @@ func KubeClient() (client.Client, error) {
 
 func MetadataClient() (metadata.Interface, error) {
 	return kb.MetadataClient()
+}
+
+func GetClientset() (kubernetes.Interface, error) {
+	return kb.GetClientset()
 }

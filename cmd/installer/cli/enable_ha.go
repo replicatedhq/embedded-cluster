@@ -61,15 +61,6 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 		return fmt.Errorf("unable to create metadata client: %w", err)
 	}
 
-	canEnableHA, reason, err := addons.CanEnableHA(ctx, kcli)
-	if err != nil {
-		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
-	}
-	if !canEnableHA {
-		logrus.Warnf("High availability cannot be enabled: %s", reason)
-		return NewErrorNothingElseToAdd(fmt.Errorf("high availability cannot be enabled: %s", reason))
-	}
-
 	kclient, err := kubeutils.GetClientset()
 	if err != nil {
 		return fmt.Errorf("unable to create kubernetes client: %w", err)
@@ -95,8 +86,26 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	}
 	defer hcli.Close()
 
+	addOns := addons.New(
+		addons.WithLogFunc(logrus.Debugf),
+		addons.WithKubernetesClient(kcli),
+		addons.WithKubernetesClientSet(kclient),
+		addons.WithMetadataClient(mcli),
+		addons.WithHelmClient(hcli),
+		addons.WithRuntimeConfig(rc),
+	)
+
+	canEnableHA, reason, err := addOns.CanEnableHA(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
+	}
+	if !canEnableHA {
+		logrus.Warnf("High availability cannot be enabled: %s", reason)
+		return NewErrorNothingElseToAdd(fmt.Errorf("high availability cannot be enabled: %s", reason))
+	}
+
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addons.EnableHA(ctx, logrus.Debugf, kcli, mcli, kclient, hcli, rc, in.Spec.Network.ServiceCIDR, in.Spec, loading)
+	return addOns.EnableHA(ctx, in.Spec.Network.ServiceCIDR, in.Spec, loading)
 }

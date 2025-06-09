@@ -9,7 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 )
 
-func addOnOverrides(addon types.AddOn, embCfgSpec *ecv1beta1.ConfigSpec, euCfgSpec *ecv1beta1.ConfigSpec) []string {
+func (a *AddOns) addOnOverrides(addon types.AddOn, embCfgSpec *ecv1beta1.ConfigSpec, euCfgSpec *ecv1beta1.ConfigSpec) []string {
 	overrides := []string{}
 	if embCfgSpec != nil {
 		overrides = append(overrides, embCfgSpec.OverrideForBuiltIn(addon.ReleaseName()))
@@ -20,7 +20,7 @@ func addOnOverrides(addon types.AddOn, embCfgSpec *ecv1beta1.ConfigSpec, euCfgSp
 	return overrides
 }
 
-func operatorChart(meta *ectypes.ReleaseMetadata) (string, string, error) {
+func (a *AddOns) operatorChart(meta *ectypes.ReleaseMetadata) (string, string, error) {
 	// search through for the operator chart, and find the location
 	for _, chart := range meta.Configs.Charts {
 		if chart.Name == "embedded-cluster-operator" {
@@ -30,7 +30,7 @@ func operatorChart(meta *ectypes.ReleaseMetadata) (string, string, error) {
 	return "", "", errors.New("no embedded-cluster-operator chart found in release metadata")
 }
 
-func operatorImages(images []string, proxyRegistryDomain string) (string, string, string, error) {
+func (a *AddOns) operatorImages(images []string, proxyRegistryDomain string) (string, string, string, error) {
 	// determine the images to use for the operator chart
 	ecOperatorImage := ""
 	ecUtilsImage := ""

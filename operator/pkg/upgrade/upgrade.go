@@ -262,7 +262,19 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc 
 		return fmt.Errorf("no images available")
 	}
 
-	if err := addons.Upgrade(ctx, slog.Info, hcli, rc, in, meta); err != nil {
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		return fmt.Errorf("create metadata client: %w", err)
+	}
+
+	addOns := addons.New(
+		addons.WithLogFunc(slog.Info),
+		addons.WithKubernetesClient(cli),
+		addons.WithMetadataClient(mcli),
+		addons.WithHelmClient(hcli),
+		addons.WithRuntimeConfig(rc),
+	)
+	if err := addOns.Upgrade(ctx, in, meta); err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 

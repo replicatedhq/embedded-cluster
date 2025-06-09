@@ -122,8 +122,7 @@ func Test_operatorImages(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
-
-			gotRepo, gotTag, gotUtilsImage, err := operatorImages(tt.images, tt.proxyRegistry)
+			gotRepo, gotTag, gotUtilsImage, err := New().operatorImages(tt.images, tt.proxyRegistry)
 			if tt.wantErr != "" {
 				req.Error(err)
 				req.EqualError(err, tt.wantErr)

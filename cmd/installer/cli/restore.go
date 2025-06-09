@@ -409,6 +409,11 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		return fmt.Errorf("unable to create metadata client: %w", err)
+	}
+
 	embCfg := release.GetEmbeddedClusterConfig()
 	var embCfgSpec *ecv1beta1.ConfigSpec
 	if embCfg != nil {
@@ -435,8 +440,16 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 
 	// TODO (@salah): update installation status to reflect what's happening
 
+	addOns := addons.New(
+		addons.WithLogFunc(logrus.Debugf),
+		addons.WithKubernetesClient(kcli),
+		addons.WithMetadataClient(mcli),
+		addons.WithHelmClient(hcli),
+		addons.WithRuntimeConfig(rc),
+	)
+
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, hcli, rc, addons.InstallOptions{
+	if err := addOns.Install(ctx, addons.InstallOptions{
 		IsAirgap:           flags.airgapBundle != "",
 		Proxy:              flags.proxy,
 		ServiceCIDR:        flags.cidrCfg.ServiceCIDR,
@@ -586,7 +599,15 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	}
 	defer hcli.Close()
 
-	err = addons.EnableAdminConsoleHA(ctx, logrus.Debugf, kcli, mcli, hcli, rc, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config, in.Spec.LicenseInfo)
+	addOns := addons.New(
+		addons.WithLogFunc(logrus.Debugf),
+		addons.WithKubernetesClient(kcli),
+		addons.WithMetadataClient(mcli),
+		addons.WithHelmClient(hcli),
+		addons.WithRuntimeConfig(rc),
+	)
+
+	err = addOns.EnableAdminConsoleHA(ctx, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config, in.Spec.LicenseInfo)
 	if err != nil {
 		return err
 	}

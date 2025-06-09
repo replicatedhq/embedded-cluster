@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -95,4 +96,8 @@ func (k *KubeUtils) KubeClient() (client.Client, error) {
 
 func (k *KubeUtils) MetadataClient() (metadata.Interface, error) {
 	return MetadataClient()
+}
+
+func (k *KubeUtils) GetClientset() (kubernetes.Interface, error) {
+	return GetClientSet()
 }

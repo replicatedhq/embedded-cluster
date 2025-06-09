@@ -462,6 +462,11 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		return fmt.Errorf("unable to create metadata client: %w", err)
+	}
+
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
@@ -514,8 +519,16 @@ func runInstall(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	}
 	defer hcli.Close()
 
+	addOns := addons.New(
+		addons.WithLogFunc(logrus.Debugf),
+		addons.WithKubernetesClient(kcli),
+		addons.WithMetadataClient(mcli),
+		addons.WithHelmClient(hcli),
+		addons.WithRuntimeConfig(rc),
+	)
+
 	logrus.Debugf("installing addons")
-	if err := addons.Install(ctx, logrus.Debugf, hcli, rc, addons.InstallOptions{
+	if err := addOns.Install(ctx, addons.InstallOptions{
 		AdminConsolePwd:         flags.adminConsolePassword,
 		License:                 flags.license,
 		IsAirgap:                flags.airgapBundle != "",

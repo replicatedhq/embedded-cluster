@@ -11,8 +11,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -35,31 +33,21 @@ type InstallOptions struct {
 	IsRestore               bool
 }
 
-func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runtimeconfig.RuntimeConfig, opts InstallOptions) error {
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return errors.Wrap(err, "create kube client")
-	}
-
-	mcli, err := kubeutils.MetadataClient()
-	if err != nil {
-		return errors.Wrap(err, "create metadata client")
+func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
+	addons := a.getAddOnsForInstall(opts)
+	if opts.IsRestore {
+		addons = a.getAddOnsForRestore(opts)
 	}
 
 	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
-
-	addons := getAddOnsForInstall(rc, opts)
-	if opts.IsRestore {
-		addons = getAddOnsForRestore(rc, opts)
-	}
 
 	for _, addon := range addons {
 		loading := spinner.Start()
 		loading.Infof("Installing %s", addon.Name())
 
-		overrides := addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
+		overrides := a.addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
-		if err := addon.Install(ctx, logf, kcli, mcli, hcli, rc, domains, overrides, loading); err != nil {
+		if err := addon.Install(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.rc, domains, overrides, loading); err != nil {
 			loading.ErrorClosef("Failed to install %s", addon.Name())
 			return errors.Wrapf(err, "install %s", addon.Name())
 		}
@@ -70,7 +58,7 @@ func Install(ctx context.Context, logf types.LogFunc, hcli helm.Client, rc runti
 	return nil
 }
 
-func getAddOnsForInstall(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
+func (a *AddOns) getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
@@ -107,7 +95,7 @@ func getAddOnsForInstall(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []
 	return addOns
 }
 
-func getAddOnsForRestore(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
+func (a *AddOns) getAddOnsForRestore(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{},
 		&velero.Velero{

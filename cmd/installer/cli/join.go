@@ -579,7 +579,35 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		return nil
 	}
 
-	canEnableHA, _, err := addons.CanEnableHA(ctx, kcli)
+	kclient, err := kubeutils.GetClientset()
+	if err != nil {
+		return fmt.Errorf("unable to create kubernetes client: %w", err)
+	}
+
+	airgapChartsPath := ""
+	if jcmd.InstallationSpec.AirGap {
+		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
+	}
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		KubeConfig: rc.PathToKubeConfig(),
+		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create helm client: %w", err)
+	}
+	defer hcli.Close()
+
+	addOns := addons.New(
+		addons.WithLogFunc(logrus.Debugf),
+		addons.WithKubernetesClient(kcli),
+		addons.WithKubernetesClientSet(kclient),
+		addons.WithMetadataClient(mcli),
+		addons.WithHelmClient(hcli),
+		addons.WithRuntimeConfig(rc),
+	)
+
+	canEnableHA, _, err := addOns.CanEnableHA(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
 	}
@@ -609,38 +637,8 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		logrus.Info("")
 	}
 
-	kclient, err := kubeutils.GetClientset()
-	if err != nil {
-		return fmt.Errorf("unable to create kubernetes client: %w", err)
-	}
-
-	airgapChartsPath := ""
-	if jcmd.InstallationSpec.AirGap {
-		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
-	}
-	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: rc.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to create helm client: %w", err)
-	}
-	defer hcli.Close()
-
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addons.EnableHA(
-		ctx,
-		logrus.Debugf,
-		kcli,
-		mcli,
-		kclient,
-		hcli,
-		rc,
-		serviceCIDR,
-		jcmd.InstallationSpec,
-		loading,
-	)
+	return addOns.EnableHA(ctx, serviceCIDR, jcmd.InstallationSpec, loading)
 }
