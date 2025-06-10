@@ -269,7 +269,7 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rc := runtimeconfig.New(nil)
+			rc := runtimeconfig.New(tt.in.Spec.RuntimeConfig)
 			addOns := New(WithRuntimeConfig(rc))
 			addons, err := addOns.getAddOnsForUpgrade(tt.domains, tt.in, tt.meta)
 			tt.verify(t, addons, err)
