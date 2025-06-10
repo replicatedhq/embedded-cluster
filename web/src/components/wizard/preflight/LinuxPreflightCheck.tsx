@@ -1,46 +1,44 @@
-import React, { useState, useEffect } from "react";
-import { useConfig } from "../../../contexts/ConfigContext";
-import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
+import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useConfig } from "../../../contexts/ConfigContext";
+import { useAuth } from "../../../contexts/AuthContext";
+import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import Button from "../../common/Button";
 
 interface LinuxPreflightCheckProps {
   onComplete: (success: boolean) => void;
 }
 
-interface PreflightResult {
+interface PreflightRecord {
   title: string;
   message: string;
 }
 
 interface PreflightOutput {
-  pass: PreflightResult[];
-  warn: PreflightResult[];
-  fail: PreflightResult[];
-}
-
-interface PreflightStatus {
-  state: string;
-  description: string;
-  lastUpdated: string;
+  pass?: PreflightRecord[];
+  warn?: PreflightRecord[];
+  fail?: PreflightRecord[];
 }
 
 interface PreflightResponse {
-  titles: string[];
+  status: {
+    state: string;
+    description?: string;
+  };
   output?: PreflightOutput;
-  status?: PreflightStatus;
+  titles?: string[];
 }
 
 interface InstallationStatusResponse {
-  description: string;
-  lastUpdated: string;
-  state: "Failed" | "Succeeded" | "Running";
+  state: string;
+  description?: string;
 }
 
 const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete }) => {
   const [isPreflightsPolling, setIsPreflightsPolling] = useState(false);
   const [isInstallationStatusPolling, setIsInstallationStatusPolling] = useState(true);
   const { prototypeSettings } = useConfig();
+  const { token } = useAuth();
   const themeColor = prototypeSettings.themeColor;
 
   const hasFailures = (output?: PreflightOutput) => (output?.fail?.length ?? 0) > 0;
@@ -66,14 +64,13 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
       const response = await fetch("/api/install/host-preflights/run", {
         method: "POST",
         headers: {
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
+          Authorization: `Bearer ${token}`,
         },
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to run preflight checks");
+        const error = new Error("Failed to run preflight checks") as Error & { status: number };
+        error.status = response.status;
+        throw error;
       }
       return response.json() as Promise<PreflightResponse>;
     },
@@ -85,78 +82,68 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
     },
   });
 
-  // Query to poll installation status
-  const { data: installationStatus } = useQuery<
-    InstallationStatusResponse,
-    Error
-  >({
-    queryKey: ["installationStatus"],
-    queryFn: async () => {
-      const response = await fetch("/api/install/installation/status", {
-        headers: {
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
-        },
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to get installation status");
-      }
-      return response.json() as Promise<InstallationStatusResponse>;
-    },
-    enabled: isInstallationStatusPolling,
-    refetchInterval: 1000,
-  });
-
   // Query to poll preflight status
   const { data: preflightResponse } = useQuery<PreflightResponse, Error>({
     queryKey: ["preflightStatus"],
     queryFn: async () => {
       const response = await fetch("/api/install/host-preflights/status", {
         headers: {
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
+          Authorization: `Bearer ${token}`,
         },
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to get preflight status");
+        const error = new Error("Failed to fetch preflight status") as Error & { status: number };
+        error.status = response.status;
+        throw error;
       }
-      return response.json() as Promise<PreflightResponse>;
+      return response.json();
     },
     enabled: isPreflightsPolling,
     refetchInterval: 1000,
   });
 
-  // Handle preflight status changes
-  useEffect(() => {
+  // Query to poll installation status
+  const { data: installationStatus } = useQuery<InstallationStatusResponse, Error>({
+    queryKey: ["installationStatus"],
+    queryFn: async () => {
+      const response = await fetch("/api/install/installation/status", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        const error = new Error("Failed to fetch installation status") as Error & { status: number };
+        error.status = response.status;
+        throw error;
+      }
+      return response.json();
+    },
+    enabled: isInstallationStatusPolling,
+    refetchInterval: 1000,
+  });
+
+  React.useEffect(() => {
     if (preflightResponse?.status?.state === "Succeeded" || preflightResponse?.status?.state === "Failed") {
       setIsPreflightsPolling(false);
-      onComplete(!hasFailures(preflightResponse.output));
+      const success = isSuccessful(preflightResponse) && !hasFailures(preflightResponse.output);
+      onComplete(success);
     }
   }, [preflightResponse, onComplete]);
 
-  useEffect(() => {
-    if (installationStatus?.state === "Failed") {
+  React.useEffect(() => {
+    if (installationStatus?.state === "Succeeded" || installationStatus?.state === "Failed") {
       setIsInstallationStatusPolling(false);
-      return; // Prevent running preflights if failed
     }
-    if (installationStatus?.state === "Succeeded") {
-      setIsPreflightsPolling(true);
-      setIsInstallationStatusPolling(false);
-      runPreflights();
-    }
-  }, [installationStatus, runPreflights]);
+  }, [installationStatus]);
+
+  React.useEffect(() => {
+    runPreflights();
+  }, [runPreflights]);
 
   if (isInstallationStatusPolling) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 
-          className="w-8 h-8 animate-spin mb-4"
-          style={{ color: themeColor }}
-        />
+        <Loader2 className="w-8 h-8 animate-spin mb-4" style={{ color: themeColor }} />
         <p className="text-lg font-medium text-gray-900">Initializing...</p>
         <p className="text-sm text-gray-500 mt-2">Preparing the host.</p>
       </div>
@@ -166,10 +153,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   if (isPreflightsPolling) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 
-          className="w-8 h-8 animate-spin mb-4"
-          style={{ color: themeColor }}
-        />
+        <Loader2 className="w-8 h-8 animate-spin mb-4" style={{ color: themeColor }} />
         <p className="text-lg font-medium text-gray-900">Validating host requirements...</p>
         <p className="text-sm text-gray-500 mt-2">Please wait while we check your system.</p>
       </div>
@@ -180,7 +164,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   if (isSuccessful(preflightResponse)) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <div 
+        <div
           className="w-12 h-12 rounded-full flex items-center justify-center mb-4"
           style={{ backgroundColor: `${themeColor}1A` }}
         >
@@ -281,16 +265,11 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
               <li>• Click "Back" to modify your setup if needed</li>
             </>
           )}
-          {hasWarnings(preflightResponse?.output) && (
-            <li>• Review the warnings above and take action if needed</li>
-          )}
+          {hasWarnings(preflightResponse?.output) && <li>• Review the warnings above and take action if needed</li>}
           <li>• Re-run the validation once issues are addressed</li>
         </ul>
         <div className="mt-4">
-          <Button
-            onClick={() => runPreflights()}
-            icon={<RefreshCw className="w-4 h-4" />}
-          >
+          <Button onClick={() => runPreflights()} icon={<RefreshCw className="w-4 h-4" />}>
             Run Validation Again
           </Button>
         </div>

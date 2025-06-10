@@ -8,6 +8,7 @@ import { createQueryClient } from "../query-client";
 import { ConfigContext, ClusterConfig } from "../contexts/ConfigContext";
 import { WizardModeContext, WizardMode } from "../contexts/WizardModeContext";
 import { BrandingContext } from "../contexts/BrandingContext";
+import { AuthContext } from "../contexts/AuthContext";
 
 interface PrototypeSettings {
   skipValidation: boolean;
@@ -56,17 +57,24 @@ interface MockProviderProps {
         nextButtonText: string;
       };
     };
+    authContext: {
+      token: string | null;
+      setToken: (token: string | null) => void;
+      isAuthenticated: boolean;
+    };
   };
 }
 
 const MockProvider = ({ children, queryClient, contexts }: MockProviderProps) => {
   return (
     <QueryClientProvider client={queryClient}>
-      <ConfigContext.Provider value={contexts.configContext}>
-        <BrandingContext.Provider value={contexts.brandingContext}>
-          <WizardModeContext.Provider value={contexts.wizardModeContext}>{children}</WizardModeContext.Provider>
-        </BrandingContext.Provider>
-      </ConfigContext.Provider>
+      <AuthContext.Provider value={contexts.authContext}>
+        <ConfigContext.Provider value={contexts.configContext}>
+          <BrandingContext.Provider value={contexts.brandingContext}>
+            <WizardModeContext.Provider value={contexts.wizardModeContext}>{children}</WizardModeContext.Provider>
+          </BrandingContext.Provider>
+        </ConfigContext.Provider>
+      </AuthContext.Provider>
     </QueryClientProvider>
   );
 };
@@ -123,6 +131,11 @@ export const renderWithProviders = (
         welcomeButtonText: "Start",
         nextButtonText: "Next: Start Installation",
       },
+    },
+    authContext: {
+      token: options.wrapperProps?.authenticated ? "test-token" : null,
+      setToken: () => {},
+      isAuthenticated: !!options.wrapperProps?.authenticated,
     },
   }
 ) => {
