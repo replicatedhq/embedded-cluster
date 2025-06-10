@@ -49,9 +49,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
   return (
     <div className="space-y-6" data-testid="linux-setup">
       <div className="space-y-4">
-        <h2 className="text-lg font-medium text-gray-900">
-          System Configuration
-        </h2>
+        <h2 className="text-lg font-medium text-gray-900">System Configuration</h2>
         <Input
           id="dataDirectory"
           label="Data Directory"
@@ -87,9 +85,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-lg font-medium text-gray-900">
-          Proxy Configuration
-        </h2>
+        <h2 className="text-lg font-medium text-gray-900">Proxy Configuration</h2>
         <div className="space-y-4">
           <Input
             id="httpProxy"
@@ -129,11 +125,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
           className="flex items-center text-lg font-medium text-gray-900 mb-4"
           onClick={() => onShowAdvancedChange(!showAdvanced)}
         >
-          {showAdvanced ? (
-            <ChevronDown className="w-4 h-4 mr-1" />
-          ) : (
-            <ChevronUp className="w-4 h-4 mr-1" />
-          )}
+          {showAdvanced ? <ChevronDown className="w-4 h-4 mr-1" /> : <ChevronUp className="w-4 h-4 mr-1" />}
           Advanced Settings
         </button>
 
@@ -145,21 +137,20 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
               value={config.networkInterface || ""}
               onChange={onSelectChange}
               options={[
-                { value: "", label: "Select a network interface" },
                 ...(availableNetworkInterfaces.length > 0
                   ? availableNetworkInterfaces.map((iface) => ({
                       value: iface,
                       label: iface,
                     }))
-                  : (prototypeSettings.availableNetworkInterfaces || []).map(
-                      (iface) => ({
-                        value: iface.name,
-                        label: iface.name,
-                      })
-                    )),
+                  : (prototypeSettings.availableNetworkInterfaces || []).map((iface) => ({
+                      value: iface.name,
+                      label: iface.name,
+                    }))),
               ]}
               helpText={`Network interface to use for ${title}`}
               error={getFieldError("networkInterface")}
+              required
+              placeholder="Select a network interface"
             />
 
             <Input
@@ -168,8 +159,9 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
               value={config.globalCidr || ""}
               onChange={onInputChange}
               placeholder="10.244.0.0/16"
-              helpText="CIDR notation for the reserved network range (defaults to 10.244.0.0/16; must be /16 or larger)"
+              helpText="CIDR notation for the reserved network range"
               error={getFieldError("globalCidr")}
+              required
             />
           </div>
         )}
