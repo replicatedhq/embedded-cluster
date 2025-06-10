@@ -159,7 +159,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
               value={config.globalCidr || ""}
               onChange={onInputChange}
               placeholder="10.244.0.0/16"
-              helpText="CIDR notation for the reserved network range"
+              helpText="CIDR notation for the reserved network range (must be /16 or larger)"
               error={getFieldError("globalCidr")}
               required
             />
