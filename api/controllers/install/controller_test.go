@@ -120,7 +120,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ValidateConfig", config).Return(nil),
 					m.On("SetConfig", *config).Return(nil),
-					m.On("ConfigureForInstall", context.Background(), config).Return(nil),
+					m.On("ConfigureHost", context.Background()).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -143,25 +143,6 @@ func TestConfigureInstallation(t *testing.T) {
 				)
 			},
 			expectedErr: true,
-		},
-		{
-			name: "with global CIDR",
-			config: &types.InstallationConfig{
-				GlobalCIDR: "10.0.0.0/16",
-			},
-			setupMock: func(m *installation.MockInstallationManager, config *types.InstallationConfig) {
-				// Create a copy with expected CIDR values after computation
-				configWithCIDRs := *config
-				configWithCIDRs.PodCIDR = "10.0.0.0/17"
-				configWithCIDRs.ServiceCIDR = "10.0.128.0/17"
-
-				mock.InOrder(
-					m.On("ValidateConfig", config).Return(nil),
-					m.On("SetConfig", configWithCIDRs).Return(nil),
-					m.On("ConfigureForInstall", context.Background(), &configWithCIDRs).Return(nil),
-				)
-			},
-			expectedErr: false,
 		},
 	}
 

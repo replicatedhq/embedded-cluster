@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -296,22 +295,21 @@ func TestConfigSetAndGet(t *testing.T) {
 func TestConfigureHost(t *testing.T) {
 	tests := []struct {
 		name        string
-		config      types.InstallationConfig
 		setupMocks  func(*hostutils.MockHostUtils, *MockInstallationStore)
 		expectedErr bool
 	}{
 		{
 			name: "successful configuration",
-			config: types.InstallationConfig{
-				DataDirectory: "/var/lib/embedded-cluster",
-				PodCIDR:       "10.0.0.0/16",
-				ServiceCIDR:   "10.1.0.0/16",
-			},
 			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
 				mock.InOrder(
 					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
-					hum.On("ConfigureHost", mock.Anything, hostutils.InitForInstallOptions{
+					im.On("GetConfig").Return(&types.InstallationConfig{
+						DataDirectory: "/var/lib/embedded-cluster",
+						PodCIDR:       "10.0.0.0/16",
+						ServiceCIDR:   "10.1.0.0/16",
+					}, nil),
+					hum.On("ConfigureForInstall", mock.Anything, hostutils.InitForInstallOptions{
 						LicenseFile:  "license.yaml",
 						AirgapBundle: "bundle.tar",
 						PodCIDR:      "10.0.0.0/16",
@@ -324,9 +322,6 @@ func TestConfigureHost(t *testing.T) {
 		},
 		{
 			name: "already running",
-			config: types.InstallationConfig{
-				DataDirectory: "/var/lib/embedded-cluster",
-			},
 			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
 				im.On("GetStatus").Return(&types.Status{State: types.StateRunning}, nil)
 			},
@@ -334,14 +329,14 @@ func TestConfigureHost(t *testing.T) {
 		},
 		{
 			name: "configure installation fails",
-			config: types.InstallationConfig{
-				DataDirectory: "/var/lib/embedded-cluster",
-			},
 			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
 				mock.InOrder(
 					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
-					hum.On("ConfigureHost", mock.Anything, hostutils.InitForInstallOptions{
+					im.On("GetConfig").Return(&types.InstallationConfig{
+						DataDirectory: "/var/lib/embedded-cluster",
+					}, nil),
+					hum.On("ConfigureForInstall", mock.Anything, hostutils.InitForInstallOptions{
 						LicenseFile:  "license.yaml",
 						AirgapBundle: "bundle.tar",
 					}).Return(errors.New("configuration failed")),
@@ -352,9 +347,6 @@ func TestConfigureHost(t *testing.T) {
 		},
 		{
 			name: "set running status fails",
-			config: types.InstallationConfig{
-				DataDirectory: "/var/lib/embedded-cluster",
-			},
 			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
 				mock.InOrder(
 					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
@@ -381,8 +373,6 @@ func TestConfigureHost(t *testing.T) {
 				WithLicenseFile("license.yaml"),
 				WithAirgapBundle("bundle.tar"),
 			)
-
-			require.NoError(t, manager.SetConfig(tt.config))
 
 			// Run the test
 			err := manager.ConfigureHost(context.Background())
