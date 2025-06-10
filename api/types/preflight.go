@@ -1,36 +1,36 @@
 package types
 
-// HostPreflight represents the host preflight checks state
-type HostPreflight struct {
-	Titles []string             `json:"titles"`
-	Output *HostPreflightOutput `json:"output"`
-	Status *Status              `json:"status"`
+// HostPreflights represents the host preflight checks state
+type HostPreflights struct {
+	Titles []string              `json:"titles"`
+	Output *HostPreflightsOutput `json:"output"`
+	Status *Status               `json:"status"`
 }
 
-type HostPreflightOutput struct {
-	Pass []HostPreflightRecord `json:"pass"`
-	Warn []HostPreflightRecord `json:"warn"`
-	Fail []HostPreflightRecord `json:"fail"`
+type HostPreflightsOutput struct {
+	Pass []HostPreflightsRecord `json:"pass"`
+	Warn []HostPreflightsRecord `json:"warn"`
+	Fail []HostPreflightsRecord `json:"fail"`
 }
 
-// HostPreflightRecord represents a single host preflight check result
-type HostPreflightRecord struct {
+// HostPreflightsRecord represents a single host preflight check result
+type HostPreflightsRecord struct {
 	Title   string `json:"title"`
 	Message string `json:"message"`
 }
 
-func NewHostPreflight() *HostPreflight {
-	return &HostPreflight{
+func NewHostPreflights() *HostPreflights {
+	return &HostPreflights{
 		Status: NewStatus(),
 	}
 }
 
 // HasFail returns true if any of the preflight checks failed.
-func (o HostPreflightOutput) HasFail() bool {
+func (o HostPreflightsOutput) HasFail() bool {
 	return len(o.Fail) > 0
 }
 
 // HasWarn returns true if any of the preflight checks returned a warning.
-func (o HostPreflightOutput) HasWarn() bool {
+func (o HostPreflightsOutput) HasWarn() bool {
 	return len(o.Warn) > 0
 }

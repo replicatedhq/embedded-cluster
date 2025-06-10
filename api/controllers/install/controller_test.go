@@ -393,13 +393,13 @@ func TestGetHostPreflightOutput(t *testing.T) {
 		name          string
 		setupMock     func(*preflight.MockHostPreflightManager)
 		expectedErr   bool
-		expectedValue *types.HostPreflightOutput
+		expectedValue *types.HostPreflightsOutput
 	}{
 		{
 			name: "successful get output",
 			setupMock: func(m *preflight.MockHostPreflightManager) {
-				output := &types.HostPreflightOutput{
-					Pass: []types.HostPreflightRecord{
+				output := &types.HostPreflightsOutput{
+					Pass: []types.HostPreflightsRecord{
 						{
 							Title:   "Test Check",
 							Message: "Test check passed",
@@ -409,8 +409,8 @@ func TestGetHostPreflightOutput(t *testing.T) {
 				m.On("GetHostPreflightOutput", context.Background()).Return(output, nil)
 			},
 			expectedErr: false,
-			expectedValue: &types.HostPreflightOutput{
-				Pass: []types.HostPreflightRecord{
+			expectedValue: &types.HostPreflightsOutput{
+				Pass: []types.HostPreflightsRecord{
 					{
 						Title:   "Test Check",
 						Message: "Test check passed",
@@ -575,8 +575,8 @@ func TestSetupNode(t *testing.T) {
 				preflightStatus := &types.Status{
 					State: types.StateFailed,
 				}
-				preflightOutput := &types.HostPreflightOutput{
-					Fail: []types.HostPreflightRecord{
+				preflightOutput := &types.HostPreflightsOutput{
+					Fail: []types.HostPreflightsRecord{
 						{
 							Title:   "Test Check",
 							Message: "Test check failed",

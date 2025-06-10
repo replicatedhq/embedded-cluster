@@ -18,12 +18,12 @@ type HostPreflightManager interface {
 	PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, *ecv1beta1.ProxySpec, error)
 	RunHostPreflights(ctx context.Context, opts RunHostPreflightOptions) error
 	GetHostPreflightStatus(ctx context.Context) (*types.Status, error)
-	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightOutput, error)
+	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 }
 
 type hostPreflightManager struct {
-	hostPreflight      *types.HostPreflight
+	hostPreflight      *types.HostPreflights
 	hostPreflightStore HostPreflightStore
 	rc                 runtimeconfig.RuntimeConfig
 	logger             logrus.FieldLogger
@@ -51,7 +51,7 @@ func WithMetricsReporter(metricsReporter metrics.ReporterInterface) HostPrefligh
 	}
 }
 
-func WithHostPreflight(hostPreflight *types.HostPreflight) HostPreflightManagerOption {
+func WithHostPreflight(hostPreflight *types.HostPreflights) HostPreflightManagerOption {
 	return func(m *hostPreflightManager) {
 		m.hostPreflight = hostPreflight
 	}
@@ -80,7 +80,7 @@ func NewHostPreflightManager(opts ...HostPreflightManagerOption) HostPreflightMa
 	}
 
 	if manager.hostPreflight == nil {
-		manager.hostPreflight = types.NewHostPreflight()
+		manager.hostPreflight = types.NewHostPreflights()
 	}
 
 	if manager.hostPreflightStore == nil {

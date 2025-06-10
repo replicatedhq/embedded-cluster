@@ -46,12 +46,12 @@ func (m *MockReporter) ReportJoinFailed(ctx context.Context, err error) {
 }
 
 // ReportPreflightsFailed mocks the ReportPreflightsFailed method
-func (m *MockReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.HostPreflightOutput) {
+func (m *MockReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
 	m.Called(ctx, output)
 }
 
 // ReportPreflightsBypassed mocks the ReportPreflightsBypassed method
-func (m *MockReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.HostPreflightOutput) {
+func (m *MockReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
 	m.Called(ctx, output)
 }
 
