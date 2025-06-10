@@ -53,7 +53,8 @@ describe("InstallationStep", () => {
       },
     });
 
-    expect(screen.getByText("Installing...")).toBeInTheDocument();
+    expect(screen.getByText("Please wait while we complete the installation...")).toBeInTheDocument();
+    expect(screen.getByText("This may take a few minutes.")).toBeInTheDocument();
   });
 
   it("shows admin console link when installation succeeds", async () => {
