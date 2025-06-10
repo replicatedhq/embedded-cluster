@@ -1,45 +1,49 @@
-import React, { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import React, { useState, useEffect } from "react";
 import { useConfig } from "../../../contexts/ConfigContext";
-import { useAuth } from "../../../contexts/AuthContext";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import Button from "../../common/Button";
+import { useAuth } from "../../../contexts/AuthContext";
 
 interface LinuxPreflightCheckProps {
   onComplete: (success: boolean) => void;
 }
 
-interface PreflightRecord {
+interface PreflightResult {
   title: string;
   message: string;
 }
 
 interface PreflightOutput {
-  pass?: PreflightRecord[];
-  warn?: PreflightRecord[];
-  fail?: PreflightRecord[];
+  pass: PreflightResult[];
+  warn: PreflightResult[];
+  fail: PreflightResult[];
+}
+
+interface PreflightStatus {
+  state: string;
+  description: string;
+  lastUpdated: string;
 }
 
 interface PreflightResponse {
-  status: {
-    state: string;
-    description?: string;
-  };
+  titles: string[];
   output?: PreflightOutput;
-  titles?: string[];
+  status?: PreflightStatus;
 }
 
 interface InstallationStatusResponse {
-  state: string;
-  description?: string;
+  description: string;
+  lastUpdated: string;
+  state: "Failed" | "Succeeded" | "Running";
 }
 
 const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete }) => {
   const [isPreflightsPolling, setIsPreflightsPolling] = useState(false);
   const [isInstallationStatusPolling, setIsInstallationStatusPolling] = useState(true);
   const { prototypeSettings } = useConfig();
-  const { token } = useAuth();
   const themeColor = prototypeSettings.themeColor;
+  const { token } = useAuth();
 
   const hasFailures = (output?: PreflightOutput) => (output?.fail?.length ?? 0) > 0;
   const hasWarnings = (output?: PreflightOutput) => (output?.warn?.length ?? 0) > 0;
@@ -68,9 +72,8 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
         },
       });
       if (!response.ok) {
-        const error = new Error("Failed to run preflight checks") as Error & { status: number };
-        error.status = response.status;
-        throw error;
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to run preflight checks");
       }
       return response.json() as Promise<PreflightResponse>;
     },
@@ -82,63 +85,67 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
     },
   });
 
-  // Query to poll preflight status
-  const { data: preflightResponse } = useQuery<PreflightResponse, Error>({
-    queryKey: ["preflightStatus"],
-    queryFn: async () => {
-      const response = await fetch("/api/install/host-preflights/status", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        const error = new Error("Failed to fetch preflight status") as Error & { status: number };
-        error.status = response.status;
-        throw error;
-      }
-      return response.json();
-    },
-    enabled: isPreflightsPolling,
-    refetchInterval: 1000,
-  });
-
   // Query to poll installation status
   const { data: installationStatus } = useQuery<InstallationStatusResponse, Error>({
     queryKey: ["installationStatus"],
     queryFn: async () => {
       const response = await fetch("/api/install/installation/status", {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(localStorage.getItem("auth") && {
+            Authorization: `Bearer ${localStorage.getItem("auth")}`,
+          }),
         },
       });
       if (!response.ok) {
-        const error = new Error("Failed to fetch installation status") as Error & { status: number };
-        error.status = response.status;
-        throw error;
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to get installation status");
       }
-      return response.json();
+      return response.json() as Promise<InstallationStatusResponse>;
     },
     enabled: isInstallationStatusPolling,
     refetchInterval: 1000,
   });
 
-  React.useEffect(() => {
+  // Query to poll preflight status
+  const { data: preflightResponse } = useQuery<PreflightResponse, Error>({
+    queryKey: ["preflightStatus"],
+    queryFn: async () => {
+      const response = await fetch("/api/install/host-preflights/status", {
+        headers: {
+          ...(localStorage.getItem("auth") && {
+            Authorization: `Bearer ${localStorage.getItem("auth")}`,
+          }),
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to get preflight status");
+      }
+      return response.json() as Promise<PreflightResponse>;
+    },
+    enabled: isPreflightsPolling,
+    refetchInterval: 1000,
+  });
+
+  // Handle preflight status changes
+  useEffect(() => {
     if (preflightResponse?.status?.state === "Succeeded" || preflightResponse?.status?.state === "Failed") {
       setIsPreflightsPolling(false);
-      const success = isSuccessful(preflightResponse) && !hasFailures(preflightResponse.output);
-      onComplete(success);
+      onComplete(!hasFailures(preflightResponse.output));
     }
   }, [preflightResponse, onComplete]);
 
-  React.useEffect(() => {
-    if (installationStatus?.state === "Succeeded" || installationStatus?.state === "Failed") {
+  useEffect(() => {
+    if (installationStatus?.state === "Failed") {
       setIsInstallationStatusPolling(false);
+      return; // Prevent running preflights if failed
     }
-  }, [installationStatus]);
-
-  React.useEffect(() => {
-    runPreflights();
-  }, [runPreflights]);
+    if (installationStatus?.state === "Succeeded") {
+      setIsPreflightsPolling(true);
+      setIsInstallationStatusPolling(false);
+      runPreflights();
+    }
+  }, [installationStatus, runPreflights]);
 
   if (isInstallationStatusPolling) {
     return (

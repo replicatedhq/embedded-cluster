@@ -1,39 +1,46 @@
 import React, { useState, useEffect } from "react";
 import Card from "../common/Card";
-import { useWizardMode } from "../../contexts/WizardModeContext";
+import Button from "../common/Button";
 import { useConfig } from "../../contexts/ConfigContext";
-import { useQuery } from "@tanstack/react-query";
+import { CheckCircle, ExternalLink, Loader2 } from "lucide-react";
+import { useQuery, Query } from "@tanstack/react-query";
+import { useWizardMode } from "../../contexts/WizardModeContext";
 import { useAuth } from "../../contexts/AuthContext";
 
 interface InstallStatus {
-  state: string;
+  state: "Succeeded" | "Failed" | "InProgress";
   description?: string;
+  lastUpdated?: string;
 }
 
 const InstallationStep: React.FC = () => {
   const { config } = useConfig();
   const { text } = useWizardMode();
-  const { token } = useAuth();
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { token } = useAuth();
 
   const { data: installStatus } = useQuery<InstallStatus, Error>({
     queryKey: ["installStatus"],
     queryFn: async () => {
       const response = await fetch("/api/install/status", {
+        method: "GET",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
       });
+
       if (!response.ok) {
-        const error = new Error("Failed to fetch installation status") as Error & { status: number };
-        error.status = response.status;
-        throw error;
+        const error = await response.json();
+        setError(error.message || "Installation failed");
+        throw new Error(error.message || "Installation failed");
       }
+
       return response.json();
     },
-    refetchInterval: (query: { state: { data?: InstallStatus } }) => {
+    refetchInterval: (query: Query<InstallStatus, Error>) => {
       // Continue polling until we get a final state
       return query.state.data?.state === "Succeeded" || query.state.data?.state === "Failed" ? false : 5000;
     },
@@ -52,33 +59,50 @@ const InstallationStep: React.FC = () => {
   return (
     <div className="space-y-6">
       <Card>
-        <div className="flex flex-col items-center text-center py-12">
-          <h2 className="text-3xl font-bold text-gray-900">{text.installationTitle}</h2>
-          <p className="text-xl text-gray-600 max-w-2xl mb-8">{text.installationDescription}</p>
+        {installStatus?.state !== "Succeeded" && (
+          <div className="my-6">
+            <h2 className="text-2xl font-bold text-gray-900">{text.installationTitle}</h2>
+            <p className="text-gray-600 mt-1">{text.installationDescription}</p>
+          </div>
+        )}
 
+        <div className="flex flex-col items-center text-center py-6">
           {isLoading && (
-            <div className="animate-pulse">
-              <p className="text-gray-600">Installing...</p>
+            <div className="flex flex-col items-center pt-6">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-600 mb-4" />
+              <p className="text-lg font-medium text-gray-900">Please wait while we complete the installation...</p>
+              <p className="text-sm text-gray-500 mt-2">This may take a few minutes.</p>
+              {installStatus?.description && <p className="text-sm text-gray-500 mt-2">{installStatus.description}</p>}
+              {installStatus?.lastUpdated && (
+                <p className="text-xs text-gray-400 mt-1">
+                  Last updated: {new Date(installStatus.lastUpdated).toLocaleString()}
+                </p>
+              )}
             </div>
           )}
 
           {error && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <h3 className="text-lg font-medium text-red-800">Installation Error</h3>
-              <p className="mt-2 text-red-700">{error}</p>
+            <div className="text-red-600 mb-8">
+              <p className="text-xl">Installation Error</p>
+              <p>{error}</p>
             </div>
           )}
 
           {showAdminLink && (
-            <div className="mt-8">
-              <a
-                href={`https://localhost:${config.adminConsolePort}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            <div className="flex flex-col items-center justify-center mb-6">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6">
+                <CheckCircle className="w-10 h-10" style={{ color: "blue" }} />
+              </div>
+              <p className="text-gray-600 mt-4">
+                Visit the Admin Console to configure and install {text.installationTitle}
+              </p>
+              <Button
+                className="mt-4"
+                onClick={() => window.open(`http://${window.location.hostname}:${config.adminConsolePort}`, "_blank")}
+                icon={<ExternalLink className="ml-2 -mr-1 h-5 w-5" />}
               >
                 Visit Admin Console
-              </a>
+              </Button>
             </div>
           )}
         </div>

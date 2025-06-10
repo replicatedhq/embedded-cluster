@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Card from "../common/Card";
 import Button from "../common/Button";
 import Input from "../common/Input";
@@ -20,8 +20,8 @@ interface LoginResponse {
 const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
   const { text } = useWizardMode();
   const { prototypeSettings } = useConfig();
-  const { setToken, isAuthenticated } = useAuth();
   const [password, setPassword] = useState("");
+  const { setToken, isAuthenticated } = useAuth();
   const [showPasswordInput, setShowPasswordInput] = useState(!prototypeSettings.useSelfSignedCert);
 
   // Automatically redirect to SetupStep if already authenticated
@@ -46,9 +46,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
       });
 
       if (!response.ok) {
-        const error = new Error("Invalid password") as Error & { status: number };
-        error.status = response.status;
-        throw error;
+        throw new Error("Invalid password");
       }
 
       return response.json();
@@ -81,7 +79,6 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
       handleSubmit();
     }
   };
-
   // If already authenticated, don't render the welcome step
   if (isAuthenticated) {
     return null;
@@ -123,7 +120,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
                 Continue Securely
               </Button>
             </>
-          )}
+          )}{" "}
           {!prototypeSettings.useSelfSignedCert && showPasswordInput && (
             <div className="w-full max-w-sm mb-8">
               <Input

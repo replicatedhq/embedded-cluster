@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import Card from "../common/Card";
 import Button from "../common/Button";
-import { useWizardMode } from "../../contexts/WizardModeContext";
 import { useConfig } from "../../contexts/ConfigContext";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useAuth } from "../../contexts/AuthContext";
+import { useWizardMode } from "../../contexts/WizardModeContext";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import LinuxSetup from "./setup/LinuxSetup";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface SetupStepProps {
   onNext: () => void;
@@ -16,9 +16,9 @@ interface SetupStepProps {
 const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   const { config, updateConfig, prototypeSettings } = useConfig();
   const { text } = useWizardMode();
-  const { token } = useAuth();
   const [showAdvanced, setShowAdvanced] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { token } = useAuth();
 
   // Query for fetching install configuration
   const { isLoading: isConfigLoading } = useQuery({
@@ -30,9 +30,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
         },
       });
       if (!response.ok) {
-        const error = new Error("Failed to fetch install configuration") as Error & { status: number };
-        error.status = response.status;
-        throw error;
+        throw new Error("Failed to fetch install configuration");
       }
       const config = await response.json();
       updateConfig(config);
@@ -46,43 +44,44 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     queryFn: async () => {
       const response = await fetch("/api/console/available-network-interfaces", {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(localStorage.getItem("auth") && {
+            Authorization: `Bearer ${localStorage.getItem("auth")}`,
+          }),
         },
       });
       if (!response.ok) {
-        const error = new Error("Failed to fetch network interfaces") as Error & { status: number };
-        error.status = response.status;
-        throw error;
+        throw new Error("Failed to fetch network interfaces");
       }
       return response.json();
     },
   });
 
   // Mutation for submitting the configuration
-  const { mutate: submitConfig } = useMutation({
+  const { mutate: submitConfig, error: submitError } = useMutation({
     mutationFn: async (configData: typeof config) => {
       const response = await fetch("/api/install/installation/configure", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...(localStorage.getItem("auth") && {
+            Authorization: `Bearer ${localStorage.getItem("auth")}`,
+          }),
         },
         body: JSON.stringify(configData),
       });
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const error = new Error(errorData.message || "Failed to configure installation") as Error & { status: number };
-        error.status = response.status;
-        throw error;
+        throw errorData;
       }
       return response.json();
     },
     onSuccess: () => {
       onNext();
     },
-    onError: (err: unknown) => {
-      const errorMessage = err instanceof Error ? err.message : "Failed to setup cluster";
-      setError(errorMessage);
+    onError: (err: Error) => {
+      setError(err.message || "Failed to setup cluster");
+      return err;
     },
   });
 
@@ -132,7 +131,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             onInputChange={handleInputChange}
             onSelectChange={handleSelectChange}
             availableNetworkInterfaces={availableNetworkInterfaces}
-            fieldErrors={[]}
+            fieldErrors={submitError?.fieldErrors || []}
           />
         )}
 
