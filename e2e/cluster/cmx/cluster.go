@@ -62,7 +62,7 @@ func NewCluster(in *ClusterInput) *Cluster {
 }
 
 func NewNodes(in *ClusterInput) ([]Node, error) {
-	in.T.Logf("creating %s nodes", strconv.Itoa(in.Nodes))
+	in.T.Logf("%s: creating %s nodes", time.Now().Format(time.RFC3339), strconv.Itoa(in.Nodes))
 
 	args := []string{
 		"vm", "create",
@@ -105,13 +105,15 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 	time.Sleep(30 * time.Second)
 
 	for i := range nodes {
+		in.T.Logf("%s: getting ssh endpoint for node ID: %s", time.Now().Format(time.RFC3339), nodes[i].ID)
+
 		sshEndpoint, err := getSSHEndpoint(nodes[i].ID)
 		if err != nil {
 			return nil, fmt.Errorf("get ssh endpoint for node %s: %v", nodes[i].ID, err)
 		}
 		nodes[i].sshEndpoint = sshEndpoint
 
-		if err := waitForSSH(nodes[i]); err != nil {
+		if err := waitForSSH(nodes[i], in.T); err != nil {
 			return nil, fmt.Errorf("wait for ssh to be available on node %d: %v", i, err)
 		}
 
@@ -210,7 +212,7 @@ func getSSHEndpoint(nodeID string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-func waitForSSH(node Node) error {
+func waitForSSH(node Node, t *testing.T) error {
 	timeout := time.After(5 * time.Minute)
 	tick := time.Tick(5 * time.Second)
 	var lastErr error
@@ -220,8 +222,11 @@ func waitForSSH(node Node) error {
 		case <-timeout:
 			return fmt.Errorf("timed out after 5 minutes: last error: %w", lastErr)
 		case <-tick:
+			t.Logf("%s: checking SSH connectivity to node ID: %s", time.Now().Format(time.RFC3339), node.ID)
 			stdout, stderr, err := runCommandOnNode(node, []string{"uptime"})
+			t.Logf("%s: SSH attempt - stdout: %s, stderr: %s, err: %v", time.Now().Format(time.RFC3339), stdout, stderr, err)
 			if err == nil {
+				t.Logf("%s: SSH connection successful to node ID: %s", time.Now().Format(time.RFC3339), node.ID)
 				return nil
 			}
 			lastErr = fmt.Errorf("%w: stdout: %s: stderr: %s", err, stdout, stderr)
@@ -274,7 +279,7 @@ func (c *Cluster) WaitForReboot() {
 }
 
 func (c *Cluster) waitForSSH(node int) {
-	if err := waitForSSH(c.Nodes[node]); err != nil {
+	if err := waitForSSH(c.Nodes[node], c.t); err != nil {
 		c.t.Fatalf("failed to wait for ssh to be available on node %d: %v", node, err)
 	}
 }
@@ -501,5 +506,7 @@ func sshArgs() []string {
 		"-o", "StrictHostKeyChecking=no",
 		"-o", "ServerAliveInterval=30",
 		"-o", "ServerAliveCountMax=10",
+		"-o", "ConnectTimeout=5",
+		"-o", "BatchMode=yes",
 	}
 }
