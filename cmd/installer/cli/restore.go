@@ -414,12 +414,6 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		return fmt.Errorf("unable to create metadata client: %w", err)
 	}
 
-	embCfg := release.GetEmbeddedClusterConfig()
-	var embCfgSpec *ecv1beta1.ConfigSpec
-	if embCfg != nil {
-		embCfgSpec = &embCfg.Spec
-	}
-
 	airgapChartsPath := ""
 	if flags.isAirgap {
 		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
@@ -438,7 +432,10 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	// TODO (@salah): update installation status to reflect what's happening
+	installOpts, err := getRestoreAddonInstallOpts(flags, rc)
+	if err != nil {
+		return fmt.Errorf("unable to get addon install options: %w", err)
+	}
 
 	addOns := addons.New(
 		addons.WithLogFunc(logrus.Debugf),
@@ -448,14 +445,10 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		addons.WithRuntimeConfig(rc),
 	)
 
+	// TODO (@salah): update installation status to reflect what's happening
+
 	logrus.Debugf("installing addons")
-	if err := addOns.Install(ctx, addons.InstallOptions{
-		IsAirgap:           flags.airgapBundle != "",
-		Proxy:              flags.proxy,
-		ServiceCIDR:        flags.cidrCfg.ServiceCIDR,
-		IsRestore:          true,
-		EmbeddedConfigSpec: embCfgSpec,
-	}); err != nil {
+	if err := addOns.Install(ctx, *installOpts); err != nil {
 		return err
 	}
 
@@ -474,6 +467,24 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	}
 
 	return nil
+}
+
+func getRestoreAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (*addons.InstallOptions, error) {
+	embCfg := release.GetEmbeddedClusterConfig()
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
+
+	opts := &addons.InstallOptions{
+		IsAirgap:           flags.airgapBundle != "",
+		Proxy:              flags.proxy,
+		ServiceCIDR:        flags.cidrCfg.ServiceCIDR,
+		IsRestore:          true,
+		EmbeddedConfigSpec: embCfgSpec,
+		EndUserConfigSpec:  nil, // TODO: support for end user config overrides
+	}
+	return opts, nil
 }
 
 func runRestoreStepConfirmBackup(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (*disasterrecovery.ReplicatedBackup, bool, error) {
