@@ -28,16 +28,16 @@ func (m *MockHostPreflightStore) SetTitles(titles []string) error {
 }
 
 // GetOutput mocks the GetOutput method
-func (m *MockHostPreflightStore) GetOutput() (*types.HostPreflightOutput, error) {
+func (m *MockHostPreflightStore) GetOutput() (*types.HostPreflightsOutput, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*types.HostPreflightOutput), args.Error(1)
+	return args.Get(0).(*types.HostPreflightsOutput), args.Error(1)
 }
 
 // SetOutput mocks the SetOutput method
-func (m *MockHostPreflightStore) SetOutput(output *types.HostPreflightOutput) error {
+func (m *MockHostPreflightStore) SetOutput(output *types.HostPreflightsOutput) error {
 	args := m.Called(output)
 	return args.Error(0)
 }

@@ -9,8 +9,8 @@ import (
 type HostPreflightStore interface {
 	GetTitles() ([]string, error)
 	SetTitles(titles []string) error
-	GetOutput() (*types.HostPreflightOutput, error)
-	SetOutput(output *types.HostPreflightOutput) error
+	GetOutput() (*types.HostPreflightsOutput, error)
+	SetOutput(output *types.HostPreflightsOutput) error
 	GetStatus() (*types.Status, error)
 	SetStatus(status *types.Status) error
 	IsRunning() bool
@@ -20,10 +20,10 @@ var _ HostPreflightStore = &MemoryStore{}
 
 type MemoryStore struct {
 	mu            sync.RWMutex
-	hostPreflight *types.HostPreflight
+	hostPreflight *types.HostPreflights
 }
 
-func NewMemoryStore(hostPreflight *types.HostPreflight) *MemoryStore {
+func NewMemoryStore(hostPreflight *types.HostPreflights) *MemoryStore {
 	return &MemoryStore{
 		hostPreflight: hostPreflight,
 	}
@@ -44,14 +44,14 @@ func (s *MemoryStore) SetTitles(titles []string) error {
 	return nil
 }
 
-func (s *MemoryStore) GetOutput() (*types.HostPreflightOutput, error) {
+func (s *MemoryStore) GetOutput() (*types.HostPreflightsOutput, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	return s.hostPreflight.Output, nil
 }
 
-func (s *MemoryStore) SetOutput(output *types.HostPreflightOutput) error {
+func (s *MemoryStore) SetOutput(output *types.HostPreflightsOutput) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.hostPreflight.Output = output

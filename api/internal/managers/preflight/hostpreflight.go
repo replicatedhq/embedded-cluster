@@ -59,7 +59,7 @@ func (m *hostPreflightManager) GetHostPreflightStatus(ctx context.Context) (*typ
 	return m.hostPreflightStore.GetStatus()
 }
 
-func (m *hostPreflightManager) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightOutput, error) {
+func (m *hostPreflightManager) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error) {
 	return m.hostPreflightStore.GetOutput()
 }
 
@@ -204,7 +204,7 @@ func (m *hostPreflightManager) setFailedStatus(description string) error {
 	})
 }
 
-func (m *hostPreflightManager) setCompletedStatus(state types.State, description string, output *types.HostPreflightOutput) error {
+func (m *hostPreflightManager) setCompletedStatus(state types.State, description string, output *types.HostPreflightsOutput) error {
 	if err := m.hostPreflightStore.SetOutput(output); err != nil {
 		return fmt.Errorf("set output: %w", err)
 	}
