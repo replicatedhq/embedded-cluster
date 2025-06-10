@@ -10,6 +10,15 @@ import { WizardModeContext, WizardMode } from "../contexts/WizardModeContext";
 import { BrandingContext } from "../contexts/BrandingContext";
 import { AuthContext } from "../contexts/AuthContext";
 
+// Mock localStorage for tests
+const mockLocalStorage = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+};
+Object.defineProperty(window, "localStorage", { value: mockLocalStorage });
+
 interface PrototypeSettings {
   skipValidation: boolean;
   failPreflights: boolean;
@@ -66,6 +75,15 @@ interface MockProviderProps {
 }
 
 const MockProvider = ({ children, queryClient, contexts }: MockProviderProps) => {
+  // Set up localStorage with the auth token if provided
+  React.useEffect(() => {
+    if (contexts.authContext.token) {
+      mockLocalStorage.getItem.mockReturnValue(contexts.authContext.token);
+    } else {
+      mockLocalStorage.getItem.mockReturnValue(null);
+    }
+  }, [contexts.authContext.token]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={contexts.authContext}>
@@ -85,7 +103,9 @@ interface RenderWithProvidersOptions extends RenderOptions {
     preloadedState?: Record<string, unknown>;
     routePath?: string;
     authenticated?: boolean;
+    authToken?: string;
   };
+  wrapper?: React.ComponentType<{ children: React.ReactNode }>;
 }
 
 export const renderWithProviders = (
@@ -133,13 +153,13 @@ export const renderWithProviders = (
       },
     },
     authContext: {
-      token: options.wrapperProps?.authenticated ? "test-token" : null,
-      setToken: () => {},
-      isAuthenticated: !!options.wrapperProps?.authenticated,
+      token: options.wrapperProps?.authToken || (options.wrapperProps?.authenticated ? "test-token" : null),
+      setToken: vi.fn(),
+      isAuthenticated: !!options.wrapperProps?.authenticated || !!options.wrapperProps?.authToken,
     },
   }
 ) => {
-  const { wrapperProps = {} } = options;
+  const { wrapperProps = {}, wrapper: CustomWrapper } = options;
   const { routePath, initialEntries = ["/"] } = wrapperProps;
 
   const queryClient = createQueryClient({
@@ -158,13 +178,22 @@ export const renderWithProviders = (
     };
   });
 
+  // Set up localStorage with the auth token if provided
+  if (wrapperProps.authToken) {
+    mockLocalStorage.getItem.mockReturnValue(wrapperProps.authToken);
+  } else if (wrapperProps.authenticated) {
+    mockLocalStorage.getItem.mockReturnValue("test-token");
+  } else {
+    mockLocalStorage.getItem.mockReturnValue(null);
+  }
+
   // Create router with the test component wrapped in MockProvider
   const routes: RouteObject[] = [
     {
       path: routePath || "/*",
       element: (
         <MockProvider queryClient={queryClient} contexts={contextValues}>
-          {ui}
+          {CustomWrapper ? <CustomWrapper>{ui}</CustomWrapper> : ui}
         </MockProvider>
       ),
     },
@@ -175,5 +204,5 @@ export const renderWithProviders = (
 
   const view = render(<RouterProvider router={router} />, options);
 
-  return { ...view, router };
+  return { ...view, router, queryClient };
 };
