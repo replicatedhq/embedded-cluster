@@ -69,7 +69,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
           value={config.adminConsolePort?.toString() || ""}
           onChange={onInputChange}
           placeholder="30000"
-          helpText="Port for the admin console"
+          helpText="Port for the Admin Console"
           error={getFieldError("adminConsolePort")}
           required
         />
