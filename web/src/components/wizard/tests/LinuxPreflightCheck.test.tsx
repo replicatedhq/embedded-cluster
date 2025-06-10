@@ -7,22 +7,24 @@ import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 
-// Mock localStorage
-const mockLocalStorage = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  clear: vi.fn(),
-};
-Object.defineProperty(window, "localStorage", { value: mockLocalStorage });
+const TEST_TOKEN = "test-auth-token";
 
 const server = setupServer(
   // Mock installation status endpoint
-  http.get("*/api/install/installation/status", () => {
+  http.get("*/api/install/installation/status", ({ request }) => {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new HttpResponse(null, { status: 401 });
+    }
     return HttpResponse.json({ state: "Succeeded" });
   }),
 
   // Mock preflight status endpoint
-  http.get("*/api/install/host-preflights/status", () => {
+  http.get("*/api/install/host-preflights/status", ({ request }) => {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new HttpResponse(null, { status: 401 });
+    }
     return HttpResponse.json({
       output: {
         pass: [{ title: "CPU Check", message: "CPU requirements met" }],
@@ -34,7 +36,11 @@ const server = setupServer(
   }),
 
   // Mock preflight run endpoint
-  http.post("*/api/install/host-preflights/run", () => {
+  http.post("*/api/install/host-preflights/run", ({ request }) => {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new HttpResponse(null, { status: 401 });
+    }
     return HttpResponse.json({ success: true });
   })
 );
@@ -46,14 +52,17 @@ describe("LinuxPreflightCheck", () => {
   afterEach(() => {
     server.resetHandlers();
     mockOnComplete.mockClear();
-    mockLocalStorage.getItem.mockClear();
     vi.clearAllMocks();
   });
   afterAll(() => server.close());
 
   it("shows initializing state when installation status is polling", async () => {
     server.use(
-      http.get("*/api/install/installation/status", () => {
+      http.get("*/api/install/installation/status", ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new HttpResponse(null, { status: 401 });
+        }
         return HttpResponse.json({ state: "Running" });
       })
     );
@@ -63,6 +72,7 @@ describe("LinuxPreflightCheck", () => {
         preloadedState: {
           prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
         },
+        authToken: TEST_TOKEN,
       },
     });
 
@@ -72,7 +82,11 @@ describe("LinuxPreflightCheck", () => {
 
   it("shows validating state when preflights are polling", async () => {
     server.use(
-      http.get("*/api/install/host-preflights/status", () => {
+      http.get("*/api/install/host-preflights/status", ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new HttpResponse(null, { status: 401 });
+        }
         return HttpResponse.json({ state: "Running" });
       })
     );
@@ -82,6 +96,7 @@ describe("LinuxPreflightCheck", () => {
         preloadedState: {
           prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
         },
+        authToken: TEST_TOKEN,
       },
     });
 
@@ -97,6 +112,7 @@ describe("LinuxPreflightCheck", () => {
         preloadedState: {
           prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
         },
+        authToken: TEST_TOKEN,
       },
     });
 
@@ -110,7 +126,11 @@ describe("LinuxPreflightCheck", () => {
 
   it("shows success state when all preflights pass", async () => {
     server.use(
-      http.get("*/api/install/host-preflights/status", () => {
+      http.get("*/api/install/host-preflights/status", ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new HttpResponse(null, { status: 401 });
+        }
         return HttpResponse.json({
           output: {
             pass: [{ title: "CPU Check", message: "CPU requirements met" }],
@@ -125,6 +145,7 @@ describe("LinuxPreflightCheck", () => {
         preloadedState: {
           prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
         },
+        authToken: TEST_TOKEN,
       },
     });
 
@@ -136,10 +157,24 @@ describe("LinuxPreflightCheck", () => {
 
   it("handles installation status error", async () => {
     server.use(
-      http.get("*/api/install/installation/status", () => {
+      http.get("*/api/install/installation/status", ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new HttpResponse(null, { status: 401 });
+        }
         return HttpResponse.json({
           state: "Failed",
-          description: "Failed to configure the host"
+          description: "Failed to configure the host",
+        });
+      }),
+      http.get("*/api/install/host-preflights/status", ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new HttpResponse(null, { status: 401 });
+        }
+        return HttpResponse.json({
+          output: {},
+          status: { state: "Failed" },
         });
       })
     );
@@ -149,22 +184,24 @@ describe("LinuxPreflightCheck", () => {
         preloadedState: {
           prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
         },
+        authToken: TEST_TOKEN,
       },
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Unable to complete system requirement checks")).toBeInTheDocument();
+      expect(screen.getByText("Unable to complete system requirement checks"));
       expect(screen.getByText("Failed to configure the host")).toBeInTheDocument();
     });
   });
 
   it("handles preflight run error", async () => {
     server.use(
-      http.post("*/api/install/host-preflights/run", () => {
-        return HttpResponse.json(
-          { message: "Failed to run preflight checks" },
-          { status: 500 }
-        );
+      http.post("*/api/install/host-preflights/run", ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new HttpResponse(null, { status: 401 });
+        }
+        return HttpResponse.json({ message: "Failed to run preflight checks" }, { status: 500 });
       })
     );
 
@@ -173,6 +210,7 @@ describe("LinuxPreflightCheck", () => {
         preloadedState: {
           prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
         },
+        authToken: TEST_TOKEN,
       },
     });
 
@@ -188,6 +226,7 @@ describe("LinuxPreflightCheck", () => {
         preloadedState: {
           prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
         },
+        authToken: TEST_TOKEN,
       },
     });
 

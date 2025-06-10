@@ -33,15 +33,12 @@ describe("SetupStep", () => {
   });
 
   beforeEach(() => {
-    // Set auth token in localStorage before each test
-    localStorage.setItem("auth", "mock-token");
+    // No need to set localStorage token anymore as it's handled by the test setup
   });
 
   afterEach(() => {
     server.resetHandlers();
     vi.clearAllMocks();
-    // Clear localStorage after each test
-    localStorage.clear();
   });
 
   afterAll(() => {
@@ -51,6 +48,7 @@ describe("SetupStep", () => {
   it("renders the linux setup form when it's embedded", async () => {
     renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
+        authenticated: true,
         preloadedState: {
           config: {
             ...MOCK_INSTALL_CONFIG,
@@ -127,6 +125,7 @@ describe("SetupStep", () => {
 
     renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
+        authenticated: true,
         preloadedState: {
           config: {
             ...MOCK_INSTALL_CONFIG,
@@ -187,7 +186,7 @@ describe("SetupStep", () => {
       // Mock install config endpoint
       http.get("*/api/install/installation/config", ({ request }) => {
         // Verify auth header
-        expect(request.headers.get("Authorization")).toBe("Bearer mock-token");
+        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
         return HttpResponse.json({
           config: {
             ...MOCK_INSTALL_CONFIG,
@@ -203,7 +202,7 @@ describe("SetupStep", () => {
       // Mock network interfaces endpoint
       http.get("*/api/console/available-network-interfaces", ({ request }) => {
         // Verify auth header
-        expect(request.headers.get("Authorization")).toBe("Bearer mock-token");
+        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
         return HttpResponse.json({
           networkInterfaces: MOCK_NETWORK_INTERFACES,
         });
@@ -211,7 +210,7 @@ describe("SetupStep", () => {
       // Mock config submission endpoint
       http.post("*/api/install/installation/configure", async ({ request }) => {
         // Verify auth header
-        expect(request.headers.get("Authorization")).toBe("Bearer mock-token");
+        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
         const body = await request.json();
         // Verify the request body has all required fields
         expect(body).toMatchObject({
@@ -229,6 +228,7 @@ describe("SetupStep", () => {
 
     renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
+        authenticated: true,
         preloadedState: {
           config: {
             ...MOCK_INSTALL_CONFIG,

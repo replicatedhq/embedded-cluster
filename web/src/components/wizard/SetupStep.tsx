@@ -6,10 +6,20 @@ import { useWizardMode } from "../../contexts/WizardModeContext";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import LinuxSetup from "./setup/LinuxSetup";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface SetupStepProps {
   onNext: () => void;
   onBack: () => void;
+}
+
+interface Status {
+  state: string;
+  description?: string;
+}
+
+interface ConfigError extends Error {
+  errors?: { field: string; message: string }[];
 }
 
 const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
@@ -17,6 +27,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   const { text } = useWizardMode();
   const [showAdvanced, setShowAdvanced] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { token } = useAuth();
 
   // Query for fetching install configuration
   const { isLoading: isConfigLoading } = useQuery({
@@ -24,9 +35,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     queryFn: async () => {
       const response = await fetch("/api/install/installation/config", {
         headers: {
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
+          Authorization: `Bearer ${token}`,
         },
       });
       if (!response.ok) {
@@ -44,9 +53,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     queryFn: async () => {
       const response = await fetch("/api/console/available-network-interfaces", {
         headers: {
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
+          Authorization: `Bearer ${token}`,
         },
       });
       if (!response.ok) {
@@ -57,15 +64,13 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   });
 
   // Mutation for submitting the configuration
-  const { mutate: submitConfig, error: submitError } = useMutation({
+  const { mutate: submitConfig, error: submitError } = useMutation<Status, ConfigError, typeof config>({
     mutationFn: async (configData: typeof config) => {
       const response = await fetch("/api/install/installation/configure", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(configData),
       });
@@ -79,7 +84,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     onSuccess: () => {
       onNext();
     },
-    onError: (err: Error) => {
+    onError: (err: ConfigError) => {
       setError(err.message || "Failed to setup cluster");
       return err;
     },

@@ -5,6 +5,7 @@ import { useConfig } from "../../contexts/ConfigContext";
 import { CheckCircle, ExternalLink, Loader2 } from "lucide-react";
 import { useQuery, Query } from "@tanstack/react-query";
 import { useWizardMode } from "../../contexts/WizardModeContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface InstallStatus {
   state: "Succeeded" | "Failed" | "InProgress";
@@ -18,6 +19,7 @@ const InstallationStep: React.FC = () => {
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { token } = useAuth();
 
   const { data: installStatus } = useQuery<InstallStatus, Error>({
     queryKey: ["installStatus"],
@@ -26,9 +28,7 @@ const InstallationStep: React.FC = () => {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
+          Authorization: `Bearer ${token}`,
         },
       });
 

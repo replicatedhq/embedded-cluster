@@ -5,6 +5,7 @@ import { useWizardMode } from "../../contexts/WizardModeContext";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import LinuxPreflightCheck from "./preflight/LinuxPreflightCheck";
 import { useMutation } from "@tanstack/react-query";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface ValidationStepProps {
   onNext: () => void;
@@ -16,6 +17,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const { token } = useAuth();
 
   const handlePreflightComplete = (success: boolean) => {
     setPreflightComplete(true);
@@ -27,9 +29,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
       const response = await fetch("/api/install/node/setup", {
         method: "POST",
         headers: {
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -52,29 +52,17 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
     <div className="space-y-6">
       <Card>
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {text.validationTitle}
-          </h2>
-          <p className="text-gray-600 mt-1">
-            {text.validationDescription}
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900">{text.validationTitle}</h2>
+          <p className="text-gray-600 mt-1">{text.validationDescription}</p>
         </div>
 
         <LinuxPreflightCheck onComplete={handlePreflightComplete} />
 
-        {error && (
-          <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
-            {error}
-          </div>
-        )}
+        {error && <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">{error}</div>}
       </Card>
 
       <div className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          icon={<ChevronLeft className="w-5 h-5" />}
-        >
+        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
           Back
         </Button>
         <Button

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Card from "../common/Card";
 import Button from "../common/Button";
 import Input from "../common/Input";
@@ -7,6 +7,7 @@ import { ChevronRight, Lock, AlertTriangle } from "lucide-react";
 import { useWizardMode } from "../../contexts/WizardModeContext";
 import { useConfig } from "../../contexts/ConfigContext";
 import { useMutation } from "@tanstack/react-query";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface WelcomeStepProps {
   onNext: () => void;
@@ -20,7 +21,15 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
   const { text } = useWizardMode();
   const { prototypeSettings } = useConfig();
   const [password, setPassword] = useState("");
+  const { setToken, isAuthenticated } = useAuth();
   const [showPasswordInput, setShowPasswordInput] = useState(!prototypeSettings.useSelfSignedCert);
+
+  // Automatically redirect to SetupStep if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      onNext();
+    }
+  }, [isAuthenticated, onNext]);
 
   const {
     mutate: login,
@@ -43,7 +52,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
       return response.json();
     },
     onSuccess: (data) => {
-      localStorage.setItem("auth", data.token);
+      setToken(data.token);
       onNext();
     },
   });
@@ -70,6 +79,10 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
       handleSubmit();
     }
   };
+  // If already authenticated, don't render the welcome step
+  if (isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">

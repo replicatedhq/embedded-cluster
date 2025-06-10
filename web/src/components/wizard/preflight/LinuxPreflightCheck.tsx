@@ -3,6 +3,7 @@ import { useConfig } from "../../../contexts/ConfigContext";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Button from "../../common/Button";
+import { useAuth } from "../../../contexts/AuthContext";
 
 interface LinuxPreflightCheckProps {
   onComplete: (success: boolean) => void;
@@ -42,6 +43,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   const [isInstallationStatusPolling, setIsInstallationStatusPolling] = useState(true);
   const { prototypeSettings } = useConfig();
   const themeColor = prototypeSettings.themeColor;
+  const { token } = useAuth();
 
   const hasFailures = (output?: PreflightOutput) => (output?.fail?.length ?? 0) > 0;
   const hasWarnings = (output?: PreflightOutput) => (output?.warn?.length ?? 0) > 0;
@@ -66,9 +68,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
       const response = await fetch("/api/install/host-preflights/run", {
         method: "POST",
         headers: {
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
+          Authorization: `Bearer ${token}`,
         },
       });
       if (!response.ok) {
@@ -86,10 +86,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   });
 
   // Query to poll installation status
-  const { data: installationStatus } = useQuery<
-    InstallationStatusResponse,
-    Error
-  >({
+  const { data: installationStatus } = useQuery<InstallationStatusResponse, Error>({
     queryKey: ["installationStatus"],
     queryFn: async () => {
       const response = await fetch("/api/install/installation/status", {
@@ -153,10 +150,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   if (isInstallationStatusPolling) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 
-          className="w-8 h-8 animate-spin mb-4"
-          style={{ color: themeColor }}
-        />
+        <Loader2 className="w-8 h-8 animate-spin mb-4" style={{ color: themeColor }} />
         <p className="text-lg font-medium text-gray-900">Initializing...</p>
         <p className="text-sm text-gray-500 mt-2">Preparing the host.</p>
       </div>
@@ -166,10 +160,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   if (isPreflightsPolling) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 
-          className="w-8 h-8 animate-spin mb-4"
-          style={{ color: themeColor }}
-        />
+        <Loader2 className="w-8 h-8 animate-spin mb-4" style={{ color: themeColor }} />
         <p className="text-lg font-medium text-gray-900">Validating host requirements...</p>
         <p className="text-sm text-gray-500 mt-2">Please wait while we check your system.</p>
       </div>
@@ -180,7 +171,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   if (isSuccessful(preflightResponse)) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <div 
+        <div
           className="w-12 h-12 rounded-full flex items-center justify-center mb-4"
           style={{ backgroundColor: `${themeColor}1A` }}
         >
@@ -281,16 +272,11 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
               <li>• Click "Back" to modify your setup if needed</li>
             </>
           )}
-          {hasWarnings(preflightResponse?.output) && (
-            <li>• Review the warnings above and take action if needed</li>
-          )}
+          {hasWarnings(preflightResponse?.output) && <li>• Review the warnings above and take action if needed</li>}
           <li>• Re-run the validation once issues are addressed</li>
         </ul>
         <div className="mt-4">
-          <Button
-            onClick={() => runPreflights()}
-            icon={<RefreshCw className="w-4 h-4" />}
-          >
+          <Button onClick={() => runPreflights()} icon={<RefreshCw className="w-4 h-4" />}>
             Run Validation Again
           </Button>
         </div>
