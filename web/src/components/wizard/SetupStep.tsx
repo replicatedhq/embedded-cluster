@@ -13,6 +13,15 @@ interface SetupStepProps {
   onBack: () => void;
 }
 
+interface Status {
+  state: string;
+  description?: string;
+}
+
+interface ConfigError extends Error {
+  errors?: { field: string; message: string }[];
+}
+
 const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   const { config, updateConfig, prototypeSettings } = useConfig();
   const { text } = useWizardMode();
@@ -44,9 +53,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     queryFn: async () => {
       const response = await fetch("/api/console/available-network-interfaces", {
         headers: {
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
+          Authorization: `Bearer ${token}`,
         },
       });
       if (!response.ok) {
@@ -57,15 +64,13 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   });
 
   // Mutation for submitting the configuration
-  const { mutate: submitConfig, error: submitError } = useMutation({
+  const { mutate: submitConfig, error: submitError } = useMutation<Status, ConfigError, typeof config>({
     mutationFn: async (configData: typeof config) => {
       const response = await fetch("/api/install/installation/configure", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(configData),
       });
@@ -79,7 +84,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
     onSuccess: () => {
       onNext();
     },
-    onError: (err: Error) => {
+    onError: (err: ConfigError) => {
       setError(err.message || "Failed to setup cluster");
       return err;
     },
@@ -131,7 +136,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
             onInputChange={handleInputChange}
             onSelectChange={handleSelectChange}
             availableNetworkInterfaces={availableNetworkInterfaces}
-            fieldErrors={submitError?.fieldErrors || []}
+            fieldErrors={submitError?.errors || []}
           />
         )}
 
