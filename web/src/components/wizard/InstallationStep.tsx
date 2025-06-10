@@ -14,12 +14,13 @@ interface InstallStatus {
 }
 
 const InstallationStep: React.FC = () => {
-  const { config } = useConfig();
+  const { config, prototypeSettings } = useConfig();
   const { text } = useWizardMode();
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { token } = useAuth();
+  const themeColor = prototypeSettings.themeColor
 
   const { data: installStatus } = useQuery<InstallStatus, Error>({
     queryKey: ["installStatus"],
@@ -73,11 +74,6 @@ const InstallationStep: React.FC = () => {
               <p className="text-lg font-medium text-gray-900">Please wait while we complete the installation...</p>
               <p className="text-sm text-gray-500 mt-2">This may take a few minutes.</p>
               {installStatus?.description && <p className="text-sm text-gray-500 mt-2">{installStatus.description}</p>}
-              {installStatus?.lastUpdated && (
-                <p className="text-xs text-gray-400 mt-1">
-                  Last updated: {new Date(installStatus.lastUpdated).toLocaleString()}
-                </p>
-              )}
             </div>
           )}
 
@@ -91,7 +87,7 @@ const InstallationStep: React.FC = () => {
           {showAdminLink && (
             <div className="flex flex-col items-center justify-center mb-6">
               <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6">
-                <CheckCircle className="w-10 h-10" style={{ color: "blue" }} />
+                <CheckCircle className="w-10 h-10" style={{ color: themeColor }}/>
               </div>
               <p className="text-gray-600 mt-4">
                 Visit the Admin Console to configure and install {text.installationTitle}
