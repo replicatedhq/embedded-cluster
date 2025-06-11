@@ -2,7 +2,6 @@ package install
 
 import (
 	"context"
-	"sync"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
@@ -24,14 +23,13 @@ type Controller interface {
 	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupNode(ctx context.Context) error
-	SetStatus(ctx context.Context, status *types.Status) error
+	SetStatus(ctx context.Context, status types.Status) error
 	GetStatus(ctx context.Context) (*types.Status, error)
 }
 
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	install              *types.Install
 	installationManager  installation.InstallationManager
 	hostPreflightManager preflight.HostPreflightManager
 	rc                   runtimeconfig.RuntimeConfig
@@ -41,7 +39,6 @@ type InstallController struct {
 	releaseData          *release.ReleaseData
 	licenseFile          string
 	airgapBundle         string
-	mu                   sync.RWMutex
 }
 
 type InstallControllerOption func(*InstallController)
@@ -101,9 +98,7 @@ func WithHostPreflightManager(hostPreflightManager preflight.HostPreflightManage
 }
 
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
-	controller := &InstallController{
-		install: types.NewInstall(),
-	}
+	controller := &InstallController{}
 
 	for _, opt := range opts {
 		opt(controller)
@@ -138,7 +133,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			preflight.WithRuntimeConfig(controller.rc),
 			preflight.WithLogger(controller.logger),
 			preflight.WithMetricsReporter(controller.metricsReporter),
-			preflight.WithHostPreflight(controller.install.Steps.HostPreflight),
 		)
 	}
 

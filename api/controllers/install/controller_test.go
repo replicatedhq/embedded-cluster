@@ -597,8 +597,11 @@ func TestGetStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockInstallationManager := &installation.MockInstallationManager{}
+			mockInstallationManager.On("GetStatus").Return(tt.install.Status, nil)
+
 			controller := &InstallController{
-				install: tt.install,
+				installationManager: mockInstallationManager,
 			}
 
 			result, err := controller.GetStatus(context.Background())
@@ -612,19 +615,14 @@ func TestGetStatus(t *testing.T) {
 func TestSetStatus(t *testing.T) {
 	tests := []struct {
 		name        string
-		status      *types.Status
+		status      types.Status
 		expectedErr bool
 	}{
 		{
 			name: "successful set status",
-			status: &types.Status{
+			status: types.Status{
 				State: types.StateFailed,
 			},
-			expectedErr: false,
-		},
-		{
-			name:        "nil status",
-			status:      nil,
 			expectedErr: false,
 		},
 	}
@@ -640,7 +638,10 @@ func TestSetStatus(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tt.status, controller.install.Status)
+
+				status, err := controller.GetStatus(context.Background())
+				require.NoError(t, err)
+				assert.Equal(t, tt.status, *status)
 			}
 		})
 	}

@@ -84,7 +84,7 @@ func (m *mockInstallController) SetupNode(ctx context.Context) error {
 	return m.setupNodeError
 }
 
-func (m *mockInstallController) SetStatus(ctx context.Context, status *types.Status) error {
+func (m *mockInstallController) SetStatus(ctx context.Context, status types.Status) error {
 	return m.setStatusError
 }
 
@@ -544,7 +544,7 @@ func TestGetInstallStatus(t *testing.T) {
 		State:       types.StatePending,
 		Description: "Installation in progress",
 	}
-	err = installController.SetStatus(t.Context(), &initialStatus)
+	err = installController.SetStatus(t.Context(), initialStatus)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
