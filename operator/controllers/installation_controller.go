@@ -78,7 +78,16 @@ var copyHostPreflightResultsJob = &batchv1.Job{
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
 								Path: v1beta1.DefaultDataDir,
-								Type: ptr.To[corev1.HostPathType]("Directory"),
+								Type: ptr.To(corev1.HostPathDirectory),
+							},
+						},
+					},
+					{
+						Name: "k0s",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: runtimeconfig.K0sBinaryPath,
+								Type: ptr.To(corev1.HostPathFile),
 							},
 						},
 					},
@@ -109,6 +118,11 @@ var copyHostPreflightResultsJob = &batchv1.Job{
 								Name:      "host",
 								MountPath: "/embedded-cluster",
 								ReadOnly:  false,
+							},
+							{
+								Name:      "k0s",
+								MountPath: runtimeconfig.K0sBinaryPath,
+								ReadOnly:  true,
 							},
 						},
 					},

@@ -1374,12 +1374,12 @@ func getAdminConsoleURL(hostname string, networkInterface string, port int) stri
 	}
 	ipaddr := runtimeconfig.TryDiscoverPublicIP()
 	if ipaddr == "" {
-		var err error
-		ipaddr, err = netutils.FirstValidAddress(networkInterface)
-		if err != nil {
-			if addr := os.Getenv("EC_PUBLIC_ADDRESS"); addr != "" {
-				ipaddr = addr
-			} else {
+		if addr := os.Getenv("EC_PUBLIC_ADDRESS"); addr != "" {
+			ipaddr = addr
+		} else {
+			var err error
+			ipaddr, err = netutils.FirstValidAddress(networkInterface)
+			if err != nil {
 				logrus.Errorf("Unable to determine node IP address: %v", err)
 				ipaddr = "NODE-IP-ADDRESS"
 			}
