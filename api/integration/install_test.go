@@ -162,6 +162,7 @@ func TestConfigureInstallation(t *testing.T) {
 			installController, err := install.NewInstallController(
 				install.WithHostUtils(tc.mockHostUtils),
 				install.WithRuntimeConfig(rc),
+				install.WithEnvSetter(&testEnvSetter{}),
 			)
 			require.NoError(t, err)
 
@@ -241,8 +242,14 @@ func TestConfigureInstallation(t *testing.T) {
 
 // Test that config validation errors are properly returned
 func TestConfigureInstallationValidation(t *testing.T) {
+	rc := runtimeconfig.New(nil)
+	rc.SetDataDir(t.TempDir())
+
 	// Create an install controller with the config manager
-	installController, err := install.NewInstallController()
+	installController, err := install.NewInstallController(
+		install.WithRuntimeConfig(rc),
+		install.WithEnvSetter(&testEnvSetter{}),
+	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
@@ -296,8 +303,14 @@ func TestConfigureInstallationValidation(t *testing.T) {
 
 // Test that the endpoint properly handles malformed JSON
 func TestConfigureInstallationBadRequest(t *testing.T) {
+	rc := runtimeconfig.New(nil)
+	rc.SetDataDir(t.TempDir())
+
 	// Create an install controller with the config manager
-	installController, err := install.NewInstallController()
+	installController, err := install.NewInstallController(
+		install.WithRuntimeConfig(rc),
+		install.WithEnvSetter(&testEnvSetter{}),
+	)
 	require.NoError(t, err)
 
 	apiInstance, err := api.New(
@@ -371,12 +384,17 @@ func TestConfigureInstallationControllerError(t *testing.T) {
 
 // Test the getInstall endpoint returns installation data correctly
 func TestGetInstallationConfig(t *testing.T) {
+	rc := runtimeconfig.New(nil)
+	rc.SetDataDir(t.TempDir())
+
 	// Create a config manager
 	installationManager := installation.NewInstallationManager()
 
 	// Create an install controller with the config manager
 	installController, err := install.NewInstallController(
 		install.WithInstallationManager(installationManager),
+		install.WithRuntimeConfig(rc),
+		install.WithEnvSetter(&testEnvSetter{}),
 	)
 	require.NoError(t, err)
 
@@ -433,6 +451,9 @@ func TestGetInstallationConfig(t *testing.T) {
 
 	// Test get with default/empty configuration
 	t.Run("Default configuration", func(t *testing.T) {
+		rc := runtimeconfig.New(nil)
+		rc.SetDataDir(t.TempDir())
+
 		// Create a fresh config manager without writing anything
 		emptyInstallationManager := installation.NewInstallationManager(
 			installation.WithNetUtils(&mockNetUtils{ifaces: []string{"eth0", "eth1"}}),
@@ -441,6 +462,8 @@ func TestGetInstallationConfig(t *testing.T) {
 		// Create an install controller with the empty config manager
 		emptyInstallController, err := install.NewInstallController(
 			install.WithInstallationManager(emptyInstallationManager),
+			install.WithRuntimeConfig(rc),
+			install.WithEnvSetter(&testEnvSetter{}),
 		)
 		require.NoError(t, err)
 
@@ -804,6 +827,7 @@ func TestInstallWithAPIClient(t *testing.T) {
 
 	// Create a runtimeconfig to be used in the install process
 	rc := runtimeconfig.New(nil)
+	rc.SetDataDir(t.TempDir())
 
 	// Create a mock hostutils
 	mockHostUtils := &hostutils.MockHostUtils{}
@@ -819,6 +843,7 @@ func TestInstallWithAPIClient(t *testing.T) {
 	installController, err := install.NewInstallController(
 		install.WithRuntimeConfig(rc),
 		install.WithInstallationManager(installationManager),
+		install.WithEnvSetter(&testEnvSetter{}),
 	)
 	require.NoError(t, err)
 
@@ -957,4 +982,16 @@ func TestInstallWithAPIClient(t *testing.T) {
 		assert.NotNil(t, newStatus, "Install should not be nil")
 		assert.Equal(t, status, newStatus, "Install status should match the one set")
 	})
+}
+
+type testEnvSetter struct {
+	env map[string]string
+}
+
+func (e *testEnvSetter) Setenv(key string, val string) error {
+	if e.env == nil {
+		e.env = make(map[string]string)
+	}
+	e.env[key] = val
+	return nil
 }

@@ -268,7 +268,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 				}()
 			}
 
-			rc := runtimeconfig.New(nil)
+			rc := runtimeconfig.New(tt.args.in.Spec.RuntimeConfig)
 
 			if err := EnsureArtifactsJobForNodes(
 				ctx, cli, rc, tt.args.in,
@@ -500,7 +500,7 @@ func TestGetArtifactJobForNode_HostCABundle(t *testing.T) {
 			},
 		}
 
-		rc := runtimeconfig.New(nil)
+		rc := runtimeconfig.New(installation.Spec.RuntimeConfig)
 
 		// Call the function under test
 		job, err := getArtifactJobForNode(
@@ -595,7 +595,7 @@ func TestGetArtifactJobForNode_HostCABundle(t *testing.T) {
 			},
 		}
 
-		rc := runtimeconfig.New(nil)
+		rc := runtimeconfig.New(installation.Spec.RuntimeConfig)
 
 		// Call the function under test
 		job, err := getArtifactJobForNode(

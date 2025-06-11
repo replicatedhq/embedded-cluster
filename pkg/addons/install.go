@@ -20,11 +20,9 @@ type InstallOptions struct {
 	AdminConsolePwd         string
 	License                 *kotsv1beta1.License
 	IsAirgap                bool
-	Proxy                   *ecv1beta1.ProxySpec
 	TLSCertBytes            []byte
 	TLSKeyBytes             []byte
 	Hostname                string
-	ServiceCIDR             string
 	DisasterRecoveryEnabled bool
 	IsMultiNodeEnabled      bool
 	EmbeddedConfigSpec      *ecv1beta1.ConfigSpec
@@ -34,9 +32,9 @@ type InstallOptions struct {
 }
 
 func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
-	addons := GetAddOnsForInstall(opts)
+	addons := GetAddOnsForInstall(a.rc, opts)
 	if opts.IsRestore {
-		addons = GetAddOnsForRestore(opts)
+		addons = GetAddOnsForRestore(a.rc, opts)
 	}
 
 	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
@@ -57,31 +55,31 @@ func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
 	return nil
 }
 
-func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
+func GetAddOnsForInstall(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
 			IsAirgap: opts.IsAirgap,
-			Proxy:    opts.Proxy,
+			Proxy:    rc.ProxySpec(),
 		},
 	}
 
 	if opts.IsAirgap {
 		addOns = append(addOns, &registry.Registry{
-			ServiceCIDR: opts.ServiceCIDR,
+			ServiceCIDR: rc.ServiceCIDR(),
 		})
 	}
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			Proxy: opts.Proxy,
+			Proxy: rc.ProxySpec(),
 		})
 	}
 
 	adminConsoleAddOn := &adminconsole.AdminConsole{
 		IsAirgap:           opts.IsAirgap,
-		Proxy:              opts.Proxy,
-		ServiceCIDR:        opts.ServiceCIDR,
+		Proxy:              rc.ProxySpec(),
+		ServiceCIDR:        rc.ServiceCIDR(),
 		Password:           opts.AdminConsolePwd,
 		TLSCertBytes:       opts.TLSCertBytes,
 		TLSKeyBytes:        opts.TLSKeyBytes,
@@ -94,11 +92,11 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	return addOns
 }
 
-func GetAddOnsForRestore(opts InstallOptions) []types.AddOn {
+func GetAddOnsForRestore(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{},
 		&velero.Velero{
-			Proxy: opts.Proxy,
+			Proxy: rc.ProxySpec(),
 		},
 	}
 	return addOns

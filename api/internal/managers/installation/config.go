@@ -242,8 +242,6 @@ func (m *installationManager) configureHost(ctx context.Context, config *types.I
 	opts := hostutils.InitForInstallOptions{
 		LicenseFile:  m.licenseFile,
 		AirgapBundle: m.airgapBundle,
-		PodCIDR:      config.PodCIDR,
-		ServiceCIDR:  config.ServiceCIDR,
 	}
 	if err := m.hostUtils.ConfigureHost(ctx, m.rc, opts); err != nil {
 		return fmt.Errorf("configure installation: %w", err)

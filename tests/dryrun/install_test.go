@@ -170,10 +170,10 @@ func testDefaultInstallationImpl(t *testing.T) {
 		t.Fatalf("failed to get latest installation: %v", err)
 	}
 
-	assert.Equal(t, "80-32767", in.Spec.Network.NodePortRange)
+	assert.Equal(t, "80-32767", in.Spec.RuntimeConfig.Network.NodePortRange)
 	assert.Equal(t, "10.244.0.0/16", dr.Flags["cidr"])
-	assert.Equal(t, "10.244.0.0/17", in.Spec.Network.PodCIDR)
-	assert.Equal(t, "10.244.128.0/17", in.Spec.Network.ServiceCIDR)
+	assert.Equal(t, "10.244.0.0/17", in.Spec.RuntimeConfig.Network.PodCIDR)
+	assert.Equal(t, "10.244.128.0/17", in.Spec.RuntimeConfig.Network.ServiceCIDR)
 	assert.Equal(t, 30000, in.Spec.RuntimeConfig.AdminConsole.Port)
 	assert.Equal(t, "/var/lib/embedded-cluster", in.Spec.RuntimeConfig.DataDir)
 	assert.Equal(t, 50000, in.Spec.RuntimeConfig.LocalArtifactMirror.Port)

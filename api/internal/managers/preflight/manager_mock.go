@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/mock"
 )
@@ -17,15 +16,12 @@ type MockHostPreflightManager struct {
 }
 
 // PrepareHostPreflights mocks the PrepareHostPreflights method
-func (m *MockHostPreflightManager) PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, *ecv1beta1.ProxySpec, error) {
+func (m *MockHostPreflightManager) PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error) {
 	args := m.Called(ctx, opts)
 	if args.Get(0) == nil {
-		return nil, nil, args.Error(2)
+		return nil, args.Error(1)
 	}
-	if args.Get(1) == nil {
-		return args.Get(0).(*troubleshootv1beta2.HostPreflightSpec), nil, args.Error(2)
-	}
-	return args.Get(0).(*troubleshootv1beta2.HostPreflightSpec), args.Get(1).(*ecv1beta1.ProxySpec), args.Error(2)
+	return args.Get(0).(*troubleshootv1beta2.HostPreflightSpec), args.Error(1)
 }
 
 // RunHostPreflights mocks the RunHostPreflights method

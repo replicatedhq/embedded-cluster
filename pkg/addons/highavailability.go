@@ -49,7 +49,7 @@ func (a *AddOns) CanEnableHA(ctx context.Context) (bool, string, error) {
 }
 
 // EnableHA enables high availability.
-func (a *AddOns) EnableHA(ctx context.Context, serviceCIDR string, inSpec ecv1beta1.InstallationSpec, spinner *spinner.MessageWriter) error {
+func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec, spinner *spinner.MessageWriter) error {
 	if inSpec.AirGap {
 		logrus.Debugf("Enabling high availability")
 		spinner.Infof("Enabling high availability")
@@ -59,7 +59,7 @@ func (a *AddOns) EnableHA(ctx context.Context, serviceCIDR string, inSpec ecv1be
 			return errors.Wrap(err, "check if registry data has been migrated")
 		} else if !hasMigrated {
 			logrus.Debugf("Installing seaweedfs")
-			err = a.ensureSeaweedfs(ctx, serviceCIDR, inSpec.Config)
+			err = a.ensureSeaweedfs(ctx, a.rc.ServiceCIDR(), inSpec.Config)
 			if err != nil {
 				return errors.Wrap(err, "ensure seaweedfs")
 			}
@@ -83,7 +83,7 @@ func (a *AddOns) EnableHA(ctx context.Context, serviceCIDR string, inSpec ecv1be
 
 			logrus.Debugf("Enabling high availability for the registry")
 			spinner.Infof("Enabling high availability for the registry")
-			err = a.enableRegistryHA(ctx, serviceCIDR, inSpec.Config)
+			err = a.enableRegistryHA(ctx, a.rc.ServiceCIDR(), inSpec.Config)
 			if err != nil {
 				return errors.Wrap(err, "enable registry high availability")
 			}
@@ -93,7 +93,7 @@ func (a *AddOns) EnableHA(ctx context.Context, serviceCIDR string, inSpec ecv1be
 
 	logrus.Debugf("Updating the Admin Console for high availability")
 	spinner.Infof("Updating the Admin Console for high availability")
-	err := a.EnableAdminConsoleHA(ctx, inSpec.AirGap, serviceCIDR, inSpec.Proxy, inSpec.Config, inSpec.LicenseInfo)
+	err := a.EnableAdminConsoleHA(ctx, inSpec.AirGap, inSpec.Config, inSpec.LicenseInfo)
 	if err != nil {
 		return errors.Wrap(err, "enable admin console high availability")
 	}
@@ -228,15 +228,15 @@ func (a *AddOns) enableRegistryHA(ctx context.Context, serviceCIDR string, cfgsp
 }
 
 // EnableAdminConsoleHA enables high availability for the admin console.
-func (a *AddOns) EnableAdminConsoleHA(ctx context.Context, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo) error {
+func (a *AddOns) EnableAdminConsoleHA(ctx context.Context, isAirgap bool, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo) error {
 	domains := runtimeconfig.GetDomains(cfgspec)
 
 	// TODO (@salah): add support for end user overrides
 	ac := &adminconsole.AdminConsole{
 		IsAirgap:           isAirgap,
 		IsHA:               true,
-		Proxy:              proxy,
-		ServiceCIDR:        serviceCIDR,
+		Proxy:              a.rc.ProxySpec(),
+		ServiceCIDR:        a.rc.ServiceCIDR(),
 		IsMultiNodeEnabled: licenseInfo != nil && licenseInfo.IsMultiNodeEnabled,
 	}
 	if err := ac.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.rc, domains, a.addOnOverrides(ac, cfgspec, nil)); err != nil {

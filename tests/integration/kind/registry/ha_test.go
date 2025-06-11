@@ -67,6 +67,10 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	hcli := util.HelmClient(t, kubeconfig)
 
 	rc := runtimeconfig.New(nil)
+	rc.SetNetworkSpec(ecv1beta1.NetworkSpec{
+		PodCIDR:     "10.85.0.0/12",
+		ServiceCIDR: "10.96.0.0/12",
+	})
 
 	domains := ecv1beta1.Domains{
 		ProxyRegistryDomain: "proxy.replicated.com",
@@ -117,6 +121,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 				ProxyRegistryDomain: "proxy.replicated.com",
 			},
 		},
+		RuntimeConfig: rc.Get(),
 	}
 
 	addOns := addons.New(
@@ -147,7 +152,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	loading := newTestingSpinner(t)
 	func() {
 		defer loading.Close()
-		err = addOns.EnableHA(t.Context(), "10.96.0.0/12", inSpec, loading)
+		err = addOns.EnableHA(t.Context(), inSpec, loading)
 		require.NoError(t, err)
 	}()
 
@@ -205,7 +210,7 @@ func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSp
 	defer loading.Close()
 
 	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
-	err = addOns.EnableHA(ctx, "10.96.0.0/12", inSpec, loading)
+	err = addOns.EnableHA(ctx, inSpec, loading)
 	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
 	t.Logf("%s cancelled context and got error: %v", formattedTime(), err)
 }
