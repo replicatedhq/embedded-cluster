@@ -15,6 +15,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
@@ -85,7 +86,10 @@ func TestGetInstallationConfig(t *testing.T) {
 			mockManager := &installation.MockInstallationManager{}
 			tt.setupMock(mockManager)
 
-			controller, err := NewInstallController(WithInstallationManager(mockManager))
+			controller, err := NewInstallController(
+				WithInstallationManager(mockManager),
+				WithEnvSetter(&testEnvSetter{}),
+			)
 			require.NoError(t, err)
 
 			result, err := controller.GetInstallationConfig(t.Context())
@@ -175,7 +179,10 @@ func TestConfigureInstallation(t *testing.T) {
 
 			tt.setupMock(mockManager, &configCopy)
 
-			controller, err := NewInstallController(WithInstallationManager(mockManager))
+			controller, err := NewInstallController(
+				WithInstallationManager(mockManager),
+				WithEnvSetter(&testEnvSetter{}),
+			)
 			require.NoError(t, err)
 
 			err = controller.ConfigureInstallation(t.Context(), tt.config)
@@ -258,13 +265,6 @@ func TestRunHostPreflights(t *testing.T) {
 		},
 	}
 
-	expectedProxy := &ecv1beta1.ProxySpec{
-		HTTPProxy:       "http://proxy.example.com",
-		HTTPSProxy:      "https://proxy.example.com",
-		ProvidedNoProxy: "provided-proxy.com",
-		NoProxy:         "no-proxy.com",
-	}
-
 	tests := []struct {
 		name        string
 		setupMocks  func(*installation.MockInstallationManager, *preflight.MockHostPreflightManager)
@@ -275,9 +275,9 @@ func TestRunHostPreflights(t *testing.T) {
 			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
 					im.On("GetConfig").Return(&types.InstallationConfig{}, nil),
-					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
+					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", t.Context(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec && expectedProxy == opts.Proxy
+						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
 				)
 			},
@@ -288,7 +288,7 @@ func TestRunHostPreflights(t *testing.T) {
 			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
 					im.On("GetConfig").Return(&types.InstallationConfig{}, nil),
-					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(nil, nil, errors.New("prepare error")),
+					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(nil, errors.New("prepare error")),
 				)
 			},
 			expectedErr: true,
@@ -298,9 +298,9 @@ func TestRunHostPreflights(t *testing.T) {
 			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
 					im.On("GetConfig").Return(&types.InstallationConfig{}, nil),
-					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
+					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", t.Context(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec && expectedProxy == opts.Proxy
+						return expectedHPF == opts.HostPreflightSpec
 					})).Return(errors.New("run preflights error")),
 				)
 			},
@@ -314,7 +314,17 @@ func TestRunHostPreflights(t *testing.T) {
 			mockPreflightManager := &preflight.MockHostPreflightManager{}
 			tt.setupMocks(mockInstallationManager, mockPreflightManager)
 
+			rc := runtimeconfig.New(nil)
+			rc.SetDataDir(t.TempDir())
+			rc.SetProxySpec(&ecv1beta1.ProxySpec{
+				HTTPProxy:       "http://proxy.example.com",
+				HTTPSProxy:      "https://proxy.example.com",
+				ProvidedNoProxy: "provided-proxy.com",
+				NoProxy:         "no-proxy.com",
+			})
+
 			controller, err := NewInstallController(
+				WithRuntimeConfig(rc),
 				WithInstallationManager(mockInstallationManager),
 				WithHostPreflightManager(mockPreflightManager),
 				WithReleaseData(getTestReleaseData()),
@@ -856,4 +866,16 @@ func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
 	return func(c *InstallController) {
 		c.infraManager = infraManager
 	}
+}
+
+type testEnvSetter struct {
+	env map[string]string
+}
+
+func (e *testEnvSetter) Setenv(key string, val string) error {
+	if e.env == nil {
+		e.env = make(map[string]string)
+	}
+	e.env[key] = val
+	return nil
 }

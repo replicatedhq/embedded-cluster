@@ -356,8 +356,6 @@ func TestConfigureHost(t *testing.T) {
 					hum.On("ConfigureHost", mock.Anything, hostutils.InitForInstallOptions{
 						LicenseFile:  "license.yaml",
 						AirgapBundle: "bundle.tar",
-						PodCIDR:      "10.0.0.0/16",
-						ServiceCIDR:  "10.1.0.0/16",
 					}).Return(nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateSucceeded })).Return(nil),
 				)

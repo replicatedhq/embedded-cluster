@@ -215,7 +215,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, rc runtimecon
 		return nil
 	}
 
-	if err := maybeEnableHA(ctx, kcli, mcli, flags, rc, cidrCfg.ServiceCIDR, jcmd); err != nil {
+	if err := maybeEnableHA(ctx, kcli, mcli, flags, rc, jcmd); err != nil {
 		return fmt.Errorf("unable to enable high availability: %w", err)
 	}
 
@@ -262,18 +262,20 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, rc runtimeconfig.Ru
 		return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
 	}
 
-	newconfig.SetProxyEnv(jcmd.InstallationSpec.Proxy)
+	if proxySpec := rc.ProxySpec(); proxySpec != nil {
+		newconfig.SetProxyEnv(proxySpec)
 
-	proxyOK, localIP, err := newconfig.CheckProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, flags.networkInterface, nil)
-	if err != nil {
-		return fmt.Errorf("failed to check proxy config for local IP: %w", err)
-	}
+		proxyOK, localIP, err := newconfig.CheckProxyConfigForLocalIP(proxySpec, flags.networkInterface, nil)
+		if err != nil {
+			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
+		}
 
-	if !proxyOK {
-		logrus.Errorf("\nThis node's IP address %s is not included in the no-proxy list (%s).", localIP, jcmd.InstallationSpec.Proxy.NoProxy)
-		logrus.Infof(`The no-proxy list cannot easily be modified after installing.`)
-		logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
-		return NewErrorNothingElseToAdd(errors.New("node ip address not included in no-proxy list"))
+		if !proxyOK {
+			logrus.Errorf("\nThis node's IP address %s is not included in the no-proxy list (%s).", localIP, proxySpec.NoProxy)
+			logrus.Infof(`The no-proxy list cannot easily be modified after installing.`)
+			logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
+			return NewErrorNothingElseToAdd(errors.New("node ip address not included in no-proxy list"))
+		}
 	}
 
 	return nil
@@ -321,7 +323,7 @@ func initializeJoin(ctx context.Context, name string, rc runtimeconfig.RuntimeCo
 		return nil, fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
-	cidrCfg, err = getJoinCIDRConfig(jcmd)
+	cidrCfg, err = getJoinCIDRConfig(rc)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get join CIDR config: %w", err)
 	}
@@ -352,19 +354,22 @@ func materializeFilesForJoin(ctx context.Context, rc runtimeconfig.RuntimeConfig
 	return nil
 }
 
-func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*newconfig.CIDRConfig, error) {
-	podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
-	if err != nil {
-		return nil, fmt.Errorf("unable to split default network CIDR: %w", err)
+func getJoinCIDRConfig(rc runtimeconfig.RuntimeConfig) (*newconfig.CIDRConfig, error) {
+	globalCIDR := ecv1beta1.DefaultNetworkCIDR
+	if rc.GlobalCIDR() != "" {
+		globalCIDR = rc.GlobalCIDR()
 	}
 
-	if jcmd.InstallationSpec.Network != nil {
-		if jcmd.InstallationSpec.Network.PodCIDR != "" {
-			podCIDR = jcmd.InstallationSpec.Network.PodCIDR
-		}
-		if jcmd.InstallationSpec.Network.ServiceCIDR != "" {
-			serviceCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
-		}
+	podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(globalCIDR)
+	if err != nil {
+		return nil, fmt.Errorf("unable to split global network CIDR: %w", err)
+	}
+
+	if rc.PodCIDR() != "" {
+		podCIDR = rc.PodCIDR()
+	}
+	if rc.ServiceCIDR() != "" {
+		serviceCIDR = rc.ServiceCIDR()
 	}
 
 	return &newconfig.CIDRConfig{
@@ -391,12 +396,12 @@ func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, 
 	}
 
 	logrus.Debugf("creating systemd unit files")
-	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, isWorker, jcmd.InstallationSpec.Proxy); err != nil {
+	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, isWorker); err != nil {
 		return fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 
 	logrus.Debugf("overriding network configuration")
-	if err := applyNetworkConfiguration(flags.networkInterface, jcmd); err != nil {
+	if err := applyNetworkConfiguration(rc, jcmd); err != nil {
 		return fmt.Errorf("unable to apply network configuration: %w", err)
 	}
 
@@ -444,37 +449,44 @@ func installK0sBinary(rc runtimeconfig.RuntimeConfig) error {
 	return nil
 }
 
-func applyNetworkConfiguration(networkInterface string, jcmd *join.JoinCommandResponse) error {
-	if jcmd.InstallationSpec.Network != nil {
-		domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
-		clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
+func applyNetworkConfiguration(rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
+	domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
+	clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 
-		address, err := netutils.FirstValidAddress(networkInterface)
-		if err != nil {
-			return fmt.Errorf("unable to find first valid address: %w", err)
-		}
-		clusterSpec.Spec.API.Address = address
-		clusterSpec.Spec.Storage.Etcd.PeerAddress = address
-		// NOTE: we should be copying everything from the in cluster config spec and overriding
-		// the node specific config from clusterSpec.GetClusterWideConfig()
-		clusterSpec.Spec.Network.PodCIDR = jcmd.InstallationSpec.Network.PodCIDR
-		clusterSpec.Spec.Network.ServiceCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
-		if jcmd.InstallationSpec.Network.NodePortRange != "" {
-			if clusterSpec.Spec.API.ExtraArgs == nil {
-				clusterSpec.Spec.API.ExtraArgs = map[string]string{}
-			}
-			clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = jcmd.InstallationSpec.Network.NodePortRange
-		}
-		clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
-
-		if err != nil {
-			return fmt.Errorf("unable to marshal cluster spec: %w", err)
-		}
-		err = os.WriteFile(runtimeconfig.K0sConfigPath, clusterSpecYaml, 0644)
-		if err != nil {
-			return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
-		}
+	address, err := netutils.FirstValidAddress(rc.NetworkInterface())
+	if err != nil {
+		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
+
+	cidrCfg, err := getJoinCIDRConfig(rc)
+	if err != nil {
+		return fmt.Errorf("unable to get join CIDR config: %w", err)
+	}
+
+	clusterSpec.Spec.API.Address = address
+	clusterSpec.Spec.Storage.Etcd.PeerAddress = address
+	// NOTE: we should be copying everything from the in cluster config spec and overriding
+	// the node specific config from clusterSpec.GetClusterWideConfig()
+	clusterSpec.Spec.Network.PodCIDR = cidrCfg.PodCIDR
+	clusterSpec.Spec.Network.ServiceCIDR = cidrCfg.ServiceCIDR
+
+	if rc.NodePortRange() != "" {
+		if clusterSpec.Spec.API.ExtraArgs == nil {
+			clusterSpec.Spec.API.ExtraArgs = map[string]string{}
+		}
+		clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = rc.NodePortRange()
+	}
+
+	clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
+	if err != nil {
+		return fmt.Errorf("unable to marshal cluster spec: %w", err)
+	}
+
+	err = os.WriteFile(runtimeconfig.K0sConfigPath, clusterSpecYaml, 0644)
+	if err != nil {
+		return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
+	}
+
 	return nil
 }
 
@@ -573,7 +585,7 @@ func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string,
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interface, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, serviceCIDR string, jcmd *join.JoinCommandResponse) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interface, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
 	if flags.noHA {
 		logrus.Debug("--no-ha flag provided, skipping high availability")
 		return nil
@@ -640,5 +652,5 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addOns.EnableHA(ctx, serviceCIDR, jcmd.InstallationSpec, loading)
+	return addOns.EnableHA(ctx, jcmd.InstallationSpec, loading)
 }

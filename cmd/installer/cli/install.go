@@ -72,8 +72,6 @@ type InstallCmdFlags struct {
 
 	// TODO: move to substruct
 	license      *kotsv1beta1.License
-	proxy        *ecv1beta1.ProxySpec
-	cidrCfg      *newconfig.CIDRConfig
 	tlsCert      tls.Certificate
 	tlsCertBytes []byte
 	tlsKeyBytes  []byte
@@ -107,6 +105,9 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			if flags.enableManagerExperience {
 				return runManagerExperienceInstall(ctx, flags, rc)
 			}
+
+			os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
+			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
 			clusterID := metrics.ClusterID()
 			installReporter := newInstallReporter(
@@ -266,44 +267,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 	}
 	logrus.Debugf("using host CA bundle: %s", hostCABundlePath)
 
-	// update the runtime config
-	rc.SetHostCABundlePath(hostCABundlePath)
-	rc.SetManagerPort(flags.managerPort)
-
-	// restore command doesn't have a password flag
-	if cmd.Flags().Lookup("admin-console-password") != nil {
-		if err := ensureAdminConsolePassword(flags); err != nil {
-			return err
-		}
-	}
-
-	// everything below this point is not relevant for the manager experience
-	if flags.enableManagerExperience {
-		return nil
-	}
-
-	proxy, err := parseProxyFlags(cmd)
-	if err != nil {
-		return err
-	}
-	flags.proxy = proxy
-
-	if err := verifyProxyConfig(flags.proxy, prompts.New(), flags.assumeYes); err != nil {
-		return err
-	}
-	logrus.Debug("User confirmed prompt to proceed installing with `http_proxy` set and `https_proxy` unset")
-
-	if err := validateCIDRFlags(cmd); err != nil {
-		return err
-	}
-
-	// parse the various cidr flags to make sure we have exactly what we want
-	cidrCfg, err := getCIDRConfig(cmd)
-	if err != nil {
-		return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
-	}
-	flags.cidrCfg = cidrCfg
-
 	// if a network interface flag was not provided, attempt to discover it
 	if flags.networkInterface == "" {
 		autoInterface, err := newconfig.DetermineBestNetworkInterface()
@@ -318,15 +281,74 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 		}
 	}
 
+	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return fmt.Errorf("process overrides file: %w", err)
+	}
+
+	proxy, err := proxyConfigFromCmd(cmd, flags.assumeYes)
+	if err != nil {
+		return err
+	}
+
+	cidrCfg, err := cidrConfigFromCmd(cmd)
+	if err != nil {
+		return err
+	}
+
+	k0sCfg, err := k0s.NewK0sConfig(flags.networkInterface, flags.isAirgap, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, eucfg, nil)
+	if err != nil {
+		return fmt.Errorf("unable to create k0s config: %w", err)
+	}
+	networkSpec := helpers.NetworkSpecFromK0sConfig(k0sCfg)
+	networkSpec.NetworkInterface = flags.networkInterface
+	if cidrCfg.GlobalCIDR != nil {
+		networkSpec.GlobalCIDR = *cidrCfg.GlobalCIDR
+	}
+
 	// TODO: validate that a single port isn't used for multiple services
 	rc.SetDataDir(flags.dataDir)
 	rc.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
 	rc.SetAdminConsolePort(flags.adminConsolePort)
+	rc.SetHostCABundlePath(hostCABundlePath)
+	rc.SetNetworkSpec(networkSpec)
+	rc.SetProxySpec(proxy)
 
-	os.Setenv("KUBECONFIG", rc.PathToKubeConfig()) // this is needed for restore as well since it shares this function
-	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+	// restore command doesn't have a password flag
+	if cmd.Flags().Lookup("admin-console-password") != nil {
+		if err := ensureAdminConsolePassword(flags); err != nil {
+			return err
+		}
+	}
 
 	return nil
+}
+
+func proxyConfigFromCmd(cmd *cobra.Command, assumeYes bool) (*ecv1beta1.ProxySpec, error) {
+	proxy, err := parseProxyFlags(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := verifyProxyConfig(proxy, prompts.New(), assumeYes); err != nil {
+		return nil, err
+	}
+
+	return proxy, nil
+}
+
+func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
+	if err := validateCIDRFlags(cmd); err != nil {
+		return nil, err
+	}
+
+	// parse the various cidr flags to make sure we have exactly what we want
+	cidrCfg, err := getCIDRConfig(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+	}
+
+	return cidrCfg, nil
 }
 
 func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (finalErr error) {
@@ -432,8 +454,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 		return fmt.Errorf("unable to run install preflights: %w", err)
 	}
 
-	k0sCfg, err := installAndStartCluster(ctx, flags, rc, nil)
-	if err != nil {
+	if _, err := installAndStartCluster(ctx, flags, rc, nil); err != nil {
 		return fmt.Errorf("unable to install cluster: %w", err)
 	}
 
@@ -450,7 +471,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	in, err := recordInstallation(ctx, kcli, flags, rc, k0sCfg, flags.license)
+	in, err := recordInstallation(ctx, kcli, flags, rc, flags.license)
 	if err != nil {
 		return fmt.Errorf("unable to record installation: %w", err)
 	}
@@ -462,7 +483,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("adding insecure registry")
-	registryIP, err := registry.GetRegistryClusterIP(flags.cidrCfg.ServiceCIDR)
+	registryIP, err := registry.GetRegistryClusterIP(rc.ServiceCIDR())
 	if err != nil {
 		return fmt.Errorf("unable to get registry cluster IP: %w", err)
 	}
@@ -506,6 +527,49 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc)
 
 	return nil
+}
+
+func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, loading **spinner.MessageWriter) (*addons.InstallOptions, error) {
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
+
+	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return nil, fmt.Errorf("unable to process overrides file: %w", err)
+	}
+	var euCfgSpec *ecv1beta1.ConfigSpec
+	if euCfg != nil {
+		euCfgSpec = &euCfg.Spec
+	}
+
+	opts := &addons.InstallOptions{
+		AdminConsolePwd:         flags.adminConsolePassword,
+		License:                 flags.license,
+		IsAirgap:                flags.airgapBundle != "",
+		TLSCertBytes:            flags.tlsCertBytes,
+		TLSKeyBytes:             flags.tlsKeyBytes,
+		Hostname:                flags.hostname,
+		DisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
+		IsMultiNodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
+		EmbeddedConfigSpec:      embCfgSpec,
+		EndUserConfigSpec:       euCfgSpec,
+		KotsInstaller: func() error {
+			opts := kotscli.InstallOptions{
+				RuntimeConfig:         rc,
+				AppSlug:               flags.license.Spec.AppSlug,
+				LicenseFile:           flags.licenseFile,
+				Namespace:             runtimeconfig.KotsadmNamespace,
+				AirgapBundle:          flags.airgapBundle,
+				ConfigValuesFile:      flags.configValues,
+				ReplicatedAppEndpoint: replicatedAppURL(),
+				Stdout:                *loading,
+			}
+			return kotscli.Install(opts)
+		},
+	}
+	return opts, nil
 }
 
 func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt) error {
@@ -705,8 +769,6 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags, rc runtimecon
 	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
 		LicenseFile:  flags.licenseFile,
 		AirgapBundle: flags.airgapBundle,
-		PodCIDR:      flags.cidrCfg.PodCIDR,
-		ServiceCIDR:  flags.cidrCfg.ServiceCIDR,
 	}); err != nil {
 		spinner.ErrorClosef("Initialization failed")
 		return fmt.Errorf("configure host: %w", err)
@@ -726,14 +788,14 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 		return nil, fmt.Errorf("process overrides file: %w", err)
 	}
 
-	cfg, err := k0s.WriteK0sConfig(ctx, flags.networkInterface, flags.airgapBundle, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR, eucfg, mutate)
+	cfg, err := k0s.WriteK0sConfig(ctx, flags.networkInterface, flags.airgapBundle, rc.PodCIDR(), rc.ServiceCIDR(), eucfg, mutate)
 	if err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 
 	logrus.Debugf("creating systemd unit files")
-	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, false, flags.proxy); err != nil {
+	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, false); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
@@ -762,20 +824,6 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 }
 
 func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, flags InstallCmdFlags) error {
-	var embCfgSpec *ecv1beta1.ConfigSpec
-	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
-		embCfgSpec = &embCfg.Spec
-	}
-
-	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
-	if err != nil {
-		return fmt.Errorf("process overrides file: %w", err)
-	}
-	var euCfgSpec *ecv1beta1.ConfigSpec
-	if euCfg != nil {
-		euCfgSpec = &euCfg.Spec
-	}
-
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -803,33 +851,12 @@ func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		addons.WithProgressChannel(progressChan),
 	)
 
-	if err := addOns.Install(ctx, addons.InstallOptions{
-		AdminConsolePwd:         flags.adminConsolePassword,
-		License:                 flags.license,
-		IsAirgap:                flags.airgapBundle != "",
-		Proxy:                   flags.proxy,
-		TLSCertBytes:            flags.tlsCertBytes,
-		TLSKeyBytes:             flags.tlsKeyBytes,
-		Hostname:                flags.hostname,
-		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
-		DisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
-		IsMultiNodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
-		EmbeddedConfigSpec:      embCfgSpec,
-		EndUserConfigSpec:       euCfgSpec,
-		KotsInstaller: func() error {
-			opts := kotscli.InstallOptions{
-				RuntimeConfig:         rc,
-				AppSlug:               flags.license.Spec.AppSlug,
-				LicenseFile:           flags.licenseFile,
-				Namespace:             runtimeconfig.KotsadmNamespace,
-				AirgapBundle:          flags.airgapBundle,
-				ConfigValuesFile:      flags.configValues,
-				ReplicatedAppEndpoint: replicatedAppURL(),
-				Stdout:                loading,
-			}
-			return kotscli.Install(opts)
-		},
-	}); err != nil {
+	opts, err := getAddonInstallOpts(flags, rc, &loading)
+	if err != nil {
+		return fmt.Errorf("get addon install opts: %w", err)
+	}
+
+	if err := addOns.Install(ctx, *opts); err != nil {
 		return fmt.Errorf("install addons: %w", err)
 	}
 
@@ -966,6 +993,7 @@ func verifyProxyConfig(proxy *ecv1beta1.ProxySpec, prompt prompts.Prompt, assume
 		if !confirmed {
 			return NewErrorNothingElseToAdd(errors.New("user aborted: HTTP proxy configured without HTTPS proxy"))
 		}
+		logrus.Debug("User confirmed prompt to proceed installing with `http_proxy` set and `https_proxy` unset")
 	}
 	return nil
 }
@@ -1020,8 +1048,7 @@ func waitForNode(ctx context.Context) error {
 }
 
 func recordInstallation(
-	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig,
-	k0sCfg *k0sv1beta1.ClusterConfig, license *kotsv1beta1.License,
+	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, license *kotsv1beta1.License,
 ) (*ecv1beta1.Installation, error) {
 	// get the embedded cluster config
 	cfg := release.GetEmbeddedClusterConfig()
@@ -1039,8 +1066,6 @@ func recordInstallation(
 	// record the installation
 	installation, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
 		IsAirgap:       flags.isAirgap,
-		Proxy:          flags.proxy,
-		K0sConfig:      k0sCfg,
 		License:        license,
 		ConfigSpec:     cfgspec,
 		MetricsBaseURL: replicatedAppURL(),
@@ -1097,12 +1122,12 @@ func getAdminConsoleURL(hostname string, networkInterface string, port int) stri
 	}
 	ipaddr := cloudutils.TryDiscoverPublicIP()
 	if ipaddr == "" {
-		var err error
-		ipaddr, err = netutils.FirstValidAddress(networkInterface)
-		if err != nil {
-			if addr := os.Getenv("EC_PUBLIC_ADDRESS"); addr != "" {
-				ipaddr = addr
-			} else {
+		if addr := os.Getenv("EC_PUBLIC_ADDRESS"); addr != "" {
+			ipaddr = addr
+		} else {
+			var err error
+			ipaddr, err = netutils.FirstValidAddress(networkInterface)
+			if err != nil {
 				logrus.Errorf("Unable to determine node IP address: %v", err)
 				ipaddr = "NODE-IP-ADDRESS"
 			}

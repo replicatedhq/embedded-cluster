@@ -35,13 +35,13 @@ func (m *MockAddOns) CanEnableHA(ctx context.Context) (bool, string, error) {
 }
 
 // EnableHA mocks the EnableHA method
-func (m *MockAddOns) EnableHA(ctx context.Context, serviceCIDR string, inSpec ecv1beta1.InstallationSpec, spinner *spinner.MessageWriter) error {
-	args := m.Called(ctx, serviceCIDR, inSpec, spinner)
+func (m *MockAddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec, spinner *spinner.MessageWriter) error {
+	args := m.Called(ctx, inSpec, spinner)
 	return args.Error(0)
 }
 
 // EnableAdminConsoleHA mocks the EnableAdminConsoleHA method
-func (m *MockAddOns) EnableAdminConsoleHA(ctx context.Context, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo) error {
-	args := m.Called(ctx, isAirgap, serviceCIDR, proxy, cfgspec, licenseInfo)
+func (m *MockAddOns) EnableAdminConsoleHA(ctx context.Context, isAirgap bool, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo) error {
+	args := m.Called(ctx, isAirgap, cfgspec, licenseInfo)
 	return args.Error(0)
 }
