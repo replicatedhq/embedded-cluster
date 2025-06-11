@@ -2,7 +2,9 @@ package util
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -41,6 +43,9 @@ func InitBestRuntimeConfig(ctx context.Context) runtimeconfig.RuntimeConfig {
 func GetRuntimeConfigFromCluster(ctx context.Context) (runtimeconfig.RuntimeConfig, error) {
 	status, err := k0s.GetStatus(ctx)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("%s does not seem to be installed on this node", runtimeconfig.BinaryName())
+		}
 		return nil, fmt.Errorf("get k0s status: %w", err)
 	}
 
