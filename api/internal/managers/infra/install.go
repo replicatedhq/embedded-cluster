@@ -146,12 +146,10 @@ func (m *infraManager) install(ctx context.Context, config *types.InstallationCo
 		return fmt.Errorf("record installation: %w", err)
 	}
 
-	m.logger.Debugf("installing addons")
 	if err := m.installAddOns(ctx, config, proxy, license, kcli, mcli, hcli); err != nil {
 		return fmt.Errorf("install addons: %w", err)
 	}
 
-	m.logger.Debugf("installing extensions")
 	if err := m.installExtensions(ctx, hcli); err != nil {
 		return fmt.Errorf("install extensions: %w", err)
 	}
@@ -354,6 +352,7 @@ func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) 
 		}
 	}()
 
+	m.logger.Debugf("installing extensions")
 	if err := extensions.Install(ctx, hcli, nil); err != nil {
 		return fmt.Errorf("install extensions: %w", err)
 	}
