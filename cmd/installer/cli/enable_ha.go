@@ -18,7 +18,7 @@ import (
 
 // EnableHACmd is the command for enabling HA mode.
 func EnableHACmd(ctx context.Context, name string) *cobra.Command {
-	rc := runtimeconfig.New(nil)
+	var rc runtimeconfig.RuntimeConfig
 
 	cmd := &cobra.Command{
 		Use:   "enable-ha",
