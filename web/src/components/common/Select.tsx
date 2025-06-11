@@ -1,5 +1,5 @@
-import React from 'react';
-import { useConfig } from '../../contexts/ConfigContext';
+import React from "react";
+import { useConfig } from "../../contexts/ConfigContext";
 
 interface SelectOption {
   value: string;
@@ -18,6 +18,7 @@ interface SelectProps {
   helpText?: string;
   className?: string;
   labelClassName?: string;
+  placeholder?: string;
 }
 
 const Select: React.FC<SelectProps> = ({
@@ -30,8 +31,9 @@ const Select: React.FC<SelectProps> = ({
   disabled = false,
   error,
   helpText,
-  className = '',
-  labelClassName = '',
+  className = "",
+  labelClassName = "",
+  placeholder,
 }) => {
   const { prototypeSettings } = useConfig();
   const themeColor = prototypeSettings.themeColor;
@@ -49,15 +51,20 @@ const Select: React.FC<SelectProps> = ({
         disabled={disabled}
         required={required}
         className={`w-full px-3 py-2 border ${
-          error ? 'border-red-500' : 'border-gray-300'
-        } rounded-md shadow-sm focus:outline-none ${
-          disabled ? 'bg-gray-100 text-gray-500' : 'bg-white'
-        } ${className}`}
-        style={{
-          '--tw-ring-color': themeColor,
-          '--tw-ring-offset-color': themeColor,
-        } as React.CSSProperties}
+          error ? "border-red-500" : "border-gray-300"
+        } rounded-md shadow-sm focus:outline-none ${disabled ? "bg-gray-100 text-gray-500" : "bg-white"} ${className}`}
+        style={
+          {
+            "--tw-ring-color": themeColor,
+            "--tw-ring-offset-color": themeColor,
+          } as React.CSSProperties
+        }
       >
+        {placeholder && (
+          <option value="" disabled>
+            {placeholder}
+          </option>
+        )}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
