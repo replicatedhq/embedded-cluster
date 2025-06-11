@@ -40,7 +40,7 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 	}
 
 	addon := &openebs.OpenEBS{}
-	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, rc, domains, nil, nil); err != nil {
+	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, rc, domains, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 

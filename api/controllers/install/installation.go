@@ -48,7 +48,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config *t
 	c.rc.SetLocalArtifactMirrorPort(config.LocalArtifactMirrorPort)
 	c.rc.SetAdminConsolePort(config.AdminConsolePort)
 
-	if err := c.installationManager.ConfigureForInstall(ctx, config); err != nil {
+	if err := c.installationManager.ConfigureHost(ctx, config); err != nil {
 		return fmt.Errorf("configure: %w", err)
 	}
 

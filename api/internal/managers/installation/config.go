@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -195,7 +194,7 @@ func (m *installationManager) setCIDRDefaults(config *types.InstallationConfig) 
 	return nil
 }
 
-func (m *installationManager) ConfigureForInstall(ctx context.Context, config *types.InstallationConfig) error {
+func (m *installationManager) ConfigureHost(ctx context.Context, config *types.InstallationConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -211,12 +210,12 @@ func (m *installationManager) ConfigureForInstall(ctx context.Context, config *t
 		return fmt.Errorf("set running status: %w", err)
 	}
 
-	go m.configureForInstall(context.Background(), config)
+	go m.configureHost(context.Background(), config)
 
 	return nil
 }
 
-func (m *installationManager) configureForInstall(ctx context.Context, config *types.InstallationConfig) (finalErr error) {
+func (m *installationManager) configureHost(ctx context.Context, config *types.InstallationConfig) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
@@ -232,29 +231,13 @@ func (m *installationManager) configureForInstall(ctx context.Context, config *t
 		}
 	}()
 
-	// update process env vars from the runtime config
-	os.Setenv("KUBECONFIG", m.rc.PathToKubeConfig())
-	os.Setenv("TMPDIR", m.rc.EmbeddedClusterTmpSubDir())
-
-	// write the runtime config to disk
-	if err := m.rc.WriteToDisk(); err != nil {
-		return fmt.Errorf("unable to write runtime config to disk: %w", err)
-	}
-
-	// ensure correct permissions on the data directory
-	if err := os.Chmod(m.rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
-		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
-		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
-		m.logger.Debugf("unable to chmod embedded-cluster home dir: %s", err)
-	}
-
 	opts := hostutils.InitForInstallOptions{
 		LicenseFile:  m.licenseFile,
 		AirgapBundle: m.airgapBundle,
 		PodCIDR:      config.PodCIDR,
 		ServiceCIDR:  config.ServiceCIDR,
 	}
-	if err := m.hostUtils.ConfigureForInstall(ctx, m.rc, opts); err != nil {
+	if err := m.hostUtils.ConfigureHost(ctx, m.rc, opts); err != nil {
 		return fmt.Errorf("configure installation: %w", err)
 	}
 

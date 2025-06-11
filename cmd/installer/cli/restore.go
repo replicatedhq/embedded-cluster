@@ -365,29 +365,13 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		}
 	}
 
-	logrus.Debugf("configuring sysctl")
-	if err := hostutils.ConfigureSysctl(); err != nil {
-		logrus.Debugf("unable to configure sysctl: %v", err)
-	}
-
-	logrus.Debugf("configuring kernel modules")
-	if err := hostutils.ConfigureKernelModules(); err != nil {
-		logrus.Debugf("unable to configure kernel modules: %v", err)
-	}
-
-	logrus.Debugf("configuring network manager")
-	if err := hostutils.ConfigureNetworkManager(ctx, rc); err != nil {
-		return fmt.Errorf("unable to configure network manager: %w", err)
-	}
-
-	logrus.Debugf("configuring firewalld")
-	if err := hostutils.ConfigureFirewalld(ctx, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR); err != nil {
-		logrus.Debugf("unable to configure firewalld: %v", err)
-	}
-
-	logrus.Debugf("materializing binaries")
-	if err := hostutils.MaterializeFiles(rc, flags.airgapBundle); err != nil {
-		return fmt.Errorf("unable to materialize binaries: %w", err)
+	logrus.Debugf("configuring host")
+	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
+		AirgapBundle: flags.airgapBundle,
+		PodCIDR:      flags.cidrCfg.PodCIDR,
+		ServiceCIDR:  flags.cidrCfg.ServiceCIDR,
+	}); err != nil {
+		return fmt.Errorf("configure host: %w", err)
 	}
 
 	logrus.Debugf("running install preflights")

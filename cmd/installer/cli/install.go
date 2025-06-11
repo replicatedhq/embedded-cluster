@@ -322,19 +322,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 	rc.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
 	rc.SetAdminConsolePort(flags.adminConsolePort)
 
-	os.Setenv("KUBECONFIG", rc.PathToKubeConfig()) // this is needed for restore as well since it shares this function
-	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
-
-	if err := rc.WriteToDisk(); err != nil {
-		return fmt.Errorf("unable to write runtime config to disk: %w", err)
-	}
-
-	if err := os.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
-		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
-		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
-		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
-	}
-
 	return nil
 }
 
@@ -688,7 +675,7 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags, rc runtimecon
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
 
-	if err := hostutils.ConfigureForInstall(ctx, rc, hostutils.InitForInstallOptions{
+	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
 		LicenseFile:  flags.licenseFile,
 		AirgapBundle: flags.airgapBundle,
 		PodCIDR:      flags.cidrCfg.PodCIDR,

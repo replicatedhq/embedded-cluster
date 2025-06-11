@@ -74,7 +74,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 	t.Logf("%s installing openebs", formattedTime())
 	addon := &openebs.OpenEBS{}
-	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil, nil); err != nil {
+	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 
@@ -86,7 +86,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		ServiceCIDR: "10.96.0.0/12",
 		IsHA:        false,
 	}
-	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil, nil))
+	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil))
 
 	t.Logf("%s creating hostport service", formattedTime())
 	registryAddr := createHostPortService(t, clusterName, kubeconfig)
@@ -97,7 +97,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		IsHA:        false,
 		ServiceCIDR: "10.96.0.0/12",
 	}
-	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil, nil))
+	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil))
 
 	t.Logf("%s pushing image to registry", formattedTime())
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")

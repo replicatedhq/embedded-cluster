@@ -31,7 +31,7 @@ func TestVelero_HostCABundle(t *testing.T) {
 	}
 
 	addon := &velero.Velero{}
-	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, rc, domains, nil, nil); err != nil {
+	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, rc, domains, nil); err != nil {
 		t.Fatalf("failed to install velero: %v", err)
 	}
 

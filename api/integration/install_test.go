@@ -114,7 +114,7 @@ func TestConfigureInstallation(t *testing.T) {
 			name: "Valid config",
 			mockHostUtils: func() *hostutils.MockHostUtils {
 				mockHostUtils := &hostutils.MockHostUtils{}
-				mockHostUtils.On("ConfigureForInstall", mock.Anything, mock.Anything).Return(nil).Once()
+				mockHostUtils.On("ConfigureHost", mock.Anything, mock.Anything).Return(nil).Once()
 				return mockHostUtils
 			}(),
 			token: "TOKEN",

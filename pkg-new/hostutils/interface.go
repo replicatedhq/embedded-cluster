@@ -19,7 +19,7 @@ func Set(_h HostUtilsInterface) {
 }
 
 type HostUtilsInterface interface {
-	ConfigureForInstall(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error
+	ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error
 	ConfigureSysctl() error
 	ConfigureKernelModules() error
 	ConfigureNetworkManager(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
@@ -33,8 +33,8 @@ type HostUtilsInterface interface {
 // Convenience functions
 // TODO (@salah): can be removed once CLI uses API for host operations)
 
-func ConfigureForInstall(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
-	return h.ConfigureForInstall(ctx, rc, opts)
+func ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
+	return h.ConfigureHost(ctx, rc, opts)
 }
 
 func ConfigureSysctl() error {

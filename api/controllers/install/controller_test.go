@@ -121,7 +121,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ValidateConfig", config).Return(nil),
 					m.On("SetConfig", *config).Return(nil),
-					m.On("ConfigureForInstall", context.Background(), config).Return(nil),
+					m.On("ConfigureHost", context.Background(), config).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -159,7 +159,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ValidateConfig", config).Return(nil),
 					m.On("SetConfig", configWithCIDRs).Return(nil),
-					m.On("ConfigureForInstall", context.Background(), &configWithCIDRs).Return(nil),
+					m.On("ConfigureHost", context.Background(), &configWithCIDRs).Return(nil),
 				)
 			},
 			expectedErr: false,
