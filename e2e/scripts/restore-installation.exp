@@ -92,9 +92,9 @@ expect {
 }
 
 expect {
-    -timeout 300 "Velero is ready" {}
+    -timeout 300 "Disaster Recovery is ready" {}
     timeout {
-      puts "\n\nFailed to wait for Velero to be ready."
+      puts "\n\nFailed to wait for Disaster Recovery to be ready."
       exit 1
     }
 }
