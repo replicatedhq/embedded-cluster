@@ -27,7 +27,7 @@ func (c *InstallController) SetupInfra(ctx context.Context) error {
 		}
 	}
 
-	// Get current installation config and add it to options
+	// Get current installation config
 	config, err := c.installationManager.GetConfig()
 	if err != nil {
 		return fmt.Errorf("failed to read installation config: %w", err)
