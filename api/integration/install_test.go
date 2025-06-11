@@ -805,8 +805,15 @@ func TestInstallWithAPIClient(t *testing.T) {
 	// Create a runtimeconfig to be used in the install process
 	rc := runtimeconfig.New(nil)
 
+	// Create a mock hostutils
+	mockHostUtils := &hostutils.MockHostUtils{}
+	mockHostUtils.On("ConfigureHost", mock.Anything, mock.Anything).Return(nil)
+
 	// Create a config manager
-	installationManager := installation.NewInstallationManager(installation.WithRuntimeConfig(rc))
+	installationManager := installation.NewInstallationManager(
+		installation.WithRuntimeConfig(rc),
+		installation.WithHostUtils(mockHostUtils),
+	)
 
 	// Create an install controller with the config manager
 	installController, err := install.NewInstallController(
@@ -904,6 +911,9 @@ func TestInstallWithAPIClient(t *testing.T) {
 		assert.Equal(t, config.DataDirectory, newConfig.DataDirectory)
 		assert.Equal(t, config.AdminConsolePort, newConfig.AdminConsolePort)
 		assert.Equal(t, config.NetworkInterface, newConfig.NetworkInterface)
+
+		// Verify host configuration was performed
+		mockHostUtils.AssertExpectations(t)
 	})
 
 	// Test ConfigureInstallation validation error
