@@ -481,10 +481,10 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 		flags.networkInterface = installConfig.NetworkInterface
 		flags.adminConsolePort = installConfig.AdminConsolePort
 		flags.localArtifactMirrorPort = installConfig.LocalArtifactMirrorPort
-	}
 
-	if err := updateRuntimeConfigFromInstallCmdFlags(flags, rc); err != nil {
-		return fmt.Errorf("unable to update runtime config from install cmd flags: %w", err)
+		if err := updateRuntimeConfigFromInstallCmdFlags(flags, rc); err != nil {
+			return fmt.Errorf("unable to update runtime config from install cmd flags: %w", err)
+		}
 	}
 
 	os.Setenv("KUBECONFIG", rc.PathToKubeConfig()) // this is needed for restore as well since it shares this function
