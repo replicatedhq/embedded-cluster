@@ -1159,6 +1159,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	// Use an alternate data directory
 	withEnv := map[string]string{
 		"EMBEDDED_CLUSTER_BASE_DIR": "/var/lib/ec",
+		"EMBEDDED_CLUSTER_BIN":      "embedded-cluster",
 	}
 
 	tc := cmx.NewCluster(&cmx.ClusterInput{

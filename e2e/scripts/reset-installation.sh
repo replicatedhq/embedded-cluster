@@ -7,7 +7,7 @@ DIR=/usr/local/bin
 main() {
     local additional_flags=("$@")
 
-    if ! embedded-cluster reset --yes "${additional_flags[@]}" | tee /tmp/log ; then
+    if ! "${EMBEDDED_CLUSTER_BASE_DIR}/bin/${EMBEDDED_CLUSTER_BIN}" reset --yes "${additional_flags[@]}" | tee /tmp/log ; then
         echo "Failed to uninstall embedded-cluster"
         exit 1
     fi
