@@ -15,6 +15,23 @@ func (m *infraManager) SetStatus(status types.Status) error {
 	return m.infraStore.SetStatus(status)
 }
 
+func (m *infraManager) installDidRun() (bool, error) {
+	currStatus, err := m.GetStatus()
+	if err != nil {
+		return false, fmt.Errorf("get status: %w", err)
+	}
+	if currStatus == nil {
+		return false, nil
+	}
+	if currStatus.State == "" {
+		return false, nil
+	}
+	if currStatus.State == types.StatePending {
+		return false, nil
+	}
+	return true, nil
+}
+
 func (m *infraManager) setStatus(state types.State, description string) error {
 	return m.SetStatus(types.Status{
 		State:       state,
