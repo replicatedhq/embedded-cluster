@@ -24,7 +24,7 @@ func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeC
 
 	// write the runtime config to disk
 	if err := rc.WriteToDisk(); err != nil {
-		return fmt.Errorf("unable to write runtime config to disk: %w", err)
+		return fmt.Errorf("write runtime config to disk: %w", err)
 	}
 
 	// ensure correct permissions on the data directory
@@ -43,18 +43,18 @@ func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeC
 		h.logger.Debugf("copy license file to %s", rc.EmbeddedClusterHomeDirectory())
 		if err := helpers.CopyFile(opts.LicenseFile, filepath.Join(rc.EmbeddedClusterHomeDirectory(), "license.yaml"), 0400); err != nil {
 			// We have decided not to report this error
-			h.logger.Warnf("copy license file to %s: %v", rc.EmbeddedClusterHomeDirectory(), err)
+			h.logger.Warnf("unable to copy license file to %s: %v", rc.EmbeddedClusterHomeDirectory(), err)
 		}
 	}
 
 	h.logger.Debugf("configuring sysctl")
 	if err := h.ConfigureSysctl(); err != nil {
-		h.logger.Debugf("configure sysctl: %v", err)
+		h.logger.Debugf("unable to configure sysctl: %v", err)
 	}
 
 	h.logger.Debugf("configuring kernel modules")
 	if err := h.ConfigureKernelModules(); err != nil {
-		h.logger.Debugf("configure kernel modules: %v", err)
+		h.logger.Debugf("unable to configure kernel modules: %v", err)
 	}
 
 	h.logger.Debugf("configuring network manager")
@@ -64,7 +64,7 @@ func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeC
 
 	h.logger.Debugf("configuring firewalld")
 	if err := h.ConfigureFirewalld(ctx, opts.PodCIDR, opts.ServiceCIDR); err != nil {
-		h.logger.Debugf("configure firewalld: %v", err)
+		h.logger.Debugf("unable to configure firewalld: %v", err)
 	}
 
 	return nil

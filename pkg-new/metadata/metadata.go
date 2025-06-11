@@ -32,12 +32,12 @@ func CreateVersionMetadataConfigmap(ctx context.Context, kcli client.Client) err
 	// This metadata should be the same as the artifact from the release without the vendor customizations
 	metadata, err := GatherVersionMetadata(nil)
 	if err != nil {
-		return fmt.Errorf("unable to gather release metadata: %w", err)
+		return fmt.Errorf("gather release metadata: %w", err)
 	}
 
 	data, err := json.Marshal(metadata)
 	if err != nil {
-		return fmt.Errorf("unable to marshal release metadata: %w", err)
+		return fmt.Errorf("marshal release metadata: %w", err)
 	}
 
 	// we trim out the prefix v from the version and then slugify it, we use
@@ -61,7 +61,7 @@ func CreateVersionMetadataConfigmap(ctx context.Context, kcli client.Client) err
 	}
 
 	if err := kcli.Create(ctx, configmap); err != nil {
-		return fmt.Errorf("unable to create version metadata config map: %w", err)
+		return fmt.Errorf("create version metadata config map: %w", err)
 	}
 	return nil
 }
@@ -91,7 +91,7 @@ func GatherVersionMetadata(channelRelease *release.ChannelRelease) (*types.Relea
 
 	sha, err := goods.K0sBinarySHA256()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get k0s binary sha256: %w", err)
+		return nil, fmt.Errorf("get k0s binary sha256: %w", err)
 	}
 
 	artifacts := map[string]string{
@@ -118,7 +118,7 @@ func GatherVersionMetadata(channelRelease *release.ChannelRelease) (*types.Relea
 
 	chtconfig, repconfig, err := addons.GenerateChartConfigs()
 	if err != nil {
-		return nil, fmt.Errorf("unable to generate chart configs: %w", err)
+		return nil, fmt.Errorf("generate chart configs: %w", err)
 	}
 
 	additionalCharts := []ecv1beta1.Chart{}
