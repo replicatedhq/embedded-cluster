@@ -50,6 +50,14 @@ func (m *infraManager) Install(ctx context.Context, config *types.InstallationCo
 		return AlreadyInstalledError()
 	}
 
+	currStatus, err := m.GetStatus()
+	if err != nil {
+		return fmt.Errorf("get status: %w", err)
+	}
+	if currStatus != nil && currStatus.State != types.StatePending {
+		return fmt.Errorf("installation can only be run once")
+	}
+
 	if config == nil {
 		return fmt.Errorf("installation config is required")
 	}
