@@ -25,9 +25,7 @@ type infraManager struct {
 	infraStore   Store
 	rc           runtimeconfig.RuntimeConfig
 	password     string
-	tlsCertBytes []byte
-	tlsKeyBytes  []byte
-	hostname     string
+	tlsConfig    types.TLSConfig
 	licenseFile  string
 	airgapBundle string
 	configValues string
@@ -69,21 +67,9 @@ func WithPassword(password string) InfraManagerOption {
 	}
 }
 
-func WithTLSCertBytes(tlsCertBytes []byte) InfraManagerOption {
+func WithTLSConfig(tlsConfig types.TLSConfig) InfraManagerOption {
 	return func(c *infraManager) {
-		c.tlsCertBytes = tlsCertBytes
-	}
-}
-
-func WithTLSKeyBytes(tlsKeyBytes []byte) InfraManagerOption {
-	return func(c *infraManager) {
-		c.tlsKeyBytes = tlsKeyBytes
-	}
-}
-
-func WithHostname(hostname string) InfraManagerOption {
-	return func(c *infraManager) {
-		c.hostname = hostname
+		c.tlsConfig = tlsConfig
 	}
 }
 

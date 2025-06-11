@@ -43,9 +43,7 @@ type InstallController struct {
 	metricsReporter      metrics.ReporterInterface
 	releaseData          *release.ReleaseData
 	password             string
-	tlsCertBytes         []byte
-	tlsKeyBytes          []byte
-	hostname             string
+	tlsConfig            types.TLSConfig
 	licenseFile          string
 	airgapBundle         string
 	configValues         string
@@ -91,21 +89,9 @@ func WithPassword(password string) InstallControllerOption {
 	}
 }
 
-func WithTLSCertBytes(tlsCertBytes []byte) InstallControllerOption {
+func WithTLSConfig(tlsConfig types.TLSConfig) InstallControllerOption {
 	return func(c *InstallController) {
-		c.tlsCertBytes = tlsCertBytes
-	}
-}
-
-func WithTLSKeyBytes(tlsKeyBytes []byte) InstallControllerOption {
-	return func(c *InstallController) {
-		c.tlsKeyBytes = tlsKeyBytes
-	}
-}
-
-func WithHostname(hostname string) InstallControllerOption {
-	return func(c *InstallController) {
-		c.hostname = hostname
+		c.tlsConfig = tlsConfig
 	}
 }
 
@@ -194,9 +180,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithLogger(controller.logger),
 			infra.WithInfra(controller.install.Steps.Infra),
 			infra.WithPassword(controller.password),
-			infra.WithTLSCertBytes(controller.tlsCertBytes),
-			infra.WithTLSKeyBytes(controller.tlsKeyBytes),
-			infra.WithHostname(controller.hostname),
+			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicenseFile(controller.licenseFile),
 			infra.WithAirgapBundle(controller.airgapBundle),
 			infra.WithConfigValues(controller.configValues),

@@ -31,9 +31,7 @@ type apiConfig struct {
 	Logger          logrus.FieldLogger
 	MetricsReporter metrics.ReporterInterface
 	Password        string
-	TLSCertBytes    []byte
-	TLSKeyBytes     []byte
-	Hostname        string
+	TLSConfig       apitypes.TLSConfig
 	ManagerPort     int
 	LicenseFile     string
 	AirgapBundle    string
@@ -86,9 +84,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		api.WithRuntimeConfig(config.RuntimeConfig),
 		api.WithMetricsReporter(config.MetricsReporter),
 		api.WithReleaseData(config.ReleaseData),
-		api.WithTLSCertBytes(config.TLSCertBytes),
-		api.WithTLSKeyBytes(config.TLSKeyBytes),
-		api.WithHostname(config.Hostname),
+		api.WithTLSConfig(config.TLSConfig),
 		api.WithLicenseFile(config.LicenseFile),
 		api.WithAirgapBundle(config.AirgapBundle),
 		api.WithConfigValues(config.ConfigValues),

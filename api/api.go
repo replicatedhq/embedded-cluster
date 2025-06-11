@@ -45,9 +45,7 @@ type API struct {
 	installController install.Controller
 	rc                runtimeconfig.RuntimeConfig
 	releaseData       *release.ReleaseData
-	tlsCertBytes      []byte
-	tlsKeyBytes       []byte
-	hostname          string
+	tlsConfig         types.TLSConfig
 	licenseFile       string
 	airgapBundle      string
 	configValues      string
@@ -107,21 +105,9 @@ func WithReleaseData(releaseData *release.ReleaseData) APIOption {
 	}
 }
 
-func WithTLSCertBytes(tlsCertBytes []byte) APIOption {
+func WithTLSConfig(tlsConfig types.TLSConfig) APIOption {
 	return func(a *API) {
-		a.tlsCertBytes = tlsCertBytes
-	}
-}
-
-func WithTLSKeyBytes(tlsKeyBytes []byte) APIOption {
-	return func(a *API) {
-		a.tlsKeyBytes = tlsKeyBytes
-	}
-}
-
-func WithHostname(hostname string) APIOption {
-	return func(a *API) {
-		a.hostname = hostname
+		a.tlsConfig = tlsConfig
 	}
 }
 
@@ -199,9 +185,7 @@ func New(password string, opts ...APIOption) (*API, error) {
 			install.WithMetricsReporter(api.metricsReporter),
 			install.WithReleaseData(api.releaseData),
 			install.WithPassword(password),
-			install.WithTLSCertBytes(api.tlsCertBytes),
-			install.WithTLSKeyBytes(api.tlsKeyBytes),
-			install.WithHostname(api.hostname),
+			install.WithTLSConfig(api.tlsConfig),
 			install.WithLicenseFile(api.licenseFile),
 			install.WithAirgapBundle(api.airgapBundle),
 			install.WithConfigValues(api.configValues),

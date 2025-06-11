@@ -364,15 +364,17 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 		// MetricsReporter: installReporter,
 		RuntimeConfig: rc,
 		Password:      flags.adminConsolePassword,
-		TLSCertBytes:  flags.tlsCertBytes,
-		TLSKeyBytes:   flags.tlsKeyBytes,
-		Hostname:      flags.hostname,
-		ManagerPort:   flags.managerPort,
-		LicenseFile:   flags.licenseFile,
-		AirgapBundle:  flags.airgapBundle,
-		ConfigValues:  flags.configValues,
-		ReleaseData:   release.GetReleaseData(),
-		K0sOverrides:  flags.overrides,
+		TLSConfig: apitypes.TLSConfig{
+			CertBytes: flags.tlsCertBytes,
+			KeyBytes:  flags.tlsKeyBytes,
+			Hostname:  flags.hostname,
+		},
+		ManagerPort:  flags.managerPort,
+		LicenseFile:  flags.licenseFile,
+		AirgapBundle: flags.airgapBundle,
+		ConfigValues: flags.configValues,
+		ReleaseData:  release.GetReleaseData(),
+		K0sOverrides: flags.overrides,
 	}
 
 	if err := startAPI(ctx, flags.tlsCert, apiConfig); err != nil {
