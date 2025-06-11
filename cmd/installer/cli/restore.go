@@ -117,7 +117,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	addS3Flags(cmd, &s3Store)
 	cmd.Flags().BoolVar(&skipStoreValidation, "skip-store-validation", false, "Skip validation of the backup storage location")
 
-	if err := addInstallFlags(cmd, &flags); err != nil {
+	if err := addInstallFlags(cmd, &flags, ecv1beta1.DefaultDataDir); err != nil {
 		panic(err)
 	}
 

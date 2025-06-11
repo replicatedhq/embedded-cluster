@@ -134,14 +134,79 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 					installReporter.ReportInstallationFailed(ctx, err)
 				}
 
-				// If in guided UI mode, keep the process running until interrupted
-				if flags.enableManagerExperience {
-					logrus.Info("")
-					logrus.Errorf("Installation failed: %v", err)
-					logrus.Error("Press Ctrl+C to exit.")
-					logrus.Info("")
-					<-ctx.Done()
+				return err
+			}
+
+			installReporter.ReportInstallationSucceeded(ctx)
+
+			return nil
+		},
+	}
+
+	if err := addInstallFlags(cmd, &flags, ecv1beta1.DefaultDataDir); err != nil {
+		panic(err)
+	}
+	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {
+		panic(err)
+	}
+
+	cmd.AddCommand(InstallManagerExperienceCmd(ctx, name))
+	cmd.AddCommand(InstallRunPreflightsCmd(ctx, name))
+
+	return cmd
+}
+
+// InstallCmd returns a cobra command for installing the embedded cluster.
+func InstallManagerExperienceCmd(ctx context.Context, name string) *cobra.Command {
+	var flags InstallCmdFlags
+	flags.enableManagerExperience = true
+
+	ctx, cancel := context.WithCancel(ctx)
+	rc := runtimeconfig.New(nil)
+	rc.SetDataDir(filepath.Join("/var/lib", runtimeconfig.BinaryName()))
+
+	cmd := &cobra.Command{
+		Use:    "manager-experience",
+		Hidden: true,
+		Short:  fmt.Sprintf("Install %s (manager experience)", name),
+		PostRun: func(cmd *cobra.Command, args []string) {
+			rc.Cleanup()
+			cancel() // Cancel context when command completes
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := verifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
+				return err
+			}
+			if err := preRunInstall(cmd, &flags, rc); err != nil {
+				return err
+			}
+
+			clusterID := metrics.ClusterID()
+			installReporter := newInstallReporter(
+				replicatedAppURL(), clusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
+				flags.license.Spec.LicenseID, flags.license.Spec.AppSlug,
+			)
+			installReporter.ReportInstallationStarted(ctx)
+
+			// Setup signal handler with the metrics reporter cleanup function
+			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
+				installReporter.ReportSignalAborted(ctx, sig)
+			})
+
+			if err := runInstall(cmd.Context(), flags, rc, installReporter); err != nil {
+				// Check if this is an interrupt error from the terminal
+				if errors.Is(err, terminal.InterruptErr) {
+					installReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+				} else {
+					installReporter.ReportInstallationFailed(ctx, err)
 				}
+
+				// If in guided UI mode, keep the process running until interrupted
+				logrus.Info("")
+				logrus.Errorf("Installation failed: %v", err)
+				logrus.Error("Press Ctrl+C to exit.")
+				logrus.Info("")
+				<-ctx.Done()
 
 				return err
 			}
@@ -149,18 +214,18 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			installReporter.ReportInstallationSucceeded(ctx)
 
 			// If in guided UI mode, keep the process running until interrupted
-			if flags.enableManagerExperience {
-				logrus.Info("")
-				logrus.Info("Installation complete. Press Ctrl+C to exit.")
-				logrus.Info("")
-				<-ctx.Done()
-			}
+			logrus.Info("")
+			logrus.Info("Installation complete. Press Ctrl+C to exit.")
+			logrus.Info("")
+			<-ctx.Done()
 
 			return nil
 		},
 	}
 
-	if err := addInstallFlags(cmd, &flags); err != nil {
+	// Override the default data directory for the manager experience using the app slug
+	dataDir := filepath.Join("/var/lib", runtimeconfig.BinaryName())
+	if err := addInstallFlags(cmd, &flags, dataDir); err != nil {
 		panic(err)
 	}
 	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {
@@ -170,14 +235,12 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		panic(err)
 	}
 
-	cmd.AddCommand(InstallRunPreflightsCmd(ctx, name))
-
 	return cmd
 }
 
-func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
+func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags, defaultDataDir string) error {
 	cmd.Flags().StringVar(&flags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
-	cmd.Flags().StringVar(&flags.dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
+	cmd.Flags().StringVar(&flags.dataDir, "data-dir", defaultDataDir, "Path to the data directory")
 	cmd.Flags().IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
 	cmd.Flags().BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
@@ -228,15 +291,11 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) err
 }
 
 func addManagerExperienceFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
-	cmd.Flags().BoolVar(&flags.enableManagerExperience, "manager-experience", false, "Run the browser-based installation experience.")
 	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
 	cmd.Flags().StringVar(&flags.tlsCertFile, "tls-cert", "", "Path to the TLS certificate file")
 	cmd.Flags().StringVar(&flags.tlsKeyFile, "tls-key", "", "Path to the TLS key file")
 	cmd.Flags().StringVar(&flags.hostname, "hostname", "", "Hostname to use for TLS configuration")
 
-	if err := cmd.Flags().MarkHidden("manager-experience"); err != nil {
-		return err
-	}
 	if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
 		return err
 	}
@@ -291,6 +350,45 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 			return err
 		}
 	}
+	proxy, err := parseProxyFlags(cmd)
+	if err != nil {
+		return err
+	}
+	flags.proxy = proxy
+
+	if err := verifyProxyConfig(flags.proxy, prompts.New(), flags.assumeYes); err != nil {
+		return err
+	}
+	logrus.Debug("User confirmed prompt to proceed installing with `http_proxy` set and `https_proxy` unset")
+
+	if err := validateCIDRFlags(cmd); err != nil {
+		return err
+	}
+
+	// parse the various cidr flags to make sure we have exactly what we want
+	cidrCfg, err := getCIDRConfig(cmd)
+	if err != nil {
+		return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+	}
+	flags.cidrCfg = cidrCfg
+
+	// if a network interface flag was not provided, attempt to discover it
+	if flags.networkInterface == "" {
+		autoInterface, err := newconfig.DetermineBestNetworkInterface()
+		if err == nil {
+			flags.networkInterface = autoInterface
+		}
+	}
+
+	if flags.localArtifactMirrorPort != 0 && flags.adminConsolePort != 0 {
+		if flags.localArtifactMirrorPort == flags.adminConsolePort {
+			return fmt.Errorf("local artifact mirror port cannot be the same as admin console port")
+		}
+	}
+
+	if err := updateRuntimeConfigFromInstallCmdFlags(flags, rc); err != nil {
+		return fmt.Errorf("unable to update runtime config from install cmd flags: %w", err)
+	}
 
 	if flags.enableManagerExperience {
 		configChan := make(chan *apitypes.InstallationConfig)
@@ -328,11 +426,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 			flags.tlsCertBytes = certData
 			flags.tlsKeyBytes = keyData
 		}
-
-		// TODO: move this
-		// The default data directory for the manager experience uses the slug from the binary name
-		rc.SetDataDir(filepath.Join("/var/lib", runtimeconfig.BinaryName()))
-		logrus.Debugf("using data directory: %s", rc.EmbeddedClusterHomeDirectory())
 
 		apiConfig := apiConfig{
 			// TODO (@salah): implement reporting in api
@@ -382,49 +475,33 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 			flags.cidrCfg.GlobalCIDR = &installConfig.GlobalCIDR
 		}
 
+		flags.dataDir = installConfig.DataDirectory
 		flags.networkInterface = installConfig.NetworkInterface
 		flags.adminConsolePort = installConfig.AdminConsolePort
-		flags.dataDir = installConfig.DataDirectory
 		flags.localArtifactMirrorPort = installConfig.LocalArtifactMirrorPort
-
-	} else {
-		proxy, err := parseProxyFlags(cmd)
-		if err != nil {
-			return err
-		}
-		flags.proxy = proxy
-
-		if err := verifyProxyConfig(flags.proxy, prompts.New(), flags.assumeYes); err != nil {
-			return err
-		}
-		logrus.Debug("User confirmed prompt to proceed installing with `http_proxy` set and `https_proxy` unset")
-
-		if err := validateCIDRFlags(cmd); err != nil {
-			return err
-		}
-
-		// parse the various cidr flags to make sure we have exactly what we want
-		cidrCfg, err := getCIDRConfig(cmd)
-		if err != nil {
-			return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
-		}
-		flags.cidrCfg = cidrCfg
-
-		// if a network interface flag was not provided, attempt to discover it
-		if flags.networkInterface == "" {
-			autoInterface, err := newconfig.DetermineBestNetworkInterface()
-			if err == nil {
-				flags.networkInterface = autoInterface
-			}
-		}
-
-		if flags.localArtifactMirrorPort != 0 && flags.adminConsolePort != 0 {
-			if flags.localArtifactMirrorPort == flags.adminConsolePort {
-				return fmt.Errorf("local artifact mirror port cannot be the same as admin console port")
-			}
-		}
 	}
 
+	if err := updateRuntimeConfigFromInstallCmdFlags(flags, rc); err != nil {
+		return fmt.Errorf("unable to update runtime config from install cmd flags: %w", err)
+	}
+
+	os.Setenv("KUBECONFIG", rc.PathToKubeConfig()) // this is needed for restore as well since it shares this function
+	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+
+	if err := rc.WriteToDisk(); err != nil {
+		return fmt.Errorf("unable to write runtime config to disk: %w", err)
+	}
+
+	if err := os.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
+		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
+		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
+	}
+
+	return nil
+}
+
+func updateRuntimeConfigFromInstallCmdFlags(flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
 	hostCABundlePath, err := findHostCABundle()
 	if err != nil {
 		return fmt.Errorf("unable to find host CA bundle: %w", err)
@@ -449,19 +526,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 	rc.SetHostCABundlePath(hostCABundlePath)
 	rc.SetNetworkSpec(networkSpec)
 	rc.SetProxySpec(flags.proxy)
-
-	os.Setenv("KUBECONFIG", rc.PathToKubeConfig()) // this is needed for restore as well since it shares this function
-	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
-
-	if err := rc.WriteToDisk(); err != nil {
-		return fmt.Errorf("unable to write runtime config to disk: %w", err)
-	}
-
-	if err := os.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
-		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
-		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
-		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
-	}
 
 	return nil
 }

@@ -81,6 +81,14 @@ func GetRuntimeConfigFromFilesystem() (runtimeconfig.RuntimeConfig, error) {
 		return rc, nil
 	}
 
+	// Handle new manager-experience data dir
+	rc.SetDataDir(filepath.Join("/var/lib", runtimeconfig.BinaryName()))
+	_, err = os.Stat(filepath.Join(rc.EmbeddedClusterK0sSubDir(), "pki/ca.crt"))
+	if err == nil {
+		logrus.Debugf("Got runtime config from filesystem with k0s data dir %s", rc.EmbeddedClusterK0sSubDir())
+		return rc, nil
+	}
+
 	// Handle versions prior to consolidation of data dirs
 	rc.Set(&ecv1beta1.RuntimeConfigSpec{
 		DataDir:                ecv1beta1.DefaultDataDir,
