@@ -895,7 +895,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to remove embedded-cluster binary on worker node: %v", err)
 	}
-	line = []string{"rm", "/var/lib/embedded-cluster/bin/embedded-cluster-smoke-test-staging-app"}
+	line = []string{"rm", "/var/lib/embedded-cluster/bin/embedded-cluster"}
 	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
 	}
