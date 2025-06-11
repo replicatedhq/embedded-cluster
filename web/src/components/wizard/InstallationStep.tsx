@@ -56,12 +56,12 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
   }, [infraStatusResponse]);
 
   const getProgress = () => {
-    const totalComponents = Object.keys(infraStatusResponse?.components || {}).length;
-    if (totalComponents === 0) {
+    const components = infraStatusResponse?.components || [];
+    if (components.length === 0) {
       return 0;
     }
-    const completedComponents = Object.values(infraStatusResponse?.components || {}).filter(component => component.status?.state === 'Succeeded').length;
-    return Math.round((completedComponents / totalComponents) * 100);
+    const completedComponents = components.filter(component => component.status?.state === 'Succeeded').length;
+    return Math.round((completedComponents / components.length) * 100);
   }
 
   const renderInfrastructurePhase = () => (
@@ -74,9 +74,9 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
       />
 
       <div className="space-y-2 divide-y divide-gray-200">
-        {Object.entries(infraStatusResponse?.components || {}).map(([key, component]) => (
+        {(infraStatusResponse?.components || []).map((component, index) => (
           <StatusIndicator 
-            key={key}
+            key={index}
             title={component.name} 
             status={component.status?.state}
             themeColor={themeColor}

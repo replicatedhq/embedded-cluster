@@ -682,7 +682,7 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags, rc runtimecon
 		ServiceCIDR:  flags.cidrCfg.ServiceCIDR,
 	}); err != nil {
 		spinner.ErrorClosef("Initialization failed")
-		return fmt.Errorf("configure host for install: %w", err)
+		return fmt.Errorf("configure host: %w", err)
 	}
 
 	spinner.Closef("Initialization complete")

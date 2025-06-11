@@ -1,5 +1,5 @@
 export interface InfraStatusResponse {
-  components: { [key: string]: InfraComponent };
+  components: InfraComponent[];
   status: InfraStatus;
   logs: string[];
 }

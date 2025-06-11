@@ -34,18 +34,20 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ title, status, themeC
       statusText = 'Pending';
   }
 
+  const testId = title.toLowerCase().replace(/\s+/g, '-');
+
   return (
-    <div className="flex items-center space-x-4 py-3">
+    <div className="flex items-center space-x-4 py-3" data-testid={`status-indicator-${testId}`}>
       <div className="flex-shrink-0 text-gray-400">
         <Server className="w-5 h-5" />
       </div>
       <div className="flex-grow">
-        <h4 className="text-sm font-medium text-gray-900">{title}</h4>
+        <h4 data-testid="status-title" className="text-sm font-medium text-gray-900">{title}</h4>
       </div>
       <div className="text-sm font-medium">
         <div className="flex items-center">
           <Icon style={{ color: statusColor }} className={`w-5 h-5 ${status === 'Running' ? 'animate-spin' : ''}`} />
-          <span style={{ color: statusColor }} className="ml-2">{statusText}</span>
+          <span data-testid="status-text" style={{ color: statusColor }} className="ml-2">{statusText}</span>
         </div>
       </div>
     </div>
