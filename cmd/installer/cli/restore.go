@@ -18,11 +18,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
@@ -43,6 +45,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/metadata"
 	k8snet "k8s.io/utils/net"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -415,23 +418,10 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	installOpts, err := getRestoreAddonInstallOpts(flags, rc)
-	if err != nil {
-		return fmt.Errorf("unable to get addon install options: %w", err)
-	}
-
-	addOns := addons.New(
-		addons.WithLogFunc(logrus.Debugf),
-		addons.WithKubernetesClient(kcli),
-		addons.WithMetadataClient(mcli),
-		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
-	)
-
 	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("installing addons")
-	if err := addOns.Install(ctx, *installOpts); err != nil {
+	if err := installAddonsForRestore(ctx, kcli, mcli, hcli, rc, flags); err != nil {
 		return err
 	}
 
@@ -447,6 +437,54 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		Namespace:       runtimeconfig.KotsadmNamespace,
 	}); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func installAddonsForRestore(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, flags InstallCmdFlags) error {
+	embCfg := release.GetEmbeddedClusterConfig()
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
+
+	progressChan := make(chan addontypes.AddOnProgress)
+	defer close(progressChan)
+
+	var loading *spinner.MessageWriter
+	go func() {
+		for progress := range progressChan {
+			switch progress.Status.State {
+			case apitypes.StateRunning:
+				loading = spinner.Start()
+				loading.Infof("Installing %s", progress.Name)
+			case apitypes.StateSucceeded:
+				loading.Closef("%s is ready", progress.Name)
+			case apitypes.StateFailed:
+				loading.ErrorClosef("Failed to install %s", progress.Name)
+			}
+		}
+	}()
+
+	addOns := addons.New(
+		addons.WithLogFunc(logrus.Debugf),
+		addons.WithKubernetesClient(kcli),
+		addons.WithMetadataClient(mcli),
+		addons.WithHelmClient(hcli),
+		addons.WithRuntimeConfig(rc),
+		addons.WithProgressChannel(progressChan),
+	)
+
+	if err := addOns.Install(ctx, addons.InstallOptions{
+		IsAirgap:           flags.airgapBundle != "",
+		Proxy:              flags.proxy,
+		ServiceCIDR:        flags.cidrCfg.ServiceCIDR,
+		IsRestore:          true,
+		EmbeddedConfigSpec: embCfgSpec,
+		EndUserConfigSpec:  nil, // TODO: support for end user config overrides
+	}); err != nil {
+		return fmt.Errorf("install addons: %w", err)
 	}
 
 	return nil
