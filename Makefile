@@ -340,7 +340,7 @@ create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
 create-node%: MANAGER_NODE_PORT = 30080
 create-node%: K0S_DATA_DIR = /var/lib/embedded-cluster/k0s
-create-node%: K0S_ME_DATA_DIR = /var/lib/embedded-cluster-embedded-cluster-smoke-test-staging-app/k0s
+create-node%: K0S_ME_DATA_DIR = /var/lib/embedded-cluster-smoke-test-staging-app/k0s
 create-node%:
 	@docker run -d \
 		--name node$* \

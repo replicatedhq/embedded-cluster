@@ -192,7 +192,7 @@ func (a *API) setInstallStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.installController.SetStatus(r.Context(), status); err != nil {
+	if err := a.installController.SetStatus(r.Context(), &status); err != nil {
 		a.logError(r, err, "failed to set install status")
 		a.jsonError(w, r, err)
 		return
