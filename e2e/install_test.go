@@ -418,6 +418,10 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
+	withEnv := map[string]string{
+		"EMBEDDED_CLUSTER_BIN": "embedded-cluster",
+	}
+
 	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 
 	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
@@ -426,6 +430,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 
 	installSingleNodeWithOptions(t, tc, installOptions{
 		version: initialVersion,
+		withEnv: withEnv,
 	})
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
@@ -435,6 +440,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
 		version:    initialVersion,
 		k8sVersion: k8sVersionPreviousStable(),
+		withEnv:    withEnv,
 	})
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
@@ -453,6 +459,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
 		version: appUpgradeVersion,
+		withEnv: withEnv,
 	})
 
 	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))

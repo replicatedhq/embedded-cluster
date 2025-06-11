@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export EMBEDDED_CLUSTER_BIN="${EMBEDDED_CLUSTER_BIN:-embedded-cluster}"
+export EMBEDDED_CLUSTER_BIN="${EMBEDDED_CLUSTER_BIN:-embedded-cluster-smoke-test-staging-app}"
 export EMBEDDED_CLUSTER_BASE_DIR="${EMBEDDED_CLUSTER_BASE_DIR:-/var/lib/embedded-cluster}"
 export PATH="$PATH:${EMBEDDED_CLUSTER_BASE_DIR}/bin"
 export K0SCONFIG=/etc/k0s/k0s.yaml
@@ -300,12 +300,12 @@ ensure_version_metadata_present() {
 # ensure_binary_copy verifies that the installer is copying itself to the default location of
 # banaries in the node.
 ensure_binary_copy() {
-    if ! ls "${EMBEDDED_CLUSTER_BASE_DIR}/bin/embedded-cluster-smoke-test-staging-app" ; then
+    if ! ls "${EMBEDDED_CLUSTER_BASE_DIR}/bin/${EMBEDDED_CLUSTER_BIN}" ; then
         echo "embedded-cluster binary not found on default location"
         ls -la "${EMBEDDED_CLUSTER_BASE_DIR}/bin"
         return 1
     fi
-    if ! "${EMBEDDED_CLUSTER_BASE_DIR}/bin/embedded-cluster-smoke-test-staging-app" version ; then
+    if ! "${EMBEDDED_CLUSTER_BASE_DIR}/bin/${EMBEDDED_CLUSTER_BIN}" version ; then
         echo "embedded-cluster binary is not executable"
         return 1
     fi
