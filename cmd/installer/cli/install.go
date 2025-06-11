@@ -386,6 +386,8 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 		}
 	}
 
+	// update the runtime config with the install cmd flags so that the manager experience will
+	// respect config from the user as defaults
 	if err := updateRuntimeConfigFromInstallCmdFlags(flags, rc); err != nil {
 		return fmt.Errorf("unable to update runtime config from install cmd flags: %w", err)
 	}
