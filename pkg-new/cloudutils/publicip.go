@@ -1,4 +1,4 @@
-package runtimeconfig
+package cloudutils
 
 import (
 	"encoding/json"
@@ -19,42 +19,41 @@ func init() {
 	noProxyTransport.Proxy = nil // no proxy
 }
 
-// TryDiscoverPublicIP tries to discover the public IP of the node by querying
-// a list of known providers. If the public IP cannot be discovered, an empty
-// string is returned.
-func TryDiscoverPublicIP() string {
+// TryDiscoverPublicIP tries to discover the public IP of the node by querying a list of known
+// providers. If the public IP cannot be discovered, an empty string is returned.
+func (c *CloudUtils) TryDiscoverPublicIP() string {
 	if !shouldUseMetadataService() {
-		logrus.Debug("No cloud provider metadata service found, skipping public IP discovery")
+		c.logger.Debug("No cloud provider metadata service found, skipping public IP discovery")
 		return ""
 	}
 
 	publicIP := tryDiscoverPublicIPAWSIMDSv2()
 	if publicIP != "" {
-		logrus.Debugf("Found public IP %s using AWS IMDSv2", publicIP)
+		c.logger.Debugf("Found public IP %s using AWS IMDSv2", publicIP)
 		return publicIP
 	}
 
 	publicIP = tryDiscoverPublicIPAWSIMDSv1()
 	if publicIP != "" {
-		logrus.Debugf("Found public IP %s using AWS IMDSv1", publicIP)
+		c.logger.Debugf("Found public IP %s using AWS IMDSv1", publicIP)
 		return publicIP
 	}
 
 	publicIP = tryDiscoverPublicIPGCE()
 	if publicIP != "" {
-		logrus.Debugf("Found public IP %s using GCE", publicIP)
+		c.logger.Debugf("Found public IP %s using GCE", publicIP)
 		return publicIP
 	}
 
 	publicIP = tryDiscoverPublicIPAzureStandardSKU()
 	if publicIP != "" {
-		logrus.Debugf("Found public IP %s using Azure Standard SKU", publicIP)
+		c.logger.Debugf("Found public IP %s using Azure Standard SKU", publicIP)
 		return publicIP
 	}
 
 	publicIP = tryDiscoverPublicIPAzure()
 	if publicIP != "" {
-		logrus.Debugf("Found public IP %s using Azure", publicIP)
+		c.logger.Debugf("Found public IP %s using Azure", publicIP)
 		return publicIP
 	}
 

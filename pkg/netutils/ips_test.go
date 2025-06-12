@@ -4,6 +4,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -468,16 +469,15 @@ func TestListValidNetworkInterfaces(t *testing.T) {
 func TestListAllValidIPAddresses(t *testing.T) {
 	// Save original provider
 	originalProvider := networkInterfaceProvider
-	originalTryDiscoverPublicIP := tryDiscoverPublicIP
 	defer func() {
 		networkInterfaceProvider = originalProvider
-		tryDiscoverPublicIP = originalTryDiscoverPublicIP
+		cloudutils.Set(cloudutils.New())
 	}()
 
 	tests := []struct {
 		name                  string
 		mockProvider          NetworkInterfaceProvider
-		mockPublicIPFunc      func() string
+		setupMockCloudUtils   func(m *cloudutils.MockCloudUtils)
 		expectedIPs           []string
 		expectedError         bool
 		expectedErrorContains string
@@ -503,8 +503,8 @@ func TestListAllValidIPAddresses(t *testing.T) {
 					},
 				},
 			},
-			mockPublicIPFunc: func() string {
-				return ""
+			setupMockCloudUtils: func(m *cloudutils.MockCloudUtils) {
+				m.On("TryDiscoverPublicIP").Once().Return("")
 			},
 			expectedIPs:   []string{"192.168.1.100", "192.168.1.101", "10.0.0.50"},
 			expectedError: false,
@@ -524,8 +524,8 @@ func TestListAllValidIPAddresses(t *testing.T) {
 					},
 				},
 			},
-			mockPublicIPFunc: func() string {
-				return ""
+			setupMockCloudUtils: func(m *cloudutils.MockCloudUtils) {
+				m.On("TryDiscoverPublicIP").Once().Return("")
 			},
 			expectedIPs:   []string{"192.168.1.100"},
 			expectedError: false,
@@ -541,8 +541,8 @@ func TestListAllValidIPAddresses(t *testing.T) {
 					},
 				},
 			},
-			mockPublicIPFunc: func() string {
-				return ""
+			setupMockCloudUtils: func(m *cloudutils.MockCloudUtils) {
+				m.On("TryDiscoverPublicIP").Once().Return("")
 			},
 			expectedIPs:   []string{},
 			expectedError: false,
@@ -560,8 +560,8 @@ func TestListAllValidIPAddresses(t *testing.T) {
 					},
 				},
 			},
-			mockPublicIPFunc: func() string {
-				return ""
+			setupMockCloudUtils: func(m *cloudutils.MockCloudUtils) {
+				m.On("TryDiscoverPublicIP").Once().Return("")
 			},
 			expectedIPs:   []string{},
 			expectedError: false,
@@ -571,9 +571,7 @@ func TestListAllValidIPAddresses(t *testing.T) {
 			mockProvider: &mockNetworkInterfaceProvider{
 				err: assert.AnError,
 			},
-			mockPublicIPFunc: func() string {
-				return ""
-			},
+			setupMockCloudUtils:   func(m *cloudutils.MockCloudUtils) {},
 			expectedIPs:           nil,
 			expectedError:         true,
 			expectedErrorContains: "list valid network interfaces",
@@ -591,8 +589,8 @@ func TestListAllValidIPAddresses(t *testing.T) {
 					},
 				},
 			},
-			mockPublicIPFunc: func() string {
-				return "203.0.113.45"
+			setupMockCloudUtils: func(m *cloudutils.MockCloudUtils) {
+				m.On("TryDiscoverPublicIP").Once().Return("203.0.113.45")
 			},
 			expectedIPs:   []string{"192.168.1.100", "203.0.113.45"},
 			expectedError: false,
@@ -602,9 +600,14 @@ func TestListAllValidIPAddresses(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			networkInterfaceProvider = tt.mockProvider
-			tryDiscoverPublicIP = tt.mockPublicIPFunc
+
+			mockCloudUtils := &cloudutils.MockCloudUtils{}
+			cloudutils.Set(mockCloudUtils)
+			tt.setupMockCloudUtils(mockCloudUtils)
 
 			result, err := ListAllValidIPAddresses()
+
+			mockCloudUtils.AssertExpectations(t)
 
 			if tt.expectedError {
 				require.Error(t, err)
