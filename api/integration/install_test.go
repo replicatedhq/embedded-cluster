@@ -209,9 +209,9 @@ func TestConfigureInstallation(t *testing.T) {
 				err = json.NewDecoder(rec.Body).Decode(&status)
 				require.NoError(t, err)
 
-				// Verify that the status was properly set
-				assert.Equal(t, types.StateRunning, status.State)
-				assert.Equal(t, "Configuring installation", status.Description)
+				// Verify that the status is not pending. We cannot check for an end state here because the hots config is async
+				// so the state might have moved from running to a final state before we get the response.
+				assert.NotEqual(t, types.StatePending, status.State)
 			}
 
 			if !tc.expectedError {
