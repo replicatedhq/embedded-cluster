@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -53,10 +52,7 @@ func (a *API) authMiddleware(next http.Handler) http.Handler {
 //	@Router			/auth/login [post]
 func (a *API) postAuthLogin(w http.ResponseWriter, r *http.Request) {
 	var request types.AuthRequest
-	err := json.NewDecoder(r.Body).Decode(&request)
-	if err != nil {
-		a.logError(r, err, "failed to decode auth request")
-		a.jsonError(w, r, types.NewBadRequestError(err))
+	if err := a.bindJSON(w, r, &request); err != nil {
 		return
 	}
 

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
@@ -41,9 +40,7 @@ func (a *API) getInstallInstallationConfig(w http.ResponseWriter, r *http.Reques
 //	@Router			/install/installation/configure [post]
 func (a *API) postInstallConfigureInstallation(w http.ResponseWriter, r *http.Request) {
 	var config types.InstallationConfig
-	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		a.logError(r, err, "failed to decode installation config")
-		a.jsonError(w, r, types.NewBadRequestError(err))
+	if err := a.bindJSON(w, r, &config); err != nil {
 		return
 	}
 
@@ -89,9 +86,7 @@ func (a *API) getInstallInstallationStatus(w http.ResponseWriter, r *http.Reques
 //	@Router			/install/host-preflights/run [post]
 func (a *API) postInstallRunHostPreflights(w http.ResponseWriter, r *http.Request) {
 	var req types.PostInstallRunHostPreflightsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		a.logError(r, err, "failed to decode post install run host preflights request")
-		a.jsonError(w, r, types.NewBadRequestError(err))
+	if err := a.bindJSON(w, r, &req); err != nil {
 		return
 	}
 
@@ -200,9 +195,7 @@ func (a *API) getInstallInfraStatus(w http.ResponseWriter, r *http.Request) {
 //	@Router			/install/status [post]
 func (a *API) setInstallStatus(w http.ResponseWriter, r *http.Request) {
 	var status types.Status
-	if err := json.NewDecoder(r.Body).Decode(&status); err != nil {
-		a.logError(r, err, "failed to decode install status")
-		a.jsonError(w, r, types.NewBadRequestError(err))
+	if err := a.bindJSON(w, r, &status); err != nil {
 		return
 	}
 

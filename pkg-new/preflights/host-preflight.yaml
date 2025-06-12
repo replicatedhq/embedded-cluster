@@ -205,7 +205,7 @@ spec:
         outcomes:
           - fail:
               when: 'total < 40Gi'
-              message: >
+              message: >-
                 {{ if .IsUI -}}
                 The filesystem at {{ .DataDir }} has less than 40 Gi of total space. Ensure sufficient space is available, or go back to the Setup page and choose a different data directory.
                 {{- else -}}
@@ -213,7 +213,7 @@ spec:
                 {{- end }}
           - fail:
               when: 'used/total > 80%'
-              message: >
+              message: >-
                 {{ if .IsUI -}}
                 The filesystem at {{ .DataDir }} is more than 80% full. Ensure sufficient space is available, or go back to the Setup page and choose a different data directory.
                 {{- else -}}
@@ -421,7 +421,7 @@ spec:
         outcomes:
           - fail:
               when: error
-              message: >
+              message: >-
                 {{ if .IsUI -}}
                 Error connecting to {{ .ReplicatedAppURL }}.
                 Ensure your firewall is properly configured, and if there is a proxy server one can be configured on the Setup page.
@@ -435,7 +435,7 @@ spec:
               when: 'statusCode == 200'
               message: 'Connected to {{ .ReplicatedAppURL }}'
           - fail:
-              message: >
+              message: >-
                 {{ if .IsUI -}}
                 Error connecting to {{ .ReplicatedAppURL }}.
                 Ensure your firewall is properly configured, and if there is a proxy server one can be configured on the Setup page.
@@ -452,7 +452,7 @@ spec:
         outcomes:
           - fail:
               when: error
-              message: >
+              message: >-
                 {{ if .IsUI -}}
                 Error connecting to {{ .ProxyRegistryURL }}.
                 Ensure your firewall is properly configured, and if there is a proxy server one can be configured on the Setup page.
@@ -466,7 +466,7 @@ spec:
               when: 'statusCode == 401'
               message: 'Connected to {{ .ProxyRegistryURL }}'
           - fail:
-              message: >
+              message: >-
                 {{ if .IsUI -}}
                 Unexpected response from {{ .ProxyRegistryURL }}.
                 Ensure your firewall is properly configured, and if there is a proxy server one can be configured on the Setup page.
@@ -558,7 +558,7 @@ spec:
               message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but the connection to it was refused. Ensure port {{ .LocalArtifactMirrorPort }}/TCP is available.
           - fail:
               when: "address-in-use"
-              message: >
+              message: >-
                 {{ if .IsUI -}}
                 Port {{ .LocalArtifactMirrorPort }}/TCP is required, but another process is already using it. Relocate the conflicting process or go back to the Setup page and choose a different port.
                 {{- else -}}
@@ -647,7 +647,7 @@ spec:
               message: Port {{ .AdminConsolePort }}/TCP is required, but the connection to it was refused. Ensure port {{ .AdminConsolePort }}/TCP is available.
           - fail:
               when: "address-in-use"
-              message: >
+              message: >-
                 {{ if .IsUI -}}
                 Port {{ .AdminConsolePort }}/TCP is required, but another process is already using it. Relocate the conflicting process or go back to the Setup page and choose a different port.
                 {{- else -}}
@@ -860,7 +860,7 @@ spec:
         outcomes:
           - fail:
               when: 'true'
-              message: >
+              message: >-
                 {{ if .IsUI -}}
                 {{ .DataDir }} cannot be symlinked. Remove the symlink, or go back to the Setup page and choose a different data directory.
                 {{- else -}}
@@ -889,7 +889,7 @@ spec:
         outcomes:
           - fail:
               when: "no-subnet-available"
-              message: >
+              message: >-
                 {{ if .IsUI -}}
                 {{ .PodCIDR.CIDR }} is not available. Go back to the Setup page and choose a different CIDR range.
                 {{- else -}}
@@ -905,7 +905,7 @@ spec:
         outcomes:
           - fail:
               when: "no-subnet-available"
-              message: >
+              message: >-
                 {{ if .IsUI -}}
                 {{ .ServiceCIDR.CIDR }} is not available. Go back to the Setup page and choose a different CIDR range.
                 {{- else -}}
@@ -921,7 +921,7 @@ spec:
         outcomes:
           - fail:
               when: "no-subnet-available"
-              message: >
+              message: >-
                 {{ if .IsUI -}}
                 {{ .GlobalCIDR.CIDR }} is not available. Go back to the Setup page and choose a different CIDR range.
                 {{- else -}}
@@ -938,7 +938,7 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: |
+              message: >-
                 {{ if .IsJoin -}}
                 {{ if .IsUI -}}
                 The node IP {{ .NodeIP }} cannot be within the Pod CIDR range {{ .PodCIDR.CIDR }}. Go back to the Setup page and choose a different network interface.
@@ -963,7 +963,7 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: |
+              message: >-
                 {{ if .IsJoin -}}
                 {{ if .IsUI -}}
                 The node IP {{ .NodeIP }} cannot be within the Service CIDR range {{ .ServiceCIDR.CIDR }}. Go back to the Setup page and choose a different network interface.
@@ -988,7 +988,7 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: |
+              message: >-
                 {{ if .IsJoin -}}
                 {{ if .IsUI -}}
                 The node IP {{ .NodeIP }} cannot be within the CIDR range {{ .GlobalCIDR.CIDR }}. Go back to the Setup page and choose a different network interface.

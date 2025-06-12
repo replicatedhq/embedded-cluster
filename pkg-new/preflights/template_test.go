@@ -3,6 +3,7 @@ package preflights
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -333,7 +334,9 @@ func TestTemplateWithCIDRData(t *testing.T) {
 				req.NotNil(actual)
 				req.Equal(analyzer.Exclude, actual.Exclude)
 				for _, out := range analyzer.Outcomes {
-					req.Contains(actual.Outcomes, out)
+					got, _ := json.MarshalIndent(actual.Outcomes, "", "  ")
+					want, _ := json.MarshalIndent(out, "", "  ")
+					req.Contains(actual.Outcomes, out, "outcome %s not found:\ngot: %s\nwant: %s", out, string(got), string(want))
 				}
 			}
 		})
