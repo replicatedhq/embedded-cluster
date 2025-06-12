@@ -31,7 +31,6 @@ type Controller interface {
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	install              *types.Install
 	installationManager  installation.InstallationManager
 	hostPreflightManager preflight.HostPreflightManager
 	rc                   runtimeconfig.RuntimeConfig
@@ -41,7 +40,9 @@ type InstallController struct {
 	releaseData          *release.ReleaseData
 	licenseFile          string
 	airgapBundle         string
-	mu                   sync.RWMutex
+
+	mu       sync.RWMutex
+	inStatus *types.Status
 }
 
 type InstallControllerOption func(*InstallController)
@@ -102,7 +103,7 @@ func WithHostPreflightManager(hostPreflightManager preflight.HostPreflightManage
 
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
-		install: types.NewInstall(),
+		inStatus: types.NewStatus(),
 	}
 
 	for _, opt := range opts {
@@ -127,7 +128,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.installationManager = installation.NewInstallationManager(
 			installation.WithRuntimeConfig(controller.rc),
 			installation.WithLogger(controller.logger),
-			installation.WithInstallation(controller.install.Steps.Installation),
 			installation.WithLicenseFile(controller.licenseFile),
 			installation.WithAirgapBundle(controller.airgapBundle),
 			installation.WithHostUtils(controller.hostUtils),
@@ -139,7 +139,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			preflight.WithRuntimeConfig(controller.rc),
 			preflight.WithLogger(controller.logger),
 			preflight.WithMetricsReporter(controller.metricsReporter),
-			preflight.WithHostPreflight(controller.install.Steps.HostPreflight),
 		)
 	}
 

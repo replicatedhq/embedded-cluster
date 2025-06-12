@@ -41,7 +41,7 @@ func TestInstallationReconciler_constructCreateCMCommand(t *testing.T) {
 	}
 	rc := runtimeconfig.New(nil)
 	job := constructHostPreflightResultsJob(rc, in, "my-node")
-	require.Len(t, job.Spec.Template.Spec.Volumes, 1)
+	require.Len(t, job.Spec.Template.Spec.Volumes, 2)
 	require.Equal(t, "/var/lib/embedded-cluster", job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path)
 	require.Len(t, job.Spec.Template.Spec.Containers, 1)
 	require.Len(t, job.Spec.Template.Spec.Containers[0].Command, 4)

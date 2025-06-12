@@ -120,7 +120,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ValidateConfig", config).Return(nil),
 					m.On("SetConfig", *config).Return(nil),
-					m.On("ConfigureForInstall", context.Background(), config).Return(nil),
+					m.On("ConfigureHost", context.Background()).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -143,25 +143,6 @@ func TestConfigureInstallation(t *testing.T) {
 				)
 			},
 			expectedErr: true,
-		},
-		{
-			name: "with global CIDR",
-			config: &types.InstallationConfig{
-				GlobalCIDR: "10.0.0.0/16",
-			},
-			setupMock: func(m *installation.MockInstallationManager, config *types.InstallationConfig) {
-				// Create a copy with expected CIDR values after computation
-				configWithCIDRs := *config
-				configWithCIDRs.PodCIDR = "10.0.0.0/17"
-				configWithCIDRs.ServiceCIDR = "10.0.128.0/17"
-
-				mock.InOrder(
-					m.On("ValidateConfig", config).Return(nil),
-					m.On("SetConfig", configWithCIDRs).Return(nil),
-					m.On("ConfigureForInstall", context.Background(), &configWithCIDRs).Return(nil),
-				)
-			},
-			expectedErr: false,
 		},
 	}
 
@@ -186,65 +167,6 @@ func TestConfigureInstallation(t *testing.T) {
 			}
 
 			mockManager.AssertExpectations(t)
-		})
-	}
-}
-
-// TestIntegrationComputeCIDRs tests the CIDR computation with real networking utility
-func TestIntegrationComputeCIDRs(t *testing.T) {
-	tests := []struct {
-		name        string
-		globalCIDR  string
-		expectedPod string
-		expectedSvc string
-		expectedErr bool
-	}{
-		{
-			name:        "valid cidr 10.0.0.0/16",
-			globalCIDR:  "10.0.0.0/16",
-			expectedPod: "10.0.0.0/17",
-			expectedSvc: "10.0.128.0/17",
-			expectedErr: false,
-		},
-		{
-			name:        "valid cidr 192.168.0.0/16",
-			globalCIDR:  "192.168.0.0/16",
-			expectedPod: "192.168.0.0/17",
-			expectedSvc: "192.168.128.0/17",
-			expectedErr: false,
-		},
-		{
-			name:        "no global cidr",
-			globalCIDR:  "",
-			expectedPod: "", // Should remain unchanged
-			expectedSvc: "", // Should remain unchanged
-			expectedErr: false,
-		},
-		{
-			name:        "invalid cidr",
-			globalCIDR:  "not-a-cidr",
-			expectedErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			controller, err := NewInstallController()
-			require.NoError(t, err)
-
-			config := &types.InstallationConfig{
-				GlobalCIDR: tt.globalCIDR,
-			}
-
-			err = controller.computeCIDRs(config)
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedPod, config.PodCIDR)
-				assert.Equal(t, tt.expectedSvc, config.ServiceCIDR)
-			}
 		})
 	}
 }
@@ -652,15 +574,13 @@ func TestSetupNode(t *testing.T) {
 func TestGetStatus(t *testing.T) {
 	tests := []struct {
 		name          string
-		install       *types.Install
+		status        *types.Status
 		expectedValue *types.Status
 	}{
 		{
 			name: "successful get status",
-			install: &types.Install{
-				Status: &types.Status{
-					State: types.StateFailed,
-				},
+			status: &types.Status{
+				State: types.StateFailed,
 			},
 			expectedValue: &types.Status{
 				State: types.StateFailed,
@@ -668,7 +588,7 @@ func TestGetStatus(t *testing.T) {
 		},
 		{
 			name:          "nil status",
-			install:       &types.Install{},
+			status:        nil,
 			expectedValue: nil,
 		},
 	}
@@ -676,7 +596,7 @@ func TestGetStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			controller := &InstallController{
-				install: tt.install,
+				inStatus: tt.status,
 			}
 
 			result, err := controller.GetStatus(context.Background())
@@ -718,7 +638,7 @@ func TestSetStatus(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tt.status, controller.install.Status)
+				assert.Equal(t, tt.status, controller.inStatus)
 			}
 		})
 	}

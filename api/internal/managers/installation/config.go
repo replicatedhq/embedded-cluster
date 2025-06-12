@@ -17,6 +17,14 @@ func (m *installationManager) GetConfig() (*types.InstallationConfig, error) {
 }
 
 func (m *installationManager) SetConfig(config types.InstallationConfig) error {
+	if config.GlobalCIDR != "" {
+		podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(config.GlobalCIDR)
+		if err != nil {
+			return fmt.Errorf("split network cidr: %w", err)
+		}
+		config.PodCIDR = podCIDR
+		config.ServiceCIDR = serviceCIDR
+	}
 	return m.installationStore.SetConfig(config)
 }
 
@@ -193,7 +201,7 @@ func (m *installationManager) setCIDRDefaults(config *types.InstallationConfig) 
 	return nil
 }
 
-func (m *installationManager) ConfigureForInstall(ctx context.Context, config *types.InstallationConfig) error {
+func (m *installationManager) ConfigureHost(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -209,12 +217,17 @@ func (m *installationManager) ConfigureForInstall(ctx context.Context, config *t
 		return fmt.Errorf("set running status: %w", err)
 	}
 
-	go m.configureForInstall(context.Background(), config)
+	config, err := m.installationStore.GetConfig()
+	if err != nil {
+		return fmt.Errorf("get installation config: %w", err)
+	}
+
+	go m.configureHost(context.Background(), config)
 
 	return nil
 }
 
-func (m *installationManager) configureForInstall(ctx context.Context, config *types.InstallationConfig) {
+func (m *installationManager) configureHost(ctx context.Context, config *types.InstallationConfig) {
 	defer func() {
 		if r := recover(); r != nil {
 			if err := m.setFailedStatus(fmt.Sprintf("panic: %v", r)); err != nil {

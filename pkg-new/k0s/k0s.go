@@ -89,18 +89,8 @@ func (k *K0s) IsInstalled() (bool, error) {
 	return false, fmt.Errorf("unable to check if already installed: %w", err)
 }
 
-// WriteK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
-// global location (as returned by runtimeconfig.K0sConfigPath). If a file already sits
-// there, this function returns an error.
-func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
-	cfgpath := runtimeconfig.K0sConfigPath
-	if _, err := os.Stat(cfgpath); err == nil {
-		return nil, fmt.Errorf("configuration file already exists")
-	}
-	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
-		return nil, fmt.Errorf("unable to create directory: %w", err)
-	}
-
+// NewK0sConfig creates a new k0sv1beta1.ClusterConfig object from the input parameters.
+func NewK0sConfig(networkInterface string, isAirgap bool, podCIDR string, serviceCIDR string, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	var embCfgSpec *ecv1beta1.ConfigSpec
 	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
 		embCfgSpec = &embCfg.Spec
@@ -130,9 +120,29 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
 
-	if airgapBundle != "" {
+	if isAirgap {
 		// update the k0s config to install with airgap
 		airgap.SetAirgapConfig(cfg)
+	}
+
+	return cfg, nil
+}
+
+// WriteK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
+// global location (as returned by runtimeconfig.K0sConfigPath). If a file already sits
+// there, this function returns an error.
+func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+	cfg, err := NewK0sConfig(networkInterface, airgapBundle != "", podCIDR, serviceCIDR, overrides, mutate)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create k0s config: %w", err)
+	}
+
+	cfgpath := runtimeconfig.K0sConfigPath
+	if _, err := os.Stat(cfgpath); err == nil {
+		return nil, fmt.Errorf("configuration file already exists")
+	}
+	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
+		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 
 	// This is necessary to install the previous version of k0s in e2e tests
@@ -148,6 +158,7 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 	if err := os.WriteFile(cfgpath, data, 0600); err != nil {
 		return nil, fmt.Errorf("unable to write config file: %w", err)
 	}
+
 	return cfg, nil
 }
 
@@ -189,7 +200,7 @@ func PatchK0sConfig(path string, patch string) error {
 		return nil
 	}
 	finalcfg := k0sv1beta1.ClusterConfig{
-		ObjectMeta: metav1.ObjectMeta{Name: runtimeconfig.BinaryName()},
+		ObjectMeta: metav1.ObjectMeta{Name: "k0s"},
 	}
 	if _, err := os.Stat(path); err == nil {
 		data, err := os.ReadFile(path)

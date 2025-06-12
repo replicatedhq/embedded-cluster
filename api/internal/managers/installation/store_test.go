@@ -5,50 +5,69 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewMemoryStore(t *testing.T) {
-	inst := types.NewInstallation()
-	store := NewMemoryStore(inst)
+	rc := runtimeconfig.New(nil)
+	store := NewMemoryStore(rc, types.NewStatus())
 
 	assert.NotNil(t, store)
-	assert.NotNil(t, store.installation)
-	assert.Equal(t, inst, store.installation)
+	assert.NotNil(t, store.rc)
+	assert.Equal(t, rc, store.rc)
 }
 
 func TestMemoryStore_GetConfig(t *testing.T) {
-	inst := &types.Installation{
-		Config: &types.InstallationConfig{
-			AdminConsolePort: 8080,
-			DataDirectory:    "/some/dir",
+	rc := runtimeconfig.New(&ecv1beta1.RuntimeConfigSpec{
+		DataDir: "/some/dir",
+		AdminConsole: ecv1beta1.AdminConsoleSpec{
+			Port: 8080,
 		},
-	}
-	store := NewMemoryStore(inst)
+	})
+	store := NewMemoryStore(rc, types.NewStatus())
 
 	config, err := store.GetConfig()
 
 	require.NoError(t, err)
 	assert.NotNil(t, config)
 	assert.Equal(t, &types.InstallationConfig{
-		AdminConsolePort: 8080,
-		DataDirectory:    "/some/dir",
+		AdminConsolePort:        8080,
+		DataDirectory:           "/some/dir",
+		LocalArtifactMirrorPort: 50000,           // default
+		GlobalCIDR:              "10.244.0.0/16", // default
 	}, config)
 }
 
 func TestMemoryStore_SetConfig(t *testing.T) {
-	inst := &types.Installation{
-		Config: &types.InstallationConfig{
-			AdminConsolePort: 1000,
-			DataDirectory:    "/a/different/dir",
+	rc := runtimeconfig.New(&ecv1beta1.RuntimeConfigSpec{
+		DataDir: "/a/different/dir",
+		AdminConsole: ecv1beta1.AdminConsoleSpec{
+			Port: 1000,
 		},
-	}
-	store := NewMemoryStore(inst)
+	})
+
+	store := NewMemoryStore(rc, types.NewStatus())
 	expectedConfig := types.InstallationConfig{
-		AdminConsolePort: 8080,
-		DataDirectory:    "/some/dir",
+		DataDirectory:           "/some/dir",
+		AdminConsolePort:        8080,
+		LocalArtifactMirrorPort: 50000,           // default
+		GlobalCIDR:              "10.244.0.0/16", // default
 	}
+	expectedRc := runtimeconfig.New(&ecv1beta1.RuntimeConfigSpec{
+		DataDir: "/some/dir",
+		AdminConsole: ecv1beta1.AdminConsoleSpec{
+			Port: 8080,
+		},
+		LocalArtifactMirror: ecv1beta1.LocalArtifactMirrorSpec{
+			Port: 50000,
+		},
+		Network: ecv1beta1.NetworkSpec{
+			GlobalCIDR: "10.244.0.0/16",
+		},
+	})
 
 	err := store.SetConfig(expectedConfig)
 
@@ -58,16 +77,18 @@ func TestMemoryStore_SetConfig(t *testing.T) {
 	actualConfig, err := store.GetConfig()
 	require.NoError(t, err)
 	assert.Equal(t, &expectedConfig, actualConfig)
+
+	// Verify the runtime config was updated
+	assert.Equal(t, expectedRc, store.rc)
 }
 
 func TestMemoryStore_GetStatus(t *testing.T) {
-	inst := &types.Installation{
-		Status: &types.Status{
-			State:       "failed",
-			Description: "Failure",
-		},
+	rc := runtimeconfig.New(nil)
+	status := &types.Status{
+		State:       "failed",
+		Description: "Failure",
 	}
-	store := NewMemoryStore(inst)
+	store := NewMemoryStore(rc, status)
 
 	status, err := store.GetStatus()
 
@@ -78,14 +99,14 @@ func TestMemoryStore_GetStatus(t *testing.T) {
 		Description: "Failure",
 	}, status)
 }
+
 func TestMemoryStore_SetStatus(t *testing.T) {
-	inst := &types.Installation{
-		Status: &types.Status{
-			State:       "failed",
-			Description: "Failure",
-		},
+	rc := runtimeconfig.New(nil)
+	status := &types.Status{
+		State:       "failed",
+		Description: "Failure",
 	}
-	store := NewMemoryStore(inst)
+	store := NewMemoryStore(rc, status)
 	expectedStatus := types.Status{
 		State:       "running",
 		Description: "Running",
@@ -103,8 +124,9 @@ func TestMemoryStore_SetStatus(t *testing.T) {
 
 // Useful to test concurrent access with -race flag
 func TestMemoryStore_ConcurrentAccess(t *testing.T) {
-	inst := types.NewInstallation()
-	store := NewMemoryStore(inst)
+	rc := runtimeconfig.New(nil)
+	status := types.NewStatus()
+	store := NewMemoryStore(rc, status)
 	var wg sync.WaitGroup
 
 	// Test concurrent reads and writes

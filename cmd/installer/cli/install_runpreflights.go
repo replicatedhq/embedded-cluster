@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -47,7 +48,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
-	if err := addInstallFlags(cmd, &flags); err != nil {
+	if err := addInstallFlags(cmd, &flags, ecv1beta1.DefaultDataDir); err != nil {
 		panic(err)
 	}
 	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {

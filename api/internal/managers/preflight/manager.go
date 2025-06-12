@@ -23,7 +23,6 @@ type HostPreflightManager interface {
 }
 
 type hostPreflightManager struct {
-	hostPreflight      *types.HostPreflights
 	hostPreflightStore HostPreflightStore
 	rc                 runtimeconfig.RuntimeConfig
 	logger             logrus.FieldLogger
@@ -51,12 +50,6 @@ func WithMetricsReporter(metricsReporter metrics.ReporterInterface) HostPrefligh
 	}
 }
 
-func WithHostPreflight(hostPreflight *types.HostPreflights) HostPreflightManagerOption {
-	return func(m *hostPreflightManager) {
-		m.hostPreflight = hostPreflight
-	}
-}
-
 func WithHostPreflightStore(hostPreflightStore HostPreflightStore) HostPreflightManagerOption {
 	return func(m *hostPreflightManager) {
 		m.hostPreflightStore = hostPreflightStore
@@ -79,12 +72,8 @@ func NewHostPreflightManager(opts ...HostPreflightManagerOption) HostPreflightMa
 		manager.logger = logger.NewDiscardLogger()
 	}
 
-	if manager.hostPreflight == nil {
-		manager.hostPreflight = types.NewHostPreflights()
-	}
-
 	if manager.hostPreflightStore == nil {
-		manager.hostPreflightStore = NewMemoryStore(manager.hostPreflight)
+		manager.hostPreflightStore = NewMemoryStore(types.NewHostPreflights())
 	}
 
 	return manager

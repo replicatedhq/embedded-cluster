@@ -11,6 +11,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+var _ RuntimeConfig = &runtimeConfig{}
+
 type runtimeConfig struct {
 	spec *ecv1beta1.RuntimeConfigSpec
 }
@@ -207,6 +209,42 @@ func (rc *runtimeConfig) AdminConsolePort() int {
 	return ecv1beta1.DefaultAdminConsolePort
 }
 
+// ProxySpec returns the configured proxy spec or nil if not configured.
+func (rc *runtimeConfig) ProxySpec() *ecv1beta1.ProxySpec {
+	return rc.spec.Proxy
+}
+
+// GlobalCIDR returns the configured global CIDR or the default if not configured.
+func (rc *runtimeConfig) GlobalCIDR() string {
+	if rc.spec.Network.GlobalCIDR == "" && rc.spec.Network.PodCIDR == "" && rc.spec.Network.ServiceCIDR == "" {
+		return ecv1beta1.DefaultNetworkCIDR
+	}
+	return rc.spec.Network.GlobalCIDR
+}
+
+// PodCIDR returns the configured pod CIDR or the default if not configured.
+func (rc *runtimeConfig) PodCIDR() string {
+	return rc.spec.Network.PodCIDR
+}
+
+// ServiceCIDR returns the configured service CIDR or the default if not configured.
+func (rc *runtimeConfig) ServiceCIDR() string {
+	return rc.spec.Network.ServiceCIDR
+}
+
+// NetworkInterface returns the configured network interface or the default if not configured.
+func (rc *runtimeConfig) NetworkInterface() string {
+	return rc.spec.Network.NetworkInterface
+}
+
+// NodePortRange returns the configured node port range or the default if not configured.
+func (rc *runtimeConfig) NodePortRange() string {
+	if rc.spec.Network.NodePortRange == "" {
+		return ecv1beta1.DefaultNetworkNodePortRange
+	}
+	return rc.spec.Network.NodePortRange
+}
+
 // HostCABundlePath returns the path to the host CA bundle.
 func (rc *runtimeConfig) HostCABundlePath() string {
 	return rc.spec.HostCABundlePath
@@ -230,6 +268,16 @@ func (rc *runtimeConfig) SetAdminConsolePort(port int) {
 // SetManagerPort sets the port for the manager.
 func (rc *runtimeConfig) SetManagerPort(port int) {
 	rc.spec.Manager.Port = port
+}
+
+// SetProxySpec sets the proxy spec for the runtime configuration.
+func (rc *runtimeConfig) SetProxySpec(proxySpec *ecv1beta1.ProxySpec) {
+	rc.spec.Proxy = proxySpec
+}
+
+// SetNetworkSpec sets the network spec for the runtime configuration.
+func (rc *runtimeConfig) SetNetworkSpec(networkSpec ecv1beta1.NetworkSpec) {
+	rc.spec.Network = networkSpec
 }
 
 // SetHostCABundlePath sets the path to the host CA bundle.

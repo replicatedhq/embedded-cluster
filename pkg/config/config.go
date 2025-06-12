@@ -30,7 +30,7 @@ var k0sConfigPathOverride string
 func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 	cfg := k0sconfig.DefaultClusterConfig()
 	// Customize the default k0s configuration to our taste.
-	cfg.Name = runtimeconfig.BinaryName()
+	cfg.Name = "k0s"
 	cfg.Spec.Konnectivity = nil
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"

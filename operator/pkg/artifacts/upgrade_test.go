@@ -500,7 +500,7 @@ func TestGetArtifactJobForNode_HostCABundle(t *testing.T) {
 			},
 		}
 
-		rc := runtimeconfig.New(nil)
+		rc := runtimeconfig.New(installation.Spec.RuntimeConfig)
 
 		// Call the function under test
 		job, err := getArtifactJobForNode(
@@ -595,7 +595,7 @@ func TestGetArtifactJobForNode_HostCABundle(t *testing.T) {
 			},
 		}
 
-		rc := runtimeconfig.New(nil)
+		rc := runtimeconfig.New(installation.Spec.RuntimeConfig)
 
 		// Call the function under test
 		job, err := getArtifactJobForNode(

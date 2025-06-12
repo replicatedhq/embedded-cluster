@@ -38,17 +38,22 @@ const (
 	ECConfigPath            = "/etc/embedded-cluster/ec.yaml"
 )
 
-// BinaryName returns the binary name, this is useful for places where we
-// need to present the name of the binary to the user (the name may vary if
-// the binary is renamed). We make sure the name does not contain invalid
+// BinaryName returns the intended binary name. This is the app slug when a release is embedded,
+// otherwise it is the basename of the executable. This is useful for places where we need to
+// present the name of the binary to the user. We make sure the name does not contain invalid
 // characters for a filename.
 func BinaryName() string {
-	exe, err := os.Executable()
-	if err != nil {
-		logrus.Fatalf("unable to get executable path: %s", err)
+	var name string
+	if release := release.GetChannelRelease(); release != nil {
+		name = release.AppSlug
+	} else {
+		exe, err := os.Executable()
+		if err != nil {
+			logrus.Fatalf("unable to get executable path: %s", err)
+		}
+		name = filepath.Base(exe)
 	}
-	base := filepath.Base(exe)
-	return slug.Make(base)
+	return slug.Make(name)
 }
 
 // EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs

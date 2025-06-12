@@ -7,7 +7,7 @@ ARCH ?= $(shell go env GOARCH)
 
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
-ADMIN_CONSOLE_IMAGE_OVERRIDE =
+ADMIN_CONSOLE_IMAGE_OVERRIDE = ttl.sh/ethan/kotsadm:24h
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
 K0S_VERSION = v1.31.8+k0s.0
@@ -18,8 +18,9 @@ K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.119.1
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
+KOTS_VERSION = v0.0.1-ethan-20250611-2
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
-KOTS_BINARY_URL_OVERRIDE =
+KOTS_BINARY_URL_OVERRIDE = https://repldev-ethan-test.s3.us-east-1.amazonaws.com/kots-amd64.tar.gz
 # If KOTS_BINARY_FILE_OVERRIDE is set, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
 # For dev env, build the kots binary in the kots repo with "make kots-linux-arm64" and set this to "../kots/bin/kots"
 KOTS_BINARY_FILE_OVERRIDE =
@@ -339,6 +340,7 @@ create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
 create-node%: MANAGER_NODE_PORT = 30080
 create-node%: K0S_DATA_DIR = /var/lib/embedded-cluster/k0s
+create-node%: K0S_ME_DATA_DIR = /var/lib/embedded-cluster-smoke-test-staging-app/k0s
 create-node%:
 	@docker run -d \
 		--name node$* \
@@ -346,6 +348,7 @@ create-node%:
 		--privileged \
 		--restart=unless-stopped \
 		-v $(K0S_DATA_DIR) \
+		-v $(K0S_ME_DATA_DIR) \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
@@ -353,7 +356,6 @@ create-node%:
 		$(if $(filter node0,node$*),-p 30003:30003) \
 		-e EC_PUBLIC_ADDRESS=localhost \
 		replicated/ec-distro:$(DISTRO)
-
 	@$(MAKE) ssh-node$*
 
 .PHONY: ssh-node%
