@@ -25,3 +25,9 @@ func (m *MockNetUtils) DetermineBestNetworkInterface() (string, error) {
 	args := m.Called()
 	return args.String(0), args.Error(1)
 }
+
+// FirstValidAddress mocks the FirstValidAddress method
+func (m *MockNetUtils) FirstValidAddress(networkInterface string) (string, error) {
+	args := m.Called(networkInterface)
+	return args.String(0), args.Error(1)
+}
