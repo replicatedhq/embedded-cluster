@@ -1,7 +1,6 @@
 package install
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -89,7 +88,7 @@ func TestGetInstallationConfig(t *testing.T) {
 			controller, err := NewInstallController(WithInstallationManager(mockManager))
 			require.NoError(t, err)
 
-			result, err := controller.GetInstallationConfig(context.Background())
+			result, err := controller.GetInstallationConfig(t.Context())
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -121,7 +120,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ValidateConfig", config).Return(nil),
 					m.On("SetConfig", *config).Return(nil),
-					m.On("ConfigureHost", context.Background(), config).Return(nil),
+					m.On("ConfigureHost", t.Context(), config).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -160,7 +159,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ValidateConfig", config).Return(nil),
 					m.On("SetConfig", configWithCIDRs).Return(nil),
-					m.On("ConfigureHost", context.Background(), &configWithCIDRs).Return(nil),
+					m.On("ConfigureHost", t.Context(), &configWithCIDRs).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -179,8 +178,7 @@ func TestConfigureInstallation(t *testing.T) {
 			controller, err := NewInstallController(WithInstallationManager(mockManager))
 			require.NoError(t, err)
 
-			err = controller.ConfigureInstallation(context.Background(), tt.config)
-
+			err = controller.ConfigureInstallation(t.Context(), tt.config)
 			if tt.expectedErr {
 				assert.Error(t, err)
 			} else {
@@ -276,9 +274,9 @@ func TestRunHostPreflights(t *testing.T) {
 			name: "successful run preflights",
 			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					im.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: t.TempDir()}, nil),
-					pm.On("PrepareHostPreflights", context.Background(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
-					pm.On("RunHostPreflights", context.Background(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
+					im.On("GetConfig").Return(&types.InstallationConfig{}, nil),
+					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
+					pm.On("RunHostPreflights", t.Context(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec && expectedProxy == opts.Proxy
 					})).Return(nil),
 				)
@@ -289,8 +287,8 @@ func TestRunHostPreflights(t *testing.T) {
 			name: "prepare preflights error",
 			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					im.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: t.TempDir()}, nil),
-					pm.On("PrepareHostPreflights", context.Background(), mock.Anything).Return(nil, nil, errors.New("prepare error")),
+					im.On("GetConfig").Return(&types.InstallationConfig{}, nil),
+					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(nil, nil, errors.New("prepare error")),
 				)
 			},
 			expectedErr: true,
@@ -299,9 +297,9 @@ func TestRunHostPreflights(t *testing.T) {
 			name: "run preflights error",
 			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					im.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: t.TempDir()}, nil),
-					pm.On("PrepareHostPreflights", context.Background(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
-					pm.On("RunHostPreflights", context.Background(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
+					im.On("GetConfig").Return(&types.InstallationConfig{}, nil),
+					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
+					pm.On("RunHostPreflights", t.Context(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec && expectedProxy == opts.Proxy
 					})).Return(errors.New("run preflights error")),
 				)
@@ -323,7 +321,7 @@ func TestRunHostPreflights(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			err = controller.RunHostPreflights(context.Background())
+			err = controller.RunHostPreflights(t.Context())
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -350,7 +348,7 @@ func TestGetHostPreflightStatus(t *testing.T) {
 				status := &types.Status{
 					State: types.StateFailed,
 				}
-				m.On("GetHostPreflightStatus", context.Background()).Return(status, nil)
+				m.On("GetHostPreflightStatus", t.Context()).Return(status, nil)
 			},
 			expectedErr: false,
 			expectedValue: &types.Status{
@@ -360,7 +358,7 @@ func TestGetHostPreflightStatus(t *testing.T) {
 		{
 			name: "get status error",
 			setupMock: func(m *preflight.MockHostPreflightManager) {
-				m.On("GetHostPreflightStatus", context.Background()).Return(nil, errors.New("get status error"))
+				m.On("GetHostPreflightStatus", t.Context()).Return(nil, errors.New("get status error"))
 			},
 			expectedErr:   true,
 			expectedValue: nil,
@@ -375,7 +373,7 @@ func TestGetHostPreflightStatus(t *testing.T) {
 			controller, err := NewInstallController(WithHostPreflightManager(mockManager))
 			require.NoError(t, err)
 
-			result, err := controller.GetHostPreflightStatus(context.Background())
+			result, err := controller.GetHostPreflightStatus(t.Context())
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -408,7 +406,7 @@ func TestGetHostPreflightOutput(t *testing.T) {
 						},
 					},
 				}
-				m.On("GetHostPreflightOutput", context.Background()).Return(output, nil)
+				m.On("GetHostPreflightOutput", t.Context()).Return(output, nil)
 			},
 			expectedErr: false,
 			expectedValue: &types.HostPreflightsOutput{
@@ -423,7 +421,7 @@ func TestGetHostPreflightOutput(t *testing.T) {
 		{
 			name: "get output error",
 			setupMock: func(m *preflight.MockHostPreflightManager) {
-				m.On("GetHostPreflightOutput", context.Background()).Return(nil, errors.New("get output error"))
+				m.On("GetHostPreflightOutput", t.Context()).Return(nil, errors.New("get output error"))
 			},
 			expectedErr:   true,
 			expectedValue: nil,
@@ -438,7 +436,7 @@ func TestGetHostPreflightOutput(t *testing.T) {
 			controller, err := NewInstallController(WithHostPreflightManager(mockManager))
 			require.NoError(t, err)
 
-			result, err := controller.GetHostPreflightOutput(context.Background())
+			result, err := controller.GetHostPreflightOutput(t.Context())
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -464,7 +462,7 @@ func TestGetHostPreflightTitles(t *testing.T) {
 			name: "successful get titles",
 			setupMock: func(m *preflight.MockHostPreflightManager) {
 				titles := []string{"Check 1", "Check 2"}
-				m.On("GetHostPreflightTitles", context.Background()).Return(titles, nil)
+				m.On("GetHostPreflightTitles", t.Context()).Return(titles, nil)
 			},
 			expectedErr:   false,
 			expectedValue: []string{"Check 1", "Check 2"},
@@ -472,7 +470,7 @@ func TestGetHostPreflightTitles(t *testing.T) {
 		{
 			name: "get titles error",
 			setupMock: func(m *preflight.MockHostPreflightManager) {
-				m.On("GetHostPreflightTitles", context.Background()).Return(nil, errors.New("get titles error"))
+				m.On("GetHostPreflightTitles", t.Context()).Return(nil, errors.New("get titles error"))
 			},
 			expectedErr:   true,
 			expectedValue: nil,
@@ -487,7 +485,7 @@ func TestGetHostPreflightTitles(t *testing.T) {
 			controller, err := NewInstallController(WithHostPreflightManager(mockManager))
 			require.NoError(t, err)
 
-			result, err := controller.GetHostPreflightTitles(context.Background())
+			result, err := controller.GetHostPreflightTitles(t.Context())
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -540,7 +538,7 @@ func TestGetInstallationStatus(t *testing.T) {
 			controller, err := NewInstallController(WithInstallationManager(mockManager))
 			require.NoError(t, err)
 
-			result, err := controller.GetInstallationStatus(context.Background())
+			result, err := controller.GetInstallationStatus(t.Context())
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -568,12 +566,12 @@ func TestSetupInfra(t *testing.T) {
 					State: types.StateSucceeded,
 				}
 				config := &types.InstallationConfig{
-					DataDirectory: t.TempDir(),
+					AdminConsolePort: 8000,
 				}
 				mock.InOrder(
-					pm.On("GetHostPreflightStatus", context.Background()).Return(preflightStatus, nil),
+					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
 					im.On("GetConfig").Return(config, nil),
-					fm.On("Install", context.Background(), config).Return(nil),
+					fm.On("Install", t.Context(), config).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -593,14 +591,14 @@ func TestSetupInfra(t *testing.T) {
 					},
 				}
 				config := &types.InstallationConfig{
-					DataDirectory: t.TempDir(),
+					AdminConsolePort: 8000,
 				}
 				mock.InOrder(
-					pm.On("GetHostPreflightStatus", context.Background()).Return(preflightStatus, nil),
-					pm.On("GetHostPreflightOutput", context.Background()).Return(preflightOutput, nil),
-					r.On("ReportPreflightsFailed", context.Background(), preflightOutput).Return(nil),
+					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
+					pm.On("GetHostPreflightOutput", t.Context()).Return(preflightOutput, nil),
+					r.On("ReportPreflightsFailed", t.Context(), preflightOutput).Return(nil),
 					im.On("GetConfig").Return(config, nil),
-					fm.On("Install", context.Background(), config).Return(nil),
+					fm.On("Install", t.Context(), config).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -608,7 +606,7 @@ func TestSetupInfra(t *testing.T) {
 		{
 			name: "preflight status error",
 			setupMocks: func(pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
-				pm.On("GetHostPreflightStatus", context.Background()).Return(nil, errors.New("get preflight status error"))
+				pm.On("GetHostPreflightStatus", t.Context()).Return(nil, errors.New("get preflight status error"))
 			},
 			expectedErr: true,
 		},
@@ -618,7 +616,7 @@ func TestSetupInfra(t *testing.T) {
 				preflightStatus := &types.Status{
 					State: types.StateRunning,
 				}
-				pm.On("GetHostPreflightStatus", context.Background()).Return(preflightStatus, nil)
+				pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil)
 			},
 			expectedErr: true,
 		},
@@ -629,8 +627,8 @@ func TestSetupInfra(t *testing.T) {
 					State: types.StateFailed,
 				}
 				mock.InOrder(
-					pm.On("GetHostPreflightStatus", context.Background()).Return(preflightStatus, nil),
-					pm.On("GetHostPreflightOutput", context.Background()).Return(nil, errors.New("get output error")),
+					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
+					pm.On("GetHostPreflightOutput", t.Context()).Return(nil, errors.New("get output error")),
 				)
 			},
 			expectedErr: true,
@@ -642,7 +640,7 @@ func TestSetupInfra(t *testing.T) {
 					State: types.StateSucceeded,
 				}
 				mock.InOrder(
-					pm.On("GetHostPreflightStatus", context.Background()).Return(preflightStatus, nil),
+					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
 					im.On("GetConfig").Return(nil, errors.New("get config error")),
 				)
 			},
@@ -655,12 +653,12 @@ func TestSetupInfra(t *testing.T) {
 					State: types.StateSucceeded,
 				}
 				config := &types.InstallationConfig{
-					DataDirectory: t.TempDir(),
+					AdminConsolePort: 8000,
 				}
 				mock.InOrder(
-					pm.On("GetHostPreflightStatus", context.Background()).Return(preflightStatus, nil),
+					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
 					im.On("GetConfig").Return(config, nil),
-					fm.On("Install", context.Background(), config).Return(errors.New("install error")),
+					fm.On("Install", t.Context(), config).Return(errors.New("install error")),
 				)
 			},
 			expectedErr: true,
@@ -683,7 +681,7 @@ func TestSetupInfra(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			err = controller.SetupInfra(context.Background())
+			err = controller.SetupInfra(t.Context())
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -757,7 +755,7 @@ func TestGetInfra(t *testing.T) {
 			controller, err := NewInstallController(WithInfraManager(mockManager))
 			require.NoError(t, err)
 
-			result, err := controller.GetInfra(context.Background())
+			result, err := controller.GetInfra(t.Context())
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -802,7 +800,7 @@ func TestGetStatus(t *testing.T) {
 				install: tt.install,
 			}
 
-			result, err := controller.GetStatus(context.Background())
+			result, err := controller.GetStatus(t.Context())
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedValue, result)
@@ -835,7 +833,7 @@ func TestSetStatus(t *testing.T) {
 			controller, err := NewInstallController()
 			require.NoError(t, err)
 
-			err = controller.SetStatus(context.Background(), tt.status)
+			err = controller.SetStatus(t.Context(), tt.status)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
