@@ -16,11 +16,7 @@ import (
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-<<<<<<< HEAD
-=======
-	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
->>>>>>> 4071be1c (chore: pkg-new cloudutils.TryDiscoverPublicIP)
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
