@@ -490,24 +490,6 @@ func installAddonsForRestore(ctx context.Context, kcli client.Client, mcli metad
 	return nil
 }
 
-func getRestoreAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (*addons.InstallOptions, error) {
-	embCfg := release.GetEmbeddedClusterConfig()
-	var embCfgSpec *ecv1beta1.ConfigSpec
-	if embCfg != nil {
-		embCfgSpec = &embCfg.Spec
-	}
-
-	opts := &addons.InstallOptions{
-		IsAirgap:           flags.airgapBundle != "",
-		Proxy:              flags.proxy,
-		ServiceCIDR:        flags.cidrCfg.ServiceCIDR,
-		IsRestore:          true,
-		EmbeddedConfigSpec: embCfgSpec,
-		EndUserConfigSpec:  nil, // TODO: support for end user config overrides
-	}
-	return opts, nil
-}
-
 func runRestoreStepConfirmBackup(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (*disasterrecovery.ReplicatedBackup, bool, error) {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
