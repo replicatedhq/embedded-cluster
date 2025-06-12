@@ -4,10 +4,12 @@ import (
 	"context"
 	"sync"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -23,7 +25,8 @@ type Controller interface {
 	GetHostPreflightStatus(ctx context.Context) (*types.Status, error)
 	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
-	SetupNode(ctx context.Context) error
+	SetupInfra(ctx context.Context) error
+	GetInfra(ctx context.Context) (*types.Infra, error)
 	SetStatus(ctx context.Context, status *types.Status) error
 	GetStatus(ctx context.Context) (*types.Status, error)
 }
@@ -34,13 +37,18 @@ type InstallController struct {
 	install              *types.Install
 	installationManager  installation.InstallationManager
 	hostPreflightManager preflight.HostPreflightManager
+	infraManager         infra.InfraManager
 	rc                   runtimeconfig.RuntimeConfig
 	logger               logrus.FieldLogger
 	hostUtils            hostutils.HostUtilsInterface
 	metricsReporter      metrics.ReporterInterface
 	releaseData          *release.ReleaseData
+	password             string
+	tlsConfig            types.TLSConfig
 	licenseFile          string
 	airgapBundle         string
+	configValues         string
+	endUserConfig        *ecv1beta1.Config
 	mu                   sync.RWMutex
 }
 
@@ -76,6 +84,18 @@ func WithReleaseData(releaseData *release.ReleaseData) InstallControllerOption {
 	}
 }
 
+func WithPassword(password string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.password = password
+	}
+}
+
+func WithTLSConfig(tlsConfig types.TLSConfig) InstallControllerOption {
+	return func(c *InstallController) {
+		c.tlsConfig = tlsConfig
+	}
+}
+
 func WithLicenseFile(licenseFile string) InstallControllerOption {
 	return func(c *InstallController) {
 		c.licenseFile = licenseFile
@@ -85,6 +105,18 @@ func WithLicenseFile(licenseFile string) InstallControllerOption {
 func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	return func(c *InstallController) {
 		c.airgapBundle = airgapBundle
+	}
+}
+
+func WithConfigValues(configValues string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.configValues = configValues
+	}
+}
+
+func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InstallControllerOption {
+	return func(c *InstallController) {
+		c.endUserConfig = endUserConfig
 	}
 }
 
@@ -143,5 +175,19 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
+	if controller.infraManager == nil {
+		controller.infraManager = infra.NewInfraManager(
+			infra.WithRuntimeConfig(controller.rc),
+			infra.WithLogger(controller.logger),
+			infra.WithInfra(controller.install.Steps.Infra),
+			infra.WithPassword(controller.password),
+			infra.WithTLSConfig(controller.tlsConfig),
+			infra.WithLicenseFile(controller.licenseFile),
+			infra.WithAirgapBundle(controller.airgapBundle),
+			infra.WithConfigValues(controller.configValues),
+			infra.WithReleaseData(controller.releaseData),
+			infra.WithEndUserConfig(controller.endUserConfig),
+		)
+	}
 	return controller, nil
 }

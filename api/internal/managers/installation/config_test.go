@@ -292,7 +292,7 @@ func TestConfigSetAndGet(t *testing.T) {
 	assert.Equal(t, configToWrite.GlobalCIDR, readConfig.GlobalCIDR)
 }
 
-func TestConfigureForInstall(t *testing.T) {
+func TestConfigureHost(t *testing.T) {
 	tests := []struct {
 		name        string
 		config      *types.InstallationConfig
@@ -310,7 +310,7 @@ func TestConfigureForInstall(t *testing.T) {
 				mock.InOrder(
 					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
-					hum.On("ConfigureForInstall", mock.Anything, hostutils.InitForInstallOptions{
+					hum.On("ConfigureHost", mock.Anything, hostutils.InitForInstallOptions{
 						LicenseFile:  "license.yaml",
 						AirgapBundle: "bundle.tar",
 						PodCIDR:      "10.0.0.0/16",
@@ -340,7 +340,7 @@ func TestConfigureForInstall(t *testing.T) {
 				mock.InOrder(
 					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
-					hum.On("ConfigureForInstall", mock.Anything, hostutils.InitForInstallOptions{
+					hum.On("ConfigureHost", mock.Anything, hostutils.InitForInstallOptions{
 						LicenseFile:  "license.yaml",
 						AirgapBundle: "bundle.tar",
 					}).Return(errors.New("configuration failed")),
@@ -382,7 +382,7 @@ func TestConfigureForInstall(t *testing.T) {
 			)
 
 			// Run the test
-			err := manager.ConfigureForInstall(context.Background(), tt.config)
+			err := manager.ConfigureHost(context.Background(), tt.config)
 
 			// Assertions
 			if tt.expectedErr {

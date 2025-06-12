@@ -43,7 +43,7 @@ type Velero struct {
 }
 
 func (v *Velero) Name() string {
-	return "Velero"
+	return "Disaster Recovery"
 }
 
 func (v *Velero) Version() string {

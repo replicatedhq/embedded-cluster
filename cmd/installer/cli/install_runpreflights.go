@@ -62,19 +62,14 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 		return err
 	}
 
-	logrus.Debugf("materializing binaries")
-	if err := hostutils.MaterializeFiles(rc, flags.airgapBundle); err != nil {
-		return fmt.Errorf("unable to materialize files: %w", err)
-	}
-
-	logrus.Debugf("configuring sysctl")
-	if err := hostutils.ConfigureSysctl(); err != nil {
-		logrus.Debugf("unable to configure sysctl: %v", err)
-	}
-
-	logrus.Debugf("configuring kernel modules")
-	if err := hostutils.ConfigureKernelModules(); err != nil {
-		logrus.Debugf("unable to configure kernel modules: %v", err)
+	logrus.Debugf("configuring host")
+	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
+		LicenseFile:  flags.licenseFile,
+		AirgapBundle: flags.airgapBundle,
+		PodCIDR:      flags.cidrCfg.PodCIDR,
+		ServiceCIDR:  flags.cidrCfg.ServiceCIDR,
+	}); err != nil {
+		return fmt.Errorf("configure host: %w", err)
 	}
 
 	logrus.Debugf("running install preflights")

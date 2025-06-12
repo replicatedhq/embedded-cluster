@@ -3,6 +3,7 @@ package preflight
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -124,7 +125,7 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts P
 func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHostPreflightOptions) {
 	defer func() {
 		if r := recover(); r != nil {
-			if err := m.setFailedStatus(fmt.Sprintf("panic: %v", r)); err != nil {
+			if err := m.setFailedStatus(fmt.Sprintf("panic: %v: %s", r, string(debug.Stack()))); err != nil {
 				m.logger.WithField("error", err).Error("set failed status")
 			}
 		}

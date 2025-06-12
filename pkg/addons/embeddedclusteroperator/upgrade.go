@@ -24,7 +24,7 @@ func (e *EmbeddedClusterOperator) Upgrade(
 	}
 	if !exists {
 		logrus.Debugf("Release not found, installing release %s in namespace %s", e.ReleaseName(), e.Namespace())
-		if err := e.Install(ctx, logf, kcli, mcli, hcli, rc, domains, overrides, nil); err != nil {
+		if err := e.Install(ctx, logf, kcli, mcli, hcli, rc, domains, overrides); err != nil {
 			return errors.Wrap(err, "install")
 		}
 		return nil

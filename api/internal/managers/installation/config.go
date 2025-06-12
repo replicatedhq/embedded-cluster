@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -193,7 +194,7 @@ func (m *installationManager) setCIDRDefaults(config *types.InstallationConfig) 
 	return nil
 }
 
-func (m *installationManager) ConfigureForInstall(ctx context.Context, config *types.InstallationConfig) error {
+func (m *installationManager) ConfigureHost(ctx context.Context, config *types.InstallationConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -209,16 +210,23 @@ func (m *installationManager) ConfigureForInstall(ctx context.Context, config *t
 		return fmt.Errorf("set running status: %w", err)
 	}
 
-	go m.configureForInstall(context.Background(), config)
+	go m.configureHost(context.Background(), config)
 
 	return nil
 }
 
-func (m *installationManager) configureForInstall(ctx context.Context, config *types.InstallationConfig) {
+func (m *installationManager) configureHost(ctx context.Context, config *types.InstallationConfig) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if err := m.setFailedStatus(fmt.Sprintf("panic: %v", r)); err != nil {
+			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+		}
+		if finalErr != nil {
+			if err := m.setFailedStatus(finalErr.Error()); err != nil {
 				m.logger.WithField("error", err).Error("set failed status")
+			}
+		} else {
+			if err := m.setCompletedStatus(types.StateSucceeded, "Installation configured"); err != nil {
+				m.logger.WithField("error", err).Error("set succeeded status")
 			}
 		}
 	}()
@@ -229,14 +237,9 @@ func (m *installationManager) configureForInstall(ctx context.Context, config *t
 		PodCIDR:      config.PodCIDR,
 		ServiceCIDR:  config.ServiceCIDR,
 	}
-	if err := m.hostUtils.ConfigureForInstall(ctx, m.rc, opts); err != nil {
-		if err := m.setFailedStatus(fmt.Sprintf("configure installation: %v", err)); err != nil {
-			m.logger.WithField("error", err).Error("set failed status")
-		}
-		return
+	if err := m.hostUtils.ConfigureHost(ctx, m.rc, opts); err != nil {
+		return fmt.Errorf("configure installation: %w", err)
 	}
 
-	if err := m.setCompletedStatus(types.StateSucceeded, "Installation configured"); err != nil {
-		m.logger.WithField("error", err).Error("set succeeded status")
-	}
+	return nil
 }

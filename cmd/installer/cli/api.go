@@ -17,6 +17,7 @@ import (
 	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
 	apilogger "github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -31,11 +32,13 @@ type apiConfig struct {
 	Logger          logrus.FieldLogger
 	MetricsReporter metrics.ReporterInterface
 	Password        string
+	TLSConfig       apitypes.TLSConfig
 	ManagerPort     int
 	LicenseFile     string
 	AirgapBundle    string
-	ConfigChan      chan<- *apitypes.InstallationConfig
+	ConfigValues    string
 	ReleaseData     *release.ReleaseData
+	EndUserConfig   *ecv1beta1.Config
 	WebAssetsFS     fs.FS
 }
 
@@ -82,9 +85,11 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		api.WithRuntimeConfig(config.RuntimeConfig),
 		api.WithMetricsReporter(config.MetricsReporter),
 		api.WithReleaseData(config.ReleaseData),
+		api.WithTLSConfig(config.TLSConfig),
 		api.WithLicenseFile(config.LicenseFile),
 		api.WithAirgapBundle(config.AirgapBundle),
-		api.WithConfigChan(config.ConfigChan),
+		api.WithConfigValues(config.ConfigValues),
+		api.WithEndUserConfig(config.EndUserConfig),
 	)
 	if err != nil {
 		return fmt.Errorf("new api: %w", err)

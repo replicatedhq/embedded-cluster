@@ -18,6 +18,7 @@ const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep }) => {
     { id: 'setup', name: 'Setup', icon: Settings },
     { id: 'validation', name: 'Validation', icon: CheckCircle },
     { id: 'installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
+    { id: 'completion', name: 'Completion', icon: CheckCircle },
   ];
 
   const getStepStatus = (step: { id: string }) => {

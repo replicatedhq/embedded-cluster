@@ -32,7 +32,8 @@ type mockInstallController struct {
 	getHostPreflightStatusError error
 	getHostPreflightOutputError error
 	getHostPreflightTitlesError error
-	setupNodeError              error
+	setupInfraError             error
+	getInfraError               error
 	setStatusError              error
 	readStatusError             error
 }
@@ -80,8 +81,15 @@ func (m *mockInstallController) GetHostPreflightTitles(ctx context.Context) ([]s
 	return []string{}, nil
 }
 
-func (m *mockInstallController) SetupNode(ctx context.Context) error {
-	return m.setupNodeError
+func (m *mockInstallController) SetupInfra(ctx context.Context) error {
+	return m.setupInfraError
+}
+
+func (m *mockInstallController) GetInfra(ctx context.Context) (*types.Infra, error) {
+	if m.getInfraError != nil {
+		return nil, m.getInfraError
+	}
+	return &types.Infra{}, nil
 }
 
 func (m *mockInstallController) SetStatus(ctx context.Context, status *types.Status) error {
@@ -106,7 +114,7 @@ func TestConfigureInstallation(t *testing.T) {
 			name: "Valid config",
 			mockHostUtils: func() *hostutils.MockHostUtils {
 				mockHostUtils := &hostutils.MockHostUtils{}
-				mockHostUtils.On("ConfigureForInstall", mock.Anything, mock.Anything).Return(nil).Once()
+				mockHostUtils.On("ConfigureHost", mock.Anything, mock.Anything).Return(nil).Once()
 				return mockHostUtils
 			}(),
 			token: "TOKEN",
@@ -797,8 +805,15 @@ func TestInstallWithAPIClient(t *testing.T) {
 	// Create a runtimeconfig to be used in the install process
 	rc := runtimeconfig.New(nil)
 
+	// Create a mock hostutils
+	mockHostUtils := &hostutils.MockHostUtils{}
+	mockHostUtils.On("ConfigureHost", mock.Anything, mock.Anything).Return(nil)
+
 	// Create a config manager
-	installationManager := installation.NewInstallationManager(installation.WithRuntimeConfig(rc))
+	installationManager := installation.NewInstallationManager(
+		installation.WithRuntimeConfig(rc),
+		installation.WithHostUtils(mockHostUtils),
+	)
 
 	// Create an install controller with the config manager
 	installController, err := install.NewInstallController(
@@ -896,6 +911,9 @@ func TestInstallWithAPIClient(t *testing.T) {
 		assert.Equal(t, config.DataDirectory, newConfig.DataDirectory)
 		assert.Equal(t, config.AdminConsolePort, newConfig.AdminConsolePort)
 		assert.Equal(t, config.NetworkInterface, newConfig.NetworkInterface)
+
+		// Verify host configuration was performed
+		mockHostUtils.AssertExpectations(t)
 	})
 
 	// Test ConfigureInstallation validation error

@@ -24,7 +24,7 @@ func (v *Velero) Upgrade(
 	}
 	if !exists {
 		logrus.Debugf("Release not found, installing release %s in namespace %s", v.ReleaseName(), v.Namespace())
-		if err := v.Install(ctx, logf, kcli, mcli, hcli, rc, domains, overrides, nil); err != nil {
+		if err := v.Install(ctx, logf, kcli, mcli, hcli, rc, domains, overrides); err != nil {
 			return errors.Wrap(err, "install")
 		}
 		return nil

@@ -67,6 +67,7 @@ help: ## Display this help.
 manifests: kustomize controller-gen schemas ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1" output:crd:artifacts:config=config/crd/bases
 	$(KUSTOMIZE) build config/crd > charts/embedded-cluster-operator/charts/crds/templates/resources.yaml
+	$(KUSTOMIZE) build config/crd > ../pkg/crds/resources.yaml # other components that don't import the operator need this
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.

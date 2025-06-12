@@ -3,10 +3,10 @@ package types
 import (
 	"context"
 
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -19,6 +19,11 @@ type AddOn interface {
 	ReleaseName() string
 	Namespace() string
 	GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error)
-	Install(ctx context.Context, logf LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains, overrides []string, writer *spinner.MessageWriter) error
+	Install(ctx context.Context, logf LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains, overrides []string) error
 	Upgrade(ctx context.Context, logf LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains, overrides []string) error
+}
+
+type AddOnProgress struct {
+	Name   string
+	Status apitypes.Status
 }

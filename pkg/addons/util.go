@@ -3,7 +3,9 @@ package addons
 import (
 	"errors"
 	"strings"
+	"time"
 
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
@@ -61,4 +63,21 @@ func (a *AddOns) operatorImages(images []string, proxyRegistryDomain string) (st
 	tag := strings.Join(strings.Split(ecOperatorImage, ":")[1:], ":")
 
 	return repo, tag, ecUtilsImage, nil
+}
+
+func (a *AddOns) sendProgress(addOnName string, state apitypes.State, description string) {
+	if a.progress == nil {
+		return
+	}
+
+	status := apitypes.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	}
+
+	a.progress <- types.AddOnProgress{
+		Name:   addOnName,
+		Status: status,
+	}
 }

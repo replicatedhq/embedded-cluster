@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import InstallationStep from "../InstallationStep.tsx";
 import { MOCK_PROTOTYPE_SETTINGS } from "../../../test/testData.ts";
@@ -9,8 +9,14 @@ import { http, HttpResponse } from "msw";
 
 const server = setupServer(
   // Mock installation status endpoint
-  http.get("*/api/install/status", () => {
-    return HttpResponse.json({ state: "InProgress" });
+  http.get("*/api/install/infra/status", () => {
+    return HttpResponse.json({
+      status: { state: "Running", description: "Installing..." },
+      components: [
+        { name: "Runtime", status: { state: "Pending" } },
+        { name: "Disaster Recovery", status: { state: "Pending" } }
+      ]
+    });
   })
 );
 
@@ -21,16 +27,8 @@ describe("InstallationStep", () => {
     adminConsolePort: 30000,
   };
 
-  // Mock window.location.reload before all tests
-  let reloadMock: ReturnType<typeof vi.fn>;
   beforeAll(() => {
     server.listen();
-    // Setup window.location.reload mock
-    reloadMock = vi.fn();
-    Object.defineProperty(window, "location", {
-      value: { reload: reloadMock },
-      writable: true,
-    });
   });
 
   afterEach(() => {
@@ -42,8 +40,9 @@ describe("InstallationStep", () => {
     server.close();
   });
 
-  it("shows loading state initially", () => {
-    renderWithProviders(<InstallationStep />, {
+  it("shows initial installation UI", async () => {
+    const mockOnNext = vi.fn();
+    renderWithProviders(<InstallationStep onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {
@@ -53,20 +52,51 @@ describe("InstallationStep", () => {
       },
     });
 
-    expect(screen.getByText("Please wait while we complete the installation...")).toBeInTheDocument();
-    expect(screen.getByText("This may take a few minutes.")).toBeInTheDocument();
+    // Check header
+    expect(screen.getByText("Installation")).toBeInTheDocument();
+    expect(screen.getByText("Installing infrastructure components")).toBeInTheDocument();
+
+    // Check progress and status indicators
+    expect(screen.getByText("Preparing installation...")).toBeInTheDocument();
+
+    // Wait for progress update
+    await waitFor(() => {
+      expect(screen.getByText("Installing...")).toBeInTheDocument();
+    });
+    
+    // Verify Runtime component
+    const runtimeContainer = screen.getByTestId("status-indicator-runtime");
+    expect(runtimeContainer).toBeInTheDocument();
+    expect(within(runtimeContainer).getByTestId("status-title")).toHaveTextContent("Runtime");
+    expect(within(runtimeContainer).getByTestId("status-text")).toHaveTextContent("Pending");
+    
+    // Verify Disaster Recovery component
+    const drContainer = screen.getByTestId("status-indicator-disaster-recovery");
+    expect(drContainer).toBeInTheDocument();
+    expect(within(drContainer).getByTestId("status-title")).toHaveTextContent("Disaster Recovery");
+    expect(within(drContainer).getByTestId("status-text")).toHaveTextContent("Pending");
+
+    // Check next button is disabled
+    const nextButton = screen.getByText("Next: Finish");
+    expect(nextButton).toBeDisabled();
   });
 
-  it("shows admin console link when installation succeeds", async () => {
+  it("shows progress as components complete", async () => {
+    const mockOnNext = vi.fn();
     server.use(
-      http.get("*/api/install/status", ({ request }) => {
-        // Verify auth header
+      http.get("*/api/install/infra/status", ({ request }) => {
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        return HttpResponse.json({ state: "Succeeded" });
+        return HttpResponse.json({
+          status: { state: "InProgress", description: "Installing components..." },
+          components: [
+            { name: "Runtime", status: { state: "Succeeded" } },
+            { name: "Disaster Recovery", status: { state: "Running" } }
+          ]
+        });
       })
     );
 
-    renderWithProviders(<InstallationStep />, {
+    renderWithProviders(<InstallationStep onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {
@@ -76,31 +106,92 @@ describe("InstallationStep", () => {
       },
     });
 
+    // Wait for progress update
     await waitFor(() => {
-      expect(screen.getByText("Visit Admin Console")).toBeInTheDocument();
+      expect(screen.getByText("Installing components...")).toBeInTheDocument();
     });
 
-    const adminLink = screen.getByText("Visit Admin Console");
-    expect(adminLink).toBeInTheDocument();
+    // Verify Runtime component
+    const runtimeContainer = screen.getByTestId("status-indicator-runtime");
+    expect(runtimeContainer).toBeInTheDocument();
+    expect(within(runtimeContainer).getByTestId("status-title")).toHaveTextContent("Runtime");
+    expect(within(runtimeContainer).getByTestId("status-text")).toHaveTextContent("Complete");
+
+    // Verify Disaster Recovery component
+    const drContainer = screen.getByTestId("status-indicator-disaster-recovery");
+    expect(drContainer).toBeInTheDocument();
+    expect(within(drContainer).getByTestId("status-title")).toHaveTextContent("Disaster Recovery");
+    expect(within(drContainer).getByTestId("status-text")).toHaveTextContent("Installing...");
+
+    // Next button should still be disabled
+    expect(screen.getByText("Next: Finish")).toBeDisabled();
+  });
+
+  it("enables next button when installation succeeds", async () => {
+    const mockOnNext = vi.fn();
+    server.use(
+      http.get("*/api/install/infra/status", ({ request }) => {
+        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
+        return HttpResponse.json({
+          status: { state: "Succeeded", description: "Installation complete" },
+          components: [
+            { name: "Runtime", status: { state: "Succeeded" } },
+            { name: "Disaster Recovery", status: { state: "Succeeded" } }
+          ]
+        });
+      })
+    );
+
+    renderWithProviders(<InstallationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        preloadedState: {
+          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
+          config: mockConfig,
+        },
+      },
+    });
+
+    // Wait for success state
+    await waitFor(() => {
+      expect(screen.getByText("Next: Finish")).not.toBeDisabled();
+    });
+
+    // Verify final state
+    expect(screen.getByText("Installation complete")).toBeInTheDocument();
+    
+    // Verify Runtime component
+    const runtimeContainer = screen.getByTestId("status-indicator-runtime");
+    expect(runtimeContainer).toBeInTheDocument();
+    expect(within(runtimeContainer).getByTestId("status-title")).toHaveTextContent("Runtime");
+    expect(within(runtimeContainer).getByTestId("status-text")).toHaveTextContent("Complete");
+
+    // Verify Disaster Recovery component
+    const drContainer = screen.getByTestId("status-indicator-disaster-recovery");
+    expect(drContainer).toBeInTheDocument();
+    expect(within(drContainer).getByTestId("status-title")).toHaveTextContent("Disaster Recovery");
+    expect(within(drContainer).getByTestId("status-text")).toHaveTextContent("Complete");
   });
 
   it("shows error message when installation fails", async () => {
+    const mockOnNext = vi.fn();
     server.use(
-      http.get("*/api/install/status", ({ request }) => {
-        // Verify auth header
+      http.get("*/api/install/infra/status", ({ request }) => {
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        return HttpResponse.json(
-          {
-            state: "Failed",
-            description: "Installation failed",
-            lastUpdated: "2024-03-21T00:00:00Z",
+        return HttpResponse.json({
+          status: { 
+            state: "Failed", 
+            description: "Installation failed: Disaster Recovery setup failed" 
           },
-          { status: 200 }
-        );
+          components: [
+            { name: "Runtime", status: { state: "Succeeded" } },
+            { name: "Disaster Recovery", status: { state: "Failed" } }
+          ]
+        });
       })
     );
 
-    renderWithProviders(<InstallationStep />, {
+    renderWithProviders(<InstallationStep onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {
@@ -110,8 +201,26 @@ describe("InstallationStep", () => {
       },
     });
 
+    // Wait for error state
     await waitFor(() => {
-      expect(screen.getByText("Installation Error")).toBeInTheDocument();
+      const errorMessage = screen.getByTestId("error-message");
+      expect(errorMessage).toBeInTheDocument();
+      expect(within(errorMessage).getByText("Installation failed: Disaster Recovery setup failed")).toBeInTheDocument();
     });
+
+    // Verify Runtime component
+    const runtimeContainer = screen.getByTestId("status-indicator-runtime");
+    expect(runtimeContainer).toBeInTheDocument();
+    expect(within(runtimeContainer).getByTestId("status-title")).toHaveTextContent("Runtime");
+    expect(within(runtimeContainer).getByTestId("status-text")).toHaveTextContent("Complete");
+
+    // Verify Disaster Recovery component
+    const drContainer = screen.getByTestId("status-indicator-disaster-recovery");
+    expect(drContainer).toBeInTheDocument();
+    expect(within(drContainer).getByTestId("status-title")).toHaveTextContent("Disaster Recovery");
+    expect(within(drContainer).getByTestId("status-text")).toHaveTextContent("Failed");
+
+    // Next button should be disabled
+    expect(screen.getByText("Next: Finish")).toBeDisabled();
   });
 });

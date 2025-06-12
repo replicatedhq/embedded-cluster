@@ -3,6 +3,7 @@ package hostutils
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -16,26 +17,40 @@ type InitForInstallOptions struct {
 	ServiceCIDR  string
 }
 
-func (h *HostUtils) ConfigureForInstall(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
+func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
+	h.logger.Debugf("writing runtime config to disk")
+	if err := rc.WriteToDisk(); err != nil {
+		return fmt.Errorf("write runtime config to disk: %w", err)
+	}
+
+	h.logger.Debugf("setting permissions on %s", rc.EmbeddedClusterHomeDirectory())
+	if err := os.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
+		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
+		h.logger.Debugf("unable to chmod embedded-cluster home dir: %s", err)
+	}
+
 	h.logger.Debugf("materializing files")
 	if err := h.MaterializeFiles(rc, opts.AirgapBundle); err != nil {
 		return fmt.Errorf("materialize files: %w", err)
 	}
 
-	h.logger.Debugf("copy license file to %s", rc.EmbeddedClusterHomeDirectory())
-	if err := helpers.CopyFile(opts.LicenseFile, filepath.Join(rc.EmbeddedClusterHomeDirectory(), "license.yaml"), 0400); err != nil {
-		// We have decided not to report this error
-		h.logger.Warnf("copy license file to %s: %v", rc.EmbeddedClusterHomeDirectory(), err)
+	if opts.LicenseFile != "" {
+		h.logger.Debugf("copy license file to %s", rc.EmbeddedClusterHomeDirectory())
+		if err := helpers.CopyFile(opts.LicenseFile, filepath.Join(rc.EmbeddedClusterHomeDirectory(), "license.yaml"), 0400); err != nil {
+			// We have decided not to report this error
+			h.logger.Warnf("unable to copy license file to %s: %v", rc.EmbeddedClusterHomeDirectory(), err)
+		}
 	}
 
 	h.logger.Debugf("configuring sysctl")
 	if err := h.ConfigureSysctl(); err != nil {
-		h.logger.Debugf("configure sysctl: %v", err)
+		h.logger.Debugf("unable to configure sysctl: %v", err)
 	}
 
 	h.logger.Debugf("configuring kernel modules")
 	if err := h.ConfigureKernelModules(); err != nil {
-		h.logger.Debugf("configure kernel modules: %v", err)
+		h.logger.Debugf("unable to configure kernel modules: %v", err)
 	}
 
 	h.logger.Debugf("configuring network manager")
@@ -45,7 +60,7 @@ func (h *HostUtils) ConfigureForInstall(ctx context.Context, rc runtimeconfig.Ru
 
 	h.logger.Debugf("configuring firewalld")
 	if err := h.ConfigureFirewalld(ctx, opts.PodCIDR, opts.ServiceCIDR); err != nil {
-		h.logger.Debugf("configure firewalld: %v", err)
+		h.logger.Debugf("unable to configure firewalld: %v", err)
 	}
 
 	return nil

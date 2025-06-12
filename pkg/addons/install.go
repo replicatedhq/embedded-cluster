@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
@@ -12,7 +13,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
@@ -34,31 +34,30 @@ type InstallOptions struct {
 }
 
 func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
-	addons := a.getAddOnsForInstall(opts)
+	addons := GetAddOnsForInstall(opts)
 	if opts.IsRestore {
-		addons = a.getAddOnsForRestore(opts)
+		addons = GetAddOnsForRestore(opts)
 	}
 
 	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
 
 	for _, addon := range addons {
-		loading := spinner.Start()
-		loading.Infof("Installing %s", addon.Name())
+		a.sendProgress(addon.Name(), apitypes.StateRunning, "Installing")
 
 		overrides := a.addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
-		if err := addon.Install(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.rc, domains, overrides, loading); err != nil {
-			loading.ErrorClosef("Failed to install %s", addon.Name())
+		if err := addon.Install(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.rc, domains, overrides); err != nil {
+			a.sendProgress(addon.Name(), apitypes.StateFailed, err.Error())
 			return errors.Wrapf(err, "install %s", addon.Name())
 		}
 
-		loading.Closef("%s is ready", addon.Name())
+		a.sendProgress(addon.Name(), apitypes.StateSucceeded, "Installed")
 	}
 
 	return nil
 }
 
-func (a *AddOns) getAddOnsForInstall(opts InstallOptions) []types.AddOn {
+func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
@@ -95,7 +94,7 @@ func (a *AddOns) getAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	return addOns
 }
 
-func (a *AddOns) getAddOnsForRestore(opts InstallOptions) []types.AddOn {
+func GetAddOnsForRestore(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{},
 		&velero.Velero{

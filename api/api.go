@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/docs"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -45,9 +46,11 @@ type API struct {
 	installController install.Controller
 	rc                runtimeconfig.RuntimeConfig
 	releaseData       *release.ReleaseData
+	tlsConfig         types.TLSConfig
 	licenseFile       string
 	airgapBundle      string
-	configChan        chan<- *types.InstallationConfig
+	configValues      string
+	endUserConfig     *ecv1beta1.Config
 	logger            logrus.FieldLogger
 	hostUtils         hostutils.HostUtilsInterface
 	metricsReporter   metrics.ReporterInterface
@@ -103,9 +106,9 @@ func WithReleaseData(releaseData *release.ReleaseData) APIOption {
 	}
 }
 
-func WithConfigChan(configChan chan<- *types.InstallationConfig) APIOption {
+func WithTLSConfig(tlsConfig types.TLSConfig) APIOption {
 	return func(a *API) {
-		a.configChan = configChan
+		a.tlsConfig = tlsConfig
 	}
 }
 
@@ -118,6 +121,18 @@ func WithLicenseFile(licenseFile string) APIOption {
 func WithAirgapBundle(airgapBundle string) APIOption {
 	return func(a *API) {
 		a.airgapBundle = airgapBundle
+	}
+}
+
+func WithConfigValues(configValues string) APIOption {
+	return func(a *API) {
+		a.configValues = configValues
+	}
+}
+
+func WithEndUserConfig(endUserConfig *ecv1beta1.Config) APIOption {
+	return func(a *API) {
+		a.endUserConfig = endUserConfig
 	}
 }
 
@@ -170,8 +185,12 @@ func New(password string, opts ...APIOption) (*API, error) {
 			install.WithHostUtils(api.hostUtils),
 			install.WithMetricsReporter(api.metricsReporter),
 			install.WithReleaseData(api.releaseData),
+			install.WithPassword(password),
+			install.WithTLSConfig(api.tlsConfig),
 			install.WithLicenseFile(api.licenseFile),
 			install.WithAirgapBundle(api.airgapBundle),
+			install.WithConfigValues(api.configValues),
+			install.WithEndUserConfig(api.endUserConfig),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("new install controller: %w", err)
@@ -201,13 +220,14 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 
 	installRouter := authenticatedRouter.PathPrefix("/install").Subrouter()
 	installRouter.HandleFunc("/installation/config", a.getInstallInstallationConfig).Methods("GET")
-	installRouter.HandleFunc("/installation/status", a.getInstallInstallationStatus).Methods("GET")
 	installRouter.HandleFunc("/installation/configure", a.postInstallConfigureInstallation).Methods("POST")
+	installRouter.HandleFunc("/installation/status", a.getInstallInstallationStatus).Methods("GET")
 
-	installRouter.HandleFunc("/host-preflights/status", a.getInstallHostPreflightsStatus).Methods("GET")
 	installRouter.HandleFunc("/host-preflights/run", a.postInstallRunHostPreflights).Methods("POST")
+	installRouter.HandleFunc("/host-preflights/status", a.getInstallHostPreflightsStatus).Methods("GET")
 
-	installRouter.HandleFunc("/node/setup", a.postInstallSetupNode).Methods("POST")
+	installRouter.HandleFunc("/infra/setup", a.postInstallSetupInfra).Methods("POST")
+	installRouter.HandleFunc("/infra/status", a.getInstallInfraStatus).Methods("GET")
 
 	// TODO (@salah): remove this once the cli isn't responsible for setting the install status
 	// and the ui isn't polling for it to know if the entire install is complete

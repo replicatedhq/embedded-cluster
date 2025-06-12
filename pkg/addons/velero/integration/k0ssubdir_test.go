@@ -32,7 +32,7 @@ func TestK0sDir(t *testing.T) {
 	hcli, err := helm.NewClient(helm.HelmOptions{})
 	require.NoError(t, err, "NewClient should not return an error")
 
-	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, rc, ecv1beta1.Domains{}, nil, nil)
+	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, rc, ecv1beta1.Domains{}, nil)
 	require.NoError(t, err, "velero.Install should not return an error")
 
 	manifests := addon.DryRunManifests()

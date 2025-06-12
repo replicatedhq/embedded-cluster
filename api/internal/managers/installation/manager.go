@@ -22,7 +22,7 @@ type InstallationManager interface {
 	SetStatus(status types.Status) error
 	ValidateConfig(config *types.InstallationConfig) error
 	SetConfigDefaults(config *types.InstallationConfig) error
-	ConfigureForInstall(ctx context.Context, config *types.InstallationConfig) error
+	ConfigureHost(ctx context.Context, config *types.InstallationConfig) error
 }
 
 // installationManager is an implementation of the InstallationManager interface

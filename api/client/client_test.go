@@ -204,6 +204,105 @@ func TestConfigureInstallation(t *testing.T) {
 	assert.Equal(t, "Bad Request", apiErr.Message)
 }
 
+func TestSetupInfra(t *testing.T) {
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/api/install/infra/setup", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(types.Infra{
+			Status: &types.Status{
+				State:       types.StateRunning,
+				Description: "Installing infra",
+			},
+		})
+	}))
+	defer server.Close()
+
+	// Test successful setup
+	c := New(server.URL, WithToken("test-token"))
+	infra, err := c.SetupInfra()
+	assert.NoError(t, err)
+	assert.NotNil(t, infra)
+	assert.NotNil(t, infra.Status)
+	assert.Equal(t, types.StateRunning, infra.Status.State)
+	assert.Equal(t, "Installing infra", infra.Status.Description)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	infra, err = c.SetupInfra()
+	assert.Error(t, err)
+	assert.Nil(t, infra)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}
+
+func TestGetInfraStatus(t *testing.T) {
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/install/infra/status", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(types.Infra{
+			Status: &types.Status{
+				State:       types.StateSucceeded,
+				Description: "Installation successful",
+			},
+		})
+	}))
+	defer server.Close()
+
+	// Test successful get
+	c := New(server.URL, WithToken("test-token"))
+	infra, err := c.GetInfraStatus()
+	assert.NoError(t, err)
+	assert.NotNil(t, infra)
+	assert.Equal(t, types.StateSucceeded, infra.Status.State)
+	assert.Equal(t, "Installation successful", infra.Status.Description)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	infra, err = c.GetInfraStatus()
+	assert.Error(t, err)
+	assert.Nil(t, infra)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}
+
 func TestSetInstallStatus(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

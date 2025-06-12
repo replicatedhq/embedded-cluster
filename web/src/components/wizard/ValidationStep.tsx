@@ -26,7 +26,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
 
   const { mutate: startInstallation } = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/install/node/setup", {
+      const response = await fetch("/api/install/infra/setup", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

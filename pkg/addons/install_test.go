@@ -10,7 +10,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -189,9 +188,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 			if tt.before != nil {
 				tt.before()
 			}
-			rc := runtimeconfig.New(nil)
-			addOns := New(WithRuntimeConfig(rc))
-			tt.verify(t, addOns.getAddOnsForInstall(tt.opts))
+			tt.verify(t, GetAddOnsForInstall(tt.opts))
 			if tt.after != nil {
 				tt.after()
 			}
