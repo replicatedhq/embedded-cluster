@@ -11,7 +11,7 @@ export const AppIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6
     <img
       src={icon}
       alt="App Icon"
-      className={className}
+      className={`object-contain ${className}`}
     />
   );
 };
