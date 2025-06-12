@@ -36,7 +36,7 @@ type PrepareOptions struct {
 }
 
 // Prepare prepares the host preflights spec by merging provided spec with cluster preflights
-func Prepare(ctx context.Context, opts PrepareOptions) (*v1beta2.HostPreflightSpec, error) {
+func (p *PreflightRunner) Prepare(ctx context.Context, opts PrepareOptions) (*v1beta2.HostPreflightSpec, error) {
 	hpf := opts.HostPreflightSpec
 	if hpf == nil {
 		hpf = &v1beta2.HostPreflightSpec{}

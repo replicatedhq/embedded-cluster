@@ -171,7 +171,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			preflight.WithRuntimeConfig(controller.rc),
 			preflight.WithLogger(controller.logger),
 			preflight.WithMetricsReporter(controller.metricsReporter),
-			preflight.WithHostPreflight(controller.install.Steps.HostPreflight),
+			preflight.WithHostPreflightStore(preflight.NewMemoryStore(controller.install.Steps.HostPreflight)),
 		)
 	}
 

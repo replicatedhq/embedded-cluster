@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -23,8 +24,8 @@ type HostPreflightManager interface {
 }
 
 type hostPreflightManager struct {
-	hostPreflight      *types.HostPreflights
 	hostPreflightStore HostPreflightStore
+	runner             preflights.PreflightRunnerInterface
 	rc                 runtimeconfig.RuntimeConfig
 	logger             logrus.FieldLogger
 	metricsReporter    metrics.ReporterInterface
@@ -51,15 +52,15 @@ func WithMetricsReporter(metricsReporter metrics.ReporterInterface) HostPrefligh
 	}
 }
 
-func WithHostPreflight(hostPreflight *types.HostPreflights) HostPreflightManagerOption {
-	return func(m *hostPreflightManager) {
-		m.hostPreflight = hostPreflight
-	}
-}
-
 func WithHostPreflightStore(hostPreflightStore HostPreflightStore) HostPreflightManagerOption {
 	return func(m *hostPreflightManager) {
 		m.hostPreflightStore = hostPreflightStore
+	}
+}
+
+func WithPreflightRunner(runner preflights.PreflightRunnerInterface) HostPreflightManagerOption {
+	return func(m *hostPreflightManager) {
+		m.runner = runner
 	}
 }
 
@@ -79,12 +80,12 @@ func NewHostPreflightManager(opts ...HostPreflightManagerOption) HostPreflightMa
 		manager.logger = logger.NewDiscardLogger()
 	}
 
-	if manager.hostPreflight == nil {
-		manager.hostPreflight = types.NewHostPreflights()
+	if manager.hostPreflightStore == nil {
+		manager.hostPreflightStore = NewMemoryStore(types.NewHostPreflights())
 	}
 
-	if manager.hostPreflightStore == nil {
-		manager.hostPreflightStore = NewMemoryStore(manager.hostPreflight)
+	if manager.runner == nil {
+		manager.runner = preflights.New()
 	}
 
 	return manager
