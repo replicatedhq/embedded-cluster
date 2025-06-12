@@ -31,7 +31,6 @@ func Test_signalHandler_Signal(t *testing.T) {
 		if sig != nil {
 			cleanupSignal = sig
 		}
-		wg.Done()
 	}
 
 	// Save original os.Exit and restore after test
@@ -41,8 +40,10 @@ func Test_signalHandler_Signal(t *testing.T) {
 	exitCode := int32(0)
 	osExit = func(code int) {
 		atomic.StoreInt32(&exitCode, int32(code))
-		// Instead of exiting, just cancel the context
-		cancel()
+		// Check that the context is done
+		assert.Equal(t, context.Canceled, ctx.Err())
+		// Resume the waitgroup to allow the test to complete
+		wg.Done()
 	}
 
 	// Set up the signal handler
