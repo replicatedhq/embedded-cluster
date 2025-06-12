@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -430,9 +431,12 @@ func TestGetInstallationConfig(t *testing.T) {
 
 	// Test get with default/empty configuration
 	t.Run("Default configuration", func(t *testing.T) {
+		netUtils := &utils.MockNetUtils{}
+		netUtils.On("ListValidNetworkInterfaces").Return([]string{"eth0", "eth1"}, nil).Once()
+		netUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Once()
 		// Create a fresh config manager without writing anything
 		emptyInstallationManager := installation.NewInstallationManager(
-			installation.WithNetUtils(&mockNetUtils{ifaces: []string{"eth0", "eth1"}}),
+			installation.WithNetUtils(netUtils),
 		)
 
 		// Create an install controller with the empty config manager
