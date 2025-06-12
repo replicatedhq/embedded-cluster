@@ -20,26 +20,9 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var _ PreflightsInterface = (*Preflights)(nil)
-
-type Preflights struct {
-}
-
-type PreflightsOption func(*Preflights)
-
-func New(opts ...PreflightsOption) *Preflights {
-	h := &Preflights{}
-
-	for _, opt := range opts {
-		opt(h)
-	}
-
-	return h
-}
-
 // Run runs the provided host preflight spec locally. This function is meant to be
 // used when upgrading a local node.
-func (p *Preflights) Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error) {
+func (p *PreflightRunner) Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error) {
 	// Deduplicate collectors and analyzers before running preflights
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)
@@ -77,7 +60,7 @@ func (p *Preflights) Run(ctx context.Context, spec *troubleshootv1beta2.HostPref
 	return out, stderr.String(), err
 }
 
-func (p *Preflights) CopyBundleTo(dst string) error {
+func (p *PreflightRunner) CopyBundleTo(dst string) error {
 	matches, err := filepath.Glob("preflightbundle-*.tar.gz")
 	if err != nil {
 		return fmt.Errorf("find preflight bundle: %w", err)
