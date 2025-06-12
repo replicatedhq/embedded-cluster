@@ -147,7 +147,7 @@ main() {
     if ! ensure_release_builtin_overrides; then
         exit 1
     fi
-    if ! systemctl status embedded-cluster; then
+    if ! systemctl status "${EMBEDDED_CLUSTER_BIN}"; then
         echo "Failed to get status of embedded-cluster service"
         exit 1
     fi

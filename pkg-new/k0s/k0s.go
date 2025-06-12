@@ -34,7 +34,7 @@ type K0s struct {
 // kubeconfig and similar.
 func (k *K0s) GetStatus(ctx context.Context) (*K0sStatus, error) {
 	if _, err := os.Stat(k0sBinPath); err != nil {
-		return nil, fmt.Errorf("%s does not seem to be installed on this node", runtimeconfig.BinaryName())
+		return nil, err
 	}
 
 	// get k0s status json
@@ -184,7 +184,7 @@ func PatchK0sConfig(path string, patch string) error {
 		return nil
 	}
 	finalcfg := k0sv1beta1.ClusterConfig{
-		ObjectMeta: metav1.ObjectMeta{Name: runtimeconfig.BinaryName()},
+		ObjectMeta: metav1.ObjectMeta{Name: "k0s"},
 	}
 	if _, err := os.Stat(path); err == nil {
 		data, err := os.ReadFile(path)

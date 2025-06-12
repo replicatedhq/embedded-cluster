@@ -89,7 +89,7 @@ main() {
     if ! check_airgap_pvc; then
         exit 1
     fi
-    if ! systemctl status embedded-cluster; then
+    if ! systemctl status "${EMBEDDED_CLUSTER_BIN}"; then
         echo "Failed to get status of embedded-cluster service"
         exit 1
     fi
