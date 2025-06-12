@@ -61,6 +61,8 @@ components:
             $ref: '#/components/schemas/types.InfraComponent'
           type: array
           uniqueItems: false
+        logs:
+          type: string
         status:
           $ref: '#/components/schemas/types.Status'
       type: object
