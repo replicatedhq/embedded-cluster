@@ -9,7 +9,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	troubleshootanalyze "github.com/replicatedhq/troubleshoot/pkg/analyze"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
@@ -76,7 +75,7 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts P
 	}
 
 	// Get node IP
-	nodeIP, err := netutils.FirstValidAddress(config.NetworkInterface)
+	nodeIP, err := m.netUtils.FirstValidAddress(config.NetworkInterface)
 	if err != nil {
 		return nil, nil, fmt.Errorf("determine node ip: %w", err)
 	}

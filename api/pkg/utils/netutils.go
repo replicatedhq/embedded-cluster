@@ -8,6 +8,7 @@ import (
 type NetUtils interface {
 	ListValidNetworkInterfaces() ([]string, error)
 	DetermineBestNetworkInterface() (string, error)
+	FirstValidAddress(networkInterface string) (string, error)
 }
 
 type netUtils struct {
@@ -34,4 +35,8 @@ func (n *netUtils) ListValidNetworkInterfaces() ([]string, error) {
 
 func (n *netUtils) DetermineBestNetworkInterface() (string, error) {
 	return newconfig.DetermineBestNetworkInterface()
+}
+
+func (n *netUtils) FirstValidAddress(networkInterface string) (string, error) {
+	return netutils.FirstValidAddress(networkInterface)
 }

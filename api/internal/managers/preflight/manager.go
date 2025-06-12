@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
@@ -26,6 +27,7 @@ type HostPreflightManager interface {
 type hostPreflightManager struct {
 	hostPreflightStore HostPreflightStore
 	runner             preflights.PreflightRunnerInterface
+	netUtils           utils.NetUtils
 	rc                 runtimeconfig.RuntimeConfig
 	logger             logrus.FieldLogger
 	metricsReporter    metrics.ReporterInterface
@@ -64,6 +66,12 @@ func WithPreflightRunner(runner preflights.PreflightRunnerInterface) HostPreflig
 	}
 }
 
+func WithNetUtils(netUtils utils.NetUtils) HostPreflightManagerOption {
+	return func(m *hostPreflightManager) {
+		m.netUtils = netUtils
+	}
+}
+
 // NewHostPreflightManager creates a new HostPreflightManager
 func NewHostPreflightManager(opts ...HostPreflightManagerOption) HostPreflightManager {
 	manager := &hostPreflightManager{}
@@ -86,6 +94,10 @@ func NewHostPreflightManager(opts ...HostPreflightManagerOption) HostPreflightMa
 
 	if manager.runner == nil {
 		manager.runner = preflights.New()
+	}
+
+	if manager.netUtils == nil {
+		manager.netUtils = utils.NewNetUtils()
 	}
 
 	return manager
