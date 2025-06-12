@@ -10,17 +10,17 @@ import (
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
-var p PreflightRunnerInterface
+var p PreflightsRunnerInterface
 
 func init() {
 	Set(New())
 }
 
-func Set(_p PreflightRunnerInterface) {
+func Set(_p PreflightsRunnerInterface) {
 	p = _p
 }
 
-type PreflightRunnerInterface interface {
+type PreflightsRunnerInterface interface {
 	Prepare(ctx context.Context, opts PrepareOptions) (*troubleshootv1beta2.HostPreflightSpec, error)
 	Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error)
 	CopyBundleTo(dst string) error

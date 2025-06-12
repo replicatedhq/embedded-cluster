@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-var _ PreflightRunnerInterface = (*MockPreflightRunner)(nil)
+var _ PreflightsRunnerInterface = (*MockPreflightRunner)(nil)
 
 // MockPreflightRunner is a mock implementation of the PreflightRunnerInterface
 type MockPreflightRunner struct {

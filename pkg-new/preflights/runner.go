@@ -1,14 +1,14 @@
 package preflights
 
-var _ PreflightRunnerInterface = (*PreflightRunner)(nil)
+var _ PreflightsRunnerInterface = (*PreflightsRunner)(nil)
 
-type PreflightRunner struct {
+type PreflightsRunner struct {
 }
 
-type PreflightsOption func(*PreflightRunner)
+type PreflightsOption func(*PreflightsRunner)
 
-func New(opts ...PreflightsOption) *PreflightRunner {
-	h := &PreflightRunner{}
+func New(opts ...PreflightsOption) *PreflightsRunner {
+	h := &PreflightsRunner{}
 
 	for _, opt := range opts {
 		opt(h)
