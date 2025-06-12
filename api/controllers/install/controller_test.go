@@ -115,7 +115,7 @@ func TestConfigureInstallation(t *testing.T) {
 			name: "successful configure installation",
 			config: &types.InstallationConfig{
 				LocalArtifactMirrorPort: 9000,
-				DataDirectory:           "/data/dir",
+				DataDirectory:           t.TempDir(),
 			},
 			setupMock: func(m *installation.MockInstallationManager, config *types.InstallationConfig) {
 				mock.InOrder(
@@ -148,7 +148,8 @@ func TestConfigureInstallation(t *testing.T) {
 		{
 			name: "with global CIDR",
 			config: &types.InstallationConfig{
-				GlobalCIDR: "10.0.0.0/16",
+				GlobalCIDR:    "10.0.0.0/16",
+				DataDirectory: t.TempDir(),
 			},
 			setupMock: func(m *installation.MockInstallationManager, config *types.InstallationConfig) {
 				// Create a copy with expected CIDR values after computation
@@ -275,7 +276,7 @@ func TestRunHostPreflights(t *testing.T) {
 			name: "successful run preflights",
 			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					im.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: "/data/dir"}, nil),
+					im.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: t.TempDir()}, nil),
 					pm.On("PrepareHostPreflights", context.Background(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
 					pm.On("RunHostPreflights", context.Background(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec && expectedProxy == opts.Proxy
@@ -288,7 +289,7 @@ func TestRunHostPreflights(t *testing.T) {
 			name: "prepare preflights error",
 			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					im.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: "/data/dir"}, nil),
+					im.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: t.TempDir()}, nil),
 					pm.On("PrepareHostPreflights", context.Background(), mock.Anything).Return(nil, nil, errors.New("prepare error")),
 				)
 			},
@@ -298,7 +299,7 @@ func TestRunHostPreflights(t *testing.T) {
 			name: "run preflights error",
 			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					im.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: "/data/dir"}, nil),
+					im.On("GetConfig").Return(&types.InstallationConfig{DataDirectory: t.TempDir()}, nil),
 					pm.On("PrepareHostPreflights", context.Background(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
 					pm.On("RunHostPreflights", context.Background(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec && expectedProxy == opts.Proxy
@@ -567,7 +568,7 @@ func TestSetupInfra(t *testing.T) {
 					State: types.StateSucceeded,
 				}
 				config := &types.InstallationConfig{
-					DataDirectory: "/data/dir",
+					DataDirectory: t.TempDir(),
 				}
 				mock.InOrder(
 					pm.On("GetHostPreflightStatus", context.Background()).Return(preflightStatus, nil),
@@ -592,7 +593,7 @@ func TestSetupInfra(t *testing.T) {
 					},
 				}
 				config := &types.InstallationConfig{
-					DataDirectory: "/data/dir",
+					DataDirectory: t.TempDir(),
 				}
 				mock.InOrder(
 					pm.On("GetHostPreflightStatus", context.Background()).Return(preflightStatus, nil),
@@ -654,7 +655,7 @@ func TestSetupInfra(t *testing.T) {
 					State: types.StateSucceeded,
 				}
 				config := &types.InstallationConfig{
-					DataDirectory: "/data/dir",
+					DataDirectory: t.TempDir(),
 				}
 				mock.InOrder(
 					pm.On("GetHostPreflightStatus", context.Background()).Return(preflightStatus, nil),
