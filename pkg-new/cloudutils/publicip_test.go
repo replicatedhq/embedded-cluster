@@ -1,4 +1,4 @@
-package runtimeconfig
+package cloudutils
 
 import "testing"
 

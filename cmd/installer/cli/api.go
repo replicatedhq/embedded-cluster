@@ -18,6 +18,7 @@ import (
 	apilogger "github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -213,7 +214,7 @@ func getManagerURL(hostname string, port int) string {
 	if hostname != "" {
 		return fmt.Sprintf("https://%s:%v", hostname, port)
 	}
-	ipaddr := runtimeconfig.TryDiscoverPublicIP()
+	ipaddr := cloudutils.TryDiscoverPublicIP()
 	if ipaddr == "" {
 		if addr := os.Getenv("EC_PUBLIC_ADDRESS"); addr != "" {
 			ipaddr = addr

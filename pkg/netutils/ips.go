@@ -5,13 +5,12 @@ import (
 	"net"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
 )
 
 // Dependency injection variables for testing
 var (
 	networkInterfaceProvider = DefaultNetworkInterfaceProvider
-	tryDiscoverPublicIP      = runtimeconfig.TryDiscoverPublicIP
 )
 
 // adapted from https://github.com/k0sproject/k0s/blob/v1.30.4%2Bk0s.0/internal/pkg/iface/iface.go#L61
@@ -142,7 +141,7 @@ func ListAllValidIPAddresses() ([]net.IP, error) {
 	}
 
 	// try discovering the public IP if we're running in a cloud provider
-	publicIP := tryDiscoverPublicIP()
+	publicIP := cloudutils.TryDiscoverPublicIP()
 	if publicIP != "" {
 		ipAddresses = append(ipAddresses, net.ParseIP(publicIP))
 	}
