@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
@@ -81,11 +82,22 @@ func (a *API) getInstallInstallationStatus(w http.ResponseWriter, r *http.Reques
 //	@Description	Run install host preflight checks using installation config and client-provided data
 //	@Tags			install
 //	@Security		bearerauth
+//	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	types.InstallHostPreflightsStatusResponse
+//	@Param			request	body		types.PostInstallRunHostPreflightsRequest	true	"Post Install Run Host Preflights Request"
+//	@Success		200		{object}	types.InstallHostPreflightsStatusResponse
 //	@Router			/install/host-preflights/run [post]
 func (a *API) postInstallRunHostPreflights(w http.ResponseWriter, r *http.Request) {
-	err := a.installController.RunHostPreflights(r.Context())
+	var req types.PostInstallRunHostPreflightsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		a.logError(r, err, "failed to decode post install run host preflights request")
+		a.jsonError(w, r, types.NewBadRequestError(err))
+		return
+	}
+
+	err := a.installController.RunHostPreflights(r.Context(), install.RunHostPreflightsOptions{
+		IsUI: req.IsUI,
+	})
 	if err != nil {
 		a.logError(r, err, "failed to run install host preflights")
 		a.jsonError(w, r, err)

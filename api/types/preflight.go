@@ -1,5 +1,9 @@
 package types
 
+type PostInstallRunHostPreflightsRequest struct {
+	IsUI bool `json:"isUi"`
+}
+
 // HostPreflights represents the host preflight checks state
 type HostPreflights struct {
 	Titles []string              `json:"titles"`
