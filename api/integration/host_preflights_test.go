@@ -34,18 +34,14 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 			"Another Preflight",
 		},
 		Output: &types.HostPreflightsOutput{
-			Pass: []types.HostPreflightsRecord{
-				types.HostPreflightsRecord{
-					Title:   "Some Preflight",
-					Message: "All good",
-				},
-			},
-			Fail: []types.HostPreflightsRecord{
-				types.HostPreflightsRecord{
-					Title:   "Another Preflight",
-					Message: "Oh no!",
-				},
-			},
+			Pass: []types.HostPreflightsRecord{types.HostPreflightsRecord{
+				Title:   "Some Preflight",
+				Message: "All good",
+			}},
+			Fail: []types.HostPreflightsRecord{types.HostPreflightsRecord{
+				Title:   "Another Preflight",
+				Message: "Oh no!",
+			}},
 		},
 		Status: &types.Status{
 			State:       types.StateFailed,
