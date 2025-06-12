@@ -1,7 +1,7 @@
 export interface InfraStatusResponse {
   components: InfraComponent[];
   status: InfraStatus;
-  logs: string[];
+  logs: string;
 }
 
 export interface InfraComponent {

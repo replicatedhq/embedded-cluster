@@ -7,7 +7,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { InfraStatusResponse } from '../../types';
 import { ChevronRight } from 'lucide-react';
 import InstallationProgress from './installation/InstallationProgress';
-// import LogViewer from './installation/LogViewer';
+import LogViewer from './installation/LogViewer';
 import StatusIndicator from './installation/StatusIndicator';
 import ErrorMessage from './installation/ErrorMessage';
 
@@ -20,7 +20,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
   const { prototypeSettings } = useConfig();
   const [isInfraPolling, setIsInfraPolling] = useState(true);
   const [installComplete, setInstallComplete] = useState(false);
-  // const [showLogs, setShowLogs] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
   const themeColor = prototypeSettings.themeColor;
 
   // Query to poll infra status
@@ -40,7 +40,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
       return response.json() as Promise<InfraStatusResponse>;
     },
     enabled: isInfraPolling,
-    refetchInterval: 1000,
+    refetchInterval: 2000,
   });
 
   // Handle infra status changes
@@ -84,13 +84,12 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
         ))}
       </div>
 
-      {/* TODO (@salah): add support for installation logs */}
-      {/* <LogViewer
+      <LogViewer
         title="Installation Logs"
-        logs={infraStatusResponse?.logs || []}
+        logs={infraStatusResponse?.logs ? [infraStatusResponse.logs] : []}
         isExpanded={showLogs}
         onToggle={() => setShowLogs(!showLogs)}
-      /> */}
+      />
       
       {infraStatusError && <ErrorMessage error={infraStatusError?.message} />}
       {infraStatusResponse?.status?.state === 'Failed' && <ErrorMessage error={infraStatusResponse?.status?.description} />}

@@ -8,13 +8,18 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
+const maxLogSize = 100 * 1024 // 100KB total log size
+
 // Store provides methods for storing and retrieving infrastructure state
 type Store interface {
 	Get() (*types.Infra, error)
 	GetStatus() (*types.Status, error)
 	SetStatus(status types.Status) error
+	SetStatusDesc(desc string) error
 	RegisterComponent(name string) error
 	SetComponentStatus(name string, status *types.Status) error
+	AddLogs(logs string) error
+	GetLogs() (string, error)
 }
 
 // memoryStore is an in-memory implementation of Store
@@ -49,6 +54,18 @@ func (s *memoryStore) SetStatus(status types.Status) error {
 	return nil
 }
 
+func (s *memoryStore) SetStatusDesc(desc string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.infra.Status == nil {
+		return fmt.Errorf("status not set")
+	}
+	s.infra.Status.Description = desc
+
+	return nil
+}
+
 func (s *memoryStore) RegisterComponent(name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -77,4 +94,22 @@ func (s *memoryStore) SetComponentStatus(name string, status *types.Status) erro
 	}
 
 	return fmt.Errorf("component %s not found", name)
+}
+
+func (s *memoryStore) AddLogs(logs string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.infra.Logs += logs + "\n"
+	if len(s.infra.Logs) > maxLogSize {
+		s.infra.Logs = "... (truncated) " + s.infra.Logs[len(s.infra.Logs)-maxLogSize:]
+	}
+
+	return nil
+}
+
+func (s *memoryStore) GetLogs() (string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.infra.Logs, nil
 }
