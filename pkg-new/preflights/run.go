@@ -22,7 +22,7 @@ import (
 
 // Run runs the provided host preflight spec locally. This function is meant to be
 // used when upgrading a local node.
-func (p *PreflightRunner) Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error) {
+func (p *PreflightsRunner) Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error) {
 	// Deduplicate collectors and analyzers before running preflights
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)
@@ -60,7 +60,7 @@ func (p *PreflightRunner) Run(ctx context.Context, spec *troubleshootv1beta2.Hos
 	return out, stderr.String(), err
 }
 
-func (p *PreflightRunner) CopyBundleTo(dst string) error {
+func (p *PreflightsRunner) CopyBundleTo(dst string) error {
 	matches, err := filepath.Glob("preflightbundle-*.tar.gz")
 	if err != nil {
 		return fmt.Errorf("find preflight bundle: %w", err)
