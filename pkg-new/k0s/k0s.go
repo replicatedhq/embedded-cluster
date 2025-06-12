@@ -92,7 +92,7 @@ func (k *K0s) IsInstalled() (bool, error) {
 // WriteK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by runtimeconfig.K0sConfigPath). If a file already sits
 // there, this function returns an error.
-func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, overrides string, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	cfgpath := runtimeconfig.K0sConfigPath
 	if _, err := os.Stat(cfgpath); err == nil {
 		return nil, fmt.Errorf("configuration file already exists")
@@ -125,7 +125,7 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 		}
 	}
 
-	cfg, err = applyUnsupportedOverrides(cfg, overrides)
+	cfg, err = applyUnsupportedOverrides(cfg, eucfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
@@ -153,7 +153,7 @@ func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle s
 
 // applyUnsupportedOverrides applies overrides to the k0s configuration. Applies the
 // overrides embedded into the binary and then the ones provided by the user (--overrides).
-func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, endUserOverridesPath string) (*k0sv1beta1.ClusterConfig, error) {
+func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, eucfg *ecv1beta1.Config) (*k0sv1beta1.ClusterConfig, error) {
 	embcfg := release.GetEmbeddedClusterConfig()
 	if embcfg != nil {
 		// Apply vendor k0s overrides
@@ -163,11 +163,6 @@ func applyUnsupportedOverrides(cfg *k0sv1beta1.ClusterConfig, endUserOverridesPa
 		if err != nil {
 			return nil, fmt.Errorf("unable to patch k0s config: %w", err)
 		}
-	}
-
-	eucfg, err := helpers.ParseEndUserConfig(endUserOverridesPath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to process overrides file: %w", err)
 	}
 
 	if eucfg != nil {

@@ -18,16 +18,12 @@ type InitForInstallOptions struct {
 }
 
 func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
-	// update process env vars from the runtime config
-	os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
-
-	// write the runtime config to disk
+	h.logger.Debugf("writing runtime config to disk")
 	if err := rc.WriteToDisk(); err != nil {
 		return fmt.Errorf("write runtime config to disk: %w", err)
 	}
 
-	// ensure correct permissions on the data directory
+	h.logger.Debugf("setting permissions on %s", rc.EmbeddedClusterHomeDirectory())
 	if err := os.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
 		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
 		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)

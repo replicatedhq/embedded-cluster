@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -47,7 +48,7 @@ type InstallController struct {
 	licenseFile          string
 	airgapBundle         string
 	configValues         string
-	k0sOverrides         string
+	endUserConfig        *ecv1beta1.Config
 	mu                   sync.RWMutex
 }
 
@@ -113,9 +114,9 @@ func WithConfigValues(configValues string) InstallControllerOption {
 	}
 }
 
-func WithK0sOverrides(k0sOverrides string) InstallControllerOption {
+func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InstallControllerOption {
 	return func(c *InstallController) {
-		c.k0sOverrides = k0sOverrides
+		c.endUserConfig = endUserConfig
 	}
 }
 
@@ -185,7 +186,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithAirgapBundle(controller.airgapBundle),
 			infra.WithConfigValues(controller.configValues),
 			infra.WithReleaseData(controller.releaseData),
-			infra.WithK0sOverrides(controller.k0sOverrides),
+			infra.WithEndUserConfig(controller.endUserConfig),
 		)
 	}
 	return controller, nil

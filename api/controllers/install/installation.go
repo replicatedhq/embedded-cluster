@@ -3,6 +3,7 @@ package install
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -47,6 +48,10 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config *t
 	c.rc.SetDataDir(config.DataDirectory)
 	c.rc.SetLocalArtifactMirrorPort(config.LocalArtifactMirrorPort)
 	c.rc.SetAdminConsolePort(config.AdminConsolePort)
+
+	// update process env vars from the runtime config
+	os.Setenv("KUBECONFIG", c.rc.PathToKubeConfig())
+	os.Setenv("TMPDIR", c.rc.EmbeddedClusterTmpSubDir())
 
 	if err := c.installationManager.ConfigureHost(ctx, config); err != nil {
 		return fmt.Errorf("configure: %w", err)

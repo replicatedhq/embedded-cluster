@@ -17,6 +17,7 @@ import (
 	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
 	apilogger "github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -37,7 +38,7 @@ type apiConfig struct {
 	AirgapBundle    string
 	ConfigValues    string
 	ReleaseData     *release.ReleaseData
-	K0sOverrides    string
+	EndUserConfig   *ecv1beta1.Config
 	WebAssetsFS     fs.FS
 }
 
@@ -88,7 +89,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		api.WithLicenseFile(config.LicenseFile),
 		api.WithAirgapBundle(config.AirgapBundle),
 		api.WithConfigValues(config.ConfigValues),
-		api.WithK0sOverrides(config.K0sOverrides),
+		api.WithEndUserConfig(config.EndUserConfig),
 	)
 	if err != nil {
 		return fmt.Errorf("new api: %w", err)

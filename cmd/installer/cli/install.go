@@ -322,6 +322,9 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 	rc.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
 	rc.SetAdminConsolePort(flags.adminConsolePort)
 
+	os.Setenv("KUBECONFIG", rc.PathToKubeConfig()) // this is needed for restore as well since it shares this function
+	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+
 	return nil
 }
 
@@ -359,6 +362,11 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 		flags.tlsKeyBytes = keyData
 	}
 
+	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return fmt.Errorf("process overrides file: %w", err)
+	}
+
 	apiConfig := apiConfig{
 		// TODO (@salah): implement reporting in api
 		// MetricsReporter: installReporter,
@@ -369,12 +377,12 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 			KeyBytes:  flags.tlsKeyBytes,
 			Hostname:  flags.hostname,
 		},
-		ManagerPort:  flags.managerPort,
-		LicenseFile:  flags.licenseFile,
-		AirgapBundle: flags.airgapBundle,
-		ConfigValues: flags.configValues,
-		ReleaseData:  release.GetReleaseData(),
-		K0sOverrides: flags.overrides,
+		ManagerPort:   flags.managerPort,
+		LicenseFile:   flags.licenseFile,
+		AirgapBundle:  flags.airgapBundle,
+		ConfigValues:  flags.configValues,
+		ReleaseData:   release.GetReleaseData(),
+		EndUserConfig: eucfg,
 	}
 
 	if err := startAPI(ctx, flags.tlsCert, apiConfig); err != nil {
@@ -696,7 +704,12 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 	loading.Infof("Installing node")
 	logrus.Debugf("creating k0s configuration file")
 
-	cfg, err := k0s.WriteK0sConfig(ctx, flags.networkInterface, flags.airgapBundle, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR, flags.overrides, mutate)
+	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return nil, fmt.Errorf("process overrides file: %w", err)
+	}
+
+	cfg, err := k0s.WriteK0sConfig(ctx, flags.networkInterface, flags.airgapBundle, flags.cidrCfg.PodCIDR, flags.cidrCfg.ServiceCIDR, eucfg, mutate)
 	if err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create config file: %w", err)
@@ -1000,16 +1013,22 @@ func recordInstallation(
 		cfgspec = &cfg.Spec
 	}
 
+	// parse the end user config
+	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return nil, fmt.Errorf("process overrides file: %w", err)
+	}
+
 	// record the installation
 	installation, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
-		IsAirgap:           flags.isAirgap,
-		Proxy:              flags.proxy,
-		K0sConfig:          k0sCfg,
-		License:            license,
-		ConfigSpec:         cfgspec,
-		MetricsBaseURL:     replicatedAppURL(),
-		RuntimeConfig:      rc.Get(),
-		K0sConfigOverrides: flags.overrides,
+		IsAirgap:       flags.isAirgap,
+		Proxy:          flags.proxy,
+		K0sConfig:      k0sCfg,
+		License:        license,
+		ConfigSpec:     cfgspec,
+		MetricsBaseURL: replicatedAppURL(),
+		RuntimeConfig:  rc.Get(),
+		EndUserConfig:  eucfg,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("record installation: %w", err)

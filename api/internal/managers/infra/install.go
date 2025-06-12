@@ -196,7 +196,7 @@ func (m *infraManager) installK0s(ctx context.Context, config *types.Installatio
 	}()
 
 	m.logger.Debug("creating k0s configuration file")
-	k0sCfg, err := k0s.WriteK0sConfig(ctx, config.NetworkInterface, m.airgapBundle, config.PodCIDR, config.ServiceCIDR, m.k0sOverrides, nil)
+	k0sCfg, err := k0s.WriteK0sConfig(ctx, config.NetworkInterface, m.airgapBundle, config.PodCIDR, config.ServiceCIDR, m.endUserConfig, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
@@ -245,14 +245,14 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 	// record the installation
 	m.logger.Debugf("recording installation")
 	in, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
-		IsAirgap:           m.airgapBundle != "",
-		Proxy:              proxy,
-		K0sConfig:          k0sCfg,
-		License:            license,
-		ConfigSpec:         m.getECConfigSpec(),
-		MetricsBaseURL:     netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
-		RuntimeConfig:      m.rc.Get(),
-		K0sConfigOverrides: m.k0sOverrides,
+		IsAirgap:       m.airgapBundle != "",
+		Proxy:          proxy,
+		K0sConfig:      k0sCfg,
+		License:        license,
+		ConfigSpec:     m.getECConfigSpec(),
+		MetricsBaseURL: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
+		RuntimeConfig:  m.rc.Get(),
+		EndUserConfig:  m.endUserConfig,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("record installation: %w", err)
@@ -274,12 +274,6 @@ func (m *infraManager) installAddOns(
 	mcli metadata.Interface,
 	hcli helm.Client,
 ) error {
-	// get the end user config spec overrides
-	euCfgSpec, err := m.getEndUserConfigSpec()
-	if err != nil {
-		return fmt.Errorf("get end user config spec: %w", err)
-	}
-
 	// get the configured custom domains
 	ecDomains := utils.GetDomains(m.releaseData)
 
@@ -316,7 +310,7 @@ func (m *infraManager) installAddOns(
 		DisasterRecoveryEnabled: license.Spec.IsDisasterRecoverySupported,
 		IsMultiNodeEnabled:      license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec:      m.getECConfigSpec(),
-		EndUserConfigSpec:       euCfgSpec,
+		EndUserConfigSpec:       m.getEndUserConfigSpec(),
 		KotsInstaller: func() error {
 			opts := kotscli.InstallOptions{
 				RuntimeConfig:         m.rc,

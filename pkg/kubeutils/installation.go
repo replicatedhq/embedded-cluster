@@ -123,14 +123,14 @@ func writeInstallationStatusMessage(writer *spinner.MessageWriter, install *ecv1
 }
 
 type RecordInstallationOptions struct {
-	IsAirgap           bool
-	Proxy              *ecv1beta1.ProxySpec
-	K0sConfig          *k0sv1beta1.ClusterConfig
-	License            *kotsv1beta1.License
-	ConfigSpec         *ecv1beta1.ConfigSpec
-	MetricsBaseURL     string
-	RuntimeConfig      *ecv1beta1.RuntimeConfigSpec
-	K0sConfigOverrides string
+	IsAirgap       bool
+	Proxy          *ecv1beta1.ProxySpec
+	K0sConfig      *k0sv1beta1.ClusterConfig
+	License        *kotsv1beta1.License
+	ConfigSpec     *ecv1beta1.ConfigSpec
+	MetricsBaseURL string
+	RuntimeConfig  *ecv1beta1.RuntimeConfigSpec
+	EndUserConfig  *ecv1beta1.Config
 }
 
 func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInstallationOptions) (*ecv1beta1.Installation, error) {
@@ -150,14 +150,8 @@ func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInst
 	}
 
 	var euOverrides string
-	if opts.K0sConfigOverrides != "" {
-		eucfg, err := helpers.ParseEndUserConfig(opts.K0sConfigOverrides)
-		if err != nil {
-			return nil, fmt.Errorf("process overrides file: %w", err)
-		}
-		if eucfg != nil {
-			euOverrides = eucfg.Spec.UnsupportedOverrides.K0s
-		}
+	if opts.EndUserConfig != nil {
+		euOverrides = opts.EndUserConfig.Spec.UnsupportedOverrides.K0s
 	}
 
 	installation := &ecv1beta1.Installation{

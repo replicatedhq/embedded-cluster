@@ -8,7 +8,6 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,14 +48,9 @@ func (m *infraManager) getECConfigSpec() *ecv1beta1.ConfigSpec {
 	return &m.releaseData.EmbeddedClusterConfig.Spec
 }
 
-func (m *infraManager) getEndUserConfigSpec() (*ecv1beta1.ConfigSpec, error) {
-	euCfg, err := helpers.ParseEndUserConfig(m.k0sOverrides)
-	if err != nil {
-		return nil, fmt.Errorf("process overrides file: %w", err)
+func (m *infraManager) getEndUserConfigSpec() *ecv1beta1.ConfigSpec {
+	if m.endUserConfig == nil {
+		return nil
 	}
-	var euCfgSpec *ecv1beta1.ConfigSpec
-	if euCfg != nil {
-		euCfgSpec = &euCfg.Spec
-	}
-	return euCfgSpec, nil
+	return &m.endUserConfig.Spec
 }

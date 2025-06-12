@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/docs"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -49,7 +50,7 @@ type API struct {
 	licenseFile       string
 	airgapBundle      string
 	configValues      string
-	k0sOverrides      string
+	endUserConfig     *ecv1beta1.Config
 	logger            logrus.FieldLogger
 	hostUtils         hostutils.HostUtilsInterface
 	metricsReporter   metrics.ReporterInterface
@@ -129,9 +130,9 @@ func WithConfigValues(configValues string) APIOption {
 	}
 }
 
-func WithK0sOverrides(k0sOverrides string) APIOption {
+func WithEndUserConfig(endUserConfig *ecv1beta1.Config) APIOption {
 	return func(a *API) {
-		a.k0sOverrides = k0sOverrides
+		a.endUserConfig = endUserConfig
 	}
 }
 
@@ -189,7 +190,7 @@ func New(password string, opts ...APIOption) (*API, error) {
 			install.WithLicenseFile(api.licenseFile),
 			install.WithAirgapBundle(api.airgapBundle),
 			install.WithConfigValues(api.configValues),
-			install.WithK0sOverrides(api.k0sOverrides),
+			install.WithEndUserConfig(api.endUserConfig),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("new install controller: %w", err)
