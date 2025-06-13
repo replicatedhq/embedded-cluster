@@ -3,14 +3,13 @@ import Card from "../common/Card";
 import Button from "../common/Button";
 import { useConfig } from "../../contexts/ConfigContext";
 import { useWizardMode } from "../../contexts/WizardModeContext";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import LinuxSetup from "./setup/LinuxSetup";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 
 interface SetupStepProps {
   onNext: () => void;
-  onBack: () => void;
 }
 
 interface Status {
@@ -22,7 +21,7 @@ interface ConfigError extends Error {
   errors?: { field: string; message: string }[];
 }
 
-const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
+const SetupStep: React.FC<SetupStepProps> = ({ onNext }) => {
   const { config, updateConfig, prototypeSettings } = useConfig();
   const { text } = useWizardMode();
   const [showAdvanced, setShowAdvanced] = useState(true);
