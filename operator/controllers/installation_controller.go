@@ -66,6 +66,9 @@ const ecNamespace = "embedded-cluster"
 var copyHostPreflightResultsJob = &batchv1.Job{
 	ObjectMeta: metav1.ObjectMeta{
 		Namespace: ecNamespace,
+		Labels: map[string]string{
+			"replicated.com/copy-host-preflight-results": "true",
+		},
 	},
 	Spec: batchv1.JobSpec{
 		BackoffLimit:            ptr.To[int32](2),
