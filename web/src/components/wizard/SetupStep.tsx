@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import LinuxSetup from "./setup/LinuxSetup";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
+import { handleUnauthorized } from "../../utils/auth";
 
 interface SetupStepProps {
   onNext: () => void;
@@ -39,7 +40,12 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
         },
       });
       if (!response.ok) {
-        throw new Error("Failed to fetch install configuration");
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          handleUnauthorized(errorData);
+          throw new Error("Session expired. Please log in again.");
+        }
+        throw new Error(errorData.message || "Failed to fetch install configuration");
       }
       const config = await response.json();
       updateConfig(config);
@@ -57,7 +63,12 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
         },
       });
       if (!response.ok) {
-        throw new Error("Failed to fetch network interfaces");
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          handleUnauthorized(errorData);
+          throw new Error("Session expired. Please log in again.");
+        }
+        throw new Error(errorData.message || "Failed to fetch network interfaces");
       }
       return response.json();
     },
@@ -77,6 +88,10 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          handleUnauthorized(errorData);
+          throw new Error("Session expired. Please log in again.");
+        }
         throw errorData;
       }
       return response.json();
