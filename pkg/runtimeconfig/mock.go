@@ -133,6 +133,12 @@ func (m *MockRuntimeConfig) AdminConsolePort() int {
 	return args.Int(0)
 }
 
+// ManagerPort mocks the ManagerPort method
+func (m *MockRuntimeConfig) ManagerPort() int {
+	args := m.Called()
+	return args.Int(0)
+}
+
 // HostCABundlePath mocks the HostCABundlePath method
 func (m *MockRuntimeConfig) HostCABundlePath() string {
 	args := m.Called()

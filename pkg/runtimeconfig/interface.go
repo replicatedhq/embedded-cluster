@@ -26,6 +26,7 @@ type RuntimeConfig interface {
 	WriteToDisk() error
 	LocalArtifactMirrorPort() int
 	AdminConsolePort() int
+	ManagerPort() int
 	HostCABundlePath() string
 	SetDataDir(dataDir string)
 	SetLocalArtifactMirrorPort(port int)

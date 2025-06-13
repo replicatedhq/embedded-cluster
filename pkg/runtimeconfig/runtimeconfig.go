@@ -207,6 +207,15 @@ func (rc *runtimeConfig) AdminConsolePort() int {
 	return ecv1beta1.DefaultAdminConsolePort
 }
 
+// ManagerPort returns the configured port for the manager or the default if not
+// configured.
+func (rc *runtimeConfig) ManagerPort() int {
+	if rc.spec.Manager.Port > 0 {
+		return rc.spec.Manager.Port
+	}
+	return ecv1beta1.DefaultManagerPort
+}
+
 // HostCABundlePath returns the path to the host CA bundle.
 func (rc *runtimeConfig) HostCABundlePath() string {
 	return rc.spec.HostCABundlePath
