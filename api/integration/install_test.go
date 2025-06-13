@@ -393,7 +393,7 @@ func TestConfigureInstallationValidation(t *testing.T) {
 	var apiError types.APIError
 	err = json.NewDecoder(rec.Body).Decode(&apiError)
 	require.NoError(t, err)
-	assert.Contains(t, apiError.Error(), "Service CIDR is required when globalCidr is not set")
+	assert.Contains(t, apiError.Error(), "serviceCidr is required when globalCidr is not set")
 	// Also verify the field name is correct
 	assert.Equal(t, "serviceCidr", apiError.Errors[0].Field)
 }
@@ -1064,12 +1064,8 @@ func TestInstallWithAPIClient(t *testing.T) {
 		apiErr, ok := err.(*types.APIError)
 		require.True(t, ok, "Error should be of type *types.APIError")
 		assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
-		// Error message should contain both variants of the port conflict message
-		assert.True(t,
-			strings.Contains(apiErr.Error(), "Admin Console Port and localArtifactMirrorPort cannot be equal") &&
-				strings.Contains(apiErr.Error(), "adminConsolePort and Local Artifact Mirror Port cannot be equal"),
-			"Error message should contain both variants of the port conflict message",
-		)
+		// Error message should contain the same port conflict message for both fields
+		assert.Equal(t, 2, strings.Count(apiErr.Error(), "adminConsolePort and localArtifactMirrorPort cannot be equal"))
 	})
 
 	// Test SetInstallStatus

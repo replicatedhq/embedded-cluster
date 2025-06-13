@@ -3,6 +3,7 @@ import Input from "../../common/Input";
 import Select from "../../common/Select";
 import { useBranding } from "../../../contexts/BrandingContext";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { formatErrorMessage } from "../../../utils/error";
 
 interface LinuxSetupProps {
   config: {
@@ -43,7 +44,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
 
   const getFieldError = (fieldName: string) => {
     const fieldError = fieldErrors.find((err) => err.field === fieldName);
-    return fieldError?.message;
+    return fieldError ? formatErrorMessage(fieldError.message) : undefined;
   };
 
   return (
