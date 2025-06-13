@@ -87,7 +87,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "no-subnet-available",
-								Message: "10.0.0.0/24 is not available. Use --pod-cidr to specify an available CIDR block.",
+								Message: "The network range 10.0.0.0/24 is not available. Use --pod-cidr to specify an available CIDR block.",
 							},
 						},
 						{
@@ -162,7 +162,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "no-subnet-available",
-								Message: "10.0.0.0/24 is not available. Use --service-cidr to specify an available CIDR block.",
+								Message: "The network range 10.0.0.0/24 is not available. Use --service-cidr to specify an available CIDR block.",
 							},
 						},
 						{
@@ -237,7 +237,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "no-subnet-available",
-								Message: "10.0.0.0/24 is not available. Use --cidr to specify a CIDR block of available private IP addresses (/16 or larger).",
+								Message: "The network range 10.0.0.0/24 is not available. Use --cidr to specify a CIDR block of available private IP addresses (/16 or larger).",
 							},
 						},
 						{

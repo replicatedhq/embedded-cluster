@@ -890,7 +890,7 @@ spec:
           - fail:
               when: "no-subnet-available"
               message: >-
-                {{ .PodCIDR.CIDR }} is not available. Use --pod-cidr to specify an available CIDR block.
+                The network range {{ .PodCIDR.CIDR }} is not available. Use --pod-cidr to specify an available CIDR block.
           - pass:
               when: "a-subnet-is-available"
               message: Specified Pod CIDR is available.
@@ -902,7 +902,7 @@ spec:
           - fail:
               when: "no-subnet-available"
               message: >-
-                {{ .ServiceCIDR.CIDR }} is not available. Use --service-cidr to specify an available CIDR block.
+                The network range {{ .ServiceCIDR.CIDR }} is not available. Use --service-cidr to specify an available CIDR block.
           - pass:
               when: "a-subnet-is-available"
               message: Specified Service CIDR is available.
@@ -915,7 +915,7 @@ spec:
               when: "no-subnet-available"
               message: >-
                 {{ if .IsUI -}}
-                The reserved network range {{ .GlobalCIDR.CIDR }} is not available. Go back to the Setup page and choose a different reserved network range of available private IP addresses (/16 or larger).
+                The network range {{ .GlobalCIDR.CIDR }} is not available. Go back to the Setup page and choose a different reserved network range of available private IP addresses (/16 or larger).
                 {{- else -}}
                 The network range {{ .GlobalCIDR.CIDR }} is not available. Use --cidr to specify a CIDR block of available private IP addresses (/16 or larger).
                 {{- end }}
