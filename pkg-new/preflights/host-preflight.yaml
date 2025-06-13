@@ -473,7 +473,7 @@ spec:
                 The static IP addresses for {{ .ProxyRegistryURL }} are 162.159.137.43 and 162.159.138.43.
                 {{- else -}}
                 Unexpected response from {{ .ProxyRegistryURL }}.
-                                Ensure your firewall is properly configured, If your environment uses a proxy server, use --http-proxy, --https-proxy, and --no-proxy.
+                Ensure your firewall is properly configured, If your environment uses a proxy server, use --http-proxy, --https-proxy, and --no-proxy.
                 The static IP addresses for {{ .ProxyRegistryURL }} are 162.159.137.43 and 162.159.138.43.
                 {{- end }}
     - textAnalyze:
