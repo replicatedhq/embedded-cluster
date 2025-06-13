@@ -12,9 +12,11 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,34 +31,90 @@ import (
 )
 
 func TestInstallationReconciler_constructCreateCMCommand(t *testing.T) {
-	in := &v1beta1.Installation{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "install-name",
+	tests := []struct {
+		name   string
+		in     *ecv1beta1.Installation
+		assert func(t *testing.T, job *batchv1.Job)
+	}{
+		{
+			name: "empty k0s data dir override",
+			in: &ecv1beta1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "install-name",
+				},
+				Spec: v1beta1.InstallationSpec{
+					RuntimeConfig: &v1beta1.RuntimeConfigSpec{
+						DataDir: "/var/lib/embedded-cluster",
+					},
+				},
+			},
+			assert: func(t *testing.T, job *batchv1.Job) {
+				require.Len(t, job.Spec.Template.Spec.Volumes, 3)
+				require.Equal(t, "host", job.Spec.Template.Spec.Volumes[0].Name)
+				require.Equal(t, "/var/lib/embedded-cluster", job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path)
+				require.Equal(t, "host-k0s", job.Spec.Template.Spec.Volumes[1].Name)
+				require.Equal(t, "/var/lib/embedded-cluster/k0s", job.Spec.Template.Spec.Volumes[1].VolumeSource.HostPath.Path)
+				require.Len(t, job.Spec.Template.Spec.Containers, 1)
+				require.Len(t, job.Spec.Template.Spec.Containers[0].Command, 4)
+				kctlCmd := job.Spec.Template.Spec.Containers[0].Command[3]
+				expected := "if [ -f /embedded-cluster/support/host-preflight-results.json ]; then /embedded-cluster/bin/kubectl create configmap ${HSPF_CM_NAME} --from-file=results.json=/embedded-cluster/support/host-preflight-results.json -n embedded-cluster --dry-run=client -oyaml | /embedded-cluster/bin/kubectl label -f - embedded-cluster/host-preflight-result=${EC_NODE_NAME} --local -o yaml | /embedded-cluster/bin/kubectl apply -f - && /embedded-cluster/bin/kubectl annotate configmap ${HSPF_CM_NAME} \"update-timestamp=$(date +'%Y-%m-%dT%H:%M:%SZ')\" --overwrite; else echo '/embedded-cluster/support/host-preflight-results.json does not exist'; fi"
+				assert.Equal(t, expected, kctlCmd)
+				require.Len(t, job.Spec.Template.Spec.Containers[0].Env, 3)
+				assert.Equal(t, v1.EnvVar{
+					Name:  "EC_NODE_NAME",
+					Value: "my-node",
+				}, job.Spec.Template.Spec.Containers[0].Env[1])
+				assert.Equal(t, v1.EnvVar{
+					Name:  "HSPF_CM_NAME",
+					Value: "my-node-host-preflight-results",
+				}, job.Spec.Template.Spec.Containers[0].Env[2])
+			},
 		},
-		Spec: v1beta1.InstallationSpec{
-			RuntimeConfig: &v1beta1.RuntimeConfigSpec{
-				DataDir: "/var/lib/embedded-cluster",
+		{
+			name: "k0s data dir override",
+			in: &ecv1beta1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "install-name",
+				},
+				Spec: v1beta1.InstallationSpec{
+					RuntimeConfig: &v1beta1.RuntimeConfigSpec{
+						DataDir:            "/var/lib/embedded-cluster",
+						K0sDataDirOverride: "/var/lib/k0s",
+					},
+				},
+			},
+			assert: func(t *testing.T, job *batchv1.Job) {
+				require.Len(t, job.Spec.Template.Spec.Volumes, 3)
+				require.Equal(t, "host", job.Spec.Template.Spec.Volumes[0].Name)
+				require.Equal(t, "/var/lib/embedded-cluster", job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path)
+				require.Equal(t, "host-k0s", job.Spec.Template.Spec.Volumes[1].Name)
+				require.Equal(t, "/var/lib/k0s", job.Spec.Template.Spec.Volumes[1].VolumeSource.HostPath.Path)
+				require.Len(t, job.Spec.Template.Spec.Containers, 1)
+				require.Len(t, job.Spec.Template.Spec.Containers[0].Command, 4)
+				kctlCmd := job.Spec.Template.Spec.Containers[0].Command[3]
+				expected := "if [ -f /embedded-cluster/support/host-preflight-results.json ]; then /embedded-cluster/bin/kubectl create configmap ${HSPF_CM_NAME} --from-file=results.json=/embedded-cluster/support/host-preflight-results.json -n embedded-cluster --dry-run=client -oyaml | /embedded-cluster/bin/kubectl label -f - embedded-cluster/host-preflight-result=${EC_NODE_NAME} --local -o yaml | /embedded-cluster/bin/kubectl apply -f - && /embedded-cluster/bin/kubectl annotate configmap ${HSPF_CM_NAME} \"update-timestamp=$(date +'%Y-%m-%dT%H:%M:%SZ')\" --overwrite; else echo '/embedded-cluster/support/host-preflight-results.json does not exist'; fi"
+				assert.Equal(t, expected, kctlCmd)
+				require.Len(t, job.Spec.Template.Spec.Containers[0].Env, 3)
+				assert.Equal(t, v1.EnvVar{
+					Name:  "EC_NODE_NAME",
+					Value: "my-node",
+				}, job.Spec.Template.Spec.Containers[0].Env[1])
+				assert.Equal(t, v1.EnvVar{
+					Name:  "HSPF_CM_NAME",
+					Value: "my-node-host-preflight-results",
+				}, job.Spec.Template.Spec.Containers[0].Env[2])
 			},
 		},
 	}
-	rc := runtimeconfig.New(nil)
-	job := constructHostPreflightResultsJob(rc, in, "my-node")
-	require.Len(t, job.Spec.Template.Spec.Volumes, 2)
-	require.Equal(t, "/var/lib/embedded-cluster", job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path)
-	require.Len(t, job.Spec.Template.Spec.Containers, 1)
-	require.Len(t, job.Spec.Template.Spec.Containers[0].Command, 4)
-	kctlCmd := job.Spec.Template.Spec.Containers[0].Command[3]
-	expected := "if [ -f /embedded-cluster/support/host-preflight-results.json ]; then /embedded-cluster/bin/kubectl create configmap ${HSPF_CM_NAME} --from-file=results.json=/embedded-cluster/support/host-preflight-results.json -n embedded-cluster --dry-run=client -oyaml | /embedded-cluster/bin/kubectl label -f - embedded-cluster/host-preflight-result=${EC_NODE_NAME} --local -o yaml | /embedded-cluster/bin/kubectl apply -f - && /embedded-cluster/bin/kubectl annotate configmap ${HSPF_CM_NAME} \"update-timestamp=$(date +'%Y-%m-%dT%H:%M:%SZ')\" --overwrite; else echo '/embedded-cluster/support/host-preflight-results.json does not exist'; fi"
-	assert.Equal(t, expected, kctlCmd)
-	require.Len(t, job.Spec.Template.Spec.Containers[0].Env, 2)
-	assert.Equal(t, v1.EnvVar{
-		Name:  "EC_NODE_NAME",
-		Value: "my-node",
-	}, job.Spec.Template.Spec.Containers[0].Env[0])
-	assert.Equal(t, v1.EnvVar{
-		Name:  "HSPF_CM_NAME",
-		Value: "my-node-host-preflight-results",
-	}, job.Spec.Template.Spec.Containers[0].Env[1])
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rc := runtimeconfig.New(tt.in.Spec.RuntimeConfig)
+
+			job := constructHostPreflightResultsJob(rc, tt.in, "my-node")
+			tt.assert(t, job)
+		})
+	}
 }
 
 func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
