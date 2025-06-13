@@ -22,12 +22,13 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"sort"
 	"time"
 
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
@@ -77,8 +78,17 @@ var copyHostPreflightResultsJob = &batchv1.Job{
 						Name: "host",
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
-								Path: v1beta1.DefaultDataDir,
-								Type: ptr.To[corev1.HostPathType]("Directory"),
+								Path: ecv1beta1.DefaultDataDir,
+								Type: ptr.To(corev1.HostPathDirectory),
+							},
+						},
+					},
+					{
+						Name: "host-k0s",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: filepath.Join(ecv1beta1.DefaultDataDir, "k0s"),
+								Type: ptr.To(corev1.HostPathDirectory),
 							},
 						},
 					},
@@ -113,10 +123,21 @@ var copyHostPreflightResultsJob = &batchv1.Job{
 								"echo '/embedded-cluster/support/host-preflight-results.json does not exist'; " +
 								"fi",
 						},
+						Env: []corev1.EnvVar{
+							{
+								Name:  "KUBECONFIG",
+								Value: "/var/lib/k0s/pki/admin.conf",
+							},
+						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "host",
 								MountPath: "/embedded-cluster",
+								ReadOnly:  false,
+							},
+							{
+								Name:      "host-k0s",
+								MountPath: "/var/lib/k0s",
 								ReadOnly:  false,
 							},
 							{
@@ -153,7 +174,7 @@ type InstallationReconciler struct {
 // NodeHasChanged returns true if the node configuration has changed when compared to
 // the node information we keep in the installation status. Returns a bool indicating
 // if a change was detected and a bool indicating if the node is new (not seen yet).
-func (r *InstallationReconciler) NodeHasChanged(in *v1beta1.Installation, ev metrics.NodeEvent) (bool, bool, error) {
+func (r *InstallationReconciler) NodeHasChanged(in *ecv1beta1.Installation, ev metrics.NodeEvent) (bool, bool, error) {
 	for _, nodeStatus := range in.Status.NodesStatus {
 		if nodeStatus.Name != ev.NodeName {
 			continue
@@ -168,7 +189,7 @@ func (r *InstallationReconciler) NodeHasChanged(in *v1beta1.Installation, ev met
 }
 
 // UpdateNodeStatus updates the node status in the Installation object status.
-func (r *InstallationReconciler) UpdateNodeStatus(in *v1beta1.Installation, ev metrics.NodeEvent) error {
+func (r *InstallationReconciler) UpdateNodeStatus(in *ecv1beta1.Installation, ev metrics.NodeEvent) error {
 	hash, err := ev.Hash()
 	if err != nil {
 		return err
@@ -180,7 +201,7 @@ func (r *InstallationReconciler) UpdateNodeStatus(in *v1beta1.Installation, ev m
 		in.Status.NodesStatus[i].Hash = hash
 		return nil
 	}
-	in.Status.NodesStatus = append(in.Status.NodesStatus, v1beta1.NodeStatus{Name: ev.NodeName, Hash: hash})
+	in.Status.NodesStatus = append(in.Status.NodesStatus, ecv1beta1.NodeStatus{Name: ev.NodeName, Hash: hash})
 	return nil
 }
 
@@ -188,7 +209,7 @@ func (r *InstallationReconciler) UpdateNodeStatus(in *v1beta1.Installation, ev m
 // is not updated remotely but only in the memory representation of the object (aka caller must save
 // the object after the call). This function returns a batch of events that need to be sent back to
 // the metrics endpoint, these events represent changes in the node statuses.
-func (r *InstallationReconciler) ReconcileNodeStatuses(ctx context.Context, in *v1beta1.Installation) (*NodeEventsBatch, error) {
+func (r *InstallationReconciler) ReconcileNodeStatuses(ctx context.Context, in *ecv1beta1.Installation) (*NodeEventsBatch, error) {
 	var nodes corev1.NodeList
 	if err := r.List(ctx, &nodes); err != nil {
 		return nil, fmt.Errorf("failed to list nodes: %w", err)
@@ -220,7 +241,7 @@ func (r *InstallationReconciler) ReconcileNodeStatuses(ctx context.Context, in *
 		r.Recorder.Eventf(in, corev1.EventTypeNormal, "NodeUpdated", "Node %s has been updated", node.Name)
 		batch.NodesUpdated = append(batch.NodesUpdated, event)
 	}
-	trimmed := []v1beta1.NodeStatus{}
+	trimmed := []ecv1beta1.NodeStatus{}
 	for _, nodeStatus := range in.Status.NodesStatus {
 		if _, ok := seen[nodeStatus.Name]; ok {
 			trimmed = append(trimmed, nodeStatus)
@@ -238,7 +259,7 @@ func (r *InstallationReconciler) ReconcileNodeStatuses(ctx context.Context, in *
 }
 
 // ReportNodesChanges reports node changes to the metrics endpoint.
-func (r *InstallationReconciler) ReportNodesChanges(ctx context.Context, in *v1beta1.Installation, batch *NodeEventsBatch) {
+func (r *InstallationReconciler) ReportNodesChanges(ctx context.Context, in *ecv1beta1.Installation, batch *NodeEventsBatch) {
 	for _, ev := range batch.NodesAdded {
 		if err := metrics.NotifyNodeAdded(ctx, in.Spec.MetricsBaseURL, ev); err != nil {
 			ctrl.LoggerFrom(ctx).Error(err, "failed to notify node added")
@@ -256,7 +277,7 @@ func (r *InstallationReconciler) ReportNodesChanges(ctx context.Context, in *v1b
 	}
 }
 
-func (r *InstallationReconciler) ReconcileOpenebs(ctx context.Context, in *v1beta1.Installation) error {
+func (r *InstallationReconciler) ReconcileOpenebs(ctx context.Context, in *ecv1beta1.Installation) error {
 	log := ctrl.LoggerFrom(ctx)
 
 	err := openebs.CleanupStatefulPods(ctx, r.Client)
@@ -275,8 +296,8 @@ func (r *InstallationReconciler) ReconcileOpenebs(ctx context.Context, in *v1bet
 // status of the newest one is coherent with whole cluster status. Returns the newest
 // installation object.
 func (r *InstallationReconciler) CoalesceInstallations(
-	ctx context.Context, items []v1beta1.Installation,
-) *v1beta1.Installation {
+	ctx context.Context, items []ecv1beta1.Installation,
+) *ecv1beta1.Installation {
 	sort.SliceStable(items, func(i, j int) bool {
 		return items[j].Name < items[i].Name
 	})
@@ -295,7 +316,7 @@ func (r *InstallationReconciler) CoalesceInstallations(
 
 // ReadClusterConfigSpecFromSecret reads the cluster config from the secret pointed by spec.ConfigSecret
 // if it is set. This overrides the default configuration from spec.Config.
-func (r *InstallationReconciler) ReadClusterConfigSpecFromSecret(ctx context.Context, in *v1beta1.Installation) error {
+func (r *InstallationReconciler) ReadClusterConfigSpecFromSecret(ctx context.Context, in *ecv1beta1.Installation) error {
 	if in.Spec.ConfigSecret == nil {
 		return nil
 	}
@@ -312,7 +333,7 @@ func (r *InstallationReconciler) ReadClusterConfigSpecFromSecret(ctx context.Con
 
 // CopyHostPreflightResultsFromNodes copies the preflight results from any new node that is added to the cluster
 // A job is scheduled on the new node and the results copied from a host path
-func (r *InstallationReconciler) CopyHostPreflightResultsFromNodes(ctx context.Context, in *v1beta1.Installation, events *NodeEventsBatch) error {
+func (r *InstallationReconciler) CopyHostPreflightResultsFromNodes(ctx context.Context, in *ecv1beta1.Installation, events *NodeEventsBatch) error {
 	log := ctrl.LoggerFrom(ctx)
 
 	if len(events.NodesAdded) == 0 {
@@ -342,7 +363,7 @@ func (r *InstallationReconciler) CopyHostPreflightResultsFromNodes(ctx context.C
 	return nil
 }
 
-func constructHostPreflightResultsJob(rc runtimeconfig.RuntimeConfig, in *v1beta1.Installation, nodeName string) *batchv1.Job {
+func constructHostPreflightResultsJob(rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, nodeName string) *batchv1.Job {
 	labels := map[string]string{
 		"embedded-cluster/node-name":    nodeName,
 		"embedded-cluster/installation": in.Name,
@@ -354,6 +375,7 @@ func constructHostPreflightResultsJob(rc runtimeconfig.RuntimeConfig, in *v1beta
 	job.Spec.Template.Labels, job.Labels = labels, labels
 	job.Spec.Template.Spec.NodeName = nodeName
 	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = rc.EmbeddedClusterHomeDirectory()
+	job.Spec.Template.Spec.Volumes[1].VolumeSource.HostPath.Path = rc.EmbeddedClusterK0sSubDir()
 	job.Spec.Template.Spec.Containers[0].Env = append(
 		job.Spec.Template.Spec.Containers[0].Env,
 		corev1.EnvVar{Name: "EC_NODE_NAME", Value: nodeName},
@@ -384,9 +406,9 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to list installations: %w", err)
 	}
-	var items []v1beta1.Installation
+	var items []ecv1beta1.Installation
 	for _, in := range installs {
-		if in.Status.State == v1beta1.InstallationStateObsolete {
+		if in.Status.State == ecv1beta1.InstallationStateObsolete {
 			continue
 		}
 		items = append(items, in)
@@ -486,7 +508,7 @@ func (r *InstallationReconciler) reconcileHostCABundle(ctx context.Context) erro
 // SetupWithManager sets up the controller with the Manager.
 func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1beta1.Installation{}).
+		For(&ecv1beta1.Installation{}).
 		Watches(&corev1.Node{}, &handler.EnqueueRequestForObject{}).
 		Watches(&apv1b2.Plan{}, &handler.EnqueueRequestForObject{}).
 		Watches(&k0shelm.Chart{}, &handler.EnqueueRequestForObject{}).
