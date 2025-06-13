@@ -47,16 +47,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // If we get a 401, handle it
             if (response.status === 401) {
               const error = new Error("Unauthorized");
-              (error as any).status = 401;
+              (error as Error & { status?: number }).status = 401;
               handleUnauthorized(error);
             }
           }
           setIsLoading(false);
         })
-        .catch((error) => {
+        .catch(() => {
           // If the request fails, assume the token is invalid
           const err = new Error("Request failed");
-          (err as any).status = 401;
+          (err as Error & { status?: number }).status = 401;
           handleUnauthorized(err);
           setIsLoading(false);
         });
