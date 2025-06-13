@@ -66,13 +66,10 @@ const ecNamespace = "embedded-cluster"
 var copyHostPreflightResultsJob = &batchv1.Job{
 	ObjectMeta: metav1.ObjectMeta{
 		Namespace: ecNamespace,
-		Labels: map[string]string{
-			"replicated.com/copy-host-preflight-results": "true",
-		},
 	},
 	Spec: batchv1.JobSpec{
-		BackoffLimit:            ptr.To[int32](2),
-		TTLSecondsAfterFinished: ptr.To[int32](0), // we don't want to keep the job around. Delete immediately after it finishes.
+		BackoffLimit:            ptr.To(int32(2)),
+		TTLSecondsAfterFinished: ptr.To(int32(1 * 60)), // we don't want to keep the job around. Delete it shortly after it finishes.
 		Template: corev1.PodTemplateSpec{
 			Spec: corev1.PodSpec{
 				ServiceAccountName: "embedded-cluster-operator",
