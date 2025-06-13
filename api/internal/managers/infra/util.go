@@ -34,6 +34,7 @@ func (m *infraManager) getHelmClient() (helm.Client, error) {
 		KubeConfig: m.rc.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
+		LogFn:      m.logFn("helm"),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create helm client: %w", err)
@@ -53,4 +54,18 @@ func (m *infraManager) getEndUserConfigSpec() *ecv1beta1.ConfigSpec {
 		return nil
 	}
 	return &m.endUserConfig.Spec
+}
+
+func (m *infraManager) logFn(component string) func(format string, v ...interface{}) {
+	return func(format string, v ...interface{}) {
+		m.logger.WithField("component", component).Debugf(format, v...)
+		m.addLogs(component, format, v...)
+	}
+}
+
+func (m *infraManager) addLogs(component string, format string, v ...interface{}) {
+	msg := fmt.Sprintf("[%s] %s", component, fmt.Sprintf(format, v...))
+	if err := m.infraStore.AddLogs(msg); err != nil {
+		m.logger.WithField("error", err).Error("add log")
+	}
 }

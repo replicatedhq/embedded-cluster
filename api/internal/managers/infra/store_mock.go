@@ -33,6 +33,11 @@ func (m *MockStore) SetStatus(status types.Status) error {
 	return args.Error(0)
 }
 
+func (m *MockStore) SetStatusDesc(desc string) error {
+	args := m.Called(desc)
+	return args.Error(0)
+}
+
 func (m *MockStore) RegisterComponent(name string) error {
 	args := m.Called(name)
 	return args.Error(0)
@@ -41,4 +46,14 @@ func (m *MockStore) RegisterComponent(name string) error {
 func (m *MockStore) SetComponentStatus(name string, status *types.Status) error {
 	args := m.Called(name, status)
 	return args.Error(0)
+}
+
+func (m *MockStore) AddLogs(logs string) error {
+	args := m.Called(logs)
+	return args.Error(0)
+}
+
+func (m *MockStore) GetLogs() (string, error) {
+	args := m.Called()
+	return args.Get(0).(string), args.Error(1)
 }

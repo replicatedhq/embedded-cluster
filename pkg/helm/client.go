@@ -107,6 +107,7 @@ type InstallOptions struct {
 	Namespace    string
 	Labels       map[string]string
 	Timeout      time.Duration
+	Stdout       io.Writer
 }
 
 type UpgradeOptions struct {

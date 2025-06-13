@@ -25,6 +25,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -195,23 +196,27 @@ func (m *infraManager) installK0s(ctx context.Context, config *types.Installatio
 		}
 	}()
 
-	m.logger.Debug("creating k0s configuration file")
+	m.setStatusDesc(fmt.Sprintf("Installing %s", componentName))
+
+	logFn := m.logFn("k0s")
+
+	logFn("creating k0s configuration file")
 	k0sCfg, err := k0s.WriteK0sConfig(ctx, config.NetworkInterface, m.airgapBundle, config.PodCIDR, config.ServiceCIDR, m.endUserConfig, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 
-	m.logger.Debug("creating systemd unit files")
+	logFn("creating systemd unit files")
 	if err := hostutils.CreateSystemdUnitFiles(ctx, m.logger, m.rc, false, proxy); err != nil {
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
-	m.logger.Debug("installing k0s")
+	logFn("installing k0s")
 	if err := k0s.Install(m.rc, config.NetworkInterface); err != nil {
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
 
-	m.logger.Debug("waiting for k0s to be ready")
+	logFn("waiting for k0s to be ready")
 	if err := k0s.WaitForK0s(); err != nil {
 		return nil, fmt.Errorf("wait for k0s: %w", err)
 	}
@@ -221,12 +226,14 @@ func (m *infraManager) installK0s(ctx context.Context, config *types.Installatio
 		return nil, fmt.Errorf("create kube client: %w", err)
 	}
 
-	m.logger.Debug("waiting for node to be ready")
+	m.setStatusDesc(fmt.Sprintf("Waiting for %s", componentName))
+
+	logFn("waiting for node to be ready")
 	if err := m.waitForNode(ctx, kcli); err != nil {
 		return nil, fmt.Errorf("wait for node: %w", err)
 	}
 
-	m.logger.Debugf("adding insecure registry")
+	logFn("adding registry to containerd")
 	registryIP, err := registry.GetRegistryClusterIP(config.ServiceCIDR)
 	if err != nil {
 		return nil, fmt.Errorf("get registry cluster IP: %w", err)
@@ -239,11 +246,13 @@ func (m *infraManager) installK0s(ctx context.Context, config *types.Installatio
 }
 
 func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, proxy *ecv1beta1.ProxySpec, license *kotsv1beta1.License, k0sCfg *k0sv1beta1.ClusterConfig) (*ecv1beta1.Installation, error) {
+	logFn := m.logFn("metadata")
+
 	// get the configured custom domains
 	ecDomains := utils.GetDomains(m.releaseData)
 
 	// record the installation
-	m.logger.Debugf("recording installation")
+	logFn("recording installation")
 	in, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
 		IsAirgap:       m.airgapBundle != "",
 		Proxy:          proxy,
@@ -258,6 +267,7 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 		return nil, fmt.Errorf("record installation: %w", err)
 	}
 
+	logFn("creating version metadata configmap")
 	if err := ecmetadata.CreateVersionMetadataConfigmap(ctx, kcli); err != nil {
 		return nil, fmt.Errorf("create version metadata configmap: %w", err)
 	}
@@ -282,14 +292,25 @@ func (m *infraManager) installAddOns(
 
 	go func() {
 		for progress := range progressChan {
+			// capture progress in debug logs
+			m.logger.WithFields(logrus.Fields{"addon": progress.Name, "state": progress.Status.State, "description": progress.Status.Description}).Debugf("addon progress")
+
+			// if in progress, update the overall status to reflect the current component
+			if progress.Status.State == types.StateRunning {
+				m.setStatusDesc(fmt.Sprintf("%s %s", progress.Status.Description, progress.Status.State))
+			}
+
+			// update the status for the current component
 			if err := m.setComponentStatus(progress.Name, progress.Status.State, progress.Status.Description); err != nil {
 				m.logger.Errorf("Failed to update addon status: %v", err)
 			}
 		}
 	}()
 
+	logFn := m.logFn("addons")
+
 	addOns := addons.New(
-		addons.WithLogFunc(m.logger.Debugf),
+		addons.WithLogFunc(logFn),
 		addons.WithKubernetesClient(kcli),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
@@ -297,7 +318,7 @@ func (m *infraManager) installAddOns(
 		addons.WithProgressChannel(progressChan),
 	)
 
-	m.logger.Debugf("installing addons")
+	logFn("installing addons")
 	if err := addOns.Install(ctx, addons.InstallOptions{
 		AdminConsolePwd:         m.password,
 		License:                 license,
@@ -354,7 +375,10 @@ func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) 
 		}
 	}()
 
-	m.logger.Debugf("installing extensions")
+	m.setStatusDesc(fmt.Sprintf("Installing %s", componentName))
+
+	logFn := m.logFn("extensions")
+	logFn("installing extensions")
 	if err := extensions.Install(ctx, hcli, nil); err != nil {
 		return fmt.Errorf("install extensions: %w", err)
 	}

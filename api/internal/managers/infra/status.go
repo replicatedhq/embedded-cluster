@@ -40,13 +40,11 @@ func (m *infraManager) setStatus(state types.State, description string) error {
 	})
 }
 
+func (m *infraManager) setStatusDesc(description string) error {
+	return m.infraStore.SetStatusDesc(description)
+}
+
 func (m *infraManager) setComponentStatus(name string, state types.State, description string) error {
-	if state == types.StateRunning {
-		// update the overall status to reflect the current component
-		if err := m.setStatus(types.StateRunning, fmt.Sprintf("%s %s", description, name)); err != nil {
-			m.logger.Errorf("Failed to set status: %v", err)
-		}
-	}
 	return m.infraStore.SetComponentStatus(name, &types.Status{
 		State:       state,
 		Description: description,
