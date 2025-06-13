@@ -2,7 +2,7 @@ import React from "react";
 import Input from "../../common/Input";
 import Select from "../../common/Select";
 import { useBranding } from "../../../contexts/BrandingContext";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 interface LinuxSetupProps {
   config: {
@@ -125,7 +125,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
           className="flex items-center text-lg font-medium text-gray-900 mb-4"
           onClick={() => onShowAdvancedChange(!showAdvanced)}
         >
-          {showAdvanced ? <ChevronDown className="w-4 h-4 mr-1" /> : <ChevronUp className="w-4 h-4 mr-1" />}
+          {showAdvanced ? <ChevronDown className="w-4 h-4 mr-1" /> : <ChevronRight className="w-4 h-4 mr-1" />}
           Advanced Settings
         </button>
 
