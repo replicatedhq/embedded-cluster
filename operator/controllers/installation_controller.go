@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"sort"
 	"time"
 
@@ -84,15 +83,6 @@ var copyHostPreflightResultsJob = &batchv1.Job{
 						},
 					},
 					{
-						Name: "host-k0s",
-						VolumeSource: corev1.VolumeSource{
-							HostPath: &corev1.HostPathVolumeSource{
-								Path: filepath.Join(ecv1beta1.DefaultDataDir, "k0s"),
-								Type: ptr.To(corev1.HostPathDirectory),
-							},
-						},
-					},
-					{
 						Name: "k0s",
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
@@ -105,7 +95,7 @@ var copyHostPreflightResultsJob = &batchv1.Job{
 				RestartPolicy: corev1.RestartPolicyNever,
 				Containers: []corev1.Container{
 					{
-						Name:  "embedded-cluster-updater",
+						Name:  "copy-host-preflight-results",
 						Image: "busybox:latest",
 						Command: []string{
 							"/bin/sh",
@@ -123,21 +113,10 @@ var copyHostPreflightResultsJob = &batchv1.Job{
 								"echo '/embedded-cluster/support/host-preflight-results.json does not exist'; " +
 								"fi",
 						},
-						Env: []corev1.EnvVar{
-							{
-								Name:  "KUBECONFIG",
-								Value: "/var/lib/k0s/pki/admin.conf",
-							},
-						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "host",
 								MountPath: "/embedded-cluster",
-								ReadOnly:  false,
-							},
-							{
-								Name:      "host-k0s",
-								MountPath: "/var/lib/k0s",
 								ReadOnly:  false,
 							},
 							{
@@ -375,7 +354,6 @@ func constructHostPreflightResultsJob(rc runtimeconfig.RuntimeConfig, in *ecv1be
 	job.Spec.Template.Labels, job.Labels = labels, labels
 	job.Spec.Template.Spec.NodeName = nodeName
 	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = rc.EmbeddedClusterHomeDirectory()
-	job.Spec.Template.Spec.Volumes[1].VolumeSource.HostPath.Path = rc.EmbeddedClusterK0sSubDir()
 	job.Spec.Template.Spec.Containers[0].Env = append(
 		job.Spec.Template.Spec.Containers[0].Env,
 		corev1.EnvVar{Name: "EC_NODE_NAME", Value: nodeName},
