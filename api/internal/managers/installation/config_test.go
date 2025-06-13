@@ -13,12 +13,14 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 func TestValidateConfig(t *testing.T) {
 	// Create test cases for validation
 	tests := []struct {
 		name        string
+		rc          runtimeconfig.RuntimeConfig
 		config      *types.InstallationConfig
 		expectedErr bool
 	}{
@@ -139,11 +141,52 @@ func TestValidateConfig(t *testing.T) {
 			},
 			expectedErr: true,
 		},
+		{
+			name: "same ports for admin console and manager",
+			rc: func() runtimeconfig.RuntimeConfig {
+				rc := runtimeconfig.New(nil)
+				rc.SetManagerPort(8800)
+				return rc
+			}(),
+			config: &types.InstallationConfig{
+				GlobalCIDR:              "10.0.0.0/16",
+				NetworkInterface:        "eth0",
+				AdminConsolePort:        8800,
+				LocalArtifactMirrorPort: 8888,
+				DataDirectory:           "/var/lib/embedded-cluster",
+			},
+			expectedErr: true,
+		},
+		{
+			name: "same ports for artifact mirror and manager",
+			rc: func() runtimeconfig.RuntimeConfig {
+				rc := runtimeconfig.New(nil)
+				rc.SetManagerPort(8888)
+				return rc
+			}(),
+			config: &types.InstallationConfig{
+				GlobalCIDR:              "10.0.0.0/16",
+				NetworkInterface:        "eth0",
+				AdminConsolePort:        8800,
+				LocalArtifactMirrorPort: 8888,
+				DataDirectory:           "/var/lib/embedded-cluster",
+			},
+			expectedErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager := NewInstallationManager()
+			var rc runtimeconfig.RuntimeConfig
+			if tt.rc != nil {
+				rc = tt.rc
+			} else {
+				rc = runtimeconfig.New(nil)
+			}
+			rc.SetDataDir(t.TempDir())
+
+			manager := NewInstallationManager(WithRuntimeConfig(rc))
+
 			err := manager.ValidateConfig(tt.config)
 
 			if tt.expectedErr {
