@@ -147,10 +147,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
         )}
       </Card>
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
-          Back
-        </Button>
+      <div className="flex justify-end">
         <Button onClick={handleNext} icon={<ChevronRight className="w-5 h-5" />}>
           Next: Validate Host
         </Button>
