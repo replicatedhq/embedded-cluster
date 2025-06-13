@@ -60,6 +60,14 @@ func NewBadRequestError(err error) *APIError {
 	}
 }
 
+func NewConflictError(err error) *APIError {
+	return &APIError{
+		StatusCode: http.StatusConflict,
+		Message:    err.Error(),
+		err:        err,
+	}
+}
+
 func NewUnauthorizedError(err error) *APIError {
 	return &APIError{
 		StatusCode: http.StatusUnauthorized,

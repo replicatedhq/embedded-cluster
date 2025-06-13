@@ -20,21 +20,9 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// serializeSpec serialize the provided spec inside a HostPreflight object and
-// returns the byte slice.
-func serializeSpec(spec *troubleshootv1beta2.HostPreflightSpec) ([]byte, error) {
-	hpf := map[string]interface{}{
-		"apiVersion": "troubleshoot.sh/v1beta2",
-		"kind":       "HostPreflight",
-		"metadata":   map[string]interface{}{"name": "embedded-cluster"},
-		"spec":       spec,
-	}
-	return yaml.Marshal(hpf)
-}
-
 // Run runs the provided host preflight spec locally. This function is meant to be
 // used when upgrading a local node.
-func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error) {
+func (p *PreflightsRunner) Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error) {
 	// Deduplicate collectors and analyzers before running preflights
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)
@@ -72,7 +60,7 @@ func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy
 	return out, stderr.String(), err
 }
 
-func CopyBundleTo(dst string) error {
+func (p *PreflightsRunner) CopyBundleTo(dst string) error {
 	matches, err := filepath.Glob("preflightbundle-*.tar.gz")
 	if err != nil {
 		return fmt.Errorf("find preflight bundle: %w", err)
@@ -91,6 +79,18 @@ func CopyBundleTo(dst string) error {
 		return fmt.Errorf("move preflight bundle to %s: %w", dst, err)
 	}
 	return nil
+}
+
+// serializeSpec serialize the provided spec inside a HostPreflight object and
+// returns the byte slice.
+func serializeSpec(spec *troubleshootv1beta2.HostPreflightSpec) ([]byte, error) {
+	hpf := map[string]interface{}{
+		"apiVersion": "troubleshoot.sh/v1beta2",
+		"kind":       "HostPreflight",
+		"metadata":   map[string]interface{}{"name": "embedded-cluster"},
+		"spec":       spec,
+	}
+	return yaml.Marshal(hpf)
 }
 
 // saveHostPreflightFile saves the provided spec to a temporary file and returns

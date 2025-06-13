@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -208,9 +209,9 @@ func TestConfigureInstallation(t *testing.T) {
 				err = json.NewDecoder(rec.Body).Decode(&status)
 				require.NoError(t, err)
 
-				// Verify that the status was properly set
-				assert.Equal(t, types.StateRunning, status.State)
-				assert.Equal(t, "Configuring installation", status.Description)
+				// Verify that the status is not pending. We cannot check for an end state here because the hots config is async
+				// so the state might have moved from running to a final state before we get the response.
+				assert.NotEqual(t, types.StatePending, status.State)
 			}
 
 			if !tc.expectedError {
@@ -433,9 +434,12 @@ func TestGetInstallationConfig(t *testing.T) {
 
 	// Test get with default/empty configuration
 	t.Run("Default configuration", func(t *testing.T) {
+		netUtils := &utils.MockNetUtils{}
+		netUtils.On("ListValidNetworkInterfaces").Return([]string{"eth0", "eth1"}, nil).Once()
+		netUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Once()
 		// Create a fresh config manager without writing anything
 		emptyInstallationManager := installation.NewInstallationManager(
-			installation.WithNetUtils(&mockNetUtils{ifaces: []string{"eth0", "eth1"}}),
+			installation.WithNetUtils(netUtils),
 		)
 
 		// Create an install controller with the empty config manager
