@@ -113,6 +113,12 @@ var copyHostPreflightResultsJob = &batchv1.Job{
 								"echo '/embedded-cluster/support/host-preflight-results.json does not exist'; " +
 								"fi",
 						},
+						Env: []corev1.EnvVar{
+							{
+								Name:  "KUBECONFIG",
+								Value: "", // make k0s kubectl not use admin.conf
+							},
+						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "host",

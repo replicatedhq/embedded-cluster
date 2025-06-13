@@ -53,15 +53,15 @@ func TestInstallationReconciler_constructCreateCMCommand(t *testing.T) {
 	kctlCmd := job.Spec.Template.Spec.Containers[0].Command[3]
 	expected := "if [ -f /embedded-cluster/support/host-preflight-results.json ]; then /embedded-cluster/bin/kubectl create configmap ${HSPF_CM_NAME} --from-file=results.json=/embedded-cluster/support/host-preflight-results.json -n embedded-cluster --dry-run=client -oyaml | /embedded-cluster/bin/kubectl label -f - embedded-cluster/host-preflight-result=${EC_NODE_NAME} --local -o yaml | /embedded-cluster/bin/kubectl apply -f - && /embedded-cluster/bin/kubectl annotate configmap ${HSPF_CM_NAME} \"update-timestamp=$(date +'%Y-%m-%dT%H:%M:%SZ')\" --overwrite; else echo '/embedded-cluster/support/host-preflight-results.json does not exist'; fi"
 	assert.Equal(t, expected, kctlCmd)
-	require.Len(t, job.Spec.Template.Spec.Containers[0].Env, 2)
+	require.Len(t, job.Spec.Template.Spec.Containers[0].Env, 3)
 	assert.Equal(t, v1.EnvVar{
 		Name:  "EC_NODE_NAME",
 		Value: "my-node",
-	}, job.Spec.Template.Spec.Containers[0].Env[0])
+	}, job.Spec.Template.Spec.Containers[0].Env[1])
 	assert.Equal(t, v1.EnvVar{
 		Name:  "HSPF_CM_NAME",
 		Value: "my-node-host-preflight-results",
-	}, job.Spec.Template.Spec.Containers[0].Env[1])
+	}, job.Spec.Template.Spec.Containers[0].Env[2])
 }
 
 func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
