@@ -390,9 +390,8 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 		return fmt.Errorf("unable to start api: %w", err)
 	}
 
-	logrus.Info("")
-	logrus.Infof("Visit %s to configure your cluster", getManagerURL(flags.hostname, flags.managerPort))
-	logrus.Info("")
+	// TODO: add app name to this message (e.g., App Name manager)
+	logrus.Infof("\nVisit the manager to continue: %s\n", getManagerURL(flags.hostname, flags.managerPort))
 	<-ctx.Done()
 
 	return nil

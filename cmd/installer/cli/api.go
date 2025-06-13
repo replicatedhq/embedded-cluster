@@ -219,8 +219,8 @@ func getManagerURL(hostname string, port int) string {
 		if addr := os.Getenv("EC_PUBLIC_ADDRESS"); addr != "" {
 			ipaddr = addr
 		} else {
-			logrus.Errorf("Unable to determine node IP address")
-			ipaddr = "NODE-IP-ADDRESS"
+			logrus.Warnf("\nUnable to automatically determine the node's IP address. Replace <node-ip> in the URL below with your node's IP address.")
+			ipaddr = "<node-ip>"
 		}
 	}
 	return fmt.Sprintf("https://%s:%v", ipaddr, port)
