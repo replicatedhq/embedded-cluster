@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { handleUnauthorized } from "../utils/auth";
 
 interface AuthContextType {
   token: string | null;
   setToken: (token: string | null) => void;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,6 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setTokenState] = useState<string | null>(() => {
     return localStorage.getItem("auth");
   });
+  const [isLoading, setIsLoading] = useState(true);
 
   const setToken = (newToken: string | null) => {
     if (newToken) {
@@ -29,6 +32,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setTokenState(newToken);
   };
+
+  // Check token validity on mount and when token changes
+  useEffect(() => {
+    if (token) {
+      // Make a request to any authenticated endpoint to check token validity
+      fetch("/api/install/installation/config", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((response) => {
+          if (!response.ok) {
+            // If we get a 401, handle it
+            if (response.status === 401) {
+              const error = new Error("Unauthorized");
+              (error as any).status = 401;
+              handleUnauthorized(error);
+            }
+          }
+          setIsLoading(false);
+        })
+        .catch((error) => {
+          // If the request fails, assume the token is invalid
+          const err = new Error("Request failed");
+          (err as any).status = 401;
+          handleUnauthorized(err);
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
+    }
+  }, [token]);
 
   useEffect(() => {
     // Listen for storage events to sync token state across tabs
@@ -48,7 +83,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     token,
     setToken,
     isAuthenticated: !!token,
+    isLoading,
   };
+
+  if (isLoading) {
+    return null; // Don't render anything while checking token validity
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
