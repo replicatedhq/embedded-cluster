@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Card from "../common/Card";
 import Button from "../common/Button";
 import { useConfig } from "../../contexts/ConfigContext";
@@ -25,7 +25,7 @@ interface ConfigError extends Error {
 const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   const { config, updateConfig, prototypeSettings } = useConfig();
   const { text } = useWizardMode();
-  const [showAdvanced, setShowAdvanced] = useState(true);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { token } = useAuth();
 
@@ -89,6 +89,15 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
       return err;
     },
   });
+
+  // Expand advanced settings if there is an error in an advanced field
+  useEffect(() => {
+    if (submitError?.errors) {
+      if (submitError.errors.some(e => e.field === "networkInterface" || e.field === "globalCidr")) {
+        setShowAdvanced(true);
+      }
+    }
+  }, [submitError]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
