@@ -3,7 +3,7 @@ import Card from "../common/Card";
 import Button from "../common/Button";
 import { useConfig } from "../../contexts/ConfigContext";
 import { useWizardMode } from "../../contexts/WizardModeContext";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import LinuxSetup from "./setup/LinuxSetup";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
@@ -11,7 +11,6 @@ import { handleUnauthorized } from "../../utils/auth";
 
 interface SetupStepProps {
   onNext: () => void;
-  onBack: () => void;
 }
 
 interface Status {
@@ -23,7 +22,7 @@ interface ConfigError extends Error {
   errors?: { field: string; message: string }[];
 }
 
-const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
+const SetupStep: React.FC<SetupStepProps> = ({ onNext }) => {
   const { config, updateConfig, prototypeSettings } = useConfig();
   const { text } = useWizardMode();
   const [showAdvanced, setShowAdvanced] = useState(true);
@@ -162,10 +161,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
         )}
       </Card>
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
-          Back
-        </Button>
+      <div className="flex justify-end">
         <Button onClick={handleNext} icon={<ChevronRight className="w-5 h-5" />}>
           Next: Validate Host
         </Button>
