@@ -321,6 +321,15 @@ ensure_license_in_data_dir() {
     fi
 }
 
+ensure_copy_host_preflight_results_configmap() {
+    if ! kubectl get configmap -n embedded-cluster -l embedded-cluster/host-preflight-result --no-headers 2>/dev/null | grep -q host-preflight-results ; then
+        echo "ConfigMap with label embedded-cluster/host-preflight-result not found in embedded-cluster namespace"
+        kubectl get configmap -n embedded-cluster
+        return 1
+    fi
+    return 0
+}
+
 ensure_node_config() {
     if ! kubectl describe node | grep "controller-label" ; then
         echo "Failed to find controller-label"

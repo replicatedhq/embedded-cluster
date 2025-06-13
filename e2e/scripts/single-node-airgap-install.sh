@@ -104,6 +104,10 @@ main() {
         if ! ensure_license_in_data_dir; then
             exit 1
         fi
+
+        if ! ensure_copy_host_preflight_results_configmap; then
+            exit 1
+        fi
     fi
 
     echo "kotsadm logs"
