@@ -111,6 +111,10 @@ func (m *installationManager) validateAdminConsolePort(config *types.Installatio
 		return errors.New("adminConsolePort and localArtifactMirrorPort cannot be equal")
 	}
 
+	if config.AdminConsolePort == m.rc.ManagerPort() {
+		return errors.New("adminConsolePort cannot be the same as the manager port")
+	}
+
 	return nil
 }
 
@@ -126,6 +130,10 @@ func (m *installationManager) validateLocalArtifactMirrorPort(config *types.Inst
 
 	if config.LocalArtifactMirrorPort == acPort {
 		return errors.New("adminConsolePort and localArtifactMirrorPort cannot be equal")
+	}
+
+	if config.LocalArtifactMirrorPort == m.rc.ManagerPort() {
+		return errors.New("localArtifactMirrorPort cannot be the same as the manager port")
 	}
 
 	return nil
