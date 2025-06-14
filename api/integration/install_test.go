@@ -209,18 +209,15 @@ func TestConfigureInstallation(t *testing.T) {
 				require.NoError(t, err)
 
 				// Verify that the status was properly set
-				assert.Equal(t, types.StateRunning, status.State)
-				assert.Equal(t, "Configuring installation", status.Description)
-			}
-
-			if !tc.expectedError {
 				// The status is set to succeeded in a goroutine, so we need to wait for it
 				assert.Eventually(t, func() bool {
 					status, err := installController.GetInstallationStatus(t.Context())
 					require.NoError(t, err)
-					return status.State == types.StateSucceeded
-				}, 1*time.Second, 100*time.Millisecond)
+					return status.State == types.StateSucceeded && status.Description == "Installation configured"
+				}, 1*time.Second, 100*time.Millisecond, "status should eventually be succeeded")
+			}
 
+			if !tc.expectedError {
 				// Verify that the config is in the store
 				storedConfig, err := installController.GetInstallationConfig(t.Context())
 				require.NoError(t, err)

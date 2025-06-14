@@ -337,6 +337,23 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 		return fmt.Errorf("unable to list all valid IP addresses: %w", err)
 	}
 
+	if flags.tlsCertFile == "" || flags.tlsKeyFile == "" {
+		logrus.Warn("\nNo certificate files provided. A self-signed certificate will be used, and your browser will show a security warning.")
+		logrus.Info("To use your own certificate, provide both --tls-key and --tls-cert flags.")
+
+		if !flags.assumeYes {
+			logrus.Info("") // newline so the prompt is separated from the warning
+			confirmed, err := prompts.New().Confirm("Do you want to continue with a self-signed certificate?", false)
+			if err != nil {
+				return fmt.Errorf("failed to get confirmation: %w", err)
+			}
+			if !confirmed {
+				logrus.Infof("\nInstallation cancelled. Please run the command again with the --tls-key and --tls-cert flags.\n")
+				return nil
+			}
+		}
+	}
+
 	if flags.tlsCertFile != "" && flags.tlsKeyFile != "" {
 		cert, err := tls.LoadX509KeyPair(flags.tlsCertFile, flags.tlsKeyFile)
 		if err != nil {
