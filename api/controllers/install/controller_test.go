@@ -321,7 +321,7 @@ func TestRunHostPreflights(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			err = controller.RunHostPreflights(t.Context())
+			err = controller.RunHostPreflights(t.Context(), RunHostPreflightsOptions{})
 
 			if tt.expectedErr {
 				assert.Error(t, err)
