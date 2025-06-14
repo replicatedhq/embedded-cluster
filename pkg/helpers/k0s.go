@@ -88,8 +88,8 @@ func objectToUnstructured(obj runtime.Object) (*unstructured.Unstructured, error
 	return unstructuredObj, nil
 }
 
-func NetworkSpecFromK0sConfig(k0sCfg *k0sv1beta1.ClusterConfig) *ecv1beta1.NetworkSpec {
-	network := &ecv1beta1.NetworkSpec{}
+func NetworkSpecFromK0sConfig(k0sCfg *k0sv1beta1.ClusterConfig) ecv1beta1.NetworkSpec {
+	network := ecv1beta1.NetworkSpec{}
 
 	if k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil {
 		network.PodCIDR = k0sCfg.Spec.Network.PodCIDR

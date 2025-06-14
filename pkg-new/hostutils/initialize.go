@@ -13,8 +13,6 @@ import (
 type InitForInstallOptions struct {
 	LicenseFile  string
 	AirgapBundle string
-	PodCIDR      string
-	ServiceCIDR  string
 }
 
 func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
@@ -59,7 +57,7 @@ func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeC
 	}
 
 	h.logger.Debugf("configuring firewalld")
-	if err := h.ConfigureFirewalld(ctx, opts.PodCIDR, opts.ServiceCIDR); err != nil {
+	if err := h.ConfigureFirewalld(ctx, rc.PodCIDR(), rc.ServiceCIDR()); err != nil {
 		h.logger.Debugf("unable to configure firewalld: %v", err)
 	}
 

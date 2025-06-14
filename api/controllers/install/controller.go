@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+	"os"
 	"sync"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/infra"
@@ -49,7 +50,12 @@ type InstallController struct {
 	airgapBundle         string
 	configValues         string
 	endUserConfig        *ecv1beta1.Config
+	envSetter            EnvSetter
 	mu                   sync.RWMutex
+}
+
+type EnvSetter interface {
+	Setenv(key string, val string) error
 }
 
 type InstallControllerOption func(*InstallController)
@@ -132,6 +138,12 @@ func WithHostPreflightManager(hostPreflightManager preflight.HostPreflightManage
 	}
 }
 
+func WithEnvSetter(envSetter EnvSetter) InstallControllerOption {
+	return func(c *InstallController) {
+		c.envSetter = envSetter
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		install: types.NewInstall(),
@@ -189,5 +201,17 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithEndUserConfig(controller.endUserConfig),
 		)
 	}
+
+	if controller.envSetter == nil {
+		controller.envSetter = &osEnvSetter{}
+	}
+
 	return controller, nil
+}
+
+type osEnvSetter struct {
+}
+
+func (e *osEnvSetter) Setenv(key string, val string) error {
+	return os.Setenv(key, val)
 }

@@ -23,9 +23,9 @@ type AddOnsInterface interface {
 	// CanEnableHA checks if high availability can be enabled in the cluster
 	CanEnableHA(context.Context) (bool, string, error)
 	// EnableHA enables high availability for the cluster
-	EnableHA(ctx context.Context, serviceCIDR string, inSpec ecv1beta1.InstallationSpec, spinner *spinner.MessageWriter) error
+	EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec, spinner *spinner.MessageWriter) error
 	// EnableAdminConsoleHA enables high availability for the admin console
-	EnableAdminConsoleHA(ctx context.Context, isAirgap bool, serviceCIDR string, proxy *ecv1beta1.ProxySpec, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo) error
+	EnableAdminConsoleHA(ctx context.Context, isAirgap bool, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo) error
 }
 
 var _ AddOnsInterface = (*AddOns)(nil)

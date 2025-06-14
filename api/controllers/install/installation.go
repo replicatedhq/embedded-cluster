@@ -3,9 +3,9 @@ package install
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
@@ -43,15 +43,34 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config *t
 		return fmt.Errorf("write: %w", err)
 	}
 
+	var proxy *ecv1beta1.ProxySpec
+	if config.HTTPProxy != "" || config.HTTPSProxy != "" || config.NoProxy != "" {
+		proxy = &ecv1beta1.ProxySpec{
+			HTTPProxy:  config.HTTPProxy,
+			HTTPSProxy: config.HTTPSProxy,
+			NoProxy:    config.NoProxy,
+		}
+	}
+
+	networkSpec := ecv1beta1.NetworkSpec{
+		NetworkInterface: config.NetworkInterface,
+		GlobalCIDR:       config.GlobalCIDR,
+		PodCIDR:          config.PodCIDR,
+		ServiceCIDR:      config.ServiceCIDR,
+		NodePortRange:    c.rc.NodePortRange(),
+	}
+
 	// TODO (@team): discuss the distinction between the runtime config and the installation config
 	// update the runtime config
 	c.rc.SetDataDir(config.DataDirectory)
 	c.rc.SetLocalArtifactMirrorPort(config.LocalArtifactMirrorPort)
 	c.rc.SetAdminConsolePort(config.AdminConsolePort)
+	c.rc.SetProxySpec(proxy)
+	c.rc.SetNetworkSpec(networkSpec)
 
 	// update process env vars from the runtime config
-	os.Setenv("KUBECONFIG", c.rc.PathToKubeConfig())
-	os.Setenv("TMPDIR", c.rc.EmbeddedClusterTmpSubDir())
+	_ = c.envSetter.Setenv("KUBECONFIG", c.rc.PathToKubeConfig())
+	_ = c.envSetter.Setenv("TMPDIR", c.rc.EmbeddedClusterTmpSubDir())
 
 	if err := c.installationManager.ConfigureHost(ctx, config); err != nil {
 		return fmt.Errorf("configure: %w", err)
