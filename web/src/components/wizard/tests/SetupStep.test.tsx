@@ -98,7 +98,11 @@ describe("SetupStep", () => {
 
     screen.getByLabelText(/Proxy Bypass List/, { selector: "input" });
 
-    // Check advanced settings (should be visible by default)
+    // Reveal advanced settings before checking advanced fields
+    const advancedButton = screen.getByRole("button", { name: /Advanced Settings/i });
+    fireEvent.click(advancedButton);
+
+    // Check advanced settings
     screen.getByLabelText(/Network Interface/, { selector: "select" });
 
     screen.getByLabelText(/Reserved Network Range/, {
@@ -255,6 +259,11 @@ describe("SetupStep", () => {
     const dataDirectoryInput = screen.getByLabelText(/Data Directory/);
     const adminPortInput = screen.getByLabelText(/Admin Console Port/);
     const mirrorPortInput = screen.getByLabelText(/Local Artifact Mirror Port/);
+
+    // Reveal advanced settings before filling advanced fields
+    const advancedButton = screen.getByRole("button", { name: /Advanced Settings/i });
+    fireEvent.click(advancedButton);
+
     const networkInterfaceSelect = screen.getByLabelText(/Network Interface/);
     const globalCidrInput = screen.getByLabelText(/Reserved Network Range/);
 
