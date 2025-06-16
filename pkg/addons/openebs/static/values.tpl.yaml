@@ -48,3 +48,7 @@ preUpgradeHook:
 {{- end }}
 zfs-localpv:
   enabled: false
+alloy:
+  enabled: false
+loki:
+  enabled: false
