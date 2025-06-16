@@ -33,6 +33,7 @@ type PrepareOptions struct {
 	IsAirgap                bool
 	TCPConnectionsRequired  []string
 	IsJoin                  bool
+	IsUI                    bool
 }
 
 // Prepare prepares the host preflights spec by merging provided spec with cluster preflights
@@ -57,6 +58,7 @@ func (p *PreflightsRunner) Prepare(ctx context.Context, opts PrepareOptions) (*v
 		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
 		NodeIP:                  opts.NodeIP,
 		IsJoin:                  opts.IsJoin,
+		IsUI:                    opts.IsUI,
 	}.WithCIDRData(opts.PodCIDR, opts.ServiceCIDR, opts.GlobalCIDR)
 
 	if err != nil {

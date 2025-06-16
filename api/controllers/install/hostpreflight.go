@@ -10,7 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
-func (c *InstallController) RunHostPreflights(ctx context.Context) error {
+func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) error {
 	// Get current installation config and add it to options
 	config, err := c.installationManager.GetConfig()
 	if err != nil {
@@ -28,6 +28,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context) error {
 		HostPreflightSpec:     c.releaseData.HostPreflights,
 		EmbeddedClusterConfig: c.releaseData.EmbeddedClusterConfig,
 		IsAirgap:              c.airgapBundle != "",
+		IsUI:                  opts.IsUI,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to prepare host preflights: %w", err)

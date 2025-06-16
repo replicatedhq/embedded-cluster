@@ -22,6 +22,7 @@ type PrepareHostPreflightOptions struct {
 	TCPConnectionsRequired []string
 	IsAirgap               bool
 	IsJoin                 bool
+	IsUI                   bool
 }
 
 type RunHostPreflightOptions struct {
@@ -113,6 +114,7 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts P
 		IsAirgap:                opts.IsAirgap,
 		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
 		IsJoin:                  opts.IsJoin,
+		IsUI:                    opts.IsUI,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("prepare host preflights: %w", err)

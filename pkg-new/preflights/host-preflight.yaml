@@ -205,10 +205,20 @@ spec:
         outcomes:
           - fail:
               when: 'total < 40Gi'
-              message: The filesystem at {{ .DataDir }} has less than 40 Gi of total space. Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+              message: >-
+                {{ if .IsUI -}}
+                The filesystem at {{ .DataDir }} has less than 40 Gi of total space. Ensure sufficient space is available, or go back to the Setup page and choose a different data directory.
+                {{- else -}}
+                The filesystem at {{ .DataDir }} has less than 40 Gi of total space. Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+                {{- end }}
           - fail:
               when: 'used/total > 80%'
-              message: The filesystem at {{ .DataDir }} is more than 80% full. Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+              message: >-
+                {{ if .IsUI -}}
+                The filesystem at {{ .DataDir }} is more than 80% full. Ensure sufficient space is available, or go back to the Setup page and choose a different data directory.
+                {{- else -}}
+                The filesystem at {{ .DataDir }} is more than 80% full. Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+                {{- end }}
           - pass:
               message: The filesystem at {{ .DataDir }} has sufficient space
     - textAnalyze:
@@ -411,22 +421,30 @@ spec:
         outcomes:
           - fail:
               when: error
-              message: >
+              message: >-
+                {{ if .IsUI -}}
                 Error connecting to {{ .ReplicatedAppURL }}.
-                Ensure your firewall is properly configured, and use --http-proxy,
-                --https-proxy, and --no-proxy if there is a proxy server.
-                The static IP addresses for {{ .ReplicatedAppURL }} are
-                162.159.133.41 and 162.159.134.41.
+                Ensure your firewall is properly configured. If your environment uses a proxy server, go back to the Setup page and specify the proxy settings.
+                The static IP addresses for {{ .ReplicatedAppURL }} are 162.159.133.41 and 162.159.134.41.
+                {{- else -}}
+                Error connecting to {{ .ReplicatedAppURL }}.
+                Ensure your firewall is properly configured. If your environment uses a proxy server, use --http-proxy, --https-proxy, and --no-proxy.
+                The static IP addresses for {{ .ReplicatedAppURL }} are 162.159.133.41 and 162.159.134.41.
+                {{- end }}
           - pass:
               when: 'statusCode == 200'
               message: 'Connected to {{ .ReplicatedAppURL }}'
           - fail:
-              message: >
-                Error connecting to {{ .ReplicatedAppURL }}.
-                Ensure your firewall is properly configured, and use --http-proxy,
-                --https-proxy, and --no-proxy if there is a proxy server.
-                The static IP addresses for {{ .ReplicatedAppURL }} are
-                162.159.133.41 and 162.159.134.41.
+              message: >-
+                {{ if .IsUI -}}
+                Unexpected response from {{ .ReplicatedAppURL }}.
+                Ensure your firewall is properly configured. If your environment uses a proxy server, go back to the Setup page and specify the proxy settings.
+                The static IP addresses for {{ .ReplicatedAppURL }} are 162.159.133.41 and 162.159.134.41.
+                {{- else -}}
+                Unexpected response from {{ .ReplicatedAppURL }}.
+                Ensure your firewall is properly configured. If your environment uses a proxy server, use --http-proxy, --https-proxy, and --no-proxy.
+                The static IP addresses for {{ .ReplicatedAppURL }} are 162.159.133.41 and 162.159.134.41.
+                {{- end }}
     - http:
         checkName: Proxy Registry Access
         collectorName: http-proxy-replicated-com
@@ -434,22 +452,30 @@ spec:
         outcomes:
           - fail:
               when: error
-              message: >
+              message: >-
+                {{ if .IsUI -}}
                 Error connecting to {{ .ProxyRegistryURL }}.
-                Ensure your firewall is properly configured, and use --http-proxy,
-                --https-proxy, and --no-proxy if there is a proxy server.
-                The static IP addresses for {{ .ProxyRegistryURL }} are
-                162.159.137.43 and 162.159.138.43.
+                Ensure your firewall is properly configured. If your environment uses a proxy server, go back to the Setup page and specify the proxy settings.
+                The static IP addresses for {{ .ProxyRegistryURL }} are 162.159.137.43 and 162.159.138.43.
+                {{- else -}}
+                Error connecting to {{ .ProxyRegistryURL }}.
+                Ensure your firewall is properly configured, If your environment uses a proxy server, use --http-proxy, --https-proxy, and --no-proxy.
+                The static IP addresses for {{ .ProxyRegistryURL }} are 162.159.137.43 and 162.159.138.43.
+                {{- end }}
           - pass:
               when: 'statusCode == 401'
               message: 'Connected to {{ .ProxyRegistryURL }}'
           - fail:
-              message: >
+              message: >-
+                {{ if .IsUI -}}
                 Unexpected response from {{ .ProxyRegistryURL }}.
-                Ensure your firewall is properly configured, and use --http-proxy,
-                --https-proxy, and --no-proxy if there is a proxy server.
-                The static IP addresses for {{ .ProxyRegistryURL }} are
-                162.159.137.43 and 162.159.138.43.
+                Ensure your firewall is properly configured. If your environment uses a proxy server, go back to the Setup page and specify the proxy settings.
+                The static IP addresses for {{ .ProxyRegistryURL }} are 162.159.137.43 and 162.159.138.43.
+                {{- else -}}
+                Unexpected response from {{ .ProxyRegistryURL }}.
+                Ensure your firewall is properly configured, If your environment uses a proxy server, use --http-proxy, --https-proxy, and --no-proxy.
+                The static IP addresses for {{ .ProxyRegistryURL }} are 162.159.137.43 and 162.159.138.43.
+                {{- end }}
     - textAnalyze:
         checkName: Resolver Configuration
         fileName: host-collectors/run-host/resolv.conf.txt
@@ -514,7 +540,7 @@ spec:
               message: Port 2380/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Port 2380/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 2380/TCP.
+              message: "Port 2380/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 2380/TCP."
           - fail:
               when: "error"
               message: Port 2380/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 2380/TCP is available.
@@ -532,10 +558,15 @@ spec:
               message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but the connection to it was refused. Ensure port {{ .LocalArtifactMirrorPort }}/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but another process is already using it. Relocate the conflicting process or use --local-artifact-mirror-port to select a different port.
+              message: >-
+                {{ if .IsUI -}}
+                Port {{ .LocalArtifactMirrorPort }}/TCP is required, but another process is already using it. Relocate the conflicting process or go back to the Setup page and choose a different port.
+                {{- else -}}
+                Port {{ .LocalArtifactMirrorPort }}/TCP is required, but another process is already using it. Relocate the conflicting process or use --local-artifact-mirror-port to select a different port.
+                {{- end }}
           - fail:
               when: "connection-timeout"
-              message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port {{ .LocalArtifactMirrorPort }}/TCP.
+              message: "Port {{ .LocalArtifactMirrorPort }}/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port {{ .LocalArtifactMirrorPort }}/TCP."
           - fail:
               when: "error"
               message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port {{ .LocalArtifactMirrorPort }}/TCP is available.
@@ -556,7 +587,7 @@ spec:
               message: Port 9091/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Port 9091/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 9091/TCP.
+              message: "Port 9091/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 9091/TCP."
           - fail:
               when: "error"
               message: Port 9091/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9091/TCP is available.
@@ -577,7 +608,7 @@ spec:
               message: Port 6443/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Port 6443/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 6443/TCP.
+              message: "Port 6443/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 6443/TCP."
           - fail:
               when: "error"
               message: Port 6443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 6443/TCP is available.
@@ -598,7 +629,7 @@ spec:
               message: Port 7443/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Port 7443/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 7443/TCP.
+              message: "Port 7443/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 7443/TCP."
           - fail:
               when: "error"
               message: Port 7443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 7443/TCP is available.
@@ -616,10 +647,15 @@ spec:
               message: Port {{ .AdminConsolePort }}/TCP is required, but the connection to it was refused. Ensure port {{ .AdminConsolePort }}/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port {{ .AdminConsolePort }}/TCP is required, but another process is already using it. Relocate the conflicting process or use --admin-console-port to select a different port.
+              message: >-
+                {{ if .IsUI -}}
+                Port {{ .AdminConsolePort }}/TCP is required, but another process is already using it. Relocate the conflicting process or go back to the Setup page and choose a different port.
+                {{- else -}}
+                Port {{ .AdminConsolePort }}/TCP is required, but another process is already using it. Relocate the conflicting process or use --admin-console-port to select a different port.
+                {{- end }}
           - fail:
               when: "connection-timeout"
-              message: Port {{ .AdminConsolePort }}/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port {{ .AdminConsolePort }}/TCP.
+              message: "Port {{ .AdminConsolePort }}/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port {{ .AdminConsolePort }}/TCP."
           - fail:
               when: "error"
               message: Port {{ .AdminConsolePort }}/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port {{ .AdminConsolePort }}/TCP is available.
@@ -640,7 +676,7 @@ spec:
               message: Port 10250/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Port 10250/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10250/TCP.
+              message: "Port 10250/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10250/TCP."
           - fail:
               when: "error"
               message: Port 10250/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10250/TCP is available.
@@ -661,7 +697,7 @@ spec:
               message: Port 9443/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Port 9443/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 9443/TCP.
+              message: "Port 9443/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 9443/TCP."
           - fail:
               when: "error"
               message: Port 9443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9443/TCP is available.
@@ -682,7 +718,7 @@ spec:
               message: Port 9099/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Port 9099/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 9099/TCP.
+              message: "Port 9099/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 9099/TCP."
           - fail:
               when: "error"
               message: Port 9099/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9099/TCP is available.
@@ -703,7 +739,7 @@ spec:
               message: Port 10256/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Port 10256/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10256/TCP.
+              message: "Port 10256/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10256/TCP."
           - fail:
               when: "error"
               message: Port 10256/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10256/TCP is available.
@@ -724,7 +760,7 @@ spec:
               message: Port 10249/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Port 10249/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10249/TCP.
+              message: "Port 10249/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10249/TCP."
           - fail:
               when: "error"
               message: Port 10249/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10249/TCP is available.
@@ -745,7 +781,7 @@ spec:
               message: Port 10259/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Port 10259/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10259/TCP.
+              message: "Port 10259/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10259/TCP."
           - fail:
               when: "error"
               message: Port 10259/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10259/TCP is available.
@@ -766,7 +802,7 @@ spec:
               message: Port 10257/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Port 10257/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10257/TCP.
+              message: "Port 10257/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10257/TCP."
           - fail:
               when: "error"
               message: Port 10257/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10257/TCP is available.
@@ -787,7 +823,7 @@ spec:
               message: Port 10248/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Port 10248/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10248/TCP.
+              message: "Port 10248/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10248/TCP."
           - fail:
               when: "error"
               message: Port 10248/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10248/TCP is available.
@@ -824,7 +860,12 @@ spec:
         outcomes:
           - fail:
               when: 'true'
-              message: "{{ .DataDir }} cannot be symlinked. Remove the symlink, or use --data-dir to specify an alternative data directory."
+              message: >-
+                {{ if .IsUI -}}
+                {{ .DataDir }} cannot be symlinked. Remove the symlink, or go back to the Setup page and choose a different data directory.
+                {{- else -}}
+                {{ .DataDir }} cannot be symlinked. Remove the symlink, or use --data-dir to specify an alternative data directory.
+                {{- end }}
           - pass:
               when: 'false'
               message: "{{ .DataDir }} is not a symlink."
@@ -848,7 +889,8 @@ spec:
         outcomes:
           - fail:
               when: "no-subnet-available"
-              message: "{{ .PodCIDR.CIDR }} is not available. Use --pod-cidr to specify an available CIDR block."
+              message: >-
+                The network range {{ .PodCIDR.CIDR }} is not available. Use --pod-cidr to specify an available CIDR block.
           - pass:
               when: "a-subnet-is-available"
               message: Specified Pod CIDR is available.
@@ -859,7 +901,8 @@ spec:
         outcomes:
           - fail:
               when: "no-subnet-available"
-              message: "{{ .ServiceCIDR.CIDR }} is not available. Use --service-cidr to specify an available CIDR block."
+              message: >-
+                The network range {{ .ServiceCIDR.CIDR }} is not available. Use --service-cidr to specify an available CIDR block.
           - pass:
               when: "a-subnet-is-available"
               message: Specified Service CIDR is available.
@@ -870,7 +913,12 @@ spec:
         outcomes:
           - fail:
               when: "no-subnet-available"
-              message:  "{{ .GlobalCIDR.CIDR }} is not available. Use --cidr to specify a CIDR block of available private IP addresses (/16 or larger)."
+              message: >-
+                {{ if .IsUI -}}
+                The network range {{ .GlobalCIDR.CIDR }} is not available. Go back to the Setup page and choose a different reserved network range of available private IP addresses (/16 or larger).
+                {{- else -}}
+                The network range {{ .GlobalCIDR.CIDR }} is not available. Use --cidr to specify a CIDR block of available private IP addresses (/16 or larger).
+                {{- end }}
           - pass:
               when: "a-subnet-is-available"
               message: Specified CIDR is available.
@@ -882,7 +930,7 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: |
+              message: >-
                 {{ if .IsJoin -}}
                 The node IP {{ .NodeIP }} cannot be within the Pod CIDR range {{ .PodCIDR.CIDR }}. Use --network-interface to specify a different network interface.
                 {{- else -}}
@@ -899,7 +947,7 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: |
+              message: >-
                 {{ if .IsJoin -}}
                 The node IP {{ .NodeIP }} cannot be within the Service CIDR range {{ .ServiceCIDR.CIDR }}. Use --network-interface to specify a different network interface.
                 {{- else -}}
@@ -916,11 +964,19 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: |
+              message: >-
                 {{ if .IsJoin -}}
-                The node IP {{ .NodeIP }} cannot be within the CIDR range {{ .GlobalCIDR.CIDR }}. Use --network-interface to specify a different network interface.
+                {{ if .IsUI -}}
+                The node IP {{ .NodeIP }} cannot be within the reserved network range ({{ .GlobalCIDR.CIDR }}). Go back to the Setup page and choose a different network interface.
                 {{- else -}}
-                The node IP {{ .NodeIP }} cannot be within the CIDR range {{ .GlobalCIDR.CIDR }}. Use --cidr to specify a different CIDR block of available private IP addresses (/16 or larger), or use --network-interface to specify a different network interface.
+                The node IP {{ .NodeIP }} cannot be within the CIDR block ({{ .GlobalCIDR.CIDR }}). Use --network-interface to specify a different network interface.
+                {{- end }}
+                {{- else -}}
+                {{ if .IsUI -}}
+                The node IP {{ .NodeIP }} cannot be within the reserved network range ({{ .GlobalCIDR.CIDR }}). Go back to the Setup page and choose a different reserved network range of available private IP addresses (/16 or larger) or specify a different network interface.
+                {{- else -}}
+                The node IP {{ .NodeIP }} cannot be within the CIDR block ({{ .GlobalCIDR.CIDR }}). Use --cidr to specify a different CIDR block of available private IP addresses (/16 or larger), or use --network-interface to specify a different network interface.
+                {{- end }}
                 {{- end }}
           - pass:
               when: "false"

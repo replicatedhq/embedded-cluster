@@ -57,7 +57,7 @@ func (m *mockInstallController) GetInstallationStatus(ctx context.Context) (*typ
 	return &types.Status{}, nil
 }
 
-func (m *mockInstallController) RunHostPreflights(ctx context.Context) error {
+func (m *mockInstallController) RunHostPreflights(ctx context.Context, opts install.RunHostPreflightsOptions) error {
 	return m.runHostPreflightsError
 }
 
