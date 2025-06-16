@@ -20,14 +20,6 @@ const InstallWizard: React.FC = () => {
     }
   };
 
-  const goToPreviousStep = () => {
-    const steps: WizardStep[] = ["welcome", "setup", "installation", "completion"];
-    const currentIndex = steps.indexOf(currentStep);
-    if (currentIndex > 0) {
-      setCurrentStep(steps[currentIndex - 1]);
-    }
-  };
-
   const renderStep = () => {
     switch (currentStep) {
       case "welcome":
