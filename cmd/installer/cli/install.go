@@ -449,7 +449,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	if err != nil {
 		return fmt.Errorf("unable to get registry cluster IP: %w", err)
 	}
-	if err := airgap.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
+	if err := hostutils.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
 		return fmt.Errorf("unable to add insecure registry: %w", err)
 	}
 
@@ -482,7 +482,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 		return fmt.Errorf("unable to update installation: %w", err)
 	}
 
-	if err = support.CreateHostSupportBundle(); err != nil {
+	if err = support.CreateHostSupportBundle(ctx, kcli); err != nil {
 		logrus.Warnf("Unable to create host support bundle: %v", err)
 	}
 

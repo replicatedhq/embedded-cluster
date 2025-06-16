@@ -132,6 +132,12 @@ func WithHostPreflightManager(hostPreflightManager preflight.HostPreflightManage
 	}
 }
 
+func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
+	return func(c *InstallController) {
+		c.infraManager = infraManager
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		install: types.NewInstall(),

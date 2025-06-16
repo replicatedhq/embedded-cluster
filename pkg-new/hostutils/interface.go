@@ -28,6 +28,7 @@ type HostUtilsInterface interface {
 	MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error
 	CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool, proxy *ecv1beta1.ProxySpec) error
 	WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error
+	AddInsecureRegistry(registry string) error
 }
 
 // Convenience functions
@@ -67,4 +68,8 @@ func CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc r
 
 func WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {
 	return h.WriteLocalArtifactMirrorDropInFile(rc)
+}
+
+func AddInsecureRegistry(registry string) error {
+	return h.AddInsecureRegistry(registry)
 }

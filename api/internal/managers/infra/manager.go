@@ -7,9 +7,14 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/metadata"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ InfraManager = &infraManager{}
@@ -33,6 +38,12 @@ type infraManager struct {
 	releaseData   *release.ReleaseData
 	endUserConfig *ecv1beta1.Config
 	logger        logrus.FieldLogger
+	k0s           k0s.K0sInterface
+	kcli          client.Client
+	mcli          metadata.Interface
+	hcli          helm.Client
+	hostUtils     hostutils.HostUtilsInterface
+	kotsInstaller func() error
 	mu            sync.RWMutex
 }
 
@@ -104,6 +115,42 @@ func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InfraManagerOption {
 	}
 }
 
+func WithK0s(k0s k0s.K0sInterface) InfraManagerOption {
+	return func(c *infraManager) {
+		c.k0s = k0s
+	}
+}
+
+func WithKubeClient(kcli client.Client) InfraManagerOption {
+	return func(c *infraManager) {
+		c.kcli = kcli
+	}
+}
+
+func WithMetadataClient(mcli metadata.Interface) InfraManagerOption {
+	return func(c *infraManager) {
+		c.mcli = mcli
+	}
+}
+
+func WithHelmClient(hcli helm.Client) InfraManagerOption {
+	return func(c *infraManager) {
+		c.hcli = hcli
+	}
+}
+
+func WithHostUtils(hostUtils hostutils.HostUtilsInterface) InfraManagerOption {
+	return func(c *infraManager) {
+		c.hostUtils = hostUtils
+	}
+}
+
+func WithKotsInstaller(kotsInstaller func() error) InfraManagerOption {
+	return func(c *infraManager) {
+		c.kotsInstaller = kotsInstaller
+	}
+}
+
 // NewInfraManager creates a new InfraManager with the provided options
 func NewInfraManager(opts ...InfraManagerOption) *infraManager {
 	manager := &infraManager{}
@@ -126,6 +173,14 @@ func NewInfraManager(opts ...InfraManagerOption) *infraManager {
 
 	if manager.infraStore == nil {
 		manager.infraStore = NewMemoryStore(manager.infra)
+	}
+
+	if manager.k0s == nil {
+		manager.k0s = k0s.New()
+	}
+
+	if manager.hostUtils == nil {
+		manager.hostUtils = hostutils.New()
 	}
 
 	return manager

@@ -852,8 +852,3 @@ func getTestReleaseData() *release.ReleaseData {
 	}
 }
 
-func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
-	return func(c *InstallController) {
-		c.infraManager = infraManager
-	}
-}

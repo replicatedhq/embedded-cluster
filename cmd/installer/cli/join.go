@@ -385,7 +385,7 @@ func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, 
 	}
 
 	if jcmd.AirgapRegistryAddress != "" {
-		if err := airgap.AddInsecureRegistry(jcmd.AirgapRegistryAddress); err != nil {
+		if err := hostutils.AddInsecureRegistry(jcmd.AirgapRegistryAddress); err != nil {
 			return fmt.Errorf("unable to add insecure registry: %w", err)
 		}
 	}
