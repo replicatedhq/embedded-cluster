@@ -6,6 +6,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
@@ -43,13 +44,9 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config *t
 		return fmt.Errorf("write: %w", err)
 	}
 
-	var proxy *ecv1beta1.ProxySpec
-	if config.HTTPProxy != "" || config.HTTPSProxy != "" || config.NoProxy != "" {
-		proxy = &ecv1beta1.ProxySpec{
-			HTTPProxy:  config.HTTPProxy,
-			HTTPSProxy: config.HTTPSProxy,
-			NoProxy:    config.NoProxy,
-		}
+	proxy, err := newconfig.GetProxySpec(config.HTTPProxy, config.HTTPSProxy, config.NoProxy, config.PodCIDR, config.ServiceCIDR, config.NetworkInterface, c.netUtils)
+	if err != nil {
+		return fmt.Errorf("get proxy spec: %w", err)
 	}
 
 	networkSpec := ecv1beta1.NetworkSpec{
@@ -69,10 +66,11 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config *t
 	c.rc.SetNetworkSpec(networkSpec)
 
 	// update process env vars from the runtime config
-	_ = c.envSetter.Setenv("KUBECONFIG", c.rc.PathToKubeConfig())
-	_ = c.envSetter.Setenv("TMPDIR", c.rc.EmbeddedClusterTmpSubDir())
+	if err := c.rc.SetEnv(); err != nil {
+		return fmt.Errorf("set env vars: %w", err)
+	}
 
-	if err := c.installationManager.ConfigureHost(ctx, config); err != nil {
+	if err := c.installationManager.ConfigureHost(ctx); err != nil {
 		return fmt.Errorf("configure: %w", err)
 	}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
@@ -34,8 +33,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
-			os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+			_ = rc.SetEnv()
 
 			return nil
 		},

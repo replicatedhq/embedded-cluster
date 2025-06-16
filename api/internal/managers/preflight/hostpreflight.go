@@ -14,7 +14,6 @@ import (
 )
 
 type PrepareHostPreflightOptions struct {
-	InstallationConfig     *types.InstallationConfig
 	ReplicatedAppURL       string
 	ProxyRegistryURL       string
 	HostPreflightSpec      *troubleshootv1beta2.HostPreflightSpec
@@ -68,14 +67,8 @@ func (m *hostPreflightManager) GetHostPreflightTitles(ctx context.Context) ([]st
 }
 
 func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error) {
-	// Use provided installation config
-	config := opts.InstallationConfig
-	if config == nil {
-		return nil, fmt.Errorf("installation config is required")
-	}
-
 	// Get node IP
-	nodeIP, err := m.netUtils.FirstValidAddress(config.NetworkInterface)
+	nodeIP, err := m.netUtils.FirstValidAddress(m.rc.NetworkInterface())
 	if err != nil {
 		return nil, fmt.Errorf("determine node ip: %w", err)
 	}
@@ -85,9 +78,9 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts P
 		HostPreflightSpec:       opts.HostPreflightSpec,
 		ReplicatedAppURL:        opts.ReplicatedAppURL,
 		ProxyRegistryURL:        opts.ProxyRegistryURL,
-		AdminConsolePort:        opts.InstallationConfig.AdminConsolePort,
-		LocalArtifactMirrorPort: opts.InstallationConfig.LocalArtifactMirrorPort,
-		DataDir:                 opts.InstallationConfig.DataDirectory,
+		AdminConsolePort:        m.rc.AdminConsolePort(),
+		LocalArtifactMirrorPort: m.rc.LocalArtifactMirrorPort(),
+		DataDir:                 m.rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:              m.rc.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          m.rc.EmbeddedClusterOpenEBSLocalSubDir(),
 		Proxy:                   m.rc.ProxySpec(),
@@ -122,7 +115,7 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHo
 	}()
 
 	// Run the preflights using the shared core function
-	output, stderr, err := preflights.Run(ctx, opts.HostPreflightSpec, m.rc)
+	output, stderr, err := m.runner.Run(ctx, opts.HostPreflightSpec, m.rc)
 	if err != nil {
 		errMsg := fmt.Sprintf("Host preflights failed to run: %v", err)
 		if stderr != "" {

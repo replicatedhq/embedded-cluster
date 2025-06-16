@@ -115,6 +115,12 @@ func (m *MockRuntimeConfig) PathToEmbeddedClusterSupportFile(name string) string
 	return args.String(0)
 }
 
+// SetEnv mocks the SetEnv method
+func (m *MockRuntimeConfig) SetEnv() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
 // WriteToDisk mocks the WriteToDisk method
 func (m *MockRuntimeConfig) WriteToDisk() error {
 	args := m.Called()

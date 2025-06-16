@@ -26,6 +26,7 @@ type RuntimeConfig interface {
 	EmbeddedClusterSupportSubDir() string
 	PathToEmbeddedClusterSupportFile(name string) string
 
+	SetEnv() error
 	WriteToDisk() error
 
 	LocalArtifactMirrorPort() int

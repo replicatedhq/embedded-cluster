@@ -19,7 +19,7 @@ func JoinPrintCommandCmd(ctx context.Context, name string) *cobra.Command {
 		Short: fmt.Sprintf("Print controller join command for %s", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
-				return fmt.Errorf("update command must be run as root")
+				return fmt.Errorf("print-command command must be run as root")
 			}
 
 			var err error

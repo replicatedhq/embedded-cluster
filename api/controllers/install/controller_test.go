@@ -83,12 +83,15 @@ func TestGetInstallationConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
+			rc.SetDataDir(t.TempDir())
+
 			mockManager := &installation.MockInstallationManager{}
 			tt.setupMock(mockManager)
 
 			controller, err := NewInstallController(
+				WithRuntimeConfig(rc),
 				WithInstallationManager(mockManager),
-				WithEnvSetter(&testEnvSetter{}),
 			)
 			require.NoError(t, err)
 
@@ -124,7 +127,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ValidateConfig", config).Return(nil),
 					m.On("SetConfig", *config).Return(nil),
-					m.On("ConfigureHost", t.Context(), config).Return(nil),
+					m.On("ConfigureHost", t.Context()).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -163,7 +166,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ValidateConfig", config).Return(nil),
 					m.On("SetConfig", configWithCIDRs).Return(nil),
-					m.On("ConfigureHost", t.Context(), &configWithCIDRs).Return(nil),
+					m.On("ConfigureHost", t.Context()).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -172,6 +175,9 @@ func TestConfigureInstallation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
+			rc.SetDataDir(t.TempDir())
+
 			mockManager := &installation.MockInstallationManager{}
 
 			// Create a copy of the config to avoid modifying the original
@@ -180,8 +186,8 @@ func TestConfigureInstallation(t *testing.T) {
 			tt.setupMock(mockManager, &configCopy)
 
 			controller, err := NewInstallController(
+				WithRuntimeConfig(rc),
 				WithInstallationManager(mockManager),
-				WithEnvSetter(&testEnvSetter{}),
 			)
 			require.NoError(t, err)
 
@@ -267,14 +273,13 @@ func TestRunHostPreflights(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		setupMocks  func(*installation.MockInstallationManager, *preflight.MockHostPreflightManager)
+		setupMocks  func(*preflight.MockHostPreflightManager)
 		expectedErr bool
 	}{
 		{
 			name: "successful run preflights",
-			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					im.On("GetConfig").Return(&types.InstallationConfig{}, nil),
 					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", t.Context(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
@@ -285,9 +290,8 @@ func TestRunHostPreflights(t *testing.T) {
 		},
 		{
 			name: "prepare preflights error",
-			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					im.On("GetConfig").Return(&types.InstallationConfig{}, nil),
 					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(nil, errors.New("prepare error")),
 				)
 			},
@@ -295,9 +299,8 @@ func TestRunHostPreflights(t *testing.T) {
 		},
 		{
 			name: "run preflights error",
-			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					im.On("GetConfig").Return(&types.InstallationConfig{}, nil),
 					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", t.Context(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
@@ -310,9 +313,8 @@ func TestRunHostPreflights(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockInstallationManager := &installation.MockInstallationManager{}
 			mockPreflightManager := &preflight.MockHostPreflightManager{}
-			tt.setupMocks(mockInstallationManager, mockPreflightManager)
+			tt.setupMocks(mockPreflightManager)
 
 			rc := runtimeconfig.New(nil)
 			rc.SetDataDir(t.TempDir())
@@ -325,7 +327,6 @@ func TestRunHostPreflights(t *testing.T) {
 
 			controller, err := NewInstallController(
 				WithRuntimeConfig(rc),
-				WithInstallationManager(mockInstallationManager),
 				WithHostPreflightManager(mockPreflightManager),
 				WithReleaseData(getTestReleaseData()),
 			)
@@ -334,12 +335,11 @@ func TestRunHostPreflights(t *testing.T) {
 			err = controller.RunHostPreflights(t.Context(), RunHostPreflightsOptions{})
 
 			if tt.expectedErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
-			mockInstallationManager.AssertExpectations(t)
 			mockPreflightManager.AssertExpectations(t)
 		})
 	}

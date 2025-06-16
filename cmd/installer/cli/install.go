@@ -106,8 +106,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return runManagerExperienceInstall(ctx, flags, rc)
 			}
 
-			os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+			_ = rc.SetEnv()
 
 			clusterID := metrics.ClusterID()
 			installReporter := newInstallReporter(

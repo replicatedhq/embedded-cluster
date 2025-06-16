@@ -13,16 +13,44 @@ import (
 
 var _ RuntimeConfig = &runtimeConfig{}
 
+type Option func(*runtimeConfig)
+
+type EnvSetter interface {
+	Setenv(key string, val string) error
+}
+
 type runtimeConfig struct {
-	spec *ecv1beta1.RuntimeConfigSpec
+	spec      *ecv1beta1.RuntimeConfigSpec
+	envSetter EnvSetter
+}
+
+type osEnvSetter struct{}
+
+func (o *osEnvSetter) Setenv(key string, val string) error {
+	return os.Setenv(key, val)
+}
+
+func WithEnvSetter(envSetter EnvSetter) Option {
+	return func(rc *runtimeConfig) {
+		rc.envSetter = envSetter
+	}
 }
 
 // New creates a new RuntimeConfig instance
-func New(spec *ecv1beta1.RuntimeConfigSpec) RuntimeConfig {
+func New(spec *ecv1beta1.RuntimeConfigSpec, opts ...Option) RuntimeConfig {
 	if spec == nil {
 		spec = ecv1beta1.GetDefaultRuntimeConfig()
 	}
-	return &runtimeConfig{spec: spec}
+	rc := &runtimeConfig{spec: spec}
+	for _, opt := range opts {
+		opt(rc)
+	}
+
+	if rc.envSetter == nil {
+		rc.envSetter = &osEnvSetter{}
+	}
+
+	return rc
 }
 
 // NewFromDisk creates a new RuntimeConfig instance from the runtime config file on disk at path
@@ -164,6 +192,17 @@ func (rc *runtimeConfig) EmbeddedClusterSupportSubDir() string {
 // a materialized support file. This function does not check if the file exists.
 func (rc *runtimeConfig) PathToEmbeddedClusterSupportFile(name string) string {
 	return filepath.Join(rc.EmbeddedClusterSupportSubDir(), name)
+}
+
+// SetEnv sets the environment variables for the RuntimeConfig.
+func (rc *runtimeConfig) SetEnv() error {
+	if err := rc.envSetter.Setenv("KUBECONFIG", rc.PathToKubeConfig()); err != nil {
+		return fmt.Errorf("set KUBECONFIG: %w", err)
+	}
+	if err := rc.envSetter.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir()); err != nil {
+		return fmt.Errorf("set TMPDIR: %w", err)
+	}
+	return nil
 }
 
 // WriteToDisk writes the spec for the RuntimeConfig to the runtime config file on disk at path

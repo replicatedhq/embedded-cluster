@@ -102,8 +102,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
-			os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+			_ = rc.SetEnv()
 
 			return nil
 		},
@@ -191,8 +190,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		}
 	}
 
-	os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+	_ = rc.SetEnv()
 
 	switch state {
 	case ecRestoreStateNew:

@@ -30,8 +30,7 @@ func EnableHACmd(ctx context.Context, name string) *cobra.Command {
 
 			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
 
-			os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+			_ = rc.SetEnv()
 
 			return nil
 		},

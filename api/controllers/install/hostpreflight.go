@@ -11,18 +11,11 @@ import (
 )
 
 func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) error {
-	// Get current installation config and add it to options
-	config, err := c.installationManager.GetConfig()
-	if err != nil {
-		return fmt.Errorf("failed to read installation config: %w", err)
-	}
-
 	// Get the configured custom domains
 	ecDomains := utils.GetDomains(c.releaseData)
 
 	// Prepare host preflights
 	hpf, err := c.hostPreflightManager.PrepareHostPreflights(ctx, preflight.PrepareHostPreflightOptions{
-		InstallationConfig:    config,
 		ReplicatedAppURL:      netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
 		ProxyRegistryURL:      netutils.MaybeAddHTTPS(ecDomains.ProxyRegistryDomain),
 		HostPreflightSpec:     c.releaseData.HostPreflights,

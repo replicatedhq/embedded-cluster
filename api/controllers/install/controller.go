@@ -2,13 +2,13 @@ package install
 
 import (
 	"context"
-	"os"
 	"sync"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
@@ -46,6 +46,7 @@ type InstallController struct {
 	rc                   runtimeconfig.RuntimeConfig
 	logger               logrus.FieldLogger
 	hostUtils            hostutils.HostUtilsInterface
+	netUtils             utils.NetUtils
 	metricsReporter      metrics.ReporterInterface
 	releaseData          *release.ReleaseData
 	password             string
@@ -54,12 +55,7 @@ type InstallController struct {
 	airgapBundle         string
 	configValues         string
 	endUserConfig        *ecv1beta1.Config
-	envSetter            EnvSetter
 	mu                   sync.RWMutex
-}
-
-type EnvSetter interface {
-	Setenv(key string, val string) error
 }
 
 type InstallControllerOption func(*InstallController)
@@ -79,6 +75,12 @@ func WithLogger(logger logrus.FieldLogger) InstallControllerOption {
 func WithHostUtils(hostUtils hostutils.HostUtilsInterface) InstallControllerOption {
 	return func(c *InstallController) {
 		c.hostUtils = hostUtils
+	}
+}
+
+func WithNetUtils(netUtils utils.NetUtils) InstallControllerOption {
+	return func(c *InstallController) {
+		c.netUtils = netUtils
 	}
 }
 
@@ -142,12 +144,6 @@ func WithHostPreflightManager(hostPreflightManager preflight.HostPreflightManage
 	}
 }
 
-func WithEnvSetter(envSetter EnvSetter) InstallControllerOption {
-	return func(c *InstallController) {
-		c.envSetter = envSetter
-	}
-}
-
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		install: types.NewInstall(),
@@ -171,6 +167,10 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
+	if controller.netUtils == nil {
+		controller.netUtils = utils.NewNetUtils()
+	}
+
 	if controller.installationManager == nil {
 		controller.installationManager = installation.NewInstallationManager(
 			installation.WithRuntimeConfig(controller.rc),
@@ -179,6 +179,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			installation.WithLicenseFile(controller.licenseFile),
 			installation.WithAirgapBundle(controller.airgapBundle),
 			installation.WithHostUtils(controller.hostUtils),
+			installation.WithNetUtils(controller.netUtils),
 		)
 	}
 
@@ -188,6 +189,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			preflight.WithLogger(controller.logger),
 			preflight.WithMetricsReporter(controller.metricsReporter),
 			preflight.WithHostPreflightStore(preflight.NewMemoryStore(controller.install.Steps.HostPreflight)),
+			preflight.WithNetUtils(controller.netUtils),
 		)
 	}
 
@@ -206,16 +208,5 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
-	if controller.envSetter == nil {
-		controller.envSetter = &osEnvSetter{}
-	}
-
 	return controller, nil
-}
-
-type osEnvSetter struct {
-}
-
-func (e *osEnvSetter) Setenv(key string, val string) error {
-	return os.Setenv(key, val)
 }
