@@ -14,18 +14,44 @@ import (
 )
 
 // PrintTable prints the preflight output in a table format.
-func PrintTable(o *apitypes.HostPreflightsOutput) {
+func (p *PreflightsRunner) PrintTable(o *apitypes.HostPreflightsOutput) {
 	printTable(o)
 }
 
 // PrintTableWithoutInfo prints the preflight output in a table format without info results.
-func PrintTableWithoutInfo(o *apitypes.HostPreflightsOutput) {
+func (p *PreflightsRunner) PrintTableWithoutInfo(o *apitypes.HostPreflightsOutput) {
 	withoutInfo := apitypes.HostPreflightsOutput{
 		Warn: o.Warn,
 		Fail: o.Fail,
 	}
 
 	printTable(&withoutInfo)
+}
+
+func (p *PreflightsRunner) SaveToDisk(o *apitypes.HostPreflightsOutput, path string) error {
+	// Store results on disk of the host that ran the preflights
+	data, err := json.MarshalIndent(o, "", "  ")
+	if err != nil {
+		return fmt.Errorf("unable to marshal preflight results: %w", err)
+	}
+
+	// If we ever want to store multiple preflight results
+	// we can add a timestamp to the filename.
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("unable to write preflight results to %s: %w", path, err)
+	}
+
+	return nil
+}
+
+// OutputFromReader reads the provided reader and returns a Output
+// object. Expects the reader to contain a valid JSON object.
+func (p *PreflightsRunner) OutputFromReader(from io.Reader) (*apitypes.HostPreflightsOutput, error) {
+	result := &apitypes.HostPreflightsOutput{}
+	if err := json.NewDecoder(from).Decode(result); err != nil {
+		return result, fmt.Errorf("unable to decode preflight output: %w", err)
+	}
+	return result, nil
 }
 
 // wrapText wraps the text and adds a line break after width characters.
@@ -79,30 +105,4 @@ func printTable(o *apitypes.HostPreflightsOutput) {
 		tb.AppendRow(table.Row{"•", wrapText(rec.Message, maxwidth-5)})
 	}
 	logrus.Infof("\n%s\n", tb.Render())
-}
-
-func SaveToDisk(o *apitypes.HostPreflightsOutput, path string) error {
-	// Store results on disk of the host that ran the preflights
-	data, err := json.MarshalIndent(o, "", "  ")
-	if err != nil {
-		return fmt.Errorf("unable to marshal preflight results: %w", err)
-	}
-
-	// If we ever want to store multiple preflight results
-	// we can add a timestamp to the filename.
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		return fmt.Errorf("unable to write preflight results to %s: %w", path, err)
-	}
-
-	return nil
-}
-
-// OutputFromReader reads the provided reader and returns a Output
-// object. Expects the reader to contain a valid JSON object.
-func OutputFromReader(from io.Reader) (*apitypes.HostPreflightsOutput, error) {
-	result := &apitypes.HostPreflightsOutput{}
-	if err := json.NewDecoder(from).Decode(result); err != nil {
-		return result, fmt.Errorf("unable to decode preflight output: %w", err)
-	}
-	return result, nil
 }

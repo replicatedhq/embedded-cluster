@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +30,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 	// Create an install controller
 	installController, err := install.NewInstallController(
 		install.WithInstallationManager(installation.NewInstallationManager(
-			installation.WithNetUtils(&mockNetUtils{ifaces: []string{"eth0", "eth1"}}),
+			installation.WithNetUtils(&utils.MockNetUtils{}),
 		)),
 	)
 	require.NoError(t, err)
