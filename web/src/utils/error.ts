@@ -1,86 +1,30 @@
-// Special cases for acronyms that need specific formatting
-const specialCases: Record<string, string> = {
-  cidr: "CIDR",
-  https: "HTTPS",
-  http: "HTTP",
-};
-
-// isCamelCase checks if a word follows camelCase pattern (starts lowercase, has uppercase)
-function isCamelCase(word: string): boolean {
-  if (!word || !word[0]?.match(/[a-z]/)) {
-    return false;
-  }
-  return Array.from(word.slice(1)).some((char: string) => char.match(/[A-Z]/));
-}
-
-// splitCamelCase splits a camelCase word into parts
-function splitCamelCase(word: string): string[] {
-  const parts: string[] = [];
-  let current = "";
-
-  for (let i = 0; i < word.length; i++) {
-    const char = word[i];
-    if (i > 0 && char.match(/[A-Z]/)) {
-      // If previous char was lowercase, start new part
-      if (word[i - 1].match(/[a-z]/)) {
-        parts.push(current);
-        current = "";
-      } else if (i + 1 < word.length && word[i + 1].match(/[a-z]/)) {
-        // If next char is lowercase, start new part (end of acronym)
-        if (current) {
-          parts.push(current);
-          current = "";
-        }
-      }
-    }
-    current += char;
-  }
-
-  if (current) {
-    parts.push(current);
-  }
-
-  return parts;
-}
-
-// transformWord converts a camelCase word to Title Case
-function transformWord(word: string): string {
-  // Check for special cases first
-  const lowerWord = word.toLowerCase();
-  if (specialCases[lowerWord]) {
-    return specialCases[lowerWord];
-  }
-
-  // If not camelCase, return as is
-  if (!isCamelCase(word)) {
-    return word;
-  }
-
-  // Split camelCase word into parts
-  const parts = splitCamelCase(word);
-
-  // Process each part
-  return parts
-    .map(part => {
-      const lowerPart = part.toLowerCase();
-      return specialCases[lowerPart] || part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
-    })
-    .join(" ");
+const fieldNames = {
+   adminConsolePort: "Admin Console Port",
+   dataDirectory: "Data Directory",
+   localArtifactMirrorPort: "Local Artifact Mirror Port",
+   httpProxy: "HTTP Proxy",
+   httpsProxy: "HTTPS Proxy",
+   noProxy: "Proxy Bypass List",
+   networkInterface: "Network Interface",
+   podCidr: "Pod CIDR",
+   serviceCidr: "Service CIDR",
+   globalCidr: "Reserved Network Range (CIDR)",
+   cidr: "CIDR",
+   Cidr: "CIDR",
+   CIDR: "CIDR"
 }
 
 /**
- * formatErrorMessage converts camelCase words in an error message to Title Case.
- * It preserves non-camelCase words and handles special acronyms.
+ * Formats error messages by replacing technical field names with more user-friendly display names.
+ * For example, "adminConsolePort" becomes "Admin Console Port".
  *
- * @example
- * formatErrorMessage("podCidr is required") // "Pod CIDR is required"
- * formatErrorMessage("httpProxy and httpsProxy") // "HTTP Proxy and HTTPS Proxy
+ * @param message - The error message to format
+ * @returns The formatted error message with replaced field names
  */
-export function formatErrorMessage(message: string): string {
-  if (!message) return "";
-
-  return message
-    .split(" ")
-    .map(word => transformWord(word))
-    .join(" ");
+export function formatErrorMessage(message: string) {
+   let finalMsg = message
+   for (const [field, fieldName] of Object.entries(fieldNames)) {
+      finalMsg = finalMsg.replaceAll(new RegExp(`\\b${field}\\b`, 'g'), fieldName)
+   }
+   return finalMsg
 }
