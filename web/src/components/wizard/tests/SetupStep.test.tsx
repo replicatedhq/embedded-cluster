@@ -26,7 +26,6 @@ const server = setupServer(
 
 describe("SetupStep", () => {
   const mockOnNext = vi.fn();
-  const mockOnBack = vi.fn();
 
   beforeAll(() => {
     server.listen();
@@ -46,7 +45,7 @@ describe("SetupStep", () => {
   });
 
   it("renders the linux setup form when it's embedded", async () => {
-    renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {
@@ -127,7 +126,7 @@ describe("SetupStep", () => {
       })
     );
 
-    renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {
@@ -227,10 +226,14 @@ describe("SetupStep", () => {
             "Content-Type": "application/json",
           },
         });
+      }),
+      // Mock installation status for validation view
+      http.get("*/api/install/installation/status", () => {
+        return HttpResponse.json({ state: "Succeeded" });
       })
     );
 
-    renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {
@@ -283,12 +286,268 @@ describe("SetupStep", () => {
     // Submit form
     fireEvent.click(nextButton);
 
-    // Wait for the mutation to complete and verify onNext was called
-    await waitFor(
-      () => {
-        expect(mockOnNext).toHaveBeenCalled();
-      },
-      { timeout: 3000 }
+    // Wait for transition to validation view (new behavior)
+    await waitFor(() => {
+      expect(screen.getByText("Validate the host requirements before proceeding with installation.")).toBeInTheDocument();
+    });
+
+    // Verify we're now in validation view with proper buttons
+    expect(screen.getByText("Back to Configuration")).toBeInTheDocument();
+  });
+
+  // New tests for consolidated validation functionality
+  it("shows validation view when Next: Validate Host is clicked", async () => {
+    // Mock successful configuration submission and installation status
+    server.use(
+      http.post("*/api/install/installation/configure", () => {
+        return HttpResponse.json({ success: true });
+      }),
+      http.get("*/api/install/installation/status", () => {
+        return HttpResponse.json({ state: "Succeeded" });
+      }),
+      http.post("*/api/install/host-preflights/run", () => {
+        return HttpResponse.json({ success: true });
+      })
     );
+
+    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        preloadedState: {
+          config: {
+            ...MOCK_INSTALL_CONFIG,
+            dataDirectory: "/var/lib/embedded-cluster",
+            adminConsolePort: 8080,
+            localArtifactMirrorPort: 8081,
+            networkInterface: "eth0",
+            globalCidr: "10.244.0.0/16",
+            storageClass: "standard",
+          },
+          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
+        },
+      },
+    });
+
+    // Wait for loading to complete
+    await screen.findByText("Configure the installation settings.");
+    await screen.findByTestId("linux-setup");
+
+    // Fill in form and click Next: Validate Host
+    const dataDirectoryInput = screen.getByLabelText(/Data Directory/);
+    fireEvent.change(dataDirectoryInput, {
+      target: { value: "/var/lib/embedded-cluster" },
+    });
+
+    const nextButton = screen.getByText("Next: Validate Host");
+    fireEvent.click(nextButton);
+
+    // Should show validation view instead of configuration
+    await waitFor(() => {
+      expect(screen.getByText("Validating host requirements...")).toBeInTheDocument();
+    });
+
+    // Should show Back to Configuration button
+    expect(screen.getByText("Back to Configuration")).toBeInTheDocument();
+  });
+
+  it("enables Start Installation button when validation passes", async () => {
+    // Mock successful configuration and validation
+    server.use(
+      http.post("*/api/install/installation/configure", () => {
+        return HttpResponse.json({ success: true });
+      }),
+      http.get("*/api/install/installation/status", () => {
+        return HttpResponse.json({ state: "Succeeded" });
+      }),
+      http.get("*/api/install/host-preflights/status", () => {
+        return HttpResponse.json({
+          output: {
+            pass: [{ title: "CPU Check", message: "CPU requirements met" }],
+          },
+          status: { state: "Succeeded" },
+        });
+      })
+    );
+
+    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        preloadedState: {
+          config: {
+            ...MOCK_INSTALL_CONFIG,
+            dataDirectory: "/var/lib/embedded-cluster",
+            adminConsolePort: 8080,
+            localArtifactMirrorPort: 8081,
+            networkInterface: "eth0",
+            globalCidr: "10.244.0.0/16",
+            storageClass: "standard",
+          },
+          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
+        },
+      },
+    });
+
+    // Wait for form to load
+    await screen.findByText("Configure the installation settings.");
+    await screen.findByTestId("linux-setup");
+
+    // Fill form and navigate to validation view
+    const dataDirectoryInput = screen.getByLabelText(/Data Directory/);
+    fireEvent.change(dataDirectoryInput, {
+      target: { value: "/var/lib/embedded-cluster" },
+    });
+
+    const nextButton = screen.getByText("Next: Validate Host");
+    fireEvent.click(nextButton);
+
+    // Wait for validation success
+    await waitFor(() => {
+      expect(screen.getByText("Host validation successful!")).toBeInTheDocument();
+    });
+
+    // Should show and enable Start Installation button
+    const startInstallButton = screen.getByText("Next: Start Installation");
+    expect(startInstallButton).toBeInTheDocument();
+    expect(startInstallButton).not.toBeDisabled();
+
+    // Should call onNext when clicked
+    fireEvent.click(startInstallButton);
+    await waitFor(() => {
+      expect(mockOnNext).toHaveBeenCalled();
+    });
+  });
+
+  it("returns to configuration view when Back to Configuration is clicked", async () => {
+    // Mock successful configuration submission
+    server.use(
+      http.post("*/api/install/installation/configure", () => {
+        return HttpResponse.json({ success: true });
+      })
+    );
+
+    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        preloadedState: {
+          config: {
+            ...MOCK_INSTALL_CONFIG,
+            dataDirectory: "/var/lib/embedded-cluster",
+          },
+          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
+        },
+      },
+    });
+
+    // Wait for form to load
+    await screen.findByText("Configure the installation settings.");
+    await screen.findByTestId("linux-setup");
+
+    // Fill form and navigate to validation view
+    const dataDirectoryInput = screen.getByLabelText(/Data Directory/);
+    fireEvent.change(dataDirectoryInput, {
+      target: { value: "/var/lib/embedded-cluster" },
+    });
+
+    const nextButton = screen.getByText("Next: Validate Host");
+    fireEvent.click(nextButton);
+
+    // Wait for validation view to appear
+    await waitFor(() => {
+      expect(screen.getByText("Validate the host requirements before proceeding with installation.")).toBeInTheDocument();
+    });
+
+    // Click Back to Configuration
+    const backButton = screen.getByText("Back to Configuration");
+    fireEvent.click(backButton);
+
+    // Should return to configuration view
+    await waitFor(() => {
+      expect(screen.getByText("Configure the installation settings.")).toBeInTheDocument();
+    });
+
+    // Should preserve form data
+    const updatedDataDirectoryInput = screen.getByLabelText(/Data Directory/);
+    expect(updatedDataDirectoryInput).toHaveValue("/var/lib/embedded-cluster");
+
+    // Should show Next: Validate Host button again
+    expect(screen.getByText("Next: Validate Host")).toBeInTheDocument();
+  });
+
+  it("handles validation failures and allows retry", async () => {
+    // Mock configuration success but validation failure
+    server.use(
+      http.post("*/api/install/installation/configure", () => {
+        return HttpResponse.json({ success: true });
+      }),
+      http.get("*/api/install/installation/status", () => {
+        return HttpResponse.json({ state: "Succeeded" });
+      }),
+      http.get("*/api/install/host-preflights/status", () => {
+        return HttpResponse.json({
+          output: {
+            fail: [
+              { title: "Disk Space", message: "Not enough disk space available" },
+            ],
+          },
+          status: { state: "Failed" },
+        });
+      }),
+      http.post("*/api/install/host-preflights/run", () => {
+        return HttpResponse.json({ success: true });
+      })
+    );
+
+    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        preloadedState: {
+          config: {
+            ...MOCK_INSTALL_CONFIG,
+            dataDirectory: "/var/lib/embedded-cluster",
+            adminConsolePort: 8080,
+            localArtifactMirrorPort: 8081,
+            networkInterface: "eth0",
+            globalCidr: "10.244.0.0/16",
+            storageClass: "standard",
+          },
+          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
+        },
+      },
+    });
+
+    // Wait for form to load
+    await screen.findByText("Configure the installation settings.");
+    await screen.findByTestId("linux-setup");
+
+    // Fill form and navigate to validation view
+    const dataDirectoryInput = screen.getByLabelText(/Data Directory/);
+    fireEvent.change(dataDirectoryInput, {
+      target: { value: "/var/lib/embedded-cluster" },
+    });
+
+    const nextButton = screen.getByText("Next: Validate Host");
+    fireEvent.click(nextButton);
+
+    // Wait for validation failure
+    await waitFor(() => {
+      expect(screen.getByText("Host Requirements Not Met")).toBeInTheDocument();
+      expect(screen.getByText("Disk Space")).toBeInTheDocument();
+    });
+
+    // Should show retry button
+    const retryButton = screen.getByRole("button", { name: "Run Validation Again" });
+    expect(retryButton).toBeInTheDocument();
+
+    // Should allow retry
+    fireEvent.click(retryButton);
+    await waitFor(() => {
+      expect(screen.getByText("Validating host requirements...")).toBeInTheDocument();
+    });
+
+    // Next: Start Installation should be disabled during failures
+    const startInstallButton = screen.queryByText("Next: Start Installation");
+    if (startInstallButton) {
+      expect(startInstallButton).toBeDisabled();
+    }
   });
 });

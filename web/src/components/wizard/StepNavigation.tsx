@@ -16,7 +16,6 @@ const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep }) => {
   const steps = [
     { id: 'welcome', name: 'Welcome', icon: ClipboardList },
     { id: 'setup', name: 'Setup', icon: Settings },
-    { id: 'validation', name: 'Validation', icon: CheckCircle },
     { id: 'installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
     { id: 'completion', name: 'Completion', icon: CheckCircle },
   ];
