@@ -79,7 +79,7 @@ describe("SetupStep", () => {
     // Wait for loading to complete
     await screen.findByText("Loading configuration...");
 
-    await screen.findByText("Configure the installation settings.");
+    await screen.findByText("Set up the host for the installation.");
 
     // Wait for the linux-setup element to appear
     await screen.findByTestId("linux-setup");
@@ -156,7 +156,7 @@ describe("SetupStep", () => {
 
     // Wait for loading to complete
     await screen.findByText("Loading configuration...");
-    await screen.findByText("Configure the installation settings.");
+    await screen.findByText("Set up the host for the installation.");
 
     // Wait for the linux-setup element to appear
     await screen.findByTestId("linux-setup");
@@ -250,7 +250,7 @@ describe("SetupStep", () => {
 
     // Wait for loading to complete
     await screen.findByText("Loading configuration...");
-    await screen.findByText("Configure the installation settings.");
+    await screen.findByText("Set up the host for the installation.");
 
     // Wait for the linux-setup element to appear
     await screen.findByTestId("linux-setup");

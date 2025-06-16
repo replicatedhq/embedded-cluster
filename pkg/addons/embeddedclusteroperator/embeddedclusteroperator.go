@@ -47,7 +47,7 @@ type EmbeddedClusterOperator struct {
 }
 
 func (e *EmbeddedClusterOperator) Name() string {
-	return "Runtime Operator"
+	return "runtime operator"
 }
 
 func (e *EmbeddedClusterOperator) Version() string {
