@@ -29,19 +29,23 @@ import (
 // Test the getHostPreflightsStatus endpoint returns host preflights status correctly
 func TestGetHostPreflightsStatus(t *testing.T) {
 	hpf := types.HostPreflights{
+		Output: &types.HostPreflightsOutput{
+			Pass: []types.HostPreflightsRecord{
+				{
+					Title:   "Some Preflight",
+					Message: "All good",
+				},
+			},
+			Fail: []types.HostPreflightsRecord{
+				{
+					Title:   "Another Preflight",
+					Message: "Oh no!",
+				},
+			},
+		},
 		Titles: []string{
 			"Some Preflight",
 			"Another Preflight",
-		},
-		Output: &types.HostPreflightsOutput{
-			Pass: []types.HostPreflightsRecord{types.HostPreflightsRecord{
-				Title:   "Some Preflight",
-				Message: "All good",
-			}},
-			Fail: []types.HostPreflightsRecord{types.HostPreflightsRecord{
-				Title:   "Another Preflight",
-				Message: "Oh no!",
-			}},
 		},
 		Status: &types.Status{
 			State:       types.StateFailed,
