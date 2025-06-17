@@ -29,10 +29,10 @@ const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep }) => {
     const currentStepIndex = allSteps.indexOf(currentStep);
 
     // Treat validation as part of setup for navigation purposes
-    const adjustedCurrentIndex = currentStep === 'validation' ? allSteps.indexOf('setup') : currentAllStepIndex;
+    const adjustedCurrentIndex = currentStep === 'validation' ? allSteps.indexOf('setup') : currentStepIndex;
 
-    if (allStepIndex < adjustedCurrentIndex) return 'complete';
-    if (allStepIndex === adjustedCurrentIndex || (step.id === 'setup' && currentStep === 'validation')) return 'current';
+    if (stepIndex < adjustedCurrentIndex) return 'complete';
+    if (stepIndex === adjustedCurrentIndex || (step.id === 'setup' && currentStep === 'validation')) return 'current';
     return 'upcoming';
   };
 
