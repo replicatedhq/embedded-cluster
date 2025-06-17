@@ -10,6 +10,6 @@
   "devDependencies": {
     "@playwright/test": "^1.48.0",
     "@types/node": "^24.0.1",
-    "ts-retry": "^4.2.5"
+    "ts-retry": "^6.0.0"
   }
 }
