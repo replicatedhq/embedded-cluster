@@ -267,7 +267,7 @@ func (m *infraManager) installAddOns(ctx context.Context, license *kotsv1beta1.L
 
 			// if in progress, update the overall status to reflect the current component
 			if progress.Status.State == types.StateRunning {
-				m.setStatusDesc(fmt.Sprintf("%s %s", progress.Status.Description, progress.Name))
+				m.setStatusDesc(fmt.Sprintf("%s %s...", progress.Status.Description, progress.Name))
 			}
 
 			// update the status for the current component

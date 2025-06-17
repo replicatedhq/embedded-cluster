@@ -26,7 +26,7 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ title, status, themeC
     case 'Running':
       Icon = Loader2;
       statusColor = themeColor;
-      statusText = 'Installing…';
+      statusText = 'Installing...';
       break;
     default:
       Icon = AlertTriangle;

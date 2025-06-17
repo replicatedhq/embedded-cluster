@@ -14,8 +14,8 @@ const InstallationProgress: React.FC<InstallationProgressProps> = ({
   status
 }) => {
   const displayMessage = () => {
-    if (!currentMessage) return 'Preparing installation…';
-    return status === 'Running' ? `${currentMessage}…` : currentMessage;
+    if (!currentMessage) return 'Preparing installation...';
+    return status === 'Running' ? `${currentMessage}` : currentMessage;
   };
 
   return (
