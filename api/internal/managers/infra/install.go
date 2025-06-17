@@ -179,7 +179,7 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 		}
 	}()
 
-	m.setStatusDesc(fmt.Sprintf("Installing %s", componentName))
+	m.setStatusDesc(fmt.Sprintf("Installing %s...", componentName))
 
 	logFn := m.logFn("k0s")
 
@@ -209,7 +209,7 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 		return nil, fmt.Errorf("create kube client: %w", err)
 	}
 
-	m.setStatusDesc(fmt.Sprintf("Waiting for %s", componentName))
+	m.setStatusDesc(fmt.Sprintf("Waiting for %s...", componentName))
 
 	logFn("waiting for node to be ready")
 	if err := m.waitForNode(ctx, kcli); err != nil {
@@ -358,7 +358,7 @@ func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) 
 		}
 	}()
 
-	m.setStatusDesc(fmt.Sprintf("Installing %s", componentName))
+	m.setStatusDesc(fmt.Sprintf("Installing %s...", componentName))
 
 	logFn := m.logFn("extensions")
 	logFn("installing extensions")
