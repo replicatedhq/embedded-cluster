@@ -20,6 +20,8 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (*types.I
 		return nil, fmt.Errorf("installation config is nil")
 	}
 
+	config.IgnoreHostPreflights = c.ignoreHostPreflights
+
 	if err := c.installationManager.SetConfigDefaults(config); err != nil {
 		return nil, fmt.Errorf("set defaults: %w", err)
 	}
@@ -27,9 +29,6 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (*types.I
 	if err := c.installationManager.ValidateConfig(config); err != nil {
 		return nil, fmt.Errorf("validate: %w", err)
 	}
-
-	// Set the CLI flag value
-	config.IgnoreHostPreflights = c.ignoreHostPreflights
 
 	return config, nil
 }
