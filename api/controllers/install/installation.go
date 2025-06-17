@@ -24,7 +24,7 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (*types.I
 		return nil, fmt.Errorf("set defaults: %w", err)
 	}
 
-	if err := c.installationManager.ValidateConfig(config); err != nil {
+	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
 		return nil, fmt.Errorf("validate: %w", err)
 	}
 
@@ -32,7 +32,7 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (*types.I
 }
 
 func (c *InstallController) ConfigureInstallation(ctx context.Context, config *types.InstallationConfig) error {
-	if err := c.installationManager.ValidateConfig(config); err != nil {
+	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
 		return fmt.Errorf("validate: %w", err)
 	}
 
@@ -70,7 +70,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config *t
 		return fmt.Errorf("set env vars: %w", err)
 	}
 
-	if err := c.installationManager.ConfigureHost(ctx); err != nil {
+	if err := c.installationManager.ConfigureHost(ctx, c.rc); err != nil {
 		return fmt.Errorf("configure: %w", err)
 	}
 

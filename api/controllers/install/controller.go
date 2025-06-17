@@ -173,7 +173,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 
 	if controller.installationManager == nil {
 		controller.installationManager = installation.NewInstallationManager(
-			installation.WithRuntimeConfig(controller.rc),
 			installation.WithLogger(controller.logger),
 			installation.WithInstallation(controller.install.Steps.Installation),
 			installation.WithLicenseFile(controller.licenseFile),
@@ -185,7 +184,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 
 	if controller.hostPreflightManager == nil {
 		controller.hostPreflightManager = preflight.NewHostPreflightManager(
-			preflight.WithRuntimeConfig(controller.rc),
 			preflight.WithLogger(controller.logger),
 			preflight.WithMetricsReporter(controller.metricsReporter),
 			preflight.WithHostPreflightStore(preflight.NewMemoryStore(controller.install.Steps.HostPreflight)),
@@ -195,7 +193,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 
 	if controller.infraManager == nil {
 		controller.infraManager = infra.NewInfraManager(
-			infra.WithRuntimeConfig(controller.rc),
 			infra.WithLogger(controller.logger),
 			infra.WithInfra(controller.install.Steps.Infra),
 			infra.WithPassword(controller.password),

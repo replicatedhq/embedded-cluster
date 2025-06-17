@@ -17,14 +17,13 @@ var _ InfraManager = &infraManager{}
 // InfraManager provides methods for managing infrastructure setup
 type InfraManager interface {
 	Get() (*types.Infra, error)
-	Install(ctx context.Context) error
+	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
 }
 
 // infraManager is an implementation of the InfraManager interface
 type infraManager struct {
 	infra         *types.Infra
 	infraStore    Store
-	rc            runtimeconfig.RuntimeConfig
 	password      string
 	tlsConfig     types.TLSConfig
 	licenseFile   string
@@ -37,12 +36,6 @@ type infraManager struct {
 }
 
 type InfraManagerOption func(*infraManager)
-
-func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) InfraManagerOption {
-	return func(c *infraManager) {
-		c.rc = rc
-	}
-}
 
 func WithLogger(logger logrus.FieldLogger) InfraManagerOption {
 	return func(c *infraManager) {
@@ -110,10 +103,6 @@ func NewInfraManager(opts ...InfraManagerOption) *infraManager {
 
 	for _, opt := range opts {
 		opt(manager)
-	}
-
-	if manager.rc == nil {
-		manager.rc = runtimeconfig.New(nil)
 	}
 
 	if manager.logger == nil {

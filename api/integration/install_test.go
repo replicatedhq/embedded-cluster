@@ -933,7 +933,6 @@ func TestInstallWithAPIClient(t *testing.T) {
 
 	// Create a config manager
 	installationManager := installation.NewInstallationManager(
-		installation.WithRuntimeConfig(rc),
 		installation.WithHostUtils(mockHostUtils),
 	)
 

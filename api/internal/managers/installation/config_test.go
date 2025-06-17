@@ -185,9 +185,9 @@ func TestValidateConfig(t *testing.T) {
 			}
 			rc.SetDataDir(t.TempDir())
 
-			manager := NewInstallationManager(WithRuntimeConfig(rc))
+			manager := NewInstallationManager()
 
-			err := manager.ValidateConfig(tt.config)
+			err := manager.ValidateConfig(tt.config, rc.ManagerPort())
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -443,7 +443,6 @@ func TestConfigureHost(t *testing.T) {
 
 			// Create manager with mocks
 			manager := NewInstallationManager(
-				WithRuntimeConfig(rc),
 				WithHostUtils(mockHostUtils),
 				WithInstallationStore(mockStore),
 				WithLicenseFile("license.yaml"),
@@ -451,7 +450,7 @@ func TestConfigureHost(t *testing.T) {
 			)
 
 			// Run the test
-			err := manager.ConfigureHost(context.Background())
+			err := manager.ConfigureHost(context.Background(), rc)
 
 			// Assertions
 			if tt.expectedErr {

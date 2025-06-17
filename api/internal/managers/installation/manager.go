@@ -20,16 +20,15 @@ type InstallationManager interface {
 	SetConfig(config types.InstallationConfig) error
 	GetStatus() (*types.Status, error)
 	SetStatus(status types.Status) error
-	ValidateConfig(config *types.InstallationConfig) error
+	ValidateConfig(config *types.InstallationConfig, managerPort int) error
 	SetConfigDefaults(config *types.InstallationConfig) error
-	ConfigureHost(ctx context.Context) error
+	ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
 }
 
 // installationManager is an implementation of the InstallationManager interface
 type installationManager struct {
 	installation      *types.Installation
 	installationStore InstallationStore
-	rc                runtimeconfig.RuntimeConfig
 	licenseFile       string
 	airgapBundle      string
 	netUtils          utils.NetUtils
@@ -39,12 +38,6 @@ type installationManager struct {
 }
 
 type InstallationManagerOption func(*installationManager)
-
-func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) InstallationManagerOption {
-	return func(c *installationManager) {
-		c.rc = rc
-	}
-}
 
 func WithLogger(logger logrus.FieldLogger) InstallationManagerOption {
 	return func(c *installationManager) {
@@ -94,10 +87,6 @@ func NewInstallationManager(opts ...InstallationManagerOption) *installationMana
 
 	for _, opt := range opts {
 		opt(manager)
-	}
-
-	if manager.rc == nil {
-		manager.rc = runtimeconfig.New(nil)
 	}
 
 	if manager.logger == nil {

@@ -27,7 +27,7 @@ func (c *InstallController) SetupInfra(ctx context.Context) error {
 		}
 	}
 
-	if err := c.infraManager.Install(ctx); err != nil {
+	if err := c.infraManager.Install(ctx, c.rc); err != nil {
 		return fmt.Errorf("install infra: %w", err)
 	}
 

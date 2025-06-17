@@ -9,6 +9,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -25,13 +26,13 @@ func (m *infraManager) waitForNode(ctx context.Context, kcli client.Client) erro
 	return nil
 }
 
-func (m *infraManager) getHelmClient() (helm.Client, error) {
+func (m *infraManager) getHelmClient(rc runtimeconfig.RuntimeConfig) (helm.Client, error) {
 	airgapChartsPath := ""
 	if m.airgapBundle != "" {
-		airgapChartsPath = m.rc.EmbeddedClusterChartsSubDir()
+		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
 	}
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: m.rc.PathToKubeConfig(),
+		KubeConfig: rc.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 		LogFn:      m.logFn("helm"),

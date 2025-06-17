@@ -215,14 +215,13 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 			manager := NewHostPreflightManager(
 				WithPreflightRunner(mockRunner),
 				WithHostPreflightStore(mockStore),
-				WithRuntimeConfig(rc),
 				WithLogger(logger.NewDiscardLogger()),
 				WithMetricsReporter(mockMetrics),
 				WithNetUtils(mockNetUtils),
 			)
 
 			// Execute
-			hpf, err := manager.PrepareHostPreflights(context.Background(), tt.opts)
+			hpf, err := manager.PrepareHostPreflights(context.Background(), rc, tt.opts)
 
 			// Assert
 			if tt.expectedError != "" {
@@ -457,13 +456,12 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			manager := NewHostPreflightManager(
 				WithPreflightRunner(mockRunner),
 				WithHostPreflightStore(NewMemoryStore(tt.initialState)),
-				WithRuntimeConfig(rc),
 				WithLogger(logger.NewDiscardLogger()),
 				WithMetricsReporter(mockMetrics),
 			)
 
 			// Execute
-			err := manager.RunHostPreflights(context.Background(), tt.opts)
+			err := manager.RunHostPreflights(context.Background(), rc, tt.opts)
 			// If there's an error we don't need to wait for async execution
 			if tt.expectedError != "" {
 				require.Error(t, err)
