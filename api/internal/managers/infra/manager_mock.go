@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -14,8 +15,8 @@ type MockInfraManager struct {
 	mock.Mock
 }
 
-func (m *MockInfraManager) Install(ctx context.Context, config *types.InstallationConfig) error {
-	args := m.Called(ctx, config)
+func (m *MockInfraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
+	args := m.Called(ctx, rc)
 	return args.Error(0)
 }
 

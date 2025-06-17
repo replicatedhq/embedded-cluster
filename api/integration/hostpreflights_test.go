@@ -176,13 +176,11 @@ func TestPostRunHostPreflights(t *testing.T) {
 
 		// Create a host preflights manager with the mock runner
 		pfManager := preflight.NewHostPreflightManager(
-			preflight.WithRuntimeConfig(rc),
 			preflight.WithPreflightRunner(runner),
 		)
 
 		// Create an installation manager
 		iManager := installation.NewInstallationManager(
-			installation.WithRuntimeConfig(rc),
 			installation.WithInstallationStore(installation.NewMemoryStore(inst)),
 		)
 

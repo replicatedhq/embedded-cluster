@@ -16,8 +16,8 @@ import (
 
 // HostPreflightManager provides methods for running host preflights
 type HostPreflightManager interface {
-	PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error)
-	RunHostPreflights(ctx context.Context, opts RunHostPreflightOptions) error
+	PrepareHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error)
+	RunHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts RunHostPreflightOptions) error
 	GetHostPreflightStatus(ctx context.Context) (*types.Status, error)
 	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
@@ -27,19 +27,12 @@ type hostPreflightManager struct {
 	hostPreflightStore HostPreflightStore
 	runner             preflights.PreflightsRunnerInterface
 	netUtils           utils.NetUtils
-	rc                 runtimeconfig.RuntimeConfig
 	logger             logrus.FieldLogger
 	metricsReporter    metrics.ReporterInterface
 	mu                 sync.RWMutex
 }
 
 type HostPreflightManagerOption func(*hostPreflightManager)
-
-func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) HostPreflightManagerOption {
-	return func(m *hostPreflightManager) {
-		m.rc = rc
-	}
-}
 
 func WithLogger(logger logrus.FieldLogger) HostPreflightManagerOption {
 	return func(m *hostPreflightManager) {
@@ -77,10 +70,6 @@ func NewHostPreflightManager(opts ...HostPreflightManagerOption) HostPreflightMa
 
 	for _, opt := range opts {
 		opt(manager)
-	}
-
-	if manager.rc == nil {
-		manager.rc = runtimeconfig.New(nil)
 	}
 
 	if manager.logger == nil {

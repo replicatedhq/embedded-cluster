@@ -800,7 +800,7 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 	}
 
 	logrus.Debugf("installing k0s")
-	if err := k0s.Install(rc, flags.networkInterface); err != nil {
+	if err := k0s.Install(rc); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}

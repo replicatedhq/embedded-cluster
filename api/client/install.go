@@ -35,8 +35,8 @@ func (c *client) GetInstallationConfig() (*types.InstallationConfig, error) {
 	return &config, nil
 }
 
-func (c *client) ConfigureInstallation(cfg *types.InstallationConfig) (*types.Status, error) {
-	b, err := json.Marshal(cfg)
+func (c *client) ConfigureInstallation(config *types.InstallationConfig) (*types.Status, error) {
+	b, err := json.Marshal(config)
 	if err != nil {
 		return nil, err
 	}

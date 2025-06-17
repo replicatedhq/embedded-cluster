@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootanalyze "github.com/replicatedhq/troubleshoot/pkg/analyze"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
@@ -28,15 +29,15 @@ type RunHostPreflightOptions struct {
 	HostPreflightSpec *troubleshootv1beta2.HostPreflightSpec
 }
 
-func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error) {
-	hpf, err := m.prepareHostPreflights(ctx, opts)
+func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error) {
+	hpf, err := m.prepareHostPreflights(ctx, rc, opts)
 	if err != nil {
 		return nil, err
 	}
 	return hpf, nil
 }
 
-func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, opts RunHostPreflightOptions) error {
+func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts RunHostPreflightOptions) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -48,8 +49,8 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, opts RunHo
 		return fmt.Errorf("set running status: %w", err)
 	}
 
-	// Run preflights in background
-	go m.runHostPreflights(context.Background(), opts)
+	// Background context is used to avoid canceling the operation if the context is canceled
+	go m.runHostPreflights(context.Background(), rc, opts)
 
 	return nil
 }
@@ -66,9 +67,9 @@ func (m *hostPreflightManager) GetHostPreflightTitles(ctx context.Context) ([]st
 	return m.hostPreflightStore.GetTitles()
 }
 
-func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error) {
+func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error) {
 	// Get node IP
-	nodeIP, err := m.netUtils.FirstValidAddress(m.rc.NetworkInterface())
+	nodeIP, err := m.netUtils.FirstValidAddress(rc.NetworkInterface())
 	if err != nil {
 		return nil, fmt.Errorf("determine node ip: %w", err)
 	}
@@ -78,21 +79,21 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts P
 		HostPreflightSpec:       opts.HostPreflightSpec,
 		ReplicatedAppURL:        opts.ReplicatedAppURL,
 		ProxyRegistryURL:        opts.ProxyRegistryURL,
-		AdminConsolePort:        m.rc.AdminConsolePort(),
-		LocalArtifactMirrorPort: m.rc.LocalArtifactMirrorPort(),
-		DataDir:                 m.rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:              m.rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:          m.rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                   m.rc.ProxySpec(),
-		PodCIDR:                 m.rc.PodCIDR(),
-		ServiceCIDR:             m.rc.ServiceCIDR(),
+		AdminConsolePort:        rc.AdminConsolePort(),
+		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
+		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                   rc.ProxySpec(),
+		PodCIDR:                 rc.PodCIDR(),
+		ServiceCIDR:             rc.ServiceCIDR(),
 		NodeIP:                  nodeIP,
 		IsAirgap:                opts.IsAirgap,
 		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
 		IsJoin:                  opts.IsJoin,
 		IsUI:                    opts.IsUI,
 	}
-	if cidr := m.rc.GlobalCIDR(); cidr != "" {
+	if cidr := rc.GlobalCIDR(); cidr != "" {
 		prepareOpts.GlobalCIDR = &cidr
 	}
 
@@ -105,7 +106,7 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts P
 	return hpf, nil
 }
 
-func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHostPreflightOptions) {
+func (m *hostPreflightManager) runHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts RunHostPreflightOptions) {
 	defer func() {
 		if r := recover(); r != nil {
 			if err := m.setFailedStatus(fmt.Sprintf("panic: %v: %s", r, string(debug.Stack()))); err != nil {
@@ -115,7 +116,7 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHo
 	}()
 
 	// Run the preflights using the shared core function
-	output, stderr, err := m.runner.Run(ctx, opts.HostPreflightSpec, m.rc)
+	output, stderr, err := m.runner.Run(ctx, opts.HostPreflightSpec, rc)
 	if err != nil {
 		errMsg := fmt.Sprintf("Host preflights failed to run: %v", err)
 		if stderr != "" {
@@ -127,11 +128,11 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHo
 		return
 	}
 
-	if err := m.runner.SaveToDisk(output, m.rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")); err != nil {
+	if err := m.runner.SaveToDisk(output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")); err != nil {
 		m.logger.WithField("error", err).Warn("save preflights output")
 	}
 
-	if err := m.runner.CopyBundleTo(m.rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")); err != nil {
+	if err := m.runner.CopyBundleTo(rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")); err != nil {
 		m.logger.WithField("error", err).Warn("copy preflight bundle to embedded-cluster support dir")
 	}
 

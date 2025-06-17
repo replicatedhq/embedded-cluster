@@ -15,7 +15,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 	ecDomains := utils.GetDomains(c.releaseData)
 
 	// Prepare host preflights
-	hpf, err := c.hostPreflightManager.PrepareHostPreflights(ctx, preflight.PrepareHostPreflightOptions{
+	hpf, err := c.hostPreflightManager.PrepareHostPreflights(ctx, c.rc, preflight.PrepareHostPreflightOptions{
 		ReplicatedAppURL:      netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
 		ProxyRegistryURL:      netutils.MaybeAddHTTPS(ecDomains.ProxyRegistryDomain),
 		HostPreflightSpec:     c.releaseData.HostPreflights,
@@ -28,7 +28,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 	}
 
 	// Run host preflights
-	return c.hostPreflightManager.RunHostPreflights(ctx, preflight.RunHostPreflightOptions{
+	return c.hostPreflightManager.RunHostPreflights(ctx, c.rc, preflight.RunHostPreflightOptions{
 		HostPreflightSpec: hpf,
 	})
 }

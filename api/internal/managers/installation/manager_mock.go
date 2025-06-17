@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -45,8 +46,8 @@ func (m *MockInstallationManager) SetStatus(status types.Status) error {
 }
 
 // ValidateConfig mocks the ValidateConfig method
-func (m *MockInstallationManager) ValidateConfig(config *types.InstallationConfig) error {
-	args := m.Called(config)
+func (m *MockInstallationManager) ValidateConfig(config *types.InstallationConfig, managerPort int) error {
+	args := m.Called(config, managerPort)
 	return args.Error(0)
 }
 
@@ -57,7 +58,7 @@ func (m *MockInstallationManager) SetConfigDefaults(config *types.InstallationCo
 }
 
 // ConfigureHost mocks the ConfigureHost method
-func (m *MockInstallationManager) ConfigureHost(ctx context.Context) error {
-	args := m.Called(ctx)
+func (m *MockInstallationManager) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
+	args := m.Called(ctx, rc)
 	return args.Error(0)
 }

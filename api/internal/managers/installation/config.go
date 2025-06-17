@@ -11,6 +11,7 @@ import (
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 func (m *installationManager) GetConfig() (*types.InstallationConfig, error) {
@@ -21,7 +22,7 @@ func (m *installationManager) SetConfig(config types.InstallationConfig) error {
 	return m.installationStore.SetConfig(config)
 }
 
-func (m *installationManager) ValidateConfig(config *types.InstallationConfig) error {
+func (m *installationManager) ValidateConfig(config *types.InstallationConfig, managerPort int) error {
 	var ve *types.APIError
 
 	if err := m.validateGlobalCIDR(config); err != nil {
@@ -40,11 +41,11 @@ func (m *installationManager) ValidateConfig(config *types.InstallationConfig) e
 		ve = types.AppendFieldError(ve, "networkInterface", err)
 	}
 
-	if err := m.validateAdminConsolePort(config); err != nil {
+	if err := m.validateAdminConsolePort(config, managerPort); err != nil {
 		ve = types.AppendFieldError(ve, "adminConsolePort", err)
 	}
 
-	if err := m.validateLocalArtifactMirrorPort(config); err != nil {
+	if err := m.validateLocalArtifactMirrorPort(config, managerPort); err != nil {
 		ve = types.AppendFieldError(ve, "localArtifactMirrorPort", err)
 	}
 
@@ -97,7 +98,7 @@ func (m *installationManager) validateNetworkInterface(config *types.Installatio
 	return nil
 }
 
-func (m *installationManager) validateAdminConsolePort(config *types.InstallationConfig) error {
+func (m *installationManager) validateAdminConsolePort(config *types.InstallationConfig, managerPort int) error {
 	if config.AdminConsolePort == 0 {
 		return errors.New("adminConsolePort is required")
 	}
@@ -111,14 +112,14 @@ func (m *installationManager) validateAdminConsolePort(config *types.Installatio
 		return errors.New("adminConsolePort and localArtifactMirrorPort cannot be equal")
 	}
 
-	if config.AdminConsolePort == m.rc.ManagerPort() {
+	if config.AdminConsolePort == managerPort {
 		return errors.New("adminConsolePort cannot be the same as the manager port")
 	}
 
 	return nil
 }
 
-func (m *installationManager) validateLocalArtifactMirrorPort(config *types.InstallationConfig) error {
+func (m *installationManager) validateLocalArtifactMirrorPort(config *types.InstallationConfig, managerPort int) error {
 	if config.LocalArtifactMirrorPort == 0 {
 		return errors.New("localArtifactMirrorPort is required")
 	}
@@ -132,7 +133,7 @@ func (m *installationManager) validateLocalArtifactMirrorPort(config *types.Inst
 		return errors.New("adminConsolePort and localArtifactMirrorPort cannot be equal")
 	}
 
-	if config.LocalArtifactMirrorPort == m.rc.ManagerPort() {
+	if config.LocalArtifactMirrorPort == managerPort {
 		return errors.New("localArtifactMirrorPort cannot be the same as the manager port")
 	}
 
@@ -202,7 +203,7 @@ func (m *installationManager) setCIDRDefaults(config *types.InstallationConfig) 
 	return nil
 }
 
-func (m *installationManager) ConfigureHost(ctx context.Context) error {
+func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -218,12 +219,13 @@ func (m *installationManager) ConfigureHost(ctx context.Context) error {
 		return fmt.Errorf("set running status: %w", err)
 	}
 
-	go m.configureHost(context.Background())
+	// Background context is used to avoid canceling the operation if the context is canceled
+	go m.configureHost(context.Background(), rc)
 
 	return nil
 }
 
-func (m *installationManager) configureHost(ctx context.Context) (finalErr error) {
+func (m *installationManager) configureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
@@ -243,7 +245,7 @@ func (m *installationManager) configureHost(ctx context.Context) (finalErr error
 		LicenseFile:  m.licenseFile,
 		AirgapBundle: m.airgapBundle,
 	}
-	if err := m.hostUtils.ConfigureHost(ctx, m.rc, opts); err != nil {
+	if err := m.hostUtils.ConfigureHost(ctx, rc, opts); err != nil {
 		return fmt.Errorf("configure installation: %w", err)
 	}
 
