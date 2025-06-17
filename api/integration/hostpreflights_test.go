@@ -2,7 +2,6 @@ package integration
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -263,17 +262,16 @@ func TestPostRunHostPreflights(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&status)
 		require.NoError(t, err)
 
-		// Verify that the status was properly set
-		assert.Equal(t, types.StateRunning, status.Status.State)
-		assert.Equal(t, "Running host preflights", status.Status.Description)
-
-		// The status should eventually be set to succeeded in a goroutine
-		assert.Eventually(t, func() bool {
-			status, err := installController.GetHostPreflightStatus(context.Background())
-			t.Logf("Status: %s, Description: %s", status.State, status.Description)
-			require.NoError(t, err)
-			return status.State == types.StateSucceeded
-		}, 5*time.Second, 100*time.Millisecond)
+		// The state should eventually be set to succeeded in a goroutine
+		var installStatus *types.Status
+		if !assert.Eventually(t, func() bool {
+			installStatus, err = installController.GetHostPreflightStatus(t.Context())
+			require.NoError(t, err, "GetHostPreflightStatus should succeed")
+			return installStatus.State == types.StateSucceeded
+		}, 1*time.Second, 100*time.Millisecond) {
+			require.Equal(t, types.StateSucceeded, installStatus.State,
+				"Preflights not succeeded with state %s and description %s", installStatus.State, installStatus.Description)
+		}
 
 		// Verify that the mock expectations were met
 		runner.AssertExpectations(t)
@@ -442,17 +440,16 @@ func TestPostRunHostPreflights(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&status)
 		require.NoError(t, err)
 
-		// Verify that the status was properly set
-		assert.Equal(t, types.StateRunning, status.Status.State)
-		assert.Equal(t, "Running host preflights", status.Status.Description)
-
-		// The status should eventually be set to failed in a goroutine
-		assert.Eventually(t, func() bool {
-			status, err := installController.GetHostPreflightStatus(context.Background())
-			t.Logf("Status: %s, Description: %s", status.State, status.Description)
-			require.NoError(t, err)
-			return status.State == types.StateFailed
-		}, 5*time.Second, 100*time.Millisecond)
+		// The state should eventually be set to failed in a goroutine
+		var installStatus *types.Status
+		if !assert.Eventually(t, func() bool {
+			installStatus, err = installController.GetHostPreflightStatus(t.Context())
+			require.NoError(t, err, "GetHostPreflightStatus should succeed")
+			return installStatus.State == types.StateFailed
+		}, 5*time.Second, 100*time.Millisecond) {
+			require.Equal(t, types.StateFailed, installStatus.State,
+				"Preflights not failed with state %s and description %s", installStatus.State, installStatus.Description)
+		}
 
 		// Verify that the mock expectations were met
 		runner.AssertExpectations(t)

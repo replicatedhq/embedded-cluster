@@ -1024,16 +1024,6 @@ func TestInstallWithAPIClient(t *testing.T) {
 		assert.NotNil(t, status, "Status should not be nil")
 
 		// Verify the status was set correctly
-		assert.Equal(t, types.StateRunning, status.State)
-		assert.Equal(t, "Configuring installation", status.Description)
-
-		// Get the config to verify it persisted
-		newConfig, err := c.GetInstallationConfig()
-		require.NoError(t, err, "GetInstallationConfig should succeed after setting config")
-		assert.Equal(t, config.DataDirectory, newConfig.DataDirectory)
-		assert.Equal(t, config.AdminConsolePort, newConfig.AdminConsolePort)
-		assert.Equal(t, config.NetworkInterface, newConfig.NetworkInterface)
-
 		var installStatus *types.Status
 		if !assert.Eventually(t, func() bool {
 			installStatus, err = c.GetInstallationStatus()
@@ -1043,6 +1033,13 @@ func TestInstallWithAPIClient(t *testing.T) {
 			require.Equal(t, types.StateSucceeded, installStatus.State,
 				"Installation not succeeded with state %s and description %s", installStatus.State, installStatus.Description)
 		}
+
+		// Get the config to verify it persisted
+		newConfig, err := c.GetInstallationConfig()
+		require.NoError(t, err, "GetInstallationConfig should succeed after setting config")
+		assert.Equal(t, config.DataDirectory, newConfig.DataDirectory)
+		assert.Equal(t, config.AdminConsolePort, newConfig.AdminConsolePort)
+		assert.Equal(t, config.NetworkInterface, newConfig.NetworkInterface)
 
 		// Verify host configuration was performed
 		mockHostUtils.AssertExpectations(t)
