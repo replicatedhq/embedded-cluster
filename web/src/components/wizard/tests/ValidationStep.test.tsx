@@ -73,7 +73,7 @@ describe("ValidationStep", () => {
 
     // Check title and description
     expect(screen.getByText("Setup")).toBeInTheDocument();
-    expect(screen.getByText("Validate the host requirements before proceeding with installation.")).toBeInTheDocument();
+    expect(screen.getByText("Validate the installation settings.")).toBeInTheDocument();
 
     // Check buttons
     expect(screen.getByText("Back")).toBeInTheDocument();
