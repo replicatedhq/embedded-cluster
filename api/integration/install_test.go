@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -49,7 +48,7 @@ import (
 
 var (
 	//go:embed assets/license.yaml
-	licenseData string
+	licenseData []byte
 )
 
 // Mock implementation of the install.Controller interface
@@ -1154,17 +1153,13 @@ func TestPostSetupInfra(t *testing.T) {
 			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
 		)
 
-		// Create license file
-		licenseFile := filepath.Join(t.TempDir(), "license.yaml")
-		require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
-
 		// Create infra manager with mocks
 		infraManager := infra.NewInfraManager(
 			infra.WithK0s(k0sMock),
 			infra.WithKubeClient(fakeKcli),
 			infra.WithMetadataClient(fakeMcli),
 			infra.WithHelmClient(helmMock),
-			infra.WithLicenseFile(licenseFile),
+			infra.WithLicense(licenseData),
 			infra.WithHostUtils(hostutilsMock),
 			infra.WithKotsInstaller(func() error {
 				return nil
@@ -1500,10 +1495,6 @@ func TestPostSetupInfra(t *testing.T) {
 			Description: "Host preflights succeeded",
 		}
 
-		// Create license file
-		licenseFile := filepath.Join(t.TempDir(), "license.yaml")
-		require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
-
 		// Create managers
 		pfManager := preflight.NewHostPreflightManager(
 			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
@@ -1511,7 +1502,7 @@ func TestPostSetupInfra(t *testing.T) {
 		infraManager := infra.NewInfraManager(
 			infra.WithK0s(k0sMock),
 			infra.WithHostUtils(hostutilsMock),
-			infra.WithLicenseFile(licenseFile),
+			infra.WithLicense(licenseData),
 		)
 
 		// Setup k0s mock expectations with failure

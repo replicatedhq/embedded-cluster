@@ -29,7 +29,7 @@ type InstallationManager interface {
 // installationManager is an implementation of the InstallationManager interface
 type installationManager struct {
 	installationStore installation.Store
-	licenseFile       string
+	license           []byte
 	airgapBundle      string
 	netUtils          utils.NetUtils
 	hostUtils         hostutils.HostUtilsInterface
@@ -51,9 +51,9 @@ func WithInstallationStore(installationStore installation.Store) InstallationMan
 	}
 }
 
-func WithLicenseFile(licenseFile string) InstallationManagerOption {
+func WithLicense(license []byte) InstallationManagerOption {
 	return func(c *installationManager) {
-		c.licenseFile = licenseFile
+		c.license = license
 	}
 }
 

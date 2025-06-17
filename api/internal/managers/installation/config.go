@@ -220,6 +220,7 @@ func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfi
 	}
 
 	// Background context is used to avoid canceling the operation if the context is canceled
+	// TODO (@ethan): remove this
 	go m.configureHost(context.Background(), rc)
 
 	return nil
@@ -242,7 +243,7 @@ func (m *installationManager) configureHost(ctx context.Context, rc runtimeconfi
 	}()
 
 	opts := hostutils.InitForInstallOptions{
-		LicenseFile:  m.licenseFile,
+		License:      m.license,
 		AirgapBundle: m.airgapBundle,
 	}
 	if err := m.hostUtils.ConfigureHost(ctx, rc, opts); err != nil {

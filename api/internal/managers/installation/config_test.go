@@ -363,7 +363,7 @@ func TestConfigureHost(t *testing.T) {
 								rc.ServiceCIDR() == "10.1.0.0/16"
 						}),
 						hostutils.InitForInstallOptions{
-							LicenseFile:  "license.yaml",
+							License:      []byte("metadata:\n  name: test-license"),
 							AirgapBundle: "bundle.tar",
 						}).Return(nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateSucceeded })).Return(nil),
@@ -401,7 +401,7 @@ func TestConfigureHost(t *testing.T) {
 							return rc.EmbeddedClusterHomeDirectory() == "/var/lib/embedded-cluster"
 						}),
 						hostutils.InitForInstallOptions{
-							LicenseFile:  "license.yaml",
+							License:      []byte("metadata:\n  name: test-license"),
 							AirgapBundle: "bundle.tar",
 						},
 					).Return(errors.New("configuration failed")),
@@ -443,7 +443,7 @@ func TestConfigureHost(t *testing.T) {
 			manager := NewInstallationManager(
 				WithHostUtils(mockHostUtils),
 				WithInstallationStore(mockStore),
-				WithLicenseFile("license.yaml"),
+				WithLicense([]byte("metadata:\n  name: test-license")),
 				WithAirgapBundle("bundle.tar"),
 			)
 

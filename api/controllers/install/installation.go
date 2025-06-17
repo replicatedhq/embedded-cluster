@@ -28,6 +28,16 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.In
 }
 
 func (c *InstallController) ConfigureInstallation(ctx context.Context, config types.InstallationConfig) error {
+	lock, err := c.stateMachine.AcquireLock()
+	if err != nil {
+		return types.NewConflictError(err)
+	}
+	defer lock.Release()
+
+	if err := c.stateMachine.ValidateTransition(lock, StateInstallationConfigured); err != nil {
+		return types.NewConflictError(err)
+	}
+
 	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
 		return fmt.Errorf("validate: %w", err)
 	}
@@ -68,6 +78,11 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 
 	if err := c.installationManager.ConfigureHost(ctx, c.rc); err != nil {
 		return fmt.Errorf("configure: %w", err)
+	}
+
+	err = c.stateMachine.Transition(lock, StateInstallationConfigured)
+	if err != nil {
+		return fmt.Errorf("failed to transition states: %w", err)
 	}
 
 	return nil
