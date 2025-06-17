@@ -25,8 +25,8 @@ const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep }) => {
   const allSteps: WizardStep[] = ['welcome', 'setup', 'validation', 'installation', 'completion'];
 
   const getStepStatus = (step: { id: string }) => {
-    const allStepIndex = allSteps.indexOf(step.id as WizardStep);
-    const currentAllStepIndex = allSteps.indexOf(currentStep);
+    const stepIndex = allSteps.indexOf(step.id as WizardStep);
+    const currentStepIndex = allSteps.indexOf(currentStep);
 
     // Treat validation as part of setup for navigation purposes
     const adjustedCurrentIndex = currentStep === 'validation' ? allSteps.indexOf('setup') : currentAllStepIndex;
