@@ -881,32 +881,74 @@ func (e *testEnvSetter) Setenv(key string, val string) error {
 }
 
 func TestInstallControllerIgnoreHostPreflights(t *testing.T) {
-	// Test that API passes flag to install controller
-	rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
-	rc.SetDataDir(t.TempDir())
+	tests := []struct {
+		name                     string
+		ignoreHostPreflights     bool
+		setupMock                func(*installation.MockInstallationManager)
+		expectedIgnorePreflights bool
+	}{
+		{
+			name:                 "ignore host preflights enabled",
+			ignoreHostPreflights: true,
+			setupMock: func(m *installation.MockInstallationManager) {
+				// Config returned by GetConfig() does NOT have IgnoreHostPreflights set
+				// This is realistic - the controller will set it
+				config := &types.InstallationConfig{
+					AdminConsolePort: 8800,
+					GlobalCIDR:       "10.0.0.0/16",
+				}
 
-	mockManager := &installation.MockInstallationManager{}
-	config := &types.InstallationConfig{
-		AdminConsolePort: 8800,
-		GlobalCIDR:       "10.0.0.0/16",
+				mock.InOrder(
+					m.On("GetConfig").Return(config, nil),
+					m.On("SetConfigDefaults", config).Return(nil),
+					m.On("ValidateConfig", config).Return(nil),
+				)
+			},
+			expectedIgnorePreflights: true,
+		},
+		{
+			name:                 "ignore host preflights disabled",
+			ignoreHostPreflights: false,
+			setupMock: func(m *installation.MockInstallationManager) {
+				// Config returned by GetConfig() does NOT have IgnoreHostPreflights set
+				config := &types.InstallationConfig{
+					AdminConsolePort: 8800,
+					GlobalCIDR:       "10.0.0.0/16",
+				}
+
+				mock.InOrder(
+					m.On("GetConfig").Return(config, nil),
+					m.On("SetConfigDefaults", config).Return(nil),
+					m.On("ValidateConfig", config).Return(nil),
+				)
+			},
+			expectedIgnorePreflights: false,
+		},
 	}
 
-	mock.InOrder(
-		mockManager.On("GetConfig").Return(config, nil),
-		mockManager.On("SetConfigDefaults", config).Return(nil),
-		mockManager.On("ValidateConfig", config).Return(nil),
-	)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
+			rc.SetDataDir(t.TempDir())
 
-	installController, err := NewInstallController(
-		WithRuntimeConfig(rc),
-		WithInstallationManager(mockManager),
-		WithIgnoreHostPreflights(true),
-	)
-	require.NoError(t, err)
+			mockManager := &installation.MockInstallationManager{}
+			tt.setupMock(mockManager)
 
-	resultConfig, err := installController.GetInstallationConfig(t.Context())
-	require.NoError(t, err)
+			// Create controller with the ignoreHostPreflights flag
+			installController, err := NewInstallController(
+				WithRuntimeConfig(rc),
+				WithInstallationManager(mockManager),
+				WithIgnoreHostPreflights(tt.ignoreHostPreflights),
+			)
+			require.NoError(t, err)
 
-	assert.True(t, resultConfig.IgnoreHostPreflights)
-	mockManager.AssertExpectations(t)
+			// Call GetInstallationConfig() - this should set the flag on the config
+			resultConfig, err := installController.GetInstallationConfig(t.Context())
+			require.NoError(t, err)
+
+			// Verify the returned config has the flag set correctly
+			assert.Equal(t, tt.expectedIgnorePreflights, resultConfig.IgnoreHostPreflights)
+			mockManager.AssertExpectations(t)
+		})
+	}
 }
