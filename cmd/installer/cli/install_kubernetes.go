@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
 )
 
@@ -16,16 +15,10 @@ type InstallKubernetesCmdFlags struct {
 func InstallKubernetesCmd(ctx context.Context, name string) *cobra.Command {
 	var flags InstallKubernetesCmdFlags
 
-	ctx, cancel := context.WithCancel(ctx)
-	rc := runtimeconfig.New(nil)
-
 	cmd := &cobra.Command{
-		Use:   "kubernetes",
-		Short: fmt.Sprintf("kubernetes %s", name),
-		PostRun: func(cmd *cobra.Command, args []string) {
-			rc.Cleanup()
-			cancel() // Cancel context when command completes
-		},
+		Use:     "kubernetes",
+		Short:   fmt.Sprintf("kubernetes %s", name),
+		PostRun: func(cmd *cobra.Command, args []string) {},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// TODO: implement
 
