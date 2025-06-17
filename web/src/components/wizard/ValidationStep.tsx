@@ -1,10 +1,11 @@
 import React from "react";
 import Card from "../common/Card";
 import Button from "../common/Button";
+import { Modal } from "../common/Modal";
 import { useWizardMode } from "../../contexts/WizardModeContext";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import LinuxPreflightCheck from "./preflight/LinuxPreflightCheck";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 
 interface ValidationStepProps {
@@ -16,8 +17,25 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
   const { text } = useWizardMode();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
+  const [showPreflightModal, setShowPreflightModal] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const { token } = useAuth();
+
+  // Query to fetch installation config to get ignoreHostPreflights flag
+  const { data: installationConfig } = useQuery({
+    queryKey: ["installationConfig"],
+    queryFn: async () => {
+      const response = await fetch("/api/install/installation/config", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch installation config");
+      }
+      return response.json();
+    },
+  });
 
   const handlePreflightComplete = (success: boolean) => {
     setPreflightComplete(true);
@@ -48,6 +66,44 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
     },
   });
 
+  const handleNextClick = () => {
+    // If preflights passed, proceed normally
+    if (preflightSuccess) {
+      startInstallation();
+      return;
+    }
+
+    // If preflights failed and ignoreHostPreflights is true, show warning modal
+    if (installationConfig?.ignoreHostPreflights) {
+      setShowPreflightModal(true);
+    }
+    // If ignoreHostPreflights is false, button should be disabled (handled in canProceed)
+  };
+
+  const handleCancelProceed = () => {
+    setShowPreflightModal(false);
+  };
+
+  const handleConfirmProceed = () => {
+    setShowPreflightModal(false);
+    startInstallation();
+  };
+
+  const canProceed = () => {
+    // If preflights haven't completed yet, disable button
+    if (!preflightComplete) {
+      return false;
+    }
+    
+    // If preflights passed, always allow proceeding
+    if (preflightSuccess) {
+      return true;
+    }
+    
+    // If preflights failed, only allow proceeding if CLI flag was used
+    return installationConfig?.ignoreHostPreflights || false;
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -66,13 +122,47 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
           Back
         </Button>
         <Button
-          onClick={() => startInstallation()}
-          disabled={!preflightComplete || !preflightSuccess}
+          onClick={handleNextClick}
+          disabled={!canProceed()}
           icon={<ChevronRight className="w-5 h-5" />}
         >
           Next: Start Installation
         </Button>
       </div>
+
+      <Modal
+        isOpen={showPreflightModal}
+        onClose={handleCancelProceed}
+        title="Proceed with Failed Checks?"
+        footer={
+          <div className="flex space-x-3">
+            <Button
+              variant="outline"
+              onClick={handleCancelProceed}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleConfirmProceed}
+            >
+              Continue Anyway
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex items-start space-x-3">
+          <div className="flex-shrink-0">
+            <AlertTriangle className="h-6 w-6 text-amber-500" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-700">
+              Some validation checks have failed. Are you sure you want to continue with the installation? 
+              This may cause installation issues.
+            </p>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
