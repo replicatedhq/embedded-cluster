@@ -174,6 +174,10 @@ spec:
       command: "ip"
       args: ["route"]
   - run:
+      collectorName: "ip-address-stats"
+      command: "ip"
+      args: ["-s", "-s", "address"]
+  - run:
       collectorName: "sysctl"
       command: "sysctl"
       args: ["-a"]
