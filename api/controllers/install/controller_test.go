@@ -575,13 +575,9 @@ func TestSetupInfra(t *testing.T) {
 				preflightStatus := &types.Status{
 					State: types.StateSucceeded,
 				}
-				config := &types.InstallationConfig{
-					AdminConsolePort: 8000,
-				}
 				mock.InOrder(
 					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
-					im.On("GetConfig").Return(config, nil),
-					fm.On("Install", t.Context(), config).Return(nil),
+					fm.On("Install", t.Context()).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -600,15 +596,11 @@ func TestSetupInfra(t *testing.T) {
 						},
 					},
 				}
-				config := &types.InstallationConfig{
-					AdminConsolePort: 8000,
-				}
 				mock.InOrder(
 					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
 					pm.On("GetHostPreflightOutput", t.Context()).Return(preflightOutput, nil),
 					r.On("ReportPreflightsFailed", t.Context(), preflightOutput).Return(nil),
-					im.On("GetConfig").Return(config, nil),
-					fm.On("Install", t.Context(), config).Return(nil),
+					fm.On("Install", t.Context()).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -644,31 +636,14 @@ func TestSetupInfra(t *testing.T) {
 			expectedErr: true,
 		},
 		{
-			name: "get config error",
-			setupMocks: func(pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
-				preflightStatus := &types.Status{
-					State: types.StateSucceeded,
-				}
-				mock.InOrder(
-					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
-					im.On("GetConfig").Return(nil, errors.New("get config error")),
-				)
-			},
-			expectedErr: true,
-		},
-		{
 			name: "install infra error",
 			setupMocks: func(pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 				preflightStatus := &types.Status{
 					State: types.StateSucceeded,
 				}
-				config := &types.InstallationConfig{
-					AdminConsolePort: 8000,
-				}
 				mock.InOrder(
 					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
-					im.On("GetConfig").Return(config, nil),
-					fm.On("Install", t.Context(), config).Return(errors.New("install error")),
+					fm.On("Install", t.Context()).Return(errors.New("install error")),
 				)
 			},
 			expectedErr: true,

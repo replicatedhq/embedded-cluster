@@ -17,7 +17,7 @@ var _ InfraManager = &infraManager{}
 // InfraManager provides methods for managing infrastructure setup
 type InfraManager interface {
 	Get() (*types.Infra, error)
-	Install(ctx context.Context, config *types.InstallationConfig) error
+	Install(ctx context.Context) error
 }
 
 // infraManager is an implementation of the InfraManager interface

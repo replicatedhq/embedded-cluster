@@ -39,7 +39,7 @@ func AlreadyInstalledError() error {
 	)
 }
 
-func (m *infraManager) Install(ctx context.Context, config *types.InstallationConfig) (finalErr error) {
+func (m *infraManager) Install(ctx context.Context) (finalErr error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -59,10 +59,6 @@ func (m *infraManager) Install(ctx context.Context, config *types.InstallationCo
 		return fmt.Errorf("install can only be run once")
 	}
 
-	if config == nil {
-		return fmt.Errorf("installation config is required")
-	}
-
 	license, err := helpers.ParseLicense(m.licenseFile)
 	if err != nil {
 		return fmt.Errorf("parse license: %w", err)
@@ -77,7 +73,7 @@ func (m *infraManager) Install(ctx context.Context, config *types.InstallationCo
 	}
 
 	// Run install in background
-	go m.install(context.Background(), config, license)
+	go m.install(context.Background(), license)
 
 	return nil
 }
@@ -103,7 +99,7 @@ func (m *infraManager) initComponentsList(license *kotsv1beta1.License) error {
 	return nil
 }
 
-func (m *infraManager) install(ctx context.Context, config *types.InstallationConfig, license *kotsv1beta1.License) (finalErr error) {
+func (m *infraManager) install(ctx context.Context, license *kotsv1beta1.License) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
@@ -119,7 +115,7 @@ func (m *infraManager) install(ctx context.Context, config *types.InstallationCo
 		}
 	}()
 
-	_, err := m.installK0s(ctx, config)
+	_, err := m.installK0s(ctx)
 	if err != nil {
 		return fmt.Errorf("install k0s: %w", err)
 	}
@@ -164,7 +160,7 @@ func (m *infraManager) install(ctx context.Context, config *types.InstallationCo
 	return nil
 }
 
-func (m *infraManager) installK0s(ctx context.Context, config *types.InstallationConfig) (k0sCfg *k0sv1beta1.ClusterConfig, finalErr error) {
+func (m *infraManager) installK0s(ctx context.Context) (k0sCfg *k0sv1beta1.ClusterConfig, finalErr error) {
 	componentName := K0sComponentName
 
 	if err := m.setComponentStatus(componentName, types.StateRunning, "Installing"); err != nil {
@@ -191,7 +187,7 @@ func (m *infraManager) installK0s(ctx context.Context, config *types.Installatio
 	logFn := m.logFn("k0s")
 
 	logFn("creating k0s configuration file")
-	k0sCfg, err := k0s.WriteK0sConfig(ctx, config.NetworkInterface, m.airgapBundle, config.PodCIDR, config.ServiceCIDR, m.endUserConfig, nil)
+	k0sCfg, err := k0s.WriteK0sConfig(ctx, m.rc.NetworkInterface(), m.airgapBundle, m.rc.PodCIDR(), m.rc.ServiceCIDR(), m.endUserConfig, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
@@ -202,7 +198,7 @@ func (m *infraManager) installK0s(ctx context.Context, config *types.Installatio
 	}
 
 	logFn("installing k0s")
-	if err := k0s.Install(m.rc, config.NetworkInterface); err != nil {
+	if err := k0s.Install(m.rc, m.rc.NetworkInterface()); err != nil {
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
 
@@ -224,7 +220,7 @@ func (m *infraManager) installK0s(ctx context.Context, config *types.Installatio
 	}
 
 	logFn("adding registry to containerd")
-	registryIP, err := registry.GetRegistryClusterIP(config.ServiceCIDR)
+	registryIP, err := registry.GetRegistryClusterIP(m.rc.ServiceCIDR())
 	if err != nil {
 		return nil, fmt.Errorf("get registry cluster IP: %w", err)
 	}

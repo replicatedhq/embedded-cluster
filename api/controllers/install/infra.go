@@ -27,13 +27,7 @@ func (c *InstallController) SetupInfra(ctx context.Context) error {
 		}
 	}
 
-	// Get current installation config
-	config, err := c.installationManager.GetConfig()
-	if err != nil {
-		return fmt.Errorf("failed to read installation config: %w", err)
-	}
-
-	if err := c.infraManager.Install(ctx, config); err != nil {
+	if err := c.infraManager.Install(ctx); err != nil {
 		return fmt.Errorf("install infra: %w", err)
 	}
 
