@@ -11,7 +11,7 @@ const server = setupServer(
   // Mock installation status endpoint
   http.get("*/api/install/infra/status", () => {
     return HttpResponse.json({
-      status: { state: "Running", description: "Installing..." },
+      status: { state: "Running", description: "Installing…" },
       components: [
         { name: "Runtime", status: { state: "Pending" } },
         { name: "Disaster Recovery", status: { state: "Pending" } }
@@ -57,11 +57,11 @@ describe("InstallationStep", () => {
     expect(screen.getByText("Installing infrastructure components")).toBeInTheDocument();
 
     // Check progress and status indicators
-    expect(screen.getByText("Preparing installation...")).toBeInTheDocument();
+    expect(screen.getByText("Preparing installation…")).toBeInTheDocument();
 
     // Wait for progress update
     await waitFor(() => {
-      expect(screen.getByText("Installing...")).toBeInTheDocument();
+      expect(screen.getByText("Installing…")).toBeInTheDocument();
     });
     
     // Verify Runtime component
@@ -121,7 +121,7 @@ describe("InstallationStep", () => {
     const drContainer = screen.getByTestId("status-indicator-disaster-recovery");
     expect(drContainer).toBeInTheDocument();
     expect(within(drContainer).getByTestId("status-title")).toHaveTextContent("Disaster Recovery");
-    expect(within(drContainer).getByTestId("status-text")).toHaveTextContent("Installing...");
+    expect(within(drContainer).getByTestId("status-text")).toHaveTextContent("Installing…");
 
     // Next button should still be disabled
     expect(screen.getByText("Next: Finish")).toBeDisabled();
