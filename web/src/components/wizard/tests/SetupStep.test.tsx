@@ -21,6 +21,11 @@ const server = setupServer(
   // Mock config submission endpoint
   http.post("*/api/install/installation/configure", () => {
     return HttpResponse.json({ success: true });
+  }),
+
+  // Mock installation start endpoint
+  http.post("*/api/install/infra/setup", () => {
+    return HttpResponse.json({ success: true });
   })
 );
 
@@ -292,7 +297,7 @@ describe("SetupStep", () => {
     });
 
     // Verify we're now in validation view with proper buttons
-    expect(screen.getByText("Back to Configuration")).toBeInTheDocument();
+    expect(screen.getByText("Back")).toBeInTheDocument();
   });
 
   // New tests for consolidated validation functionality
@@ -347,7 +352,7 @@ describe("SetupStep", () => {
     });
 
     // Should show Back to Configuration button
-    expect(screen.getByText("Back to Configuration")).toBeInTheDocument();
+    expect(screen.getByText("Back")).toBeInTheDocument();
   });
 
   it("enables Start Installation button when validation passes", async () => {
@@ -457,7 +462,7 @@ describe("SetupStep", () => {
     });
 
     // Click Back to Configuration
-    const backButton = screen.getByText("Back to Configuration");
+    const backButton = screen.getByText("Back");
     fireEvent.click(backButton);
 
     // Should return to configuration view

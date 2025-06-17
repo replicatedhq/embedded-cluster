@@ -111,6 +111,35 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext }) => {
     },
   });
 
+  // Mutation for starting the installation
+  const { mutate: startInstallation } = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/install/infra/setup", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          handleUnauthorized(errorData);
+          throw new Error("Session expired. Please log in again.");
+        }
+        throw errorData;
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      onNext();
+    },
+    onError: (err: Error) => {
+      setError(err.message || "Failed to start installation");
+      return err;
+    },
+  });
+
   // Expand advanced settings if there is an error in an advanced field
   useEffect(() => {
     if (submitError?.errors) {
@@ -153,7 +182,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext }) => {
   };
 
   const handleStartInstallation = () => {
-    onNext();
+    startInstallation();
   };
 
   const isLoading = isConfigLoading || isInterfacesLoading;
@@ -208,7 +237,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext }) => {
       <div className="flex justify-between">
         {currentView === 'validation' && (
           <Button variant="outline" onClick={handleBackToConfiguration} icon={<ChevronLeft className="w-5 h-5" />}>
-            Back to Configuration
+            Back
           </Button>
         )}
         
