@@ -64,7 +64,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onComplete, onBack }) =
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{text.setupTitle}</h2>
           <p className="text-gray-600 mt-1">
-            Validate the host requirements before proceeding with installation.
+            Validate the installation settings.
           </p>
         </div>
 
