@@ -152,4 +152,4 @@ describe("StepNavigation", () => {
       unmount(); // Clean up for next iteration
     });
   });
-}); 
+});
