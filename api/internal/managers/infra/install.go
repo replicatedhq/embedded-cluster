@@ -198,7 +198,7 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 	}
 
 	logFn("installing k0s")
-	if err := k0s.Install(rc, rc.NetworkInterface()); err != nil {
+	if err := k0s.Install(rc); err != nil {
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
 

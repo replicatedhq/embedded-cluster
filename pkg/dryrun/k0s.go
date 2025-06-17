@@ -17,7 +17,7 @@ func (c *K0s) GetStatus(ctx context.Context) (*k0s.K0sStatus, error) {
 	return c.Status, nil
 }
 
-func (c *K0s) Install(rc runtimeconfig.RuntimeConfig, networkInterface string) error {
+func (c *K0s) Install(rc runtimeconfig.RuntimeConfig) error {
 	return nil // TODO: implement
 }
 
