@@ -3,15 +3,15 @@ import Card from "../common/Card";
 import Button from "../common/Button";
 import { useConfig } from "../../contexts/ConfigContext";
 import { useWizardMode } from "../../contexts/WizardModeContext";
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import LinuxSetup from "./setup/LinuxSetup";
-import ValidationStep from "./ValidationStep";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 import { handleUnauthorized } from "../../utils/auth";
 
 interface SetupStepProps {
   onNext: () => void;
+  onBack: () => void;
 }
 
 interface Status {
@@ -23,12 +23,11 @@ interface ConfigError extends Error {
   errors?: { field: string; message: string }[];
 }
 
-const SetupStep: React.FC<SetupStepProps> = ({ onNext }) => {
+const SetupStep: React.FC<SetupStepProps> = ({ onNext, onBack }) => {
   const { config, updateConfig, prototypeSettings } = useConfig();
   const { text } = useWizardMode();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showValidation, setShowValidation] = useState(false);
   const { token } = useAuth();
 
   // Query for fetching install configuration
@@ -98,8 +97,8 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext }) => {
       return response.json();
     },
     onSuccess: () => {
-      // Transition to validation view
-      setShowValidation(true);
+      // Move to validation step
+      onNext();
     },
     onError: (err: ConfigError) => {
       setError(err.message || "Failed to setup cluster");
@@ -137,31 +136,9 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext }) => {
     submitConfig(config);
   };
 
-  const handleValidationComplete = (success: boolean) => {
-    if (success) {
-      onNext(); // Proceed to installation step
-    }
-    // If not successful, stay in validation
-  };
-
-  const handleValidationBack = () => {
-    setShowValidation(false); // Return to configuration
-  };
-
   const isLoading = isConfigLoading || isInterfacesLoading;
   const availableNetworkInterfaces = networkInterfacesData?.networkInterfaces || [];
 
-  // If showing validation, render ValidationStep
-  if (showValidation) {
-    return (
-      <ValidationStep 
-        onComplete={handleValidationComplete}
-        onBack={handleValidationBack}
-      />
-    );
-  }
-
-  // Otherwise render configuration view
   return (
     <div className="space-y-6" data-testid="setup-step">
       <Card>
@@ -197,10 +174,15 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext }) => {
         )}
       </Card>
 
-      <div className="flex justify-end">
-        <Button onClick={handleNext} icon={<ChevronRight className="w-5 h-5" />}>
-          Next: Validate Host
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
+          Back
         </Button>
+        <div className="flex justify-end flex-1">
+          <Button onClick={handleNext} icon={<ChevronRight className="w-5 h-5" />}>
+            Next: Validate Host
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -15,4 +15,4 @@ export interface InfraStatus {
   lastUpdated: string;
 }
 
-export type WizardStep = 'welcome' | 'setup' | 'installation' | 'completion';
+export type WizardStep = 'welcome' | 'setup' | 'validation' | 'installation' | 'completion';

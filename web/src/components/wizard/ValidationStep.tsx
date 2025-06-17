@@ -9,11 +9,11 @@ import { useAuth } from "../../contexts/AuthContext";
 import { handleUnauthorized } from "../../utils/auth";
 
 interface ValidationStepProps {
-  onComplete: (success: boolean) => void;
+  onNext: () => void;
   onBack: () => void;
 }
 
-const ValidationStep: React.FC<ValidationStepProps> = ({ onComplete, onBack }) => {
+const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
   const { text } = useWizardMode();
   const [preflightComplete, setPreflightComplete] = useState(false);
   const [preflightSuccess, setPreflightSuccess] = useState(false);
@@ -41,7 +41,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onComplete, onBack }) =
       return response.json();
     },
     onSuccess: () => {
-      onComplete(true);
+      onNext();
     },
     onError: (err: Error) => {
       setError(err.message || "Failed to start installation");

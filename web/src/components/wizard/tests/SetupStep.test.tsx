@@ -7,18 +7,6 @@ import { renderWithProviders } from "../../../test/setup.tsx";
 import SetupStep from "../SetupStep.tsx";
 import { MOCK_INSTALL_CONFIG, MOCK_NETWORK_INTERFACES, MOCK_PROTOTYPE_SETTINGS } from "../../../test/testData.ts";
 
-// Mock ValidationStep component for isolated SetupStep testing
-vi.mock("../ValidationStep.tsx", () => ({
-  default: ({ onComplete, onBack }: { onComplete: (success: boolean) => void; onBack: () => void }) => (
-    <div data-testid="validation-step-mock">
-      <h2>Validation Step</h2>
-      <button onClick={() => onComplete(true)}>Complete Successfully</button>
-      <button onClick={() => onComplete(false)}>Complete with Failure</button>
-      <button onClick={onBack}>Back to Configuration</button>
-    </div>
-  ),
-}));
-
 const server = setupServer(
   // Mock install config endpoint
   http.get("*/api/install/installation/config", () => {
@@ -38,6 +26,7 @@ const server = setupServer(
 
 describe("SetupStep", () => {
   const mockOnNext = vi.fn();
+  const mockOnBack = vi.fn();
 
   beforeAll(() => {
     server.listen();
@@ -57,7 +46,7 @@ describe("SetupStep", () => {
   });
 
   it("renders the linux setup form when it's embedded", async () => {
-    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {
@@ -123,9 +112,6 @@ describe("SetupStep", () => {
     // Check next button
     const nextButton = screen.getByText("Next: Validate Host");
     expect(nextButton).toBeInTheDocument();
-
-    // Ensure ValidationStep is not shown initially
-    expect(screen.queryByTestId("validation-step-mock")).not.toBeInTheDocument();
   });
 
   it("handles form errors gracefully", async () => {
@@ -141,7 +127,7 @@ describe("SetupStep", () => {
       })
     );
 
-    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {
@@ -196,221 +182,9 @@ describe("SetupStep", () => {
 
     // Verify onNext was not called
     expect(mockOnNext).not.toHaveBeenCalled();
-
-    // Verify ValidationStep is not shown on error
-    expect(screen.queryByTestId("validation-step-mock")).not.toBeInTheDocument();
   });
 
-  it("shows ValidationStep when Next: Validate Host is clicked", async () => {
-    // Mock successful configuration submission
-    server.use(
-      http.post("*/api/install/installation/configure", () => {
-        return HttpResponse.json({ success: true });
-      })
-    );
-
-    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
-      wrapperProps: {
-        authenticated: true,
-        preloadedState: {
-          config: {
-            ...MOCK_INSTALL_CONFIG,
-            dataDirectory: "/var/lib/embedded-cluster",
-            adminConsolePort: 8080,
-            localArtifactMirrorPort: 8081,
-            networkInterface: "eth0",
-            globalCidr: "10.244.0.0/16",
-            storageClass: "standard",
-          },
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
-      },
-    });
-
-    // Wait for loading to complete
-    await screen.findByText("Configure the installation settings.");
-    await screen.findByTestId("linux-setup");
-
-    // Fill in form and click Next: Validate Host
-    const dataDirectoryInput = screen.getByLabelText(/Data Directory/);
-    fireEvent.change(dataDirectoryInput, {
-      target: { value: "/var/lib/embedded-cluster" },
-    });
-
-    const nextButton = screen.getByText("Next: Validate Host");
-    fireEvent.click(nextButton);
-
-    // Should show ValidationStep instead of configuration
-    await waitFor(() => {
-      expect(screen.getByTestId("validation-step-mock")).toBeInTheDocument();
-    });
-
-    // Should show ValidationStep content
-    expect(screen.getByText("Validation Step")).toBeInTheDocument();
-    expect(screen.getByText("Back to Configuration")).toBeInTheDocument();
-
-    // Configuration form should not be visible
-    expect(screen.queryByTestId("linux-setup")).not.toBeInTheDocument();
-  });
-
-  it("calls onNext when ValidationStep completes successfully", async () => {
-    // Mock successful configuration submission
-    server.use(
-      http.post("*/api/install/installation/configure", () => {
-        return HttpResponse.json({ success: true });
-      })
-    );
-
-    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
-      wrapperProps: {
-        authenticated: true,
-        preloadedState: {
-          config: {
-            ...MOCK_INSTALL_CONFIG,
-            dataDirectory: "/var/lib/embedded-cluster",
-          },
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
-      },
-    });
-
-    // Wait for form to load
-    await screen.findByText("Configure the installation settings.");
-    await screen.findByTestId("linux-setup");
-
-    // Fill form and navigate to validation view
-    const dataDirectoryInput = screen.getByLabelText(/Data Directory/);
-    fireEvent.change(dataDirectoryInput, {
-      target: { value: "/var/lib/embedded-cluster" },
-    });
-
-    const nextButton = screen.getByText("Next: Validate Host");
-    fireEvent.click(nextButton);
-
-    // Wait for ValidationStep to appear
-    await waitFor(() => {
-      expect(screen.getByTestId("validation-step-mock")).toBeInTheDocument();
-    });
-
-    // Click Complete Successfully button
-    const completeButton = screen.getByText("Complete Successfully");
-    fireEvent.click(completeButton);
-
-    // Should call onNext when validation completes successfully
-    await waitFor(() => {
-      expect(mockOnNext).toHaveBeenCalled();
-    });
-  });
-
-  it("stays in ValidationStep when validation fails", async () => {
-    // Mock successful configuration submission
-    server.use(
-      http.post("*/api/install/installation/configure", () => {
-        return HttpResponse.json({ success: true });
-      })
-    );
-
-    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
-      wrapperProps: {
-        authenticated: true,
-        preloadedState: {
-          config: {
-            ...MOCK_INSTALL_CONFIG,
-            dataDirectory: "/var/lib/embedded-cluster",
-          },
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
-      },
-    });
-
-    // Wait for form to load
-    await screen.findByText("Configure the installation settings.");
-    await screen.findByTestId("linux-setup");
-
-    // Fill form and navigate to validation view
-    const dataDirectoryInput = screen.getByLabelText(/Data Directory/);
-    fireEvent.change(dataDirectoryInput, {
-      target: { value: "/var/lib/embedded-cluster" },
-    });
-
-    const nextButton = screen.getByText("Next: Validate Host");
-    fireEvent.click(nextButton);
-
-    // Wait for ValidationStep to appear
-    await waitFor(() => {
-      expect(screen.getByTestId("validation-step-mock")).toBeInTheDocument();
-    });
-
-    // Click Complete with Failure button
-    const failButton = screen.getByText("Complete with Failure");
-    fireEvent.click(failButton);
-
-    // Should stay in ValidationStep and not call onNext
-    expect(screen.getByTestId("validation-step-mock")).toBeInTheDocument();
-    expect(mockOnNext).not.toHaveBeenCalled();
-  });
-
-  it("returns to configuration view when ValidationStep calls onBack", async () => {
-    // Mock successful configuration submission
-    server.use(
-      http.post("*/api/install/installation/configure", () => {
-        return HttpResponse.json({ success: true });
-      })
-    );
-
-    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
-      wrapperProps: {
-        authenticated: true,
-        preloadedState: {
-          config: {
-            ...MOCK_INSTALL_CONFIG,
-            dataDirectory: "/var/lib/embedded-cluster",
-          },
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
-      },
-    });
-
-    // Wait for form to load
-    await screen.findByText("Configure the installation settings.");
-    await screen.findByTestId("linux-setup");
-
-    // Fill form and navigate to validation view
-    const dataDirectoryInput = screen.getByLabelText(/Data Directory/);
-    fireEvent.change(dataDirectoryInput, {
-      target: { value: "/var/lib/embedded-cluster" },
-    });
-
-    const nextButton = screen.getByText("Next: Validate Host");
-    fireEvent.click(nextButton);
-
-    // Wait for ValidationStep to appear
-    await waitFor(() => {
-      expect(screen.getByTestId("validation-step-mock")).toBeInTheDocument();
-    });
-
-    // Click Back to Configuration
-    const backButton = screen.getByText("Back to Configuration");
-    fireEvent.click(backButton);
-
-    // Should return to configuration view
-    await waitFor(() => {
-      expect(screen.getByText("Configure the installation settings.")).toBeInTheDocument();
-      expect(screen.getByTestId("linux-setup")).toBeInTheDocument();
-    });
-
-    // Should preserve form data
-    const updatedDataDirectoryInput = screen.getByLabelText(/Data Directory/);
-    expect(updatedDataDirectoryInput).toHaveValue("/var/lib/embedded-cluster");
-
-    // Should show Next: Validate Host button again
-    expect(screen.getByText("Next: Validate Host")).toBeInTheDocument();
-
-    // ValidationStep should not be visible
-    expect(screen.queryByTestId("validation-step-mock")).not.toBeInTheDocument();
-  });
-
-  it("submits the form successfully and preserves configuration data", async () => {
+  it("submits the form successfully", async () => {
     // Mock all required API endpoints
     server.use(
       // Mock install config endpoint
@@ -456,7 +230,7 @@ describe("SetupStep", () => {
       })
     );
 
-    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {
@@ -509,13 +283,12 @@ describe("SetupStep", () => {
     // Submit form
     fireEvent.click(nextButton);
 
-    // Wait for transition to ValidationStep
-    await waitFor(() => {
-      expect(screen.getByTestId("validation-step-mock")).toBeInTheDocument();
-    });
-
-    // Verify we're now in validation view with proper content
-    expect(screen.getByText("Validation Step")).toBeInTheDocument();
-    expect(screen.getByText("Back to Configuration")).toBeInTheDocument();
+    // Wait for the mutation to complete and verify onNext was called
+    await waitFor(
+      () => {
+        expect(mockOnNext).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
   });
 });

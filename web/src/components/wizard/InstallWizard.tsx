@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import StepNavigation from "./StepNavigation";
 import WelcomeStep from "./WelcomeStep";
 import SetupStep from "./SetupStep";
+import ValidationStep from "./ValidationStep";
 import InstallationStep from "./InstallationStep";
 import { WizardStep } from "../../types";
 import { AppIcon } from "../common/Logo";
@@ -13,10 +14,18 @@ const InstallWizard: React.FC = () => {
   const { text } = useWizardMode();
 
   const goToNextStep = () => {
-    const steps: WizardStep[] = ["welcome", "setup", "installation", "completion"];
+    const steps: WizardStep[] = ["welcome", "setup", "validation", "installation", "completion"];
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex < steps.length - 1) {
       setCurrentStep(steps[currentIndex + 1]);
+    }
+  };
+
+  const goToPreviousStep = () => {
+    const steps: WizardStep[] = ["welcome", "setup", "validation", "installation", "completion"];
+    const currentIndex = steps.indexOf(currentStep);
+    if (currentIndex > 0) {
+      setCurrentStep(steps[currentIndex - 1]);
     }
   };
 
@@ -25,7 +34,9 @@ const InstallWizard: React.FC = () => {
       case "welcome":
         return <WelcomeStep onNext={goToNextStep} />;
       case "setup":
-        return <SetupStep onNext={goToNextStep} />;
+        return <SetupStep onNext={goToNextStep} onBack={goToPreviousStep} />;
+      case "validation":
+        return <ValidationStep onNext={goToNextStep} onBack={goToPreviousStep} />;
       case "installation":
         return <InstallationStep onNext={goToNextStep} />;
       case "completion":
