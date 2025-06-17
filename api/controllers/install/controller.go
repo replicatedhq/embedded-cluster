@@ -55,6 +55,7 @@ type InstallController struct {
 	airgapBundle         string
 	configValues         string
 	endUserConfig        *ecv1beta1.Config
+	ignoreHostPreflights bool
 	mu                   sync.RWMutex
 }
 
@@ -129,6 +130,12 @@ func WithConfigValues(configValues string) InstallControllerOption {
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InstallControllerOption {
 	return func(c *InstallController) {
 		c.endUserConfig = endUserConfig
+	}
+}
+
+func WithIgnoreHostPreflights(ignoreHostPreflights bool) InstallControllerOption {
+	return func(c *InstallController) {
+		c.ignoreHostPreflights = ignoreHostPreflights
 	}
 }
 

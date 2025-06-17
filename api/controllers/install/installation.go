@@ -28,6 +28,9 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (*types.I
 		return nil, fmt.Errorf("validate: %w", err)
 	}
 
+	// Set the CLI flag value
+	config.IgnoreHostPreflights = c.ignoreHostPreflights
+
 	return config, nil
 }
 

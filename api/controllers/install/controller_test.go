@@ -879,3 +879,34 @@ func (e *testEnvSetter) Setenv(key string, val string) error {
 	e.env[key] = val
 	return nil
 }
+
+func TestInstallControllerIgnoreHostPreflights(t *testing.T) {
+	// Test that API passes flag to install controller
+	rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
+	rc.SetDataDir(t.TempDir())
+
+	mockManager := &installation.MockInstallationManager{}
+	config := &types.InstallationConfig{
+		AdminConsolePort: 8800,
+		GlobalCIDR:       "10.0.0.0/16",
+	}
+
+	mock.InOrder(
+		mockManager.On("GetConfig").Return(config, nil),
+		mockManager.On("SetConfigDefaults", config).Return(nil),
+		mockManager.On("ValidateConfig", config).Return(nil),
+	)
+
+	installController, err := NewInstallController(
+		WithRuntimeConfig(rc),
+		WithInstallationManager(mockManager),
+		WithIgnoreHostPreflights(true),
+	)
+	require.NoError(t, err)
+
+	resultConfig, err := installController.GetInstallationConfig(t.Context())
+	require.NoError(t, err)
+
+	assert.True(t, resultConfig.IgnoreHostPreflights)
+	mockManager.AssertExpectations(t)
+}
