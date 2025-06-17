@@ -15,6 +15,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
@@ -82,10 +83,16 @@ func TestGetInstallationConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
+			rc.SetDataDir(t.TempDir())
+
 			mockManager := &installation.MockInstallationManager{}
 			tt.setupMock(mockManager)
 
-			controller, err := NewInstallController(WithInstallationManager(mockManager))
+			controller, err := NewInstallController(
+				WithRuntimeConfig(rc),
+				WithInstallationManager(mockManager),
+			)
 			require.NoError(t, err)
 
 			result, err := controller.GetInstallationConfig(t.Context())
@@ -120,7 +127,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ValidateConfig", config).Return(nil),
 					m.On("SetConfig", *config).Return(nil),
-					m.On("ConfigureHost", t.Context(), config).Return(nil),
+					m.On("ConfigureHost", t.Context()).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -159,7 +166,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ValidateConfig", config).Return(nil),
 					m.On("SetConfig", configWithCIDRs).Return(nil),
-					m.On("ConfigureHost", t.Context(), &configWithCIDRs).Return(nil),
+					m.On("ConfigureHost", t.Context()).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -168,6 +175,9 @@ func TestConfigureInstallation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
+			rc.SetDataDir(t.TempDir())
+
 			mockManager := &installation.MockInstallationManager{}
 
 			// Create a copy of the config to avoid modifying the original
@@ -175,7 +185,10 @@ func TestConfigureInstallation(t *testing.T) {
 
 			tt.setupMock(mockManager, &configCopy)
 
-			controller, err := NewInstallController(WithInstallationManager(mockManager))
+			controller, err := NewInstallController(
+				WithRuntimeConfig(rc),
+				WithInstallationManager(mockManager),
+			)
 			require.NoError(t, err)
 
 			err = controller.ConfigureInstallation(t.Context(), tt.config)
@@ -258,26 +271,18 @@ func TestRunHostPreflights(t *testing.T) {
 		},
 	}
 
-	expectedProxy := &ecv1beta1.ProxySpec{
-		HTTPProxy:       "http://proxy.example.com",
-		HTTPSProxy:      "https://proxy.example.com",
-		ProvidedNoProxy: "provided-proxy.com",
-		NoProxy:         "no-proxy.com",
-	}
-
 	tests := []struct {
 		name        string
-		setupMocks  func(*installation.MockInstallationManager, *preflight.MockHostPreflightManager)
+		setupMocks  func(*preflight.MockHostPreflightManager)
 		expectedErr bool
 	}{
 		{
 			name: "successful run preflights",
-			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					im.On("GetConfig").Return(&types.InstallationConfig{}, nil),
-					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
+					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", t.Context(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec && expectedProxy == opts.Proxy
+						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
 				)
 			},
@@ -285,22 +290,20 @@ func TestRunHostPreflights(t *testing.T) {
 		},
 		{
 			name: "prepare preflights error",
-			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					im.On("GetConfig").Return(&types.InstallationConfig{}, nil),
-					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(nil, nil, errors.New("prepare error")),
+					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(nil, errors.New("prepare error")),
 				)
 			},
 			expectedErr: true,
 		},
 		{
 			name: "run preflights error",
-			setupMocks: func(im *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager) {
 				mock.InOrder(
-					im.On("GetConfig").Return(&types.InstallationConfig{}, nil),
-					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, expectedProxy, nil),
+					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", t.Context(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec && expectedProxy == opts.Proxy
+						return expectedHPF == opts.HostPreflightSpec
 					})).Return(errors.New("run preflights error")),
 				)
 			},
@@ -310,12 +313,20 @@ func TestRunHostPreflights(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockInstallationManager := &installation.MockInstallationManager{}
 			mockPreflightManager := &preflight.MockHostPreflightManager{}
-			tt.setupMocks(mockInstallationManager, mockPreflightManager)
+			tt.setupMocks(mockPreflightManager)
+
+			rc := runtimeconfig.New(nil)
+			rc.SetDataDir(t.TempDir())
+			rc.SetProxySpec(&ecv1beta1.ProxySpec{
+				HTTPProxy:       "http://proxy.example.com",
+				HTTPSProxy:      "https://proxy.example.com",
+				ProvidedNoProxy: "provided-proxy.com",
+				NoProxy:         "no-proxy.com",
+			})
 
 			controller, err := NewInstallController(
-				WithInstallationManager(mockInstallationManager),
+				WithRuntimeConfig(rc),
 				WithHostPreflightManager(mockPreflightManager),
 				WithReleaseData(getTestReleaseData()),
 			)
@@ -324,12 +335,11 @@ func TestRunHostPreflights(t *testing.T) {
 			err = controller.RunHostPreflights(t.Context(), RunHostPreflightsOptions{})
 
 			if tt.expectedErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
-			mockInstallationManager.AssertExpectations(t)
 			mockPreflightManager.AssertExpectations(t)
 		})
 	}
@@ -856,4 +866,16 @@ func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
 	return func(c *InstallController) {
 		c.infraManager = infraManager
 	}
+}
+
+type testEnvSetter struct {
+	env map[string]string
+}
+
+func (e *testEnvSetter) Setenv(key string, val string) error {
+	if e.env == nil {
+		e.env = make(map[string]string)
+	}
+	e.env[key] = val
+	return nil
 }

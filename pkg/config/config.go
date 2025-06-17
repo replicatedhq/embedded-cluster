@@ -19,8 +19,7 @@ import (
 )
 
 const (
-	DefaultServiceNodePortRange = "80-32767"
-	DefaultVendorChartOrder     = 10
+	DefaultVendorChartOrder = 10
 )
 
 // k0sConfigPathOverride is used during tests to override the path to the k0s config file.
@@ -44,7 +43,7 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 	if cfg.Spec.API.ExtraArgs == nil {
 		cfg.Spec.API.ExtraArgs = map[string]string{}
 	}
-	cfg.Spec.API.ExtraArgs["service-node-port-range"] = DefaultServiceNodePortRange
+	cfg.Spec.API.ExtraArgs["service-node-port-range"] = embeddedclusterv1beta1.DefaultNetworkNodePortRange
 	cfg.Spec.API.SANs = append(cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
 	cfg.Spec.Network.NodeLocalLoadBalancing.Enabled = true
 	cfg.Spec.Network.NodeLocalLoadBalancing.Type = k0sconfig.NllbTypeEnvoyProxy

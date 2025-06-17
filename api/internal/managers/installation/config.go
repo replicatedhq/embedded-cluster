@@ -202,7 +202,7 @@ func (m *installationManager) setCIDRDefaults(config *types.InstallationConfig) 
 	return nil
 }
 
-func (m *installationManager) ConfigureHost(ctx context.Context, config *types.InstallationConfig) error {
+func (m *installationManager) ConfigureHost(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -218,12 +218,12 @@ func (m *installationManager) ConfigureHost(ctx context.Context, config *types.I
 		return fmt.Errorf("set running status: %w", err)
 	}
 
-	go m.configureHost(context.Background(), config)
+	go m.configureHost(context.Background())
 
 	return nil
 }
 
-func (m *installationManager) configureHost(ctx context.Context, config *types.InstallationConfig) (finalErr error) {
+func (m *installationManager) configureHost(ctx context.Context) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
@@ -242,8 +242,6 @@ func (m *installationManager) configureHost(ctx context.Context, config *types.I
 	opts := hostutils.InitForInstallOptions{
 		LicenseFile:  m.licenseFile,
 		AirgapBundle: m.airgapBundle,
-		PodCIDR:      config.PodCIDR,
-		ServiceCIDR:  config.ServiceCIDR,
 	}
 	if err := m.hostUtils.ConfigureHost(ctx, m.rc, opts); err != nil {
 		return fmt.Errorf("configure installation: %w", err)

@@ -1,7 +1,7 @@
 package integration
 
 import (
-	"context"
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"k8s.io/utils/ptr"
 )
 
 // Test the getHostPreflightsStatus endpoint returns host preflights status correctly
@@ -86,7 +87,7 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 		router.ServeHTTP(rec, req)
 
 		// Check the response
-		assert.Equal(t, http.StatusOK, rec.Code)
+		require.Equal(t, http.StatusOK, rec.Code, "expected status ok, got %d with body %s", rec.Code, rec.Body.String())
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
@@ -212,14 +213,19 @@ func TestPostRunHostPreflights(t *testing.T) {
 
 		mock.InOrder(
 			runner.On("Prepare", mock.Anything, preflights.PrepareOptions{
-				K0sDataDir:       rc.EmbeddedClusterK0sSubDir(),
-				OpenEBSDataDir:   rc.EmbeddedClusterOpenEBSLocalSubDir(),
-				NodeIP:           nodeIP,
-				ReplicatedAppURL: "https://replicated.example.com",
-				ProxyRegistryURL: "https://some-proxy.example.com",
+				DataDir:                 rc.EmbeddedClusterHomeDirectory(),
+				K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
+				OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
+				NodeIP:                  nodeIP,
+				ReplicatedAppURL:        "https://replicated.example.com",
+				ProxyRegistryURL:        "https://some-proxy.example.com",
+				AdminConsolePort:        30000,
+				LocalArtifactMirrorPort: 50000,
+				GlobalCIDR:              ptr.To("10.244.0.0/16"),
+				IsUI:                    true,
 			}).Return(hpfc, nil),
 			// For a successful run, we expect the runner to return an output without any errors or warnings
-			runner.On("Run", mock.Anything, hpfc, mock.Anything, rc).Return(&types.HostPreflightsOutput{}, "", nil),
+			runner.On("Run", mock.Anything, hpfc, rc).Return(&types.HostPreflightsOutput{}, "", nil),
 			runner.On("SaveToDisk", mock.Anything, mock.Anything).Return(nil),
 			runner.On("CopyBundleTo", mock.Anything, mock.Anything).Return(nil),
 		)
@@ -238,15 +244,16 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", nil)
+		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
 		router.ServeHTTP(rec, req)
 
 		// Check the response
-		assert.Equal(t, http.StatusOK, rec.Code)
+		require.Equal(t, http.StatusOK, rec.Code, "expected status ok, got %d with body %s", rec.Code, rec.Body.String())
 
 		t.Logf("Response body: %s", rec.Body.String())
 
@@ -255,17 +262,16 @@ func TestPostRunHostPreflights(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&status)
 		require.NoError(t, err)
 
-		// Verify that the status was properly set
-		assert.Equal(t, types.StateRunning, status.Status.State)
-		assert.Equal(t, "Running host preflights", status.Status.Description)
-
-		// The status should eventually be set to succeeded in a goroutine
-		assert.Eventually(t, func() bool {
-			status, err := installController.GetHostPreflightStatus(context.Background())
-			t.Logf("Status: %s, Description: %s", status.State, status.Description)
-			require.NoError(t, err)
-			return status.State == types.StateSucceeded
-		}, 5*time.Second, 100*time.Millisecond)
+		// The state should eventually be set to succeeded in a goroutine
+		var preflightsStatus *types.Status
+		if !assert.Eventually(t, func() bool {
+			preflightsStatus, err = installController.GetHostPreflightStatus(t.Context())
+			require.NoError(t, err, "GetHostPreflightStatus should succeed")
+			return preflightsStatus.State == types.StateSucceeded
+		}, 1*time.Second, 100*time.Millisecond) {
+			require.Equal(t, types.StateSucceeded, preflightsStatus.State,
+				"Preflights not succeeded with state %s and description %s", preflightsStatus.State, preflightsStatus.Description)
+		}
 
 		// Verify that the mock expectations were met
 		runner.AssertExpectations(t)
@@ -306,8 +312,9 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", nil)
+		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
 		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -359,8 +366,9 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", nil)
+		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -383,7 +391,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		runner := &preflights.MockPreflightRunner{}
 		mock.InOrder(
 			runner.On("Prepare", mock.Anything, mock.Anything).Return(hpfc, nil),
-			runner.On("Run", mock.Anything, hpfc, mock.Anything, mock.Anything).Return(nil, "this is an error", assert.AnError),
+			runner.On("Run", mock.Anything, hpfc, mock.Anything).Return(nil, "this is an error", assert.AnError),
 		)
 		// Create a host preflights manager with the failing mock runner
 		manager := preflight.NewHostPreflightManager(
@@ -414,15 +422,16 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", nil)
+		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
 		router.ServeHTTP(rec, req)
 
 		// Check the response
-		assert.Equal(t, http.StatusOK, rec.Code)
+		require.Equal(t, http.StatusOK, rec.Code, "expected status ok, got %d with body %s", rec.Code, rec.Body.String())
 
 		t.Logf("Response body: %s", rec.Body.String())
 
@@ -431,17 +440,16 @@ func TestPostRunHostPreflights(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&status)
 		require.NoError(t, err)
 
-		// Verify that the status was properly set
-		assert.Equal(t, types.StateRunning, status.Status.State)
-		assert.Equal(t, "Running host preflights", status.Status.Description)
-
-		// The status should eventually be set to failed in a goroutine
-		assert.Eventually(t, func() bool {
-			status, err := installController.GetHostPreflightStatus(context.Background())
-			t.Logf("Status: %s, Description: %s", status.State, status.Description)
-			require.NoError(t, err)
-			return status.State == types.StateFailed
-		}, 5*time.Second, 100*time.Millisecond)
+		// The state should eventually be set to failed in a goroutine
+		var preflightsStatus *types.Status
+		if !assert.Eventually(t, func() bool {
+			preflightsStatus, err = installController.GetHostPreflightStatus(t.Context())
+			require.NoError(t, err, "GetHostPreflightStatus should succeed")
+			return preflightsStatus.State == types.StateFailed
+		}, 5*time.Second, 100*time.Millisecond) {
+			require.Equal(t, types.StateFailed, preflightsStatus.State,
+				"Preflights not failed with state %s and description %s", preflightsStatus.State, preflightsStatus.Description)
+		}
 
 		// Verify that the mock expectations were met
 		runner.AssertExpectations(t)
@@ -483,8 +491,9 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", nil)
+		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
