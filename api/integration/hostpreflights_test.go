@@ -263,14 +263,14 @@ func TestPostRunHostPreflights(t *testing.T) {
 		require.NoError(t, err)
 
 		// The state should eventually be set to succeeded in a goroutine
-		var installStatus *types.Status
+		var preflightsStatus *types.Status
 		if !assert.Eventually(t, func() bool {
-			installStatus, err = installController.GetHostPreflightStatus(t.Context())
+			preflightsStatus, err = installController.GetHostPreflightStatus(t.Context())
 			require.NoError(t, err, "GetHostPreflightStatus should succeed")
-			return installStatus.State == types.StateSucceeded
+			return preflightsStatus.State == types.StateSucceeded
 		}, 1*time.Second, 100*time.Millisecond) {
-			require.Equal(t, types.StateSucceeded, installStatus.State,
-				"Preflights not succeeded with state %s and description %s", installStatus.State, installStatus.Description)
+			require.Equal(t, types.StateSucceeded, preflightsStatus.State,
+				"Preflights not succeeded with state %s and description %s", preflightsStatus.State, preflightsStatus.Description)
 		}
 
 		// Verify that the mock expectations were met
@@ -441,14 +441,14 @@ func TestPostRunHostPreflights(t *testing.T) {
 		require.NoError(t, err)
 
 		// The state should eventually be set to failed in a goroutine
-		var installStatus *types.Status
+		var preflightsStatus *types.Status
 		if !assert.Eventually(t, func() bool {
-			installStatus, err = installController.GetHostPreflightStatus(t.Context())
+			preflightsStatus, err = installController.GetHostPreflightStatus(t.Context())
 			require.NoError(t, err, "GetHostPreflightStatus should succeed")
-			return installStatus.State == types.StateFailed
+			return preflightsStatus.State == types.StateFailed
 		}, 5*time.Second, 100*time.Millisecond) {
-			require.Equal(t, types.StateFailed, installStatus.State,
-				"Preflights not failed with state %s and description %s", installStatus.State, installStatus.Description)
+			require.Equal(t, types.StateFailed, preflightsStatus.State,
+				"Preflights not failed with state %s and description %s", preflightsStatus.State, preflightsStatus.Description)
 		}
 
 		// Verify that the mock expectations were met
