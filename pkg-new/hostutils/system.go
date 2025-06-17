@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -207,7 +206,7 @@ func modprobe(module string) error {
 
 // CreateSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
-func (h *HostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
+func (h *HostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool) error {
 	dst := systemdUnitFileName()
 	if _, err := os.Lstat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
@@ -218,7 +217,7 @@ func (h *HostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.Fi
 	if isWorker {
 		src = "/etc/systemd/system/k0sworker.service"
 	}
-	if proxy != nil {
+	if proxy := rc.ProxySpec(); proxy != nil {
 		if err := ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy); err != nil {
 			return fmt.Errorf("unable to create proxy config: %w", err)
 		}

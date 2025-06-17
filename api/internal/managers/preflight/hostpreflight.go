@@ -14,7 +14,6 @@ import (
 )
 
 type PrepareHostPreflightOptions struct {
-	InstallationConfig     *types.InstallationConfig
 	ReplicatedAppURL       string
 	ProxyRegistryURL       string
 	HostPreflightSpec      *troubleshootv1beta2.HostPreflightSpec
@@ -27,15 +26,14 @@ type PrepareHostPreflightOptions struct {
 
 type RunHostPreflightOptions struct {
 	HostPreflightSpec *troubleshootv1beta2.HostPreflightSpec
-	Proxy             *ecv1beta1.ProxySpec
 }
 
-func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, *ecv1beta1.ProxySpec, error) {
-	hpf, proxy, err := m.prepareHostPreflights(ctx, opts)
+func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error) {
+	hpf, err := m.prepareHostPreflights(ctx, opts)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return hpf, proxy, nil
+	return hpf, nil
 }
 
 func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, opts RunHostPreflightOptions) error {
@@ -68,59 +66,43 @@ func (m *hostPreflightManager) GetHostPreflightTitles(ctx context.Context) ([]st
 	return m.hostPreflightStore.GetTitles()
 }
 
-func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, *ecv1beta1.ProxySpec, error) {
-	// Use provided installation config
-	config := opts.InstallationConfig
-	if config == nil {
-		return nil, nil, fmt.Errorf("installation config is required")
-	}
-
+func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error) {
 	// Get node IP
-	nodeIP, err := m.netUtils.FirstValidAddress(config.NetworkInterface)
+	nodeIP, err := m.netUtils.FirstValidAddress(m.rc.NetworkInterface())
 	if err != nil {
-		return nil, nil, fmt.Errorf("determine node ip: %w", err)
-	}
-
-	// Build proxy spec
-	var proxy *ecv1beta1.ProxySpec
-	if config.HTTPProxy != "" || config.HTTPSProxy != "" || config.NoProxy != "" {
-		proxy = &ecv1beta1.ProxySpec{
-			HTTPProxy:  config.HTTPProxy,
-			HTTPSProxy: config.HTTPSProxy,
-			NoProxy:    config.NoProxy,
-		}
-	}
-
-	var globalCIDR *string
-	if config.GlobalCIDR != "" {
-		globalCIDR = &config.GlobalCIDR
+		return nil, fmt.Errorf("determine node ip: %w", err)
 	}
 
 	// Use the shared Prepare function to prepare host preflights
-	hpf, err := m.runner.Prepare(ctx, preflights.PrepareOptions{
+	prepareOpts := preflights.PrepareOptions{
 		HostPreflightSpec:       opts.HostPreflightSpec,
 		ReplicatedAppURL:        opts.ReplicatedAppURL,
 		ProxyRegistryURL:        opts.ProxyRegistryURL,
-		AdminConsolePort:        opts.InstallationConfig.AdminConsolePort,
-		LocalArtifactMirrorPort: opts.InstallationConfig.LocalArtifactMirrorPort,
-		DataDir:                 opts.InstallationConfig.DataDirectory,
+		AdminConsolePort:        m.rc.AdminConsolePort(),
+		LocalArtifactMirrorPort: m.rc.LocalArtifactMirrorPort(),
+		DataDir:                 m.rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:              m.rc.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          m.rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                   proxy,
-		PodCIDR:                 config.PodCIDR,
-		ServiceCIDR:             config.ServiceCIDR,
-		GlobalCIDR:              globalCIDR,
+		Proxy:                   m.rc.ProxySpec(),
+		PodCIDR:                 m.rc.PodCIDR(),
+		ServiceCIDR:             m.rc.ServiceCIDR(),
 		NodeIP:                  nodeIP,
 		IsAirgap:                opts.IsAirgap,
 		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
 		IsJoin:                  opts.IsJoin,
 		IsUI:                    opts.IsUI,
-	})
-	if err != nil {
-		return nil, nil, fmt.Errorf("prepare host preflights: %w", err)
+	}
+	if cidr := m.rc.GlobalCIDR(); cidr != "" {
+		prepareOpts.GlobalCIDR = &cidr
 	}
 
-	return hpf, proxy, nil
+	// Use the shared Prepare function to prepare host preflights
+	hpf, err := m.runner.Prepare(ctx, prepareOpts)
+	if err != nil {
+		return nil, fmt.Errorf("prepare host preflights: %w", err)
+	}
+
+	return hpf, nil
 }
 
 func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHostPreflightOptions) {
@@ -133,7 +115,7 @@ func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHo
 	}()
 
 	// Run the preflights using the shared core function
-	output, stderr, err := m.runner.Run(ctx, opts.HostPreflightSpec, opts.Proxy, m.rc)
+	output, stderr, err := m.runner.Run(ctx, opts.HostPreflightSpec, m.rc)
 	if err != nil {
 		errMsg := fmt.Sprintf("Host preflights failed to run: %v", err)
 		if stderr != "" {

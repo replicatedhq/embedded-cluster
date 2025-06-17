@@ -30,8 +30,7 @@ func EnableHACmd(ctx context.Context, name string) *cobra.Command {
 
 			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
 
-			os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+			_ = rc.SetEnv()
 
 			return nil
 		},
@@ -107,5 +106,5 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addOns.EnableHA(ctx, in.Spec.Network.ServiceCIDR, in.Spec, loading)
+	return addOns.EnableHA(ctx, in.Spec, loading)
 }

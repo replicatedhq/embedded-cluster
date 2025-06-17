@@ -33,6 +33,8 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
+			_ = rc.SetEnv()
+
 			return nil
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
@@ -66,8 +68,6 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
 		LicenseFile:  flags.licenseFile,
 		AirgapBundle: flags.airgapBundle,
-		PodCIDR:      flags.cidrCfg.PodCIDR,
-		ServiceCIDR:  flags.cidrCfg.ServiceCIDR,
 	}); err != nil {
 		return fmt.Errorf("configure host: %w", err)
 	}
@@ -89,12 +89,12 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtime
 	replicatedAppURL := replicatedAppURL()
 	proxyRegistryURL := proxyRegistryURL()
 
-	nodeIP, err := netutils.FirstValidAddress(flags.networkInterface)
+	nodeIP, err := netutils.FirstValidAddress(rc.NetworkInterface())
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
 
-	hpf, err := preflights.Prepare(ctx, preflights.PrepareOptions{
+	opts := preflights.PrepareOptions{
 		HostPreflightSpec:       release.GetHostPreflights(),
 		ReplicatedAppURL:        replicatedAppURL,
 		ProxyRegistryURL:        proxyRegistryURL,
@@ -103,18 +103,22 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtime
 		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                   flags.proxy,
-		PodCIDR:                 flags.cidrCfg.PodCIDR,
-		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
-		GlobalCIDR:              flags.cidrCfg.GlobalCIDR,
+		Proxy:                   rc.ProxySpec(),
+		PodCIDR:                 rc.PodCIDR(),
+		ServiceCIDR:             rc.ServiceCIDR(),
 		NodeIP:                  nodeIP,
 		IsAirgap:                flags.isAirgap,
-	})
+	}
+	if globalCIDR := rc.GlobalCIDR(); globalCIDR != "" {
+		opts.GlobalCIDR = &globalCIDR
+	}
+
+	hpf, err := preflights.Prepare(ctx, opts)
 	if err != nil {
 		return err
 	}
 
-	if err := runHostPreflights(ctx, hpf, flags.proxy, rc, flags.skipHostPreflights, flags.ignoreHostPreflights, flags.assumeYes, metricsReporter); err != nil {
+	if err := runHostPreflights(ctx, hpf, rc, flags.skipHostPreflights, flags.ignoreHostPreflights, flags.assumeYes, metricsReporter); err != nil {
 		return err
 	}
 

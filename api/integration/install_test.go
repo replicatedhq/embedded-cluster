@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
@@ -104,21 +106,36 @@ func (m *mockInstallController) GetStatus(ctx context.Context) (*types.Status, e
 func TestConfigureInstallation(t *testing.T) {
 	// Test scenarios
 	testCases := []struct {
-		name           string
-		mockHostUtils  *hostutils.MockHostUtils
-		token          string
-		config         types.InstallationConfig
-		expectedStatus int
-		expectedError  bool
+		name                  string
+		mockHostUtils         *hostutils.MockHostUtils
+		mockNetUtils          *utils.MockNetUtils
+		token                 string
+		config                types.InstallationConfig
+		expectedStatus        int
+		expectedError         bool
+		validateRuntimeConfig func(t *testing.T, rc runtimeconfig.RuntimeConfig)
 	}{
 		{
 			name: "Valid config",
 			mockHostUtils: func() *hostutils.MockHostUtils {
 				mockHostUtils := &hostutils.MockHostUtils{}
-				mockHostUtils.On("ConfigureHost", mock.Anything, mock.Anything).Return(nil).Once()
+				mockHostUtils.On("ConfigureHost", mock.Anything,
+					mock.MatchedBy(func(rc runtimeconfig.RuntimeConfig) bool {
+						return rc.EmbeddedClusterHomeDirectory() == "/tmp/data" &&
+							rc.AdminConsolePort() == 8000 &&
+							rc.LocalArtifactMirrorPort() == 8081 &&
+							rc.NetworkInterface() == "eth0" &&
+							rc.GlobalCIDR() == "10.0.0.0/16" &&
+							rc.PodCIDR() == "10.0.0.0/17" &&
+							rc.ServiceCIDR() == "10.0.128.0/17" &&
+							rc.NodePortRange() == "80-32767"
+					}),
+					mock.Anything,
+				).Return(nil).Once()
 				return mockHostUtils
 			}(),
-			token: "TOKEN",
+			mockNetUtils: &utils.MockNetUtils{},
+			token:        "TOKEN",
 			config: types.InstallationConfig{
 				DataDirectory:           "/tmp/data",
 				AdminConsolePort:        8000,
@@ -128,10 +145,83 @@ func TestConfigureInstallation(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			expectedError:  false,
+			validateRuntimeConfig: func(t *testing.T, rc runtimeconfig.RuntimeConfig) {
+				assert.Equal(t, "/tmp/data", rc.EmbeddedClusterHomeDirectory())
+				assert.Equal(t, 8000, rc.AdminConsolePort())
+				assert.Equal(t, 8081, rc.LocalArtifactMirrorPort())
+				assert.Equal(t, ecv1beta1.NetworkSpec{
+					NetworkInterface: "eth0",
+					GlobalCIDR:       "10.0.0.0/16",
+					PodCIDR:          "10.0.0.0/17",
+					ServiceCIDR:      "10.0.128.0/17",
+					NodePortRange:    "80-32767",
+				}, rc.Get().Network)
+				assert.Nil(t, rc.Get().Proxy)
+			},
+		},
+		{
+			name: "Valid config with proxy",
+			mockHostUtils: func() *hostutils.MockHostUtils {
+				mockHostUtils := &hostutils.MockHostUtils{}
+				mockHostUtils.On("ConfigureHost", mock.Anything,
+					mock.MatchedBy(func(rc runtimeconfig.RuntimeConfig) bool {
+						return rc.EmbeddedClusterHomeDirectory() == "/tmp/data" &&
+							rc.AdminConsolePort() == 8000 &&
+							rc.LocalArtifactMirrorPort() == 8081 &&
+							rc.NetworkInterface() == "eth0" &&
+							rc.GlobalCIDR() == "10.0.0.0/16" &&
+							rc.PodCIDR() == "10.0.0.0/17" &&
+							rc.ServiceCIDR() == "10.0.128.0/17" &&
+							rc.NodePortRange() == "80-32767" &&
+							rc.ProxySpec().HTTPProxy == "http://proxy.example.com" &&
+							rc.ProxySpec().HTTPSProxy == "https://proxy.example.com" &&
+							rc.ProxySpec().ProvidedNoProxy == "somecompany.internal,192.168.17.0/24"
+					}),
+					mock.Anything,
+				).Return(nil).Once()
+				return mockHostUtils
+			}(),
+			mockNetUtils: func() *utils.MockNetUtils {
+				mockNetUtils := &utils.MockNetUtils{}
+				mockNetUtils.On("FirstValidIPNet", "eth0").Return(&net.IPNet{IP: net.ParseIP("192.168.17.12"), Mask: net.CIDRMask(24, 32)}, nil)
+				return mockNetUtils
+			}(),
+			token: "TOKEN",
+			config: types.InstallationConfig{
+				DataDirectory:           "/tmp/data",
+				AdminConsolePort:        8000,
+				LocalArtifactMirrorPort: 8081,
+				GlobalCIDR:              "10.0.0.0/16",
+				NetworkInterface:        "eth0",
+				HTTPProxy:               "http://proxy.example.com",
+				HTTPSProxy:              "https://proxy.example.com",
+				NoProxy:                 "somecompany.internal,192.168.17.0/24",
+			},
+			expectedStatus: http.StatusOK,
+			expectedError:  false,
+			validateRuntimeConfig: func(t *testing.T, rc runtimeconfig.RuntimeConfig) {
+				assert.Equal(t, "/tmp/data", rc.EmbeddedClusterHomeDirectory())
+				assert.Equal(t, 8000, rc.AdminConsolePort())
+				assert.Equal(t, 8081, rc.LocalArtifactMirrorPort())
+				assert.Equal(t, ecv1beta1.NetworkSpec{
+					NetworkInterface: "eth0",
+					GlobalCIDR:       "10.0.0.0/16",
+					PodCIDR:          "10.0.0.0/17",
+					ServiceCIDR:      "10.0.128.0/17",
+					NodePortRange:    "80-32767",
+				}, rc.Get().Network)
+				assert.Equal(t, &ecv1beta1.ProxySpec{
+					HTTPProxy:       "http://proxy.example.com",
+					HTTPSProxy:      "https://proxy.example.com",
+					NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,169.254.169.254,10.0.0.0/17,10.0.128.0/17,somecompany.internal,192.168.17.0/24",
+					ProvidedNoProxy: "somecompany.internal,192.168.17.0/24",
+				}, rc.Get().Proxy)
+			},
 		},
 		{
 			name:          "Invalid config - port conflict",
 			mockHostUtils: &hostutils.MockHostUtils{},
+			mockNetUtils:  &utils.MockNetUtils{},
 			token:         "TOKEN",
 			config: types.InstallationConfig{
 				DataDirectory:           "/tmp/data",
@@ -146,6 +236,7 @@ func TestConfigureInstallation(t *testing.T) {
 		{
 			name:           "Unauthorized",
 			mockHostUtils:  &hostutils.MockHostUtils{},
+			mockNetUtils:   &utils.MockNetUtils{},
 			token:          "NOT_A_TOKEN",
 			config:         types.InstallationConfig{},
 			expectedStatus: http.StatusUnauthorized,
@@ -156,13 +247,13 @@ func TestConfigureInstallation(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a runtime config
-			rc := runtimeconfig.New(nil)
-			rc.SetDataDir(t.TempDir())
+			rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
 
 			// Create an install controller with the config manager
 			installController, err := install.NewInstallController(
-				install.WithHostUtils(tc.mockHostUtils),
 				install.WithRuntimeConfig(rc),
+				install.WithHostUtils(tc.mockHostUtils),
+				install.WithNetUtils(tc.mockNetUtils),
 			)
 			require.NoError(t, err)
 
@@ -238,14 +329,24 @@ func TestConfigureInstallation(t *testing.T) {
 
 			// Verify host confiuration was performed for successful tests
 			tc.mockHostUtils.AssertExpectations(t)
+			tc.mockNetUtils.AssertExpectations(t)
+
+			if tc.validateRuntimeConfig != nil {
+				tc.validateRuntimeConfig(t, rc)
+			}
 		})
 	}
 }
 
 // Test that config validation errors are properly returned
 func TestConfigureInstallationValidation(t *testing.T) {
+	rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
+	rc.SetDataDir(t.TempDir())
+
 	// Create an install controller with the config manager
-	installController, err := install.NewInstallController()
+	installController, err := install.NewInstallController(
+		install.WithRuntimeConfig(rc),
+	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
@@ -299,8 +400,13 @@ func TestConfigureInstallationValidation(t *testing.T) {
 
 // Test that the endpoint properly handles malformed JSON
 func TestConfigureInstallationBadRequest(t *testing.T) {
+	rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
+	rc.SetDataDir(t.TempDir())
+
 	// Create an install controller with the config manager
-	installController, err := install.NewInstallController()
+	installController, err := install.NewInstallController(
+		install.WithRuntimeConfig(rc),
+	)
 	require.NoError(t, err)
 
 	apiInstance, err := api.New(
@@ -374,11 +480,15 @@ func TestConfigureInstallationControllerError(t *testing.T) {
 
 // Test the getInstall endpoint returns installation data correctly
 func TestGetInstallationConfig(t *testing.T) {
+	rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
+	rc.SetDataDir(t.TempDir())
+
 	// Create a config manager
 	installationManager := installation.NewInstallationManager()
 
 	// Create an install controller with the config manager
 	installController, err := install.NewInstallController(
+		install.WithRuntimeConfig(rc),
 		install.WithInstallationManager(installationManager),
 	)
 	require.NoError(t, err)
@@ -439,6 +549,10 @@ func TestGetInstallationConfig(t *testing.T) {
 		netUtils := &utils.MockNetUtils{}
 		netUtils.On("ListValidNetworkInterfaces").Return([]string{"eth0", "eth1"}, nil).Once()
 		netUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Once()
+
+		rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
+		rc.SetDataDir(t.TempDir())
+
 		// Create a fresh config manager without writing anything
 		emptyInstallationManager := installation.NewInstallationManager(
 			installation.WithNetUtils(netUtils),
@@ -446,6 +560,7 @@ func TestGetInstallationConfig(t *testing.T) {
 
 		// Create an install controller with the empty config manager
 		emptyInstallController, err := install.NewInstallController(
+			install.WithRuntimeConfig(rc),
 			install.WithInstallationManager(emptyInstallationManager),
 		)
 		require.NoError(t, err)
@@ -809,11 +924,12 @@ func TestInstallWithAPIClient(t *testing.T) {
 	password := "test-password"
 
 	// Create a runtimeconfig to be used in the install process
-	rc := runtimeconfig.New(nil)
+	rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
+	rc.SetDataDir(t.TempDir())
 
 	// Create a mock hostutils
 	mockHostUtils := &hostutils.MockHostUtils{}
-	mockHostUtils.On("ConfigureHost", mock.Anything, mock.Anything).Return(nil)
+	mockHostUtils.On("ConfigureHost", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Create a config manager
 	installationManager := installation.NewInstallationManager(
@@ -908,8 +1024,15 @@ func TestInstallWithAPIClient(t *testing.T) {
 		assert.NotNil(t, status, "Status should not be nil")
 
 		// Verify the status was set correctly
-		assert.Equal(t, types.StateRunning, status.State)
-		assert.Equal(t, "Configuring installation", status.Description)
+		var installStatus *types.Status
+		if !assert.Eventually(t, func() bool {
+			installStatus, err = c.GetInstallationStatus()
+			require.NoError(t, err, "GetInstallationStatus should succeed")
+			return installStatus.State == types.StateSucceeded
+		}, 1*time.Second, 100*time.Millisecond) {
+			require.Equal(t, types.StateSucceeded, installStatus.State,
+				"Installation not succeeded with state %s and description %s", installStatus.State, installStatus.Description)
+		}
 
 		// Get the config to verify it persisted
 		newConfig, err := c.GetInstallationConfig()
@@ -963,4 +1086,16 @@ func TestInstallWithAPIClient(t *testing.T) {
 		assert.NotNil(t, newStatus, "Install should not be nil")
 		assert.Equal(t, status, newStatus, "Install status should match the one set")
 	})
+}
+
+type testEnvSetter struct {
+	env map[string]string
+}
+
+func (e *testEnvSetter) Setenv(key string, val string) error {
+	if e.env == nil {
+		e.env = make(map[string]string)
+	}
+	e.env[key] = val
+	return nil
 }

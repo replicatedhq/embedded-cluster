@@ -57,7 +57,7 @@ func (m *MockInstallationManager) SetConfigDefaults(config *types.InstallationCo
 }
 
 // ConfigureHost mocks the ConfigureHost method
-func (m *MockInstallationManager) ConfigureHost(ctx context.Context, config *types.InstallationConfig) error {
-	args := m.Called(ctx, config)
+func (m *MockInstallationManager) ConfigureHost(ctx context.Context) error {
+	args := m.Called(ctx)
 	return args.Error(0)
 }

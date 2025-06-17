@@ -62,16 +62,6 @@ func (m *infraManager) Install(ctx context.Context, config *types.InstallationCo
 		return fmt.Errorf("installation config is required")
 	}
 
-	// Build proxy spec
-	var proxy *ecv1beta1.ProxySpec
-	if config.HTTPProxy != "" || config.HTTPSProxy != "" || config.NoProxy != "" {
-		proxy = &ecv1beta1.ProxySpec{
-			HTTPProxy:  config.HTTPProxy,
-			HTTPSProxy: config.HTTPSProxy,
-			NoProxy:    config.NoProxy,
-		}
-	}
-
 	license, err := helpers.ParseLicense(m.licenseFile)
 	if err != nil {
 		return fmt.Errorf("parse license: %w", err)
@@ -86,7 +76,7 @@ func (m *infraManager) Install(ctx context.Context, config *types.InstallationCo
 	}
 
 	// Run install in background
-	go m.install(context.Background(), config, proxy, license)
+	go m.install(context.Background(), config, license)
 
 	return nil
 }
@@ -94,7 +84,7 @@ func (m *infraManager) Install(ctx context.Context, config *types.InstallationCo
 func (m *infraManager) initComponentsList(license *kotsv1beta1.License) error {
 	components := []types.InfraComponent{{Name: K0sComponentName}}
 
-	addOns := addons.GetAddOnsForInstall(addons.InstallOptions{
+	addOns := addons.GetAddOnsForInstall(m.rc, addons.InstallOptions{
 		IsAirgap:                m.airgapBundle != "",
 		DisasterRecoveryEnabled: license.Spec.IsDisasterRecoverySupported,
 	})
@@ -112,7 +102,7 @@ func (m *infraManager) initComponentsList(license *kotsv1beta1.License) error {
 	return nil
 }
 
-func (m *infraManager) install(ctx context.Context, config *types.InstallationConfig, proxy *ecv1beta1.ProxySpec, license *kotsv1beta1.License) (finalErr error) {
+func (m *infraManager) install(ctx context.Context, config *types.InstallationConfig, license *kotsv1beta1.License) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
@@ -128,7 +118,7 @@ func (m *infraManager) install(ctx context.Context, config *types.InstallationCo
 		}
 	}()
 
-	k0sCfg, err := m.installK0s(ctx, config, proxy)
+	_, err := m.installK0s(ctx, config)
 	if err != nil {
 		return fmt.Errorf("install k0s: %w", err)
 	}
@@ -149,12 +139,12 @@ func (m *infraManager) install(ctx context.Context, config *types.InstallationCo
 	}
 	defer hcli.Close()
 
-	in, err := m.recordInstallation(ctx, kcli, proxy, license, k0sCfg)
+	in, err := m.recordInstallation(ctx, kcli, license)
 	if err != nil {
 		return fmt.Errorf("record installation: %w", err)
 	}
 
-	if err := m.installAddOns(ctx, config, proxy, license, kcli, mcli, hcli); err != nil {
+	if err := m.installAddOns(ctx, config, license, kcli, mcli, hcli); err != nil {
 		return fmt.Errorf("install addons: %w", err)
 	}
 
@@ -173,7 +163,7 @@ func (m *infraManager) install(ctx context.Context, config *types.InstallationCo
 	return nil
 }
 
-func (m *infraManager) installK0s(ctx context.Context, config *types.InstallationConfig, proxy *ecv1beta1.ProxySpec) (k0sCfg *k0sv1beta1.ClusterConfig, finalErr error) {
+func (m *infraManager) installK0s(ctx context.Context, config *types.InstallationConfig) (k0sCfg *k0sv1beta1.ClusterConfig, finalErr error) {
 	componentName := K0sComponentName
 
 	if err := m.setComponentStatus(componentName, types.StateRunning, "Installing"); err != nil {
@@ -202,7 +192,7 @@ func (m *infraManager) installK0s(ctx context.Context, config *types.Installatio
 	}
 
 	m.logger.Debug("creating systemd unit files")
-	if err := hostutils.CreateSystemdUnitFiles(ctx, m.logger, m.rc, false, proxy); err != nil {
+	if err := hostutils.CreateSystemdUnitFiles(ctx, m.logger, m.rc, false); err != nil {
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
@@ -238,7 +228,7 @@ func (m *infraManager) installK0s(ctx context.Context, config *types.Installatio
 	return k0sCfg, nil
 }
 
-func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, proxy *ecv1beta1.ProxySpec, license *kotsv1beta1.License, k0sCfg *k0sv1beta1.ClusterConfig) (*ecv1beta1.Installation, error) {
+func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license *kotsv1beta1.License) (*ecv1beta1.Installation, error) {
 	// get the configured custom domains
 	ecDomains := utils.GetDomains(m.releaseData)
 
@@ -246,8 +236,6 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 	m.logger.Debugf("recording installation")
 	in, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
 		IsAirgap:       m.airgapBundle != "",
-		Proxy:          proxy,
-		K0sConfig:      k0sCfg,
 		License:        license,
 		ConfigSpec:     m.getECConfigSpec(),
 		MetricsBaseURL: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
@@ -268,7 +256,6 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 func (m *infraManager) installAddOns(
 	ctx context.Context,
 	config *types.InstallationConfig,
-	proxy *ecv1beta1.ProxySpec,
 	license *kotsv1beta1.License,
 	kcli client.Client,
 	mcli metadata.Interface,
@@ -302,11 +289,9 @@ func (m *infraManager) installAddOns(
 		AdminConsolePwd:         m.password,
 		License:                 license,
 		IsAirgap:                m.airgapBundle != "",
-		Proxy:                   proxy,
 		TLSCertBytes:            m.tlsConfig.CertBytes,
 		TLSKeyBytes:             m.tlsConfig.KeyBytes,
 		Hostname:                m.tlsConfig.Hostname,
-		ServiceCIDR:             config.ServiceCIDR,
 		DisasterRecoveryEnabled: license.Spec.IsDisasterRecoverySupported,
 		IsMultiNodeEnabled:      license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec:      m.getECConfigSpec(),

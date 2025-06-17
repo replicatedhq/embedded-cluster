@@ -43,10 +43,7 @@ func (a *AddOns) getAddOnsForUpgrade(domains ecv1beta1.Domains, in *ecv1beta1.In
 		&openebs.OpenEBS{},
 	}
 
-	serviceCIDR := ""
-	if in.Spec.Network != nil {
-		serviceCIDR = in.Spec.Network.ServiceCIDR
-	}
+	serviceCIDR := a.rc.ServiceCIDR()
 
 	// ECO's embedded (wrong) metadata values do not match the published (correct) metadata values.
 	// This is because we re-generate the metadata.yaml file _after_ building the ECO binary / image.
@@ -62,7 +59,7 @@ func (a *AddOns) getAddOnsForUpgrade(domains ecv1beta1.Domains, in *ecv1beta1.In
 	}
 	addOns = append(addOns, &embeddedclusteroperator.EmbeddedClusterOperator{
 		IsAirgap:              in.Spec.AirGap,
-		Proxy:                 in.Spec.Proxy,
+		Proxy:                 a.rc.ProxySpec(),
 		ChartLocationOverride: ecoChartLocation,
 		ChartVersionOverride:  ecoChartVersion,
 		ImageRepoOverride:     ecoImageRepo,
@@ -85,14 +82,14 @@ func (a *AddOns) getAddOnsForUpgrade(domains ecv1beta1.Domains, in *ecv1beta1.In
 
 	if in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
 		addOns = append(addOns, &velero.Velero{
-			Proxy: in.Spec.Proxy,
+			Proxy: a.rc.ProxySpec(),
 		})
 	}
 
 	addOns = append(addOns, &adminconsole.AdminConsole{
 		IsAirgap:           in.Spec.AirGap,
 		IsHA:               in.Spec.HighAvailability,
-		Proxy:              in.Spec.Proxy,
+		Proxy:              a.rc.ProxySpec(),
 		ServiceCIDR:        serviceCIDR,
 		IsMultiNodeEnabled: in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
 	})

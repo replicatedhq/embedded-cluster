@@ -338,27 +338,36 @@ func TestConfigSetAndGet(t *testing.T) {
 func TestConfigureHost(t *testing.T) {
 	tests := []struct {
 		name        string
-		config      *types.InstallationConfig
+		rc          runtimeconfig.RuntimeConfig
 		setupMocks  func(*hostutils.MockHostUtils, *MockInstallationStore)
 		expectedErr bool
 	}{
 		{
 			name: "successful configuration",
-			config: &types.InstallationConfig{
-				DataDirectory: "/var/lib/embedded-cluster",
-				PodCIDR:       "10.0.0.0/16",
-				ServiceCIDR:   "10.1.0.0/16",
-			},
+			rc: func() runtimeconfig.RuntimeConfig {
+				rc := runtimeconfig.New(&ecv1beta1.RuntimeConfigSpec{
+					DataDir: "/var/lib/embedded-cluster",
+					Network: ecv1beta1.NetworkSpec{
+						PodCIDR:     "10.0.0.0/16",
+						ServiceCIDR: "10.1.0.0/16",
+					},
+				})
+				return rc
+			}(),
 			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
 				mock.InOrder(
 					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
-					hum.On("ConfigureHost", mock.Anything, hostutils.InitForInstallOptions{
-						LicenseFile:  "license.yaml",
-						AirgapBundle: "bundle.tar",
-						PodCIDR:      "10.0.0.0/16",
-						ServiceCIDR:  "10.1.0.0/16",
-					}).Return(nil),
+					hum.On("ConfigureHost", mock.Anything,
+						mock.MatchedBy(func(rc runtimeconfig.RuntimeConfig) bool {
+							return rc.EmbeddedClusterHomeDirectory() == "/var/lib/embedded-cluster" &&
+								rc.PodCIDR() == "10.0.0.0/16" &&
+								rc.ServiceCIDR() == "10.1.0.0/16"
+						}),
+						hostutils.InitForInstallOptions{
+							LicenseFile:  "license.yaml",
+							AirgapBundle: "bundle.tar",
+						}).Return(nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateSucceeded })).Return(nil),
 				)
 			},
@@ -366,9 +375,12 @@ func TestConfigureHost(t *testing.T) {
 		},
 		{
 			name: "already running",
-			config: &types.InstallationConfig{
-				DataDirectory: "/var/lib/embedded-cluster",
-			},
+			rc: func() runtimeconfig.RuntimeConfig {
+				rc := runtimeconfig.New(&ecv1beta1.RuntimeConfigSpec{
+					DataDir: "/var/lib/embedded-cluster",
+				})
+				return rc
+			}(),
 			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
 				im.On("GetStatus").Return(&types.Status{State: types.StateRunning}, nil)
 			},
@@ -376,17 +388,25 @@ func TestConfigureHost(t *testing.T) {
 		},
 		{
 			name: "configure installation fails",
-			config: &types.InstallationConfig{
-				DataDirectory: "/var/lib/embedded-cluster",
-			},
+			rc: func() runtimeconfig.RuntimeConfig {
+				rc := runtimeconfig.New(&ecv1beta1.RuntimeConfigSpec{
+					DataDir: "/var/lib/embedded-cluster",
+				})
+				return rc
+			}(),
 			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
 				mock.InOrder(
 					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
-					hum.On("ConfigureHost", mock.Anything, hostutils.InitForInstallOptions{
-						LicenseFile:  "license.yaml",
-						AirgapBundle: "bundle.tar",
-					}).Return(errors.New("configuration failed")),
+					hum.On("ConfigureHost", mock.Anything,
+						mock.MatchedBy(func(rc runtimeconfig.RuntimeConfig) bool {
+							return rc.EmbeddedClusterHomeDirectory() == "/var/lib/embedded-cluster"
+						}),
+						hostutils.InitForInstallOptions{
+							LicenseFile:  "license.yaml",
+							AirgapBundle: "bundle.tar",
+						},
+					).Return(errors.New("configuration failed")),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateFailed })).Return(nil),
 				)
 			},
@@ -394,9 +414,12 @@ func TestConfigureHost(t *testing.T) {
 		},
 		{
 			name: "set running status fails",
-			config: &types.InstallationConfig{
-				DataDirectory: "/var/lib/embedded-cluster",
-			},
+			rc: func() runtimeconfig.RuntimeConfig {
+				rc := runtimeconfig.New(&ecv1beta1.RuntimeConfigSpec{
+					DataDir: "/var/lib/embedded-cluster",
+				})
+				return rc
+			}(),
 			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
 				mock.InOrder(
 					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
@@ -409,6 +432,8 @@ func TestConfigureHost(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			rc := tt.rc
+
 			// Create mocks
 			mockHostUtils := &hostutils.MockHostUtils{}
 			mockStore := &MockInstallationStore{}
@@ -418,6 +443,7 @@ func TestConfigureHost(t *testing.T) {
 
 			// Create manager with mocks
 			manager := NewInstallationManager(
+				WithRuntimeConfig(rc),
 				WithHostUtils(mockHostUtils),
 				WithInstallationStore(mockStore),
 				WithLicenseFile("license.yaml"),
@@ -425,7 +451,7 @@ func TestConfigureHost(t *testing.T) {
 			)
 
 			// Run the test
-			err := manager.ConfigureHost(context.Background(), tt.config)
+			err := manager.ConfigureHost(context.Background())
 
 			// Assertions
 			if tt.expectedErr {

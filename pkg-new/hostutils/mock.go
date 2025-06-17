@@ -3,7 +3,6 @@ package hostutils
 import (
 	"context"
 
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
@@ -18,7 +17,7 @@ type MockHostUtils struct {
 
 // ConfigureHost mocks the ConfigureHost method
 func (m *MockHostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
-	args := m.Called(ctx, opts)
+	args := m.Called(ctx, rc, opts)
 	return args.Error(0)
 }
 
@@ -59,8 +58,8 @@ func (m *MockHostUtils) MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapB
 }
 
 // CreateSystemdUnitFiles mocks the CreateSystemdUnitFiles method
-func (m *MockHostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
-	args := m.Called(ctx, logger, rc, isWorker, proxy)
+func (m *MockHostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool) error {
+	args := m.Called(ctx, logger, rc, isWorker)
 	return args.Error(0)
 }
 

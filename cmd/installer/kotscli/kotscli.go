@@ -73,11 +73,9 @@ func Install(opts InstallOptions) error {
 		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
 	}
 
-	if opts.Stdout != nil {
-		if msg, ok := opts.Stdout.(*spinner.MessageWriter); ok {
-			msg.SetMask(maskfn)
-			defer msg.SetMask(nil)
-		}
+	if msg, ok := opts.Stdout.(*spinner.MessageWriter); ok && msg != nil {
+		msg.SetMask(maskfn)
+		defer msg.SetMask(nil)
 	}
 
 	runCommandOptions := helpers.RunCommandOptions{

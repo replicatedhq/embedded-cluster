@@ -5,7 +5,6 @@ import (
 	"io"
 
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
@@ -22,7 +21,7 @@ func Set(_p PreflightsRunnerInterface) {
 
 type PreflightsRunnerInterface interface {
 	Prepare(ctx context.Context, opts PrepareOptions) (*troubleshootv1beta2.HostPreflightSpec, error)
-	Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error)
+	Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error)
 	CopyBundleTo(dst string) error
 	SaveToDisk(output *apitypes.HostPreflightsOutput, path string) error
 	OutputFromReader(reader io.Reader) (*apitypes.HostPreflightsOutput, error)
@@ -37,8 +36,8 @@ func Prepare(ctx context.Context, opts PrepareOptions) (*troubleshootv1beta2.Hos
 	return p.Prepare(ctx, opts)
 }
 
-func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error) {
-	return p.Run(ctx, spec, proxy, rc)
+func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error) {
+	return p.Run(ctx, spec, rc)
 }
 
 func CopyBundleTo(dst string) error {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -18,7 +17,6 @@ import (
 func runHostPreflights(
 	ctx context.Context,
 	hpf *troubleshootv1beta2.HostPreflightSpec,
-	proxy *ecv1beta1.ProxySpec,
 	rc runtimeconfig.RuntimeConfig,
 	skipHostPreflights bool,
 	ignoreHostPreflights bool,
@@ -43,7 +41,7 @@ func runHostPreflights(
 
 	spinner.Infof("Running host preflights")
 
-	output, stderr, err := preflights.Run(ctx, hpf, proxy, rc)
+	output, stderr, err := preflights.Run(ctx, hpf, rc)
 	if err != nil {
 		spinner.ErrorClosef("Failed to run host preflights")
 		return fmt.Errorf("host preflights failed to run: %w", err)

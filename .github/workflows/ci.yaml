@@ -405,6 +405,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Free up runner disk space
+        uses: ./.github/actions/free-disk-space
+
       - name: Cache embedded bins
         uses: actions/cache@v4
         with:

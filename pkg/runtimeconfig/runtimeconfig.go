@@ -11,16 +11,46 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+var _ RuntimeConfig = &runtimeConfig{}
+
+type Option func(*runtimeConfig)
+
+type EnvSetter interface {
+	Setenv(key string, val string) error
+}
+
 type runtimeConfig struct {
-	spec *ecv1beta1.RuntimeConfigSpec
+	spec      *ecv1beta1.RuntimeConfigSpec
+	envSetter EnvSetter
+}
+
+type osEnvSetter struct{}
+
+func (o *osEnvSetter) Setenv(key string, val string) error {
+	return os.Setenv(key, val)
+}
+
+func WithEnvSetter(envSetter EnvSetter) Option {
+	return func(rc *runtimeConfig) {
+		rc.envSetter = envSetter
+	}
 }
 
 // New creates a new RuntimeConfig instance
-func New(spec *ecv1beta1.RuntimeConfigSpec) RuntimeConfig {
+func New(spec *ecv1beta1.RuntimeConfigSpec, opts ...Option) RuntimeConfig {
 	if spec == nil {
 		spec = ecv1beta1.GetDefaultRuntimeConfig()
 	}
-	return &runtimeConfig{spec: spec}
+	rc := &runtimeConfig{spec: spec}
+	for _, opt := range opts {
+		opt(rc)
+	}
+
+	if rc.envSetter == nil {
+		rc.envSetter = &osEnvSetter{}
+	}
+
+	return rc
 }
 
 // NewFromDisk creates a new RuntimeConfig instance from the runtime config file on disk at path
@@ -164,6 +194,17 @@ func (rc *runtimeConfig) PathToEmbeddedClusterSupportFile(name string) string {
 	return filepath.Join(rc.EmbeddedClusterSupportSubDir(), name)
 }
 
+// SetEnv sets the environment variables for the RuntimeConfig.
+func (rc *runtimeConfig) SetEnv() error {
+	if err := rc.envSetter.Setenv("KUBECONFIG", rc.PathToKubeConfig()); err != nil {
+		return fmt.Errorf("set KUBECONFIG: %w", err)
+	}
+	if err := rc.envSetter.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir()); err != nil {
+		return fmt.Errorf("set TMPDIR: %w", err)
+	}
+	return nil
+}
+
 // WriteToDisk writes the spec for the RuntimeConfig to the runtime config file on disk at path
 // /etc/embedded-cluster/ec.yaml.
 func (rc *runtimeConfig) WriteToDisk() error {
@@ -216,6 +257,42 @@ func (rc *runtimeConfig) ManagerPort() int {
 	return ecv1beta1.DefaultManagerPort
 }
 
+// ProxySpec returns the configured proxy spec or nil if not configured.
+func (rc *runtimeConfig) ProxySpec() *ecv1beta1.ProxySpec {
+	return rc.spec.Proxy
+}
+
+// GlobalCIDR returns the configured global CIDR or the default if not configured.
+func (rc *runtimeConfig) GlobalCIDR() string {
+	if rc.spec.Network.GlobalCIDR == "" && rc.spec.Network.PodCIDR == "" && rc.spec.Network.ServiceCIDR == "" {
+		return ecv1beta1.DefaultNetworkCIDR
+	}
+	return rc.spec.Network.GlobalCIDR
+}
+
+// PodCIDR returns the configured pod CIDR or the default if not configured.
+func (rc *runtimeConfig) PodCIDR() string {
+	return rc.spec.Network.PodCIDR
+}
+
+// ServiceCIDR returns the configured service CIDR or the default if not configured.
+func (rc *runtimeConfig) ServiceCIDR() string {
+	return rc.spec.Network.ServiceCIDR
+}
+
+// NetworkInterface returns the configured network interface or the default if not configured.
+func (rc *runtimeConfig) NetworkInterface() string {
+	return rc.spec.Network.NetworkInterface
+}
+
+// NodePortRange returns the configured node port range or the default if not configured.
+func (rc *runtimeConfig) NodePortRange() string {
+	if rc.spec.Network.NodePortRange == "" {
+		return ecv1beta1.DefaultNetworkNodePortRange
+	}
+	return rc.spec.Network.NodePortRange
+}
+
 // HostCABundlePath returns the path to the host CA bundle.
 func (rc *runtimeConfig) HostCABundlePath() string {
 	return rc.spec.HostCABundlePath
@@ -239,6 +316,16 @@ func (rc *runtimeConfig) SetAdminConsolePort(port int) {
 // SetManagerPort sets the port for the manager.
 func (rc *runtimeConfig) SetManagerPort(port int) {
 	rc.spec.Manager.Port = port
+}
+
+// SetProxySpec sets the proxy spec for the runtime configuration.
+func (rc *runtimeConfig) SetProxySpec(proxySpec *ecv1beta1.ProxySpec) {
+	rc.spec.Proxy = proxySpec
+}
+
+// SetNetworkSpec sets the network spec for the runtime configuration.
+func (rc *runtimeConfig) SetNetworkSpec(networkSpec ecv1beta1.NetworkSpec) {
+	rc.spec.Network = networkSpec
 }
 
 // SetHostCABundlePath sets the path to the host CA bundle.

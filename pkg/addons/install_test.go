@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,6 +18,7 @@ import (
 func Test_getAddOnsForInstall(t *testing.T) {
 	tests := []struct {
 		name   string
+		rc     runtimeconfig.RuntimeConfig
 		opts   InstallOptions
 		before func()
 		verify func(t *testing.T, addons []types.AddOn)
@@ -24,6 +26,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 	}{
 		{
 			name: "online installation",
+			rc:   runtimeconfig.New(nil),
 			opts: InstallOptions{
 				IsAirgap:                false,
 				DisasterRecoveryEnabled: false,
@@ -56,10 +59,14 @@ func Test_getAddOnsForInstall(t *testing.T) {
 		},
 		{
 			name: "airgap installation",
+			rc: func() runtimeconfig.RuntimeConfig {
+				rc := runtimeconfig.New(nil)
+				rc.SetNetworkSpec(ecv1beta1.NetworkSpec{ServiceCIDR: "10.96.0.0/12"})
+				return rc
+			}(),
 			opts: InstallOptions{
 				IsAirgap:                true,
 				DisasterRecoveryEnabled: false,
-				ServiceCIDR:             "10.96.0.0/12",
 				AdminConsolePwd:         "password123",
 			},
 			verify: func(t *testing.T, addons []types.AddOn) {
@@ -93,11 +100,15 @@ func Test_getAddOnsForInstall(t *testing.T) {
 		},
 		{
 			name: "disaster recovery enabled",
+			rc: func() runtimeconfig.RuntimeConfig {
+				rc := runtimeconfig.New(nil)
+				rc.SetNetworkSpec(ecv1beta1.NetworkSpec{ServiceCIDR: "10.96.0.0/12"})
+				return rc
+			}(),
 			opts: InstallOptions{
 				IsAirgap:                false,
 				DisasterRecoveryEnabled: true,
 				AdminConsolePwd:         "password123",
-				ServiceCIDR:             "10.96.0.0/12",
 			},
 			verify: func(t *testing.T, addons []types.AddOn) {
 				assert.Len(t, addons, 4)
@@ -130,16 +141,20 @@ func Test_getAddOnsForInstall(t *testing.T) {
 		},
 		{
 			name: "airgap with disaster recovery and proxy",
-			opts: InstallOptions{
-				IsAirgap:                true,
-				DisasterRecoveryEnabled: true,
-				ServiceCIDR:             "10.96.0.0/12",
-				Proxy: &ecv1beta1.ProxySpec{
+			rc: func() runtimeconfig.RuntimeConfig {
+				rc := runtimeconfig.New(nil)
+				rc.SetNetworkSpec(ecv1beta1.NetworkSpec{ServiceCIDR: "10.96.0.0/12"})
+				rc.SetProxySpec(&ecv1beta1.ProxySpec{
 					HTTPProxy:  "http://proxy.example.com",
 					HTTPSProxy: "https://proxy.example.com",
 					NoProxy:    "localhost,127.0.0.1",
-				},
-				AdminConsolePwd: "password123",
+				})
+				return rc
+			}(),
+			opts: InstallOptions{
+				IsAirgap:                true,
+				DisasterRecoveryEnabled: true,
+				AdminConsolePwd:         "password123",
 			},
 			verify: func(t *testing.T, addons []types.AddOn) {
 				assert.Len(t, addons, 5)
@@ -185,10 +200,12 @@ func Test_getAddOnsForInstall(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			rc := tt.rc
+			rc.SetDataDir(t.TempDir())
 			if tt.before != nil {
 				tt.before()
 			}
-			tt.verify(t, GetAddOnsForInstall(tt.opts))
+			tt.verify(t, GetAddOnsForInstall(rc, tt.opts))
 			if tt.after != nil {
 				tt.after()
 			}
