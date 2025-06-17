@@ -44,7 +44,7 @@ func Test_serveAPI(t *testing.T) {
 	certPool.AddCert(cert.Leaf)
 
 	// Mock the web assets filesystem so that we don't need to embed the web assets.
-	webAssetsFS = fstest.MapFS{
+	webAssetsFS := fstest.MapFS{
 		"index.html": &fstest.MapFile{
 			Data: []byte(""),
 			Mode: 0644,

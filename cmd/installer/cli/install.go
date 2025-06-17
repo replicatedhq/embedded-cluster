@@ -2,10 +2,8 @@ package cli
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"strings"
 	"syscall"
@@ -22,7 +20,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	ecmetadata "github.com/replicatedhq/embedded-cluster/pkg-new/metadata"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
@@ -63,22 +60,9 @@ type InstallCmdFlags struct {
 	configValues            string
 	networkInterface        string
 
-	// guided UI flags
-	enableManagerExperience bool
-	managerPort             int
-	tlsCertFile             string
-	tlsKeyFile              string
-	hostname                string
-
 	// TODO: move to substruct
-	license      *kotsv1beta1.License
-	tlsCert      tls.Certificate
-	tlsCertBytes []byte
-	tlsKeyBytes  []byte
+	license *kotsv1beta1.License
 }
-
-// webAssetsFS is the filesystem to be used by the web component. Defaults to nil allowing the web server to use the default assets embedded in the binary. Useful for testing.
-var webAssetsFS fs.FS = nil
 
 // InstallCmd returns a cobra command for installing the embedded cluster.
 func InstallCmd(ctx context.Context, name string) *cobra.Command {
@@ -100,10 +84,6 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 			if err := preRunInstall(cmd, &flags, rc); err != nil {
 				return err
-			}
-
-			if flags.enableManagerExperience {
-				return runManagerExperienceInstall(ctx, flags, rc)
 			}
 
 			_ = rc.SetEnv()
@@ -141,11 +121,10 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
-	if err := addManagerExperienceFlags(cmd, &flags); err != nil {
-		panic(err)
-	}
 
 	cmd.AddCommand(InstallRunPreflightsCmd(ctx, name))
+	cmd.AddCommand(InstallLinuxCmd(ctx, name))
+	cmd.AddCommand(InstallKubernetesCmd(ctx, name))
 
 	return cmd
 }
@@ -198,32 +177,6 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) err
 		panic(err)
 	}
 	cmd.Flags().StringVar(&flags.configValues, "config-values", "", "Path to the config values to use when installing")
-
-	return nil
-}
-
-func addManagerExperienceFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
-	cmd.Flags().BoolVar(&flags.enableManagerExperience, "manager-experience", false, "Run the browser-based installation experience.")
-	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
-	cmd.Flags().StringVar(&flags.tlsCertFile, "tls-cert", "", "Path to the TLS certificate file")
-	cmd.Flags().StringVar(&flags.tlsKeyFile, "tls-key", "", "Path to the TLS key file")
-	cmd.Flags().StringVar(&flags.hostname, "hostname", "", "Hostname to use for TLS configuration")
-
-	if err := cmd.Flags().MarkHidden("manager-experience"); err != nil {
-		return err
-	}
-	if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
-		return err
-	}
-	if err := cmd.Flags().MarkHidden("tls-cert"); err != nil {
-		return err
-	}
-	if err := cmd.Flags().MarkHidden("tls-key"); err != nil {
-		return err
-	}
-	if err := cmd.Flags().MarkHidden("hostname"); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -350,96 +303,7 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 	return cidrCfg, nil
 }
 
-func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (finalErr error) {
-	// this is necessary because the api listens on all interfaces,
-	// and we only know the interface to use when the user selects it in the ui
-	ipAddresses, err := netutils.ListAllValidIPAddresses()
-	if err != nil {
-		return fmt.Errorf("unable to list all valid IP addresses: %w", err)
-	}
-
-	if flags.tlsCertFile == "" || flags.tlsKeyFile == "" {
-		logrus.Warn("\nNo certificate files provided. A self-signed certificate will be used, and your browser will show a security warning.")
-		logrus.Info("To use your own certificate, provide both --tls-key and --tls-cert flags.")
-
-		if !flags.assumeYes {
-			logrus.Info("") // newline so the prompt is separated from the warning
-			confirmed, err := prompts.New().Confirm("Do you want to continue with a self-signed certificate?", false)
-			if err != nil {
-				return fmt.Errorf("failed to get confirmation: %w", err)
-			}
-			if !confirmed {
-				logrus.Infof("\nInstallation cancelled. Please run the command again with the --tls-key and --tls-cert flags.\n")
-				return nil
-			}
-		}
-	}
-
-	if flags.tlsCertFile != "" && flags.tlsKeyFile != "" {
-		cert, err := tls.LoadX509KeyPair(flags.tlsCertFile, flags.tlsKeyFile)
-		if err != nil {
-			return fmt.Errorf("load tls certificate: %w", err)
-		}
-		certData, err := os.ReadFile(flags.tlsCertFile)
-		if err != nil {
-			return fmt.Errorf("unable to read tls cert file: %w", err)
-		}
-		keyData, err := os.ReadFile(flags.tlsKeyFile)
-		if err != nil {
-			return fmt.Errorf("unable to read tls key file: %w", err)
-		}
-		flags.tlsCert = cert
-		flags.tlsCertBytes = certData
-		flags.tlsKeyBytes = keyData
-	} else {
-		cert, certData, keyData, err := tlsutils.GenerateCertificate(flags.hostname, ipAddresses)
-		if err != nil {
-			return fmt.Errorf("generate tls certificate: %w", err)
-		}
-		flags.tlsCert = cert
-		flags.tlsCertBytes = certData
-		flags.tlsKeyBytes = keyData
-	}
-
-	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
-	if err != nil {
-		return fmt.Errorf("process overrides file: %w", err)
-	}
-
-	apiConfig := apiConfig{
-		// TODO (@salah): implement reporting in api
-		// MetricsReporter: installReporter,
-		RuntimeConfig: rc,
-		Password:      flags.adminConsolePassword,
-		TLSConfig: apitypes.TLSConfig{
-			CertBytes: flags.tlsCertBytes,
-			KeyBytes:  flags.tlsKeyBytes,
-			Hostname:  flags.hostname,
-		},
-		ManagerPort:   flags.managerPort,
-		LicenseFile:   flags.licenseFile,
-		AirgapBundle:  flags.airgapBundle,
-		ConfigValues:  flags.configValues,
-		ReleaseData:   release.GetReleaseData(),
-		EndUserConfig: eucfg,
-	}
-
-	if err := startAPI(ctx, flags.tlsCert, apiConfig); err != nil {
-		return fmt.Errorf("unable to start api: %w", err)
-	}
-
-	// TODO: add app name to this message (e.g., App Name manager)
-	logrus.Infof("\nVisit the manager to continue: %s\n", getManagerURL(flags.hostname, flags.managerPort))
-	<-ctx.Done()
-
-	return nil
-}
-
 func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) (finalErr error) {
-	if flags.enableManagerExperience {
-		return nil
-	}
-
 	logrus.Debug("initializing install")
 	if err := initializeInstall(ctx, flags, rc); err != nil {
 		return fmt.Errorf("unable to initialize install: %w", err)
@@ -523,7 +387,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 		logrus.Warnf("Unable to create host support bundle: %v", err)
 	}
 
-	printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc)
+	printSuccessMessage(flags.license, flags.networkInterface, rc)
 
 	return nil
 }
@@ -547,9 +411,6 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 		AdminConsolePwd:         flags.adminConsolePassword,
 		License:                 flags.license,
 		IsAirgap:                flags.airgapBundle != "",
-		TLSCertBytes:            flags.tlsCertBytes,
-		TLSKeyBytes:             flags.tlsKeyBytes,
-		Hostname:                flags.hostname,
 		DisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
 		IsMultiNodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec:      embCfgSpec,
@@ -1086,8 +947,8 @@ func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName 
 	return pflag.NormalizedName(name)
 }
 
-func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig) {
-	adminConsoleURL := getAdminConsoleURL(hostname, networkInterface, rc.AdminConsolePort())
+func printSuccessMessage(license *kotsv1beta1.License, networkInterface string, rc runtimeconfig.RuntimeConfig) {
+	adminConsoleURL := getAdminConsoleURL(networkInterface, rc.AdminConsolePort())
 
 	// Create the message content
 	message := fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)
@@ -1115,10 +976,7 @@ func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkI
 	logrus.Infof("%s%s%s\n", boldStart, divider, boldEnd)
 }
 
-func getAdminConsoleURL(hostname string, networkInterface string, port int) string {
-	if hostname != "" {
-		return fmt.Sprintf("http://%s:%v", hostname, port)
-	}
+func getAdminConsoleURL(networkInterface string, port int) string {
 	ipaddr := cloudutils.TryDiscoverPublicIP()
 	if ipaddr == "" {
 		if addr := os.Getenv("EC_PUBLIC_ADDRESS"); addr != "" {
