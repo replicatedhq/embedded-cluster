@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import StepNavigation from "../StepNavigation.tsx";
+import { WizardStep } from "../../../types/index.ts";
 
 describe("StepNavigation", () => {
   const defaultPreloadedState = {
@@ -119,7 +120,7 @@ describe("StepNavigation", () => {
 
     testCases.forEach(({ currentStep, setupStatus, installStatus }) => {
       const { unmount } = renderWithProviders(
-        <StepNavigation currentStep={currentStep as any} />,
+        <StepNavigation currentStep={currentStep as WizardStep} />,
         {
           wrapperProps: {
             authenticated: true,
