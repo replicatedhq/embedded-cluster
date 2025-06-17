@@ -21,18 +21,8 @@ const (
 	StateFailed    State = "Failed"
 )
 
-func NewStatus() *Status {
-	return &Status{
-		State: StatePending,
-	}
-}
-
-func ValidateStatus(status *Status) error {
+func ValidateStatus(status Status) error {
 	var ve *APIError
-
-	if status == nil {
-		return NewBadRequestError(errors.New("a status is required"))
-	}
 
 	switch status.State {
 	case StatePending, StateRunning, StateSucceeded, StateFailed:

@@ -16,12 +16,12 @@ type MockInstallationManager struct {
 }
 
 // GetConfig mocks the GetConfig method
-func (m *MockInstallationManager) GetConfig() (*types.InstallationConfig, error) {
+func (m *MockInstallationManager) GetConfig() (types.InstallationConfig, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return types.InstallationConfig{}, args.Error(1)
 	}
-	return args.Get(0).(*types.InstallationConfig), args.Error(1)
+	return args.Get(0).(types.InstallationConfig), args.Error(1)
 }
 
 // SetConfig mocks the SetConfig method
@@ -31,12 +31,12 @@ func (m *MockInstallationManager) SetConfig(config types.InstallationConfig) err
 }
 
 // GetStatus mocks the GetStatus method
-func (m *MockInstallationManager) GetStatus() (*types.Status, error) {
+func (m *MockInstallationManager) GetStatus() (types.Status, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return types.Status{}, args.Error(1)
 	}
-	return args.Get(0).(*types.Status), args.Error(1)
+	return args.Get(0).(types.Status), args.Error(1)
 }
 
 // SetStatus mocks the SetStatus method
@@ -46,7 +46,7 @@ func (m *MockInstallationManager) SetStatus(status types.Status) error {
 }
 
 // ValidateConfig mocks the ValidateConfig method
-func (m *MockInstallationManager) ValidateConfig(config *types.InstallationConfig, managerPort int) error {
+func (m *MockInstallationManager) ValidateConfig(config types.InstallationConfig, managerPort int) error {
 	args := m.Called(config, managerPort)
 	return args.Error(0)
 }

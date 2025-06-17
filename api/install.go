@@ -44,7 +44,7 @@ func (a *API) postInstallConfigureInstallation(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if err := a.installController.ConfigureInstallation(r.Context(), &config); err != nil {
+	if err := a.installController.ConfigureInstallation(r.Context(), config); err != nil {
 		a.logError(r, err, "failed to set installation config")
 		a.jsonError(w, r, err)
 		return
@@ -199,13 +199,13 @@ func (a *API) setInstallStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := types.ValidateStatus(&status); err != nil {
+	if err := types.ValidateStatus(status); err != nil {
 		a.logError(r, err, "invalid install status")
 		a.jsonError(w, r, err)
 		return
 	}
 
-	if err := a.installController.SetStatus(r.Context(), &status); err != nil {
+	if err := a.installController.SetStatus(r.Context(), status); err != nil {
 		a.logError(r, err, "failed to set install status")
 		a.jsonError(w, r, err)
 		return

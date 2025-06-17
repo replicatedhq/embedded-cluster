@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -26,7 +27,33 @@ func (m *infraManager) waitForNode(ctx context.Context, kcli client.Client) erro
 	return nil
 }
 
-func (m *infraManager) getHelmClient(rc runtimeconfig.RuntimeConfig) (helm.Client, error) {
+func (m *infraManager) kubeClient() (client.Client, error) {
+	if m.kcli != nil {
+		return m.kcli, nil
+	}
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return nil, fmt.Errorf("create kube client: %w", err)
+	}
+	return kcli, nil
+}
+
+func (m *infraManager) metadataClient() (metadata.Interface, error) {
+	if m.mcli != nil {
+		return m.mcli, nil
+	}
+	mcli, err := kubeutils.MetadataClient()
+	if err != nil {
+		return nil, fmt.Errorf("create metadata client: %w", err)
+	}
+	return mcli, nil
+}
+
+func (m *infraManager) helmClient(rc runtimeconfig.RuntimeConfig) (helm.Client, error) {
+	if m.hcli != nil {
+		return m.hcli, nil
+	}
+
 	airgapChartsPath := ""
 	if m.airgapBundle != "" {
 		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()

@@ -198,7 +198,7 @@ func markUIInstallComplete(password string, managerPort int, installErr error) e
 		description = "Installation succeeded"
 	}
 
-	_, err := apiClient.SetInstallStatus(&apitypes.Status{
+	_, err := apiClient.SetInstallStatus(apitypes.Status{
 		State:       state,
 		Description: description,
 		LastUpdated: time.Now(),

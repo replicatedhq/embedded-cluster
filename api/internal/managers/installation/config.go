@@ -14,7 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
-func (m *installationManager) GetConfig() (*types.InstallationConfig, error) {
+func (m *installationManager) GetConfig() (types.InstallationConfig, error) {
 	return m.installationStore.GetConfig()
 }
 
@@ -22,7 +22,7 @@ func (m *installationManager) SetConfig(config types.InstallationConfig) error {
 	return m.installationStore.SetConfig(config)
 }
 
-func (m *installationManager) ValidateConfig(config *types.InstallationConfig, managerPort int) error {
+func (m *installationManager) ValidateConfig(config types.InstallationConfig, managerPort int) error {
 	var ve *types.APIError
 
 	if err := m.validateGlobalCIDR(config); err != nil {
@@ -56,7 +56,7 @@ func (m *installationManager) ValidateConfig(config *types.InstallationConfig, m
 	return ve.ErrorOrNil()
 }
 
-func (m *installationManager) validateGlobalCIDR(config *types.InstallationConfig) error {
+func (m *installationManager) validateGlobalCIDR(config types.InstallationConfig) error {
 	if config.GlobalCIDR != "" {
 		if err := netutils.ValidateCIDR(config.GlobalCIDR, 16, true); err != nil {
 			return err
@@ -69,7 +69,7 @@ func (m *installationManager) validateGlobalCIDR(config *types.InstallationConfi
 	return nil
 }
 
-func (m *installationManager) validatePodCIDR(config *types.InstallationConfig) error {
+func (m *installationManager) validatePodCIDR(config types.InstallationConfig) error {
 	if config.GlobalCIDR != "" {
 		return nil
 	}
@@ -79,7 +79,7 @@ func (m *installationManager) validatePodCIDR(config *types.InstallationConfig) 
 	return nil
 }
 
-func (m *installationManager) validateServiceCIDR(config *types.InstallationConfig) error {
+func (m *installationManager) validateServiceCIDR(config types.InstallationConfig) error {
 	if config.GlobalCIDR != "" {
 		return nil
 	}
@@ -89,7 +89,7 @@ func (m *installationManager) validateServiceCIDR(config *types.InstallationConf
 	return nil
 }
 
-func (m *installationManager) validateNetworkInterface(config *types.InstallationConfig) error {
+func (m *installationManager) validateNetworkInterface(config types.InstallationConfig) error {
 	if config.NetworkInterface == "" {
 		return errors.New("networkInterface is required")
 	}
@@ -98,7 +98,7 @@ func (m *installationManager) validateNetworkInterface(config *types.Installatio
 	return nil
 }
 
-func (m *installationManager) validateAdminConsolePort(config *types.InstallationConfig, managerPort int) error {
+func (m *installationManager) validateAdminConsolePort(config types.InstallationConfig, managerPort int) error {
 	if config.AdminConsolePort == 0 {
 		return errors.New("adminConsolePort is required")
 	}
@@ -119,7 +119,7 @@ func (m *installationManager) validateAdminConsolePort(config *types.Installatio
 	return nil
 }
 
-func (m *installationManager) validateLocalArtifactMirrorPort(config *types.InstallationConfig, managerPort int) error {
+func (m *installationManager) validateLocalArtifactMirrorPort(config types.InstallationConfig, managerPort int) error {
 	if config.LocalArtifactMirrorPort == 0 {
 		return errors.New("localArtifactMirrorPort is required")
 	}
@@ -140,7 +140,7 @@ func (m *installationManager) validateLocalArtifactMirrorPort(config *types.Inst
 	return nil
 }
 
-func (m *installationManager) validateDataDirectory(config *types.InstallationConfig) error {
+func (m *installationManager) validateDataDirectory(config types.InstallationConfig) error {
 	if config.DataDirectory == "" {
 		return errors.New("dataDirectory is required")
 	}

@@ -6,7 +6,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (m *installationManager) GetStatus() (*types.Status, error) {
+func (m *installationManager) GetStatus() (types.Status, error) {
 	return m.installationStore.GetStatus()
 }
 

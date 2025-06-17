@@ -10,13 +10,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	ecmetadata "github.com/replicatedhq/embedded-cluster/pkg-new/metadata"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -43,7 +40,7 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	installed, err := k0s.IsInstalled()
+	installed, err := m.k0scli.IsInstalled()
 	if err != nil {
 		return err
 	}
@@ -120,17 +117,17 @@ func (m *infraManager) install(ctx context.Context, license *kotsv1beta1.License
 		return fmt.Errorf("install k0s: %w", err)
 	}
 
-	kcli, err := kubeutils.KubeClient()
+	kcli, err := m.kubeClient()
 	if err != nil {
 		return fmt.Errorf("create kube client: %w", err)
 	}
 
-	mcli, err := kubeutils.MetadataClient()
+	mcli, err := m.metadataClient()
 	if err != nil {
 		return fmt.Errorf("create metadata client: %w", err)
 	}
 
-	hcli, err := m.getHelmClient(rc)
+	hcli, err := m.helmClient(rc)
 	if err != nil {
 		return fmt.Errorf("create helm client: %w", err)
 	}
@@ -153,7 +150,7 @@ func (m *infraManager) install(ctx context.Context, license *kotsv1beta1.License
 		return fmt.Errorf("update installation: %w", err)
 	}
 
-	if err = support.CreateHostSupportBundle(); err != nil {
+	if err = support.CreateHostSupportBundle(ctx, kcli); err != nil {
 		m.logger.Warnf("Unable to create host support bundle: %v", err)
 	}
 
@@ -187,27 +184,27 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 	logFn := m.logFn("k0s")
 
 	logFn("creating k0s configuration file")
-	k0sCfg, err := k0s.WriteK0sConfig(ctx, rc.NetworkInterface(), m.airgapBundle, rc.PodCIDR(), rc.ServiceCIDR(), m.endUserConfig, nil)
+	k0sCfg, err := m.k0scli.WriteK0sConfig(ctx, rc.NetworkInterface(), m.airgapBundle, rc.PodCIDR(), rc.ServiceCIDR(), m.endUserConfig, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 
 	logFn("creating systemd unit files")
-	if err := hostutils.CreateSystemdUnitFiles(ctx, m.logger, rc, false); err != nil {
+	if err := m.hostUtils.CreateSystemdUnitFiles(ctx, m.logger, rc, false); err != nil {
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
 	logFn("installing k0s")
-	if err := k0s.Install(rc); err != nil {
+	if err := m.k0scli.Install(rc); err != nil {
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
 
 	logFn("waiting for k0s to be ready")
-	if err := k0s.WaitForK0s(); err != nil {
+	if err := m.k0scli.WaitForK0s(); err != nil {
 		return nil, fmt.Errorf("wait for k0s: %w", err)
 	}
 
-	kcli, err := kubeutils.KubeClient()
+	kcli, err := m.kubeClient()
 	if err != nil {
 		return nil, fmt.Errorf("create kube client: %w", err)
 	}
@@ -224,7 +221,7 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 	if err != nil {
 		return nil, fmt.Errorf("get registry cluster IP: %w", err)
 	}
-	if err := airgap.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
+	if err := m.hostUtils.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
 		return nil, fmt.Errorf("add insecure registry: %w", err)
 	}
 
@@ -260,9 +257,6 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 }
 
 func (m *infraManager) installAddOns(ctx context.Context, license *kotsv1beta1.License, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig) error {
-	// get the configured custom domains
-	ecDomains := utils.GetDomains(m.releaseData)
-
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -294,8 +288,20 @@ func (m *infraManager) installAddOns(ctx context.Context, license *kotsv1beta1.L
 		addons.WithProgressChannel(progressChan),
 	)
 
+	opts := m.getAddonInstallOpts(license, rc)
+
 	logFn("installing addons")
-	if err := addOns.Install(ctx, addons.InstallOptions{
+	if err := addOns.Install(ctx, opts); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) addons.InstallOptions {
+	ecDomains := utils.GetDomains(m.releaseData)
+
+	opts := addons.InstallOptions{
 		AdminConsolePwd:         m.password,
 		License:                 license,
 		IsAirgap:                m.airgapBundle != "",
@@ -306,7 +312,12 @@ func (m *infraManager) installAddOns(ctx context.Context, license *kotsv1beta1.L
 		IsMultiNodeEnabled:      license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec:      m.getECConfigSpec(),
 		EndUserConfigSpec:       m.getEndUserConfigSpec(),
-		KotsInstaller: func() error {
+	}
+
+	if m.kotsInstaller != nil { // used for testing
+		opts.KotsInstaller = m.kotsInstaller
+	} else {
+		opts.KotsInstaller = func() error {
 			opts := kotscli.InstallOptions{
 				RuntimeConfig:         rc,
 				AppSlug:               license.Spec.AppSlug,
@@ -319,12 +330,10 @@ func (m *infraManager) installAddOns(ctx context.Context, license *kotsv1beta1.L
 				// Stdout:                stdout,
 			}
 			return kotscli.Install(opts)
-		},
-	}); err != nil {
-		return err
+		}
 	}
 
-	return nil
+	return opts
 }
 
 func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) (finalErr error) {
