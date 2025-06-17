@@ -13,11 +13,6 @@ const InstallationProgress: React.FC<InstallationProgressProps> = ({
   themeColor,
   status
 }) => {
-  const displayMessage = () => {
-    if (!currentMessage) return 'Preparing installation...';
-    return status === 'Running' ? `${currentMessage}` : currentMessage;
-  };
-
   return (
     <div className="mb-6">
       <div className="w-full bg-gray-200 rounded-full h-2.5">
@@ -30,7 +25,7 @@ const InstallationProgress: React.FC<InstallationProgressProps> = ({
         />
       </div>
       <p className="text-sm text-gray-500 mt-2">
-        {displayMessage()}
+        {currentMessage || 'Preparing installation...'}
       </p>
     </div>
   );
