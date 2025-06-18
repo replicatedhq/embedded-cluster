@@ -23,7 +23,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
-	installationstore "github.com/replicatedhq/embedded-cluster/api/internal/store/installation"
 	preflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
@@ -1115,10 +1114,6 @@ func TestInstallWithAPIClient(t *testing.T) {
 
 // Test the setupInfra endpoint runs infrastructure setup correctly
 func TestPostSetupInfra(t *testing.T) {
-	// Create a runtime config
-	rc := runtimeconfig.New(nil)
-	rc.SetDataDir(t.TempDir())
-
 	// Create schemes
 	scheme := runtime.NewScheme()
 	require.NoError(t, ecv1beta1.AddToScheme(scheme))
@@ -1142,14 +1137,14 @@ func TestPostSetupInfra(t *testing.T) {
 			Build()
 		fakeMcli := metadatafake.NewSimpleMetadataClient(metascheme)
 
-		// Create installation
-		inst := types.Installation{}
-		inst.Config = types.InstallationConfig{
-			DataDirectory:    t.TempDir(),
+		// Create a runtime config
+		rc := runtimeconfig.New(nil)
+		rc.SetDataDir(t.TempDir())
+		rc.SetNetworkSpec(ecv1beta1.NetworkSpec{
 			NetworkInterface: "eth0",
 			ServiceCIDR:      "10.96.0.0/12",
 			PodCIDR:          "10.244.0.0/16",
-		}
+		})
 
 		// Create host preflights with successful status
 		hpf := types.HostPreflights{}
@@ -1157,11 +1152,6 @@ func TestPostSetupInfra(t *testing.T) {
 			State:       types.StateSucceeded,
 			Description: "Host preflights succeeded",
 		}
-
-		// Create installation manager
-		iManager := installation.NewInstallationManager(
-			installation.WithInstallationStore(installationstore.NewMemoryStore(installationstore.WithInstallation(inst))),
-		)
 
 		// Create host preflights manager
 		pfManager := preflight.NewHostPreflightManager(
@@ -1206,8 +1196,8 @@ func TestPostSetupInfra(t *testing.T) {
 		mock.InOrder(
 			k0sMock.On("IsInstalled").Return(false, nil),
 			k0sMock.On("WriteK0sConfig", mock.Anything, "eth0", "", "10.244.0.0/16", "10.96.0.0/12", mock.Anything, mock.Anything).Return(k0sConfig, nil),
-			hostutilsMock.On("CreateSystemdUnitFiles", mock.Anything, mock.Anything, rc, false, mock.Anything).Return(nil),
-			k0sMock.On("Install", rc, "eth0").Return(nil),
+			hostutilsMock.On("CreateSystemdUnitFiles", mock.Anything, mock.Anything, rc, false).Return(nil),
+			k0sMock.On("Install", rc).Return(nil),
 			k0sMock.On("WaitForK0s").Return(nil),
 			hostutilsMock.On("AddInsecureRegistry", mock.Anything).Return(nil),
 			helmMock.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil), // 4 addons
@@ -1217,7 +1207,6 @@ func TestPostSetupInfra(t *testing.T) {
 		// Create an install controller with the mocked managers
 		installController, err := install.NewInstallController(
 			install.WithHostPreflightManager(pfManager),
-			install.WithInstallationManager(iManager),
 			install.WithInfraManager(infraManager),
 			install.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
@@ -1429,11 +1418,12 @@ func TestPostSetupInfra(t *testing.T) {
 		// Create mocks
 		k0sMock := &k0s.MockK0s{}
 
-		// Create installation
-		inst := types.Installation{}
-		inst.Config = types.InstallationConfig{
+		// Create a runtime config
+		rc := runtimeconfig.New(nil)
+		rc.SetDataDir(t.TempDir())
+		rc.SetNetworkSpec(ecv1beta1.NetworkSpec{
 			NetworkInterface: "eth0",
-		}
+		})
 
 		// Create host preflights with successful status
 		hpf := types.HostPreflights{}
@@ -1443,9 +1433,6 @@ func TestPostSetupInfra(t *testing.T) {
 		}
 
 		// Create managers
-		iManager := installation.NewInstallationManager(
-			installation.WithInstallationStore(installationstore.NewMemoryStore(installationstore.WithInstallation(inst))),
-		)
 		pfManager := preflight.NewHostPreflightManager(
 			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
 		)
@@ -1459,7 +1446,6 @@ func TestPostSetupInfra(t *testing.T) {
 		// Create an install controller
 		installController, err := install.NewInstallController(
 			install.WithHostPreflightManager(pfManager),
-			install.WithInstallationManager(iManager),
 			install.WithInfraManager(infraManager),
 			install.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
@@ -1503,13 +1489,14 @@ func TestPostSetupInfra(t *testing.T) {
 		k0sMock := &k0s.MockK0s{}
 		hostutilsMock := &hostutils.MockHostUtils{}
 
-		// Create installation
-		inst := types.Installation{}
-		inst.Config = types.InstallationConfig{
+		// Create a runtime config
+		rc := runtimeconfig.New(nil)
+		rc.SetDataDir(t.TempDir())
+		rc.SetNetworkSpec(ecv1beta1.NetworkSpec{
 			NetworkInterface: "eth0",
 			ServiceCIDR:      "10.96.0.0/12",
 			PodCIDR:          "10.244.0.0/16",
-		}
+		})
 
 		// Create host preflights with successful status
 		hpf := types.HostPreflights{}
@@ -1523,9 +1510,6 @@ func TestPostSetupInfra(t *testing.T) {
 		require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
 
 		// Create managers
-		iManager := installation.NewInstallationManager(
-			installation.WithInstallationStore(installationstore.NewMemoryStore(installationstore.WithInstallation(inst))),
-		)
 		pfManager := preflight.NewHostPreflightManager(
 			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
 		)
@@ -1540,14 +1524,13 @@ func TestPostSetupInfra(t *testing.T) {
 		mock.InOrder(
 			k0sMock.On("IsInstalled").Return(false, nil),
 			k0sMock.On("WriteK0sConfig", mock.Anything, "eth0", "", "10.244.0.0/16", "10.96.0.0/12", mock.Anything, mock.Anything).Return(k0sConfig, nil),
-			hostutilsMock.On("CreateSystemdUnitFiles", mock.Anything, mock.Anything, rc, false, mock.Anything).Return(nil),
-			k0sMock.On("Install", mock.Anything, "eth0").Return(errors.New("failed to install k0s")),
+			hostutilsMock.On("CreateSystemdUnitFiles", mock.Anything, mock.Anything, rc, false).Return(nil),
+			k0sMock.On("Install", mock.Anything).Return(errors.New("failed to install k0s")),
 		)
 
 		// Create an install controller
 		installController, err := install.NewInstallController(
 			install.WithHostPreflightManager(pfManager),
-			install.WithInstallationManager(iManager),
 			install.WithInfraManager(infraManager),
 			install.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
