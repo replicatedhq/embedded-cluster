@@ -228,7 +228,7 @@ func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfi
 		AirgapBundle: m.airgapBundle,
 	}
 	if err := m.hostUtils.ConfigureHost(ctx, rc, opts); err != nil {
-		return fmt.Errorf("configure installation: %w", err)
+		return fmt.Errorf("configure host: %w", err)
 	}
 
 	return nil

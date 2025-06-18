@@ -34,6 +34,9 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 	}
 
 	go func() {
+		// Background context is used to avoid canceling the operation if the context is canceled
+		ctx := context.Background()
+
 		lock, err := c.stateMachine.AcquireLock()
 		if err != nil {
 			c.logger.Error("failed to acquire lock", "error", err)

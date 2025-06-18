@@ -28,6 +28,9 @@ func (c *InstallController) SetupInfra(ctx context.Context) error {
 	}
 
 	go func() {
+		// Background context is used to avoid canceling the operation if the context is canceled
+		ctx := context.Background()
+
 		defer lock.Release()
 
 		defer func() {
@@ -41,8 +44,7 @@ func (c *InstallController) SetupInfra(ctx context.Context) error {
 			}
 		}()
 
-		// Background context is used to avoid canceling the operation if the context is canceled
-		err := c.infraManager.Install(context.Background(), c.rc)
+		err := c.infraManager.Install(ctx, c.rc)
 
 		if err != nil {
 			c.logger.Errorf("failed to install infrastructure: %w", err)

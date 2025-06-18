@@ -44,6 +44,9 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 	}
 
 	go func() {
+		// Background context is used to avoid canceling the operation if the context is canceled
+		ctx := context.Background()
+
 		defer lock.Release()
 
 		defer func() {
@@ -57,8 +60,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 			}
 		}()
 
-		// Background context is used to avoid canceling the operation if the context is canceled
-		err := c.hostPreflightManager.RunHostPreflights(context.Background(), c.rc, preflight.RunHostPreflightOptions{
+		err := c.hostPreflightManager.RunHostPreflights(ctx, c.rc, preflight.RunHostPreflightOptions{
 			HostPreflightSpec: hpf,
 		})
 
