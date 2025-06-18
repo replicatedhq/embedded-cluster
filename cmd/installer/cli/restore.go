@@ -462,7 +462,7 @@ func installAddonsForRestore(ctx context.Context, kcli client.Client, mcli metad
 				loading = spinner.Start()
 				loading.Infof("Installing %s", progress.Name)
 			case apitypes.StateSucceeded:
-				loading.Closef("%s is ready", progress.Name)
+				loading.Closef("%s is ready", strings.ToUpper(progress.Name[:1])+progress.Name[1:])
 			case apitypes.StateFailed:
 				loading.ErrorClosef("Failed to install %s", progress.Name)
 			}
