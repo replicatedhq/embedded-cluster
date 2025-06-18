@@ -157,8 +157,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
           </div>
           <div>
             <p className="text-sm text-gray-700">
-              Some validation checks have failed. Are you sure you want to continue with the installation? 
-              This may cause installation issues.
+              Some preflight checks have failed. Continuing with the installation is likely to cause errors. Are you sure you want to proceed?
             </p>
           </div>
         </div>
