@@ -2,7 +2,6 @@ package installation
 
 import (
 	"context"
-	"sync"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/installation"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
@@ -34,7 +33,6 @@ type installationManager struct {
 	netUtils          utils.NetUtils
 	hostUtils         hostutils.HostUtilsInterface
 	logger            logrus.FieldLogger
-	mu                sync.RWMutex
 }
 
 type InstallationManagerOption func(*installationManager)

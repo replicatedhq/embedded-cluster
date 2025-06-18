@@ -28,6 +28,35 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.In
 }
 
 func (c *InstallController) ConfigureInstallation(ctx context.Context, config types.InstallationConfig) error {
+	err := c.configureInstallation(ctx, config)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		lock, err := c.stateMachine.AcquireLock()
+		if err != nil {
+			c.logger.Error("failed to acquire lock", "error", err)
+			return
+		}
+		defer lock.Release()
+
+		err = c.installationManager.ConfigureHost(ctx, c.rc)
+
+		if err != nil {
+			c.logger.Error("failed to configure host", "error", err)
+		} else {
+			err = c.stateMachine.Transition(lock, StateHostConfigured)
+			if err != nil {
+				c.logger.Error("failed to transition states", "error", err)
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (c *InstallController) configureInstallation(ctx context.Context, config types.InstallationConfig) error {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -74,10 +103,6 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 	// update process env vars from the runtime config
 	if err := c.rc.SetEnv(); err != nil {
 		return fmt.Errorf("set env vars: %w", err)
-	}
-
-	if err := c.installationManager.ConfigureHost(ctx, c.rc); err != nil {
-		return fmt.Errorf("configure: %w", err)
 	}
 
 	err = c.stateMachine.Transition(lock, StateInstallationConfigured)

@@ -22,8 +22,16 @@ func TestStateMachineTransitions(t *testing.T) {
 			},
 		},
 		{
-			name:       `State "InstallationConfigured" can transition to "PreflightsRunning" or "InstallationConfigured"`,
+			name:       `State "InstallationConfigured" can transition to "HostConfigured" or "InstallationConfigured"`,
 			startState: StateInstallationConfigured,
+			validTransitions: []statemachine.State{
+				StateHostConfigured,
+				StateInstallationConfigured,
+			},
+		},
+		{
+			name:       `State "HostConfigured" can transition to "PreflightsRunning" or "InstallationConfigured"`,
+			startState: StateHostConfigured,
 			validTransitions: []statemachine.State{
 				StatePreflightsRunning,
 				StateInstallationConfigured,

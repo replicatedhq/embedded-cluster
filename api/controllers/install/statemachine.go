@@ -7,6 +7,8 @@ const (
 	StateNew statemachine.State = "New"
 	// StateInstallationConfigured is the state of the install process when the installation is configured
 	StateInstallationConfigured statemachine.State = "InstallationConfigured"
+	// StateHostConfigured is the state of the install process when the host is configured
+	StateHostConfigured statemachine.State = "HostConfigured"
 	// StatePreflightsRunning is the state of the install process when the preflights are running
 	StatePreflightsRunning statemachine.State = "PreflightsRunning"
 	// StatePreflightsSucceeded is the state of the install process when the preflights have succeeded
@@ -25,7 +27,8 @@ const (
 
 var validStateTransitions = map[statemachine.State][]statemachine.State{
 	StateNew:                      {StateInstallationConfigured},
-	StateInstallationConfigured:   {StatePreflightsRunning, StateInstallationConfigured},
+	StateInstallationConfigured:   {StateHostConfigured, StateInstallationConfigured},
+	StateHostConfigured:           {StatePreflightsRunning, StateInstallationConfigured},
 	StatePreflightsRunning:        {StatePreflightsSucceeded, StatePreflightsFailed},
 	StatePreflightsSucceeded:      {StateInfrastructureInstalling, StatePreflightsRunning, StateInstallationConfigured},
 	StatePreflightsFailed:         {StatePreflightsFailedBypassed, StatePreflightsRunning, StateInstallationConfigured},

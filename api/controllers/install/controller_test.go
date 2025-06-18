@@ -129,7 +129,7 @@ func TestConfigureInstallation(t *testing.T) {
 				DataDirectory:           t.TempDir(),
 			},
 			currentState:  StateNew,
-			expectedState: StateInstallationConfigured,
+			expectedState: StateHostConfigured,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
 				mock.InOrder(
 					m.On("ValidateConfig", config, 9001).Return(nil),
@@ -163,13 +163,30 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedErr: true,
 		},
 		{
+			name: "configure host error",
+			config: types.InstallationConfig{
+				LocalArtifactMirrorPort: 9000,
+				DataDirectory:           t.TempDir(),
+			},
+			currentState:  StateNew,
+			expectedState: StateInstallationConfigured,
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+				mock.InOrder(
+					m.On("ValidateConfig", config, 9001).Return(nil),
+					m.On("SetConfig", config).Return(nil),
+					m.On("ConfigureHost", t.Context(), rc).Return(errors.New("configure host error")),
+				)
+			},
+			expectedErr: false,
+		},
+		{
 			name: "with global CIDR",
 			config: types.InstallationConfig{
 				GlobalCIDR:    "10.0.0.0/16",
 				DataDirectory: t.TempDir(),
 			},
 			currentState:  StateNew,
-			expectedState: StateInstallationConfigured,
+			expectedState: StateHostConfigured,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
 				// Create a copy with expected CIDR values after computation
 				configWithCIDRs := config
@@ -222,7 +239,13 @@ func TestConfigureInstallation(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
+
+				assert.NotEqual(t, tt.currentState, sm.CurrentState(), "state should have changed and should not be %s", tt.currentState)
 			}
+
+			assert.Eventually(t, func() bool {
+				return sm.CurrentState() == tt.expectedState
+			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
 
 			mockManager.AssertExpectations(t)
 		})
