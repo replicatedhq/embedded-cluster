@@ -15,11 +15,7 @@ func (m *installationManager) SetStatus(status types.Status) error {
 }
 
 func (m *installationManager) IsInState(state types.State) (bool, error) {
-	status, err := m.GetStatus()
-	if err != nil {
-		return false, err
-	}
-	return status.State == state, nil
+	return m.installationStore.IsInState(state), nil
 }
 
 func (m *installationManager) setRunningStatus(description string) error {

@@ -41,3 +41,9 @@ func (m *MockStore) SetStatus(status types.Status) error {
 	args := m.Called(status)
 	return args.Error(0)
 }
+
+// IsInState mocks the IsInState method
+func (m *MockStore) IsInState(state types.State) bool {
+	args := m.Called(state)
+	return args.Bool(0)
+}

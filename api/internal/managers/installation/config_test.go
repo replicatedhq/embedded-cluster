@@ -354,7 +354,7 @@ func TestConfigureHost(t *testing.T) {
 			}(),
 			setupMocks: func(hum *hostutils.MockHostUtils, im *installation.MockStore) {
 				mock.InOrder(
-					im.On("GetStatus").Return(types.Status{State: types.StatePending}, nil),
+					im.On("IsInState", types.StateRunning).Return(false),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
 					hum.On("ConfigureHost", mock.Anything,
 						mock.MatchedBy(func(rc runtimeconfig.RuntimeConfig) bool {
@@ -380,7 +380,7 @@ func TestConfigureHost(t *testing.T) {
 				return rc
 			}(),
 			setupMocks: func(hum *hostutils.MockHostUtils, im *installation.MockStore) {
-				im.On("GetStatus").Return(types.Status{State: types.StateRunning}, nil)
+				im.On("IsInState", types.StateRunning).Return(true)
 			},
 			expectedErr: true,
 		},
@@ -394,7 +394,7 @@ func TestConfigureHost(t *testing.T) {
 			}(),
 			setupMocks: func(hum *hostutils.MockHostUtils, im *installation.MockStore) {
 				mock.InOrder(
-					im.On("GetStatus").Return(types.Status{State: types.StatePending}, nil),
+					im.On("IsInState", types.StateRunning).Return(false),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
 					hum.On("ConfigureHost", mock.Anything,
 						mock.MatchedBy(func(rc runtimeconfig.RuntimeConfig) bool {
@@ -420,7 +420,7 @@ func TestConfigureHost(t *testing.T) {
 			}(),
 			setupMocks: func(hum *hostutils.MockHostUtils, im *installation.MockStore) {
 				mock.InOrder(
-					im.On("GetStatus").Return(types.Status{State: types.StatePending}, nil),
+					im.On("IsInState", types.StateRunning).Return(false),
 					im.On("SetStatus", mock.Anything).Return(errors.New("failed to set status")),
 				)
 			},
