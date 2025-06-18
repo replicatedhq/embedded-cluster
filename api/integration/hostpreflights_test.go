@@ -13,6 +13,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
+	installationstore "github.com/replicatedhq/embedded-cluster/api/internal/store/installation"
+	preflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -48,7 +50,7 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 			"Some Preflight",
 			"Another Preflight",
 		},
-		Status: &types.Status{
+		Status: types.Status{
 			State:       types.StateFailed,
 			Description: "A preflight failed",
 		},
@@ -56,7 +58,9 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 	runner := &preflights.MockPreflightRunner{}
 	// Create a host preflights manager
 	manager := preflight.NewHostPreflightManager(
-		preflight.WithHostPreflightStore(preflight.NewMemoryStore(&hpf)),
+		preflight.WithHostPreflightStore(
+			preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf)),
+		),
 		preflight.WithPreflightRunner(runner),
 	)
 	// Create an install controller
@@ -255,18 +259,16 @@ func TestPostRunHostPreflights(t *testing.T) {
 		runner := &preflights.MockPreflightRunner{}
 
 		// Creeate the installation struct
-		inst := types.NewInstallation()
+		inst := types.Installation{}
 
 		// Create a host preflights manager with the mock runner
 		pfManager := preflight.NewHostPreflightManager(
-			preflight.WithRuntimeConfig(rc),
 			preflight.WithPreflightRunner(runner),
 		)
 
 		// Create an installation manager
 		iManager := installation.NewInstallationManager(
-			installation.WithRuntimeConfig(rc),
-			installation.WithInstallationStore(installation.NewMemoryStore(inst)),
+			installation.WithInstallationStore(installationstore.NewMemoryStore(installationstore.WithInstallation(inst))),
 		)
 
 		// Create an install controller with the mocked manager
@@ -346,7 +348,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		require.NoError(t, err)
 
 		// The state should eventually be set to succeeded in a goroutine
-		var preflightsStatus *types.Status
+		var preflightsStatus types.Status
 		if !assert.Eventually(t, func() bool {
 			preflightsStatus, err = installController.GetHostPreflightStatus(t.Context())
 			require.NoError(t, err, "GetHostPreflightStatus should succeed")
@@ -524,7 +526,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		require.NoError(t, err)
 
 		// The state should eventually be set to failed in a goroutine
-		var preflightsStatus *types.Status
+		var preflightsStatus types.Status
 		if !assert.Eventually(t, func() bool {
 			preflightsStatus, err = installController.GetHostPreflightStatus(t.Context())
 			require.NoError(t, err, "GetHostPreflightStatus should succeed")
@@ -541,13 +543,13 @@ func TestPostRunHostPreflights(t *testing.T) {
 	// Test we get a conflict error if preflights are already running
 	t.Run("Preflights already running errror", func(t *testing.T) {
 		// Create a host preflights manager with the failing mock runner
-		hp := types.NewHostPreflights()
-		hp.Status = &types.Status{
+		hp := types.HostPreflights{}
+		hp.Status = types.Status{
 			State:       types.StateRunning,
 			Description: "Preflights running",
 		}
 		manager := preflight.NewHostPreflightManager(
-			preflight.WithHostPreflightStore(preflight.NewMemoryStore(hp)),
+			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hp))),
 		)
 
 		// Create an install controller with the failing manager

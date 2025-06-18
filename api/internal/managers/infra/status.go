@@ -7,7 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (m *infraManager) GetStatus() (*types.Status, error) {
+func (m *infraManager) GetStatus() (types.Status, error) {
 	return m.infraStore.GetStatus()
 }
 
@@ -19,9 +19,6 @@ func (m *infraManager) installDidRun() (bool, error) {
 	currStatus, err := m.GetStatus()
 	if err != nil {
 		return false, fmt.Errorf("get status: %w", err)
-	}
-	if currStatus == nil {
-		return false, nil
 	}
 	if currStatus.State == "" {
 		return false, nil
@@ -45,7 +42,7 @@ func (m *infraManager) setStatusDesc(description string) error {
 }
 
 func (m *infraManager) setComponentStatus(name string, state types.State, description string) error {
-	return m.infraStore.SetComponentStatus(name, &types.Status{
+	return m.infraStore.SetComponentStatus(name, types.Status{
 		State:       state,
 		Description: description,
 		LastUpdated: time.Now(),

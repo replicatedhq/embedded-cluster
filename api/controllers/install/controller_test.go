@@ -24,24 +24,24 @@ func TestGetInstallationConfig(t *testing.T) {
 		name          string
 		setupMock     func(*installation.MockInstallationManager)
 		expectedErr   bool
-		expectedValue *types.InstallationConfig
+		expectedValue types.InstallationConfig
 	}{
 		{
 			name: "successful get",
 			setupMock: func(m *installation.MockInstallationManager) {
-				config := &types.InstallationConfig{
+				config := types.InstallationConfig{
 					AdminConsolePort: 9000,
 					GlobalCIDR:       "10.0.0.1/16",
 				}
 
 				mock.InOrder(
 					m.On("GetConfig").Return(config, nil),
-					m.On("SetConfigDefaults", config).Return(nil),
-					m.On("ValidateConfig", config).Return(nil),
+					m.On("SetConfigDefaults", &config).Return(nil),
+					m.On("ValidateConfig", config, 9001).Return(nil),
 				)
 			},
 			expectedErr: false,
-			expectedValue: &types.InstallationConfig{
+			expectedValue: types.InstallationConfig{
 				AdminConsolePort: 9000,
 				GlobalCIDR:       "10.0.0.1/16",
 			},
@@ -52,32 +52,32 @@ func TestGetInstallationConfig(t *testing.T) {
 				m.On("GetConfig").Return(nil, errors.New("read error"))
 			},
 			expectedErr:   true,
-			expectedValue: nil,
+			expectedValue: types.InstallationConfig{},
 		},
 		{
 			name: "set defaults error",
 			setupMock: func(m *installation.MockInstallationManager) {
-				config := &types.InstallationConfig{}
+				config := types.InstallationConfig{}
 				mock.InOrder(
 					m.On("GetConfig").Return(config, nil),
-					m.On("SetConfigDefaults", config).Return(errors.New("defaults error")),
+					m.On("SetConfigDefaults", &config).Return(errors.New("defaults error")),
 				)
 			},
 			expectedErr:   true,
-			expectedValue: nil,
+			expectedValue: types.InstallationConfig{},
 		},
 		{
 			name: "validate error",
 			setupMock: func(m *installation.MockInstallationManager) {
-				config := &types.InstallationConfig{}
+				config := types.InstallationConfig{}
 				mock.InOrder(
 					m.On("GetConfig").Return(config, nil),
-					m.On("SetConfigDefaults", config).Return(nil),
-					m.On("ValidateConfig", config).Return(errors.New("validation error")),
+					m.On("SetConfigDefaults", &config).Return(nil),
+					m.On("ValidateConfig", config, 9001).Return(errors.New("validation error")),
 				)
 			},
 			expectedErr:   true,
-			expectedValue: nil,
+			expectedValue: types.InstallationConfig{},
 		},
 	}
 
@@ -85,6 +85,7 @@ func TestGetInstallationConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
 			rc.SetDataDir(t.TempDir())
+			rc.SetManagerPort(9001)
 
 			mockManager := &installation.MockInstallationManager{}
 			tt.setupMock(mockManager)
@@ -99,7 +100,7 @@ func TestGetInstallationConfig(t *testing.T) {
 
 			if tt.expectedErr {
 				assert.Error(t, err)
-				assert.Nil(t, result)
+				assert.Equal(t, types.InstallationConfig{}, result)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedValue, result)
@@ -113,60 +114,60 @@ func TestGetInstallationConfig(t *testing.T) {
 func TestConfigureInstallation(t *testing.T) {
 	tests := []struct {
 		name        string
-		config      *types.InstallationConfig
-		setupMock   func(*installation.MockInstallationManager, *types.InstallationConfig)
+		config      types.InstallationConfig
+		setupMock   func(*installation.MockInstallationManager, runtimeconfig.RuntimeConfig, types.InstallationConfig)
 		expectedErr bool
 	}{
 		{
 			name: "successful configure installation",
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				LocalArtifactMirrorPort: 9000,
 				DataDirectory:           t.TempDir(),
 			},
-			setupMock: func(m *installation.MockInstallationManager, config *types.InstallationConfig) {
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
 				mock.InOrder(
-					m.On("ValidateConfig", config).Return(nil),
-					m.On("SetConfig", *config).Return(nil),
-					m.On("ConfigureHost", t.Context()).Return(nil),
+					m.On("ValidateConfig", config, 9001).Return(nil),
+					m.On("SetConfig", config).Return(nil),
+					m.On("ConfigureHost", t.Context(), rc).Return(nil),
 				)
 			},
 			expectedErr: false,
 		},
 		{
 			name:   "validate error",
-			config: &types.InstallationConfig{},
-			setupMock: func(m *installation.MockInstallationManager, config *types.InstallationConfig) {
-				m.On("ValidateConfig", config).Return(errors.New("validation error"))
+			config: types.InstallationConfig{},
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+				m.On("ValidateConfig", config, 9001).Return(errors.New("validation error"))
 			},
 			expectedErr: true,
 		},
 		{
 			name:   "set config error",
-			config: &types.InstallationConfig{},
-			setupMock: func(m *installation.MockInstallationManager, config *types.InstallationConfig) {
+			config: types.InstallationConfig{},
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
 				mock.InOrder(
-					m.On("ValidateConfig", config).Return(nil),
-					m.On("SetConfig", *config).Return(errors.New("set config error")),
+					m.On("ValidateConfig", config, 9001).Return(nil),
+					m.On("SetConfig", config).Return(errors.New("set config error")),
 				)
 			},
 			expectedErr: true,
 		},
 		{
 			name: "with global CIDR",
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				GlobalCIDR:    "10.0.0.0/16",
 				DataDirectory: t.TempDir(),
 			},
-			setupMock: func(m *installation.MockInstallationManager, config *types.InstallationConfig) {
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
 				// Create a copy with expected CIDR values after computation
-				configWithCIDRs := *config
+				configWithCIDRs := config
 				configWithCIDRs.PodCIDR = "10.0.0.0/17"
 				configWithCIDRs.ServiceCIDR = "10.0.128.0/17"
 
 				mock.InOrder(
-					m.On("ValidateConfig", config).Return(nil),
+					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("SetConfig", configWithCIDRs).Return(nil),
-					m.On("ConfigureHost", t.Context()).Return(nil),
+					m.On("ConfigureHost", t.Context(), rc).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -177,13 +178,11 @@ func TestConfigureInstallation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
 			rc.SetDataDir(t.TempDir())
+			rc.SetManagerPort(9001)
 
 			mockManager := &installation.MockInstallationManager{}
 
-			// Create a copy of the config to avoid modifying the original
-			configCopy := *tt.config
-
-			tt.setupMock(mockManager, &configCopy)
+			tt.setupMock(mockManager, rc, tt.config)
 
 			controller, err := NewInstallController(
 				WithRuntimeConfig(rc),
@@ -245,11 +244,11 @@ func TestIntegrationComputeCIDRs(t *testing.T) {
 			controller, err := NewInstallController()
 			require.NoError(t, err)
 
-			config := &types.InstallationConfig{
+			config := types.InstallationConfig{
 				GlobalCIDR: tt.globalCIDR,
 			}
 
-			err = controller.computeCIDRs(config)
+			err = controller.computeCIDRs(&config)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -273,15 +272,15 @@ func TestRunHostPreflights(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		setupMocks  func(*preflight.MockHostPreflightManager)
+		setupMocks  func(*preflight.MockHostPreflightManager, runtimeconfig.RuntimeConfig)
 		expectedErr bool
 	}{
 		{
 			name: "successful run preflights",
-			setupMocks: func(pm *preflight.MockHostPreflightManager) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
 				mock.InOrder(
-					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", t.Context(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
+					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
+					pm.On("RunHostPreflights", t.Context(), rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
 				)
@@ -290,19 +289,19 @@ func TestRunHostPreflights(t *testing.T) {
 		},
 		{
 			name: "prepare preflights error",
-			setupMocks: func(pm *preflight.MockHostPreflightManager) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
 				mock.InOrder(
-					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(nil, errors.New("prepare error")),
+					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(nil, errors.New("prepare error")),
 				)
 			},
 			expectedErr: true,
 		},
 		{
 			name: "run preflights error",
-			setupMocks: func(pm *preflight.MockHostPreflightManager) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
 				mock.InOrder(
-					pm.On("PrepareHostPreflights", t.Context(), mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", t.Context(), mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
+					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
+					pm.On("RunHostPreflights", t.Context(), rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(errors.New("run preflights error")),
 				)
@@ -313,9 +312,6 @@ func TestRunHostPreflights(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockPreflightManager := &preflight.MockHostPreflightManager{}
-			tt.setupMocks(mockPreflightManager)
-
 			rc := runtimeconfig.New(nil)
 			rc.SetDataDir(t.TempDir())
 			rc.SetProxySpec(&ecv1beta1.ProxySpec{
@@ -324,6 +320,9 @@ func TestRunHostPreflights(t *testing.T) {
 				ProvidedNoProxy: "provided-proxy.com",
 				NoProxy:         "no-proxy.com",
 			})
+
+			mockPreflightManager := &preflight.MockHostPreflightManager{}
+			tt.setupMocks(mockPreflightManager, rc)
 
 			controller, err := NewInstallController(
 				WithRuntimeConfig(rc),
@@ -350,18 +349,18 @@ func TestGetHostPreflightStatus(t *testing.T) {
 		name          string
 		setupMock     func(*preflight.MockHostPreflightManager)
 		expectedErr   bool
-		expectedValue *types.Status
+		expectedValue types.Status
 	}{
 		{
 			name: "successful get status",
 			setupMock: func(m *preflight.MockHostPreflightManager) {
-				status := &types.Status{
+				status := types.Status{
 					State: types.StateFailed,
 				}
 				m.On("GetHostPreflightStatus", t.Context()).Return(status, nil)
 			},
 			expectedErr: false,
-			expectedValue: &types.Status{
+			expectedValue: types.Status{
 				State: types.StateFailed,
 			},
 		},
@@ -371,7 +370,7 @@ func TestGetHostPreflightStatus(t *testing.T) {
 				m.On("GetHostPreflightStatus", t.Context()).Return(nil, errors.New("get status error"))
 			},
 			expectedErr:   true,
-			expectedValue: nil,
+			expectedValue: types.Status{},
 		},
 	}
 
@@ -387,7 +386,7 @@ func TestGetHostPreflightStatus(t *testing.T) {
 
 			if tt.expectedErr {
 				assert.Error(t, err)
-				assert.Nil(t, result)
+				assert.Equal(t, types.Status{}, result)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedValue, result)
@@ -515,18 +514,18 @@ func TestGetInstallationStatus(t *testing.T) {
 		name          string
 		setupMock     func(*installation.MockInstallationManager)
 		expectedErr   bool
-		expectedValue *types.Status
+		expectedValue types.Status
 	}{
 		{
 			name: "successful get status",
 			setupMock: func(m *installation.MockInstallationManager) {
-				status := &types.Status{
+				status := types.Status{
 					State: types.StateRunning,
 				}
 				m.On("GetStatus").Return(status, nil)
 			},
 			expectedErr: false,
-			expectedValue: &types.Status{
+			expectedValue: types.Status{
 				State: types.StateRunning,
 			},
 		},
@@ -536,7 +535,7 @@ func TestGetInstallationStatus(t *testing.T) {
 				m.On("GetStatus").Return(nil, errors.New("get status error"))
 			},
 			expectedErr:   true,
-			expectedValue: nil,
+			expectedValue: types.Status{},
 		},
 	}
 
@@ -552,7 +551,7 @@ func TestGetInstallationStatus(t *testing.T) {
 
 			if tt.expectedErr {
 				assert.Error(t, err)
-				assert.Nil(t, result)
+				assert.Equal(t, types.Status{}, result)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedValue, result)
@@ -566,30 +565,26 @@ func TestGetInstallationStatus(t *testing.T) {
 func TestSetupInfra(t *testing.T) {
 	tests := []struct {
 		name        string
-		setupMocks  func(*preflight.MockHostPreflightManager, *installation.MockInstallationManager, *infra.MockInfraManager, *metrics.MockReporter)
+		setupMocks  func(runtimeconfig.RuntimeConfig, *preflight.MockHostPreflightManager, *installation.MockInstallationManager, *infra.MockInfraManager, *metrics.MockReporter)
 		expectedErr bool
 	}{
 		{
 			name: "successful setup with passed preflights",
-			setupMocks: func(pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
-				preflightStatus := &types.Status{
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
+				preflightStatus := types.Status{
 					State: types.StateSucceeded,
-				}
-				config := &types.InstallationConfig{
-					AdminConsolePort: 8000,
 				}
 				mock.InOrder(
 					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
-					im.On("GetConfig").Return(config, nil),
-					fm.On("Install", t.Context(), config).Return(nil),
+					fm.On("Install", t.Context(), rc).Return(nil),
 				)
 			},
 			expectedErr: false,
 		},
 		{
 			name: "successful setup with failed preflights",
-			setupMocks: func(pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
-				preflightStatus := &types.Status{
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
+				preflightStatus := types.Status{
 					State: types.StateFailed,
 				}
 				preflightOutput := &types.HostPreflightsOutput{
@@ -600,30 +595,26 @@ func TestSetupInfra(t *testing.T) {
 						},
 					},
 				}
-				config := &types.InstallationConfig{
-					AdminConsolePort: 8000,
-				}
 				mock.InOrder(
 					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
 					pm.On("GetHostPreflightOutput", t.Context()).Return(preflightOutput, nil),
 					r.On("ReportPreflightsFailed", t.Context(), preflightOutput).Return(nil),
-					im.On("GetConfig").Return(config, nil),
-					fm.On("Install", t.Context(), config).Return(nil),
+					fm.On("Install", t.Context(), rc).Return(nil),
 				)
 			},
 			expectedErr: false,
 		},
 		{
 			name: "preflight status error",
-			setupMocks: func(pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 				pm.On("GetHostPreflightStatus", t.Context()).Return(nil, errors.New("get preflight status error"))
 			},
 			expectedErr: true,
 		},
 		{
 			name: "preflight not completed",
-			setupMocks: func(pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
-				preflightStatus := &types.Status{
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
+				preflightStatus := types.Status{
 					State: types.StateRunning,
 				}
 				pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil)
@@ -632,8 +623,8 @@ func TestSetupInfra(t *testing.T) {
 		},
 		{
 			name: "preflight output error",
-			setupMocks: func(pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
-				preflightStatus := &types.Status{
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
+				preflightStatus := types.Status{
 					State: types.StateFailed,
 				}
 				mock.InOrder(
@@ -644,31 +635,14 @@ func TestSetupInfra(t *testing.T) {
 			expectedErr: true,
 		},
 		{
-			name: "get config error",
-			setupMocks: func(pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
-				preflightStatus := &types.Status{
-					State: types.StateSucceeded,
-				}
-				mock.InOrder(
-					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
-					im.On("GetConfig").Return(nil, errors.New("get config error")),
-				)
-			},
-			expectedErr: true,
-		},
-		{
 			name: "install infra error",
-			setupMocks: func(pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
-				preflightStatus := &types.Status{
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
+				preflightStatus := types.Status{
 					State: types.StateSucceeded,
-				}
-				config := &types.InstallationConfig{
-					AdminConsolePort: 8000,
 				}
 				mock.InOrder(
 					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
-					im.On("GetConfig").Return(config, nil),
-					fm.On("Install", t.Context(), config).Return(errors.New("install error")),
+					fm.On("Install", t.Context(), rc).Return(errors.New("install error")),
 				)
 			},
 			expectedErr: true,
@@ -677,13 +651,18 @@ func TestSetupInfra(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			rc := runtimeconfig.New(nil)
+			rc.SetDataDir(t.TempDir())
+			rc.SetManagerPort(9001)
+
 			mockPreflightManager := &preflight.MockHostPreflightManager{}
 			mockInstallationManager := &installation.MockInstallationManager{}
 			mockInfraManager := &infra.MockInfraManager{}
 			mockMetricsReporter := &metrics.MockReporter{}
-			tt.setupMocks(mockPreflightManager, mockInstallationManager, mockInfraManager, mockMetricsReporter)
+			tt.setupMocks(rc, mockPreflightManager, mockInstallationManager, mockInfraManager, mockMetricsReporter)
 
 			controller, err := NewInstallController(
+				WithRuntimeConfig(rc),
 				WithHostPreflightManager(mockPreflightManager),
 				WithInstallationManager(mockInstallationManager),
 				WithInfraManager(mockInfraManager),
@@ -712,37 +691,37 @@ func TestGetInfra(t *testing.T) {
 		name          string
 		setupMock     func(*infra.MockInfraManager)
 		expectedErr   bool
-		expectedValue *types.Infra
+		expectedValue types.Infra
 	}{
 		{
 			name: "successful get infra",
 			setupMock: func(m *infra.MockInfraManager) {
-				infra := &types.Infra{
+				infra := types.Infra{
 					Components: []types.InfraComponent{
 						{
 							Name: infra.K0sComponentName,
-							Status: &types.Status{
+							Status: types.Status{
 								State: types.StateRunning,
 							},
 						},
 					},
-					Status: &types.Status{
+					Status: types.Status{
 						State: types.StateRunning,
 					},
 				}
 				m.On("Get").Return(infra, nil)
 			},
 			expectedErr: false,
-			expectedValue: &types.Infra{
+			expectedValue: types.Infra{
 				Components: []types.InfraComponent{
 					{
 						Name: infra.K0sComponentName,
-						Status: &types.Status{
+						Status: types.Status{
 							State: types.StateRunning,
 						},
 					},
 				},
-				Status: &types.Status{
+				Status: types.Status{
 					State: types.StateRunning,
 				},
 			},
@@ -753,7 +732,7 @@ func TestGetInfra(t *testing.T) {
 				m.On("Get").Return(nil, errors.New("get infra error"))
 			},
 			expectedErr:   true,
-			expectedValue: nil,
+			expectedValue: types.Infra{},
 		},
 	}
 
@@ -769,7 +748,7 @@ func TestGetInfra(t *testing.T) {
 
 			if tt.expectedErr {
 				assert.Error(t, err)
-				assert.Nil(t, result)
+				assert.Equal(t, types.Infra{}, result)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedValue, result)
@@ -783,24 +762,24 @@ func TestGetInfra(t *testing.T) {
 func TestGetStatus(t *testing.T) {
 	tests := []struct {
 		name          string
-		install       *types.Install
-		expectedValue *types.Status
+		install       types.Install
+		expectedValue types.Status
 	}{
 		{
 			name: "successful get status",
-			install: &types.Install{
-				Status: &types.Status{
+			install: types.Install{
+				Status: types.Status{
 					State: types.StateFailed,
 				},
 			},
-			expectedValue: &types.Status{
+			expectedValue: types.Status{
 				State: types.StateFailed,
 			},
 		},
 		{
-			name:          "nil status",
-			install:       &types.Install{},
-			expectedValue: nil,
+			name:          "empty status",
+			install:       types.Install{},
+			expectedValue: types.Status{},
 		},
 	}
 
@@ -821,19 +800,19 @@ func TestGetStatus(t *testing.T) {
 func TestSetStatus(t *testing.T) {
 	tests := []struct {
 		name        string
-		status      *types.Status
+		status      types.Status
 		expectedErr bool
 	}{
 		{
 			name: "successful set status",
-			status: &types.Status{
+			status: types.Status{
 				State: types.StateFailed,
 			},
 			expectedErr: false,
 		},
 		{
 			name:        "nil status",
-			status:      nil,
+			status:      types.Status{},
 			expectedErr: false,
 		},
 	}
@@ -859,12 +838,6 @@ func getTestReleaseData() *release.ReleaseData {
 	return &release.ReleaseData{
 		EmbeddedClusterConfig: &ecv1beta1.Config{},
 		ChannelRelease:        &release.ChannelRelease{},
-	}
-}
-
-func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
-	return func(c *InstallController) {
-		c.infraManager = infraManager
 	}
 }
 

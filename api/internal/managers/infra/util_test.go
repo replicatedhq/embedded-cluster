@@ -3,6 +3,7 @@ package infra
 import (
 	"testing"
 
+	infrastore "github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/stretchr/testify/assert"
 )
@@ -41,7 +42,7 @@ func TestInfraManager_logFn(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a mock store
-			mockStore := &MockStore{}
+			mockStore := &infrastore.MockStore{}
 			mockStore.On("AddLogs", tt.expected).Return(nil)
 
 			// Create a manager with the mock store
@@ -62,7 +63,7 @@ func TestInfraManager_logFn(t *testing.T) {
 
 func TestInfraManager_logFn_StoreError(t *testing.T) {
 	// Create a mock store that returns an error
-	mockStore := &MockStore{}
+	mockStore := &infrastore.MockStore{}
 	mockStore.On("AddLogs", "[test] error message").Return(assert.AnError)
 
 	// Create a manager with the mock store

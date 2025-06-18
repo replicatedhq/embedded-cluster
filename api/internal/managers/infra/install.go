@@ -10,13 +10,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	ecmetadata "github.com/replicatedhq/embedded-cluster/pkg-new/metadata"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -39,11 +36,11 @@ func AlreadyInstalledError() error {
 	)
 }
 
-func (m *infraManager) Install(ctx context.Context, config *types.InstallationConfig) (finalErr error) {
+func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) (finalErr error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	installed, err := k0s.IsInstalled()
+	installed, err := m.k0scli.IsInstalled()
 	if err != nil {
 		return err
 	}
@@ -59,16 +56,12 @@ func (m *infraManager) Install(ctx context.Context, config *types.InstallationCo
 		return fmt.Errorf("install can only be run once")
 	}
 
-	if config == nil {
-		return fmt.Errorf("installation config is required")
-	}
-
 	license, err := helpers.ParseLicense(m.licenseFile)
 	if err != nil {
 		return fmt.Errorf("parse license: %w", err)
 	}
 
-	if err := m.initComponentsList(license); err != nil {
+	if err := m.initComponentsList(license, rc); err != nil {
 		return fmt.Errorf("init components: %w", err)
 	}
 
@@ -76,16 +69,16 @@ func (m *infraManager) Install(ctx context.Context, config *types.InstallationCo
 		return fmt.Errorf("set status: %w", err)
 	}
 
-	// Run install in background
-	go m.install(context.Background(), config, license)
+	// Background context is used to avoid canceling the operation if the context is canceled
+	go m.install(context.Background(), license, rc)
 
 	return nil
 }
 
-func (m *infraManager) initComponentsList(license *kotsv1beta1.License) error {
+func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) error {
 	components := []types.InfraComponent{{Name: K0sComponentName}}
 
-	addOns := addons.GetAddOnsForInstall(m.rc, addons.InstallOptions{
+	addOns := addons.GetAddOnsForInstall(rc, addons.InstallOptions{
 		IsAirgap:                m.airgapBundle != "",
 		DisasterRecoveryEnabled: license.Spec.IsDisasterRecoverySupported,
 	})
@@ -103,7 +96,7 @@ func (m *infraManager) initComponentsList(license *kotsv1beta1.License) error {
 	return nil
 }
 
-func (m *infraManager) install(ctx context.Context, config *types.InstallationConfig, license *kotsv1beta1.License) (finalErr error) {
+func (m *infraManager) install(ctx context.Context, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
@@ -119,33 +112,33 @@ func (m *infraManager) install(ctx context.Context, config *types.InstallationCo
 		}
 	}()
 
-	_, err := m.installK0s(ctx, config)
+	_, err := m.installK0s(ctx, rc)
 	if err != nil {
 		return fmt.Errorf("install k0s: %w", err)
 	}
 
-	kcli, err := kubeutils.KubeClient()
+	kcli, err := m.kubeClient()
 	if err != nil {
 		return fmt.Errorf("create kube client: %w", err)
 	}
 
-	mcli, err := kubeutils.MetadataClient()
+	mcli, err := m.metadataClient()
 	if err != nil {
 		return fmt.Errorf("create metadata client: %w", err)
 	}
 
-	hcli, err := m.getHelmClient()
+	hcli, err := m.helmClient(rc)
 	if err != nil {
 		return fmt.Errorf("create helm client: %w", err)
 	}
 	defer hcli.Close()
 
-	in, err := m.recordInstallation(ctx, kcli, license)
+	in, err := m.recordInstallation(ctx, kcli, license, rc)
 	if err != nil {
 		return fmt.Errorf("record installation: %w", err)
 	}
 
-	if err := m.installAddOns(ctx, license, kcli, mcli, hcli); err != nil {
+	if err := m.installAddOns(ctx, license, kcli, mcli, hcli, rc); err != nil {
 		return fmt.Errorf("install addons: %w", err)
 	}
 
@@ -157,14 +150,14 @@ func (m *infraManager) install(ctx context.Context, config *types.InstallationCo
 		return fmt.Errorf("update installation: %w", err)
 	}
 
-	if err = support.CreateHostSupportBundle(); err != nil {
+	if err = support.CreateHostSupportBundle(ctx, kcli); err != nil {
 		m.logger.Warnf("Unable to create host support bundle: %v", err)
 	}
 
 	return nil
 }
 
-func (m *infraManager) installK0s(ctx context.Context, config *types.InstallationConfig) (k0sCfg *k0sv1beta1.ClusterConfig, finalErr error) {
+func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeConfig) (k0sCfg *k0sv1beta1.ClusterConfig, finalErr error) {
 	componentName := K0sComponentName
 
 	if err := m.setComponentStatus(componentName, types.StateRunning, "Installing"); err != nil {
@@ -191,27 +184,27 @@ func (m *infraManager) installK0s(ctx context.Context, config *types.Installatio
 	logFn := m.logFn("k0s")
 
 	logFn("creating k0s configuration file")
-	k0sCfg, err := k0s.WriteK0sConfig(ctx, config.NetworkInterface, m.airgapBundle, config.PodCIDR, config.ServiceCIDR, m.endUserConfig, nil)
+	k0sCfg, err := m.k0scli.WriteK0sConfig(ctx, rc.NetworkInterface(), m.airgapBundle, rc.PodCIDR(), rc.ServiceCIDR(), m.endUserConfig, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 
 	logFn("creating systemd unit files")
-	if err := hostutils.CreateSystemdUnitFiles(ctx, m.logger, m.rc, false); err != nil {
+	if err := m.hostUtils.CreateSystemdUnitFiles(ctx, m.logger, rc, false); err != nil {
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
 	logFn("installing k0s")
-	if err := k0s.Install(m.rc, config.NetworkInterface); err != nil {
+	if err := m.k0scli.Install(rc); err != nil {
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
 
 	logFn("waiting for k0s to be ready")
-	if err := k0s.WaitForK0s(); err != nil {
+	if err := m.k0scli.WaitForK0s(); err != nil {
 		return nil, fmt.Errorf("wait for k0s: %w", err)
 	}
 
-	kcli, err := kubeutils.KubeClient()
+	kcli, err := m.kubeClient()
 	if err != nil {
 		return nil, fmt.Errorf("create kube client: %w", err)
 	}
@@ -224,18 +217,18 @@ func (m *infraManager) installK0s(ctx context.Context, config *types.Installatio
 	}
 
 	logFn("adding registry to containerd")
-	registryIP, err := registry.GetRegistryClusterIP(config.ServiceCIDR)
+	registryIP, err := registry.GetRegistryClusterIP(rc.ServiceCIDR())
 	if err != nil {
 		return nil, fmt.Errorf("get registry cluster IP: %w", err)
 	}
-	if err := airgap.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
+	if err := m.hostUtils.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
 		return nil, fmt.Errorf("add insecure registry: %w", err)
 	}
 
 	return k0sCfg, nil
 }
 
-func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license *kotsv1beta1.License) (*ecv1beta1.Installation, error) {
+func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) (*ecv1beta1.Installation, error) {
 	logFn := m.logFn("metadata")
 
 	// get the configured custom domains
@@ -248,7 +241,7 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 		License:        license,
 		ConfigSpec:     m.getECConfigSpec(),
 		MetricsBaseURL: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
-		RuntimeConfig:  m.rc.Get(),
+		RuntimeConfig:  rc.Get(),
 		EndUserConfig:  m.endUserConfig,
 	})
 	if err != nil {
@@ -263,10 +256,7 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 	return in, nil
 }
 
-func (m *infraManager) installAddOns(ctx context.Context, license *kotsv1beta1.License, kcli client.Client, mcli metadata.Interface, hcli helm.Client) error {
-	// get the configured custom domains
-	ecDomains := utils.GetDomains(m.releaseData)
-
+func (m *infraManager) installAddOns(ctx context.Context, license *kotsv1beta1.License, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig) error {
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -294,12 +284,24 @@ func (m *infraManager) installAddOns(ctx context.Context, license *kotsv1beta1.L
 		addons.WithKubernetesClient(kcli),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(m.rc),
+		addons.WithRuntimeConfig(rc),
 		addons.WithProgressChannel(progressChan),
 	)
 
+	opts := m.getAddonInstallOpts(license, rc)
+
 	logFn("installing addons")
-	if err := addOns.Install(ctx, addons.InstallOptions{
+	if err := addOns.Install(ctx, opts); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) addons.InstallOptions {
+	ecDomains := utils.GetDomains(m.releaseData)
+
+	opts := addons.InstallOptions{
 		AdminConsolePwd:         m.password,
 		License:                 license,
 		IsAirgap:                m.airgapBundle != "",
@@ -310,9 +312,14 @@ func (m *infraManager) installAddOns(ctx context.Context, license *kotsv1beta1.L
 		IsMultiNodeEnabled:      license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec:      m.getECConfigSpec(),
 		EndUserConfigSpec:       m.getEndUserConfigSpec(),
-		KotsInstaller: func() error {
+	}
+
+	if m.kotsInstaller != nil { // used for testing
+		opts.KotsInstaller = m.kotsInstaller
+	} else {
+		opts.KotsInstaller = func() error {
 			opts := kotscli.InstallOptions{
-				RuntimeConfig:         m.rc,
+				RuntimeConfig:         rc,
 				AppSlug:               license.Spec.AppSlug,
 				LicenseFile:           m.licenseFile,
 				Namespace:             runtimeconfig.KotsadmNamespace,
@@ -323,12 +330,10 @@ func (m *infraManager) installAddOns(ctx context.Context, license *kotsv1beta1.L
 				// Stdout:                stdout,
 			}
 			return kotscli.Install(opts)
-		},
-	}); err != nil {
-		return err
+		}
 	}
 
-	return nil
+	return opts
 }
 
 func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) (finalErr error) {
