@@ -178,6 +178,10 @@ spec:
       command: "ip"
       args: ["-s", "-s", "address"]
   - run:
+      collectorName: "lspci"
+      command: "lspci"
+      args: ["-vvv", "-D"]
+  - run:
       collectorName: "sysctl"
       command: "sysctl"
       args: ["-a"]
