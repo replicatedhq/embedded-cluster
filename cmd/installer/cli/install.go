@@ -125,18 +125,18 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
-			if flags.enableManagerExperience {
-				return runManagerExperienceInstall(ctx, flags, rc)
-			}
-
-			_ = rc.SetEnv()
-
 			clusterID := metrics.ClusterID()
 			installReporter := newInstallReporter(
 				replicatedAppURL(), clusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 				flags.license.Spec.LicenseID, flags.license.Spec.AppSlug,
 			)
 			installReporter.ReportInstallationStarted(ctx)
+
+			if flags.enableManagerExperience {
+				return runManagerExperienceInstall(ctx, flags, rc, installReporter)
+			}
+
+			_ = rc.SetEnv()
 
 			// Setup signal handler with the metrics reporter cleanup function
 			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
@@ -545,7 +545,7 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 	return cidrCfg, nil
 }
 
-func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (finalErr error) {
+func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) (finalErr error) {
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
 	ipAddresses, err := netutils.ListAllValidIPAddresses()
@@ -602,11 +602,10 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 	}
 
 	apiConfig := apiOptions{
-		InstallTarget: flags.target,
-		RuntimeConfig: rc,
-		// TODO (@salah): implement reporting in api
-		// MetricsReporter: installReporter,
-		Password: flags.adminConsolePassword,
+		InstallTarget:   flags.target,
+		RuntimeConfig:   rc,
+		MetricsReporter: installReporter.reporter,
+		Password:        flags.adminConsolePassword,
 		TLSConfig: apitypes.TLSConfig{
 			CertBytes: flags.tlsCertBytes,
 			KeyBytes:  flags.tlsKeyBytes,
