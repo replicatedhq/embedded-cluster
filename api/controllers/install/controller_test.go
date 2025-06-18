@@ -930,6 +930,8 @@ func TestInstallControllerIgnoreHostPreflights(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
 			rc.SetDataDir(t.TempDir())
+			// Set a different manager port to avoid conflicts with validation
+			rc.SetManagerPort(9999)
 
 			mockManager := &installation.MockInstallationManager{}
 			tt.setupMock(mockManager)
