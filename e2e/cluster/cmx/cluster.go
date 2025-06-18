@@ -36,6 +36,7 @@ type Node struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	NetworkID string `json:"network_id"`
+	Status    string `json:"status"`
 
 	privateIP       string `json:"-"`
 	sshEndpoint     string `json:"-"`
@@ -100,10 +101,6 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 		return nil, fmt.Errorf("unmarshal node: %v: %s", err, string(output))
 	}
 
-	// TODO (@salah): remove this once the bug is fixed in CMX
-	// note: the vm gets marked as ready before the services are actually running
-	time.Sleep(30 * time.Second)
-
 	for i := range nodes {
 		in.T.Logf("%s: getting ssh endpoint for node ID: %s", time.Now().Format(time.RFC3339), nodes[i].ID)
 
@@ -112,10 +109,6 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 			return nil, fmt.Errorf("get ssh endpoint for node %s: %v", nodes[i].ID, err)
 		}
 		nodes[i].sshEndpoint = sshEndpoint
-
-		if err := waitForSSH(nodes[i], in.T); err != nil {
-			return nil, fmt.Errorf("wait for ssh to be available on node %d: %v", i, err)
-		}
 
 		privateIP, err := discoverPrivateIP(nodes[i])
 		if err != nil {
@@ -212,28 +205,6 @@ func getSSHEndpoint(nodeID string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-func waitForSSH(node Node, t *testing.T) error {
-	timeout := time.After(5 * time.Minute)
-	tick := time.Tick(5 * time.Second)
-	var lastErr error
-
-	for {
-		select {
-		case <-timeout:
-			return fmt.Errorf("timed out after 5 minutes: last error: %w", lastErr)
-		case <-tick:
-			t.Logf("%s: checking SSH connectivity to node ID: %s", time.Now().Format(time.RFC3339), node.ID)
-			stdout, stderr, err := runCommandOnNode(node, []string{"uptime"})
-			t.Logf("%s: SSH attempt - stdout: %s, stderr: %s, err: %v", time.Now().Format(time.RFC3339), stdout, stderr, err)
-			if err == nil {
-				t.Logf("%s: SSH connection successful to node ID: %s", time.Now().Format(time.RFC3339), node.ID)
-				return nil
-			}
-			lastErr = fmt.Errorf("%w: stdout: %s: stderr: %s", err, stdout, stderr)
-		}
-	}
-}
-
 func (c *Cluster) Airgap() error {
 	// Update network policy to airgap
 	output, err := exec.Command("replicated", "network", "update", "policy", "--id", c.network.ID, "--policy=airgap").CombinedOutput()
@@ -271,30 +242,85 @@ func (c *Cluster) waitUntilAirgapped(node int) error {
 }
 
 func (c *Cluster) WaitForReboot() {
-	time.Sleep(30 * time.Second)
-	for i := range c.Nodes {
-		c.waitForSSH(i)
-		c.waitForClockSync(i)
-	}
+	c.waitForRunning()
+	c.waitForClockSync()
 }
 
-func (c *Cluster) waitForSSH(node int) {
-	if err := waitForSSH(c.Nodes[node], c.t); err != nil {
-		c.t.Fatalf("failed to wait for ssh to be available on node %d: %v", node, err)
-	}
-}
-
-func (c *Cluster) waitForClockSync(node int) {
+func (c *Cluster) waitForRunning() {
 	timeout := time.After(5 * time.Minute)
-	tick := time.Tick(time.Second)
+	tick := time.Tick(10 * time.Second)
+
 	for {
 		select {
 		case <-timeout:
-			stdout, stderr, err := c.RunCommandOnNode(node, []string{"timedatectl show -p NTP -p NTPSynchronized"})
-			c.t.Fatalf("timeout waiting for clock sync on node %d: %v: %s: %s", node, err, stdout, stderr)
+			c.t.Fatalf("timed out waiting for nodes to be running after 5 minutes")
+
 		case <-tick:
-			status, _, _ := c.RunCommandOnNode(node, []string{"timedatectl show -p NTP -p NTPSynchronized"})
-			if strings.Contains(status, "NTP=yes") && strings.Contains(status, "NTPSynchronized=yes") {
+			if err := c.refreshNodes(); err != nil {
+				c.t.Logf("failed to refresh nodes: %v", err)
+				continue
+			}
+
+			for i, node := range c.Nodes {
+				if node.Status != "running" {
+					c.t.Logf("waiting for node %d (%s) to be running (status: %s)", i, node.ID, node.Status)
+					continue
+				}
+			}
+
+			c.t.Logf("all nodes are running")
+			return
+		}
+	}
+}
+
+func (c *Cluster) refreshNodes() error {
+	output, err := exec.Command("replicated", "vm", "ls", "-ojson").Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return fmt.Errorf("list nodes: %w: stderr: %s: stdout: %s", err, string(exitErr.Stderr), string(output))
+		}
+		return fmt.Errorf("list nodes: %w: stdout: %s", err, string(output))
+	}
+
+	var allNodes []Node
+	if err := json.Unmarshal(output, &allNodes); err != nil {
+		return fmt.Errorf("unmarshal nodes: %v: %s", err, string(output))
+	}
+
+	allNodesMap := make(map[string]Node)
+	for _, node := range allNodes {
+		allNodesMap[node.ID] = node
+	}
+
+	for i, node := range c.Nodes {
+		if updated, ok := allNodesMap[node.ID]; ok {
+			c.Nodes[i] = updated
+		}
+	}
+
+	return nil
+}
+
+func (c *Cluster) waitForClockSync() {
+	timeout := time.After(5 * time.Minute)
+	tick := time.Tick(5 * time.Second)
+
+	for {
+		select {
+		case <-timeout:
+			c.t.Fatalf("timeout waiting for clock sync on all nodes")
+
+		case <-tick:
+			for i, _ := range c.Nodes {
+				status, _, _ := c.RunCommandOnNode(i, []string{"timedatectl show -p NTP -p NTPSynchronized"})
+
+				if !strings.Contains(status, "NTP=yes") || !strings.Contains(status, "NTPSynchronized=yes") {
+					c.t.Logf("waiting for NTP=yes and NTPSynchronized=yes on node %d (status: %s)", i, status)
+					continue
+				}
+
+				c.t.Logf("clock sync on node %d (status: %s)", i, status)
 				return
 			}
 		}
