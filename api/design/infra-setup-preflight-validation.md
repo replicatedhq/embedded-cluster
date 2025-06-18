@@ -2,311 +2,236 @@
 
 ## Overview
 
-This document describes the API changes implemented to enforce preflight validation during infrastructure setup. The changes ensure that infrastructure setup can only proceed when host preflights pass OR when they fail but the operator has explicitly allowed bypassing them via the `--ignore-host-preflights` CLI flag.
+The infrastructure setup API enforces preflight validation to ensure system readiness before proceeding with installation. The system requires that host preflights either pass successfully OR that they fail but the operator has explicitly enabled bypass capabilities and the user confirms the override.
+
+## Design Principles
+
+### Security-First Approach
+- **Explicit Configuration**: Bypass capability must be explicitly enabled via CLI flag
+- **User Confirmation**: Even with bypass enabled, user must explicitly confirm the override
+- **Fail-Safe Default**: Without explicit configuration, failed preflights block installation
+
+### API Consistency
+- Both setup and status endpoints return the same `Infra` response type
+- Consistent error handling and HTTP status codes
+- Predictable API behavior regardless of preflight state
 
 ## Architecture
 
-### High-Level Flow
+### Request Flow
 
-1. **Frontend**: Sends infrastructure setup request with user intent
-2. **Backend**: Validates current preflight status against CLI configuration  
-3. **Backend**: Only proceeds if preflights pass OR (preflights fail + CLI flag allows + user confirms)
-4. **Response**: Includes context about whether preflights were ignored
-
-### Security Model
-
-- **CLI Flag Enforcement**: Only servers started with `--ignore-host-preflights` can bypass preflight failures
-- **User Confirmation Required**: Even with CLI flag, user must explicitly confirm in UI
-- **Audit Trail**: API responses include whether preflights were bypassed for transparency
-
-## API Changes
-
-### 1. New Request Type: `InfraSetupRequest`
-
-**File**: `api/types/infra.go`
-
-```go
-// InfraSetupRequest represents a request to set up infrastructure
-type InfraSetupRequest struct {
-    IgnorePreflightFailures bool `json:"ignorePreflightFailures"`
-}
+```
+Frontend Request → API Handler → SetupInfra Controller → Preflight Validation → Infrastructure Setup
 ```
 
-**Purpose**: Allows frontend to communicate user intent about handling preflight failures.
+1. **Frontend** sends setup request with user intent about handling preflight failures
+2. **API Handler** parses request and delegates to controller
+3. **SetupInfra Controller** validates preflight status against configuration
+4. **Infrastructure Setup** proceeds only if validation passes
 
-**Values**:
-- `true`: User confirmed they want to proceed despite preflight failures
-- `false`: User expects preflights to pass before proceeding
+### Validation Logic
 
-### 2. New Response Type: `InfraSetupResponse`
+The system implements a multi-factor validation approach:
 
-**File**: `api/types/infra.go`
+| Preflight Status | CLI Flag Enabled | User Confirms Override | Result |
+|------------------|------------------|------------------------|---------|
+| ✅ Pass | Any | Any | ✅ Proceed |
+| ❌ Fail | ❌ No | Any | ❌ Block |
+| ❌ Fail | ✅ Yes | ❌ No | ❌ Block |
+| ❌ Fail | ✅ Yes | ✅ Yes | ✅ Proceed |
 
-```go
-// InfraSetupResponse represents the response from setting up infrastructure
-type InfraSetupResponse struct {
-    *Infra                  `json:",inline"`
-    PreflightsIgnored       bool `json:"preflightsIgnored"`
-}
-```
+## API Specification
 
-**Purpose**: Provides transparency about installation context for debugging and audit purposes.
-
-**Fields**:
-- **`*Infra`**: Standard infrastructure status (components, logs, status)
-- **`PreflightsIgnored`**: Boolean indicating whether preflight failures were bypassed
-
-### 3. Updated API Endpoint
+### Setup Infrastructure
 
 **Endpoint**: `POST /api/install/infra/setup`
 
-**Before**:
-```http
-POST /api/install/infra/setup
-Authorization: Bearer <token>
-
-(no body)
-```
-
-**After**:
-```http
-POST /api/install/infra/setup
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "ignorePreflightFailures": false
-}
-```
-
-**Response Changes**:
+**Request**:
 ```json
 {
-  "components": [...],
-  "logs": "...",
-  "status": {...},
-  "preflightsIgnored": false
+  "ignorePreflightFailures": boolean
 }
 ```
 
-## Validation Logic
+**Parameters**:
+- `ignorePreflightFailures`: User intent to proceed despite preflight failures
 
-### New Validation Function: `ValidatePreflightStatus`
-
-**File**: `api/controllers/install/preflight_validation.go`
-
-```go
-func ValidatePreflightStatus(preflightStatus *types.HostPreflights, ignorePreflightFailures bool) error
+**Response** (Success):
+```json
+HTTP 200 OK
+{
+  "components": [
+    {
+      "name": "k0s",
+      "status": {"state": "Running", "message": "Ready"}
+    }
+  ],
+  "logs": "Installation logs...",
+  "status": {"state": "Running", "message": "Infrastructure ready"}
+}
 ```
 
-**Validation Rules**:
+**Response** (Validation Failure):
+```json
+HTTP 400 Bad Request
+{
+  "statusCode": 400,
+  "message": "Preflight checks failed"
+}
+```
 
-1. **Preflights Pass**: ✅ Always allowed
-   ```
-   Preflight Status: Success → Allow Setup
-   ```
+### Get Infrastructure Status
 
-2. **Preflights Fail + No CLI Flag**: ❌ Blocked
-   ```
-   Preflight Status: Failed
-   CLI Flag: --ignore-host-preflights NOT used
-   → Error: "Preflight checks failed"
-   ```
+**Endpoint**: `GET /api/install/infra/status`
 
-3. **Preflights Fail + CLI Flag + User Confirms**: ✅ Allowed
-   ```
-   Preflight Status: Failed
-   CLI Flag: --ignore-host-preflights used
-   User Intent: ignorePreflightFailures = true
-   → Allow Setup (with audit trail)
-   ```
+Returns the same `Infra` response structure as the setup endpoint, providing consistent API behavior.
 
-4. **Preflights Fail + CLI Flag + User Doesn't Confirm**: ❌ Blocked
-   ```
-   Preflight Status: Failed
-   CLI Flag: --ignore-host-preflights used
-   User Intent: ignorePreflightFailures = false
-   → Error: "Preflight checks failed"
-   ```
+## Implementation Details
 
-5. **Preflights Fail + User Confirms + No CLI Flag**: ❌ Blocked
-   ```
-   Preflight Status: Failed
-   CLI Flag: --ignore-host-preflights NOT used
-   User Intent: ignorePreflightFailures = true
-   → Error: "Cannot ignore preflight failures without --ignore-host-preflights flag"
-   ```
+### Validation Controller
 
-### Handler Integration
+The `SetupInfra` function consolidates all validation logic:
 
-**File**: `api/install.go` - `postInstallSetupInfra`
+```go
+func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) (preflightsWereIgnored bool, err error)
+```
 
-The handler now:
-1. Parses the request body to get user intent
-2. Retrieves current preflight status
-3. Validates using `ValidatePreflightStatus`
-4. Returns appropriate HTTP status codes:
-   - `400 Bad Request`: Validation failures
-   - `200 OK`: Successful setup with context
+**Validation Steps**:
+1. Retrieve current preflight status
+2. Check if preflights completed (success or failure)
+3. Apply validation rules based on preflight state, CLI configuration, and user intent
+4. Proceed with infrastructure setup if validation passes
+
+### Configuration
+
+**CLI Flag**: `--ignore-host-preflights`
+- Must be specified when starting the installer
+- Enables the capability to bypass preflight failures
+- Does not automatically bypass - user confirmation still required
+
+**API Configuration**: `allowIgnoreHostPreflights`
+- Internal boolean reflecting CLI flag state
+- Used by validation logic and exposed to frontend via preflight status responses
 
 ## Error Handling
 
-### Error Responses
+### Validation Errors
+- **HTTP 400**: Preflight validation failures (user-correctable)
+- **HTTP 500**: System errors during validation (infrastructure issues)
 
-**Preflight Validation Failure**:
-```json
-HTTP 400 Bad Request
-{
-  "statusCode": 400,
-  "message": "Preflight checks failed. Cannot proceed with installation."
-}
-```
-
-**CLI Flag Not Set**:
-```json
-HTTP 400 Bad Request
-{
-  "statusCode": 400,
-  "message": "Cannot ignore preflight failures without --ignore-host-preflights flag"
-}
-```
-
-**Network/System Errors**:
-```json
-HTTP 500 Internal Server Error
-{
-  "statusCode": 500,
-  "message": "Failed to validate preflight status: <details>"
-}
-```
-
-## Frontend Integration
-
-### UI Behavior Changes
-
-The frontend now:
-
-1. **Receives CLI flag status** via `allowIgnoreHostPreflights` in preflight responses
-2. **Enables/disables button** based on preflight status and CLI flag
-3. **Shows confirmation modal** when preflights fail but CLI flag allows override
-4. **Sends explicit intent** via `ignorePreflightFailures` parameter
-
-### Request Examples
-
-**Normal Installation (preflights pass)**:
-```javascript
-fetch('/api/install/infra/setup', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer <token>'
-  },
-  body: JSON.stringify({
-    ignorePreflightFailures: false
-  })
-})
-```
-
-**Override Installation (user confirmed)**:
-```javascript
-fetch('/api/install/infra/setup', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer <token>'
-  },
-  body: JSON.stringify({
-    ignorePreflightFailures: true
-  })
-})
-```
-
-## Migration Considerations
-
-### Backward Compatibility
-
-- **API Version**: No version change required
-- **Request Format**: New request body is optional for backward compatibility
-- **Response Format**: New field added without breaking existing fields
-
-### Deployment
-
-1. **Backend Deploy**: New validation logic will immediately enforce preflight checks
-2. **Frontend Deploy**: Enhanced UI provides better user experience
-3. **CLI Flag**: Operators must use `--ignore-host-preflights` to override failures
+### Error Messages
+- Clear, actionable error messages
+- Consistent formatting across all validation scenarios
+- No sensitive information exposure
 
 ## Security Considerations
 
-### Threat Model
+### Threat Mitigation
 
-1. **Unauthorized Bypass**: Prevented by CLI flag requirement
-2. **Accidental Override**: Prevented by explicit user confirmation requirement
-3. **Audit Trail**: `preflightsIgnored` field provides permanent record
+**Unauthorized Bypass Prevention**:
+- CLI flag requirement prevents runtime bypass without explicit operator intent
+- API-level validation ensures frontend cannot bypass restrictions
+
+**Accidental Override Prevention**:
+- User must explicitly confirm override in UI
+- Clear distinction between "proceed normally" and "override failures"
+
+**Audit and Monitoring**:
+- All validation decisions logged
+- Clear error messages for troubleshooting
+- Consistent behavior for security review
 
 ### Best Practices
 
-- CLI flag should only be used in emergency situations
-- Operators should understand the risks of bypassing preflight checks
-- Monitor `preflightsIgnored: true` installations for issues
+- Use `--ignore-host-preflights` only in emergency situations
+- Understand risks before bypassing preflight checks
+- Monitor systems where preflights were bypassed more closely
+
+## Frontend Integration
+
+### User Experience
+
+**Normal Flow** (Preflights Pass):
+1. User clicks "Continue" button
+2. Frontend sends `ignorePreflightFailures: false`
+3. Setup proceeds immediately
+
+**Override Flow** (Preflights Fail):
+1. User sees preflight failures
+2. If CLI flag enabled, "Continue Anyway" button appears
+3. User clicks button, sees confirmation modal
+4. User confirms, frontend sends `ignorePreflightFailures: true`
+5. Setup proceeds with override
+
+### API Communication
+
+The frontend receives CLI flag status via the preflight status endpoint:
+```json
+{
+  "allowIgnoreHostPreflights": true,
+  "status": {"state": "Failed"},
+  ...
+}
+```
+
+This enables appropriate UI state management and button visibility.
 
 ## Examples
 
-### Successful Installation Flow
+### Successful Override Scenario
 
 ```bash
-# 1. Start server with CLI flag
+# 1. Start installer with bypass capability
 ./embedded-cluster install --ignore-host-preflights
 
-# 2. Preflights fail, user confirms override in UI
-# 3. API request sent:
+# 2. Preflights fail, user confirms override
+# 3. API call:
 POST /api/install/infra/setup
 {
   "ignorePreflightFailures": true
 }
 
-# 4. API response:
+# 4. Response:
+HTTP 200 OK
 {
   "components": [...],
-  "status": {"state": "Running"},
-  "preflightsIgnored": true
+  "status": {"state": "Running"}
 }
 ```
 
-### Blocked Installation Flow
+### Blocked Installation Scenario
 
 ```bash
-# 1. Start server without CLI flag
+# 1. Start installer without bypass capability
 ./embedded-cluster install
 
-# 2. Preflights fail, API request sent:
+# 2. Preflights fail, API call:
 POST /api/install/infra/setup
 {
   "ignorePreflightFailures": false
 }
 
-# 3. API response:
+# 3. Response:
 HTTP 400 Bad Request
 {
   "statusCode": 400,
-  "message": "Preflight checks failed. Cannot proceed with installation."
+  "message": "Preflight checks failed"
 }
 ```
 
-## Related Files
+## Related Components
 
-### Backend Files
+### Backend
 - `api/types/infra.go` - Request/response types
-- `api/install.go` - API handler
-- `api/controllers/install/preflight_validation.go` - Validation logic
-- `api/integration/infra_test.go` - Integration tests
+- `api/install.go` - HTTP handlers
+- `api/controllers/install/infra.go` - Validation and setup logic
 
-### Frontend Files  
-- `web/src/components/wizard/ValidationStep.tsx` - UI component
-- `web/src/components/wizard/tests/ValidationStep.test.tsx` - Component tests
+### Frontend
+- `web/src/components/wizard/ValidationStep.tsx` - Preflight UI component
 
 ### Configuration
 - `cmd/installer/cli/install.go` - CLI flag definition
-- `cmd/installer/cli/api.go` - CLI flag wiring
+- `cmd/installer/cli/api.go` - Configuration wiring
 
 ---
 
