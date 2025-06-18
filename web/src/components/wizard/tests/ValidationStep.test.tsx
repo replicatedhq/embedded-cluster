@@ -1,11 +1,9 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { renderWithProviders } from '../../../test/setup.tsx';
 import ValidationStep from '../ValidationStep';
-import { MOCK_INSTALL_CONFIG } from '../../../test/testData';
 
 const server = setupServer(
   // Mock installation status endpoint

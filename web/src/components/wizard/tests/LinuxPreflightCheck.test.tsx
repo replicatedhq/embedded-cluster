@@ -1,4 +1,3 @@
-import React from "react";
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import LinuxPreflightCheck from "../preflight/LinuxPreflightCheck";

@@ -5,7 +5,7 @@ import { Modal } from "../common/Modal";
 import { useWizardMode } from "../../contexts/WizardModeContext";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import LinuxPreflightCheck from "./preflight/LinuxPreflightCheck";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 
 interface ValidationStepProps {

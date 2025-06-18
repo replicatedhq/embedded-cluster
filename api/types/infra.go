@@ -1,5 +1,10 @@
 package types
 
+// InfraSetupRequest represents a request to set up infrastructure
+type InfraSetupRequest struct {
+	IgnorePreflightFailures bool `json:"ignorePreflightFailures"`
+}
+
 type Infra struct {
 	Components []InfraComponent `json:"components"`
 	Logs       string           `json:"logs"`
