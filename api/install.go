@@ -137,7 +137,7 @@ func (a *API) getInstallHostPreflightsStatus(w http.ResponseWriter, r *http.Requ
 		Titles:                    titles,
 		Output:                    output,
 		Status:                    status,
-		AllowIgnoreHostPreflights: a.ignoreHostPreflights,
+		AllowIgnoreHostPreflights: a.allowIgnoreHostPreflights,
 	}
 
 	a.json(w, r, http.StatusOK, response)

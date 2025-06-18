@@ -20,10 +20,10 @@ import (
 
 // Simple mock controller for infra setup validation tests
 type mockInfraController struct {
-	preflightStatus      *types.Status
-	preflightError       error
-	setupError           error
-	ignoreHostPreflights bool
+	preflightStatus           *types.Status
+	preflightError            error
+	setupError                error
+	allowIgnoreHostPreflights bool
 }
 
 func (m *mockInfraController) GetInstallationConfig(ctx context.Context) (*types.InstallationConfig, error) {
@@ -82,7 +82,7 @@ func (m *mockInfraController) SetupInfra(ctx context.Context, ignorePreflightFai
 	// Simulate the validation logic that was moved to SetupInfra
 	if m.preflightStatus != nil && m.preflightStatus.State == types.StateFailed {
 		// Check if we can proceed despite failures
-		if !ignorePreflightFailures || !m.ignoreHostPreflights {
+		if !ignorePreflightFailures || !m.allowIgnoreHostPreflights {
 			return false, fmt.Errorf("Preflight checks failed")
 		}
 
@@ -152,8 +152,8 @@ func TestPostInstallSetupInfraValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock controller
 			mockController := &mockInfraController{
-				preflightStatus:      &types.Status{State: tt.preflightState},
-				ignoreHostPreflights: tt.cliFlag,
+				preflightStatus:           &types.Status{State: tt.preflightState},
+				allowIgnoreHostPreflights: tt.cliFlag,
 			}
 
 			// Create API with CLI flag
@@ -161,7 +161,7 @@ func TestPostInstallSetupInfraValidation(t *testing.T) {
 				"password",
 				api.WithInstallController(mockController),
 				api.WithAuthController(&staticAuthController{"TOKEN"}),
-				api.WithIgnoreHostPreflights(tt.cliFlag),
+				api.WithAllowIgnoreHostPreflights(tt.cliFlag),
 				api.WithLogger(logger.NewDiscardLogger()),
 			)
 			require.NoError(t, err)

@@ -728,7 +728,7 @@ func TestSetupInfra(t *testing.T) {
 				WithInstallationManager(mockInstallationManager),
 				WithInfraManager(mockInfraManager),
 				WithMetricsReporter(mockMetricsReporter),
-				WithIgnoreHostPreflights(true), // Enable CLI flag for tests that need it
+				WithAllowIgnoreHostPreflights(true), // Enable CLI flag for tests that need it
 			)
 			require.NoError(t, err)
 

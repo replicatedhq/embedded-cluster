@@ -164,19 +164,19 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 // Test the getHostPreflightsStatus endpoint returns AllowIgnoreHostPreflights flag correctly
 func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
 	tests := []struct {
-		name                 string
-		ignoreHostPreflights bool
-		expectedAllowIgnore  bool
+		name                      string
+		allowIgnoreHostPreflights bool
+		expectedAllowIgnore       bool
 	}{
 		{
-			name:                 "ignore host preflights true",
-			ignoreHostPreflights: true,
-			expectedAllowIgnore:  true,
+			name:                      "allow ignore host preflights true",
+			allowIgnoreHostPreflights: true,
+			expectedAllowIgnore:       true,
 		},
 		{
-			name:                 "ignore host preflights false",
-			ignoreHostPreflights: false,
-			expectedAllowIgnore:  false,
+			name:                      "allow ignore host preflights false",
+			allowIgnoreHostPreflights: false,
+			expectedAllowIgnore:       false,
 		},
 	}
 
@@ -207,12 +207,12 @@ func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
 			installController, err := install.NewInstallController(install.WithHostPreflightManager(manager))
 			require.NoError(t, err)
 
-			// Create the API with ignore host preflights flag
+			// Create the API with allow ignore host preflights flag
 			apiInstance, err := api.New(
 				"password",
 				api.WithInstallController(installController),
 				api.WithAuthController(&staticAuthController{"TOKEN"}),
-				api.WithIgnoreHostPreflights(tt.ignoreHostPreflights),
+				api.WithAllowIgnoreHostPreflights(tt.allowIgnoreHostPreflights),
 				api.WithLogger(logger.NewDiscardLogger()),
 			)
 			require.NoError(t, err)

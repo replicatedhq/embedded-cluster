@@ -39,24 +39,24 @@ type RunHostPreflightsOptions struct {
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	install              *types.Install
-	installationManager  installation.InstallationManager
-	hostPreflightManager preflight.HostPreflightManager
-	infraManager         infra.InfraManager
-	rc                   runtimeconfig.RuntimeConfig
-	logger               logrus.FieldLogger
-	hostUtils            hostutils.HostUtilsInterface
-	netUtils             utils.NetUtils
-	metricsReporter      metrics.ReporterInterface
-	releaseData          *release.ReleaseData
-	password             string
-	tlsConfig            types.TLSConfig
-	licenseFile          string
-	airgapBundle         string
-	configValues         string
-	endUserConfig        *ecv1beta1.Config
-	ignoreHostPreflights bool
-	mu                   sync.RWMutex
+	install                   *types.Install
+	installationManager       installation.InstallationManager
+	hostPreflightManager      preflight.HostPreflightManager
+	infraManager              infra.InfraManager
+	rc                        runtimeconfig.RuntimeConfig
+	logger                    logrus.FieldLogger
+	hostUtils                 hostutils.HostUtilsInterface
+	netUtils                  utils.NetUtils
+	metricsReporter           metrics.ReporterInterface
+	releaseData               *release.ReleaseData
+	password                  string
+	tlsConfig                 types.TLSConfig
+	licenseFile               string
+	airgapBundle              string
+	configValues              string
+	endUserConfig             *ecv1beta1.Config
+	allowIgnoreHostPreflights bool
+	mu                        sync.RWMutex
 }
 
 type InstallControllerOption func(*InstallController)
@@ -133,9 +133,9 @@ func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InstallControllerOption 
 	}
 }
 
-func WithIgnoreHostPreflights(ignoreHostPreflights bool) InstallControllerOption {
+func WithAllowIgnoreHostPreflights(allowIgnoreHostPreflights bool) InstallControllerOption {
 	return func(c *InstallController) {
-		c.ignoreHostPreflights = ignoreHostPreflights
+		c.allowIgnoreHostPreflights = allowIgnoreHostPreflights
 	}
 }
 

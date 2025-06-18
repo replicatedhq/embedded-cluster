@@ -34,7 +34,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 		}
 
 		// Check if we can proceed despite failures
-		if !ignorePreflightFailures || !c.ignoreHostPreflights {
+		if !ignorePreflightFailures || !c.allowIgnoreHostPreflights {
 			return false, fmt.Errorf("Preflight checks failed")
 		}
 
