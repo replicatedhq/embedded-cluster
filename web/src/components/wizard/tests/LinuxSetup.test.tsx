@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatErrorMessage } from "../../../../utils/error";
+import { formatErrorMessage } from "../setup/LinuxSetup";
 
 describe("formatErrorMessage", () => {
    it("handles empty string", () => {
@@ -30,9 +30,9 @@ describe("formatErrorMessage", () => {
       expect(formatErrorMessage("Please set the httpProxy")).toBe("Please set the HTTP Proxy");
    });
 
-   it("handles case sensitivity correctly", () => {
-      expect(formatErrorMessage("PodCidr")).toBe("PodCidr");
-      expect(formatErrorMessage("HTTPPROXY")).toBe("HTTPPROXY");
+   it("handles case insensitivity correctly", () => {
+      expect(formatErrorMessage("PodCidr")).toBe("Pod CIDR");
+      expect(formatErrorMessage("HTTPPROXY")).toBe("HTTP Proxy");
       expect(formatErrorMessage("cidr")).toBe("CIDR");
       expect(formatErrorMessage("Cidr")).toBe("CIDR");
       expect(formatErrorMessage("CIDR")).toBe("CIDR");
