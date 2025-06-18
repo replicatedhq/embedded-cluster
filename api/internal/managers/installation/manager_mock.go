@@ -62,3 +62,9 @@ func (m *MockInstallationManager) ConfigureHost(ctx context.Context, rc runtimec
 	args := m.Called(ctx, rc)
 	return args.Error(0)
 }
+
+// IsInState mocks the IsInState method
+func (m *MockInstallationManager) IsInState(state types.State) (bool, error) {
+	args := m.Called(state)
+	return args.Bool(0), args.Error(1)
+}

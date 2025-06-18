@@ -14,12 +14,12 @@ func (m *installationManager) SetStatus(status types.Status) error {
 	return m.installationStore.SetStatus(status)
 }
 
-func (m *installationManager) isRunning() (bool, error) {
+func (m *installationManager) IsInState(state types.State) (bool, error) {
 	status, err := m.GetStatus()
 	if err != nil {
 		return false, err
 	}
-	return status.State == types.StateRunning, nil
+	return status.State == state, nil
 }
 
 func (m *installationManager) setRunningStatus(description string) error {

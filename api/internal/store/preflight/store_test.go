@@ -160,7 +160,7 @@ func TestMemoryStore_SetStatus(t *testing.T) {
 	assert.Equal(t, expectedStatus, actualStatus)
 }
 
-func TestMemoryStore_IsRunning(t *testing.T) {
+func TestMemoryStore_IsInState(t *testing.T) {
 	tests := []struct {
 		name         string
 		status       types.Status
@@ -207,7 +207,7 @@ func TestMemoryStore_IsRunning(t *testing.T) {
 			}
 			store := NewMemoryStore(WithHostPreflight(hostPreflight))
 
-			result := store.IsRunning()
+			result := store.IsInState(types.StateRunning)
 
 			assert.Equal(t, tt.expectedBool, result)
 		})
@@ -226,11 +226,11 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 
 	// Concurrent titles operations
 	wg.Add(numGoroutines * 2)
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		// Concurrent writes
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < numOperations; j++ {
+			for range numOperations {
 				titles := []string{"Memory Check", "Disk Check", "Network Check"}
 				err := store.SetTitles(titles)
 				assert.NoError(t, err)
@@ -240,7 +240,7 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 		// Concurrent reads
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < numOperations; j++ {
+			for range numOperations {
 				_, err := store.GetTitles()
 				assert.NoError(t, err)
 			}
@@ -249,11 +249,11 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 
 	// Concurrent output operations
 	wg.Add(numGoroutines * 2)
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		// Concurrent writes
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < numOperations; j++ {
+			for range numOperations {
 				output := &types.HostPreflightsOutput{}
 				err := store.SetOutput(output)
 				assert.NoError(t, err)
@@ -263,7 +263,7 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 		// Concurrent reads
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < numOperations; j++ {
+			for range numOperations {
 				_, err := store.GetOutput()
 				assert.NoError(t, err)
 			}
@@ -272,11 +272,11 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 
 	// Concurrent status operations
 	wg.Add(numGoroutines * 3)
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		// Concurrent writes
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < numOperations; j++ {
+			for range numOperations {
 				status := types.Status{
 					State:       types.StateRunning,
 					Description: "Running",
@@ -290,17 +290,17 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 		// Concurrent reads
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < numOperations; j++ {
+			for range numOperations {
 				_, err := store.GetStatus()
 				assert.NoError(t, err)
 			}
 		}(i)
 
-		// Concurrent IsRunning calls
+		// Concurrent IsInState calls
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < numOperations; j++ {
-				store.IsRunning()
+			for range numOperations {
+				store.IsInState(types.StateRunning)
 			}
 		}(i)
 	}

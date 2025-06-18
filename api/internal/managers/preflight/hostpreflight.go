@@ -41,7 +41,7 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtime
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.hostPreflightStore.IsRunning() {
+	if m.hostPreflightStore.IsInState(types.StateRunning) {
 		return types.NewConflictError(fmt.Errorf("host preflights are already running"))
 	}
 
