@@ -207,7 +207,7 @@ func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfi
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	running, err := m.isRunning()
+	running, err := m.IsInState(types.StateRunning)
 	if err != nil {
 		return fmt.Errorf("check if installation is running: %w", err)
 	}

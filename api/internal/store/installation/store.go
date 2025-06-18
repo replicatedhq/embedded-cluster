@@ -14,6 +14,7 @@ type Store interface {
 	SetConfig(cfg types.InstallationConfig) error
 	GetStatus() (types.Status, error)
 	SetStatus(status types.Status) error
+	IsInState(state types.State) bool
 }
 
 type memoryStore struct {
@@ -77,4 +78,11 @@ func (s *memoryStore) SetStatus(status types.Status) error {
 	s.installation.Status = status
 
 	return nil
+}
+
+func (s *memoryStore) IsInState(state types.State) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.installation.Status.State == state
 }
