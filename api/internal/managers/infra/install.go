@@ -99,7 +99,7 @@ func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runti
 func (m *infraManager) install(ctx context.Context, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
-			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+			finalErr = fmt.Errorf("panic: %v: %w: %s", r, finalErr, string(debug.Stack()))
 		}
 		if finalErr != nil {
 			if err := m.setStatus(types.StateFailed, finalErr.Error()); err != nil {
