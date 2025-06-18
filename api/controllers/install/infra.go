@@ -69,6 +69,10 @@ func (c *InstallController) bypassPreflights(ctx context.Context) error {
 	}
 	defer lock.Release()
 
+	if err := c.stateMachine.ValidateTransition(lock, StatePreflightsFailedBypassed); err != nil {
+		return types.NewConflictError(err)
+	}
+
 	// TODO (@ethan): this feels awkward
 	preflightOutput, err := c.GetHostPreflightOutput(ctx)
 	if err != nil {

@@ -659,13 +659,6 @@ func TestSetupInfra(t *testing.T) {
 			currentState:  StatePreflightsFailed,
 			expectedState: StatePreflightsFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
-				pm.On("GetHostPreflightStatus", t.Context()).Return(nil, errors.New("get preflight status error"))
-			},
-			expectedErr: true,
-		},
-		{
-			name: "preflight output error",
-			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 				mock.InOrder(
 					pm.On("GetHostPreflightOutput", t.Context()).Return(nil, errors.New("get output error")),
 				)
