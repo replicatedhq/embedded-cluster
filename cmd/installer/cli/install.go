@@ -779,7 +779,7 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags, rc runtimecon
 
 func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
-	loading.Infof("Installing node")
+	loading.Infof("Installing runtime")
 	logrus.Debugf("creating k0s configuration file")
 
 	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
@@ -789,36 +789,36 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 
 	cfg, err := k0s.WriteK0sConfig(ctx, flags.networkInterface, flags.airgapBundle, rc.PodCIDR(), rc.ServiceCIDR(), eucfg, mutate)
 	if err != nil {
-		loading.ErrorClosef("Failed to install node")
+		loading.ErrorClosef("Failed to install runtime")
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 
 	logrus.Debugf("creating systemd unit files")
 	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, false); err != nil {
-		loading.ErrorClosef("Failed to install node")
+		loading.ErrorClosef("Failed to install runtime")
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
 	logrus.Debugf("installing k0s")
 	if err := k0s.Install(rc); err != nil {
-		loading.ErrorClosef("Failed to install node")
+		loading.ErrorClosef("Failed to install runtime")
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
 
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := k0s.WaitForK0s(); err != nil {
-		loading.ErrorClosef("Failed to install node")
+		loading.ErrorClosef("Failed to install runtime")
 		return nil, fmt.Errorf("wait for k0s: %w", err)
 	}
 
-	loading.Infof("Waiting for node")
-	logrus.Debugf("waiting for node to be ready")
+	loading.Infof("Waiting for runtime")
+	logrus.Debugf("waiting for runtime to be ready")
 	if err := waitForNode(ctx); err != nil {
-		loading.ErrorClosef("Node failed to become ready")
-		return nil, fmt.Errorf("wait for node: %w", err)
+		loading.ErrorClosef("Runtime failed to become ready")
+		return nil, fmt.Errorf("wait for runtime: %w", err)
 	}
 
-	loading.Closef("Node is ready")
+	loading.Closef("Runtime is ready")
 	return cfg, nil
 }
 
@@ -834,7 +834,7 @@ func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interf
 				loading = spinner.Start()
 				loading.Infof("Installing %s", progress.Name)
 			case apitypes.StateSucceeded:
-				loading.Closef("%s is ready", progress.Name)
+				loading.Closef("%s is ready", strings.ToUpper(progress.Name[:1])+progress.Name[1:])
 			case apitypes.StateFailed:
 				loading.ErrorClosef("Failed to install %s", progress.Name)
 			}
