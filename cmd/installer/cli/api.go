@@ -14,7 +14,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
-	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
 	apilogger "github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -169,45 +168,6 @@ func waitForAPI(ctx context.Context, addr string) error {
 			}
 		}
 	}
-}
-
-func markUIInstallComplete(password string, managerPort int, installErr error) error {
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			Proxy: nil, // This is a local client so no proxy is needed
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
-	apiClient := apiclient.New(
-		fmt.Sprintf("https://localhost:%d", managerPort),
-		apiclient.WithHTTPClient(httpClient),
-	)
-	if err := apiClient.Authenticate(password); err != nil {
-		return fmt.Errorf("unable to authenticate: %w", err)
-	}
-
-	var state apitypes.State
-	var description string
-	if installErr != nil {
-		state = apitypes.StateFailed
-		description = fmt.Sprintf("Installation failed: %v", installErr)
-	} else {
-		state = apitypes.StateSucceeded
-		description = "Installation succeeded"
-	}
-
-	_, err := apiClient.SetInstallStatus(&apitypes.Status{
-		State:       state,
-		Description: description,
-		LastUpdated: time.Now(),
-	})
-	if err != nil {
-		return fmt.Errorf("unable to set install status: %w", err)
-	}
-
-	return nil
 }
 
 func getManagerURL(hostname string, port int) string {

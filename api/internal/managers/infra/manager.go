@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
@@ -22,18 +23,19 @@ type InfraManager interface {
 
 // infraManager is an implementation of the InfraManager interface
 type infraManager struct {
-	infra         *types.Infra
-	infraStore    Store
-	rc            runtimeconfig.RuntimeConfig
-	password      string
-	tlsConfig     types.TLSConfig
-	licenseFile   string
-	airgapBundle  string
-	configValues  string
-	releaseData   *release.ReleaseData
-	endUserConfig *ecv1beta1.Config
-	logger        logrus.FieldLogger
-	mu            sync.RWMutex
+	infra           *types.Infra
+	infraStore      Store
+	rc              runtimeconfig.RuntimeConfig
+	password        string
+	tlsConfig       types.TLSConfig
+	licenseFile     string
+	airgapBundle    string
+	configValues    string
+	releaseData     *release.ReleaseData
+	endUserConfig   *ecv1beta1.Config
+	logger          logrus.FieldLogger
+	metricsReporter metrics.ReporterInterface
+	mu              sync.RWMutex
 }
 
 type InfraManagerOption func(*infraManager)
@@ -101,6 +103,12 @@ func WithReleaseData(releaseData *release.ReleaseData) InfraManagerOption {
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InfraManagerOption {
 	return func(c *infraManager) {
 		c.endUserConfig = endUserConfig
+	}
+}
+
+func WithMetricsReporter(metricsReporter metrics.ReporterInterface) InfraManagerOption {
+	return func(c *infraManager) {
+		c.metricsReporter = metricsReporter
 	}
 }
 

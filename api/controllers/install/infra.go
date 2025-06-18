@@ -23,7 +23,7 @@ func (c *InstallController) SetupInfra(ctx context.Context) error {
 			return fmt.Errorf("get install host preflight output: %w", err)
 		}
 		if preflightOutput != nil {
-			c.metricsReporter.ReportPreflightsFailed(ctx, preflightOutput)
+			c.metricsReporter.ReportPreflightsBypassed(ctx, preflightOutput)
 		}
 	}
 

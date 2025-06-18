@@ -111,9 +111,15 @@ func (m *infraManager) install(ctx context.Context, config *types.InstallationCo
 			if err := m.setStatus(types.StateFailed, finalErr.Error()); err != nil {
 				m.logger.WithField("error", err).Error("set failed status")
 			}
+			if m.metricsReporter != nil {
+				m.metricsReporter.ReportInstallationFailed(ctx, finalErr)
+			}
 		} else {
 			if err := m.setStatus(types.StateSucceeded, "Installation complete"); err != nil {
 				m.logger.WithField("error", err).Error("set succeeded status")
+			}
+			if m.metricsReporter != nil {
+				m.metricsReporter.ReportInstallationSucceeded(ctx)
 			}
 		}
 	}()

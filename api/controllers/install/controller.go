@@ -205,6 +205,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithConfigValues(controller.configValues),
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
+			infra.WithMetricsReporter(controller.metricsReporter),
 		)
 	}
 
