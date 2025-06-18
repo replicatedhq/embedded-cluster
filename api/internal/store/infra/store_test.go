@@ -28,8 +28,6 @@ func TestNewMemoryStore(t *testing.T) {
 	assert.NotNil(t, store)
 	infra, err := store.Get()
 	require.NoError(t, err)
-	assert.NotNil(t, infra)
-	assert.NotNil(t, infra.Status)
 	assert.Equal(t, types.StatePending, infra.Status.State)
 }
 
@@ -185,8 +183,6 @@ func TestMemoryStore_Get(t *testing.T) {
 	// Test getting infra
 	infra, err := store.Get()
 	require.NoError(t, err)
-	assert.NotNil(t, infra)
-	assert.NotNil(t, infra.Status)
 	assert.Empty(t, infra.Components)
 	assert.Empty(t, infra.Logs)
 
@@ -293,7 +289,7 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 }
 
 func TestMemoryStore_StatusDescWithoutStatus(t *testing.T) {
-	store := &MemoryStore{
+	store := &memoryStore{
 		infra: types.Infra{},
 	}
 

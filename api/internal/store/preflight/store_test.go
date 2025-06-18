@@ -15,7 +15,6 @@ func TestNewMemoryStore(t *testing.T) {
 	store := NewMemoryStore(WithHostPreflight(hostPreflight))
 
 	assert.NotNil(t, store)
-	assert.NotNil(t, store.hostPreflight)
 	assert.Equal(t, hostPreflight, store.hostPreflight)
 }
 
@@ -134,7 +133,6 @@ func TestMemoryStore_GetStatus(t *testing.T) {
 	result, err := store.GetStatus()
 
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 	assert.Equal(t, status, result)
 }
 

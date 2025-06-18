@@ -11,7 +11,7 @@ import (
 
 const maxLogSize = 100 * 1024 // 100KB total log size
 
-var _ Store = &MemoryStore{}
+var _ Store = &memoryStore{}
 
 // Store provides methods for storing and retrieving infrastructure state
 type Store interface {
@@ -25,23 +25,23 @@ type Store interface {
 	GetLogs() (string, error)
 }
 
-// MemoryStore is an in-memory implementation of Store
-type MemoryStore struct {
+// memoryStore is an in-memory implementation of Store
+type memoryStore struct {
 	infra types.Infra
 	mu    sync.RWMutex
 }
 
-type StoreOption func(*MemoryStore)
+type StoreOption func(*memoryStore)
 
 func WithInfra(infra types.Infra) StoreOption {
-	return func(s *MemoryStore) {
+	return func(s *memoryStore) {
 		s.infra = infra
 	}
 }
 
 // NewMemoryStore creates a new memory store
 func NewMemoryStore(opts ...StoreOption) Store {
-	s := &MemoryStore{}
+	s := &memoryStore{}
 
 	for _, opt := range opts {
 		opt(s)
@@ -50,7 +50,7 @@ func NewMemoryStore(opts ...StoreOption) Store {
 	return s
 }
 
-func (s *MemoryStore) Get() (types.Infra, error) {
+func (s *memoryStore) Get() (types.Infra, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -62,7 +62,7 @@ func (s *MemoryStore) Get() (types.Infra, error) {
 	return infra, nil
 }
 
-func (s *MemoryStore) GetStatus() (types.Status, error) {
+func (s *memoryStore) GetStatus() (types.Status, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -74,14 +74,14 @@ func (s *MemoryStore) GetStatus() (types.Status, error) {
 	return status, nil
 }
 
-func (s *MemoryStore) SetStatus(status types.Status) error {
+func (s *memoryStore) SetStatus(status types.Status) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.infra.Status = status
 	return nil
 }
 
-func (s *MemoryStore) SetStatusDesc(desc string) error {
+func (s *memoryStore) SetStatusDesc(desc string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -93,7 +93,7 @@ func (s *MemoryStore) SetStatusDesc(desc string) error {
 	return nil
 }
 
-func (s *MemoryStore) RegisterComponent(name string) error {
+func (s *memoryStore) RegisterComponent(name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -109,7 +109,7 @@ func (s *MemoryStore) RegisterComponent(name string) error {
 	return nil
 }
 
-func (s *MemoryStore) SetComponentStatus(name string, status types.Status) error {
+func (s *memoryStore) SetComponentStatus(name string, status types.Status) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -123,7 +123,7 @@ func (s *MemoryStore) SetComponentStatus(name string, status types.Status) error
 	return fmt.Errorf("component %s not found", name)
 }
 
-func (s *MemoryStore) AddLogs(logs string) error {
+func (s *memoryStore) AddLogs(logs string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -135,7 +135,7 @@ func (s *MemoryStore) AddLogs(logs string) error {
 	return nil
 }
 
-func (s *MemoryStore) GetLogs() (string, error) {
+func (s *memoryStore) GetLogs() (string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.infra.Logs, nil

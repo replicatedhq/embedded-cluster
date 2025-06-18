@@ -286,8 +286,6 @@ func TestSetConfigDefaults(t *testing.T) {
 
 			err := manager.SetConfigDefaults(&tt.inputConfig)
 			assert.NoError(t, err)
-
-			assert.NotNil(t, tt.inputConfig)
 			assert.Equal(t, tt.expectedConfig, tt.inputConfig)
 		})
 	}
@@ -326,7 +324,6 @@ func TestConfigSetAndGet(t *testing.T) {
 	// Test reading it back
 	readConfig, err := manager.GetConfig()
 	assert.NoError(t, err)
-	assert.NotNil(t, readConfig)
 
 	// Verify the values match
 	assert.Equal(t, configToWrite.AdminConsolePort, readConfig.AdminConsolePort)

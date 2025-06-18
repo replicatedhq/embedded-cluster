@@ -1012,7 +1012,6 @@ func TestInstallWithAPIClient(t *testing.T) {
 	t.Run("GetInstallationConfig", func(t *testing.T) {
 		config, err := c.GetInstallationConfig()
 		require.NoError(t, err, "GetInstallationConfig should succeed")
-		assert.NotNil(t, config, "InstallationConfig should not be nil")
 
 		// Verify values
 		assert.Equal(t, "/tmp/test-data-for-client", config.DataDirectory)
@@ -1026,7 +1025,6 @@ func TestInstallWithAPIClient(t *testing.T) {
 	t.Run("GetInstallationStatus", func(t *testing.T) {
 		status, err := c.GetInstallationStatus()
 		require.NoError(t, err, "GetInstallationStatus should succeed")
-		assert.NotNil(t, status, "InstallationStatus should not be nil")
 		assert.Equal(t, types.StatePending, status.State)
 		assert.Equal(t, "Installation pending", status.Description)
 	})
@@ -1043,9 +1041,8 @@ func TestInstallWithAPIClient(t *testing.T) {
 		}
 
 		// Configure the installation using the client
-		status, err := c.ConfigureInstallation(config)
+		_, err = c.ConfigureInstallation(config)
 		require.NoError(t, err, "ConfigureInstallation should succeed with valid config")
-		assert.NotNil(t, status, "Status should not be nil")
 
 		// Verify the status was set correctly
 		var installStatus types.Status
@@ -1107,7 +1104,6 @@ func TestInstallWithAPIClient(t *testing.T) {
 		// Set the status using the client
 		newStatus, err := c.SetInstallStatus(status)
 		require.NoError(t, err, "SetInstallStatus should succeed")
-		assert.NotNil(t, newStatus, "Install should not be nil")
 		assert.Equal(t, status, newStatus, "Install status should match the one set")
 	})
 }
@@ -1300,7 +1296,6 @@ func TestPostSetupInfra(t *testing.T) {
 		// Verify installation was created
 		gotInst, err := kubeutils.GetLatestInstallation(t.Context(), fakeKcli)
 		require.NoError(t, err)
-		assert.NotNil(t, gotInst)
 		assert.Equal(t, ecv1beta1.InstallationStateInstalled, gotInst.Status.State)
 
 		// Verify version metadata configmap was created
