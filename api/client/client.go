@@ -11,12 +11,12 @@ import (
 
 type Client interface {
 	Authenticate(password string) error
-	GetInstallationConfig() (*types.InstallationConfig, error)
-	GetInstallationStatus() (*types.Status, error)
-	ConfigureInstallation(config *types.InstallationConfig) (*types.Status, error)
-	SetupInfra() (*types.Infra, error)
-	GetInfraStatus() (*types.Infra, error)
-	SetInstallStatus(status *types.Status) (*types.Status, error)
+	GetInstallationConfig() (types.InstallationConfig, error)
+	GetInstallationStatus() (types.Status, error)
+	ConfigureInstallation(config types.InstallationConfig) (types.Status, error)
+	SetupInfra() (types.Infra, error)
+	GetInfraStatus() (types.Infra, error)
+	SetInstallStatus(status types.Status) (types.Status, error)
 }
 
 type client struct {

@@ -33,7 +33,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 	})
 }
 
-func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (*types.Status, error) {
+func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (types.Status, error) {
 	return c.hostPreflightManager.GetHostPreflightStatus(ctx)
 }
 

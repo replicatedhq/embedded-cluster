@@ -55,7 +55,7 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtime
 	return nil
 }
 
-func (m *hostPreflightManager) GetHostPreflightStatus(ctx context.Context) (*types.Status, error) {
+func (m *hostPreflightManager) GetHostPreflightStatus(ctx context.Context) (types.Status, error) {
 	return m.hostPreflightStore.GetStatus()
 }
 
@@ -168,7 +168,7 @@ func (m *hostPreflightManager) setRunningStatus(hpf *troubleshootv1beta2.HostPre
 		return fmt.Errorf("reset output: %w", err)
 	}
 
-	if err := m.hostPreflightStore.SetStatus(&types.Status{
+	if err := m.hostPreflightStore.SetStatus(types.Status{
 		State:       types.StateRunning,
 		Description: "Running host preflights",
 		LastUpdated: time.Now(),
@@ -182,7 +182,7 @@ func (m *hostPreflightManager) setRunningStatus(hpf *troubleshootv1beta2.HostPre
 func (m *hostPreflightManager) setFailedStatus(description string) error {
 	m.logger.Error(description)
 
-	return m.hostPreflightStore.SetStatus(&types.Status{
+	return m.hostPreflightStore.SetStatus(types.Status{
 		State:       types.StateFailed,
 		Description: description,
 		LastUpdated: time.Now(),
@@ -194,7 +194,7 @@ func (m *hostPreflightManager) setCompletedStatus(state types.State, description
 		return fmt.Errorf("set output: %w", err)
 	}
 
-	return m.hostPreflightStore.SetStatus(&types.Status{
+	return m.hostPreflightStore.SetStatus(types.Status{
 		State:       state,
 		Description: description,
 		LastUpdated: time.Now(),

@@ -11,8 +11,8 @@ import (
 )
 
 func TestNewMemoryStore(t *testing.T) {
-	hostPreflight := types.NewHostPreflights()
-	store := NewMemoryStore(hostPreflight)
+	hostPreflight := types.HostPreflights{}
+	store := NewMemoryStore(WithHostPreflight(hostPreflight))
 
 	assert.NotNil(t, store)
 	assert.NotNil(t, store.hostPreflight)
@@ -20,10 +20,10 @@ func TestNewMemoryStore(t *testing.T) {
 }
 
 func TestMemoryStore_GetTitles(t *testing.T) {
-	hostPreflight := &types.HostPreflights{
+	hostPreflight := types.HostPreflights{
 		Titles: []string{"Memory Check", "Disk Space Check", "Network Check"},
 	}
-	store := NewMemoryStore(hostPreflight)
+	store := NewMemoryStore(WithHostPreflight(hostPreflight))
 
 	titles, err := store.GetTitles()
 
@@ -33,10 +33,10 @@ func TestMemoryStore_GetTitles(t *testing.T) {
 }
 
 func TestMemoryStore_GetTitles_Empty(t *testing.T) {
-	hostPreflight := &types.HostPreflights{
+	hostPreflight := types.HostPreflights{
 		Titles: []string{},
 	}
-	store := NewMemoryStore(hostPreflight)
+	store := NewMemoryStore(WithHostPreflight(hostPreflight))
 
 	titles, err := store.GetTitles()
 
@@ -46,10 +46,10 @@ func TestMemoryStore_GetTitles_Empty(t *testing.T) {
 }
 
 func TestMemoryStore_SetTitles(t *testing.T) {
-	hostPreflight := &types.HostPreflights{
+	hostPreflight := types.HostPreflights{
 		Titles: []string{"Old Title"},
 	}
-	store := NewMemoryStore(hostPreflight)
+	store := NewMemoryStore(WithHostPreflight(hostPreflight))
 	expectedTitles := []string{"CPU Check", "RAM Check", "Storage Check"}
 
 	err := store.SetTitles(expectedTitles)
@@ -64,10 +64,10 @@ func TestMemoryStore_SetTitles(t *testing.T) {
 
 func TestMemoryStore_GetOutput(t *testing.T) {
 	output := &types.HostPreflightsOutput{}
-	hostPreflight := &types.HostPreflights{
+	hostPreflight := types.HostPreflights{
 		Output: output,
 	}
-	store := NewMemoryStore(hostPreflight)
+	store := NewMemoryStore(WithHostPreflight(hostPreflight))
 
 	result, err := store.GetOutput()
 
@@ -76,10 +76,10 @@ func TestMemoryStore_GetOutput(t *testing.T) {
 }
 
 func TestMemoryStore_GetOutput_Nil(t *testing.T) {
-	hostPreflight := &types.HostPreflights{
+	hostPreflight := types.HostPreflights{
 		Output: nil,
 	}
-	store := NewMemoryStore(hostPreflight)
+	store := NewMemoryStore(WithHostPreflight(hostPreflight))
 
 	result, err := store.GetOutput()
 
@@ -88,10 +88,10 @@ func TestMemoryStore_GetOutput_Nil(t *testing.T) {
 }
 
 func TestMemoryStore_SetOutput(t *testing.T) {
-	hostPreflight := &types.HostPreflights{
+	hostPreflight := types.HostPreflights{
 		Output: nil,
 	}
-	store := NewMemoryStore(hostPreflight)
+	store := NewMemoryStore(WithHostPreflight(hostPreflight))
 	expectedOutput := &types.HostPreflightsOutput{}
 
 	err := store.SetOutput(expectedOutput)
@@ -105,10 +105,10 @@ func TestMemoryStore_SetOutput(t *testing.T) {
 }
 
 func TestMemoryStore_SetOutput_Nil(t *testing.T) {
-	hostPreflight := &types.HostPreflights{
+	hostPreflight := types.HostPreflights{
 		Output: &types.HostPreflightsOutput{},
 	}
-	store := NewMemoryStore(hostPreflight)
+	store := NewMemoryStore(WithHostPreflight(hostPreflight))
 
 	err := store.SetOutput(nil)
 
@@ -121,15 +121,15 @@ func TestMemoryStore_SetOutput_Nil(t *testing.T) {
 }
 
 func TestMemoryStore_GetStatus(t *testing.T) {
-	status := &types.Status{
+	status := types.Status{
 		State:       types.StateRunning,
 		Description: "Running host preflights",
 		LastUpdated: time.Now(),
 	}
-	hostPreflight := &types.HostPreflights{
+	hostPreflight := types.HostPreflights{
 		Status: status,
 	}
-	store := NewMemoryStore(hostPreflight)
+	store := NewMemoryStore(WithHostPreflight(hostPreflight))
 
 	result, err := store.GetStatus()
 
@@ -139,14 +139,14 @@ func TestMemoryStore_GetStatus(t *testing.T) {
 }
 
 func TestMemoryStore_SetStatus(t *testing.T) {
-	hostPreflight := &types.HostPreflights{
-		Status: &types.Status{
+	hostPreflight := types.HostPreflights{
+		Status: types.Status{
 			State:       types.StateFailed,
 			Description: "Failed",
 		},
 	}
-	store := NewMemoryStore(hostPreflight)
-	expectedStatus := &types.Status{
+	store := NewMemoryStore(WithHostPreflight(hostPreflight))
+	expectedStatus := types.Status{
 		State:       types.StateSucceeded,
 		Description: "Host preflights passed",
 		LastUpdated: time.Now(),
@@ -165,12 +165,12 @@ func TestMemoryStore_SetStatus(t *testing.T) {
 func TestMemoryStore_IsRunning(t *testing.T) {
 	tests := []struct {
 		name         string
-		status       *types.Status
+		status       types.Status
 		expectedBool bool
 	}{
 		{
 			name: "is running when state is running",
-			status: &types.Status{
+			status: types.Status{
 				State:       types.StateRunning,
 				Description: "Running host preflights",
 			},
@@ -178,7 +178,7 @@ func TestMemoryStore_IsRunning(t *testing.T) {
 		},
 		{
 			name: "is not running when state is succeeded",
-			status: &types.Status{
+			status: types.Status{
 				State:       types.StateSucceeded,
 				Description: "Host preflights passed",
 			},
@@ -186,7 +186,7 @@ func TestMemoryStore_IsRunning(t *testing.T) {
 		},
 		{
 			name: "is not running when state is failed",
-			status: &types.Status{
+			status: types.Status{
 				State:       types.StateFailed,
 				Description: "Host preflights failed",
 			},
@@ -194,7 +194,7 @@ func TestMemoryStore_IsRunning(t *testing.T) {
 		},
 		{
 			name: "is not running when state is pending",
-			status: &types.Status{
+			status: types.Status{
 				State:       types.StatePending,
 				Description: "Pending host preflights",
 			},
@@ -204,10 +204,10 @@ func TestMemoryStore_IsRunning(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hostPreflight := &types.HostPreflights{
+			hostPreflight := types.HostPreflights{
 				Status: tt.status,
 			}
-			store := NewMemoryStore(hostPreflight)
+			store := NewMemoryStore(WithHostPreflight(hostPreflight))
 
 			result := store.IsRunning()
 
@@ -218,8 +218,8 @@ func TestMemoryStore_IsRunning(t *testing.T) {
 
 // Useful to test concurrent access with -race flag
 func TestMemoryStore_ConcurrentAccess(t *testing.T) {
-	hostPreflight := types.NewHostPreflights()
-	store := NewMemoryStore(hostPreflight)
+	hostPreflight := types.HostPreflights{}
+	store := NewMemoryStore(WithHostPreflight(hostPreflight))
 	var wg sync.WaitGroup
 
 	// Test concurrent reads and writes
@@ -279,7 +279,7 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			for j := 0; j < numOperations; j++ {
-				status := &types.Status{
+				status := types.Status{
 					State:       types.StateRunning,
 					Description: "Running",
 					LastUpdated: time.Now(),

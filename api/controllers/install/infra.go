@@ -34,6 +34,6 @@ func (c *InstallController) SetupInfra(ctx context.Context) error {
 	return nil
 }
 
-func (c *InstallController) GetInfra(ctx context.Context) (*types.Infra, error) {
+func (c *InstallController) GetInfra(ctx context.Context) (types.Infra, error) {
 	return c.infraManager.Get()
 }

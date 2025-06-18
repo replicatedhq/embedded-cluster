@@ -26,19 +26,19 @@ func TestInfraWithLogs(t *testing.T) {
 func TestInstallDidRun(t *testing.T) {
 	tests := []struct {
 		name           string
-		currentStatus  *types.Status
+		currentStatus  types.Status
 		expectedResult bool
 		expectedErr    bool
 	}{
 		{
 			name:           "nil status",
-			currentStatus:  nil,
+			currentStatus:  types.Status{},
 			expectedResult: false,
 			expectedErr:    false,
 		},
 		{
 			name: "empty state",
-			currentStatus: &types.Status{
+			currentStatus: types.Status{
 				State: "",
 			},
 			expectedResult: false,
@@ -46,7 +46,7 @@ func TestInstallDidRun(t *testing.T) {
 		},
 		{
 			name: "pending state",
-			currentStatus: &types.Status{
+			currentStatus: types.Status{
 				State: types.StatePending,
 			},
 			expectedResult: false,
@@ -54,7 +54,7 @@ func TestInstallDidRun(t *testing.T) {
 		},
 		{
 			name: "running state",
-			currentStatus: &types.Status{
+			currentStatus: types.Status{
 				State: types.StateRunning,
 			},
 			expectedResult: true,
@@ -62,7 +62,7 @@ func TestInstallDidRun(t *testing.T) {
 		},
 		{
 			name: "failed state",
-			currentStatus: &types.Status{
+			currentStatus: types.Status{
 				State: types.StateFailed,
 			},
 			expectedResult: true,
@@ -70,7 +70,7 @@ func TestInstallDidRun(t *testing.T) {
 		},
 		{
 			name: "succeeded state",
-			currentStatus: &types.Status{
+			currentStatus: types.Status{
 				State: types.StateSucceeded,
 			},
 			expectedResult: true,
@@ -81,9 +81,8 @@ func TestInstallDidRun(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			manager := NewInfraManager()
-			if tt.currentStatus != nil {
-				manager.SetStatus(*tt.currentStatus)
-			}
+			manager.SetStatus(tt.currentStatus)
+
 			result, err := manager.installDidRun()
 
 			if tt.expectedErr {

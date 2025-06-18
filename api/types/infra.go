@@ -3,17 +3,10 @@ package types
 type Infra struct {
 	Components []InfraComponent `json:"components"`
 	Logs       string           `json:"logs"`
-	Status     *Status          `json:"status"`
+	Status     Status           `json:"status"`
 }
 
 type InfraComponent struct {
-	Name   string  `json:"name"`
-	Status *Status `json:"status"`
-}
-
-func NewInfra() *Infra {
-	return &Infra{
-		Components: []InfraComponent{},
-		Status:     NewStatus(),
-	}
+	Name   string `json:"name"`
+	Status Status `json:"status"`
 }

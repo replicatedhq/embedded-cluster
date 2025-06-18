@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/store/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -18,13 +19,13 @@ import (
 type HostPreflightManager interface {
 	PrepareHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error)
 	RunHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts RunHostPreflightOptions) error
-	GetHostPreflightStatus(ctx context.Context) (*types.Status, error)
+	GetHostPreflightStatus(ctx context.Context) (types.Status, error)
 	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 }
 
 type hostPreflightManager struct {
-	hostPreflightStore HostPreflightStore
+	hostPreflightStore preflight.Store
 	runner             preflights.PreflightsRunnerInterface
 	netUtils           utils.NetUtils
 	logger             logrus.FieldLogger
@@ -46,7 +47,7 @@ func WithMetricsReporter(metricsReporter metrics.ReporterInterface) HostPrefligh
 	}
 }
 
-func WithHostPreflightStore(hostPreflightStore HostPreflightStore) HostPreflightManagerOption {
+func WithHostPreflightStore(hostPreflightStore preflight.Store) HostPreflightManagerOption {
 	return func(m *hostPreflightManager) {
 		m.hostPreflightStore = hostPreflightStore
 	}
@@ -77,7 +78,7 @@ func NewHostPreflightManager(opts ...HostPreflightManagerOption) HostPreflightMa
 	}
 
 	if manager.hostPreflightStore == nil {
-		manager.hostPreflightStore = NewMemoryStore(types.NewHostPreflights())
+		manager.hostPreflightStore = preflight.NewMemoryStore()
 	}
 
 	if manager.runner == nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/store/installation"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -16,19 +17,18 @@ var _ InstallationManager = &installationManager{}
 
 // InstallationManager provides methods for validating and setting defaults for installation configuration
 type InstallationManager interface {
-	GetConfig() (*types.InstallationConfig, error)
+	GetConfig() (types.InstallationConfig, error)
 	SetConfig(config types.InstallationConfig) error
-	GetStatus() (*types.Status, error)
+	GetStatus() (types.Status, error)
 	SetStatus(status types.Status) error
-	ValidateConfig(config *types.InstallationConfig, managerPort int) error
+	ValidateConfig(config types.InstallationConfig, managerPort int) error
 	SetConfigDefaults(config *types.InstallationConfig) error
 	ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
 }
 
 // installationManager is an implementation of the InstallationManager interface
 type installationManager struct {
-	installation      *types.Installation
-	installationStore InstallationStore
+	installationStore installation.Store
 	licenseFile       string
 	airgapBundle      string
 	netUtils          utils.NetUtils
@@ -45,13 +45,7 @@ func WithLogger(logger logrus.FieldLogger) InstallationManagerOption {
 	}
 }
 
-func WithInstallation(installation *types.Installation) InstallationManagerOption {
-	return func(c *installationManager) {
-		c.installation = installation
-	}
-}
-
-func WithInstallationStore(installationStore InstallationStore) InstallationManagerOption {
+func WithInstallationStore(installationStore installation.Store) InstallationManagerOption {
 	return func(c *installationManager) {
 		c.installationStore = installationStore
 	}
@@ -93,12 +87,8 @@ func NewInstallationManager(opts ...InstallationManagerOption) *installationMana
 		manager.logger = logger.NewDiscardLogger()
 	}
 
-	if manager.installation == nil {
-		manager.installation = types.NewInstallation()
-	}
-
 	if manager.installationStore == nil {
-		manager.installationStore = NewMemoryStore(manager.installation)
+		manager.installationStore = installation.NewMemoryStore()
 	}
 
 	if manager.netUtils == nil {

@@ -12,20 +12,20 @@ type MockStore struct {
 	mock.Mock
 }
 
-func (m *MockStore) Get() (*types.Infra, error) {
+func (m *MockStore) Get() (types.Infra, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return types.Infra{}, args.Error(1)
 	}
-	return args.Get(0).(*types.Infra), args.Error(1)
+	return args.Get(0).(types.Infra), args.Error(1)
 }
 
-func (m *MockStore) GetStatus() (*types.Status, error) {
+func (m *MockStore) GetStatus() (types.Status, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return types.Status{}, args.Error(1)
 	}
-	return args.Get(0).(*types.Status), args.Error(1)
+	return args.Get(0).(types.Status), args.Error(1)
 }
 
 func (m *MockStore) SetStatus(status types.Status) error {
@@ -43,7 +43,7 @@ func (m *MockStore) RegisterComponent(name string) error {
 	return args.Error(0)
 }
 
-func (m *MockStore) SetComponentStatus(name string, status *types.Status) error {
+func (m *MockStore) SetComponentStatus(name string, status types.Status) error {
 	args := m.Called(name, status)
 	return args.Error(0)
 }

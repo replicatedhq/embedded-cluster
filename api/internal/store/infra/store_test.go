@@ -12,14 +12,14 @@ import (
 )
 
 func newMemoryStore() Store {
-	infra := &types.Infra{
-		Status: &types.Status{
+	infra := types.Infra{
+		Status: types.Status{
 			State: types.StatePending,
 		},
 		Components: []types.InfraComponent{},
 		Logs:       "",
 	}
-	return NewMemoryStore(infra)
+	return NewMemoryStore(WithInfra(infra))
 }
 
 func TestNewMemoryStore(t *testing.T) {
@@ -102,7 +102,7 @@ func TestMemoryStore_SetComponentStatus(t *testing.T) {
 
 	// Test setting component status
 	now := time.Now()
-	componentStatus := &types.Status{
+	componentStatus := types.Status{
 		State:       types.StateRunning,
 		Description: "Installing k0s",
 		LastUpdated: now,
@@ -270,7 +270,7 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			for j := 0; j < numOperations; j++ {
-				status := &types.Status{
+				status := types.Status{
 					State:       types.StateRunning,
 					Description: "Concurrent component test",
 				}
@@ -293,14 +293,12 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 }
 
 func TestMemoryStore_StatusDescWithoutStatus(t *testing.T) {
-	store := &memoryStore{
-		infra: &types.Infra{
-			Status: nil, // No status set
-		},
+	store := &MemoryStore{
+		infra: types.Infra{},
 	}
 
 	// Test setting status description when status is nil
 	err := store.SetStatusDesc("Should fail")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "status not set")
+	assert.Contains(t, err.Error(), "state not set")
 }
