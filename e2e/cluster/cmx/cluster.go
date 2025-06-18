@@ -312,7 +312,7 @@ func (c *Cluster) waitForClockSync() {
 			c.t.Fatalf("timeout waiting for clock sync on all nodes")
 
 		case <-tick:
-			for i, _ := range c.Nodes {
+			for i := range c.Nodes {
 				status, _, _ := c.RunCommandOnNode(i, []string{"timedatectl show -p NTP -p NTPSynchronized"})
 
 				if !strings.Contains(status, "NTP=yes") || !strings.Contains(status, "NTPSynchronized=yes") {
