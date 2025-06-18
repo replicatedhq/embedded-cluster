@@ -11,7 +11,6 @@ export interface ClusterConfig {
   noProxy?: string;
   networkInterface?: string;
   globalCidr?: string;
-  ignoreHostPreflights?: boolean;
 }
 
 interface PrototypeSettings {

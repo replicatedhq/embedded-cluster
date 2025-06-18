@@ -6,11 +6,6 @@ export const MOCK_INSTALL_CONFIG = {
   ignoreHostPreflights: false,
 };
 
-export const MOCK_INSTALL_CONFIG_WITH_IGNORE_PREFLIGHTS = {
-  ...MOCK_INSTALL_CONFIG,
-  ignoreHostPreflights: true,
-};
-
 export const MOCK_NETWORK_INTERFACES = {
   networkInterfaces: [
     { name: "eth0", address: "192.168.1.1" },
