@@ -329,7 +329,7 @@ func TestRunHostPreflights(t *testing.T) {
 	}{
 		{
 			name:          "successful run preflights",
-			currentState:  StateInstallationConfigured,
+			currentState:  StateHostConfigured,
 			expectedState: StatePreflightsSucceeded,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
 				mock.InOrder(
@@ -343,8 +343,8 @@ func TestRunHostPreflights(t *testing.T) {
 		},
 		{
 			name:          "prepare preflights error",
-			currentState:  StateInstallationConfigured,
-			expectedState: StateInstallationConfigured,
+			currentState:  StateHostConfigured,
+			expectedState: StateHostConfigured,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(nil, errors.New("prepare error")),
@@ -354,7 +354,7 @@ func TestRunHostPreflights(t *testing.T) {
 		},
 		{
 			name:          "run preflights error",
-			currentState:  StateInstallationConfigured,
+			currentState:  StateHostConfigured,
 			expectedState: StatePreflightsFailed,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
 				mock.InOrder(
