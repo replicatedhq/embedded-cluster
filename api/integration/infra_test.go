@@ -164,10 +164,11 @@ func TestPostInstallSetupInfraValidation(t *testing.T) {
 				require.NoError(t, err)
 				assert.Contains(t, apiError.Message, tt.expectedError)
 			} else {
-				var infraResp types.Infra
+				var infraResp types.InfraSetupResponse
 				err := json.NewDecoder(rec.Body).Decode(&infraResp)
 				require.NoError(t, err)
 				assert.NotNil(t, infraResp.Status)
+				assert.Equal(t, tt.request.IgnorePreflightFailures, infraResp.PreflightsIgnored)
 			}
 		})
 	}

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
+import React from 'react';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -308,6 +309,107 @@ describe('ValidationStep', () => {
 
     // No modal should appear when preflights pass
     expect(screen.queryByText('Proceed with Failed Checks?')).not.toBeInTheDocument();
+
+    // Should proceed to next step
+    await waitFor(() => {
+      expect(mockOnNext).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // Phase 4.1 RED Tests: Verify ignorePreflightFailures parameter is sent
+  it('sends ignorePreflightFailures parameter when starting installation with failed preflights', async () => {
+    // Mock preflight status endpoint - returns failures with allowIgnoreHostPreflights: true
+    server.use(
+      http.get('*/api/install/host-preflights/status', () => {
+        return HttpResponse.json({
+          titles: ['Host Check'],
+          status: { state: 'Failed' },
+          output: {
+            fail: [{ title: 'Disk Space', message: 'Not enough disk space available' }],
+            warn: [],
+            pass: []
+          },
+          allowIgnoreHostPreflights: true
+        });
+      }),
+      // Mock infra setup endpoint to capture request body
+      http.post('*/api/install/infra/setup', async ({ request }) => {
+        const body = await request.json();
+        
+        // Verify the request includes ignorePreflightFailures parameter
+        expect(body).toHaveProperty('ignorePreflightFailures', true);
+        
+        return HttpResponse.json({ success: true });
+      })
+    );
+
+    renderWithProviders(
+      <ValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      { wrapperProps: { authenticated: true } }
+    );
+
+    // Wait for preflights to complete and show failures
+    await waitFor(() => {
+      expect(screen.getByText('Host Requirements Not Met')).toBeInTheDocument();
+    });
+
+    // Click Start Installation button
+    const nextButton = screen.getByText('Next: Start Installation');
+    fireEvent.click(nextButton);
+
+    // Confirm in modal
+    await waitFor(() => {
+      expect(screen.getByText('Proceed with Failed Checks?')).toBeInTheDocument();
+    });
+
+    const continueButton = screen.getByText('Continue Anyway');
+    fireEvent.click(continueButton);
+
+    // Should proceed to next step
+    await waitFor(() => {
+      expect(mockOnNext).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('sends ignorePreflightFailures false when starting installation with passed preflights', async () => {
+    // Mock preflight status endpoint - returns success
+    server.use(
+      http.get('*/api/install/host-preflights/status', () => {
+        return HttpResponse.json({
+          titles: ['Host Check'],
+          status: { state: 'Succeeded' },
+          output: {
+            fail: [],
+            warn: [],
+            pass: [{ title: 'Disk Space', message: 'Sufficient disk space available' }]
+          },
+          allowIgnoreHostPreflights: false
+        });
+      }),
+      // Mock infra setup endpoint to capture request body
+      http.post('*/api/install/infra/setup', async ({ request }) => {
+        const body = await request.json();
+        
+        // Verify the request includes ignorePreflightFailures parameter as false
+        expect(body).toHaveProperty('ignorePreflightFailures', false);
+        
+        return HttpResponse.json({ success: true });
+      })
+    );
+
+    renderWithProviders(
+      <ValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      { wrapperProps: { authenticated: true } }
+    );
+
+    // Wait for preflights to complete and show success
+    await waitFor(() => {
+      expect(screen.getByText('Host validation successful!')).toBeInTheDocument();
+    });
+
+    // Click Start Installation button
+    const nextButton = screen.getByText('Next: Start Installation');
+    fireEvent.click(nextButton);
 
     // Should proceed to next step
     await waitFor(() => {
