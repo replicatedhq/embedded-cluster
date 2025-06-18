@@ -161,6 +161,89 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 	})
 }
 
+// Test the getHostPreflightsStatus endpoint returns AllowIgnoreHostPreflights flag correctly
+func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
+	tests := []struct {
+		name                 string
+		ignoreHostPreflights bool
+		expectedAllowIgnore  bool
+	}{
+		{
+			name:                 "ignore host preflights true",
+			ignoreHostPreflights: true,
+			expectedAllowIgnore:  true,
+		},
+		{
+			name:                 "ignore host preflights false",
+			ignoreHostPreflights: false,
+			expectedAllowIgnore:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hpf := types.HostPreflights{
+				Output: &types.HostPreflightsOutput{
+					Pass: []types.HostPreflightsRecord{
+						{
+							Title:   "Some Preflight",
+							Message: "All good",
+						},
+					},
+				},
+				Titles: []string{"Some Preflight"},
+				Status: &types.Status{
+					State:       types.StateSucceeded,
+					Description: "All preflights passed",
+				},
+			}
+			runner := &preflights.MockPreflightRunner{}
+			// Create a host preflights manager
+			manager := preflight.NewHostPreflightManager(
+				preflight.WithHostPreflightStore(preflight.NewMemoryStore(&hpf)),
+				preflight.WithPreflightRunner(runner),
+			)
+			// Create an install controller
+			installController, err := install.NewInstallController(install.WithHostPreflightManager(manager))
+			require.NoError(t, err)
+
+			// Create the API with ignore host preflights flag
+			apiInstance, err := api.New(
+				"password",
+				api.WithInstallController(installController),
+				api.WithAuthController(&staticAuthController{"TOKEN"}),
+				api.WithIgnoreHostPreflights(tt.ignoreHostPreflights),
+				api.WithLogger(logger.NewDiscardLogger()),
+			)
+			require.NoError(t, err)
+
+			// Create a router and register the API routes
+			router := mux.NewRouter()
+			apiInstance.RegisterRoutes(router)
+
+			// Create a request
+			req := httptest.NewRequest(http.MethodGet, "/install/host-preflights/status", nil)
+			req.Header.Set("Authorization", "Bearer TOKEN")
+			rec := httptest.NewRecorder()
+
+			// Serve the request
+			router.ServeHTTP(rec, req)
+
+			// Check the response
+			require.Equal(t, http.StatusOK, rec.Code, "expected status ok, got %d with body %s", rec.Code, rec.Body.String())
+			assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+			// Parse the response body
+			var status types.InstallHostPreflightsStatusResponse
+			err = json.NewDecoder(rec.Body).Decode(&status)
+			require.NoError(t, err)
+
+			// Verify the flag is present - THIS WILL FAIL because handlers don't set it yet
+			assert.Equal(t, tt.expectedAllowIgnore, status.AllowIgnoreHostPreflights)
+		})
+	}
+}
+
 // Test the postRunHostPreflights endpoint runs host preflights correctly
 func TestPostRunHostPreflights(t *testing.T) {
 	// Create a runtime config

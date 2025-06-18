@@ -6,7 +6,7 @@ import Button from "../../common/Button";
 import { useAuth } from "../../../contexts/AuthContext";
 
 interface LinuxPreflightCheckProps {
-  onComplete: (success: boolean) => void;
+  onComplete: (success: boolean, allowIgnoreHostPreflights: boolean) => void;
 }
 
 interface PreflightResult {
@@ -30,6 +30,7 @@ interface PreflightResponse {
   titles: string[];
   output?: PreflightOutput;
   status?: PreflightStatus;
+  allowIgnoreHostPreflights?: boolean;
 }
 
 interface InstallationStatusResponse {
@@ -132,7 +133,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   useEffect(() => {
     if (preflightResponse?.status?.state === "Succeeded" || preflightResponse?.status?.state === "Failed") {
       setIsPreflightsPolling(false);
-      onComplete(!hasFailures(preflightResponse.output));
+      onComplete(!hasFailures(preflightResponse.output), preflightResponse.allowIgnoreHostPreflights ?? false);
     }
   }, [preflightResponse, onComplete]);
 

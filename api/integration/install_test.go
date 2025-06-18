@@ -242,26 +242,6 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedStatus: http.StatusUnauthorized,
 			expectedError:  true,
 		},
-		{
-			name: "Valid config with ignore host preflights",
-			mockHostUtils: func() *hostutils.MockHostUtils {
-				mockHostUtils := &hostutils.MockHostUtils{}
-				mockHostUtils.On("ConfigureHost", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-				return mockHostUtils
-			}(),
-			mockNetUtils: &utils.MockNetUtils{},
-			token:        "TOKEN",
-			config: types.InstallationConfig{
-				DataDirectory:           "/tmp/data",
-				AdminConsolePort:        8000,
-				LocalArtifactMirrorPort: 8081,
-				GlobalCIDR:              "10.0.0.0/16",
-				NetworkInterface:        "eth0",
-				IgnoreHostPreflights:    true,
-			},
-			expectedStatus: http.StatusOK,
-			expectedError:  false,
-		},
 	}
 
 	for _, tc := range testCases {
@@ -679,49 +659,6 @@ func TestGetInstallationConfig(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
 		assert.NotEmpty(t, apiError.Message)
-	})
-
-	// Test with ignore host preflights flag
-	t.Run("Config with ignore host preflights", func(t *testing.T) {
-		rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
-		rc.SetDataDir(t.TempDir())
-
-		// Create install controller with ignore host preflights = true
-		installController, err := install.NewInstallController(
-			install.WithRuntimeConfig(rc),
-			install.WithIgnoreHostPreflights(true),
-		)
-		require.NoError(t, err)
-
-		// Create API with the controller
-		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(installController),
-			api.WithAuthController(&staticAuthController{"TOKEN"}),
-			api.WithLogger(logger.NewDiscardLogger()),
-		)
-		require.NoError(t, err)
-
-		// Create router and register routes
-		router := mux.NewRouter()
-		apiInstance.RegisterRoutes(router)
-
-		// Make request
-		req := httptest.NewRequest(http.MethodGet, "/install/installation/config", nil)
-		req.Header.Set("Authorization", "Bearer TOKEN")
-		rec := httptest.NewRecorder()
-
-		router.ServeHTTP(rec, req)
-
-		// Check response
-		assert.Equal(t, http.StatusOK, rec.Code)
-
-		var config types.InstallationConfig
-		err = json.NewDecoder(rec.Body).Decode(&config)
-		require.NoError(t, err)
-
-		// Verify flag is present
-		assert.True(t, config.IgnoreHostPreflights)
 	})
 }
 

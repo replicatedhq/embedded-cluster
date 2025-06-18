@@ -17,7 +17,6 @@ type InstallationConfig struct {
 	PodCIDR                 string `json:"podCidr"`
 	ServiceCIDR             string `json:"serviceCidr"`
 	GlobalCIDR              string `json:"globalCidr"`
-	IgnoreHostPreflights    bool   `json:"ignoreHostPreflights"`
 }
 
 // NewInstallation initializes a new installation state

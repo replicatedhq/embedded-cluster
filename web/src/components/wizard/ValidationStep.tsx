@@ -17,29 +17,15 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
   const { text } = useWizardMode();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
+  const [allowIgnoreHostPreflights, setAllowIgnoreHostPreflights] = React.useState(false);
   const [showPreflightModal, setShowPreflightModal] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const { token } = useAuth();
 
-  // Query to fetch installation config to get ignoreHostPreflights flag
-  const { data: installationConfig } = useQuery({
-    queryKey: ["installationConfig"],
-    queryFn: async () => {
-      const response = await fetch("/api/install/installation/config", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error("Failed to fetch installation config");
-      }
-      return response.json();
-    },
-  });
-
-  const handlePreflightComplete = (success: boolean) => {
+  const handlePreflightComplete = (success: boolean, allowIgnore: boolean) => {
     setPreflightComplete(true);
     setPreflightSuccess(success);
+    setAllowIgnoreHostPreflights(allowIgnore);
   };
 
   const { mutate: startInstallation } = useMutation({
@@ -73,11 +59,11 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
       return;
     }
 
-    // If preflights failed and ignoreHostPreflights is true, show warning modal
-    if (installationConfig?.ignoreHostPreflights) {
+    // If preflights failed and button is enabled (allowIgnoreHostPreflights is true), show warning modal
+    if (allowIgnoreHostPreflights) {
       setShowPreflightModal(true);
     }
-    // If ignoreHostPreflights is false, button should be disabled (handled in canProceed)
+    // Note: If allowIgnoreHostPreflights is false, button should be disabled (handled in canProceed)
   };
 
   const handleCancelProceed = () => {
@@ -101,7 +87,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
     }
     
     // If preflights failed, only allow proceeding if CLI flag was used
-    return installationConfig?.ignoreHostPreflights || false;
+    return allowIgnoreHostPreflights;
   };
 
   return (

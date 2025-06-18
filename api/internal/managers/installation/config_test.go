@@ -173,30 +173,6 @@ func TestValidateConfig(t *testing.T) {
 			},
 			expectedErr: true,
 		},
-		{
-			name: "valid config with ignore preflights true",
-			config: &types.InstallationConfig{
-				GlobalCIDR:              "10.0.0.0/16",
-				NetworkInterface:        "eth0",
-				AdminConsolePort:        8800,
-				LocalArtifactMirrorPort: 8888,
-				DataDirectory:           "/var/lib/embedded-cluster",
-				IgnoreHostPreflights:    true,
-			},
-			expectedErr: false,
-		},
-		{
-			name: "valid config with ignore preflights false",
-			config: &types.InstallationConfig{
-				GlobalCIDR:              "10.0.0.0/16",
-				NetworkInterface:        "eth0",
-				AdminConsolePort:        8800,
-				LocalArtifactMirrorPort: 8888,
-				DataDirectory:           "/var/lib/embedded-cluster",
-				IgnoreHostPreflights:    false,
-			},
-			expectedErr: false,
-		},
 	}
 
 	for _, tt := range tests {
@@ -302,7 +278,7 @@ func TestSetConfigDefaults(t *testing.T) {
 			},
 		},
 		{
-			name:        "empty config sets ignore preflights default",
+			name:        "empty config sets defaults",
 			inputConfig: &types.InstallationConfig{},
 			expectedConfig: &types.InstallationConfig{
 				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
@@ -310,7 +286,6 @@ func TestSetConfigDefaults(t *testing.T) {
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				NetworkInterface:        "eth0",
 				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
-				IgnoreHostPreflights:    false, // Default should be false
 			},
 		},
 	}

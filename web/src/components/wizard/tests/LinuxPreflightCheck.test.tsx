@@ -26,12 +26,14 @@ const server = setupServer(
       return new HttpResponse(null, { status: 401 });
     }
     return HttpResponse.json({
+      titles: ["Test"],
       output: {
         pass: [{ title: "CPU Check", message: "CPU requirements met" }],
         warn: [{ title: "Memory Warning", message: "Memory is below recommended" }],
         fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
       },
       status: { state: "Failed" },
+      allowIgnoreHostPreflights: false,
     });
   }),
 
@@ -152,7 +154,7 @@ describe("LinuxPreflightCheck", () => {
     await waitFor(() => {
       expect(screen.getByText("Host validation successful!")).toBeInTheDocument();
     });
-    expect(mockOnComplete).toHaveBeenCalledWith(true);
+    expect(mockOnComplete).toHaveBeenCalledWith(true, false); // success: true, allowIgnore: false (default)
   });
 
   it("handles installation status error", async () => {
@@ -242,5 +244,83 @@ describe("LinuxPreflightCheck", () => {
     await waitFor(() => {
       expect(screen.getByText("Validating host requirements...")).toBeInTheDocument();
     });
+  });
+
+  it("receives allowIgnoreHostPreflights field in preflight response", async () => {
+    // Mock preflight status endpoint with allowIgnoreHostPreflights: true
+    server.use(
+      http.get("*/api/install/host-preflights/status", ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new HttpResponse(null, { status: 401 });
+        }
+        return HttpResponse.json({
+          titles: ["Test"],
+          output: {
+            pass: [{ title: "CPU Check", message: "CPU requirements met" }],
+            warn: [],
+            fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
+          },
+          status: { state: "Failed" },
+          allowIgnoreHostPreflights: true, // Test that this field is properly received
+        });
+      })
+    );
+
+    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+      wrapperProps: {
+        preloadedState: {
+          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
+        },
+        authToken: TEST_TOKEN,
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Host Requirements Not Met")).toBeInTheDocument();
+      expect(screen.getByText("Disk Space")).toBeInTheDocument();
+    });
+
+    // The component should call onComplete with BOTH success status AND allowIgnoreHostPreflights flag
+    expect(mockOnComplete).toHaveBeenCalledWith(false, true); // success: false, allowIgnore: true
+  });
+
+  it("passes allowIgnoreHostPreflights false to onComplete callback", async () => {
+    // Mock preflight status endpoint with allowIgnoreHostPreflights: false
+    server.use(
+      http.get("*/api/install/host-preflights/status", ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new HttpResponse(null, { status: 401 });
+        }
+        return HttpResponse.json({
+          titles: ["Test"],
+          output: {
+            pass: [{ title: "CPU Check", message: "CPU requirements met" }],
+            warn: [],
+            fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
+          },
+          status: { state: "Failed" },
+          allowIgnoreHostPreflights: false, // Test that this field is properly received
+        });
+      })
+    );
+
+    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+      wrapperProps: {
+        preloadedState: {
+          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
+        },
+        authToken: TEST_TOKEN,
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Host Requirements Not Met")).toBeInTheDocument();
+      expect(screen.getByText("Disk Space")).toBeInTheDocument();
+    });
+
+    // The component should call onComplete with success: false, allowIgnore: false
+    expect(mockOnComplete).toHaveBeenCalledWith(false, false);
   });
 });

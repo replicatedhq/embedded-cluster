@@ -1,141 +1,135 @@
-components:
-  schemas:
-    types.APIError:
-      properties:
-        errors:
-          items:
-            $ref: '#/components/schemas/types.APIError'
-          type: array
-          uniqueItems: false
-        field:
+basePath: /api
+definitions:
+  types.APIError:
+    properties:
+      errors:
+        items:
+          $ref: '#/definitions/types.APIError'
+        type: array
+      field:
+        type: string
+      message:
+        type: string
+      status_code:
+        type: integer
+    type: object
+  types.AuthRequest:
+    properties:
+      password:
+        type: string
+    type: object
+  types.AuthResponse:
+    properties:
+      token:
+        type: string
+    type: object
+  types.Health:
+    properties:
+      status:
+        type: string
+    type: object
+  types.HostPreflightsOutput:
+    properties:
+      fail:
+        items:
+          $ref: '#/definitions/types.HostPreflightsRecord'
+        type: array
+      pass:
+        items:
+          $ref: '#/definitions/types.HostPreflightsRecord'
+        type: array
+      warn:
+        items:
+          $ref: '#/definitions/types.HostPreflightsRecord'
+        type: array
+    type: object
+  types.HostPreflightsRecord:
+    properties:
+      message:
+        type: string
+      title:
+        type: string
+    type: object
+  types.Infra:
+    properties:
+      components:
+        items:
+          $ref: '#/definitions/types.InfraComponent'
+        type: array
+      logs:
+        type: string
+      status:
+        $ref: '#/definitions/types.Status'
+    type: object
+  types.InfraComponent:
+    properties:
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/types.Status'
+    type: object
+  types.InstallHostPreflightsStatusResponse:
+    properties:
+      allowIgnoreHostPreflights:
+        type: boolean
+      output:
+        $ref: '#/definitions/types.HostPreflightsOutput'
+      status:
+        $ref: '#/definitions/types.Status'
+      titles:
+        items:
           type: string
-        message:
-          type: string
-        status_code:
-          type: integer
-      type: object
-    types.AuthRequest:
-      properties:
-        password:
-          type: string
-      type: object
-    types.AuthResponse:
-      properties:
-        token:
-          type: string
-      type: object
-    types.Health:
-      properties:
-        status:
-          type: string
-      type: object
-    types.HostPreflightsOutput:
-      properties:
-        fail:
-          items:
-            $ref: '#/components/schemas/types.HostPreflightsRecord'
-          type: array
-          uniqueItems: false
-        pass:
-          items:
-            $ref: '#/components/schemas/types.HostPreflightsRecord'
-          type: array
-          uniqueItems: false
-        warn:
-          items:
-            $ref: '#/components/schemas/types.HostPreflightsRecord'
-          type: array
-          uniqueItems: false
-      type: object
-    types.HostPreflightsRecord:
-      properties:
-        message:
-          type: string
-        title:
-          type: string
-      type: object
-    types.Infra:
-      properties:
-        components:
-          items:
-            $ref: '#/components/schemas/types.InfraComponent'
-          type: array
-          uniqueItems: false
-        logs:
-          type: string
-        status:
-          $ref: '#/components/schemas/types.Status'
-      type: object
-    types.InfraComponent:
-      properties:
-        name:
-          type: string
-        status:
-          $ref: '#/components/schemas/types.Status'
-      type: object
-    types.InstallHostPreflightsStatusResponse:
-      properties:
-        output:
-          $ref: '#/components/schemas/types.HostPreflightsOutput'
-        status:
-          $ref: '#/components/schemas/types.Status'
-        titles:
-          items:
-            type: string
-          type: array
-          uniqueItems: false
-      type: object
-    types.InstallationConfig:
-      properties:
-        adminConsolePort:
-          type: integer
-        dataDirectory:
-          type: string
-        globalCidr:
-          type: string
-        httpProxy:
-          type: string
-        httpsProxy:
-          type: string
-        ignoreHostPreflights:
-          type: boolean
-        localArtifactMirrorPort:
-          type: integer
-        networkInterface:
-          type: string
-        noProxy:
-          type: string
-        podCidr:
-          type: string
-        serviceCidr:
-          type: string
-      type: object
-    types.PostInstallRunHostPreflightsRequest:
-      properties:
-        isUi:
-          type: boolean
-      type: object
-    types.State:
-      type: string
-      x-enum-varnames:
-      - StatePending
-      - StateRunning
-      - StateSucceeded
-      - StateFailed
-    types.Status:
-      properties:
-        description:
-          type: string
-        lastUpdated:
-          type: string
-        state:
-          $ref: '#/components/schemas/types.State'
-      type: object
-  securitySchemes:
-    bearerauth:
-      bearerFormat: JWT
-      scheme: bearer
-      type: http
+        type: array
+    type: object
+  types.InstallationConfig:
+    properties:
+      adminConsolePort:
+        type: integer
+      dataDirectory:
+        type: string
+      globalCidr:
+        type: string
+      httpProxy:
+        type: string
+      httpsProxy:
+        type: string
+      localArtifactMirrorPort:
+        type: integer
+      networkInterface:
+        type: string
+      noProxy:
+        type: string
+      podCidr:
+        type: string
+      serviceCidr:
+        type: string
+    type: object
+  types.PostInstallRunHostPreflightsRequest:
+    properties:
+      isUi:
+        type: boolean
+    type: object
+  types.State:
+    enum:
+    - Pending
+    - Running
+    - Succeeded
+    - Failed
+    type: string
+    x-enum-varnames:
+    - StatePending
+    - StateRunning
+    - StateSucceeded
+    - StateFailed
+  types.Status:
+    properties:
+      description:
+        type: string
+      lastUpdated:
+        type: string
+      state:
+        $ref: '#/definitions/types.State'
+    type: object
 externalDocs:
   description: OpenAPI
   url: https://swagger.io/resources/open-api/
@@ -151,65 +145,66 @@ info:
   termsOfService: http://swagger.io/terms/
   title: Embedded Cluster API
   version: "0.1"
-openapi: 3.1.0
 paths:
   /auth/login:
     post:
+      consumes:
+      - application/json
       description: Authenticate a user
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/types.AuthRequest'
-        description: Auth Request
+      parameters:
+      - description: Auth Request
+        in: body
+        name: request
         required: true
+        schema:
+          $ref: '#/definitions/types.AuthRequest'
+      produces:
+      - application/json
       responses:
         "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.AuthResponse'
           description: OK
+          schema:
+            $ref: '#/definitions/types.AuthResponse'
         "401":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.APIError'
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/types.APIError'
       summary: Authenticate a user
       tags:
       - auth
   /health:
     get:
       description: get the health of the API
+      produces:
+      - application/json
       responses:
         "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Health'
           description: OK
+          schema:
+            $ref: '#/definitions/types.Health'
       summary: Get the health of the API
       tags:
       - health
   /install/host-preflights/run:
     post:
+      consumes:
+      - application/json
       description: Run install host preflight checks using installation config and
         client-provided data
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/types.PostInstallRunHostPreflightsRequest'
-        description: Post Install Run Host Preflights Request
+      parameters:
+      - description: Post Install Run Host Preflights Request
+        in: body
+        name: request
         required: true
+        schema:
+          $ref: '#/definitions/types.PostInstallRunHostPreflightsRequest'
+      produces:
+      - application/json
       responses:
         "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.InstallHostPreflightsStatusResponse'
           description: OK
+          schema:
+            $ref: '#/definitions/types.InstallHostPreflightsStatusResponse'
       security:
       - bearerauth: []
       summary: Run install host preflight checks
@@ -219,13 +214,13 @@ paths:
     get:
       description: Get the current status and results of host preflight checks for
         install
+      produces:
+      - application/json
       responses:
         "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.InstallHostPreflightsStatusResponse'
           description: OK
+          schema:
+            $ref: '#/definitions/types.InstallHostPreflightsStatusResponse'
       security:
       - bearerauth: []
       summary: Get host preflight status for install
@@ -234,13 +229,13 @@ paths:
   /install/infra/setup:
     post:
       description: Setup infra components
+      produces:
+      - application/json
       responses:
         "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Infra'
           description: OK
+          schema:
+            $ref: '#/definitions/types.Infra'
       security:
       - bearerauth: []
       summary: Setup infra components
@@ -249,13 +244,13 @@ paths:
   /install/infra/status:
     get:
       description: Get the current status of the infra
+      produces:
+      - application/json
       responses:
         "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Infra'
           description: OK
+          schema:
+            $ref: '#/definitions/types.Infra'
       security:
       - bearerauth: []
       summary: Get the status of the infra
@@ -264,13 +259,13 @@ paths:
   /install/installation/config:
     get:
       description: get the installation config
+      produces:
+      - application/json
       responses:
         "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.InstallationConfig'
           description: OK
+          schema:
+            $ref: '#/definitions/types.InstallationConfig'
       security:
       - bearerauth: []
       summary: Get the installation config
@@ -278,21 +273,23 @@ paths:
       - install
   /install/installation/configure:
     post:
+      consumes:
+      - application/json
       description: configure the installation for install
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/types.InstallationConfig'
-        description: Installation config
+      parameters:
+      - description: Installation config
+        in: body
+        name: installationConfig
         required: true
+        schema:
+          $ref: '#/definitions/types.InstallationConfig'
+      produces:
+      - application/json
       responses:
         "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Status'
           description: OK
+          schema:
+            $ref: '#/definitions/types.Status'
       security:
       - bearerauth: []
       summary: Configure the installation for install
@@ -301,13 +298,13 @@ paths:
   /install/installation/status:
     get:
       description: Get the current status of the installation configuration for install
+      produces:
+      - application/json
       responses:
         "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Status'
           description: OK
+          schema:
+            $ref: '#/definitions/types.Status'
       security:
       - bearerauth: []
       summary: Get installation configuration status for install
@@ -316,38 +313,39 @@ paths:
   /install/status:
     get:
       description: Get the current status of the install workflow
+      produces:
+      - application/json
       responses:
         "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Status'
           description: OK
+          schema:
+            $ref: '#/definitions/types.Status'
       security:
       - bearerauth: []
       summary: Get the status of the install workflow
       tags:
       - install
     post:
+      consumes:
+      - application/json
       description: Set the status of the install workflow
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/types.Status'
-        description: Status
+      parameters:
+      - description: Status
+        in: body
+        name: status
         required: true
+        schema:
+          $ref: '#/definitions/types.Status'
+      produces:
+      - application/json
       responses:
         "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Status'
           description: OK
+          schema:
+            $ref: '#/definitions/types.Status'
       security:
       - bearerauth: []
       summary: Set the status of the install workflow
       tags:
       - install
-servers:
-- url: /api
+swagger: "2.0"
