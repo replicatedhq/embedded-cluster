@@ -7,7 +7,7 @@ import (
 	"github.com/tiendc/go-deepcopy"
 )
 
-var _ Store = &MemoryStore{}
+var _ Store = &memoryStore{}
 
 type Store interface {
 	GetConfig() (types.InstallationConfig, error)
@@ -16,21 +16,21 @@ type Store interface {
 	SetStatus(status types.Status) error
 }
 
-type MemoryStore struct {
+type memoryStore struct {
 	mu           sync.RWMutex
 	installation types.Installation
 }
 
-type StoreOption func(*MemoryStore)
+type StoreOption func(*memoryStore)
 
 func WithInstallation(installation types.Installation) StoreOption {
-	return func(s *MemoryStore) {
+	return func(s *memoryStore) {
 		s.installation = installation
 	}
 }
 
-func NewMemoryStore(opts ...StoreOption) *MemoryStore {
-	s := &MemoryStore{}
+func NewMemoryStore(opts ...StoreOption) *memoryStore {
+	s := &memoryStore{}
 
 	for _, opt := range opts {
 		opt(s)
@@ -39,7 +39,7 @@ func NewMemoryStore(opts ...StoreOption) *MemoryStore {
 	return s
 }
 
-func (s *MemoryStore) GetConfig() (types.InstallationConfig, error) {
+func (s *memoryStore) GetConfig() (types.InstallationConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -51,7 +51,7 @@ func (s *MemoryStore) GetConfig() (types.InstallationConfig, error) {
 	return config, nil
 }
 
-func (s *MemoryStore) SetConfig(cfg types.InstallationConfig) error {
+func (s *memoryStore) SetConfig(cfg types.InstallationConfig) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -59,7 +59,7 @@ func (s *MemoryStore) SetConfig(cfg types.InstallationConfig) error {
 	return nil
 }
 
-func (s *MemoryStore) GetStatus() (types.Status, error) {
+func (s *memoryStore) GetStatus() (types.Status, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -71,7 +71,7 @@ func (s *MemoryStore) GetStatus() (types.Status, error) {
 	return status, nil
 }
 
-func (s *MemoryStore) SetStatus(status types.Status) error {
+func (s *memoryStore) SetStatus(status types.Status) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.installation.Status = status

@@ -7,7 +7,7 @@ import (
 	"github.com/tiendc/go-deepcopy"
 )
 
-var _ Store = &MemoryStore{}
+var _ Store = &memoryStore{}
 
 type Store interface {
 	GetTitles() ([]string, error)
@@ -19,21 +19,21 @@ type Store interface {
 	IsRunning() bool
 }
 
-type MemoryStore struct {
+type memoryStore struct {
 	mu            sync.RWMutex
 	hostPreflight types.HostPreflights
 }
 
-type StoreOption func(*MemoryStore)
+type StoreOption func(*memoryStore)
 
 func WithHostPreflight(hostPreflight types.HostPreflights) StoreOption {
-	return func(s *MemoryStore) {
+	return func(s *memoryStore) {
 		s.hostPreflight = hostPreflight
 	}
 }
 
-func NewMemoryStore(opts ...StoreOption) *MemoryStore {
-	s := &MemoryStore{}
+func NewMemoryStore(opts ...StoreOption) *memoryStore {
+	s := &memoryStore{}
 
 	for _, opt := range opts {
 		opt(s)
@@ -42,7 +42,7 @@ func NewMemoryStore(opts ...StoreOption) *MemoryStore {
 	return s
 }
 
-func (s *MemoryStore) GetTitles() ([]string, error) {
+func (s *memoryStore) GetTitles() ([]string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -54,7 +54,7 @@ func (s *MemoryStore) GetTitles() ([]string, error) {
 	return titles, nil
 }
 
-func (s *MemoryStore) SetTitles(titles []string) error {
+func (s *memoryStore) SetTitles(titles []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.hostPreflight.Titles = titles
@@ -62,7 +62,7 @@ func (s *MemoryStore) SetTitles(titles []string) error {
 	return nil
 }
 
-func (s *MemoryStore) GetOutput() (*types.HostPreflightsOutput, error) {
+func (s *memoryStore) GetOutput() (*types.HostPreflightsOutput, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -78,7 +78,7 @@ func (s *MemoryStore) GetOutput() (*types.HostPreflightsOutput, error) {
 	return output, nil
 }
 
-func (s *MemoryStore) SetOutput(output *types.HostPreflightsOutput) error {
+func (s *memoryStore) SetOutput(output *types.HostPreflightsOutput) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -86,7 +86,7 @@ func (s *MemoryStore) SetOutput(output *types.HostPreflightsOutput) error {
 	return nil
 }
 
-func (s *MemoryStore) GetStatus() (types.Status, error) {
+func (s *memoryStore) GetStatus() (types.Status, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -98,7 +98,7 @@ func (s *MemoryStore) GetStatus() (types.Status, error) {
 	return status, nil
 }
 
-func (s *MemoryStore) SetStatus(status types.Status) error {
+func (s *memoryStore) SetStatus(status types.Status) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -106,7 +106,7 @@ func (s *MemoryStore) SetStatus(status types.Status) error {
 	return nil
 }
 
-func (s *MemoryStore) IsRunning() bool {
+func (s *memoryStore) IsRunning() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

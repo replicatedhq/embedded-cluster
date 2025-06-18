@@ -14,7 +14,6 @@ func TestNewMemoryStore(t *testing.T) {
 	store := NewMemoryStore(WithInstallation(inst))
 
 	assert.NotNil(t, store)
-	assert.NotNil(t, store.installation)
 	assert.Equal(t, inst, store.installation)
 }
 
@@ -30,7 +29,6 @@ func TestMemoryStore_GetConfig(t *testing.T) {
 	config, err := store.GetConfig()
 
 	require.NoError(t, err)
-	assert.NotNil(t, config)
 	assert.Equal(t, types.InstallationConfig{
 		AdminConsolePort: 8080,
 		DataDirectory:    "/some/dir",
@@ -72,7 +70,6 @@ func TestMemoryStore_GetStatus(t *testing.T) {
 	status, err := store.GetStatus()
 
 	require.NoError(t, err)
-	assert.NotNil(t, status)
 	assert.Equal(t, types.Status{
 		State:       "failed",
 		Description: "Failure",

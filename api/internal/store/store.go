@@ -6,7 +6,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/preflight"
 )
 
-var _ Store = &MemoryStore{}
+var _ Store = &memoryStore{}
 
 // Store is the global interface that combines all substores
 type Store interface {
@@ -21,31 +21,31 @@ type Store interface {
 }
 
 // StoreOption is a function that configures a store
-type StoreOption func(*MemoryStore)
+type StoreOption func(*memoryStore)
 
 // WithPreflightStore sets the preflight store
 func WithPreflightStore(store preflight.Store) StoreOption {
-	return func(s *MemoryStore) {
+	return func(s *memoryStore) {
 		s.preflightStore = store
 	}
 }
 
 // WithInstallationStore sets the installation store
 func WithInstallationStore(store installation.Store) StoreOption {
-	return func(s *MemoryStore) {
+	return func(s *memoryStore) {
 		s.installationStore = store
 	}
 }
 
 // WithInfraStore sets the infra store
 func WithInfraStore(store infra.Store) StoreOption {
-	return func(s *MemoryStore) {
+	return func(s *memoryStore) {
 		s.infraStore = store
 	}
 }
 
-// MemoryStore is an in-memory implementation of the global Store interface
-type MemoryStore struct {
+// memoryStore is an in-memory implementation of the global Store interface
+type memoryStore struct {
 	preflightStore    preflight.Store
 	installationStore installation.Store
 	infraStore        infra.Store
@@ -53,7 +53,7 @@ type MemoryStore struct {
 
 // NewMemoryStore creates a new memory store with the given options
 func NewMemoryStore(opts ...StoreOption) Store {
-	s := &MemoryStore{}
+	s := &memoryStore{}
 
 	for _, opt := range opts {
 		opt(s)
@@ -74,14 +74,14 @@ func NewMemoryStore(opts ...StoreOption) Store {
 	return s
 }
 
-func (s *MemoryStore) PreflightStore() preflight.Store {
+func (s *memoryStore) PreflightStore() preflight.Store {
 	return s.preflightStore
 }
 
-func (s *MemoryStore) InstallationStore() installation.Store {
+func (s *memoryStore) InstallationStore() installation.Store {
 	return s.installationStore
 }
 
-func (s *MemoryStore) InfraStore() infra.Store {
+func (s *memoryStore) InfraStore() infra.Store {
 	return s.infraStore
 }

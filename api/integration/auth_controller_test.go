@@ -162,9 +162,8 @@ func TestAPIClientLogin(t *testing.T) {
 		require.NoError(t, err, "API client login should succeed with correct password")
 
 		// Verify we can make authenticated requests after login
-		status, err := c.GetInstallationStatus()
+		_, err = c.GetInstallationStatus()
 		require.NoError(t, err, "API client should be able to get installation status after successful login")
-		assert.NotNil(t, status, "Installation status should not be nil")
 	})
 
 	// Test failed login with incorrect password

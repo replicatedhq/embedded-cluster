@@ -121,7 +121,6 @@ func TestGetInstallationConfig(t *testing.T) {
 	c := New(server.URL, WithToken("test-token"))
 	config, err := c.GetInstallationConfig()
 	assert.NoError(t, err)
-	assert.NotNil(t, config)
 	assert.Equal(t, "10.0.0.0/24", config.GlobalCIDR)
 	assert.Equal(t, 8080, config.AdminConsolePort)
 
@@ -179,7 +178,6 @@ func TestConfigureInstallation(t *testing.T) {
 	}
 	status, err := c.ConfigureInstallation(config)
 	assert.NoError(t, err)
-	assert.NotNil(t, status)
 	assert.Equal(t, types.StateRunning, status.State)
 	assert.Equal(t, "Configuring installation", status.Description)
 
@@ -228,8 +226,6 @@ func TestSetupInfra(t *testing.T) {
 	c := New(server.URL, WithToken("test-token"))
 	infra, err := c.SetupInfra()
 	assert.NoError(t, err)
-	assert.NotNil(t, infra)
-	assert.NotNil(t, infra.Status)
 	assert.Equal(t, types.StateRunning, infra.Status.State)
 	assert.Equal(t, "Installing infra", infra.Status.Description)
 
@@ -278,7 +274,6 @@ func TestGetInfraStatus(t *testing.T) {
 	c := New(server.URL, WithToken("test-token"))
 	infra, err := c.GetInfraStatus()
 	assert.NoError(t, err)
-	assert.NotNil(t, infra)
 	assert.Equal(t, types.StateSucceeded, infra.Status.State)
 	assert.Equal(t, "Installation successful", infra.Status.Description)
 
@@ -331,7 +326,6 @@ func TestSetInstallStatus(t *testing.T) {
 	}
 	newStatus, err := c.SetInstallStatus(status)
 	assert.NoError(t, err)
-	assert.NotNil(t, newStatus)
 	assert.Equal(t, status, newStatus)
 
 	// Test error response
