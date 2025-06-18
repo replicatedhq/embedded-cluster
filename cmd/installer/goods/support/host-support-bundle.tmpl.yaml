@@ -187,39 +187,39 @@ spec:
       args:
         - -c
         - >
-        interfaces=$(ls /sys/class/net);
-        for iface in $interfaces; do
-          echo "==============================================";
-          echo "Interface: $iface";
-          echo "==============================================";
+            interfaces=$(ls /sys/class/net);
+            for iface in $interfaces; do
+            echo "==============================================";
+            echo "Interface: $iface";
+            echo "==============================================";
 
-          echo
-          echo "--- Basic Info ---"
-          ethtool "$iface"
+            echo
+            echo "--- Basic Info ---"
+            ethtool "$iface"
 
-          echo
-          echo "--- Features (Offloads) ---"
-          ethtool -k "$iface"
+            echo
+            echo "--- Features (Offloads) ---"
+            ethtool -k "$iface"
 
-          echo
-          echo "--- Pause Parameters ---"
-          ethtool -a "$iface"
+            echo
+            echo "--- Pause Parameters ---"
+            ethtool -a "$iface"
 
-          echo
-          echo "--- Ring Parameters ---"
-          ethtool -g "$iface"
+            echo
+            echo "--- Ring Parameters ---"
+            ethtool -g "$iface"
 
-          echo
-          echo "--- Coalesce Settings ---"
-          ethtool -c "$iface"
+            echo
+            echo "--- Coalesce Settings ---"
+            ethtool -c "$iface"
 
-          echo
-          echo "--- Driver Info ---"
-          ethtool -i "$iface"
+            echo
+            echo "--- Driver Info ---"
+            ethtool -i "$iface"
 
-          echo
-          echo
-        done
+            echo
+            echo
+            done
   - run:
       collectorName: "sysctl"
       command: "sysctl"
