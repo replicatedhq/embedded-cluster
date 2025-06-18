@@ -7,37 +7,53 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (c *InstallController) SetupInfra(ctx context.Context) error {
+func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) (preflightsWereIgnored bool, err error) {
+	// Check preflight status and requirements
 	preflightStatus, err := c.GetHostPreflightStatus(ctx)
 	if err != nil {
-		return fmt.Errorf("get install host preflight status: %w", err)
+		return false, fmt.Errorf("get install host preflight status: %w", err)
 	}
 
 	if preflightStatus.State != types.StateFailed && preflightStatus.State != types.StateSucceeded {
-		return fmt.Errorf("host preflight checks did not complete")
+		return false, fmt.Errorf("host preflight checks did not complete")
 	}
 
-	if preflightStatus.State == types.StateFailed && c.metricsReporter != nil {
-		preflightOutput, err := c.GetHostPreflightOutput(ctx)
-		if err != nil {
-			return fmt.Errorf("get install host preflight output: %w", err)
+	preflightsWereIgnored = false
+
+	// Handle failed preflights
+	if preflightStatus.State == types.StateFailed {
+		// Report metrics for failed preflights
+		if c.metricsReporter != nil {
+			preflightOutput, err := c.GetHostPreflightOutput(ctx)
+			if err != nil {
+				return false, fmt.Errorf("get install host preflight output: %w", err)
+			}
+			if preflightOutput != nil {
+				c.metricsReporter.ReportPreflightsFailed(ctx, preflightOutput)
+			}
 		}
-		if preflightOutput != nil {
-			c.metricsReporter.ReportPreflightsFailed(ctx, preflightOutput)
+
+		// Check if we can proceed despite failures
+		if !ignorePreflightFailures || !c.ignoreHostPreflights {
+			return false, fmt.Errorf("Preflight checks failed")
 		}
+
+		// We're proceeding despite failures
+		preflightsWereIgnored = true
 	}
 
 	// Get current installation config
 	config, err := c.installationManager.GetConfig()
 	if err != nil {
-		return fmt.Errorf("failed to read installation config: %w", err)
+		return false, fmt.Errorf("failed to read installation config: %w", err)
 	}
 
+	// Install infrastructure
 	if err := c.infraManager.Install(ctx, config); err != nil {
-		return fmt.Errorf("install infra: %w", err)
+		return false, fmt.Errorf("install infra: %w", err)
 	}
 
-	return nil
+	return preflightsWereIgnored, nil
 }
 
 func (c *InstallController) GetInfra(ctx context.Context) (*types.Infra, error) {

@@ -1,9 +1,7 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -163,56 +161,20 @@ func (a *API) postInstallSetupInfra(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get current preflight status for validation
-	titles, err := a.installController.GetHostPreflightTitles(r.Context())
+	// Setup infrastructure with preflight validation handled internally
+	preflightsIgnored, err := a.installController.SetupInfra(r.Context(), req.IgnorePreflightFailures)
 	if err != nil {
-		a.logError(r, err, "failed to validate preflight status")
-		a.jsonError(w, r, fmt.Errorf("failed to validate preflight status: %w", err))
-		return
-	}
-
-	output, err := a.installController.GetHostPreflightOutput(r.Context())
-	if err != nil {
-		a.logError(r, err, "failed to validate preflight status")
-		a.jsonError(w, r, fmt.Errorf("failed to validate preflight status: %w", err))
-		return
-	}
-
-	status, err := a.installController.GetHostPreflightStatus(r.Context())
-	if err != nil {
-		a.logError(r, err, "failed to validate preflight status")
-		a.jsonError(w, r, fmt.Errorf("failed to validate preflight status: %w", err))
-		return
-	}
-
-	// Create HostPreflights object for validation
-	preflightStatus := &types.HostPreflights{
-		Titles:                    titles,
-		Output:                    output,
-		Status:                    status,
-		AllowIgnoreHostPreflights: a.ignoreHostPreflights,
-	}
-
-	// Validate preflight status before proceeding
-	if err := install.ValidatePreflightStatus(preflightStatus, req.IgnorePreflightFailures); err != nil {
-		a.logError(r, err, "preflight validation failed")
+		a.logError(r, err, "failed to setup infra")
 		// Determine appropriate status code based on error type
-		statusCode := http.StatusBadRequest
-		if strings.Contains(err.Error(), "Cannot ignore preflight failures without --ignore-host-preflights flag") {
-			statusCode = http.StatusBadRequest // Changed from Forbidden to BadRequest per test expectation
+		statusCode := http.StatusInternalServerError
+		if err.Error() == "Preflight checks failed" {
+			statusCode = http.StatusBadRequest
 		}
 		w.WriteHeader(statusCode)
 		a.json(w, r, statusCode, types.APIError{
 			StatusCode: statusCode,
 			Message:    err.Error(),
 		})
-		return
-	}
-
-	err = a.installController.SetupInfra(r.Context())
-	if err != nil {
-		a.logError(r, err, "failed to setup infra")
-		a.jsonError(w, r, err)
 		return
 	}
 
@@ -227,7 +189,7 @@ func (a *API) postInstallSetupInfra(w http.ResponseWriter, r *http.Request) {
 	// Create response with preflight context
 	response := types.InfraSetupResponse{
 		Infra:             infra,
-		PreflightsIgnored: req.IgnorePreflightFailures,
+		PreflightsIgnored: preflightsIgnored,
 	}
 
 	a.json(w, r, http.StatusOK, response)

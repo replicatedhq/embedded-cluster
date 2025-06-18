@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,9 +20,10 @@ import (
 
 // Simple mock controller for infra setup validation tests
 type mockInfraController struct {
-	preflightStatus *types.Status
-	preflightError  error
-	setupError      error
+	preflightStatus      *types.Status
+	preflightError       error
+	setupError           error
+	ignoreHostPreflights bool
 }
 
 func (m *mockInfraController) GetInstallationConfig(ctx context.Context) (*types.InstallationConfig, error) {
@@ -67,8 +69,29 @@ func (m *mockInfraController) GetHostPreflightTitles(ctx context.Context) ([]str
 	return []string{}, nil
 }
 
-func (m *mockInfraController) SetupInfra(ctx context.Context) error {
-	return m.setupError
+func (m *mockInfraController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) (bool, error) {
+	if m.setupError != nil {
+		return false, m.setupError
+	}
+
+	// Check for preflight error first (this simulates GetHostPreflightStatus failing)
+	if m.preflightError != nil {
+		return false, fmt.Errorf("get install host preflight status: %w", m.preflightError)
+	}
+
+	// Simulate the validation logic that was moved to SetupInfra
+	if m.preflightStatus != nil && m.preflightStatus.State == types.StateFailed {
+		// Check if we can proceed despite failures
+		if !ignorePreflightFailures || !m.ignoreHostPreflights {
+			return false, fmt.Errorf("Preflight checks failed")
+		}
+
+		// We're proceeding despite failures
+		return true, nil
+	}
+
+	// Preflights passed
+	return false, nil
 }
 
 func (m *mockInfraController) GetInfra(ctx context.Context) (*types.Infra, error) {
@@ -121,7 +144,7 @@ func TestPostInstallSetupInfraValidation(t *testing.T) {
 			cliFlag:        false,
 			preflightState: types.StateFailed,
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "Cannot ignore preflight failures without --ignore-host-preflights flag",
+			expectedError:  "Preflight checks failed",
 		},
 	}
 
@@ -129,7 +152,8 @@ func TestPostInstallSetupInfraValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock controller
 			mockController := &mockInfraController{
-				preflightStatus: &types.Status{State: tt.preflightState},
+				preflightStatus:      &types.Status{State: tt.preflightState},
+				ignoreHostPreflights: tt.cliFlag,
 			}
 
 			// Create API with CLI flag
@@ -204,7 +228,7 @@ func TestPostInstallSetupInfraErrors(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 		var apiError types.APIError
 		json.NewDecoder(rec.Body).Decode(&apiError)
-		assert.Contains(t, apiError.Message, "failed to validate preflight status")
+		assert.Contains(t, apiError.Message, "get install host preflight status")
 	})
 
 	t.Run("Authorization error", func(t *testing.T) {

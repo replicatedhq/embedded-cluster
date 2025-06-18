@@ -84,8 +84,8 @@ func (m *mockInstallController) GetHostPreflightTitles(ctx context.Context) ([]s
 	return []string{}, nil
 }
 
-func (m *mockInstallController) SetupInfra(ctx context.Context) error {
-	return m.setupInfraError
+func (m *mockInstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) (bool, error) {
+	return false, m.setupInfraError
 }
 
 func (m *mockInstallController) GetInfra(ctx context.Context) (*types.Infra, error) {
