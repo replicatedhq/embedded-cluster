@@ -1215,7 +1215,7 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: "The XFS filesystem on {{ .DataDir }} path is configured with ftype=0 which containers cannot run on. Please reconfigure the filesystem or use a different data directory."
+              message: "The XFS filesystem at {{ .DataDir }} is configured with ftype=0, which is not supported. Reformat the filesystem with ftype=1, or choose a different data directory on a supported filesystem."
           - pass:
               when: "false"
               message: "File system on {{ .DataDir }} path is fit for use with containers"
