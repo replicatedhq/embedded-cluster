@@ -78,20 +78,6 @@ components:
         ignorePreflightFailures:
           type: boolean
       type: object
-    types.InfraSetupResponse:
-      properties:
-        components:
-          items:
-            $ref: '#/components/schemas/types.InfraComponent'
-          type: array
-          uniqueItems: false
-        logs:
-          type: string
-        preflightsIgnored:
-          type: boolean
-        status:
-          $ref: '#/components/schemas/types.Status'
-      type: object
     types.InstallHostPreflightsStatusResponse:
       properties:
         allowIgnoreHostPreflights:
@@ -265,7 +251,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.InfraSetupResponse'
+                $ref: '#/components/schemas/types.Infra'
           description: OK
       security:
       - bearerauth: []

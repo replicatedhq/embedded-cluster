@@ -152,7 +152,7 @@ func (a *API) getInstallHostPreflightsStatus(w http.ResponseWriter, r *http.Requ
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		types.InfraSetupRequest	true	"Infra Setup Request"
-//	@Success		200		{object}	types.InfraSetupResponse
+//	@Success		200		{object}	types.Infra
 //	@Router			/install/infra/setup [post]
 func (a *API) postInstallSetupInfra(w http.ResponseWriter, r *http.Request) {
 	// Parse request body
@@ -162,7 +162,7 @@ func (a *API) postInstallSetupInfra(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Setup infrastructure with preflight validation handled internally
-	preflightsIgnored, err := a.installController.SetupInfra(r.Context(), req.IgnorePreflightFailures)
+	_, err := a.installController.SetupInfra(r.Context(), req.IgnorePreflightFailures)
 	if err != nil {
 		a.logError(r, err, "failed to setup infra")
 		// Determine appropriate status code based on error type
@@ -186,13 +186,7 @@ func (a *API) postInstallSetupInfra(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create response with preflight context
-	response := types.InfraSetupResponse{
-		Infra:             infra,
-		PreflightsIgnored: preflightsIgnored,
-	}
-
-	a.json(w, r, http.StatusOK, response)
+	a.json(w, r, http.StatusOK, infra)
 }
 
 // getInstallInfraStatus handler to get the status of the infra
