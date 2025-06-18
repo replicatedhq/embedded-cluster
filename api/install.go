@@ -154,7 +154,7 @@ func (a *API) getInstallHostPreflightsStatus(w http.ResponseWriter, r *http.Requ
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		types.InfraSetupRequest	true	"Infra Setup Request"
-//	@Success		200	{object}	types.InfraSetupResponse
+//	@Success		200		{object}	types.InfraSetupResponse
 //	@Router			/install/infra/setup [post]
 func (a *API) postInstallSetupInfra(w http.ResponseWriter, r *http.Request) {
 	// Parse request body
