@@ -3,7 +3,6 @@ export const MOCK_INSTALL_CONFIG = {
   localArtifactMirrorPort: 8801,
   networkInterface: "eth0",
   clusterMode: "embedded",
-  ignoreHostPreflights: false,
 };
 
 export const MOCK_NETWORK_INTERFACES = {
