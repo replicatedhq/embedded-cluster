@@ -73,7 +73,8 @@ func (c *InstallController) bypassPreflights(ctx context.Context) error {
 		return types.NewConflictError(err)
 	}
 
-	// TODO (@ethan): this feels awkward
+	// TODO (@ethan): we have already sent the preflight output when we sent the failed event.
+	// We should evaluate if we should send it again.
 	preflightOutput, err := c.GetHostPreflightOutput(ctx)
 	if err != nil {
 		return fmt.Errorf("get install host preflight output: %w", err)
