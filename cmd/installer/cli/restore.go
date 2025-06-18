@@ -135,7 +135,14 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 
 	if flags.isAirgap {
 		logrus.Debugf("checking airgap bundle matches binary")
-		if err := checkAirgapMatches(flags.airgapBundle); err != nil {
+
+		// read file from path
+		airgapInfo, err := airgap.AirgapInfoFromPath(flags.airgapBundle)
+		if err != nil {
+			return fmt.Errorf("failed to get airgap bundle versions: %w", err)
+		}
+
+		if err := checkAirgapMatches(airgapInfo); err != nil {
 			return err // we want the user to see the error message without a prefix
 		}
 	}

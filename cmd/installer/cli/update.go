@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
@@ -42,7 +43,14 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if airgapBundle != "" {
 				logrus.Debugf("checking airgap bundle matches binary")
-				if err := checkAirgapMatches(airgapBundle); err != nil {
+
+				// read file from path
+				airgapInfo, err := airgap.AirgapInfoFromPath(airgapBundle)
+				if err != nil {
+					return fmt.Errorf("failed to get airgap bundle versions: %w", err)
+				}
+
+				if err := checkAirgapMatches(airgapInfo); err != nil {
 					return err // we want the user to see the error message without a prefix
 				}
 			}

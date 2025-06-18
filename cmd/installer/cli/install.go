@@ -95,7 +95,16 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := verifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
+			var airgapInfo *kotsv1beta1.Airgap
+			if flags.airgapBundle != "" {
+				var err error
+				airgapInfo, err = airgap.AirgapInfoFromPath(flags.airgapBundle)
+				if err != nil {
+					return fmt.Errorf("failed to get airgap info: %w", err)
+				}
+			}
+
+			if err := verifyAndPrompt(ctx, name, flags, prompts.New(), airgapInfo); err != nil {
 				return err
 			}
 			if err := preRunInstall(cmd, &flags, rc); err != nil {
@@ -571,7 +580,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 	return opts, nil
 }
 
-func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt) error {
+func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt, airgapInfo *kotsv1beta1.Airgap) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "reinstall")
 	if err != nil {
@@ -588,9 +597,9 @@ func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, pr
 	if err != nil {
 		return err
 	}
-	if flags.isAirgap {
+	if airgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
-		if err := checkAirgapMatches(flags.airgapBundle); err != nil {
+		if err := checkAirgapMatches(airgapInfo); err != nil {
 			return err // we want the user to see the error message without a prefix
 		}
 	}
@@ -885,23 +894,15 @@ func installExtensions(ctx context.Context, hcli helm.Client) error {
 	return nil
 }
 
-func checkAirgapMatches(airgapBundle string) error {
+func checkAirgapMatches(airgapInfo *kotsv1beta1.Airgap) error {
 	rel := release.GetChannelRelease()
 	if rel == nil {
 		return fmt.Errorf("airgap bundle provided but no release was found in binary, please rerun without the airgap-bundle flag")
 	}
 
-	// read file from path
-	rawfile, err := os.Open(airgapBundle)
-	if err != nil {
-		return fmt.Errorf("failed to open airgap file: %w", err)
-	}
-	defer rawfile.Close()
-
-	appSlug, channelID, airgapVersion, err := airgap.ChannelReleaseMetadata(rawfile)
-	if err != nil {
-		return fmt.Errorf("failed to get airgap bundle versions: %w", err)
-	}
+	appSlug := airgapInfo.Spec.AppSlug
+	channelID := airgapInfo.Spec.ChannelID
+	airgapVersion := airgapInfo.Spec.VersionLabel
 
 	// Check if the airgap bundle matches the application version data
 	if rel.AppSlug != appSlug {
