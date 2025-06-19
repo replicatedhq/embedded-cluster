@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
+	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
@@ -45,7 +46,7 @@ func TestPostInstallSetupInfraValidation(t *testing.T) {
 			cliFlag:        false,
 			preflightState: types.StateFailed,
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "Preflight checks failed",
+			expectedError:  install.ErrPreflightChecksFailed.Error(),
 		},
 		{
 			name:           "preflights fail, request ignore but no CLI flag - should fail",
@@ -53,7 +54,7 @@ func TestPostInstallSetupInfraValidation(t *testing.T) {
 			cliFlag:        false,
 			preflightState: types.StateFailed,
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "Preflight checks failed",
+			expectedError:  install.ErrPreflightChecksFailed.Error(),
 		},
 	}
 
