@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface LogViewerProps {
@@ -15,12 +15,24 @@ const LogViewer: React.FC<LogViewerProps> = ({
   onToggle
 }) => {
   const logsEndRef = useRef<HTMLDivElement>(null);
+  const logContainerRef = useRef<HTMLDivElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
+  // Check if user is at bottom of logs
+  const handleScroll = () => {
+    if (!logContainerRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = logContainerRef.current;
+    const isBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 10;
+    setIsAtBottom(isBottom);
+  };
+
+  // Only auto-scroll if user is at bottom
   useEffect(() => {
-    if (logsEndRef.current && isExpanded) {
+    if (logsEndRef.current && isExpanded && isAtBottom) {
       logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [logs, isExpanded]);
+  }, [logs, isExpanded, isAtBottom]);
 
   return (
     <div className="mt-6" data-testid="log-viewer">
@@ -38,6 +50,8 @@ const LogViewer: React.FC<LogViewerProps> = ({
       </button>
       {isExpanded && (
         <div 
+          ref={logContainerRef}
+          onScroll={handleScroll}
           className="bg-gray-900 text-gray-200 rounded-md p-4 h-48 overflow-y-auto font-mono text-xs mt-2"
           data-testid="log-viewer-content"
         >
