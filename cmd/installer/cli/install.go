@@ -455,7 +455,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, rc, installReporter.reporter); err != nil {
+	if err := runInstallPreflights(ctx, flags, rc, installReporter.reporter, airgapInfo); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
