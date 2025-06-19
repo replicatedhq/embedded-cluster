@@ -15,14 +15,15 @@ import (
 )
 
 type PrepareHostPreflightOptions struct {
-	ReplicatedAppURL       string
-	ProxyRegistryURL       string
-	HostPreflightSpec      *troubleshootv1beta2.HostPreflightSpec
-	EmbeddedClusterConfig  *ecv1beta1.Config
-	TCPConnectionsRequired []string
-	IsAirgap               bool
-	IsJoin                 bool
-	IsUI                   bool
+	ReplicatedAppURL             string
+	ProxyRegistryURL             string
+	HostPreflightSpec            *troubleshootv1beta2.HostPreflightSpec
+	EmbeddedClusterConfig        *ecv1beta1.Config
+	TCPConnectionsRequired       []string
+	IsAirgap                     bool
+	IsJoin                       bool
+	IsUI                         bool
+	ControllerAirgapStorageSpace string
 }
 
 type RunHostPreflightOptions struct {
@@ -76,22 +77,23 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, rc run
 
 	// Use the shared Prepare function to prepare host preflights
 	prepareOpts := preflights.PrepareOptions{
-		HostPreflightSpec:       opts.HostPreflightSpec,
-		ReplicatedAppURL:        opts.ReplicatedAppURL,
-		ProxyRegistryURL:        opts.ProxyRegistryURL,
-		AdminConsolePort:        rc.AdminConsolePort(),
-		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
-		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                   rc.ProxySpec(),
-		PodCIDR:                 rc.PodCIDR(),
-		ServiceCIDR:             rc.ServiceCIDR(),
-		NodeIP:                  nodeIP,
-		IsAirgap:                opts.IsAirgap,
-		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
-		IsJoin:                  opts.IsJoin,
-		IsUI:                    opts.IsUI,
+		HostPreflightSpec:            opts.HostPreflightSpec,
+		ReplicatedAppURL:             opts.ReplicatedAppURL,
+		ProxyRegistryURL:             opts.ProxyRegistryURL,
+		AdminConsolePort:             rc.AdminConsolePort(),
+		LocalArtifactMirrorPort:      rc.LocalArtifactMirrorPort(),
+		DataDir:                      rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:                   rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:               rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                        rc.ProxySpec(),
+		PodCIDR:                      rc.PodCIDR(),
+		ServiceCIDR:                  rc.ServiceCIDR(),
+		NodeIP:                       nodeIP,
+		IsAirgap:                     opts.IsAirgap,
+		TCPConnectionsRequired:       opts.TCPConnectionsRequired,
+		IsJoin:                       opts.IsJoin,
+		IsUI:                         opts.IsUI,
+		ControllerAirgapStorageSpace: opts.ControllerAirgapStorageSpace,
 	}
 	if cidr := rc.GlobalCIDR(); cidr != "" {
 		prepareOpts.GlobalCIDR = &cidr

@@ -221,6 +221,25 @@ spec:
                 {{- end }}
           - pass:
               message: The filesystem at {{ .DataDir }} has sufficient space
+    - diskUsage:
+        checkName: Airgap Storage Space
+        collectorName: embedded-cluster-path-usage
+        exclude: '{{ eq .ControllerAirgapStorageSpace "" }}'
+        outcomes:
+          - fail:
+              when: 'available < {{ .ControllerAirgapStorageSpace }}'
+              message: >-
+                {{ if .IsUI -}}
+                The filesystem at {{ .DataDir }} has less than {{ .ControllerAirgapStorageSpace }} of available storage space needed to process the air gap bundle.
+                Controller nodes require 2x the extracted bundle size for processing.
+                Ensure sufficient space is available, or go back to the Setup page and choose a different data directory.
+                {{- else -}}
+                The filesystem at {{ .DataDir }} has less than {{ .ControllerAirgapStorageSpace }} of available storage space needed to process the air gap bundle.
+                Controller nodes require 2x the extracted bundle size for processing.
+                Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+                {{- end }}
+          - pass:
+              message: The filesystem at {{ .DataDir }} has sufficient available space for airgap bundle processing
     - textAnalyze:
         checkName: Default Route
         fileName: host-collectors/run-host/ip-route-table.txt
@@ -937,7 +956,7 @@ spec:
                 The node IP {{ .NodeIP }} cannot be within the Pod CIDR range {{ .PodCIDR.CIDR }}. Use --pod-cidr to specify a different Pod CIDR, or use --network-interface to specify a different network interface.
                 {{- end }}
           - pass:
-              when: "false" 
+              when: "false"
               message: The node IP {{ .NodeIP }} is not within the Pod CIDR range {{ .PodCIDR.CIDR }}.
     - subnetContainsIP:
         checkName: Node IP in Service CIDR Check

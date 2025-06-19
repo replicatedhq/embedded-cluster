@@ -7,6 +7,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
@@ -14,14 +16,26 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 	// Get the configured custom domains
 	ecDomains := utils.GetDomains(c.releaseData)
 
+	// Calculate airgap storage space requirement (2x uncompressed size for controller nodes)
+	var controllerAirgapStorageSpace string
+	if c.airgapBundle != "" {
+		airgapInfo, err := airgap.AirgapInfoFromPath(c.airgapBundle)
+		if err != nil {
+			return fmt.Errorf("failed to get airgap info: %w", err)
+		}
+		// Controller nodes require 2x the extracted bundle size for processing
+		controllerAirgapStorageSpace = preflights.CalculateControllerAirgapStorageSpace(airgapInfo.Spec.UncompressedSize)
+	}
+
 	// Prepare host preflights
 	hpf, err := c.hostPreflightManager.PrepareHostPreflights(ctx, c.rc, preflight.PrepareHostPreflightOptions{
-		ReplicatedAppURL:      netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
-		ProxyRegistryURL:      netutils.MaybeAddHTTPS(ecDomains.ProxyRegistryDomain),
-		HostPreflightSpec:     c.releaseData.HostPreflights,
-		EmbeddedClusterConfig: c.releaseData.EmbeddedClusterConfig,
-		IsAirgap:              c.airgapBundle != "",
-		IsUI:                  opts.IsUI,
+		ReplicatedAppURL:             netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
+		ProxyRegistryURL:             netutils.MaybeAddHTTPS(ecDomains.ProxyRegistryDomain),
+		HostPreflightSpec:            c.releaseData.HostPreflights,
+		EmbeddedClusterConfig:        c.releaseData.EmbeddedClusterConfig,
+		IsAirgap:                     c.airgapBundle != "",
+		IsUI:                         opts.IsUI,
+		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to prepare host preflights: %w", err)
