@@ -8,7 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-var ErrPreflightChecksFailed = errors.New("Preflight checks failed")
+var ErrPreflightChecksFailed = errors.New("preflight checks failed")
 
 func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) (preflightsWereIgnored bool, err error) {
 	// Check preflight status and requirements
@@ -33,10 +33,6 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 
 		// Check if we can proceed despite failures
 		if !ignorePreflightFailures || !c.allowIgnoreHostPreflights {
-			// Report metrics for failed preflights that are NOT bypassed
-			if c.metricsReporter != nil && preflightOutput != nil {
-				c.metricsReporter.ReportPreflightsFailed(ctx, preflightOutput)
-			}
 			return false, ErrPreflightChecksFailed
 		}
 
