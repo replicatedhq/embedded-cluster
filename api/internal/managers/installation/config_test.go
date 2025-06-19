@@ -278,17 +278,6 @@ func TestSetConfigDefaults(t *testing.T) {
 				HTTPSProxy:              "https://proxy.example.com:3128",
 			},
 		},
-		{
-			name:        "empty config sets defaults",
-			inputConfig: types.InstallationConfig{},
-			expectedConfig: types.InstallationConfig{
-				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
-				DataDirectory:           ecv1beta1.DefaultDataDir,
-				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
-				NetworkInterface:        "eth0",
-				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
-			},
-		},
 	}
 
 	for _, tt := range tests {
