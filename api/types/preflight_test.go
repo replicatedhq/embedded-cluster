@@ -2,6 +2,7 @@ package types
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -19,7 +20,11 @@ func TestHostPreflightsAllowIgnore(t *testing.T) {
 				Output: &HostPreflightsOutput{
 					Pass: []HostPreflightsRecord{{Title: "Pass", Message: "OK"}},
 				},
-				Status:                    NewStatus(),
+				Status: Status{
+					State:       StatePending,
+					Description: "Preflights pending",
+					LastUpdated: time.Now(),
+				},
 				AllowIgnoreHostPreflights: true,
 			},
 			expectedAllowIgnore: true,
@@ -31,7 +36,11 @@ func TestHostPreflightsAllowIgnore(t *testing.T) {
 				Output: &HostPreflightsOutput{
 					Pass: []HostPreflightsRecord{{Title: "Pass", Message: "OK"}},
 				},
-				Status:                    NewStatus(),
+				Status: Status{
+					State:       StatePending,
+					Description: "Preflights pending",
+					LastUpdated: time.Now(),
+				},
 				AllowIgnoreHostPreflights: false,
 			},
 			expectedAllowIgnore: false,

@@ -10,41 +10,39 @@ import (
 )
 
 func TestNewMemoryStore(t *testing.T) {
-	inst := types.NewInstallation()
-	store := NewMemoryStore(inst)
+	inst := types.Installation{}
+	store := NewMemoryStore(WithInstallation(inst))
 
 	assert.NotNil(t, store)
-	assert.NotNil(t, store.installation)
 	assert.Equal(t, inst, store.installation)
 }
 
 func TestMemoryStore_GetConfig(t *testing.T) {
-	inst := &types.Installation{
-		Config: &types.InstallationConfig{
+	inst := types.Installation{
+		Config: types.InstallationConfig{
 			AdminConsolePort: 8080,
 			DataDirectory:    "/some/dir",
 		},
 	}
-	store := NewMemoryStore(inst)
+	store := NewMemoryStore(WithInstallation(inst))
 
 	config, err := store.GetConfig()
 
 	require.NoError(t, err)
-	assert.NotNil(t, config)
-	assert.Equal(t, &types.InstallationConfig{
+	assert.Equal(t, types.InstallationConfig{
 		AdminConsolePort: 8080,
 		DataDirectory:    "/some/dir",
 	}, config)
 }
 
 func TestMemoryStore_SetConfig(t *testing.T) {
-	inst := &types.Installation{
-		Config: &types.InstallationConfig{
+	inst := types.Installation{
+		Config: types.InstallationConfig{
 			AdminConsolePort: 1000,
 			DataDirectory:    "/a/different/dir",
 		},
 	}
-	store := NewMemoryStore(inst)
+	store := NewMemoryStore(WithInstallation(inst))
 	expectedConfig := types.InstallationConfig{
 		AdminConsolePort: 8080,
 		DataDirectory:    "/some/dir",
@@ -57,35 +55,34 @@ func TestMemoryStore_SetConfig(t *testing.T) {
 	// Verify the config was stored
 	actualConfig, err := store.GetConfig()
 	require.NoError(t, err)
-	assert.Equal(t, &expectedConfig, actualConfig)
+	assert.Equal(t, expectedConfig, actualConfig)
 }
 
 func TestMemoryStore_GetStatus(t *testing.T) {
-	inst := &types.Installation{
-		Status: &types.Status{
+	inst := types.Installation{
+		Status: types.Status{
 			State:       "failed",
 			Description: "Failure",
 		},
 	}
-	store := NewMemoryStore(inst)
+	store := NewMemoryStore(WithInstallation(inst))
 
 	status, err := store.GetStatus()
 
 	require.NoError(t, err)
-	assert.NotNil(t, status)
-	assert.Equal(t, &types.Status{
+	assert.Equal(t, types.Status{
 		State:       "failed",
 		Description: "Failure",
 	}, status)
 }
 func TestMemoryStore_SetStatus(t *testing.T) {
-	inst := &types.Installation{
-		Status: &types.Status{
+	inst := types.Installation{
+		Status: types.Status{
 			State:       "failed",
 			Description: "Failure",
 		},
 	}
-	store := NewMemoryStore(inst)
+	store := NewMemoryStore(WithInstallation(inst))
 	expectedStatus := types.Status{
 		State:       "running",
 		Description: "Running",
@@ -98,13 +95,13 @@ func TestMemoryStore_SetStatus(t *testing.T) {
 	// Verify the status was stored
 	actualStatus, err := store.GetStatus()
 	require.NoError(t, err)
-	assert.Equal(t, &expectedStatus, actualStatus)
+	assert.Equal(t, expectedStatus, actualStatus)
 }
 
 // Useful to test concurrent access with -race flag
 func TestMemoryStore_ConcurrentAccess(t *testing.T) {
-	inst := types.NewInstallation()
-	store := NewMemoryStore(inst)
+	inst := types.Installation{}
+	store := NewMemoryStore(WithInstallation(inst))
 	var wg sync.WaitGroup
 
 	// Test concurrent reads and writes

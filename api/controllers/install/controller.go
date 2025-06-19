@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
+	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -19,17 +20,17 @@ import (
 )
 
 type Controller interface {
-	GetInstallationConfig(ctx context.Context) (*types.InstallationConfig, error)
-	ConfigureInstallation(ctx context.Context, config *types.InstallationConfig) error
-	GetInstallationStatus(ctx context.Context) (*types.Status, error)
+	GetInstallationConfig(ctx context.Context) (types.InstallationConfig, error)
+	ConfigureInstallation(ctx context.Context, config types.InstallationConfig) error
+	GetInstallationStatus(ctx context.Context) (types.Status, error)
 	RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) error
-	GetHostPreflightStatus(ctx context.Context) (*types.Status, error)
+	GetHostPreflightStatus(ctx context.Context) (types.Status, error)
 	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context, ignorePreflightFailures bool) (bool, error)
-	GetInfra(ctx context.Context) (*types.Infra, error)
-	SetStatus(ctx context.Context, status *types.Status) error
-	GetStatus(ctx context.Context) (*types.Status, error)
+	GetInfra(ctx context.Context) (types.Infra, error)
+	SetStatus(ctx context.Context, status types.Status) error
+	GetStatus(ctx context.Context) (types.Status, error)
 }
 
 type RunHostPreflightsOptions struct {
@@ -39,7 +40,8 @@ type RunHostPreflightsOptions struct {
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	install                   *types.Install
+	install                   types.Install
+	store                     store.Store
 	installationManager       installation.InstallationManager
 	hostPreflightManager      preflight.HostPreflightManager
 	infraManager              infra.InfraManager
@@ -55,8 +57,8 @@ type InstallController struct {
 	airgapBundle              string
 	configValues              string
 	endUserConfig             *ecv1beta1.Config
-	allowIgnoreHostPreflights bool
 	mu                        sync.RWMutex
+	allowIgnoreHostPreflights bool
 }
 
 type InstallControllerOption func(*InstallController)
@@ -151,10 +153,14 @@ func WithHostPreflightManager(hostPreflightManager preflight.HostPreflightManage
 	}
 }
 
-func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
-	controller := &InstallController{
-		install: types.NewInstall(),
+func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
+	return func(c *InstallController) {
+		c.infraManager = infraManager
 	}
+}
+
+func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
+	controller := &InstallController{}
 
 	for _, opt := range opts {
 		opt(controller)
@@ -178,11 +184,14 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.netUtils = utils.NewNetUtils()
 	}
 
+	if controller.store == nil {
+		controller.store = store.NewMemoryStore()
+	}
+
 	if controller.installationManager == nil {
 		controller.installationManager = installation.NewInstallationManager(
-			installation.WithRuntimeConfig(controller.rc),
 			installation.WithLogger(controller.logger),
-			installation.WithInstallation(controller.install.Steps.Installation),
+			installation.WithInstallationStore(controller.store.InstallationStore()),
 			installation.WithLicenseFile(controller.licenseFile),
 			installation.WithAirgapBundle(controller.airgapBundle),
 			installation.WithHostUtils(controller.hostUtils),
@@ -192,19 +201,17 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 
 	if controller.hostPreflightManager == nil {
 		controller.hostPreflightManager = preflight.NewHostPreflightManager(
-			preflight.WithRuntimeConfig(controller.rc),
 			preflight.WithLogger(controller.logger),
 			preflight.WithMetricsReporter(controller.metricsReporter),
-			preflight.WithHostPreflightStore(preflight.NewMemoryStore(controller.install.Steps.HostPreflight)),
+			preflight.WithHostPreflightStore(controller.store.PreflightStore()),
 			preflight.WithNetUtils(controller.netUtils),
 		)
 	}
 
 	if controller.infraManager == nil {
 		controller.infraManager = infra.NewInfraManager(
-			infra.WithRuntimeConfig(controller.rc),
 			infra.WithLogger(controller.logger),
-			infra.WithInfra(controller.install.Steps.Infra),
+			infra.WithInfraStore(controller.store.InfraStore()),
 			infra.WithPassword(controller.password),
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicenseFile(controller.licenseFile),

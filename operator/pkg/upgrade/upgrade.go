@@ -67,7 +67,7 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtim
 		return fmt.Errorf("upgrade extensions: %w", err)
 	}
 
-	err = support.CreateHostSupportBundle()
+	err = support.CreateHostSupportBundle(ctx, cli)
 	if err != nil {
 		slog.Error("Failed to upgrade host support bundle", "error", err)
 	}

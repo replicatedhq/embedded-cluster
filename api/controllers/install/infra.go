@@ -42,20 +42,14 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 		preflightsWereIgnored = true
 	}
 
-	// Get current installation config
-	config, err := c.installationManager.GetConfig()
-	if err != nil {
-		return false, fmt.Errorf("failed to read installation config: %w", err)
-	}
-
-	// Install infrastructure
-	if err := c.infraManager.Install(ctx, config); err != nil {
+	// Install infrastructure using main's approach
+	if err := c.infraManager.Install(ctx, c.rc); err != nil {
 		return false, fmt.Errorf("install infra: %w", err)
 	}
 
 	return preflightsWereIgnored, nil
 }
 
-func (c *InstallController) GetInfra(ctx context.Context) (*types.Infra, error) {
+func (c *InstallController) GetInfra(ctx context.Context) (types.Infra, error) {
 	return c.infraManager.Get()
 }

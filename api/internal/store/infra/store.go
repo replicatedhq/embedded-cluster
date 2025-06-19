@@ -6,51 +6,78 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/tiendc/go-deepcopy"
 )
 
 const maxLogSize = 100 * 1024 // 100KB total log size
 
+var _ Store = &memoryStore{}
+
 // Store provides methods for storing and retrieving infrastructure state
 type Store interface {
-	Get() (*types.Infra, error)
-	GetStatus() (*types.Status, error)
+	Get() (types.Infra, error)
+	GetStatus() (types.Status, error)
 	SetStatus(status types.Status) error
 	SetStatusDesc(desc string) error
 	RegisterComponent(name string) error
-	SetComponentStatus(name string, status *types.Status) error
+	SetComponentStatus(name string, status types.Status) error
 	AddLogs(logs string) error
 	GetLogs() (string, error)
 }
 
 // memoryStore is an in-memory implementation of Store
 type memoryStore struct {
-	infra *types.Infra
+	infra types.Infra
 	mu    sync.RWMutex
 }
 
-// NewMemoryStore creates a new memory store
-func NewMemoryStore(infra *types.Infra) Store {
-	return &memoryStore{
-		infra: infra,
+type StoreOption func(*memoryStore)
+
+func WithInfra(infra types.Infra) StoreOption {
+	return func(s *memoryStore) {
+		s.infra = infra
 	}
 }
 
-func (s *memoryStore) Get() (*types.Infra, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.infra, nil
+// NewMemoryStore creates a new memory store
+func NewMemoryStore(opts ...StoreOption) Store {
+	s := &memoryStore{}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
 }
 
-func (s *memoryStore) GetStatus() (*types.Status, error) {
+func (s *memoryStore) Get() (types.Infra, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.infra.Status, nil
+
+	var infra types.Infra
+	if err := deepcopy.Copy(&infra, &s.infra); err != nil {
+		return types.Infra{}, err
+	}
+
+	return infra, nil
+}
+
+func (s *memoryStore) GetStatus() (types.Status, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var status types.Status
+	if err := deepcopy.Copy(&status, &s.infra.Status); err != nil {
+		return types.Status{}, err
+	}
+
+	return status, nil
 }
 
 func (s *memoryStore) SetStatus(status types.Status) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.infra.Status = &status
+	s.infra.Status = status
 	return nil
 }
 
@@ -58,11 +85,11 @@ func (s *memoryStore) SetStatusDesc(desc string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.infra.Status == nil {
-		return fmt.Errorf("status not set")
+	if s.infra.Status.State == "" {
+		return fmt.Errorf("state not set")
 	}
-	s.infra.Status.Description = desc
 
+	s.infra.Status.Description = desc
 	return nil
 }
 
@@ -72,7 +99,7 @@ func (s *memoryStore) RegisterComponent(name string) error {
 
 	s.infra.Components = append(s.infra.Components, types.InfraComponent{
 		Name: name,
-		Status: &types.Status{
+		Status: types.Status{
 			State:       types.StatePending,
 			Description: "",
 			LastUpdated: time.Now(),
@@ -82,7 +109,7 @@ func (s *memoryStore) RegisterComponent(name string) error {
 	return nil
 }
 
-func (s *memoryStore) SetComponentStatus(name string, status *types.Status) error {
+func (s *memoryStore) SetComponentStatus(name string, status types.Status) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

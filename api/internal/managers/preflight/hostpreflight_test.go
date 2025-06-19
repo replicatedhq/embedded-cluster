@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	preflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -202,7 +203,7 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mocks
 			mockRunner := &preflights.MockPreflightRunner{}
-			mockStore := &MockHostPreflightStore{}
+			mockStore := &preflightstore.MockStore{}
 			mockMetrics := &metrics.MockReporter{}
 			mockNetUtils := &utils.MockNetUtils{}
 
@@ -215,14 +216,13 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 			manager := NewHostPreflightManager(
 				WithPreflightRunner(mockRunner),
 				WithHostPreflightStore(mockStore),
-				WithRuntimeConfig(rc),
 				WithLogger(logger.NewDiscardLogger()),
 				WithMetricsReporter(mockMetrics),
 				WithNetUtils(mockNetUtils),
 			)
 
 			// Execute
-			hpf, err := manager.PrepareHostPreflights(context.Background(), tt.opts)
+			hpf, err := manager.PrepareHostPreflights(context.Background(), rc, tt.opts)
 
 			// Assert
 			if tt.expectedError != "" {
@@ -248,7 +248,7 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 	tests := []struct {
 		name               string
 		opts               RunHostPreflightOptions
-		initialState       *types.HostPreflights
+		initialState       types.HostPreflights
 		setupMocks         func(*preflights.MockPreflightRunner, *metrics.MockReporter, runtimeconfig.RuntimeConfig)
 		expectedFinalState types.State
 		// This is the expected error message returned by the RunHostPreflights method, synchronously
@@ -259,8 +259,8 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			opts: RunHostPreflightOptions{
 				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
 			},
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
@@ -280,8 +280,8 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			opts: RunHostPreflightOptions{
 				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
 			},
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
@@ -307,8 +307,8 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 		},
 		{
 			name: "execution with preflight warnings",
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
@@ -336,8 +336,8 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 		},
 		{
 			name: "execution with both failures and warnings",
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
@@ -369,8 +369,8 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 		},
 		{
 			name: "runner execution fails",
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
@@ -385,8 +385,8 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 		},
 		{
 			name: "SaveToDisk fails but execution continues",
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
@@ -406,8 +406,8 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 		},
 		{
 			name: "CopyBundleTo fails but execution continues",
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
@@ -427,8 +427,8 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 		},
 		{
 			name: "error - preflights already running",
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StateRunning,
 				},
 			},
@@ -456,14 +456,13 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			// Create manager using builder pattern
 			manager := NewHostPreflightManager(
 				WithPreflightRunner(mockRunner),
-				WithHostPreflightStore(NewMemoryStore(tt.initialState)),
-				WithRuntimeConfig(rc),
+				WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(tt.initialState))),
 				WithLogger(logger.NewDiscardLogger()),
 				WithMetricsReporter(mockMetrics),
 			)
 
 			// Execute
-			err := manager.RunHostPreflights(context.Background(), tt.opts)
+			err := manager.RunHostPreflights(context.Background(), rc, tt.opts)
 			// If there's an error we don't need to wait for async execution
 			if tt.expectedError != "" {
 				require.Error(t, err)
@@ -492,27 +491,27 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 func TestHostPreflightManager_GetHostPreflightStatus(t *testing.T) {
 	tests := []struct {
 		name           string
-		setupMocks     func(*MockHostPreflightStore)
-		expectedStatus *types.Status
+		setupMocks     func(*preflightstore.MockStore)
+		expectedStatus types.Status
 		expectedError  string
 	}{
 		{
 			name: "success",
-			setupMocks: func(store *MockHostPreflightStore) {
-				store.On("GetStatus").Return(&types.Status{
+			setupMocks: func(store *preflightstore.MockStore) {
+				store.On("GetStatus").Return(types.Status{
 					State:       types.StateSucceeded,
 					Description: "Host preflights passed",
 					LastUpdated: time.Now(),
 				}, nil)
 			},
-			expectedStatus: &types.Status{
+			expectedStatus: types.Status{
 				State:       types.StateSucceeded,
 				Description: "Host preflights passed",
 			},
 		},
 		{
 			name: "error from store",
-			setupMocks: func(store *MockHostPreflightStore) {
+			setupMocks: func(store *preflightstore.MockStore) {
 				store.On("GetStatus").Return(nil, fmt.Errorf("store error"))
 			},
 			expectedError: "store error",
@@ -522,7 +521,7 @@ func TestHostPreflightManager_GetHostPreflightStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mocks
-			mockStore := &MockHostPreflightStore{}
+			mockStore := &preflightstore.MockStore{}
 			tt.setupMocks(mockStore)
 
 			// Create manager using builder pattern
@@ -537,7 +536,7 @@ func TestHostPreflightManager_GetHostPreflightStatus(t *testing.T) {
 			if tt.expectedError != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
-				assert.Nil(t, status)
+				assert.Equal(t, types.Status{}, status)
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expectedStatus.State, status.State)
@@ -553,13 +552,13 @@ func TestHostPreflightManager_GetHostPreflightStatus(t *testing.T) {
 func TestHostPreflightManager_GetHostPreflightOutput(t *testing.T) {
 	tests := []struct {
 		name           string
-		setupMocks     func(*MockHostPreflightStore)
+		setupMocks     func(*preflightstore.MockStore)
 		expectedOutput *types.HostPreflightsOutput
 		expectedError  string
 	}{
 		{
 			name: "success",
-			setupMocks: func(store *MockHostPreflightStore) {
+			setupMocks: func(store *preflightstore.MockStore) {
 				output := &types.HostPreflightsOutput{}
 				store.On("GetOutput").Return(output, nil)
 			},
@@ -567,7 +566,7 @@ func TestHostPreflightManager_GetHostPreflightOutput(t *testing.T) {
 		},
 		{
 			name: "error from store",
-			setupMocks: func(store *MockHostPreflightStore) {
+			setupMocks: func(store *preflightstore.MockStore) {
 				store.On("GetOutput").Return(nil, fmt.Errorf("store error"))
 			},
 			expectedError: "store error",
@@ -577,7 +576,7 @@ func TestHostPreflightManager_GetHostPreflightOutput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mocks
-			mockStore := &MockHostPreflightStore{}
+			mockStore := &preflightstore.MockStore{}
 			tt.setupMocks(mockStore)
 
 			// Create manager using builder pattern
@@ -607,13 +606,13 @@ func TestHostPreflightManager_GetHostPreflightOutput(t *testing.T) {
 func TestHostPreflightManager_GetHostPreflightTitles(t *testing.T) {
 	tests := []struct {
 		name           string
-		setupMocks     func(*MockHostPreflightStore)
+		setupMocks     func(*preflightstore.MockStore)
 		expectedTitles []string
 		expectedError  string
 	}{
 		{
 			name: "success",
-			setupMocks: func(store *MockHostPreflightStore) {
+			setupMocks: func(store *preflightstore.MockStore) {
 				titles := []string{"Memory Check", "Disk Space Check", "Network Check"}
 				store.On("GetTitles").Return(titles, nil)
 			},
@@ -621,14 +620,14 @@ func TestHostPreflightManager_GetHostPreflightTitles(t *testing.T) {
 		},
 		{
 			name: "success with empty titles",
-			setupMocks: func(store *MockHostPreflightStore) {
+			setupMocks: func(store *preflightstore.MockStore) {
 				store.On("GetTitles").Return([]string{}, nil)
 			},
 			expectedTitles: []string{},
 		},
 		{
 			name: "error from store",
-			setupMocks: func(store *MockHostPreflightStore) {
+			setupMocks: func(store *preflightstore.MockStore) {
 				store.On("GetTitles").Return(nil, fmt.Errorf("store error"))
 			},
 			expectedError: "store error",
@@ -638,7 +637,7 @@ func TestHostPreflightManager_GetHostPreflightTitles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mocks
-			mockStore := &MockHostPreflightStore{}
+			mockStore := &preflightstore.MockStore{}
 			tt.setupMocks(mockStore)
 
 			// Create manager using builder pattern

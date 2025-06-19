@@ -26,38 +26,33 @@ type mockInfraController struct {
 	allowIgnoreHostPreflights bool
 }
 
-func (m *mockInfraController) GetInstallationConfig(ctx context.Context) (*types.InstallationConfig, error) {
-	return &types.InstallationConfig{}, nil
+func (m *mockInfraController) GetInstallationConfig(ctx context.Context) (types.InstallationConfig, error) {
+	return types.InstallationConfig{}, nil
 }
 
-func (m *mockInfraController) ConfigureInstallation(ctx context.Context, config *types.InstallationConfig) error {
+func (m *mockInfraController) ConfigureInstallation(ctx context.Context, config types.InstallationConfig) error {
 	return nil
 }
 
-func (m *mockInfraController) GetInstallationStatus(ctx context.Context) (*types.Status, error) {
-	return &types.Status{}, nil
+func (m *mockInfraController) GetInstallationStatus(ctx context.Context) (types.Status, error) {
+	return types.Status{}, nil
 }
 
 func (m *mockInfraController) RunHostPreflights(ctx context.Context, opts install.RunHostPreflightsOptions) error {
 	return nil
 }
 
-func (m *mockInfraController) GetHostPreflightStatus(ctx context.Context) (*types.Status, error) {
+func (m *mockInfraController) GetHostPreflightStatus(ctx context.Context) (types.Status, error) {
 	if m.preflightError != nil {
-		return nil, m.preflightError
+		return types.Status{}, m.preflightError
 	}
-	return m.preflightStatus, nil
+	if m.preflightStatus != nil {
+		return *m.preflightStatus, nil
+	}
+	return types.Status{}, nil
 }
 
 func (m *mockInfraController) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error) {
-	// Return appropriate output based on preflight status
-	if m.preflightStatus != nil && m.preflightStatus.State == types.StateFailed {
-		return &types.HostPreflightsOutput{
-			Fail: []types.HostPreflightsRecord{
-				{Title: "Mock Failure", Message: "Mock preflight failure for testing"},
-			},
-		}, nil
-	}
 	return &types.HostPreflightsOutput{
 		Pass: []types.HostPreflightsRecord{
 			{Title: "Mock Success", Message: "Mock preflight success for testing"},
@@ -94,16 +89,16 @@ func (m *mockInfraController) SetupInfra(ctx context.Context, ignorePreflightFai
 	return false, nil
 }
 
-func (m *mockInfraController) GetInfra(ctx context.Context) (*types.Infra, error) {
-	return &types.Infra{Status: &types.Status{State: types.StateRunning}}, nil
+func (m *mockInfraController) GetInfra(ctx context.Context) (types.Infra, error) {
+	return types.Infra{Status: types.Status{State: types.StateRunning}}, nil
 }
 
-func (m *mockInfraController) SetStatus(ctx context.Context, status *types.Status) error {
+func (m *mockInfraController) SetStatus(ctx context.Context, status types.Status) error {
 	return nil
 }
 
-func (m *mockInfraController) GetStatus(ctx context.Context) (*types.Status, error) {
-	return &types.Status{}, nil
+func (m *mockInfraController) GetStatus(ctx context.Context) (types.Status, error) {
+	return types.Status{}, nil
 }
 
 // Test infra setup validation - focused on the new validation logic

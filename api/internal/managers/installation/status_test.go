@@ -25,7 +25,6 @@ func TestStatusSetAndGet(t *testing.T) {
 	// Test reading it back
 	readStatus, err := manager.GetStatus()
 	assert.NoError(t, err)
-	assert.NotNil(t, readStatus)
 
 	// Verify the values match
 	assert.Equal(t, statusToWrite.State, readStatus.State)
@@ -46,7 +45,6 @@ func TestSetRunningStatus(t *testing.T) {
 
 	status, err := manager.GetStatus()
 	assert.NoError(t, err)
-	assert.NotNil(t, status)
 
 	assert.Equal(t, types.StateRunning, status.State)
 	assert.Equal(t, description, status.Description)
@@ -62,7 +60,6 @@ func TestSetFailedStatus(t *testing.T) {
 
 	status, err := manager.GetStatus()
 	assert.NoError(t, err)
-	assert.NotNil(t, status)
 
 	assert.Equal(t, types.StateFailed, status.State)
 	assert.Equal(t, description, status.Description)
@@ -96,7 +93,6 @@ func TestSetCompletedStatus(t *testing.T) {
 
 			status, err := manager.GetStatus()
 			assert.NoError(t, err)
-			assert.NotNil(t, status)
 
 			assert.Equal(t, tt.state, status.State)
 			assert.Equal(t, tt.description, status.Description)

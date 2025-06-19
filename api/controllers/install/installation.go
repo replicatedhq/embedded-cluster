@@ -10,37 +10,33 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
-func (c *InstallController) GetInstallationConfig(ctx context.Context) (*types.InstallationConfig, error) {
+func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.InstallationConfig, error) {
 	config, err := c.installationManager.GetConfig()
 	if err != nil {
-		return nil, err
+		return types.InstallationConfig{}, err
 	}
 
-	if config == nil {
-		return nil, fmt.Errorf("installation config is nil")
+	if err := c.installationManager.SetConfigDefaults(&config); err != nil {
+		return types.InstallationConfig{}, fmt.Errorf("set defaults: %w", err)
 	}
 
-	if err := c.installationManager.SetConfigDefaults(config); err != nil {
-		return nil, fmt.Errorf("set defaults: %w", err)
-	}
-
-	if err := c.installationManager.ValidateConfig(config); err != nil {
-		return nil, fmt.Errorf("validate: %w", err)
+	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
+		return types.InstallationConfig{}, fmt.Errorf("validate: %w", err)
 	}
 
 	return config, nil
 }
 
-func (c *InstallController) ConfigureInstallation(ctx context.Context, config *types.InstallationConfig) error {
-	if err := c.installationManager.ValidateConfig(config); err != nil {
+func (c *InstallController) ConfigureInstallation(ctx context.Context, config types.InstallationConfig) error {
+	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	if err := c.computeCIDRs(config); err != nil {
+	if err := c.computeCIDRs(&config); err != nil {
 		return fmt.Errorf("compute cidrs: %w", err)
 	}
 
-	if err := c.installationManager.SetConfig(*config); err != nil {
+	if err := c.installationManager.SetConfig(config); err != nil {
 		return fmt.Errorf("write: %w", err)
 	}
 
@@ -70,7 +66,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config *t
 		return fmt.Errorf("set env vars: %w", err)
 	}
 
-	if err := c.installationManager.ConfigureHost(ctx); err != nil {
+	if err := c.installationManager.ConfigureHost(ctx, c.rc); err != nil {
 		return fmt.Errorf("configure: %w", err)
 	}
 
@@ -90,6 +86,6 @@ func (c *InstallController) computeCIDRs(config *types.InstallationConfig) error
 	return nil
 }
 
-func (c *InstallController) GetInstallationStatus(ctx context.Context) (*types.Status, error) {
+func (c *InstallController) GetInstallationStatus(ctx context.Context) (types.Status, error) {
 	return c.installationManager.GetStatus()
 }

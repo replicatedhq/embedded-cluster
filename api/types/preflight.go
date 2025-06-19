@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 type PostInstallRunHostPreflightsRequest struct {
 	IsUI bool `json:"isUi"`
 }
@@ -8,7 +10,7 @@ type PostInstallRunHostPreflightsRequest struct {
 type HostPreflights struct {
 	Titles                    []string              `json:"titles"`
 	Output                    *HostPreflightsOutput `json:"output"`
-	Status                    *Status               `json:"status"`
+	Status                    Status                `json:"status"`
 	AllowIgnoreHostPreflights bool                  `json:"allowIgnoreHostPreflights"`
 }
 
@@ -26,7 +28,11 @@ type HostPreflightsRecord struct {
 
 func NewHostPreflights() *HostPreflights {
 	return &HostPreflights{
-		Status:                    NewStatus(),
+		Status: Status{
+			State:       StatePending,
+			Description: "Preflights pending",
+			LastUpdated: time.Now(),
+		},
 		AllowIgnoreHostPreflights: false,
 	}
 }
