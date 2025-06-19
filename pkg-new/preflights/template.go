@@ -46,6 +46,11 @@ func renderTemplate(spec string, data types.TemplateData) (string, error) {
 	return buf.String(), nil
 }
 
+const (
+	multiplierController = 2
+	multiplierWorker     = 1
+)
+
 // CalculateAirgapStorageSpace calculates required storage space for airgap installations.
 // Controller nodes need 2x uncompressed size, worker nodes need 1x. Returns "XGi" or "XMi".
 func CalculateAirgapStorageSpace(uncompressedSize int64, isController bool) string {
@@ -53,10 +58,10 @@ func CalculateAirgapStorageSpace(uncompressedSize int64, isController bool) stri
 		return ""
 	}
 
-	requiredBytes := uncompressedSize
+	requiredBytes := uncompressedSize * multiplierWorker
 	if isController {
 		// Controller nodes require 2x the extracted bundle size for processing
-		requiredBytes = uncompressedSize * 2
+		requiredBytes = uncompressedSize * multiplierController
 	}
 
 	// Convert to Gi if >= 1 Gi, otherwise use Mi

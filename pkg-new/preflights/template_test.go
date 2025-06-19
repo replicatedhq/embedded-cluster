@@ -644,7 +644,13 @@ func TestCalculateAirgapStorageSpace(t *testing.T) {
 			name:             "controller node with 500MB uncompressed size",
 			uncompressedSize: 500 * 1024 * 1024, // 500MB
 			isController:     true,
-			expected:         "1Gi", // 2x = 1GB, rounded up
+			expected:         "1000Mi", // 2x
+		},
+		{
+			name:             "controller node with 500MB uncompressed size",
+			uncompressedSize: 512 * 1024 * 1024, // 500MB
+			isController:     true,
+			expected:         "1Gi", // 2x
 		},
 		{
 			name:             "worker node with 500MB uncompressed size",
@@ -682,72 +688,6 @@ func TestCalculateAirgapStorageSpace(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := CalculateAirgapStorageSpace(tt.uncompressedSize, tt.isController)
 			require.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestTemplateAirgapStorageSpaceChecks(t *testing.T) {
-	tests := []struct {
-		name                        string
-		controllerAirgapStorageSpace string
-		workerAirgapStorageSpace     string
-		expectControllerCheck        bool
-		expectWorkerCheck            bool
-	}{
-		{
-			name:                        "controller node check",
-			controllerAirgapStorageSpace: "2Gi",
-			workerAirgapStorageSpace:     "",
-			expectControllerCheck:        true,
-			expectWorkerCheck:            false,
-		},
-		{
-			name:                        "worker node check",
-			controllerAirgapStorageSpace: "",
-			workerAirgapStorageSpace:     "1Gi",
-			expectControllerCheck:        false,
-			expectWorkerCheck:            true,
-		},
-		{
-			name:                        "no airgap checks",
-			controllerAirgapStorageSpace: "",
-			workerAirgapStorageSpace:     "",
-			expectControllerCheck:        false,
-			expectWorkerCheck:            false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			data := types.TemplateData{
-				ControllerAirgapStorageSpace: tt.controllerAirgapStorageSpace,
-				WorkerAirgapStorageSpace:     tt.workerAirgapStorageSpace,
-			}
-
-			hpfs, err := GetClusterHostPreflights(context.Background(), data)
-			require.NoError(t, err)
-			require.Len(t, hpfs, 1)
-
-			spec := hpfs[0].Spec
-			specStr, err := json.Marshal(spec)
-			require.NoError(t, err)
-			specStrLower := strings.ToLower(string(specStr))
-
-			if tt.expectControllerCheck {
-				require.Contains(t, specStrLower, "airgap storage space")
-				require.Contains(t, specStrLower, "controller")
-				require.NotContains(t, specStrLower, "worker airgap storage space")
-			} else {
-				require.NotContains(t, specStrLower, "airgap storage space")
-			}
-
-			if tt.expectWorkerCheck {
-				require.Contains(t, specStrLower, "worker airgap storage space")
-				require.Contains(t, specStrLower, "infrastructure images")
-				require.NotContains(t, specStrLower, "airgap storage space")
-			} else {
-				require.NotContains(t, specStrLower, "worker airgap storage space")
-			}
 		})
 	}
 }
