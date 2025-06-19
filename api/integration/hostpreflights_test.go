@@ -193,7 +193,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		// Create an install controller with the mocked manager
 		installController, err := install.NewInstallController(
 			install.WithStateMachine(install.NewStateMachine(
-				install.WithCurrentState(install.StateInstallationConfigured),
+				install.WithCurrentState(install.StateHostConfigured),
 			)),
 			install.WithHostPreflightManager(pfManager),
 			install.WithInstallationManager(iManager),
@@ -297,7 +297,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		// Create an install controller
 		installController, err := install.NewInstallController(
 			install.WithStateMachine(install.NewStateMachine(
-				install.WithCurrentState(install.StateInstallationConfigured),
+				install.WithCurrentState(install.StateHostConfigured),
 			)),
 			install.WithHostPreflightManager(manager),
 			install.WithReleaseData(&release.ReleaseData{
@@ -355,7 +355,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		// Create an install controller with the failing manager
 		installController, err := install.NewInstallController(
 			install.WithStateMachine(install.NewStateMachine(
-				install.WithCurrentState(install.StateInstallationConfigured),
+				install.WithCurrentState(install.StateHostConfigured),
 			)),
 			install.WithHostPreflightManager(manager),
 			install.WithReleaseData(&release.ReleaseData{
@@ -414,7 +414,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		// Create an install controller with the failing manager
 		installController, err := install.NewInstallController(
 			install.WithStateMachine(install.NewStateMachine(
-				install.WithCurrentState(install.StateInstallationConfigured),
+				install.WithCurrentState(install.StateHostConfigured),
 			)),
 			install.WithHostPreflightManager(manager),
 			install.WithReleaseData(&release.ReleaseData{

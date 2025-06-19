@@ -276,6 +276,7 @@ func TestConfigureInstallation(t *testing.T) {
 			// Create an install controller with the config manager
 			installController, err := install.NewInstallController(
 				install.WithRuntimeConfig(rc),
+				install.WithStateMachine(install.NewStateMachine(install.WithCurrentState(install.StateHostConfigured))),
 				install.WithHostUtils(tc.mockHostUtils),
 				install.WithNetUtils(tc.mockNetUtils),
 			)
@@ -370,6 +371,7 @@ func TestConfigureInstallationValidation(t *testing.T) {
 	// Create an install controller with the config manager
 	installController, err := install.NewInstallController(
 		install.WithRuntimeConfig(rc),
+		install.WithStateMachine(install.NewStateMachine(install.WithCurrentState(install.StateHostConfigured))),
 	)
 	require.NoError(t, err)
 
@@ -430,6 +432,7 @@ func TestConfigureInstallationBadRequest(t *testing.T) {
 	// Create an install controller with the config manager
 	installController, err := install.NewInstallController(
 		install.WithRuntimeConfig(rc),
+		install.WithStateMachine(install.NewStateMachine(install.WithCurrentState(install.StateHostConfigured))),
 	)
 	require.NoError(t, err)
 
@@ -1197,6 +1200,8 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Create an install controller with the mocked managers
 		installController, err := install.NewInstallController(
+			install.WithRuntimeConfig(rc),
+			install.WithStateMachine(install.NewStateMachine(install.WithCurrentState(install.StatePreflightsSucceeded))),
 			install.WithHostPreflightManager(pfManager),
 			install.WithInfraManager(infraManager),
 			install.WithReleaseData(&release.ReleaseData{
@@ -1208,7 +1213,6 @@ func TestPostSetupInfra(t *testing.T) {
 					},
 				},
 			}),
-			install.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
 
@@ -1366,6 +1370,7 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Create an install controller
 		installController, err := install.NewInstallController(
+			install.WithStateMachine(install.NewStateMachine(install.WithCurrentState(install.StatePreflightsRunning))),
 			install.WithHostPreflightManager(pfManager),
 		)
 		require.NoError(t, err)
@@ -1391,7 +1396,7 @@ func TestPostSetupInfra(t *testing.T) {
 		router.ServeHTTP(rec, req)
 
 		// Check the response
-		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		assert.Equal(t, http.StatusConflict, rec.Code)
 
 		t.Logf("Response body: %s", rec.Body.String())
 
@@ -1399,15 +1404,12 @@ func TestPostSetupInfra(t *testing.T) {
 		var apiError types.APIError
 		err = json.NewDecoder(rec.Body).Decode(&apiError)
 		require.NoError(t, err)
-		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
-		assert.Contains(t, apiError.Message, "host preflight checks did not complete")
+		assert.Equal(t, http.StatusConflict, apiError.StatusCode)
+		assert.Contains(t, apiError.Message, "invalid transition from PreflightsRunning to InfrastructureInstalling")
 	})
 
 	// Test k0s already installed error
 	t.Run("K0s already installed", func(t *testing.T) {
-		// Create mocks
-		k0sMock := &k0s.MockK0s{}
-
 		// Create a runtime config
 		rc := runtimeconfig.New(nil)
 		rc.SetDataDir(t.TempDir())
@@ -1426,22 +1428,16 @@ func TestPostSetupInfra(t *testing.T) {
 		pfManager := preflight.NewHostPreflightManager(
 			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
 		)
-		infraManager := infra.NewInfraManager(
-			infra.WithK0s(k0sMock),
-		)
-
-		// Setup k0s mock to return already installed
-		k0sMock.On("IsInstalled").Return(true, nil)
 
 		// Create an install controller
 		installController, err := install.NewInstallController(
+			install.WithRuntimeConfig(rc),
+			install.WithStateMachine(install.NewStateMachine(install.WithCurrentState(install.StateSucceeded))),
 			install.WithHostPreflightManager(pfManager),
-			install.WithInfraManager(infraManager),
 			install.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease:        &release.ChannelRelease{},
 			}),
-			install.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
 
@@ -1466,11 +1462,8 @@ func TestPostSetupInfra(t *testing.T) {
 		router.ServeHTTP(rec, req)
 
 		// Check the response
-		assert.Equal(t, http.StatusInternalServerError, rec.Code)
-		assert.Contains(t, rec.Body.String(), "installation is detected")
-
-		// Verify that the mock expectations were met
-		k0sMock.AssertExpectations(t)
+		assert.Equal(t, http.StatusConflict, rec.Code)
+		assert.Contains(t, rec.Body.String(), "invalid transition from Succeeded to InfrastructureInstalling")
 	})
 
 	// Test k0s install error
@@ -1523,6 +1516,7 @@ func TestPostSetupInfra(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 			}),
 			install.WithRuntimeConfig(rc),
+			install.WithStateMachine(install.NewStateMachine(install.WithCurrentState(install.StatePreflightsSucceeded))),
 		)
 		require.NoError(t, err)
 
