@@ -36,6 +36,7 @@ type TemplateData struct {
 	IsJoin                       bool
 	IsUI                         bool
 	ControllerAirgapStorageSpace string
+	WorkerAirgapStorageSpace     string
 }
 
 // WithCIDRData sets the respective CIDR properties in the TemplateData struct based on the provided CIDR strings

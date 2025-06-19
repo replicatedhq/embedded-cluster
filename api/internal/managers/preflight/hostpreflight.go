@@ -24,6 +24,7 @@ type PrepareHostPreflightOptions struct {
 	IsJoin                       bool
 	IsUI                         bool
 	ControllerAirgapStorageSpace string
+	WorkerAirgapStorageSpace     string
 }
 
 type RunHostPreflightOptions struct {
@@ -94,6 +95,7 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, rc run
 		IsJoin:                       opts.IsJoin,
 		IsUI:                         opts.IsUI,
 		ControllerAirgapStorageSpace: opts.ControllerAirgapStorageSpace,
+		WorkerAirgapStorageSpace:     opts.WorkerAirgapStorageSpace,
 	}
 	if cidr := rc.GlobalCIDR(); cidr != "" {
 		prepareOpts.GlobalCIDR = &cidr

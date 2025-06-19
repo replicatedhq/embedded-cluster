@@ -23,8 +23,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		if err != nil {
 			return fmt.Errorf("failed to get airgap info: %w", err)
 		}
-		// Controller nodes require 2x the extracted bundle size for processing
-		controllerAirgapStorageSpace = preflights.CalculateControllerAirgapStorageSpace(airgapInfo.Spec.UncompressedSize)
+		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(airgapInfo.Spec.UncompressedSize, true)
 	}
 
 	// Prepare host preflights

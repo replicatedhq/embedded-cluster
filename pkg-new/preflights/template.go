@@ -46,16 +46,18 @@ func renderTemplate(spec string, data types.TemplateData) (string, error) {
 	return buf.String(), nil
 }
 
-// CalculateControllerAirgapStorageSpace calculates the required airgap storage space for controller nodes.
-// It multiplies the uncompressed size by 2, rounds up to the nearest natural number, and returns a string.
-// The quantity will be in Gi for sizes >= 1 Gi, or Mi for smaller sizes.
-func CalculateControllerAirgapStorageSpace(uncompressedSize int64) string {
+// CalculateAirgapStorageSpace calculates required storage space for airgap installations.
+// Controller nodes need 2x uncompressed size, worker nodes need 1x. Returns "XGi" or "XMi".
+func CalculateAirgapStorageSpace(uncompressedSize int64, isController bool) string {
 	if uncompressedSize <= 0 {
 		return ""
 	}
 
-	// Controller nodes require 2x the extracted bundle size for processing
-	requiredBytes := uncompressedSize * 2
+	requiredBytes := uncompressedSize
+	if isController {
+		// Controller nodes require 2x the extracted bundle size for processing
+		requiredBytes = uncompressedSize * 2
+	}
 
 	// Convert to Gi if >= 1 Gi, otherwise use Mi
 	if requiredBytes >= 1024*1024*1024 { // 1 Gi in bytes

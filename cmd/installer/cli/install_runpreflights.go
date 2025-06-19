@@ -112,8 +112,8 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtime
 		if err != nil {
 			return fmt.Errorf("failed to get airgap info: %w", err)
 		}
-		// Controller nodes require 2x the extracted bundle size for processing
-		controllerAirgapStorageSpace = preflights.CalculateControllerAirgapStorageSpace(airgapInfo.Spec.UncompressedSize)
+		// The first installed node is always a controller
+		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(airgapInfo.Spec.UncompressedSize, true)
 	}
 
 	opts := preflights.PrepareOptions{

@@ -240,6 +240,23 @@ spec:
                 {{- end }}
           - pass:
               message: The filesystem at {{ .DataDir }} has sufficient available space for airgap bundle processing
+    - diskUsage:
+        checkName: Worker Airgap Storage Space
+        collectorName: embedded-cluster-path-usage
+        exclude: '{{ eq .WorkerAirgapStorageSpace "" }}'
+        outcomes:
+          - fail:
+              when: 'available < {{ .WorkerAirgapStorageSpace }}'
+              message: >-
+                {{ if .IsUI -}}
+                The filesystem at {{ .DataDir }} has less than {{ .WorkerAirgapStorageSpace }} of available storage space needed to store infrastructure images.
+                Ensure sufficient space is available, or go back to the Setup page and choose a different data directory.
+                {{- else -}}
+                The filesystem at {{ .DataDir }} has less than {{ .WorkerAirgapStorageSpace }} of available storage space needed to store infrastructure images.
+                Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+                {{- end }}
+          - pass:
+              message: The filesystem at {{ .DataDir }} has sufficient available space for worker airgap storage
     - textAnalyze:
         checkName: Default Route
         fileName: host-collectors/run-host/ip-route-table.txt
