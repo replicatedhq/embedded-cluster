@@ -603,7 +603,7 @@ func TestSetupInfra(t *testing.T) {
 				mock.InOrder(
 					pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil),
 					pm.On("GetHostPreflightOutput", t.Context()).Return(preflightOutput, nil),
-					r.On("ReportPreflightsFailed", t.Context(), preflightOutput).Return(nil),
+					r.On("ReportPreflightsBypassed", t.Context(), preflightOutput).Return(nil),
 					fm.On("Install", t.Context(), rc).Return(nil),
 				)
 			},

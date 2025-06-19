@@ -242,7 +242,7 @@ func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
 			err = json.NewDecoder(rec.Body).Decode(&status)
 			require.NoError(t, err)
 
-			// Verify the flag is present - THIS WILL FAIL because handlers don't set it yet
+			// Verify the flag is present and correctly set by the handler
 			assert.Equal(t, tt.expectedAllowIgnore, status.AllowIgnoreHostPreflights)
 		})
 	}

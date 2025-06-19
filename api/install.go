@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
@@ -165,16 +166,12 @@ func (a *API) postInstallSetupInfra(w http.ResponseWriter, r *http.Request) {
 	_, err := a.installController.SetupInfra(r.Context(), req.IgnorePreflightFailures)
 	if err != nil {
 		a.logError(r, err, "failed to setup infra")
-		// Determine appropriate status code based on error type
-		statusCode := http.StatusInternalServerError
-		if err.Error() == "Preflight checks failed" {
-			statusCode = http.StatusBadRequest
+		// Use proper error handling based on error type
+		if errors.Is(err, install.ErrPreflightChecksFailed) {
+			a.jsonError(w, r, types.NewBadRequestError(err))
+		} else {
+			a.jsonError(w, r, types.NewInternalServerError(err))
 		}
-		w.WriteHeader(statusCode)
-		a.json(w, r, statusCode, types.APIError{
-			StatusCode: statusCode,
-			Message:    err.Error(),
-		})
 		return
 	}
 

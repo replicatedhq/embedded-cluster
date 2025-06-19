@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -64,6 +65,11 @@ type mockInstallController struct {
 	getInfraError               error
 	setStatusError              error
 	readStatusError             error
+
+	// Additional fields to support infra setup validation testing
+	allowIgnoreHostPreflights bool
+	preflightStatus           *types.Status
+	preflightOutput           *types.HostPreflightsOutput
 }
 
 func (m *mockInstallController) GetInstallationConfig(ctx context.Context) (types.InstallationConfig, error) {
@@ -92,12 +98,18 @@ func (m *mockInstallController) GetHostPreflightStatus(ctx context.Context) (typ
 	if m.getHostPreflightStatusError != nil {
 		return types.Status{}, m.getHostPreflightStatusError
 	}
+	if m.preflightStatus != nil {
+		return *m.preflightStatus, nil
+	}
 	return types.Status{}, nil
 }
 
 func (m *mockInstallController) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error) {
 	if m.getHostPreflightOutputError != nil {
 		return nil, m.getHostPreflightOutputError
+	}
+	if m.preflightOutput != nil {
+		return m.preflightOutput, nil
 	}
 	return &types.HostPreflightsOutput{}, nil
 }
@@ -110,7 +122,28 @@ func (m *mockInstallController) GetHostPreflightTitles(ctx context.Context) ([]s
 }
 
 func (m *mockInstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) (bool, error) {
-	return false, m.setupInfraError
+	if m.setupInfraError != nil {
+		return false, m.setupInfraError
+	}
+
+	// Check for preflight error first (this simulates GetHostPreflightStatus failing)
+	if m.getHostPreflightStatusError != nil {
+		return false, fmt.Errorf("get install host preflight status: %w", m.getHostPreflightStatusError)
+	}
+
+	// Simulate the validation logic that was moved to SetupInfra
+	if m.preflightStatus != nil && m.preflightStatus.State == types.StateFailed {
+		// Check if we can proceed despite failures
+		if !ignorePreflightFailures || !m.allowIgnoreHostPreflights {
+			return false, install.ErrPreflightChecksFailed
+		}
+
+		// We're proceeding despite failures
+		return true, nil
+	}
+
+	// Preflights passed
+	return false, nil
 }
 
 func (m *mockInstallController) GetInfra(ctx context.Context) (types.Infra, error) {
