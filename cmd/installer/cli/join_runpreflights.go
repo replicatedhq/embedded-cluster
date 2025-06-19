@@ -103,22 +103,30 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 
 	domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
 
+	// Calculate airgap storage space requirement (2x uncompressed size for controller nodes)
+	var controllerAirgapStorageSpace string
+	if jcmd.InstallationSpec.AirGap && jcmd.InstallationSpec.AirgapUncompressedSize > 0 {
+		// Controller nodes require 2x the extracted bundle size for processing
+		controllerAirgapStorageSpace = preflights.CalculateControllerAirgapStorageSpace(jcmd.InstallationSpec.AirgapUncompressedSize)
+	}
+
 	hpf, err := preflights.Prepare(ctx, preflights.PrepareOptions{
-		HostPreflightSpec:       release.GetHostPreflights(),
-		ReplicatedAppURL:        netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
-		ProxyRegistryURL:        netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
-		AdminConsolePort:        rc.AdminConsolePort(),
-		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
-		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                   rc.ProxySpec(),
-		PodCIDR:                 cidrCfg.PodCIDR,
-		ServiceCIDR:             cidrCfg.ServiceCIDR,
-		NodeIP:                  nodeIP,
-		IsAirgap:                jcmd.InstallationSpec.AirGap,
-		TCPConnectionsRequired:  jcmd.TCPConnectionsRequired,
-		IsJoin:                  true,
+		HostPreflightSpec:            release.GetHostPreflights(),
+		ReplicatedAppURL:             netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
+		ProxyRegistryURL:             netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
+		AdminConsolePort:             rc.AdminConsolePort(),
+		LocalArtifactMirrorPort:      rc.LocalArtifactMirrorPort(),
+		DataDir:                      rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:                   rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:               rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                        rc.ProxySpec(),
+		PodCIDR:                      cidrCfg.PodCIDR,
+		ServiceCIDR:                  cidrCfg.ServiceCIDR,
+		NodeIP:                       nodeIP,
+		IsAirgap:                     jcmd.InstallationSpec.AirGap,
+		TCPConnectionsRequired:       jcmd.TCPConnectionsRequired,
+		IsJoin:                       true,
+		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
 	})
 	if err != nil {
 		return err

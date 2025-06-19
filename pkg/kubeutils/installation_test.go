@@ -195,9 +195,9 @@ func TestRecordInstallation(t *testing.T) {
 	require.NoError(t, corev1.AddToScheme(s))
 
 	tests := []struct {
-		name    string
-		opts    RecordInstallationOptions
-		wantErr bool
+		name     string
+		opts     RecordInstallationOptions
+		wantErr  bool
 		validate func(t *testing.T, installation *ecv1beta1.Installation)
 	}{
 		{
@@ -206,7 +206,7 @@ func TestRecordInstallation(t *testing.T) {
 				IsAirgap: false,
 				License: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
-						IsDisasterRecoverySupported:     true,
+						IsDisasterRecoverySupported:       true,
 						IsEmbeddedClusterMultiNodeEnabled: false,
 					},
 				},
@@ -245,7 +245,7 @@ func TestRecordInstallation(t *testing.T) {
 				IsAirgap: true,
 				License: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
-						IsDisasterRecoverySupported:     false,
+						IsDisasterRecoverySupported:       false,
 						IsEmbeddedClusterMultiNodeEnabled: true,
 					},
 				},
@@ -256,7 +256,7 @@ func TestRecordInstallation(t *testing.T) {
 				RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
 					DataDir: "/opt/embedded-cluster",
 				},
-				EndUserConfig: nil,
+				EndUserConfig:          nil,
 				AirgapUncompressedSize: 1234567890,
 			},
 			wantErr: false,
@@ -279,7 +279,7 @@ func TestRecordInstallation(t *testing.T) {
 				IsAirgap: true,
 				License: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
-						IsDisasterRecoverySupported:     false,
+						IsDisasterRecoverySupported:       false,
 						IsEmbeddedClusterMultiNodeEnabled: false,
 					},
 				},
@@ -290,7 +290,7 @@ func TestRecordInstallation(t *testing.T) {
 				RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
 					DataDir: "/custom/data/dir",
 				},
-				EndUserConfig: nil,
+				EndUserConfig:          nil,
 				AirgapUncompressedSize: 9876543210,
 			},
 			wantErr: false,
@@ -353,7 +353,7 @@ func TestRecordInstallation(t *testing.T) {
 			// Verify common fields
 			assert.NotEmpty(t, resultInstallation.Name)
 			assert.Equal(t, "", resultInstallation.APIVersion) // I expected this to be "embeddedcluster.replicated.com/v1beta1"
-			assert.Equal(t, "", resultInstallation.Kind)	   // I expected this to be "Installation"
+			assert.Equal(t, "", resultInstallation.Kind)       // I expected this to be "Installation"
 			assert.Equal(t, metrics.ClusterID().String(), resultInstallation.Spec.ClusterID)
 			assert.Equal(t, runtimeconfig.BinaryName(), resultInstallation.Spec.BinaryName)
 			assert.Equal(t, ecv1beta1.InstallationSourceTypeCRD, resultInstallation.Spec.SourceType)
