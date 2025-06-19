@@ -35,6 +35,7 @@ type PrepareOptions struct {
 	IsJoin                       bool
 	IsUI                         bool
 	ControllerAirgapStorageSpace string
+	WorkerAirgapStorageSpace     string
 }
 
 // Prepare prepares the host preflights spec by merging provided spec with cluster preflights
@@ -61,6 +62,7 @@ func (p *PreflightsRunner) Prepare(ctx context.Context, opts PrepareOptions) (*v
 		IsJoin:                       opts.IsJoin,
 		IsUI:                         opts.IsUI,
 		ControllerAirgapStorageSpace: opts.ControllerAirgapStorageSpace,
+		WorkerAirgapStorageSpace:     opts.WorkerAirgapStorageSpace,
 	}.WithCIDRData(opts.PodCIDR, opts.ServiceCIDR, opts.GlobalCIDR)
 
 	if err != nil {

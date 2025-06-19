@@ -620,3 +620,134 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 		})
 	}
 }
+
+func TestCalculateAirgapStorageSpace(t *testing.T) {
+	tests := []struct {
+		name             string
+		uncompressedSize int64
+		isController     bool
+		expected         string
+	}{
+		{
+			name:             "controller node with 1GB uncompressed size",
+			uncompressedSize: 1024 * 1024 * 1024, // 1GB
+			isController:     true,
+			expected:         "2Gi", // 2x for controller
+		},
+		{
+			name:             "worker node with 1GB uncompressed size",
+			uncompressedSize: 1024 * 1024 * 1024, // 1GB
+			isController:     false,
+			expected:         "1Gi", // 1x for worker
+		},
+		{
+			name:             "controller node with 500MB uncompressed size",
+			uncompressedSize: 500 * 1024 * 1024, // 500MB
+			isController:     true,
+			expected:         "1Gi", // 2x = 1GB, rounded up
+		},
+		{
+			name:             "worker node with 500MB uncompressed size",
+			uncompressedSize: 500 * 1024 * 1024, // 500MB
+			isController:     false,
+			expected:         "500Mi", // 1x = 500MB
+		},
+		{
+			name:             "controller node with 100MB uncompressed size",
+			uncompressedSize: 100 * 1024 * 1024, // 100MB
+			isController:     true,
+			expected:         "200Mi", // 2x = 200MB
+		},
+		{
+			name:             "worker node with 100MB uncompressed size",
+			uncompressedSize: 100 * 1024 * 1024, // 100MB
+			isController:     false,
+			expected:         "100Mi", // 1x = 100MB
+		},
+		{
+			name:             "zero uncompressed size",
+			uncompressedSize: 0,
+			isController:     true,
+			expected:         "",
+		},
+		{
+			name:             "negative uncompressed size",
+			uncompressedSize: -1,
+			isController:     false,
+			expected:         "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CalculateAirgapStorageSpace(tt.uncompressedSize, tt.isController)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestTemplateAirgapStorageSpaceChecks(t *testing.T) {
+	tests := []struct {
+		name                        string
+		controllerAirgapStorageSpace string
+		workerAirgapStorageSpace     string
+		expectControllerCheck        bool
+		expectWorkerCheck            bool
+	}{
+		{
+			name:                        "controller node check",
+			controllerAirgapStorageSpace: "2Gi",
+			workerAirgapStorageSpace:     "",
+			expectControllerCheck:        true,
+			expectWorkerCheck:            false,
+		},
+		{
+			name:                        "worker node check",
+			controllerAirgapStorageSpace: "",
+			workerAirgapStorageSpace:     "1Gi",
+			expectControllerCheck:        false,
+			expectWorkerCheck:            true,
+		},
+		{
+			name:                        "no airgap checks",
+			controllerAirgapStorageSpace: "",
+			workerAirgapStorageSpace:     "",
+			expectControllerCheck:        false,
+			expectWorkerCheck:            false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := types.TemplateData{
+				ControllerAirgapStorageSpace: tt.controllerAirgapStorageSpace,
+				WorkerAirgapStorageSpace:     tt.workerAirgapStorageSpace,
+			}
+
+			hpfs, err := GetClusterHostPreflights(context.Background(), data)
+			require.NoError(t, err)
+			require.Len(t, hpfs, 1)
+
+			spec := hpfs[0].Spec
+			specStr, err := json.Marshal(spec)
+			require.NoError(t, err)
+			specStrLower := strings.ToLower(string(specStr))
+
+			if tt.expectControllerCheck {
+				require.Contains(t, specStrLower, "airgap storage space")
+				require.Contains(t, specStrLower, "controller")
+				require.NotContains(t, specStrLower, "worker airgap storage space")
+			} else {
+				require.NotContains(t, specStrLower, "airgap storage space")
+			}
+
+			if tt.expectWorkerCheck {
+				require.Contains(t, specStrLower, "worker airgap storage space")
+				require.Contains(t, specStrLower, "infrastructure images")
+				require.NotContains(t, specStrLower, "airgap storage space")
+			} else {
+				require.NotContains(t, specStrLower, "worker airgap storage space")
+			}
+		})
+	}
+}

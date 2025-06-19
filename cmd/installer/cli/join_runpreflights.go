@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
@@ -103,11 +104,19 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 
 	domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
 
-	// Calculate airgap storage space requirement (2x uncompressed size for controller nodes)
+	// Calculate airgap storage space requirement based on node type
 	var controllerAirgapStorageSpace string
+	var workerAirgapStorageSpace string
 	if jcmd.InstallationSpec.AirGap && jcmd.InstallationSpec.AirgapUncompressedSize > 0 {
-		// Controller nodes require 2x the extracted bundle size for processing
-		controllerAirgapStorageSpace = preflights.CalculateControllerAirgapStorageSpace(jcmd.InstallationSpec.AirgapUncompressedSize)
+		// Determine if this is a controller node by checking the join command
+		isController := strings.Contains(jcmd.K0sJoinCommand, "controller")
+		if isController {
+			logrus.Debug("Node type determined from join command: controller")
+			controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(jcmd.InstallationSpec.AirgapUncompressedSize, true)
+		} else {
+			logrus.Debug("Node type determined from join command: worker")
+			workerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(jcmd.InstallationSpec.AirgapUncompressedSize, false)
+		}
 	}
 
 	hpf, err := preflights.Prepare(ctx, preflights.PrepareOptions{
@@ -127,6 +136,7 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		TCPConnectionsRequired:       jcmd.TCPConnectionsRequired,
 		IsJoin:                       true,
 		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
+		WorkerAirgapStorageSpace:     workerAirgapStorageSpace,
 	})
 	if err != nil {
 		return err
