@@ -129,7 +129,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				installReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runInstall(cmd.Context(), flags, rc, installReporter); err != nil {
+			if err := runInstall(cmd.Context(), flags, rc, installReporter, airgapInfo); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
 					installReporter.ReportSignalAborted(ctx, syscall.SIGINT)
@@ -444,7 +444,7 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 	return nil
 }
 
-func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) (finalErr error) {
+func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter, airgapInfo *kotsv1beta1.Airgap) (finalErr error) {
 	if flags.enableManagerExperience {
 		return nil
 	}
@@ -479,7 +479,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	in, err := recordInstallation(ctx, kcli, flags, rc, flags.license)
+	in, err := recordInstallation(ctx, kcli, flags, rc, flags.license, airgapInfo)
 	if err != nil {
 		return fmt.Errorf("unable to record installation: %w", err)
 	}
@@ -1048,7 +1048,7 @@ func waitForNode(ctx context.Context) error {
 }
 
 func recordInstallation(
-	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, license *kotsv1beta1.License,
+	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, license *kotsv1beta1.License, airgapInfo *kotsv1beta1.Airgap,
 ) (*ecv1beta1.Installation, error) {
 	// get the embedded cluster config
 	cfg := release.GetEmbeddedClusterConfig()
@@ -1063,14 +1063,21 @@ func recordInstallation(
 		return nil, fmt.Errorf("process overrides file: %w", err)
 	}
 
+	// extract airgap uncompressed size if airgap info is provided
+	var airgapUncompressedSize int64
+	if airgapInfo != nil {
+		airgapUncompressedSize = airgapInfo.Spec.UncompressedSize
+	}
+
 	// record the installation
 	installation, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
-		IsAirgap:       flags.isAirgap,
-		License:        license,
-		ConfigSpec:     cfgspec,
-		MetricsBaseURL: replicatedAppURL(),
-		RuntimeConfig:  rc.Get(),
-		EndUserConfig:  eucfg,
+		IsAirgap:               flags.isAirgap,
+		License:                license,
+		ConfigSpec:             cfgspec,
+		MetricsBaseURL:         replicatedAppURL(),
+		RuntimeConfig:          rc.Get(),
+		EndUserConfig:          eucfg,
+		AirgapUncompressedSize: airgapUncompressedSize,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("record installation: %w", err)

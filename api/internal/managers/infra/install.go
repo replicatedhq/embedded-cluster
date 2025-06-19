@@ -100,6 +100,16 @@ func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runti
 }
 
 func (m *infraManager) install(ctx context.Context, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) (finalErr error) {
+	// extract airgap info if airgap bundle is provided
+	var airgapInfo *kotsv1beta1.Airgap
+	if m.airgapBundle != "" {
+		var err error
+		airgapInfo, err = airgap.AirgapInfoFromPath(m.airgapBundle)
+		if err != nil {
+			return fmt.Errorf("failed to get airgap info: %w", err)
+		}
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
@@ -136,7 +146,7 @@ func (m *infraManager) install(ctx context.Context, license *kotsv1beta1.License
 	}
 	defer hcli.Close()
 
-	in, err := m.recordInstallation(ctx, kcli, license, rc)
+	in, err := m.recordInstallation(ctx, kcli, license, rc, airgapInfo)
 	if err != nil {
 		return fmt.Errorf("record installation: %w", err)
 	}
@@ -231,21 +241,28 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 	return k0sCfg, nil
 }
 
-func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) (*ecv1beta1.Installation, error) {
+func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig, airgapInfo *kotsv1beta1.Airgap) (*ecv1beta1.Installation, error) {
 	logFn := m.logFn("metadata")
 
 	// get the configured custom domains
 	ecDomains := utils.GetDomains(m.releaseData)
 
+	// extract airgap uncompressed size if airgap info is provided
+	var airgapUncompressedSize int64
+	if airgapInfo != nil {
+		airgapUncompressedSize = airgapInfo.Spec.UncompressedSize
+	}
+
 	// record the installation
 	logFn("recording installation")
 	in, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
-		IsAirgap:       m.airgapBundle != "",
-		License:        license,
-		ConfigSpec:     m.getECConfigSpec(),
-		MetricsBaseURL: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
-		RuntimeConfig:  rc.Get(),
-		EndUserConfig:  m.endUserConfig,
+		IsAirgap:               m.airgapBundle != "",
+		License:                license,
+		ConfigSpec:             m.getECConfigSpec(),
+		MetricsBaseURL:         netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
+		RuntimeConfig:          rc.Get(),
+		EndUserConfig:          m.endUserConfig,
+		AirgapUncompressedSize: airgapUncompressedSize,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("record installation: %w", err)
