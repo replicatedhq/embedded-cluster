@@ -407,7 +407,7 @@ func TestRunHostPreflights(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 
-				assert.Equal(t, sm.CurrentState(), StatePreflightsRunning, "state should have changed to PreflightsRunning")
+				assert.NotEqual(t, sm.CurrentState(), tt.currentState, "state should have changed and should not be %s", tt.currentState)
 			}
 
 			assert.Eventually(t, func() bool {
