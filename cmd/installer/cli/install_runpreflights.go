@@ -84,7 +84,7 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, rc, nil); err != nil {
+	if err := runInstallPreflights(ctx, flags, rc, nil, airgapInfo); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -96,7 +96,7 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, metricsReporter metrics.ReporterInterface) error {
+func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, metricsReporter metrics.ReporterInterface, airgapInfo *kotsv1beta1.Airgap) error {
 	replicatedAppURL := replicatedAppURL()
 	proxyRegistryURL := proxyRegistryURL()
 
@@ -107,12 +107,7 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtime
 
 	// Calculate airgap storage space requirement (2x uncompressed size for controller nodes)
 	var controllerAirgapStorageSpace string
-	if flags.airgapBundle != "" {
-		airgapInfo, err := airgap.AirgapInfoFromPath(flags.airgapBundle)
-		if err != nil {
-			return fmt.Errorf("failed to get airgap info: %w", err)
-		}
-		// The first installed node is always a controller
+	if airgapInfo != nil {
 		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(airgapInfo.Spec.UncompressedSize, true)
 	}
 
