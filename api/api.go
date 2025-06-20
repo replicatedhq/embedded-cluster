@@ -19,6 +19,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
@@ -50,6 +51,7 @@ type API struct {
 	tlsConfig         types.TLSConfig
 	licenseFile       string
 	airgapBundle      string
+	airgapInfo        *kotsv1beta1.Airgap
 	configValues      string
 	endUserConfig     *ecv1beta1.Config
 	logger            logrus.FieldLogger
@@ -125,6 +127,12 @@ func WithAirgapBundle(airgapBundle string) APIOption {
 	}
 }
 
+func WithAirgapInfo(airgapInfo *kotsv1beta1.Airgap) APIOption {
+	return func(a *API) {
+		a.airgapInfo = airgapInfo
+	}
+}
+
 func WithConfigValues(configValues string) APIOption {
 	return func(a *API) {
 		a.configValues = configValues
@@ -190,6 +198,7 @@ func New(password string, opts ...APIOption) (*API, error) {
 			install.WithTLSConfig(api.tlsConfig),
 			install.WithLicenseFile(api.licenseFile),
 			install.WithAirgapBundle(api.airgapBundle),
+			install.WithAirgapInfo(api.airgapInfo),
 			install.WithConfigValues(api.configValues),
 			install.WithEndUserConfig(api.endUserConfig),
 		)

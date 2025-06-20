@@ -95,7 +95,16 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := verifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
+			var airgapInfo *kotsv1beta1.Airgap
+			if flags.airgapBundle != "" {
+				var err error
+				airgapInfo, err = airgap.AirgapInfoFromPath(flags.airgapBundle)
+				if err != nil {
+					return fmt.Errorf("failed to get airgap info: %w", err)
+				}
+			}
+
+			if err := verifyAndPrompt(ctx, name, flags, prompts.New(), airgapInfo); err != nil {
 				return err
 			}
 			if err := preRunInstall(cmd, &flags, rc); err != nil {
@@ -103,7 +112,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if flags.enableManagerExperience {
-				return runManagerExperienceInstall(ctx, flags, rc)
+				return runManagerExperienceInstall(ctx, flags, rc, airgapInfo)
 			}
 
 			_ = rc.SetEnv()
@@ -120,7 +129,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				installReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runInstall(cmd.Context(), flags, rc, installReporter); err != nil {
+			if err := runInstall(cmd.Context(), flags, rc, installReporter, airgapInfo); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
 					installReporter.ReportSignalAborted(ctx, syscall.SIGINT)
@@ -350,7 +359,7 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 	return cidrCfg, nil
 }
 
-func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (finalErr error) {
+func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, airgapInfo *kotsv1beta1.Airgap) (finalErr error) {
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
 	ipAddresses, err := netutils.ListAllValidIPAddresses()
@@ -419,6 +428,7 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 		ManagerPort:   flags.managerPort,
 		LicenseFile:   flags.licenseFile,
 		AirgapBundle:  flags.airgapBundle,
+		AirgapInfo:    airgapInfo,
 		ConfigValues:  flags.configValues,
 		ReleaseData:   release.GetReleaseData(),
 		EndUserConfig: eucfg,
@@ -435,7 +445,7 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 	return nil
 }
 
-func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) (finalErr error) {
+func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter, airgapInfo *kotsv1beta1.Airgap) (finalErr error) {
 	if flags.enableManagerExperience {
 		return nil
 	}
@@ -446,7 +456,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, rc, installReporter.reporter); err != nil {
+	if err := runInstallPreflights(ctx, flags, rc, installReporter.reporter, airgapInfo); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -470,7 +480,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	in, err := recordInstallation(ctx, kcli, flags, rc, flags.license)
+	in, err := recordInstallation(ctx, kcli, flags, rc, flags.license, airgapInfo)
 	if err != nil {
 		return fmt.Errorf("unable to record installation: %w", err)
 	}
@@ -571,7 +581,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 	return opts, nil
 }
 
-func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt) error {
+func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt, airgapInfo *kotsv1beta1.Airgap) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "reinstall")
 	if err != nil {
@@ -588,9 +598,9 @@ func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, pr
 	if err != nil {
 		return err
 	}
-	if flags.isAirgap {
+	if airgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
-		if err := checkAirgapMatches(flags.airgapBundle); err != nil {
+		if err := checkAirgapMatches(airgapInfo); err != nil {
 			return err // we want the user to see the error message without a prefix
 		}
 	}
@@ -885,23 +895,15 @@ func installExtensions(ctx context.Context, hcli helm.Client) error {
 	return nil
 }
 
-func checkAirgapMatches(airgapBundle string) error {
+func checkAirgapMatches(airgapInfo *kotsv1beta1.Airgap) error {
 	rel := release.GetChannelRelease()
 	if rel == nil {
 		return fmt.Errorf("airgap bundle provided but no release was found in binary, please rerun without the airgap-bundle flag")
 	}
 
-	// read file from path
-	rawfile, err := os.Open(airgapBundle)
-	if err != nil {
-		return fmt.Errorf("failed to open airgap file: %w", err)
-	}
-	defer rawfile.Close()
-
-	appSlug, channelID, airgapVersion, err := airgap.ChannelReleaseMetadata(rawfile)
-	if err != nil {
-		return fmt.Errorf("failed to get airgap bundle versions: %w", err)
-	}
+	appSlug := airgapInfo.Spec.AppSlug
+	channelID := airgapInfo.Spec.ChannelID
+	airgapVersion := airgapInfo.Spec.VersionLabel
 
 	// Check if the airgap bundle matches the application version data
 	if rel.AppSlug != appSlug {
@@ -1047,7 +1049,7 @@ func waitForNode(ctx context.Context) error {
 }
 
 func recordInstallation(
-	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, license *kotsv1beta1.License,
+	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, license *kotsv1beta1.License, airgapInfo *kotsv1beta1.Airgap,
 ) (*ecv1beta1.Installation, error) {
 	// get the embedded cluster config
 	cfg := release.GetEmbeddedClusterConfig()
@@ -1062,14 +1064,21 @@ func recordInstallation(
 		return nil, fmt.Errorf("process overrides file: %w", err)
 	}
 
+	// extract airgap uncompressed size if airgap info is provided
+	var airgapUncompressedSize int64
+	if airgapInfo != nil {
+		airgapUncompressedSize = airgapInfo.Spec.UncompressedSize
+	}
+
 	// record the installation
 	installation, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
-		IsAirgap:       flags.isAirgap,
-		License:        license,
-		ConfigSpec:     cfgspec,
-		MetricsBaseURL: replicatedAppURL(),
-		RuntimeConfig:  rc.Get(),
-		EndUserConfig:  eucfg,
+		IsAirgap:               flags.isAirgap,
+		License:                license,
+		ConfigSpec:             cfgspec,
+		MetricsBaseURL:         replicatedAppURL(),
+		RuntimeConfig:          rc.Get(),
+		EndUserConfig:          eucfg,
+		AirgapUncompressedSize: airgapUncompressedSize,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("record installation: %w", err)

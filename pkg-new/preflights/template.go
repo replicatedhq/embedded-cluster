@@ -5,6 +5,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"math"
 	"text/template"
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
@@ -43,4 +44,36 @@ func renderTemplate(spec string, data types.TemplateData) (string, error) {
 		return "", fmt.Errorf("execute template: %w", err)
 	}
 	return buf.String(), nil
+}
+
+const (
+	multiplierController = 2
+	multiplierWorker     = 1
+)
+
+// CalculateAirgapStorageSpace calculates required storage space for airgap installations.
+// Controller nodes need 2x uncompressed size, worker nodes need 1x. Returns "XGi" or "XMi".
+func CalculateAirgapStorageSpace(uncompressedSize int64, isController bool) string {
+	if uncompressedSize <= 0 {
+		return ""
+	}
+
+	requiredBytes := uncompressedSize * multiplierWorker
+	if isController {
+		// Controller nodes require 2x the extracted bundle size for processing
+		requiredBytes = uncompressedSize * multiplierController
+	}
+
+	// Convert to Gi if >= 1 Gi, otherwise use Mi
+	if requiredBytes >= 1024*1024*1024 { // 1 Gi in bytes
+		// Convert to Gi and round up to nearest natural number
+		giValue := float64(requiredBytes) / (1024 * 1024 * 1024)
+		roundedGi := math.Ceil(giValue)
+		return fmt.Sprintf("%dGi", int64(roundedGi))
+	} else {
+		// Convert to Mi and round up to nearest natural number
+		miValue := float64(requiredBytes) / (1024 * 1024)
+		roundedMi := math.Ceil(miValue)
+		return fmt.Sprintf("%dMi", int64(roundedMi))
+	}
 }
