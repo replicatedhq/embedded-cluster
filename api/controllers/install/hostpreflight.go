@@ -8,7 +8,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
-	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
@@ -18,12 +17,8 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 
 	// Calculate airgap storage space requirement (2x uncompressed size for controller nodes)
 	var controllerAirgapStorageSpace string
-	if c.airgapBundle != "" {
-		airgapInfo, err := airgap.AirgapInfoFromPath(c.airgapBundle)
-		if err != nil {
-			return fmt.Errorf("failed to get airgap info: %w", err)
-		}
-		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(airgapInfo.Spec.UncompressedSize, true)
+	if c.airgapInfo != nil {
+		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(c.airgapInfo.Spec.UncompressedSize, true)
 	}
 
 	// Prepare host preflights

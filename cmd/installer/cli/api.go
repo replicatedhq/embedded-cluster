@@ -24,6 +24,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/web"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -37,6 +38,7 @@ type apiConfig struct {
 	ManagerPort     int
 	LicenseFile     string
 	AirgapBundle    string
+	AirgapInfo      *kotsv1beta1.Airgap
 	ConfigValues    string
 	ReleaseData     *release.ReleaseData
 	EndUserConfig   *ecv1beta1.Config
@@ -89,6 +91,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		api.WithTLSConfig(config.TLSConfig),
 		api.WithLicenseFile(config.LicenseFile),
 		api.WithAirgapBundle(config.AirgapBundle),
+		api.WithAirgapInfo(config.AirgapInfo),
 		api.WithConfigValues(config.ConfigValues),
 		api.WithEndUserConfig(config.EndUserConfig),
 	)

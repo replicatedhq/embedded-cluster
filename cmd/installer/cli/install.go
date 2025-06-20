@@ -112,7 +112,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if flags.enableManagerExperience {
-				return runManagerExperienceInstall(ctx, flags, rc)
+				return runManagerExperienceInstall(ctx, flags, rc, airgapInfo)
 			}
 
 			_ = rc.SetEnv()
@@ -359,7 +359,7 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 	return cidrCfg, nil
 }
 
-func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (finalErr error) {
+func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, airgapInfo *kotsv1beta1.Airgap) (finalErr error) {
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
 	ipAddresses, err := netutils.ListAllValidIPAddresses()
@@ -428,6 +428,7 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 		ManagerPort:   flags.managerPort,
 		LicenseFile:   flags.licenseFile,
 		AirgapBundle:  flags.airgapBundle,
+		AirgapInfo:    airgapInfo,
 		ConfigValues:  flags.configValues,
 		ReleaseData:   release.GetReleaseData(),
 		EndUserConfig: eucfg,
