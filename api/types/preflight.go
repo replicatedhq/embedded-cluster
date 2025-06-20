@@ -1,7 +1,5 @@
 package types
 
-import "time"
-
 type PostInstallRunHostPreflightsRequest struct {
 	IsUI bool `json:"isUi"`
 }
@@ -24,17 +22,6 @@ type HostPreflightsOutput struct {
 type HostPreflightsRecord struct {
 	Title   string `json:"title"`
 	Message string `json:"message"`
-}
-
-func NewHostPreflights() *HostPreflights {
-	return &HostPreflights{
-		Status: Status{
-			State:       StatePending,
-			Description: "Preflights pending",
-			LastUpdated: time.Now(),
-		},
-		AllowIgnoreHostPreflights: false,
-	}
 }
 
 // HasFail returns true if any of the preflight checks failed.
