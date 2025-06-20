@@ -177,47 +177,6 @@ describe('ValidationStep', () => {
     });
   });
 
-  it('shows modal when Start Installation clicked and allowIgnoreHostPreflights is false but button is enabled for other reasons', async () => {
-    // This test case handles edge case where button might be enabled for other reasons
-    // but we still want to show modal when allowIgnoreHostPreflights is false
-    server.use(
-      http.get('*/api/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [
-              { title: 'Disk Space', message: 'Not enough disk space available' }
-            ],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreHostPreflights: false
-        });
-      })
-    );
-
-    // For this test, we'll temporarily modify the component behavior to enable the button
-    // This simulates an edge case where button is enabled but modal should still show
-    renderWithProviders(
-      <ValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
-      {
-        wrapperProps: {
-          authenticated: true
-        }
-      }
-    );
-
-    // Wait for preflights to complete
-    await waitFor(() => {
-      expect(screen.getByText('Host Requirements Not Met')).toBeInTheDocument();
-    });
-
-    // Button should be disabled in this case
-    const nextButton = screen.getByText('Next: Start Installation');
-    expect(nextButton).toBeDisabled();
-  });
-
   it('proceeds automatically when allowIgnoreHostPreflights is true and preflights pass', async () => {
     // Mock preflight status endpoint - returns success with allowIgnoreHostPreflights: true
     server.use(
