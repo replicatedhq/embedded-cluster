@@ -166,8 +166,9 @@ func (a *API) postInstallSetupInfra(w http.ResponseWriter, r *http.Request) {
 	_, err := a.installController.SetupInfra(r.Context(), req.IgnorePreflightFailures)
 	if err != nil {
 		a.logError(r, err, "failed to setup infra")
-		// Use proper error handling based on error type
-		if errors.Is(err, install.ErrPreflightChecksFailed) {
+		if errors.Is(err, install.ErrPreflightChecksNotComplete) {
+			a.jsonError(w, r, types.NewForbiddenError(err))
+		} else if errors.Is(err, install.ErrPreflightChecksFailed) {
 			a.jsonError(w, r, types.NewBadRequestError(err))
 		} else {
 			a.jsonError(w, r, types.NewInternalServerError(err))

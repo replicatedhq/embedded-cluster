@@ -8,7 +8,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-var ErrPreflightChecksFailed = errors.New("preflight checks failed")
+var (
+	ErrPreflightChecksFailed      = errors.New("preflight checks failed")
+	ErrPreflightChecksNotComplete = errors.New("preflight checks not complete")
+)
 
 func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) (preflightsWereIgnored bool, err error) {
 	// Check preflight status and requirements
@@ -18,7 +21,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 	}
 
 	if preflightStatus.State != types.StateFailed && preflightStatus.State != types.StateSucceeded {
-		return false, fmt.Errorf("host preflight checks did not complete")
+		return false, ErrPreflightChecksNotComplete
 	}
 
 	preflightsWereIgnored = false
@@ -43,7 +46,6 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 		preflightsWereIgnored = true
 	}
 
-	// Install infrastructure using main's approach
 	if err := c.infraManager.Install(ctx, c.rc); err != nil {
 		return false, fmt.Errorf("install infra: %w", err)
 	}

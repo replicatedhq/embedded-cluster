@@ -76,7 +76,7 @@ HTTP 200 OK
 HTTP 400 Bad Request
 {
   "statusCode": 400,
-  "message": "Preflight checks failed"
+  "message": "preflight checks failed"
 }
 ```
 
@@ -100,7 +100,23 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 1. Retrieve current preflight status
 2. Check if preflights completed (success or failure)
 3. Apply validation rules based on preflight state, CLI configuration, and user intent
-4. Proceed with infrastructure setup if validation passes
+4. If proceeding despite failures, report bypass metrics
+5. Proceed with infrastructure setup if validation passes
+
+### Error Handling
+
+The system uses a predefined error variable for consistency:
+```go
+var ErrPreflightChecksFailed = errors.New("preflight checks failed")
+```
+
+This ensures consistent error messages across the application and simplifies testing.
+
+### Metrics Reporting
+
+The system reports metrics for preflight bypass scenarios:
+- **Bypassed Preflights**: When preflights fail but installation proceeds (with CLI flag + user confirmation)
+- **Failed Preflights**: Blocking scenarios are handled elsewhere in the system
 
 ### Configuration
 
@@ -120,7 +136,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 - **HTTP 500**: System errors during validation (infrastructure issues)
 
 ### Error Messages
-- Clear, actionable error messages
+- Clear, actionable error messages using standardized error variables
 - Consistent formatting across all validation scenarios
 - No sensitive information exposure
 
@@ -138,6 +154,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 
 **Audit and Monitoring**:
 - All validation decisions logged
+- Metrics reported for bypass scenarios to enable monitoring
 - Clear error messages for troubleshooting
 - Consistent behavior for security review
 
@@ -215,7 +232,7 @@ POST /api/install/infra/setup
 HTTP 400 Bad Request
 {
   "statusCode": 400,
-  "message": "Preflight checks failed"
+  "message": "preflight checks failed"
 }
 ```
 
