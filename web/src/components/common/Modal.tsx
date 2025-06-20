@@ -2,16 +2,13 @@ import React from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
-  isOpen: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer }) => {
-  if (!isOpen) return null;
-
+export const Modal: React.FC<ModalProps> = ({ onClose, title, children, footer }) => {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-4 text-center">

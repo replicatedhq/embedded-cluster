@@ -120,38 +120,39 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
         </Button>
       </div>
 
-      <Modal
-        isOpen={showPreflightModal}
-        onClose={handleCancelProceed}
-        title="Proceed with Failed Checks?"
-        footer={
-          <div className="flex space-x-3">
-            <Button
-              variant="outline"
-              onClick={handleCancelProceed}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              onClick={handleConfirmProceed}
-            >
-              Continue Anyway
-            </Button>
+      {showPreflightModal && (
+        <Modal
+          onClose={handleCancelProceed}
+          title="Proceed with Failed Checks?"
+          footer={
+            <div className="flex space-x-3">
+              <Button
+                variant="outline"
+                onClick={handleCancelProceed}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleConfirmProceed}
+              >
+                Continue Anyway
+              </Button>
+            </div>
+          }
+        >
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <AlertTriangle className="h-6 w-6 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-700">
+                Some preflight checks have failed. Continuing with the installation is likely to cause errors. Are you sure you want to proceed?
+              </p>
+            </div>
           </div>
-        }
-      >
-        <div className="flex items-start space-x-3">
-          <div className="flex-shrink-0">
-            <AlertTriangle className="h-6 w-6 text-amber-500" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-700">
-              Some preflight checks have failed. Continuing with the installation is likely to cause errors. Are you sure you want to proceed?
-            </p>
-          </div>
-        </div>
-      </Modal>
+        </Modal>
+      )}
     </div>
   );
 };
