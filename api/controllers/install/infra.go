@@ -8,7 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (c *InstallController) SetupInfra(ctx context.Context) error {
+func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
 	if c.stateMachine.CurrentState() == StatePreflightsFailed {
 		err := c.bypassPreflights(ctx)
 		if err != nil {
@@ -21,13 +21,21 @@ func (c *InstallController) SetupInfra(ctx context.Context) error {
 		return types.NewConflictError(err)
 	}
 
+	defer func() {
+		if r := recover(); r != nil {
+			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+		}
+		if finalErr != nil {
+			lock.Release()
+		}
+	}()
+
 	err = c.stateMachine.Transition(lock, StateInfrastructureInstalling)
 	if err != nil {
-		lock.Release()
 		return types.NewConflictError(err)
 	}
 
-	go func() {
+	go func() (finalErr error) {
 		// Background context is used to avoid canceling the operation if the context is canceled
 		ctx := context.Background()
 
@@ -35,30 +43,26 @@ func (c *InstallController) SetupInfra(ctx context.Context) error {
 
 		defer func() {
 			if r := recover(); r != nil {
-				c.logger.Errorf("panic installing infrastructure: %v: %s", r, string(debug.Stack()))
+				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+			}
+			if finalErr != nil {
+				c.logger.Error(finalErr)
 
-				err := c.stateMachine.Transition(lock, StateFailed)
-				if err != nil {
+				if err := c.stateMachine.Transition(lock, StateFailed); err != nil {
+					c.logger.Errorf("failed to transition states: %w", err)
+				}
+			} else {
+				if err := c.stateMachine.Transition(lock, StateSucceeded); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
 			}
 		}()
 
-		err := c.infraManager.Install(ctx, c.rc)
-
-		if err != nil {
-			c.logger.Errorf("failed to install infrastructure: %w", err)
-
-			err := c.stateMachine.Transition(lock, StateFailed)
-			if err != nil {
-				c.logger.Errorf("failed to transition states: %w", err)
-			}
-		} else {
-			err = c.stateMachine.Transition(lock, StateSucceeded)
-			if err != nil {
-				c.logger.Errorf("failed to transition states: %w", err)
-			}
+		if err := c.infraManager.Install(ctx, c.rc); err != nil {
+			return fmt.Errorf("failed to install infrastructure: %w", err)
 		}
+
+		return nil
 	}()
 
 	return nil

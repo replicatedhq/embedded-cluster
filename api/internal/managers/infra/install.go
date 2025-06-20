@@ -52,23 +52,20 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
-
-			if err := m.setStatus(types.StateFailed, "Installation failed to run: panic"); err != nil {
+		}
+		if finalErr != nil {
+			if err := m.setStatus(types.StateFailed, finalErr.Error()); err != nil {
 				m.logger.WithField("error", err).Error("set failed status")
+			}
+		} else {
+			if err := m.setStatus(types.StateSucceeded, "Installation complete"); err != nil {
+				m.logger.WithField("error", err).Error("set succeeded status")
 			}
 		}
 	}()
 
-	err = m.install(ctx, rc)
-
-	if err != nil {
-		if err := m.setStatus(types.StateFailed, err.Error()); err != nil {
-			m.logger.WithField("error", err).Error("set failed status")
-		}
-	} else {
-		if err := m.setStatus(types.StateSucceeded, "Installation complete"); err != nil {
-			m.logger.WithField("error", err).Error("set succeeded status")
-		}
+	if err := m.install(ctx, rc); err != nil {
+		return err
 	}
 
 	return nil
