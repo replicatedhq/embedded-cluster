@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
@@ -134,9 +135,10 @@ func (a *API) getInstallHostPreflightsStatus(w http.ResponseWriter, r *http.Requ
 	}
 
 	response := types.InstallHostPreflightsStatusResponse{
-		Titles: titles,
-		Output: output,
-		Status: status,
+		Titles:                    titles,
+		Output:                    output,
+		Status:                    status,
+		AllowIgnoreHostPreflights: a.allowIgnoreHostPreflights,
 	}
 
 	a.json(w, r, http.StatusOK, response)
@@ -148,18 +150,41 @@ func (a *API) getInstallHostPreflightsStatus(w http.ResponseWriter, r *http.Requ
 //	@Description	Setup infra components
 //	@Tags			install
 //	@Security		bearerauth
+//	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	types.Infra
+//	@Param			request	body		types.InfraSetupRequest	true	"Infra Setup Request"
+//	@Success		200		{object}	types.Infra
 //	@Router			/install/infra/setup [post]
 func (a *API) postInstallSetupInfra(w http.ResponseWriter, r *http.Request) {
-	err := a.installController.SetupInfra(r.Context())
+	// Parse request body
+	var req types.InfraSetupRequest
+	if err := a.bindJSON(w, r, &req); err != nil {
+		return
+	}
+
+	// Setup infrastructure with preflight validation handled internally
+	err := a.installController.SetupInfra(r.Context(), req.IgnorePreflightFailures)
 	if err != nil {
 		a.logError(r, err, "failed to setup infra")
+		if errors.Is(err, install.ErrPreflightChecksNotComplete) {
+			a.jsonError(w, r, types.NewForbiddenError(err))
+		} else if errors.Is(err, install.ErrPreflightChecksFailed) {
+			a.jsonError(w, r, types.NewBadRequestError(err))
+		} else {
+			a.jsonError(w, r, types.NewInternalServerError(err))
+		}
+		return
+	}
+
+	// Get the infra status for the response
+	infra, err := a.installController.GetInfra(r.Context())
+	if err != nil {
+		a.logError(r, err, "failed to get install infra status after setup")
 		a.jsonError(w, r, err)
 		return
 	}
 
-	a.getInstallInfraStatus(w, r)
+	a.json(w, r, http.StatusOK, infra)
 }
 
 // getInstallInfraStatus handler to get the status of the infra

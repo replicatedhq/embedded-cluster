@@ -2,28 +2,44 @@ package install
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (c *InstallController) SetupInfra(ctx context.Context) error {
+var (
+	ErrPreflightChecksFailed      = errors.New("preflight checks failed")
+	ErrPreflightChecksNotComplete = errors.New("preflight checks not complete")
+)
+
+func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) error {
+	// Check preflight status and requirements
 	preflightStatus, err := c.GetHostPreflightStatus(ctx)
 	if err != nil {
 		return fmt.Errorf("get install host preflight status: %w", err)
 	}
 
 	if preflightStatus.State != types.StateFailed && preflightStatus.State != types.StateSucceeded {
-		return fmt.Errorf("host preflight checks did not complete")
+		return ErrPreflightChecksNotComplete
 	}
 
-	if preflightStatus.State == types.StateFailed && c.metricsReporter != nil {
+	// Handle failed preflights
+	if preflightStatus.State == types.StateFailed {
+		// Get preflight output for reporting
 		preflightOutput, err := c.GetHostPreflightOutput(ctx)
 		if err != nil {
 			return fmt.Errorf("get install host preflight output: %w", err)
 		}
-		if preflightOutput != nil {
-			c.metricsReporter.ReportPreflightsFailed(ctx, preflightOutput)
+
+		// Check if we can proceed despite failures
+		if !ignorePreflightFailures || !c.allowIgnoreHostPreflights {
+			return ErrPreflightChecksFailed
+		}
+
+		// We're proceeding despite failures - report bypass
+		if c.metricsReporter != nil && preflightOutput != nil {
+			c.metricsReporter.ReportPreflightsBypassed(ctx, preflightOutput)
 		}
 	}
 

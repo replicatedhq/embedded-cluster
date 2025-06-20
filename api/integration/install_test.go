@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -64,6 +65,11 @@ type mockInstallController struct {
 	getInfraError               error
 	setStatusError              error
 	readStatusError             error
+
+	// Additional fields to support infra setup validation testing
+	allowIgnoreHostPreflights bool
+	preflightStatus           *types.Status
+	preflightOutput           *types.HostPreflightsOutput
 }
 
 func (m *mockInstallController) GetInstallationConfig(ctx context.Context) (types.InstallationConfig, error) {
@@ -92,12 +98,18 @@ func (m *mockInstallController) GetHostPreflightStatus(ctx context.Context) (typ
 	if m.getHostPreflightStatusError != nil {
 		return types.Status{}, m.getHostPreflightStatusError
 	}
+	if m.preflightStatus != nil {
+		return *m.preflightStatus, nil
+	}
 	return types.Status{}, nil
 }
 
 func (m *mockInstallController) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error) {
 	if m.getHostPreflightOutputError != nil {
 		return nil, m.getHostPreflightOutputError
+	}
+	if m.preflightOutput != nil {
+		return m.preflightOutput, nil
 	}
 	return &types.HostPreflightsOutput{}, nil
 }
@@ -109,8 +121,28 @@ func (m *mockInstallController) GetHostPreflightTitles(ctx context.Context) ([]s
 	return []string{}, nil
 }
 
-func (m *mockInstallController) SetupInfra(ctx context.Context) error {
-	return m.setupInfraError
+func (m *mockInstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) error {
+	if m.setupInfraError != nil {
+		return m.setupInfraError
+	}
+
+	// Check for preflight error first (this simulates GetHostPreflightStatus failing)
+	if m.getHostPreflightStatusError != nil {
+		return fmt.Errorf("get install host preflight status: %w", m.getHostPreflightStatusError)
+	}
+
+	// Simulate the validation logic that was moved to SetupInfra
+	if m.preflightStatus != nil && m.preflightStatus.State == types.StateFailed {
+		// Check if we can proceed despite failures
+		if !ignorePreflightFailures || !m.allowIgnoreHostPreflights {
+			return install.ErrPreflightChecksFailed
+		}
+
+		// We're proceeding despite failures - no need to return boolean anymore
+	}
+
+	// Preflights passed
+	return nil
 }
 
 func (m *mockInstallController) GetInfra(ctx context.Context) (types.Infra, error) {
@@ -1226,9 +1258,16 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnorePreflightFailures: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -1332,9 +1371,16 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnorePreflightFailures: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -1383,16 +1429,23 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnorePreflightFailures: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
 		router.ServeHTTP(rec, req)
 
-		// Check the response
-		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		// Check the response - expect 403 Forbidden for preflights not complete
+		assert.Equal(t, http.StatusForbidden, rec.Code)
 
 		t.Logf("Response body: %s", rec.Body.String())
 
@@ -1400,8 +1453,8 @@ func TestPostSetupInfra(t *testing.T) {
 		var apiError types.APIError
 		err = json.NewDecoder(rec.Body).Decode(&apiError)
 		require.NoError(t, err)
-		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
-		assert.Contains(t, apiError.Message, "host preflight checks did not complete")
+		assert.Equal(t, http.StatusForbidden, apiError.StatusCode)
+		assert.Contains(t, apiError.Message, install.ErrPreflightChecksNotComplete.Error())
 	})
 
 	// Test k0s already installed error
@@ -1458,9 +1511,16 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnorePreflightFailures: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -1543,9 +1603,16 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnorePreflightFailures: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request

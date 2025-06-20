@@ -6,9 +6,10 @@ type PostInstallRunHostPreflightsRequest struct {
 
 // HostPreflights represents the host preflight checks state
 type HostPreflights struct {
-	Titles []string              `json:"titles"`
-	Output *HostPreflightsOutput `json:"output"`
-	Status Status                `json:"status"`
+	Titles                    []string              `json:"titles"`
+	Output                    *HostPreflightsOutput `json:"output"`
+	Status                    Status                `json:"status"`
+	AllowIgnoreHostPreflights bool                  `json:"allowIgnoreHostPreflights"`
 }
 
 type HostPreflightsOutput struct {

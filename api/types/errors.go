@@ -63,6 +63,14 @@ func NewConflictError(err error) *APIError {
 	}
 }
 
+func NewForbiddenError(err error) *APIError {
+	return &APIError{
+		StatusCode: http.StatusForbidden,
+		Message:    err.Error(),
+		err:        err,
+	}
+}
+
 func NewUnauthorizedError(err error) *APIError {
 	return &APIError{
 		StatusCode: http.StatusUnauthorized,
