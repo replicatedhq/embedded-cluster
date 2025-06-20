@@ -23,7 +23,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
-// Test infra setup validation - focused on the new validation logic
+// Test infra setup validation
 func TestPostInstallSetupInfraValidation(t *testing.T) {
 	tests := []struct {
 		name           string
