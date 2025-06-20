@@ -31,7 +31,7 @@ type infraManager struct {
 	infraStore    infra.Store
 	password      string
 	tlsConfig     types.TLSConfig
-	licenseFile   string
+	license       []byte
 	airgapBundle  string
 	configValues  string
 	releaseData   *release.ReleaseData
@@ -72,9 +72,9 @@ func WithTLSConfig(tlsConfig types.TLSConfig) InfraManagerOption {
 	}
 }
 
-func WithLicenseFile(licenseFile string) InfraManagerOption {
+func WithLicense(license []byte) InfraManagerOption {
 	return func(c *infraManager) {
-		c.licenseFile = licenseFile
+		c.license = license
 	}
 }
 

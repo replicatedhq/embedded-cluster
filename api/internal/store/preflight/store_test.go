@@ -160,60 +160,6 @@ func TestMemoryStore_SetStatus(t *testing.T) {
 	assert.Equal(t, expectedStatus, actualStatus)
 }
 
-func TestMemoryStore_IsRunning(t *testing.T) {
-	tests := []struct {
-		name         string
-		status       types.Status
-		expectedBool bool
-	}{
-		{
-			name: "is running when state is running",
-			status: types.Status{
-				State:       types.StateRunning,
-				Description: "Running host preflights",
-			},
-			expectedBool: true,
-		},
-		{
-			name: "is not running when state is succeeded",
-			status: types.Status{
-				State:       types.StateSucceeded,
-				Description: "Host preflights passed",
-			},
-			expectedBool: false,
-		},
-		{
-			name: "is not running when state is failed",
-			status: types.Status{
-				State:       types.StateFailed,
-				Description: "Host preflights failed",
-			},
-			expectedBool: false,
-		},
-		{
-			name: "is not running when state is pending",
-			status: types.Status{
-				State:       types.StatePending,
-				Description: "Pending host preflights",
-			},
-			expectedBool: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			hostPreflight := types.HostPreflights{
-				Status: tt.status,
-			}
-			store := NewMemoryStore(WithHostPreflight(hostPreflight))
-
-			result := store.IsRunning()
-
-			assert.Equal(t, tt.expectedBool, result)
-		})
-	}
-}
-
 // Useful to test concurrent access with -race flag
 func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 	hostPreflight := types.HostPreflights{}
@@ -271,7 +217,7 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 	}
 
 	// Concurrent status operations
-	wg.Add(numGoroutines * 3)
+	wg.Add(numGoroutines * 2)
 	for i := 0; i < numGoroutines; i++ {
 		// Concurrent writes
 		go func(id int) {
@@ -293,14 +239,6 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 			for j := 0; j < numOperations; j++ {
 				_, err := store.GetStatus()
 				assert.NoError(t, err)
-			}
-		}(i)
-
-		// Concurrent IsRunning calls
-		go func(id int) {
-			defer wg.Done()
-			for j := 0; j < numOperations; j++ {
-				store.IsRunning()
 			}
 		}(i)
 	}
