@@ -121,29 +121,28 @@ func (m *mockInstallController) GetHostPreflightTitles(ctx context.Context) ([]s
 	return []string{}, nil
 }
 
-func (m *mockInstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) (bool, error) {
+func (m *mockInstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) error {
 	if m.setupInfraError != nil {
-		return false, m.setupInfraError
+		return m.setupInfraError
 	}
 
 	// Check for preflight error first (this simulates GetHostPreflightStatus failing)
 	if m.getHostPreflightStatusError != nil {
-		return false, fmt.Errorf("get install host preflight status: %w", m.getHostPreflightStatusError)
+		return fmt.Errorf("get install host preflight status: %w", m.getHostPreflightStatusError)
 	}
 
 	// Simulate the validation logic that was moved to SetupInfra
 	if m.preflightStatus != nil && m.preflightStatus.State == types.StateFailed {
 		// Check if we can proceed despite failures
 		if !ignorePreflightFailures || !m.allowIgnoreHostPreflights {
-			return false, install.ErrPreflightChecksFailed
+			return install.ErrPreflightChecksFailed
 		}
 
-		// We're proceeding despite failures
-		return true, nil
+		// We're proceeding despite failures - no need to return boolean anymore
 	}
 
 	// Preflights passed
-	return false, nil
+	return nil
 }
 
 func (m *mockInstallController) GetInfra(ctx context.Context) (types.Infra, error) {
@@ -1449,8 +1448,8 @@ func TestPostSetupInfra(t *testing.T) {
 		// Serve the request
 		router.ServeHTTP(rec, req)
 
-		// Check the response
-		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		// Check the response - expect 403 Forbidden for preflights not complete
+		assert.Equal(t, http.StatusForbidden, rec.Code)
 
 		t.Logf("Response body: %s", rec.Body.String())
 
@@ -1458,8 +1457,8 @@ func TestPostSetupInfra(t *testing.T) {
 		var apiError types.APIError
 		err = json.NewDecoder(rec.Body).Decode(&apiError)
 		require.NoError(t, err)
-		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
-		assert.Contains(t, apiError.Message, "host preflight checks did not complete")
+		assert.Equal(t, http.StatusForbidden, apiError.StatusCode)
+		assert.Contains(t, apiError.Message, install.ErrPreflightChecksNotComplete.Error())
 	})
 
 	// Test k0s already installed error

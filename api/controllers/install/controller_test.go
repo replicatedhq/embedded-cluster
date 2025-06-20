@@ -564,11 +564,10 @@ func TestGetInstallationStatus(t *testing.T) {
 
 func TestSetupInfra(t *testing.T) {
 	tests := []struct {
-		name                      string
-		ignorePreflightFailures   bool
-		setupMocks                func(runtimeconfig.RuntimeConfig, *preflight.MockHostPreflightManager, *installation.MockInstallationManager, *infra.MockInfraManager, *metrics.MockReporter)
-		expectedErr               bool
-		expectedPreflightsIgnored bool
+		name                    string
+		ignorePreflightFailures bool
+		setupMocks              func(runtimeconfig.RuntimeConfig, *preflight.MockHostPreflightManager, *installation.MockInstallationManager, *infra.MockInfraManager, *metrics.MockReporter)
+		expectedErr             bool
 	}{
 		{
 			name:                    "successful setup with passed preflights",
@@ -582,8 +581,7 @@ func TestSetupInfra(t *testing.T) {
 					fm.On("Install", t.Context(), rc).Return(nil),
 				)
 			},
-			expectedErr:               false,
-			expectedPreflightsIgnored: false,
+			expectedErr: false,
 		},
 		{
 			name:                    "successful setup with failed preflights - ignored with CLI flag",
@@ -607,8 +605,7 @@ func TestSetupInfra(t *testing.T) {
 					fm.On("Install", t.Context(), rc).Return(nil),
 				)
 			},
-			expectedErr:               false,
-			expectedPreflightsIgnored: true,
+			expectedErr: false,
 		},
 		{
 			name:                    "failed setup with failed preflights - not ignored",
@@ -630,8 +627,7 @@ func TestSetupInfra(t *testing.T) {
 					pm.On("GetHostPreflightOutput", t.Context()).Return(preflightOutput, nil),
 				)
 			},
-			expectedErr:               true,
-			expectedPreflightsIgnored: false,
+			expectedErr: true,
 		},
 		{
 			name:                    "preflight status error",
@@ -639,8 +635,7 @@ func TestSetupInfra(t *testing.T) {
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 				pm.On("GetHostPreflightStatus", t.Context()).Return(types.Status{}, errors.New("get preflight status error"))
 			},
-			expectedErr:               true,
-			expectedPreflightsIgnored: false,
+			expectedErr: true,
 		},
 		{
 			name:                    "preflight not completed",
@@ -651,8 +646,7 @@ func TestSetupInfra(t *testing.T) {
 				}
 				pm.On("GetHostPreflightStatus", t.Context()).Return(preflightStatus, nil)
 			},
-			expectedErr:               true,
-			expectedPreflightsIgnored: false,
+			expectedErr: true,
 		},
 		{
 			name:                    "preflight output error",
@@ -666,8 +660,7 @@ func TestSetupInfra(t *testing.T) {
 					pm.On("GetHostPreflightOutput", t.Context()).Return(nil, errors.New("get output error")),
 				)
 			},
-			expectedErr:               true,
-			expectedPreflightsIgnored: false,
+			expectedErr: true,
 		},
 		{
 			name:                    "install infra error",
@@ -681,8 +674,7 @@ func TestSetupInfra(t *testing.T) {
 					fm.On("Install", t.Context(), rc).Return(errors.New("install error")),
 				)
 			},
-			expectedErr:               true,
-			expectedPreflightsIgnored: false,
+			expectedErr: true,
 		},
 	}
 
@@ -708,13 +700,12 @@ func TestSetupInfra(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			preflightsIgnored, err := controller.SetupInfra(t.Context(), tt.ignorePreflightFailures)
+			err = controller.SetupInfra(t.Context(), tt.ignorePreflightFailures)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedPreflightsIgnored, preflightsIgnored)
 			}
 
 			mockPreflightManager.AssertExpectations(t)

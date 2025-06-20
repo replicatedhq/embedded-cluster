@@ -163,7 +163,7 @@ func (a *API) postInstallSetupInfra(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Setup infrastructure with preflight validation handled internally
-	_, err := a.installController.SetupInfra(r.Context(), req.IgnorePreflightFailures)
+	err := a.installController.SetupInfra(r.Context(), req.IgnorePreflightFailures)
 	if err != nil {
 		a.logError(r, err, "failed to setup infra")
 		if errors.Is(err, install.ErrPreflightChecksNotComplete) {

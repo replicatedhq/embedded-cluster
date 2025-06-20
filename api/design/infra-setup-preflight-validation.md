@@ -71,12 +71,30 @@ HTTP 200 OK
 }
 ```
 
-**Response** (Validation Failure):
+**Response** (Preflights Not Complete):
+```json
+HTTP 403 Forbidden
+{
+  "statusCode": 403,
+  "message": "preflight checks not complete"
+}
+```
+
+**Response** (Preflights Failed):
 ```json
 HTTP 400 Bad Request
 {
   "statusCode": 400,
   "message": "preflight checks failed"
+}
+```
+
+**Response** (System Error):
+```json
+HTTP 500 Internal Server Error
+{
+  "statusCode": 500,
+  "message": "internal server error"
 }
 ```
 
@@ -93,7 +111,7 @@ Returns the same `Infra` response structure as the setup endpoint, providing con
 The `SetupInfra` function consolidates all validation logic:
 
 ```go
-func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) (preflightsWereIgnored bool, err error)
+func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) error
 ```
 
 **Validation Steps**:
@@ -105,10 +123,18 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 
 ### Error Handling
 
-The system uses a predefined error variable for consistency:
+The system uses predefined error variables for consistency:
 ```go
-var ErrPreflightChecksFailed = errors.New("preflight checks failed")
+var (
+    ErrPreflightChecksFailed      = errors.New("preflight checks failed")
+    ErrPreflightChecksNotComplete = errors.New("preflight checks not complete")
+)
 ```
+
+**Handler Error Mapping**:
+- Domain errors from controllers are mapped to appropriate HTTP status codes
+- Error identity is preserved using `errors.Is()` for precise mapping
+- Consistent error messages across all validation scenarios
 
 This ensures consistent error messages across the application and simplifies testing.
 
@@ -131,7 +157,16 @@ The system reports metrics for preflight bypass scenarios:
 
 ## Error Handling
 
+### HTTP Status Code Mapping
+
+| Preflight State | Controller Error | HTTP Status | Use Case |
+|----------------|------------------|-------------|----------|
+| **Pending/Running** | `ErrPreflightChecksNotComplete` | `403 Forbidden` | User must wait for preflights to complete |
+| **Failed (not ignored)** | `ErrPreflightChecksFailed` | `400 Bad Request` | User-correctable validation failure |
+| **System Errors** | Generic errors | `500 Internal Server Error` | Infrastructure/system issues |
+
 ### Validation Errors
+- **HTTP 403**: Preflights not complete (pending or running state)
 - **HTTP 400**: Preflight validation failures (user-correctable)
 - **HTTP 500**: System errors during validation (infrastructure issues)
 
@@ -233,6 +268,23 @@ HTTP 400 Bad Request
 {
   "statusCode": 400,
   "message": "preflight checks failed"
+}
+```
+
+### Preflights Not Complete Scenario
+
+```bash
+# 1. Preflights still running, API call:
+POST /api/install/infra/setup
+{
+  "ignorePreflightFailures": false
+}
+
+# 2. Response:
+HTTP 403 Forbidden
+{
+  "statusCode": 403,
+  "message": "preflight checks not complete"
 }
 ```
 
