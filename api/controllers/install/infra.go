@@ -43,7 +43,6 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 		}
 	}
 
-	// Install infrastructure using main's approach
 	if err := c.infraManager.Install(ctx, c.rc); err != nil {
 		return fmt.Errorf("install infra: %w", err)
 	}
