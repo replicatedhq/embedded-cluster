@@ -274,4 +274,151 @@ describe("InstallationStep", () => {
       expect(screen.queryByTestId("log-viewer-content")).not.toBeInTheDocument();
     });
   });
+
+  it("shows correct progress for Runtime installation phases", async () => {
+    const mockOnNext = vi.fn();
+    
+    // Test Runtime installing phase
+    server.use(
+      http.get("*/api/install/infra/status", ({ request }) => {
+        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
+        return HttpResponse.json({
+          status: { state: "Running", description: "Installing Runtime" },
+          components: [
+            { name: "Runtime", status: { state: "Running" } },
+            { name: "Disaster Recovery", status: { state: "Pending" } }
+          ]
+        });
+      })
+    );
+
+    renderWithProviders(<InstallationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        preloadedState: {
+          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
+          config: mockConfig,
+        },
+      },
+    });
+
+    // Wait for progress update
+    await waitFor(() => {
+      expect(screen.getByText("Installing Runtime")).toBeInTheDocument();
+    });
+
+    // Verify Runtime component is installing
+    const runtimeContainer = screen.getByTestId("status-indicator-runtime");
+    expect(runtimeContainer).toBeInTheDocument();
+    expect(within(runtimeContainer).getByTestId("status-title")).toHaveTextContent("Runtime");
+    expect(within(runtimeContainer).getByTestId("status-text")).toHaveTextContent("Installing...");
+
+    // Test Runtime waiting phase
+    server.use(
+      http.get("*/api/install/infra/status", ({ request }) => {
+        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
+        return HttpResponse.json({
+          status: { state: "Running", description: "Waiting for Runtime" },
+          components: [
+            { name: "Runtime", status: { state: "Running" } },
+            { name: "Disaster Recovery", status: { state: "Pending" } }
+          ]
+        });
+      })
+    );
+
+    // Wait for progress update with retry
+    await waitFor(() => {
+      expect(screen.getByText("Waiting for Runtime")).toBeInTheDocument();
+    }, { timeout: 5000 }); // Increase timeout and add implicit retry
+
+    // Verify Runtime component is still running but in waiting phase
+    expect(within(runtimeContainer).getByTestId("status-text")).toHaveTextContent("Installing...");
+  });
+
+  it("shows correct progress for mixed component states", async () => {
+    const mockOnNext = vi.fn();
+    server.use(
+      http.get("*/api/install/infra/status", ({ request }) => {
+        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
+        return HttpResponse.json({
+          status: { state: "Running", description: "Installing components..." },
+          components: [
+            { name: "Runtime", status: { state: "Succeeded" } },
+            { name: "Disaster Recovery", status: { state: "Running" } },
+            { name: "Additional Components", status: { state: "Pending" } }
+          ]
+        });
+      })
+    );
+
+    renderWithProviders(<InstallationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        preloadedState: {
+          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
+          config: mockConfig,
+        },
+      },
+    });
+
+    // Wait for progress update
+    await waitFor(() => {
+      expect(screen.getByText("Installing components...")).toBeInTheDocument();
+    });
+
+    // Verify component states
+    const runtimeContainer = screen.getByTestId("status-indicator-runtime");
+    expect(within(runtimeContainer).getByTestId("status-text")).toHaveTextContent("Complete");
+
+    const drContainer = screen.getByTestId("status-indicator-disaster-recovery");
+    expect(within(drContainer).getByTestId("status-text")).toHaveTextContent("Installing...");
+
+    const additionalContainer = screen.getByTestId("status-indicator-additional-components");
+    expect(within(additionalContainer).getByTestId("status-text")).toHaveTextContent("Pending");
+  });
+
+  it("shows completion messages when components succeed", async () => {
+    const mockOnNext = vi.fn();
+    
+    // Test component completion message
+    server.use(
+      http.get("*/api/install/infra/status", ({ request }) => {
+        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
+        return HttpResponse.json({
+          status: { state: "Running", description: "Installing components..." },
+          components: [
+            { name: "Runtime", status: { state: "Succeeded" } },
+            { name: "Storage", status: { state: "Succeeded" } },
+            { name: "Runtime Operator", status: { state: "Running" } }
+          ]
+        });
+      })
+    );
+
+    renderWithProviders(<InstallationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        preloadedState: {
+          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
+          config: mockConfig,
+        },
+      },
+    });
+
+    // Wait for completion message
+    await waitFor(() => {
+      expect(screen.getByText("Installing components...")).toBeInTheDocument();
+    });
+
+    // Verify component states
+    const runtimeContainer = screen.getByTestId("status-indicator-runtime");
+    expect(within(runtimeContainer).getByTestId("status-text")).toHaveTextContent("Complete");
+
+    const storageContainer = screen.getByTestId("status-indicator-storage");
+    expect(within(storageContainer).getByTestId("status-text")).toHaveTextContent("Complete");
+
+    const operatorContainer = screen.getByTestId("status-indicator-runtime-operator");
+    expect(within(operatorContainer).getByTestId("status-text")).toHaveTextContent("Installing...");
+  });
 });

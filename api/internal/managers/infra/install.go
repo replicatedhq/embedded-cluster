@@ -176,6 +176,8 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 			if err := m.setComponentStatus(componentName, types.StateSucceeded, ""); err != nil {
 				m.logger.WithField("error", err).Error("set succeeded status")
 			}
+			// Send completion message
+			m.setStatusDesc(fmt.Sprintf("%s is ready", componentName))
 		}
 	}()
 
@@ -343,6 +345,15 @@ func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) 
 		return fmt.Errorf("set extensions status: %w", err)
 	}
 
+	progressChan := make(chan extensions.ExtensionsProgress)
+	defer close(progressChan)
+
+	go func() {
+		for progress := range progressChan {
+			m.setStatusDesc(fmt.Sprintf("Installing %s (%d/%d)", componentName, progress.Current, progress.Total))
+		}
+	}()
+
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("install extensions recovered from panic: %v: %s", r, string(debug.Stack()))
@@ -362,7 +373,7 @@ func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) 
 
 	logFn := m.logFn("extensions")
 	logFn("installing extensions")
-	if err := extensions.Install(ctx, hcli, nil); err != nil {
+	if err := extensions.Install(ctx, hcli, progressChan); err != nil {
 		return fmt.Errorf("install extensions: %w", err)
 	}
 	return nil

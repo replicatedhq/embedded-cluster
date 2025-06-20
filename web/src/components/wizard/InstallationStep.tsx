@@ -60,8 +60,64 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
     if (components.length === 0) {
       return 0;
     }
-    const completedComponents = components.filter(component => component.status?.state === 'Succeeded').length;
-    return Math.round((completedComponents / components.length) * 100);
+
+    let totalProgress = 0;
+    const componentWeight = 100 / components.length;
+
+    components.forEach(component => {
+      let componentProgress = 0;
+
+      switch (component.status?.state) {
+        case 'Succeeded':
+          componentProgress = 100;
+          break;
+        case 'Running':
+          if (component.name === 'Runtime') {
+            // Split Runtime's progress between installing and waiting phases
+            const statusDescription = infraStatusResponse?.status?.description || '';
+            if (statusDescription.includes('Installing Runtime')) {
+              componentProgress = 25; // 25% of Runtime's weight = installing phase
+            } else if (statusDescription.includes('Waiting for Runtime')) {
+              componentProgress = 75; // 75% of Runtime's weight = waiting phase
+            } else {
+              componentProgress = 50; // Fallback for other Running states
+            }
+          } else if (component.name === 'Additional Components') {
+            // Parse incremental progress for additional components
+            const statusDescription = infraStatusResponse?.status?.description || '';
+            const match = statusDescription.match(/Installing additional components \((\d+)\/(\d+)\)/);
+            if (match) {
+              const current = parseInt(match[1]);
+              const total = parseInt(match[2]);
+              if (total > 0) {
+                // Calculate progress based on completed extensions + current extension progress
+                const completedExtensions = current - 1; // Extensions that are done
+                const currentExtensionProgress = 50; // Current extension gets 50% while running
+                const totalProgress = (completedExtensions * 100) + currentExtensionProgress;
+                componentProgress = totalProgress / total; // Average across all extensions
+              } else {
+                componentProgress = 50; // Fallback if parsing fails
+              }
+            } else {
+              componentProgress = 50; // Fallback for other Running states
+            }
+          } else {
+            componentProgress = 50; // Other components get 50% when Running
+          }
+          break;
+        case 'Failed':
+          componentProgress = 0; // No progress for failed components
+          break;
+        case 'Pending':
+        default:
+          componentProgress = 0; // No progress for pending components
+          break;
+      }
+
+      totalProgress += (componentProgress / 100) * componentWeight;
+    });
+
+    return Math.round(totalProgress);
   }
 
   const renderInfrastructurePhase = () => (
