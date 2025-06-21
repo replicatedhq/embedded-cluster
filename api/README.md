@@ -12,8 +12,14 @@ The root directory contains the main API setup files and request handlers.
 #### `/controllers`
 Contains the business logic for different API endpoints. Each controller package focuses on a specific domain of functionality or workflow (e.g., authentication, console, install, upgrade, join, etc.) and implements the core business logic for that domain or workflow. Controllers can utilize multiple managers with each manager handling a specific subdomain of functionality.
 
+#### `/internal`
+Contains shared utilities and helper packages that provide common functionality used across different parts of the API. This includes both general-purpose utilities and domain-specific helpers.
+
 #### `/internal/managers`
 Each manager is responsible for a specific subdomain of functionality and provides a clean, thread-safe interface for controllers to interact with. For example, the Preflight Manager manages system requirement checks and validation.
+
+#### `/internal/statemachine`
+The statemachine is used by controllers to capture workflow state and enforce valid transitions.
 
 #### `/types`
 Defines the core data structures and types used throughout the API. This includes:
@@ -30,7 +36,7 @@ Contains Swagger-generated API documentation. This includes:
 - API operation descriptions
 
 #### `/pkg`
-Contains shared utilities and helper packages that provide common functionality used across different parts of the API. This includes both general-purpose utilities and domain-specific helpers.
+Contains helper packages that can be used by packages external to the API.
 
 #### `/client`
 Provides a client library for interacting with the API. The client package implements a clean interface for making API calls and handling responses, making it easy to integrate with the API from other parts of the system.

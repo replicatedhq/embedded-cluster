@@ -7,6 +7,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
+	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
+	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -19,17 +21,17 @@ import (
 )
 
 type Controller interface {
-	GetInstallationConfig(ctx context.Context) (*types.InstallationConfig, error)
-	ConfigureInstallation(ctx context.Context, config *types.InstallationConfig) error
-	GetInstallationStatus(ctx context.Context) (*types.Status, error)
+	GetInstallationConfig(ctx context.Context) (types.InstallationConfig, error)
+	ConfigureInstallation(ctx context.Context, config types.InstallationConfig) error
+	GetInstallationStatus(ctx context.Context) (types.Status, error)
 	RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) error
-	GetHostPreflightStatus(ctx context.Context) (*types.Status, error)
+	GetHostPreflightStatus(ctx context.Context) (types.Status, error)
 	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context) error
-	GetInfra(ctx context.Context) (*types.Infra, error)
-	SetStatus(ctx context.Context, status *types.Status) error
-	GetStatus(ctx context.Context) (*types.Status, error)
+	GetInfra(ctx context.Context) (types.Infra, error)
+	SetStatus(ctx context.Context, status types.Status) error
+	GetStatus(ctx context.Context) (types.Status, error)
 }
 
 type RunHostPreflightsOptions struct {
@@ -39,23 +41,26 @@ type RunHostPreflightsOptions struct {
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	install              *types.Install
 	installationManager  installation.InstallationManager
 	hostPreflightManager preflight.HostPreflightManager
 	infraManager         infra.InfraManager
-	rc                   runtimeconfig.RuntimeConfig
-	logger               logrus.FieldLogger
 	hostUtils            hostutils.HostUtilsInterface
 	netUtils             utils.NetUtils
 	metricsReporter      metrics.ReporterInterface
 	releaseData          *release.ReleaseData
 	password             string
 	tlsConfig            types.TLSConfig
-	licenseFile          string
+	license              []byte
 	airgapBundle         string
 	configValues         string
 	endUserConfig        *ecv1beta1.Config
-	mu                   sync.RWMutex
+
+	install      types.Install
+	store        store.Store
+	rc           runtimeconfig.RuntimeConfig
+	stateMachine statemachine.Interface
+	logger       logrus.FieldLogger
+	mu           sync.RWMutex
 }
 
 type InstallControllerOption func(*InstallController)
@@ -108,9 +113,9 @@ func WithTLSConfig(tlsConfig types.TLSConfig) InstallControllerOption {
 	}
 }
 
-func WithLicenseFile(licenseFile string) InstallControllerOption {
+func WithLicense(license []byte) InstallControllerOption {
 	return func(c *InstallController) {
-		c.licenseFile = licenseFile
+		c.license = license
 	}
 }
 
@@ -144,21 +149,28 @@ func WithHostPreflightManager(hostPreflightManager preflight.HostPreflightManage
 	}
 }
 
+func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
+	return func(c *InstallController) {
+		c.infraManager = infraManager
+	}
+}
+
+func WithStateMachine(stateMachine statemachine.Interface) InstallControllerOption {
+	return func(c *InstallController) {
+		c.stateMachine = stateMachine
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
-		install: types.NewInstall(),
+		store:        store.NewMemoryStore(),
+		rc:           runtimeconfig.New(nil),
+		logger:       logger.NewDiscardLogger(),
+		stateMachine: NewStateMachine(),
 	}
 
 	for _, opt := range opts {
 		opt(controller)
-	}
-
-	if controller.rc == nil {
-		controller.rc = runtimeconfig.New(nil)
-	}
-
-	if controller.logger == nil {
-		controller.logger = logger.NewDiscardLogger()
 	}
 
 	if controller.hostUtils == nil {
@@ -173,10 +185,9 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 
 	if controller.installationManager == nil {
 		controller.installationManager = installation.NewInstallationManager(
-			installation.WithRuntimeConfig(controller.rc),
 			installation.WithLogger(controller.logger),
-			installation.WithInstallation(controller.install.Steps.Installation),
-			installation.WithLicenseFile(controller.licenseFile),
+			installation.WithInstallationStore(controller.store.InstallationStore()),
+			installation.WithLicense(controller.license),
 			installation.WithAirgapBundle(controller.airgapBundle),
 			installation.WithHostUtils(controller.hostUtils),
 			installation.WithNetUtils(controller.netUtils),
@@ -185,22 +196,20 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 
 	if controller.hostPreflightManager == nil {
 		controller.hostPreflightManager = preflight.NewHostPreflightManager(
-			preflight.WithRuntimeConfig(controller.rc),
 			preflight.WithLogger(controller.logger),
 			preflight.WithMetricsReporter(controller.metricsReporter),
-			preflight.WithHostPreflightStore(preflight.NewMemoryStore(controller.install.Steps.HostPreflight)),
+			preflight.WithHostPreflightStore(controller.store.PreflightStore()),
 			preflight.WithNetUtils(controller.netUtils),
 		)
 	}
 
 	if controller.infraManager == nil {
 		controller.infraManager = infra.NewInfraManager(
-			infra.WithRuntimeConfig(controller.rc),
 			infra.WithLogger(controller.logger),
-			infra.WithInfra(controller.install.Steps.Infra),
+			infra.WithInfraStore(controller.store.InfraStore()),
 			infra.WithPassword(controller.password),
 			infra.WithTLSConfig(controller.tlsConfig),
-			infra.WithLicenseFile(controller.licenseFile),
+			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
 			infra.WithConfigValues(controller.configValues),
 			infra.WithReleaseData(controller.releaseData),

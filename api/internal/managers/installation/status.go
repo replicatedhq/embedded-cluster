@@ -6,20 +6,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (m *installationManager) GetStatus() (*types.Status, error) {
+func (m *installationManager) GetStatus() (types.Status, error) {
 	return m.installationStore.GetStatus()
 }
 
 func (m *installationManager) SetStatus(status types.Status) error {
 	return m.installationStore.SetStatus(status)
-}
-
-func (m *installationManager) isRunning() (bool, error) {
-	status, err := m.GetStatus()
-	if err != nil {
-		return false, err
-	}
-	return status.State == types.StateRunning, nil
 }
 
 func (m *installationManager) setRunningStatus(description string) error {

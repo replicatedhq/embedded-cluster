@@ -40,6 +40,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/swaggo/http-swagger/v2 v2.0.2
 	github.com/swaggo/swag/v2 v2.0.0-rc4
+	github.com/tiendc/go-deepcopy v1.6.1
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/vmware-tanzu/velero v1.16.1
 	go.uber.org/multierr v1.11.0

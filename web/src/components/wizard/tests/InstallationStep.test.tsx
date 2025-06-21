@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within, fireEvent } from "@testing-library/react";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import InstallationStep from "../InstallationStep.tsx";
 import { MOCK_PROTOTYPE_SETTINGS } from "../../../test/testData.ts";
@@ -222,5 +222,56 @@ describe("InstallationStep", () => {
 
     // Next button should be disabled
     expect(screen.getByText("Next: Finish")).toBeDisabled();
+  });
+
+  it("verify log viewer", async () => {
+    const mockOnNext = vi.fn();
+    server.use(
+      http.get("*/api/install/infra/status", () => {
+        return HttpResponse.json({
+          status: { state: "Running", description: "Installing..." },
+          components: [
+            { name: "Runtime", status: { state: "Pending" } },
+            { name: "Disaster Recovery", status: { state: "Pending" } }
+          ],
+          logs: "[k0s] creating k0s configuration file\n[k0s] creating systemd unit files"
+        });
+      })
+    );
+
+    renderWithProviders(<InstallationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        preloadedState: {
+          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
+          config: mockConfig,
+        },
+      },
+    });
+
+    // Wait for log viewer to be available
+    await waitFor(() => {
+      expect(screen.getByTestId("log-viewer")).toBeInTheDocument();
+    });
+
+    // Initially logs should be collapsed and not visible
+    expect(screen.queryByTestId("log-viewer-content")).not.toBeInTheDocument();
+
+    // Expand and verify logs
+    const toggleButton = screen.getByTestId("log-viewer-toggle");
+    expect(toggleButton).toBeInTheDocument();
+    fireEvent.click(toggleButton);
+    await waitFor(() => {
+      const logContent = screen.getByTestId("log-viewer-content");
+      expect(logContent).toHaveTextContent("[k0s] creating k0s configuration file");
+      expect(logContent).toHaveTextContent("[k0s] creating systemd unit files");
+    });
+
+    // Click to collapse logs
+    expect(toggleButton).toBeInTheDocument();
+    fireEvent.click(toggleButton);
+    await waitFor(() => {
+      expect(screen.queryByTestId("log-viewer-content")).not.toBeInTheDocument();
+    });
   });
 });

@@ -25,7 +25,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -665,7 +664,7 @@ func runRestoreRegistry(ctx context.Context, flags InstallCmdFlags, backupToRest
 		return fmt.Errorf("unable to read registry address from backup")
 	}
 
-	if err := airgap.AddInsecureRegistry(registryAddress); err != nil {
+	if err := hostutils.AddInsecureRegistry(registryAddress); err != nil {
 		return fmt.Errorf("failed to add insecure registry: %w", err)
 	}
 

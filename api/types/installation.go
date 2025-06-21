@@ -1,8 +1,8 @@
 package types
 
 type Installation struct {
-	Config *InstallationConfig `json:"config"`
-	Status *Status             `json:"status"`
+	Config InstallationConfig `json:"config"`
+	Status Status             `json:"status"`
 }
 
 // InstallationConfig represents the configuration for an installation
@@ -17,12 +17,4 @@ type InstallationConfig struct {
 	PodCIDR                 string `json:"podCidr"`
 	ServiceCIDR             string `json:"serviceCidr"`
 	GlobalCIDR              string `json:"globalCidr"`
-}
-
-// NewInstallation initializes a new installation state
-func NewInstallation() *Installation {
-	return &Installation{
-		Config: &InstallationConfig{},
-		Status: NewStatus(),
-	}
 }

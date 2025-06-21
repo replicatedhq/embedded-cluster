@@ -10,37 +10,75 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
-func (c *InstallController) GetInstallationConfig(ctx context.Context) (*types.InstallationConfig, error) {
+func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.InstallationConfig, error) {
 	config, err := c.installationManager.GetConfig()
 	if err != nil {
-		return nil, err
+		return types.InstallationConfig{}, err
 	}
 
-	if config == nil {
-		return nil, fmt.Errorf("installation config is nil")
+	if err := c.installationManager.SetConfigDefaults(&config); err != nil {
+		return types.InstallationConfig{}, fmt.Errorf("set defaults: %w", err)
 	}
 
-	if err := c.installationManager.SetConfigDefaults(config); err != nil {
-		return nil, fmt.Errorf("set defaults: %w", err)
-	}
-
-	if err := c.installationManager.ValidateConfig(config); err != nil {
-		return nil, fmt.Errorf("validate: %w", err)
+	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
+		return types.InstallationConfig{}, fmt.Errorf("validate: %w", err)
 	}
 
 	return config, nil
 }
 
-func (c *InstallController) ConfigureInstallation(ctx context.Context, config *types.InstallationConfig) error {
-	if err := c.installationManager.ValidateConfig(config); err != nil {
+func (c *InstallController) ConfigureInstallation(ctx context.Context, config types.InstallationConfig) error {
+	err := c.configureInstallation(ctx, config)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		// Background context is used to avoid canceling the operation if the context is canceled
+		ctx := context.Background()
+
+		lock, err := c.stateMachine.AcquireLock()
+		if err != nil {
+			c.logger.Error("failed to acquire lock", "error", err)
+			return
+		}
+		defer lock.Release()
+
+		err = c.installationManager.ConfigureHost(ctx, c.rc)
+
+		if err != nil {
+			c.logger.Error("failed to configure host", "error", err)
+		} else {
+			err = c.stateMachine.Transition(lock, StateHostConfigured)
+			if err != nil {
+				c.logger.Error("failed to transition states", "error", err)
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (c *InstallController) configureInstallation(ctx context.Context, config types.InstallationConfig) error {
+	lock, err := c.stateMachine.AcquireLock()
+	if err != nil {
+		return types.NewConflictError(err)
+	}
+	defer lock.Release()
+
+	if err := c.stateMachine.ValidateTransition(lock, StateInstallationConfigured); err != nil {
+		return types.NewConflictError(err)
+	}
+
+	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	if err := c.computeCIDRs(config); err != nil {
+	if err := c.computeCIDRs(&config); err != nil {
 		return fmt.Errorf("compute cidrs: %w", err)
 	}
 
-	if err := c.installationManager.SetConfig(*config); err != nil {
+	if err := c.installationManager.SetConfig(config); err != nil {
 		return fmt.Errorf("write: %w", err)
 	}
 
@@ -70,8 +108,9 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config *t
 		return fmt.Errorf("set env vars: %w", err)
 	}
 
-	if err := c.installationManager.ConfigureHost(ctx); err != nil {
-		return fmt.Errorf("configure: %w", err)
+	err = c.stateMachine.Transition(lock, StateInstallationConfigured)
+	if err != nil {
+		return fmt.Errorf("failed to transition states: %w", err)
 	}
 
 	return nil
@@ -90,6 +129,6 @@ func (c *InstallController) computeCIDRs(config *types.InstallationConfig) error
 	return nil
 }
 
-func (c *InstallController) GetInstallationStatus(ctx context.Context) (*types.Status, error) {
+func (c *InstallController) GetInstallationStatus(ctx context.Context) (types.Status, error) {
 	return c.installationManager.GetStatus()
 }
