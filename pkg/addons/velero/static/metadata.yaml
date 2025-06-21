@@ -5,26 +5,26 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 10.0.1
+version: 10.0.6
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero
 images:
     kubectl:
         repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
         tag:
-            amd64: 1.33.1-r2-amd64@sha256:d12713fa87e9bd0f8c276e909ec86cc385c45a41449fc4df288bfe53ee1404ce
-            arm64: 1.33.1-r2-arm64@sha256:829211426dd63d8bd54f6e93edfa360088bebc0dfe44bcdf4fc93d2a5736247a
+            amd64: 1.33.2-r0-amd64@sha256:459611f15921813ba782b279840c5edaf463c0b60ac12ccb1f68dc681122cb18
+            arm64: 1.33.2-r0-arm64@sha256:06395edd327d196a70de12cbc662d06a6123d5c1de31196c609e4363184dd545
     velero:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero
         tag:
-            amd64: 1.16.1-r0-amd64@sha256:a4dc13ebad06ed8a4e04eaea7f7aaf46028c8c868bcf095b220392d85a467d75
-            arm64: 1.16.1-r0-arm64@sha256:3f1752a3c6c8e97e1073aa093111e253c4987434f99fcf721ab92ef053536e16
+            amd64: 1.16.1-r1-amd64@sha256:d20b2eb0101af567a912b8f52ffb373ea65318fb4a4a2995d928ea7cbe9102d0
+            arm64: 1.16.1-r1-arm64@sha256:31eed35783139976b98c5816ab9824c8c17cde2e59635a77bf1c776560537caa
     velero-plugin-for-aws:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws
         tag:
-            amd64: 1.12.1-r0-amd64@sha256:d37d0abacfafe9c1b4c6c8ae6540549897e00c99cca9d5bcdb21057eef7ce635
-            arm64: 1.12.1-r0-arm64@sha256:ffa59576bb9eb876dc54eb7b7f0056018b9c96e691aacc443d3b15a0c5d9fa80
+            amd64: 1.12.1-r1-amd64@sha256:9b975c23007cb98e758ec6e892e426f8d45186262db8f25c0c488045feb8f741
+            arm64: 1.12.1-r1-arm64@sha256:57b87663b79201f7bab41860cdad52657a0775db9c21a48fb9fdb4d6f9f012f1
     velero-restore-helper:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper
         tag:
-            amd64: 1.16.1-r0-amd64@sha256:0f910e5162c9502e068735d38fa4b594fec9af598c2afc83bdec279a4438f7b9
-            arm64: 1.16.1-r0-arm64@sha256:7bdcdcc4a627cf44877fef4e9515fdcb02d9d6ec3855d1d136cec27a2bf4d08e
+            amd64: 1.16.1-r1-amd64@sha256:277379ba064c379ea05e0e60a5bfc3acf759ac1c96eab7a8c52c9e12df708479
+            arm64: 1.16.1-r1-arm64@sha256:6de35ebe1fc7d4bafefb2bdcd0cd6f82dbdf470adcdaded8dc80e999be58ff68
