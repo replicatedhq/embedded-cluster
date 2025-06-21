@@ -15,7 +15,7 @@
     "@tailwindcss/forms": "^0.5.10",
     "@tanstack/react-query": "^5.80.10",
     "lucide-react": "^0.519.0",
-    "react": "^18.3.1",
+    "react": "^19.1.0",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.22.3"
   },
@@ -26,7 +26,7 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.4.3",
     "@types/node": "^24.0.3",
-    "@types/react": "^18.3.5",
+    "@types/react": "^19.1.8",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.5.2",
     "autoprefixer": "^10.4.21",
