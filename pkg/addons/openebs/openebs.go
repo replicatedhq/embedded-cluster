@@ -18,7 +18,7 @@ type OpenEBS struct {
 }
 
 func (o *OpenEBS) Name() string {
-	return "Storage"
+	return "storage"
 }
 
 func (o *OpenEBS) Version() string {

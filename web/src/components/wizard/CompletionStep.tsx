@@ -6,7 +6,7 @@ import { useBranding } from "../../contexts/BrandingContext";
 import { CheckCircle, ExternalLink } from "lucide-react";
 
 const CompletionStep: React.FC = () => {
-  const { config } = useConfig();
+  const { config, prototypeSettings } = useConfig();
   const { title } = useBranding();
 
   return (
@@ -15,7 +15,7 @@ const CompletionStep: React.FC = () => {
         <div className="flex flex-col items-center text-center py-6">
           <div className="flex flex-col items-center justify-center mb-6">
             <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle className="w-10 h-10" style={{ color: "blue" }} />
+              <CheckCircle className="w-10 h-10" style={{ color: prototypeSettings.themeColor }} />
             </div>
             <p className="text-gray-600 mt-2">
               Visit the Admin Console to configure and install {title}

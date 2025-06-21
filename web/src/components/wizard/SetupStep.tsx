@@ -142,7 +142,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext }) => {
       <Card>
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{text.setupTitle}</h2>
-          <p className="text-gray-600 mt-1">Configure the installation settings.</p>
+          <p className="text-gray-600 mt-1">Set up the host for this installation.</p>
         </div>
 
         {isLoading ? (
