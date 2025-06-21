@@ -87,9 +87,11 @@ type ProxySpec struct {
 
 // NetworkSpec holds the network configuration.
 type NetworkSpec struct {
-	PodCIDR       string `json:"podCIDR,omitempty"`
-	ServiceCIDR   string `json:"serviceCIDR,omitempty"`
-	NodePortRange string `json:"nodePortRange,omitempty"`
+	NetworkInterface string `json:"networkInterface,omitempty"`
+	GlobalCIDR       string `json:"globalCIDR,omitempty"`
+	PodCIDR          string `json:"podCIDR,omitempty"`
+	ServiceCIDR      string `json:"serviceCIDR,omitempty"`
+	NodePortRange    string `json:"nodePortRange,omitempty"`
 }
 
 // AdminConsoleSpec holds the admin console configuration.
@@ -155,14 +157,12 @@ type InstallationSpec struct {
 	HighAvailability bool `json:"highAvailability,omitempty"`
 	// AirGap indicates if the installation is airgapped.
 	AirGap bool `json:"airGap,omitempty"`
-	// Proxy holds the proxy configuration.
-	Proxy *ProxySpec `json:"proxy,omitempty"`
-	// Network holds the network configuration.
-	Network *NetworkSpec `json:"network,omitempty"`
 	// EndUserK0sConfigOverrides holds the end user k0s config overrides
 	// used at installation time.
 	EndUserK0sConfigOverrides string `json:"endUserK0sConfigOverrides,omitempty"`
 
+	Deprecated_Proxy               *ProxySpec               `json:"proxy,omitempty"`
+	Deprecated_Network             *NetworkSpec             `json:"network,omitempty"`
 	Deprecated_AdminConsole        *AdminConsoleSpec        `json:"adminConsole,omitempty"`
 	Deprecated_LocalArtifactMirror *LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
 }
@@ -179,6 +179,37 @@ func (i *InstallationSpec) UnmarshalJSON(data []byte) error {
 		i.SourceType = InstallationSourceTypeCRD
 	}
 
+	if i.Deprecated_Proxy != nil {
+		if i.RuntimeConfig == nil {
+			i.RuntimeConfig = &RuntimeConfigSpec{}
+		}
+		if i.RuntimeConfig.Proxy == nil {
+			i.RuntimeConfig.Proxy = &ProxySpec{}
+		}
+		if i.Deprecated_Proxy.HTTPProxy != "" {
+			i.RuntimeConfig.Proxy.HTTPProxy = i.Deprecated_Proxy.HTTPProxy
+		}
+		if i.Deprecated_Proxy.HTTPSProxy != "" {
+			i.RuntimeConfig.Proxy.HTTPSProxy = i.Deprecated_Proxy.HTTPSProxy
+		}
+		if i.Deprecated_Proxy.NoProxy != "" {
+			i.RuntimeConfig.Proxy.NoProxy = i.Deprecated_Proxy.NoProxy
+		}
+	}
+	if i.Deprecated_Network != nil {
+		if i.RuntimeConfig == nil {
+			i.RuntimeConfig = &RuntimeConfigSpec{}
+		}
+		if i.Deprecated_Network.PodCIDR != "" {
+			i.RuntimeConfig.Network.PodCIDR = i.Deprecated_Network.PodCIDR
+		}
+		if i.Deprecated_Network.ServiceCIDR != "" {
+			i.RuntimeConfig.Network.ServiceCIDR = i.Deprecated_Network.ServiceCIDR
+		}
+		if i.Deprecated_Network.NodePortRange != "" {
+			i.RuntimeConfig.Network.NodePortRange = i.Deprecated_Network.NodePortRange
+		}
+	}
 	if i.Deprecated_AdminConsole != nil && i.Deprecated_AdminConsole.Port > 0 {
 		if i.RuntimeConfig == nil {
 			i.RuntimeConfig = &RuntimeConfigSpec{}

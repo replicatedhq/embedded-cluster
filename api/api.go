@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
@@ -47,7 +48,7 @@ type API struct {
 	rc                runtimeconfig.RuntimeConfig
 	releaseData       *release.ReleaseData
 	tlsConfig         types.TLSConfig
-	licenseFile       string
+	license           []byte
 	airgapBundle      string
 	configValues      string
 	endUserConfig     *ecv1beta1.Config
@@ -112,9 +113,9 @@ func WithTLSConfig(tlsConfig types.TLSConfig) APIOption {
 	}
 }
 
-func WithLicenseFile(licenseFile string) APIOption {
+func WithLicense(license []byte) APIOption {
 	return func(a *API) {
-		a.licenseFile = licenseFile
+		a.license = license
 	}
 }
 
@@ -187,7 +188,7 @@ func New(password string, opts ...APIOption) (*API, error) {
 			install.WithReleaseData(api.releaseData),
 			install.WithPassword(password),
 			install.WithTLSConfig(api.tlsConfig),
-			install.WithLicenseFile(api.licenseFile),
+			install.WithLicense(api.license),
 			install.WithAirgapBundle(api.airgapBundle),
 			install.WithConfigValues(api.configValues),
 			install.WithEndUserConfig(api.endUserConfig),
@@ -238,6 +239,16 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	consoleRouter.HandleFunc("/available-network-interfaces", a.getListAvailableNetworkInterfaces).Methods("GET")
 }
 
+func (a *API) bindJSON(w http.ResponseWriter, r *http.Request, v any) error {
+	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+		a.logError(r, err, fmt.Sprintf("failed to decode %s %s request", strings.ToLower(r.Method), r.URL.Path))
+		a.jsonError(w, r, types.NewBadRequestError(err))
+		return err
+	}
+
+	return nil
+}
+
 func (a *API) json(w http.ResponseWriter, r *http.Request, code int, payload any) {
 	response, err := json.Marshal(payload)
 	if err != nil {
@@ -248,7 +259,7 @@ func (a *API) json(w http.ResponseWriter, r *http.Request, code int, payload any
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	w.Write(response)
+	_, _ = w.Write(response)
 }
 
 func (a *API) jsonError(w http.ResponseWriter, r *http.Request, err error) {
@@ -266,7 +277,7 @@ func (a *API) jsonError(w http.ResponseWriter, r *http.Request, err error) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(apiErr.StatusCode)
-	w.Write(response)
+	_, _ = w.Write(response)
 }
 
 func (a *API) logError(r *http.Request, err error, args ...any) {

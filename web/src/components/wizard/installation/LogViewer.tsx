@@ -23,10 +23,11 @@ const LogViewer: React.FC<LogViewerProps> = ({
   }, [logs, isExpanded]);
 
   return (
-    <div className="mt-6">
+    <div className="mt-6" data-testid="log-viewer">
       <button
         onClick={onToggle}
         className="flex items-center gap-2 text-sm font-medium text-gray-900 hover:text-gray-700 transition-colors"
+        data-testid="log-viewer-toggle"
       >
         <h3>{title}</h3>
         {isExpanded ? (
@@ -36,7 +37,10 @@ const LogViewer: React.FC<LogViewerProps> = ({
         )}
       </button>
       {isExpanded && (
-        <div className="bg-gray-900 text-gray-200 rounded-md p-4 h-48 overflow-y-auto font-mono text-xs mt-2">
+        <div 
+          className="bg-gray-900 text-gray-200 rounded-md p-4 h-48 overflow-y-auto font-mono text-xs mt-2"
+          data-testid="log-viewer-content"
+        >
           {logs.map((log, index) => (
             <div key={index} className="whitespace-pre-wrap pb-1">
               {log}

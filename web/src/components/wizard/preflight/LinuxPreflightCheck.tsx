@@ -70,6 +70,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({ isUi: true }),
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

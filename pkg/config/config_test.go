@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -104,7 +105,7 @@ func TestRenderK0sConfig(t *testing.T) {
 	cfg := RenderK0sConfig(domains.DefaultProxyRegistryDomain)
 
 	assert.Equal(t, "calico", cfg.Spec.Network.Provider)
-	assert.Equal(t, DefaultServiceNodePortRange, cfg.Spec.API.ExtraArgs["service-node-port-range"])
+	assert.Equal(t, embeddedclusterv1beta1.DefaultNetworkNodePortRange, cfg.Spec.API.ExtraArgs["service-node-port-range"])
 	assert.Contains(t, cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
 	val, err := json.Marshal(&cfg.Spec.Telemetry.Enabled)
 	require.NoError(t, err)

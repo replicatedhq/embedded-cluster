@@ -61,6 +61,8 @@ components:
             $ref: '#/components/schemas/types.InfraComponent'
           type: array
           uniqueItems: false
+        logs:
+          type: string
         status:
           $ref: '#/components/schemas/types.Status'
       type: object
@@ -105,6 +107,11 @@ components:
           type: string
         serviceCidr:
           type: string
+      type: object
+    types.PostInstallRunHostPreflightsRequest:
+      properties:
+        isUi:
+          type: boolean
       type: object
     types.State:
       type: string
@@ -187,6 +194,13 @@ paths:
     post:
       description: Run install host preflight checks using installation config and
         client-provided data
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.PostInstallRunHostPreflightsRequest'
+        description: Post Install Run Host Preflights Request
+        required: true
       responses:
         "200":
           content:

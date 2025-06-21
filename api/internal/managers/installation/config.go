@@ -11,9 +11,10 @@ import (
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
-func (m *installationManager) GetConfig() (*types.InstallationConfig, error) {
+func (m *installationManager) GetConfig() (types.InstallationConfig, error) {
 	return m.installationStore.GetConfig()
 }
 
@@ -21,7 +22,7 @@ func (m *installationManager) SetConfig(config types.InstallationConfig) error {
 	return m.installationStore.SetConfig(config)
 }
 
-func (m *installationManager) ValidateConfig(config *types.InstallationConfig) error {
+func (m *installationManager) ValidateConfig(config types.InstallationConfig, managerPort int) error {
 	var ve *types.APIError
 
 	if err := m.validateGlobalCIDR(config); err != nil {
@@ -40,11 +41,11 @@ func (m *installationManager) ValidateConfig(config *types.InstallationConfig) e
 		ve = types.AppendFieldError(ve, "networkInterface", err)
 	}
 
-	if err := m.validateAdminConsolePort(config); err != nil {
+	if err := m.validateAdminConsolePort(config, managerPort); err != nil {
 		ve = types.AppendFieldError(ve, "adminConsolePort", err)
 	}
 
-	if err := m.validateLocalArtifactMirrorPort(config); err != nil {
+	if err := m.validateLocalArtifactMirrorPort(config, managerPort); err != nil {
 		ve = types.AppendFieldError(ve, "localArtifactMirrorPort", err)
 	}
 
@@ -55,7 +56,7 @@ func (m *installationManager) ValidateConfig(config *types.InstallationConfig) e
 	return ve.ErrorOrNil()
 }
 
-func (m *installationManager) validateGlobalCIDR(config *types.InstallationConfig) error {
+func (m *installationManager) validateGlobalCIDR(config types.InstallationConfig) error {
 	if config.GlobalCIDR != "" {
 		if err := netutils.ValidateCIDR(config.GlobalCIDR, 16, true); err != nil {
 			return err
@@ -68,7 +69,7 @@ func (m *installationManager) validateGlobalCIDR(config *types.InstallationConfi
 	return nil
 }
 
-func (m *installationManager) validatePodCIDR(config *types.InstallationConfig) error {
+func (m *installationManager) validatePodCIDR(config types.InstallationConfig) error {
 	if config.GlobalCIDR != "" {
 		return nil
 	}
@@ -78,7 +79,7 @@ func (m *installationManager) validatePodCIDR(config *types.InstallationConfig) 
 	return nil
 }
 
-func (m *installationManager) validateServiceCIDR(config *types.InstallationConfig) error {
+func (m *installationManager) validateServiceCIDR(config types.InstallationConfig) error {
 	if config.GlobalCIDR != "" {
 		return nil
 	}
@@ -88,7 +89,7 @@ func (m *installationManager) validateServiceCIDR(config *types.InstallationConf
 	return nil
 }
 
-func (m *installationManager) validateNetworkInterface(config *types.InstallationConfig) error {
+func (m *installationManager) validateNetworkInterface(config types.InstallationConfig) error {
 	if config.NetworkInterface == "" {
 		return errors.New("networkInterface is required")
 	}
@@ -97,7 +98,7 @@ func (m *installationManager) validateNetworkInterface(config *types.Installatio
 	return nil
 }
 
-func (m *installationManager) validateAdminConsolePort(config *types.InstallationConfig) error {
+func (m *installationManager) validateAdminConsolePort(config types.InstallationConfig, managerPort int) error {
 	if config.AdminConsolePort == 0 {
 		return errors.New("adminConsolePort is required")
 	}
@@ -111,14 +112,14 @@ func (m *installationManager) validateAdminConsolePort(config *types.Installatio
 		return errors.New("adminConsolePort and localArtifactMirrorPort cannot be equal")
 	}
 
-	if config.AdminConsolePort == m.rc.ManagerPort() {
+	if config.AdminConsolePort == managerPort {
 		return errors.New("adminConsolePort cannot be the same as the manager port")
 	}
 
 	return nil
 }
 
-func (m *installationManager) validateLocalArtifactMirrorPort(config *types.InstallationConfig) error {
+func (m *installationManager) validateLocalArtifactMirrorPort(config types.InstallationConfig, managerPort int) error {
 	if config.LocalArtifactMirrorPort == 0 {
 		return errors.New("localArtifactMirrorPort is required")
 	}
@@ -132,14 +133,14 @@ func (m *installationManager) validateLocalArtifactMirrorPort(config *types.Inst
 		return errors.New("adminConsolePort and localArtifactMirrorPort cannot be equal")
 	}
 
-	if config.LocalArtifactMirrorPort == m.rc.ManagerPort() {
+	if config.LocalArtifactMirrorPort == managerPort {
 		return errors.New("localArtifactMirrorPort cannot be the same as the manager port")
 	}
 
 	return nil
 }
 
-func (m *installationManager) validateDataDirectory(config *types.InstallationConfig) error {
+func (m *installationManager) validateDataDirectory(config types.InstallationConfig) error {
 	if config.DataDirectory == "" {
 		return errors.New("dataDirectory is required")
 	}
@@ -202,28 +203,11 @@ func (m *installationManager) setCIDRDefaults(config *types.InstallationConfig) 
 	return nil
 }
 
-func (m *installationManager) ConfigureHost(ctx context.Context, config *types.InstallationConfig) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	running, err := m.isRunning()
-	if err != nil {
-		return fmt.Errorf("check if installation is running: %w", err)
-	}
-	if running {
-		return fmt.Errorf("installation configuration is already running")
-	}
-
+func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) (finalErr error) {
 	if err := m.setRunningStatus("Configuring installation"); err != nil {
 		return fmt.Errorf("set running status: %w", err)
 	}
 
-	go m.configureHost(context.Background(), config)
-
-	return nil
-}
-
-func (m *installationManager) configureHost(ctx context.Context, config *types.InstallationConfig) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
@@ -240,13 +224,11 @@ func (m *installationManager) configureHost(ctx context.Context, config *types.I
 	}()
 
 	opts := hostutils.InitForInstallOptions{
-		LicenseFile:  m.licenseFile,
+		License:      m.license,
 		AirgapBundle: m.airgapBundle,
-		PodCIDR:      config.PodCIDR,
-		ServiceCIDR:  config.ServiceCIDR,
 	}
-	if err := m.hostUtils.ConfigureHost(ctx, m.rc, opts); err != nil {
-		return fmt.Errorf("configure installation: %w", err)
+	if err := m.hostUtils.ConfigureHost(ctx, rc, opts); err != nil {
+		return fmt.Errorf("configure host: %w", err)
 	}
 
 	return nil

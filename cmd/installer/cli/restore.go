@@ -25,7 +25,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -101,6 +100,8 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			if err := preRunInstall(cmd, &flags, rc); err != nil {
 				return err
 			}
+
+			_ = rc.SetEnv()
 
 			return nil
 		},
@@ -182,10 +183,13 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		)
 	} else {
 		rc.Set(rcSpec)
+
+		if err := rc.WriteToDisk(); err != nil {
+			return fmt.Errorf("unable to write runtime config to disk: %w", err)
+		}
 	}
 
-	os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
-	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
+	_ = rc.SetEnv()
 
 	switch state {
 	case ecRestoreStateNew:
@@ -371,8 +375,6 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	logrus.Debugf("configuring host")
 	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
 		AirgapBundle: flags.airgapBundle,
-		PodCIDR:      flags.cidrCfg.PodCIDR,
-		ServiceCIDR:  flags.cidrCfg.ServiceCIDR,
 	}); err != nil {
 		return fmt.Errorf("configure host: %w", err)
 	}
@@ -478,8 +480,6 @@ func installAddonsForRestore(ctx context.Context, kcli client.Client, mcli metad
 
 	if err := addOns.Install(ctx, addons.InstallOptions{
 		IsAirgap:           flags.airgapBundle != "",
-		Proxy:              flags.proxy,
-		ServiceCIDR:        flags.cidrCfg.ServiceCIDR,
 		IsRestore:          true,
 		EmbeddedConfigSpec: embCfgSpec,
 		EndUserConfigSpec:  nil, // TODO: support for end user config overrides
@@ -621,7 +621,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		addons.WithRuntimeConfig(rc),
 	)
 
-	err = addOns.EnableAdminConsoleHA(ctx, flags.isAirgap, flags.cidrCfg.ServiceCIDR, flags.proxy, in.Spec.Config, in.Spec.LicenseInfo)
+	err = addOns.EnableAdminConsoleHA(ctx, flags.isAirgap, in.Spec.Config, in.Spec.LicenseInfo)
 	if err != nil {
 		return err
 	}
@@ -664,7 +664,7 @@ func runRestoreRegistry(ctx context.Context, flags InstallCmdFlags, backupToRest
 		return fmt.Errorf("unable to read registry address from backup")
 	}
 
-	if err := airgap.AddInsecureRegistry(registryAddress); err != nil {
+	if err := hostutils.AddInsecureRegistry(registryAddress); err != nil {
 		return fmt.Errorf("failed to add insecure registry: %w", err)
 	}
 

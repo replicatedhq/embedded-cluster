@@ -3,6 +3,7 @@ package preflights
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -86,7 +87,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "no-subnet-available",
-								Message: "10.0.0.0/24 is not available. Use --pod-cidr to specify an available CIDR block.",
+								Message: "The network range 10.0.0.0/24 is not available. Use --pod-cidr to specify an available CIDR block.",
 							},
 						},
 						{
@@ -161,7 +162,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "no-subnet-available",
-								Message: "10.0.0.0/24 is not available. Use --service-cidr to specify an available CIDR block.",
+								Message: "The network range 10.0.0.0/24 is not available. Use --service-cidr to specify an available CIDR block.",
 							},
 						},
 						{
@@ -236,7 +237,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "no-subnet-available",
-								Message: "10.0.0.0/24 is not available. Use --cidr to specify a CIDR block of available private IP addresses (/16 or larger).",
+								Message: "The network range 10.0.0.0/24 is not available. Use --cidr to specify a CIDR block of available private IP addresses (/16 or larger).",
 							},
 						},
 						{
@@ -333,7 +334,9 @@ func TestTemplateWithCIDRData(t *testing.T) {
 				req.NotNil(actual)
 				req.Equal(analyzer.Exclude, actual.Exclude)
 				for _, out := range analyzer.Outcomes {
-					req.Contains(actual.Outcomes, out)
+					got, _ := json.MarshalIndent(actual.Outcomes, "", "  ")
+					want, _ := json.MarshalIndent(out, "", "  ")
+					req.Contains(actual.Outcomes, out, "outcome %s not found:\ngot: %s\nwant: %s", out, string(got), string(want))
 				}
 			}
 		})

@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"net"
+
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
@@ -8,6 +10,7 @@ import (
 type NetUtils interface {
 	ListValidNetworkInterfaces() ([]string, error)
 	DetermineBestNetworkInterface() (string, error)
+	FirstValidIPNet(networkInterface string) (*net.IPNet, error)
 	FirstValidAddress(networkInterface string) (string, error)
 }
 
@@ -35,6 +38,10 @@ func (n *netUtils) ListValidNetworkInterfaces() ([]string, error) {
 
 func (n *netUtils) DetermineBestNetworkInterface() (string, error) {
 	return newconfig.DetermineBestNetworkInterface()
+}
+
+func (n *netUtils) FirstValidIPNet(networkInterface string) (*net.IPNet, error) {
+	return netutils.FirstValidIPNet(networkInterface)
 }
 
 func (n *netUtils) FirstValidAddress(networkInterface string) (string, error) {

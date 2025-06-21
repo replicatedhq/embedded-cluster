@@ -2,8 +2,8 @@ package installation
 
 import (
 	"context"
-	"sync"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/store/installation"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -16,35 +16,26 @@ var _ InstallationManager = &installationManager{}
 
 // InstallationManager provides methods for validating and setting defaults for installation configuration
 type InstallationManager interface {
-	GetConfig() (*types.InstallationConfig, error)
+	GetConfig() (types.InstallationConfig, error)
 	SetConfig(config types.InstallationConfig) error
-	GetStatus() (*types.Status, error)
+	GetStatus() (types.Status, error)
 	SetStatus(status types.Status) error
-	ValidateConfig(config *types.InstallationConfig) error
+	ValidateConfig(config types.InstallationConfig, managerPort int) error
 	SetConfigDefaults(config *types.InstallationConfig) error
-	ConfigureHost(ctx context.Context, config *types.InstallationConfig) error
+	ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
 }
 
 // installationManager is an implementation of the InstallationManager interface
 type installationManager struct {
-	installation      *types.Installation
-	installationStore InstallationStore
-	rc                runtimeconfig.RuntimeConfig
-	licenseFile       string
+	installationStore installation.Store
+	license           []byte
 	airgapBundle      string
 	netUtils          utils.NetUtils
 	hostUtils         hostutils.HostUtilsInterface
 	logger            logrus.FieldLogger
-	mu                sync.RWMutex
 }
 
 type InstallationManagerOption func(*installationManager)
-
-func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) InstallationManagerOption {
-	return func(c *installationManager) {
-		c.rc = rc
-	}
-}
 
 func WithLogger(logger logrus.FieldLogger) InstallationManagerOption {
 	return func(c *installationManager) {
@@ -52,21 +43,15 @@ func WithLogger(logger logrus.FieldLogger) InstallationManagerOption {
 	}
 }
 
-func WithInstallation(installation *types.Installation) InstallationManagerOption {
-	return func(c *installationManager) {
-		c.installation = installation
-	}
-}
-
-func WithInstallationStore(installationStore InstallationStore) InstallationManagerOption {
+func WithInstallationStore(installationStore installation.Store) InstallationManagerOption {
 	return func(c *installationManager) {
 		c.installationStore = installationStore
 	}
 }
 
-func WithLicenseFile(licenseFile string) InstallationManagerOption {
+func WithLicense(license []byte) InstallationManagerOption {
 	return func(c *installationManager) {
-		c.licenseFile = licenseFile
+		c.license = license
 	}
 }
 
@@ -96,20 +81,12 @@ func NewInstallationManager(opts ...InstallationManagerOption) *installationMana
 		opt(manager)
 	}
 
-	if manager.rc == nil {
-		manager.rc = runtimeconfig.New(nil)
-	}
-
 	if manager.logger == nil {
 		manager.logger = logger.NewDiscardLogger()
 	}
 
-	if manager.installation == nil {
-		manager.installation = types.NewInstallation()
-	}
-
 	if manager.installationStore == nil {
-		manager.installationStore = NewMemoryStore(manager.installation)
+		manager.installationStore = installation.NewMemoryStore()
 	}
 
 	if manager.netUtils == nil {

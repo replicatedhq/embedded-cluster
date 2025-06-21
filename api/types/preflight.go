@@ -1,10 +1,14 @@
 package types
 
+type PostInstallRunHostPreflightsRequest struct {
+	IsUI bool `json:"isUi"`
+}
+
 // HostPreflights represents the host preflight checks state
 type HostPreflights struct {
 	Titles []string              `json:"titles"`
 	Output *HostPreflightsOutput `json:"output"`
-	Status *Status               `json:"status"`
+	Status Status                `json:"status"`
 }
 
 type HostPreflightsOutput struct {
@@ -17,12 +21,6 @@ type HostPreflightsOutput struct {
 type HostPreflightsRecord struct {
 	Title   string `json:"title"`
 	Message string `json:"message"`
-}
-
-func NewHostPreflights() *HostPreflights {
-	return &HostPreflights{
-		Status: NewStatus(),
-	}
 }
 
 // HasFail returns true if any of the preflight checks failed.

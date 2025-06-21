@@ -6,15 +6,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 type InitForInstallOptions struct {
-	LicenseFile  string
+	License      []byte
 	AirgapBundle string
-	PodCIDR      string
-	ServiceCIDR  string
 }
 
 func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
@@ -35,11 +32,10 @@ func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeC
 		return fmt.Errorf("materialize files: %w", err)
 	}
 
-	if opts.LicenseFile != "" {
-		h.logger.Debugf("copy license file to %s", rc.EmbeddedClusterHomeDirectory())
-		if err := helpers.CopyFile(opts.LicenseFile, filepath.Join(rc.EmbeddedClusterHomeDirectory(), "license.yaml"), 0400); err != nil {
-			// We have decided not to report this error
-			h.logger.Warnf("unable to copy license file to %s: %v", rc.EmbeddedClusterHomeDirectory(), err)
+	if opts.License != nil {
+		h.logger.Debugf("write license file to %s", rc.EmbeddedClusterHomeDirectory())
+		if err := os.WriteFile(filepath.Join(rc.EmbeddedClusterHomeDirectory(), "license.yaml"), opts.License, 0400); err != nil {
+			h.logger.Warnf("unable to write license file to %s: %v", rc.EmbeddedClusterHomeDirectory(), err)
 		}
 	}
 
@@ -59,7 +55,7 @@ func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeC
 	}
 
 	h.logger.Debugf("configuring firewalld")
-	if err := h.ConfigureFirewalld(ctx, opts.PodCIDR, opts.ServiceCIDR); err != nil {
+	if err := h.ConfigureFirewalld(ctx, rc.PodCIDR(), rc.ServiceCIDR()); err != nil {
 		h.logger.Debugf("unable to configure firewalld: %v", err)
 	}
 
