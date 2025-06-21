@@ -68,3 +68,9 @@ func (m *MockHostUtils) WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.Runt
 	args := m.Called(rc)
 	return args.Error(0)
 }
+
+// AddInsecureRegistry mocks the AddInsecureRegistry method
+func (m *MockHostUtils) AddInsecureRegistry(registry string) error {
+	args := m.Called(registry)
+	return args.Error(0)
+}

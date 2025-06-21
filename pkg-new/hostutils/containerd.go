@@ -1,4 +1,4 @@
-package airgap
+package hostutils
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ const registryConfigTemplate = `
 
 // AddInsecureRegistry adds a registry to the list of registries that
 // are allowed to be accessed over HTTP.
-func AddInsecureRegistry(registry string) error {
+func (h *HostUtils) AddInsecureRegistry(registry string) error {
 	parentDir := runtimeconfig.K0sContainerdConfigPath
 	contents := fmt.Sprintf(registryConfigTemplate, registry)
 

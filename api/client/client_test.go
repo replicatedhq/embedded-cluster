@@ -121,7 +121,6 @@ func TestGetInstallationConfig(t *testing.T) {
 	c := New(server.URL, WithToken("test-token"))
 	config, err := c.GetInstallationConfig()
 	assert.NoError(t, err)
-	assert.NotNil(t, config)
 	assert.Equal(t, "10.0.0.0/24", config.GlobalCIDR)
 	assert.Equal(t, 8080, config.AdminConsolePort)
 
@@ -138,7 +137,7 @@ func TestGetInstallationConfig(t *testing.T) {
 	c = New(errorServer.URL, WithToken("test-token"))
 	config, err = c.GetInstallationConfig()
 	assert.Error(t, err)
-	assert.Nil(t, config)
+	assert.Equal(t, types.InstallationConfig{}, config)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -177,9 +176,8 @@ func TestConfigureInstallation(t *testing.T) {
 		GlobalCIDR:              "20.0.0.0/24",
 		LocalArtifactMirrorPort: 9081,
 	}
-	status, err := c.ConfigureInstallation(&config)
+	status, err := c.ConfigureInstallation(config)
 	assert.NoError(t, err)
-	assert.NotNil(t, status)
 	assert.Equal(t, types.StateRunning, status.State)
 	assert.Equal(t, "Configuring installation", status.Description)
 
@@ -194,9 +192,9 @@ func TestConfigureInstallation(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	status, err = c.ConfigureInstallation(&config)
+	status, err = c.ConfigureInstallation(config)
 	assert.Error(t, err)
-	assert.Nil(t, status)
+	assert.Equal(t, types.Status{}, status)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -216,7 +214,7 @@ func TestSetupInfra(t *testing.T) {
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(types.Infra{
-			Status: &types.Status{
+			Status: types.Status{
 				State:       types.StateRunning,
 				Description: "Installing infra",
 			},
@@ -228,8 +226,6 @@ func TestSetupInfra(t *testing.T) {
 	c := New(server.URL, WithToken("test-token"))
 	infra, err := c.SetupInfra()
 	assert.NoError(t, err)
-	assert.NotNil(t, infra)
-	assert.NotNil(t, infra.Status)
 	assert.Equal(t, types.StateRunning, infra.Status.State)
 	assert.Equal(t, "Installing infra", infra.Status.Description)
 
@@ -246,7 +242,7 @@ func TestSetupInfra(t *testing.T) {
 	c = New(errorServer.URL, WithToken("test-token"))
 	infra, err = c.SetupInfra()
 	assert.Error(t, err)
-	assert.Nil(t, infra)
+	assert.Equal(t, types.Infra{}, infra)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -266,7 +262,7 @@ func TestGetInfraStatus(t *testing.T) {
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(types.Infra{
-			Status: &types.Status{
+			Status: types.Status{
 				State:       types.StateSucceeded,
 				Description: "Installation successful",
 			},
@@ -278,7 +274,6 @@ func TestGetInfraStatus(t *testing.T) {
 	c := New(server.URL, WithToken("test-token"))
 	infra, err := c.GetInfraStatus()
 	assert.NoError(t, err)
-	assert.NotNil(t, infra)
 	assert.Equal(t, types.StateSucceeded, infra.Status.State)
 	assert.Equal(t, "Installation successful", infra.Status.Description)
 
@@ -295,7 +290,7 @@ func TestGetInfraStatus(t *testing.T) {
 	c = New(errorServer.URL, WithToken("test-token"))
 	infra, err = c.GetInfraStatus()
 	assert.Error(t, err)
-	assert.Nil(t, infra)
+	assert.Equal(t, types.Infra{}, infra)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -325,13 +320,12 @@ func TestSetInstallStatus(t *testing.T) {
 
 	// Test successful set
 	c := New(server.URL, WithToken("test-token"))
-	status := &types.Status{
+	status := types.Status{
 		State:       types.StateSucceeded,
 		Description: "Installation successful",
 	}
 	newStatus, err := c.SetInstallStatus(status)
 	assert.NoError(t, err)
-	assert.NotNil(t, newStatus)
 	assert.Equal(t, status, newStatus)
 
 	// Test error response
@@ -347,7 +341,7 @@ func TestSetInstallStatus(t *testing.T) {
 	c = New(errorServer.URL, WithToken("test-token"))
 	newStatus, err = c.SetInstallStatus(status)
 	assert.Error(t, err)
-	assert.Nil(t, newStatus)
+	assert.Equal(t, types.Status{}, newStatus)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")

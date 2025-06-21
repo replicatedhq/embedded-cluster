@@ -4,6 +4,27 @@ import Select from "../../common/Select";
 import { useBranding } from "../../../contexts/BrandingContext";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
+/**
+ * Maps internal field names to user-friendly display names.
+ * Used for:
+ * - Input IDs: <Input id="adminConsolePort" />
+ * - Labels: <Input label={fieldNames.adminConsolePort} />
+ * - Error formatting: formatErrorMessage("adminConsolePort invalid") -> "Admin Console Port invalid"
+ */
+const fieldNames = {
+   adminConsolePort: "Admin Console Port",
+   dataDirectory: "Data Directory",
+   localArtifactMirrorPort: "Local Artifact Mirror Port",
+   httpProxy: "HTTP Proxy",
+   httpsProxy: "HTTPS Proxy",
+   noProxy: "Proxy Bypass List",
+   networkInterface: "Network Interface",
+   podCidr: "Pod CIDR",
+   serviceCidr: "Service CIDR",
+   globalCidr: "Reserved Network Range (CIDR)",
+   cidr: "CIDR",
+}
+
 interface LinuxSetupProps {
   config: {
     dataDirectory?: string;
@@ -43,7 +64,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
 
   const getFieldError = (fieldName: string) => {
     const fieldError = fieldErrors.find((err) => err.field === fieldName);
-    return fieldError?.message;
+    return fieldError ? formatErrorMessage(fieldError.message) : undefined;
   };
 
   return (
@@ -52,7 +73,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
         <h2 className="text-lg font-medium text-gray-900">System Configuration</h2>
         <Input
           id="dataDirectory"
-          label="Data Directory"
+          label={fieldNames.dataDirectory}
           value={config.dataDirectory || ""}
           onChange={onInputChange}
           placeholder="/var/lib/embedded-cluster"
@@ -63,7 +84,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
 
         <Input
           id="adminConsolePort"
-          label="Admin Console Port"
+          label={fieldNames.adminConsolePort}
           value={config.adminConsolePort?.toString() || ""}
           onChange={onInputChange}
           placeholder="30000"
@@ -74,7 +95,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
 
         <Input
           id="localArtifactMirrorPort"
-          label="Local Artifact Mirror Port"
+          label={fieldNames.localArtifactMirrorPort}
           value={config.localArtifactMirrorPort?.toString() || ""}
           onChange={onInputChange}
           placeholder="50000"
@@ -89,7 +110,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
         <div className="space-y-4">
           <Input
             id="httpProxy"
-            label="HTTP Proxy"
+            label={fieldNames.httpProxy}
             value={config.httpProxy || ""}
             onChange={onInputChange}
             placeholder="http://proxy.example.com:3128"
@@ -99,7 +120,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
 
           <Input
             id="httpsProxy"
-            label="HTTPS Proxy"
+            label={fieldNames.httpsProxy}
             value={config.httpsProxy || ""}
             onChange={onInputChange}
             placeholder="https://proxy.example.com:3128"
@@ -109,7 +130,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
 
           <Input
             id="noProxy"
-            label="Proxy Bypass List"
+            label={fieldNames.noProxy}
             value={config.noProxy || ""}
             onChange={onInputChange}
             placeholder="localhost,127.0.0.1,.example.com"
@@ -133,7 +154,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
           <div className="space-y-6">
             <Select
               id="networkInterface"
-              label="Network Interface"
+              label={fieldNames.networkInterface}
               value={config.networkInterface || ""}
               onChange={onSelectChange}
               options={[
@@ -155,7 +176,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
 
             <Input
               id="globalCidr"
-              label="Reserved Network Range (CIDR)"
+              label={fieldNames.globalCidr}
               value={config.globalCidr || ""}
               onChange={onInputChange}
               placeholder="10.244.0.0/16"
@@ -169,5 +190,22 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({
     </div>
   );
 };
+
+/**
+ * Formats error messages by replacing technical field names with more user-friendly display names.
+ * Example: "adminConsolePort" becomes "Admin Console Port".
+ *
+ * @param message - The error message to format
+ * @returns The formatted error message with replaced field names
+ */
+export function formatErrorMessage(message: string) {
+   let finalMsg = message
+   for (const [field, fieldName] of Object.entries(fieldNames)) {
+      // Case-insensitive regex that matches whole words only
+      // Example: "podCidr", "PodCidr", "PODCIDR" all become "Pod CIDR"
+      finalMsg = finalMsg.replace(new RegExp(`\\b${field}\\b`, 'gi'), fieldName)
+   }
+   return finalMsg
+}
 
 export default LinuxSetup;

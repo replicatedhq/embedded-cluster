@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/store/installation"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -21,12 +21,12 @@ func TestValidateConfig(t *testing.T) {
 	tests := []struct {
 		name        string
 		rc          runtimeconfig.RuntimeConfig
-		config      *types.InstallationConfig
+		config      types.InstallationConfig
 		expectedErr bool
 	}{
 		{
 			name: "valid config with global CIDR",
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
 				AdminConsolePort:        8800,
@@ -37,7 +37,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 		{
 			name: "valid config with pod and service CIDRs",
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				PodCIDR:                 "10.0.0.0/17",
 				ServiceCIDR:             "10.0.128.0/17",
 				NetworkInterface:        "eth0",
@@ -49,7 +49,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 		{
 			name: "missing network interface",
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				GlobalCIDR:              "10.0.0.0/16",
 				AdminConsolePort:        8800,
 				LocalArtifactMirrorPort: 8888,
@@ -59,7 +59,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 		{
 			name: "missing global CIDR and pod/service CIDRs",
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				NetworkInterface:        "eth0",
 				AdminConsolePort:        8800,
 				LocalArtifactMirrorPort: 8888,
@@ -69,7 +69,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 		{
 			name: "missing pod CIDR when no global CIDR",
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				ServiceCIDR:             "10.0.128.0/17",
 				NetworkInterface:        "eth0",
 				AdminConsolePort:        8800,
@@ -80,7 +80,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 		{
 			name: "missing service CIDR when no global CIDR",
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				PodCIDR:                 "10.0.0.0/17",
 				NetworkInterface:        "eth0",
 				AdminConsolePort:        8800,
@@ -91,7 +91,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 		{
 			name: "invalid global CIDR",
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				GlobalCIDR:              "10.0.0.0/24", // Not a /16
 				NetworkInterface:        "eth0",
 				AdminConsolePort:        8800,
@@ -102,7 +102,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 		{
 			name: "missing admin console port",
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
 				LocalArtifactMirrorPort: 8888,
@@ -112,7 +112,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 		{
 			name: "missing local artifact mirror port",
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				GlobalCIDR:       "10.0.0.0/16",
 				NetworkInterface: "eth0",
 				AdminConsolePort: 8800,
@@ -122,7 +122,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 		{
 			name: "missing data directory",
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
 				AdminConsolePort:        8800,
@@ -132,7 +132,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 		{
 			name: "same ports for admin console and artifact mirror",
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
 				AdminConsolePort:        8800,
@@ -148,7 +148,7 @@ func TestValidateConfig(t *testing.T) {
 				rc.SetManagerPort(8800)
 				return rc
 			}(),
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
 				AdminConsolePort:        8800,
@@ -164,7 +164,7 @@ func TestValidateConfig(t *testing.T) {
 				rc.SetManagerPort(8888)
 				return rc
 			}(),
-			config: &types.InstallationConfig{
+			config: types.InstallationConfig{
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
 				AdminConsolePort:        8800,
@@ -185,9 +185,9 @@ func TestValidateConfig(t *testing.T) {
 			}
 			rc.SetDataDir(t.TempDir())
 
-			manager := NewInstallationManager(WithRuntimeConfig(rc))
+			manager := NewInstallationManager()
 
-			err := manager.ValidateConfig(tt.config)
+			err := manager.ValidateConfig(tt.config, rc.ManagerPort())
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -205,13 +205,13 @@ func TestSetConfigDefaults(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		inputConfig    *types.InstallationConfig
-		expectedConfig *types.InstallationConfig
+		inputConfig    types.InstallationConfig
+		expectedConfig types.InstallationConfig
 	}{
 		{
 			name:        "empty config",
-			inputConfig: &types.InstallationConfig{},
-			expectedConfig: &types.InstallationConfig{
+			inputConfig: types.InstallationConfig{},
+			expectedConfig: types.InstallationConfig{
 				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 				DataDirectory:           ecv1beta1.DefaultDataDir,
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
@@ -221,11 +221,11 @@ func TestSetConfigDefaults(t *testing.T) {
 		},
 		{
 			name: "partial config",
-			inputConfig: &types.InstallationConfig{
+			inputConfig: types.InstallationConfig{
 				AdminConsolePort: 9000,
 				DataDirectory:    "/custom/dir",
 			},
-			expectedConfig: &types.InstallationConfig{
+			expectedConfig: types.InstallationConfig{
 				AdminConsolePort:        9000,
 				DataDirectory:           "/custom/dir",
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
@@ -235,11 +235,11 @@ func TestSetConfigDefaults(t *testing.T) {
 		},
 		{
 			name: "config with pod and service CIDRs",
-			inputConfig: &types.InstallationConfig{
+			inputConfig: types.InstallationConfig{
 				PodCIDR:     "10.1.0.0/17",
 				ServiceCIDR: "10.1.128.0/17",
 			},
-			expectedConfig: &types.InstallationConfig{
+			expectedConfig: types.InstallationConfig{
 				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 				DataDirectory:           ecv1beta1.DefaultDataDir,
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
@@ -250,10 +250,10 @@ func TestSetConfigDefaults(t *testing.T) {
 		},
 		{
 			name: "config with global CIDR",
-			inputConfig: &types.InstallationConfig{
+			inputConfig: types.InstallationConfig{
 				GlobalCIDR: "192.168.0.0/16",
 			},
-			expectedConfig: &types.InstallationConfig{
+			expectedConfig: types.InstallationConfig{
 				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 				DataDirectory:           ecv1beta1.DefaultDataDir,
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
@@ -263,11 +263,11 @@ func TestSetConfigDefaults(t *testing.T) {
 		},
 		{
 			name: "config with proxy settings",
-			inputConfig: &types.InstallationConfig{
+			inputConfig: types.InstallationConfig{
 				HTTPProxy:  "http://proxy.example.com:3128",
 				HTTPSProxy: "https://proxy.example.com:3128",
 			},
-			expectedConfig: &types.InstallationConfig{
+			expectedConfig: types.InstallationConfig{
 				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 				DataDirectory:           ecv1beta1.DefaultDataDir,
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
@@ -283,10 +283,8 @@ func TestSetConfigDefaults(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			manager := NewInstallationManager(WithNetUtils(mockNetUtils))
 
-			err := manager.SetConfigDefaults(tt.inputConfig)
+			err := manager.SetConfigDefaults(&tt.inputConfig)
 			assert.NoError(t, err)
-
-			assert.NotNil(t, tt.inputConfig)
 			assert.Equal(t, tt.expectedConfig, tt.inputConfig)
 		})
 	}
@@ -298,8 +296,8 @@ func TestSetConfigDefaults(t *testing.T) {
 
 		manager := NewInstallationManager(WithNetUtils(failingMockNetUtils))
 
-		config := &types.InstallationConfig{}
-		err := manager.SetConfigDefaults(config)
+		config := types.InstallationConfig{}
+		err := manager.SetConfigDefaults(&config)
 		assert.NoError(t, err)
 
 		// Network interface should remain empty when detection fails
@@ -325,7 +323,6 @@ func TestConfigSetAndGet(t *testing.T) {
 	// Test reading it back
 	readConfig, err := manager.GetConfig()
 	assert.NoError(t, err)
-	assert.NotNil(t, readConfig)
 
 	// Verify the values match
 	assert.Equal(t, configToWrite.AdminConsolePort, readConfig.AdminConsolePort)
@@ -339,7 +336,7 @@ func TestConfigureHost(t *testing.T) {
 	tests := []struct {
 		name        string
 		rc          runtimeconfig.RuntimeConfig
-		setupMocks  func(*hostutils.MockHostUtils, *MockInstallationStore)
+		setupMocks  func(*hostutils.MockHostUtils, *installation.MockStore)
 		expectedErr bool
 	}{
 		{
@@ -354,9 +351,8 @@ func TestConfigureHost(t *testing.T) {
 				})
 				return rc
 			}(),
-			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
+			setupMocks: func(hum *hostutils.MockHostUtils, im *installation.MockStore) {
 				mock.InOrder(
-					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
 					hum.On("ConfigureHost", mock.Anything,
 						mock.MatchedBy(func(rc runtimeconfig.RuntimeConfig) bool {
@@ -365,26 +361,13 @@ func TestConfigureHost(t *testing.T) {
 								rc.ServiceCIDR() == "10.1.0.0/16"
 						}),
 						hostutils.InitForInstallOptions{
-							LicenseFile:  "license.yaml",
+							License:      []byte("metadata:\n  name: test-license"),
 							AirgapBundle: "bundle.tar",
 						}).Return(nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateSucceeded })).Return(nil),
 				)
 			},
 			expectedErr: false,
-		},
-		{
-			name: "already running",
-			rc: func() runtimeconfig.RuntimeConfig {
-				rc := runtimeconfig.New(&ecv1beta1.RuntimeConfigSpec{
-					DataDir: "/var/lib/embedded-cluster",
-				})
-				return rc
-			}(),
-			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
-				im.On("GetStatus").Return(&types.Status{State: types.StateRunning}, nil)
-			},
-			expectedErr: true,
 		},
 		{
 			name: "configure installation fails",
@@ -394,23 +377,22 @@ func TestConfigureHost(t *testing.T) {
 				})
 				return rc
 			}(),
-			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
+			setupMocks: func(hum *hostutils.MockHostUtils, im *installation.MockStore) {
 				mock.InOrder(
-					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
 					hum.On("ConfigureHost", mock.Anything,
 						mock.MatchedBy(func(rc runtimeconfig.RuntimeConfig) bool {
 							return rc.EmbeddedClusterHomeDirectory() == "/var/lib/embedded-cluster"
 						}),
 						hostutils.InitForInstallOptions{
-							LicenseFile:  "license.yaml",
+							License:      []byte("metadata:\n  name: test-license"),
 							AirgapBundle: "bundle.tar",
 						},
 					).Return(errors.New("configuration failed")),
 					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateFailed })).Return(nil),
 				)
 			},
-			expectedErr: false,
+			expectedErr: true,
 		},
 		{
 			name: "set running status fails",
@@ -420,9 +402,8 @@ func TestConfigureHost(t *testing.T) {
 				})
 				return rc
 			}(),
-			setupMocks: func(hum *hostutils.MockHostUtils, im *MockInstallationStore) {
+			setupMocks: func(hum *hostutils.MockHostUtils, im *installation.MockStore) {
 				mock.InOrder(
-					im.On("GetStatus").Return(&types.Status{State: types.StatePending}, nil),
 					im.On("SetStatus", mock.Anything).Return(errors.New("failed to set status")),
 				)
 			},
@@ -436,31 +417,27 @@ func TestConfigureHost(t *testing.T) {
 
 			// Create mocks
 			mockHostUtils := &hostutils.MockHostUtils{}
-			mockStore := &MockInstallationStore{}
+			mockStore := &installation.MockStore{}
 
 			// Setup mocks
 			tt.setupMocks(mockHostUtils, mockStore)
 
 			// Create manager with mocks
 			manager := NewInstallationManager(
-				WithRuntimeConfig(rc),
 				WithHostUtils(mockHostUtils),
 				WithInstallationStore(mockStore),
-				WithLicenseFile("license.yaml"),
+				WithLicense([]byte("metadata:\n  name: test-license")),
 				WithAirgapBundle("bundle.tar"),
 			)
 
 			// Run the test
-			err := manager.ConfigureHost(context.Background())
+			err := manager.ConfigureHost(context.Background(), rc)
 
 			// Assertions
 			if tt.expectedErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-
-				// Wait a bit for the goroutine to complete
-				time.Sleep(200 * time.Millisecond)
 			}
 
 			// Verify all mock expectations were met

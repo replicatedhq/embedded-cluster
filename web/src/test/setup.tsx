@@ -19,6 +19,11 @@ const mockLocalStorage = {
 };
 Object.defineProperty(window, "localStorage", { value: mockLocalStorage });
 
+// Mock scrollIntoView for all tests (JSDOM does not implement it)
+if (!window.HTMLElement.prototype.scrollIntoView) {
+  window.HTMLElement.prototype.scrollIntoView = vi.fn();
+}
+
 interface PrototypeSettings {
   skipValidation: boolean;
   failPreflights: boolean;
