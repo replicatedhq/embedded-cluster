@@ -246,6 +246,7 @@ func TestConfigureInstallation(t *testing.T) {
 			assert.Eventually(t, func() bool {
 				return sm.CurrentState() == tt.expectedState
 			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after configuration")
 
 			mockManager.AssertExpectations(t)
 		})
@@ -413,6 +414,7 @@ func TestRunHostPreflights(t *testing.T) {
 			assert.Eventually(t, func() bool {
 				return sm.CurrentState() == tt.expectedState
 			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after running preflights")
 
 			mockPreflightManager.AssertExpectations(t)
 		})
@@ -746,6 +748,7 @@ func TestSetupInfra(t *testing.T) {
 			assert.Eventually(t, func() bool {
 				return sm.CurrentState() == tt.expectedState
 			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after running infra setup")
 
 			mockPreflightManager.AssertExpectations(t)
 			mockInstallationManager.AssertExpectations(t)
