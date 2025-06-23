@@ -612,10 +612,10 @@ func Test_verifyProxyConfig(t *testing.T) {
 
 func Test_preRunInstall_SkipHostPreflightsEnvVar(t *testing.T) {
 	tests := []struct {
-		name                    string
-		envVarValue             string
-		flagValue               *bool // nil means not set, true/false means explicitly set
-		expectedSkipPreflights  bool
+		name                   string
+		envVarValue            string
+		flagValue              *bool // nil means not set, true/false means explicitly set
+		expectedSkipPreflights bool
 	}{
 		{
 			name:                   "env var set, no flag",
@@ -681,11 +681,11 @@ func Test_preRunInstall_SkipHostPreflightsEnvVar(t *testing.T) {
 			// Call preRunInstall (this would normally require root, but we're just testing the flag logic)
 			// We expect this to fail due to non-root execution, but we can check the flag value before it fails
 			err := preRunInstall(cmd, flags, rc)
-			
+
 			// The function will fail due to non-root check, but we can verify the flag was set correctly
 			// by checking the flag value before the root check fails
 			assert.Equal(t, tt.expectedSkipPreflights, flags.skipHostPreflights)
-			
+
 			// We expect an error due to non-root execution
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "install command must be run as root")
