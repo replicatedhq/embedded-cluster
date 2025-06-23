@@ -16,8 +16,8 @@ import (
 
 type Handlers struct {
 	Auth    *authhandler.Handler
-	Console *consolehandler.Handlers
-	Health  *healthhandler.Handlers
+	Console *consolehandler.Handler
+	Health  *healthhandler.Handler
 	Linux   *linuxhandler.Handler
 
 	authController         auth.Controller

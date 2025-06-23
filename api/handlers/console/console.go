@@ -11,27 +11,27 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Handlers struct {
+type Handler struct {
 	logger            logrus.FieldLogger
 	consoleController console.Controller
 }
 
-type Option func(*Handlers)
+type Option func(*Handler)
 
 func WithConsoleController(controller console.Controller) Option {
-	return func(h *Handlers) {
+	return func(h *Handler) {
 		h.consoleController = controller
 	}
 }
 
 func WithLogger(logger logrus.FieldLogger) Option {
-	return func(h *Handlers) {
+	return func(h *Handler) {
 		h.logger = logger
 	}
 }
 
-func New(opts ...Option) (*Handlers, error) {
-	h := &Handlers{}
+func New(opts ...Option) (*Handler, error) {
+	h := &Handler{}
 
 	for _, opt := range opts {
 		opt(h)
@@ -61,7 +61,7 @@ func New(opts ...Option) (*Handlers, error) {
 // @Produce     json
 // @Success     200 {object} types.GetListAvailableNetworkInterfacesResponse
 // @Router      /console/available-network-interfaces [get]
-func (h *Handlers) GetListAvailableNetworkInterfaces(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetListAvailableNetworkInterfaces(w http.ResponseWriter, r *http.Request) {
 	interfaces, err := h.consoleController.ListAvailableNetworkInterfaces()
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to list available network interfaces")

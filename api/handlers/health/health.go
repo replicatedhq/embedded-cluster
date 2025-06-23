@@ -9,20 +9,20 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Handlers struct {
+type Handler struct {
 	logger logrus.FieldLogger
 }
 
-type Option func(*Handlers)
+type Option func(*Handler)
 
 func WithLogger(logger logrus.FieldLogger) Option {
-	return func(h *Handlers) {
+	return func(h *Handler) {
 		h.logger = logger
 	}
 }
 
-func New(opts ...Option) (*Handlers, error) {
-	h := &Handlers{}
+func New(opts ...Option) (*Handler, error) {
+	h := &Handler{}
 
 	for _, opt := range opts {
 		opt(h)
@@ -44,7 +44,7 @@ func New(opts ...Option) (*Handlers, error) {
 // @Produce     json
 // @Success     200 {object} types.Health
 // @Router      /health [get]
-func (h *Handlers) GetHealth(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	response := types.Health{
 		Status: types.HealthStatusOK,
 	}
