@@ -29,7 +29,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 		}
 	default:
 		// Any other state means preflights are not complete
-		return types.NewForbiddenError(ErrPreflightChecksNotComplete)
+		return types.NewConflictError(ErrPreflightChecksNotComplete)
 	}
 
 	lock, err := c.stateMachine.AcquireLock()
