@@ -11,16 +11,16 @@ import (
 
 // PostLogin handler to authenticate a user
 //
-//	@ID				postAuthLogin
-//	@Summary		Authenticate a user
-//	@Description	Authenticate a user
-//	@Tags			auth
-//	@Accept			json
-//	@Produce		json
-//	@Param			request	body		types.AuthRequest	true	"Auth Request"
-//	@Success		200		{object}	types.AuthResponse
-//	@Failure		401		{object}	types.APIError
-//	@Router			/auth/login [post]
+// @ID          postAuthLogin
+// @Summary     Authenticate a user
+// @Description Authenticate a user
+// @Tags        auth
+// @Accept      json
+// @Produce     json
+// @Param       request body     types.AuthRequest true "Auth Request"
+// @Success     200     {object} types.AuthResponse
+// @Failure     401     {object} types.APIError
+// @Router      /auth/login [post]
 func (h *Handler) PostLogin(w http.ResponseWriter, r *http.Request) {
 	var request types.AuthRequest
 	if err := utils.BindJSON(w, r, &request, h.logger); err != nil {

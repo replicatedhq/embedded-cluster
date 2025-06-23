@@ -54,13 +54,13 @@ func New(opts ...Option) (*Handlers, error) {
 
 // GetListAvailableNetworkInterfaces handler to list available network interfaces
 //
-//	@ID				getConsoleListAvailableNetworkInterfaces
-//	@Summary		List available network interfaces
-//	@Description	List available network interfaces
-//	@Tags			console
-//	@Produce		json
-//	@Success		200	{object}	types.GetListAvailableNetworkInterfacesResponse
-//	@Router			/console/available-network-interfaces [get]
+// @ID          getConsoleListAvailableNetworkInterfaces
+// @Summary     List available network interfaces
+// @Description List available network interfaces
+// @Tags        console
+// @Produce     json
+// @Success     200 {object} types.GetListAvailableNetworkInterfacesResponse
+// @Router      /console/available-network-interfaces [get]
 func (h *Handlers) GetListAvailableNetworkInterfaces(w http.ResponseWriter, r *http.Request) {
 	interfaces, err := h.consoleController.ListAvailableNetworkInterfaces()
 	if err != nil {

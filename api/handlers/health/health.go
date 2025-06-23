@@ -37,13 +37,13 @@ func New(opts ...Option) (*Handlers, error) {
 
 // GetHealth handler to get the health of the API
 //
-//	@ID				getHealth
-//	@Summary		Get the health of the API
-//	@Description	get the health of the API
-//	@Tags			health
-//	@Produce		json
-//	@Success		200	{object}	types.Health
-//	@Router			/health [get]
+// @ID          getHealth
+// @Summary     Get the health of the API
+// @Description get the health of the API
+// @Tags        health
+// @Produce     json
+// @Success     200 {object} types.Health
+// @Router      /health [get]
 func (h *Handlers) GetHealth(w http.ResponseWriter, r *http.Request) {
 	response := types.Health{
 		Status: types.HealthStatusOK,
