@@ -29,18 +29,19 @@ import (
 
 // apiConfig holds the configuration for the API server
 type apiConfig struct {
-	RuntimeConfig   runtimeconfig.RuntimeConfig
-	Logger          logrus.FieldLogger
-	MetricsReporter metrics.ReporterInterface
-	Password        string
-	TLSConfig       apitypes.TLSConfig
-	ManagerPort     int
-	License         []byte
-	AirgapBundle    string
-	ConfigValues    string
-	ReleaseData     *release.ReleaseData
-	EndUserConfig   *ecv1beta1.Config
-	WebAssetsFS     fs.FS
+	RuntimeConfig             runtimeconfig.RuntimeConfig
+	Logger                    logrus.FieldLogger
+	MetricsReporter           metrics.ReporterInterface
+	Password                  string
+	TLSConfig                 apitypes.TLSConfig
+	ManagerPort               int
+	License                   []byte
+	AirgapBundle              string
+	ConfigValues              string
+	ReleaseData               *release.ReleaseData
+	EndUserConfig             *ecv1beta1.Config
+	WebAssetsFS               fs.FS
+	AllowIgnoreHostPreflights bool
 }
 
 func startAPI(ctx context.Context, cert tls.Certificate, config apiConfig) error {
@@ -91,6 +92,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		api.WithAirgapBundle(config.AirgapBundle),
 		api.WithConfigValues(config.ConfigValues),
 		api.WithEndUserConfig(config.EndUserConfig),
+		api.WithAllowIgnoreHostPreflights(config.AllowIgnoreHostPreflights),
 	)
 	if err != nil {
 		return fmt.Errorf("new api: %w", err)

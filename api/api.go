@@ -42,19 +42,20 @@ import (
 // @externalDocs.description	OpenAPI
 // @externalDocs.url			https://swagger.io/resources/open-api/
 type API struct {
-	authController    auth.Controller
-	consoleController console.Controller
-	installController install.Controller
-	rc                runtimeconfig.RuntimeConfig
-	releaseData       *release.ReleaseData
-	tlsConfig         types.TLSConfig
-	license           []byte
-	airgapBundle      string
-	configValues      string
-	endUserConfig     *ecv1beta1.Config
-	logger            logrus.FieldLogger
-	hostUtils         hostutils.HostUtilsInterface
-	metricsReporter   metrics.ReporterInterface
+	authController            auth.Controller
+	consoleController         console.Controller
+	installController         install.Controller
+	rc                        runtimeconfig.RuntimeConfig
+	releaseData               *release.ReleaseData
+	tlsConfig                 types.TLSConfig
+	license                   []byte
+	airgapBundle              string
+	configValues              string
+	endUserConfig             *ecv1beta1.Config
+	allowIgnoreHostPreflights bool
+	logger                    logrus.FieldLogger
+	hostUtils                 hostutils.HostUtilsInterface
+	metricsReporter           metrics.ReporterInterface
 }
 
 type APIOption func(*API)
@@ -137,6 +138,12 @@ func WithEndUserConfig(endUserConfig *ecv1beta1.Config) APIOption {
 	}
 }
 
+func WithAllowIgnoreHostPreflights(allowIgnoreHostPreflights bool) APIOption {
+	return func(a *API) {
+		a.allowIgnoreHostPreflights = allowIgnoreHostPreflights
+	}
+}
+
 func New(password string, opts ...APIOption) (*API, error) {
 	api := &API{}
 
@@ -192,6 +199,7 @@ func New(password string, opts ...APIOption) (*API, error) {
 			install.WithAirgapBundle(api.airgapBundle),
 			install.WithConfigValues(api.configValues),
 			install.WithEndUserConfig(api.endUserConfig),
+			install.WithAllowIgnoreHostPreflights(api.allowIgnoreHostPreflights),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("new install controller: %w", err)
