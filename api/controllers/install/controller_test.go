@@ -2,6 +2,7 @@ package install
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -645,7 +646,7 @@ func TestSetupInfra(t *testing.T) {
 		currentState                    statemachine.State
 		expectedState                   statemachine.State
 		setupMocks                      func(runtimeconfig.RuntimeConfig, *preflight.MockHostPreflightManager, *installation.MockInstallationManager, *infra.MockInfraManager, *metrics.MockReporter)
-		expectedErr                     bool
+		expectedErr                     error
 	}{
 		{
 			name:                            "successful setup with passed preflights",
@@ -658,7 +659,7 @@ func TestSetupInfra(t *testing.T) {
 					fm.On("Install", mock.Anything, rc).Return(nil),
 				)
 			},
-			expectedErr: false,
+			expectedErr: nil,
 		},
 		{
 			name:                            "successful setup with failed preflights - ignored with CLI flag",
@@ -681,7 +682,7 @@ func TestSetupInfra(t *testing.T) {
 					fm.On("Install", mock.Anything, rc).Return(nil),
 				)
 			},
-			expectedErr: false,
+			expectedErr: nil,
 		},
 		{
 			name:                            "failed setup with failed preflights - not ignored",
@@ -691,7 +692,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StatePreflightsFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 			},
-			expectedErr: true,
+			expectedErr: types.NewBadRequestError(ErrPreflightChecksFailed),
 		},
 		{
 			name:                            "preflight output error",
@@ -704,7 +705,7 @@ func TestSetupInfra(t *testing.T) {
 					pm.On("GetHostPreflightOutput", t.Context()).Return(nil, errors.New("get output error")),
 				)
 			},
-			expectedErr: true,
+			expectedErr: fmt.Errorf("bypass preflights: get install host preflight output: get output error"),
 		},
 		{
 			name:                            "install infra error",
@@ -717,7 +718,7 @@ func TestSetupInfra(t *testing.T) {
 					fm.On("Install", mock.Anything, rc).Return(errors.New("install error")),
 				)
 			},
-			expectedErr: false,
+			expectedErr: nil,
 		},
 		{
 			name:                            "invalid state transition",
@@ -727,7 +728,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInstallationConfigured,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 			},
-			expectedErr: true,
+			expectedErr: types.NewForbiddenError(ErrPreflightChecksNotComplete),
 		},
 		{
 			name:                            "failed preflights with ignore flag but CLI flag disabled",
@@ -737,7 +738,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StatePreflightsFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 			},
-			expectedErr: true,
+			expectedErr: types.NewBadRequestError(ErrPreflightChecksFailed),
 		},
 		{
 			name:                            "failed preflights without ignore flag and CLI flag disabled",
@@ -747,7 +748,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StatePreflightsFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 			},
-			expectedErr: true,
+			expectedErr: types.NewBadRequestError(ErrPreflightChecksFailed),
 		},
 	}
 
@@ -778,8 +779,20 @@ func TestSetupInfra(t *testing.T) {
 
 			err = controller.SetupInfra(t.Context(), tt.clientIgnorePreflightFailures)
 
-			if tt.expectedErr {
+			if tt.expectedErr != nil {
 				require.Error(t, err)
+
+				// Check for specific error types
+				var expectedAPIErr *types.APIError
+				if errors.As(tt.expectedErr, &expectedAPIErr) {
+					var actualAPIErr *types.APIError
+					require.True(t, errors.As(err, &actualAPIErr), "expected error to be of type *types.APIError, got %T", err)
+					assert.Equal(t, expectedAPIErr.StatusCode, actualAPIErr.StatusCode, "status codes should match")
+					assert.Contains(t, actualAPIErr.Error(), expectedAPIErr.Unwrap().Error(), "error messages should contain expected content")
+				} else {
+					// For non-API errors, check the message
+					assert.Equal(t, tt.expectedErr.Error(), err.Error(), "error messages should match")
+				}
 			} else {
 				require.NoError(t, err)
 
