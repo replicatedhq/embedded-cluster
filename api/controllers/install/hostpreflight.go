@@ -11,11 +11,20 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
-func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) error {
+func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
 	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+		}
+		if finalErr != nil {
+			lock.Release()
+		}
+	}()
 
 	if err := c.stateMachine.ValidateTransition(lock, StatePreflightsRunning); err != nil {
 		return types.NewConflictError(err)
@@ -34,7 +43,6 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		IsUI:                  opts.IsUI,
 	})
 	if err != nil {
-		lock.Release()
 		return fmt.Errorf("failed to prepare host preflights: %w", err)
 	}
 
@@ -43,7 +51,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		return fmt.Errorf("failed to transition states: %w", err)
 	}
 
-	go func() {
+	go func() (finalErr error) {
 		// Background context is used to avoid canceling the operation if the context is canceled
 		ctx := context.Background()
 
@@ -51,10 +59,16 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 
 		defer func() {
 			if r := recover(); r != nil {
-				c.logger.Errorf("panic running host preflights: %v: %s", r, string(debug.Stack()))
+				finalErr = fmt.Errorf("panic running host preflights: %v: %s", r, string(debug.Stack()))
+			}
+			if finalErr != nil {
+				c.logger.Error(finalErr)
 
-				err := c.stateMachine.Transition(lock, StatePreflightsFailed)
-				if err != nil {
+				if err := c.stateMachine.Transition(lock, StatePreflightsFailed); err != nil {
+					c.logger.Errorf("failed to transition states: %w", err)
+				}
+			} else {
+				if err := c.stateMachine.Transition(lock, StatePreflightsSucceeded); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
 			}
@@ -63,20 +77,11 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		err := c.hostPreflightManager.RunHostPreflights(ctx, c.rc, preflight.RunHostPreflightOptions{
 			HostPreflightSpec: hpf,
 		})
-
 		if err != nil {
-			c.logger.Errorf("failed to run host preflights: %w", err)
-
-			err = c.stateMachine.Transition(lock, StatePreflightsFailed)
-			if err != nil {
-				c.logger.Errorf("failed to transition states: %w", err)
-			}
-		} else {
-			err = c.stateMachine.Transition(lock, StatePreflightsSucceeded)
-			if err != nil {
-				c.logger.Errorf("failed to transition states: %w", err)
-			}
+			return fmt.Errorf("failed to run host preflights: %w", err)
 		}
+
+		return nil
 	}()
 
 	return nil
