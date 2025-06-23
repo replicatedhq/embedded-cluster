@@ -248,7 +248,7 @@ describe("LinuxPreflightCheck", () => {
   it("receives allowIgnoreHostPreflights field in preflight response", async () => {
     // Mock preflight status endpoint with allowIgnoreHostPreflights: true
     server.use(
-      http.get("*/api/install/host-preflights/status", ({ request }) => {
+      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
         const authHeader = request.headers.get("Authorization");
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
           return new HttpResponse(null, { status: 401 });
@@ -287,7 +287,7 @@ describe("LinuxPreflightCheck", () => {
   it("passes allowIgnoreHostPreflights false to onComplete callback", async () => {
     // Mock preflight status endpoint with allowIgnoreHostPreflights: false
     server.use(
-      http.get("*/api/install/host-preflights/status", ({ request }) => {
+      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
         const authHeader = request.headers.get("Authorization");
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
           return new HttpResponse(null, { status: 401 });
