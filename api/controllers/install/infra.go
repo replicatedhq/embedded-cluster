@@ -15,11 +15,21 @@ var (
 )
 
 func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) (finalErr error) {
-	if c.stateMachine.CurrentState() == StatePreflightsFailed {
+	currentState := c.stateMachine.CurrentState()
+
+	// Check if preflights are complete
+	switch currentState {
+	case StatePreflightsSucceeded, StatePreflightsFailedBypassed:
+		// Proceed with infra setup - preflights are complete
+	case StatePreflightsFailed:
+		// Handle failed preflights - try to bypass if allowed
 		err := c.bypassPreflights(ctx, ignorePreflightFailures)
 		if err != nil {
 			return fmt.Errorf("bypass preflights: %w", err)
 		}
+	default:
+		// Any other state means preflights are not complete
+		return types.NewForbiddenError(ErrPreflightChecksNotComplete)
 	}
 
 	lock, err := c.stateMachine.AcquireLock()
@@ -76,7 +86,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 
 func (c *InstallController) bypassPreflights(ctx context.Context, ignorePreflightFailures bool) error {
 	if !ignorePreflightFailures || !c.allowIgnoreHostPreflights {
-		return ErrPreflightChecksFailed
+		return types.NewBadRequestError(ErrPreflightChecksFailed)
 	}
 
 	lock, err := c.stateMachine.AcquireLock()
