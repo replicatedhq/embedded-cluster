@@ -728,7 +728,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInstallationConfigured,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 			},
-			expectedErr: types.NewForbiddenError(ErrPreflightChecksNotComplete),
+			expectedErr: types.NewConflictError(ErrPreflightChecksNotComplete),
 		},
 		{
 			name:                            "failed preflights with ignore flag but CLI flag disabled",

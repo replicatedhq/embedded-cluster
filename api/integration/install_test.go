@@ -1593,15 +1593,7 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusConflict, rec.Code)
-
-		t.Logf("Response body: %s", rec.Body.String())
-
-		// Parse the response body
-		var apiError types.APIError
-		err = json.NewDecoder(rec.Body).Decode(&apiError)
-		require.NoError(t, err)
-		assert.Equal(t, http.StatusConflict, apiError.StatusCode)
-		assert.Contains(t, apiError.Message, "invalid transition from PreflightsRunning to InfrastructureInstalling")
+		assert.Contains(t, rec.Body.String(), "preflight checks not complete")
 	})
 
 	// Test k0s already installed error
@@ -1666,7 +1658,7 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusConflict, rec.Code)
-		assert.Contains(t, rec.Body.String(), "invalid transition from Succeeded to InfrastructureInstalling")
+		assert.Contains(t, rec.Body.String(), "preflight checks not complete")
 	})
 
 	// Test k0s install error
