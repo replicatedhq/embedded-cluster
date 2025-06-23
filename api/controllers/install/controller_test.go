@@ -789,10 +789,6 @@ func TestSetupInfra(t *testing.T) {
 					require.True(t, errors.As(err, &actualAPIErr), "expected error to be of type *types.APIError, got %T", err)
 					assert.Equal(t, expectedAPIErr.StatusCode, actualAPIErr.StatusCode, "status codes should match")
 					assert.Contains(t, actualAPIErr.Error(), expectedAPIErr.Unwrap().Error(), "error messages should contain expected content")
-				} else {
-					// For non-API errors (internal errors), just verify an error occurred
-					// We don't care about the exact message as it's an implementation detail
-					// These will typically become 500 errors in the API layer
 				}
 			} else {
 				require.NoError(t, err)
