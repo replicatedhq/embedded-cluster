@@ -64,7 +64,9 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 		preflight.WithPreflightRunner(runner),
 	)
 	// Create an install controller
-	installController, err := install.NewInstallController(install.WithHostPreflightManager(manager))
+	installController, err := install.NewInstallController(
+		install.WithHostPreflightManager(manager),
+	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
@@ -190,6 +192,9 @@ func TestPostRunHostPreflights(t *testing.T) {
 
 		// Create an install controller with the mocked manager
 		installController, err := install.NewInstallController(
+			install.WithStateMachine(install.NewStateMachine(
+				install.WithCurrentState(install.StateHostConfigured),
+			)),
 			install.WithHostPreflightManager(pfManager),
 			install.WithInstallationManager(iManager),
 			// Mock the release data used by the preflight runner
@@ -291,6 +296,9 @@ func TestPostRunHostPreflights(t *testing.T) {
 
 		// Create an install controller
 		installController, err := install.NewInstallController(
+			install.WithStateMachine(install.NewStateMachine(
+				install.WithCurrentState(install.StateHostConfigured),
+			)),
 			install.WithHostPreflightManager(manager),
 			install.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
@@ -346,6 +354,9 @@ func TestPostRunHostPreflights(t *testing.T) {
 
 		// Create an install controller with the failing manager
 		installController, err := install.NewInstallController(
+			install.WithStateMachine(install.NewStateMachine(
+				install.WithCurrentState(install.StateHostConfigured),
+			)),
 			install.WithHostPreflightManager(manager),
 			install.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
@@ -402,6 +413,9 @@ func TestPostRunHostPreflights(t *testing.T) {
 
 		// Create an install controller with the failing manager
 		installController, err := install.NewInstallController(
+			install.WithStateMachine(install.NewStateMachine(
+				install.WithCurrentState(install.StateHostConfigured),
+			)),
 			install.WithHostPreflightManager(manager),
 			install.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
@@ -471,6 +485,9 @@ func TestPostRunHostPreflights(t *testing.T) {
 
 		// Create an install controller with the failing manager
 		installController, err := install.NewInstallController(
+			install.WithStateMachine(install.NewStateMachine(
+				install.WithCurrentState(install.StatePreflightsRunning),
+			)),
 			install.WithHostPreflightManager(manager),
 			install.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},

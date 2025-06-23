@@ -72,6 +72,7 @@ type InstallCmdFlags struct {
 
 	// TODO: move to substruct
 	license      *kotsv1beta1.License
+	licenseBytes []byte
 	tlsCert      tls.Certificate
 	tlsCertBytes []byte
 	tlsKeyBytes  []byte
@@ -248,6 +249,12 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 
 	// license file can be empty for restore
 	if flags.licenseFile != "" {
+		b, err := os.ReadFile(flags.licenseFile)
+		if err != nil {
+			return fmt.Errorf("unable to read license file: %w", err)
+		}
+		flags.licenseBytes = b
+
 		// validate the the license is indeed a license file
 		l, err := helpers.ParseLicense(flags.licenseFile)
 		if err != nil {
@@ -426,7 +433,7 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 			Hostname:  flags.hostname,
 		},
 		ManagerPort:   flags.managerPort,
-		LicenseFile:   flags.licenseFile,
+		License:       flags.licenseBytes,
 		AirgapBundle:  flags.airgapBundle,
 		AirgapInfo:    airgapInfo,
 		ConfigValues:  flags.configValues,
@@ -568,7 +575,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 			opts := kotscli.InstallOptions{
 				RuntimeConfig:         rc,
 				AppSlug:               flags.license.Spec.AppSlug,
-				LicenseFile:           flags.licenseFile,
+				License:               flags.licenseBytes,
 				Namespace:             runtimeconfig.KotsadmNamespace,
 				AirgapBundle:          flags.airgapBundle,
 				ConfigValuesFile:      flags.configValues,
@@ -775,8 +782,13 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags, rc runtimecon
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
 
+	licenseBytes, err := os.ReadFile(flags.licenseFile)
+	if err != nil {
+		return fmt.Errorf("unable to read license file: %w", err)
+	}
+
 	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
-		LicenseFile:  flags.licenseFile,
+		License:      licenseBytes,
 		AirgapBundle: flags.airgapBundle,
 	}); err != nil {
 		spinner.ErrorClosef("Initialization failed")

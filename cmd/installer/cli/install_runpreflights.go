@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
@@ -75,9 +76,14 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 		return err
 	}
 
+	licenseBytes, err := os.ReadFile(flags.licenseFile)
+	if err != nil {
+		return fmt.Errorf("unable to read license file: %w", err)
+	}
+
 	logrus.Debugf("configuring host")
 	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
-		LicenseFile:  flags.licenseFile,
+		License:      licenseBytes,
 		AirgapBundle: flags.airgapBundle,
 	}); err != nil {
 		return fmt.Errorf("configure host: %w", err)

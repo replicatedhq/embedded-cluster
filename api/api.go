@@ -49,7 +49,7 @@ type API struct {
 	rc                runtimeconfig.RuntimeConfig
 	releaseData       *release.ReleaseData
 	tlsConfig         types.TLSConfig
-	licenseFile       string
+	license           []byte
 	airgapBundle      string
 	airgapInfo        *kotsv1beta1.Airgap
 	configValues      string
@@ -115,9 +115,9 @@ func WithTLSConfig(tlsConfig types.TLSConfig) APIOption {
 	}
 }
 
-func WithLicenseFile(licenseFile string) APIOption {
+func WithLicense(license []byte) APIOption {
 	return func(a *API) {
-		a.licenseFile = licenseFile
+		a.license = license
 	}
 }
 
@@ -196,7 +196,7 @@ func New(password string, opts ...APIOption) (*API, error) {
 			install.WithReleaseData(api.releaseData),
 			install.WithPassword(password),
 			install.WithTLSConfig(api.tlsConfig),
-			install.WithLicenseFile(api.licenseFile),
+			install.WithLicense(api.license),
 			install.WithAirgapBundle(api.airgapBundle),
 			install.WithAirgapInfo(api.airgapInfo),
 			install.WithConfigValues(api.configValues),

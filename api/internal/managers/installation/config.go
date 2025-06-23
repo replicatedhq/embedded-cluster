@@ -203,29 +203,11 @@ func (m *installationManager) setCIDRDefaults(config *types.InstallationConfig) 
 	return nil
 }
 
-func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	running, err := m.isRunning()
-	if err != nil {
-		return fmt.Errorf("check if installation is running: %w", err)
-	}
-	if running {
-		return fmt.Errorf("installation configuration is already running")
-	}
-
+func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) (finalErr error) {
 	if err := m.setRunningStatus("Configuring installation"); err != nil {
 		return fmt.Errorf("set running status: %w", err)
 	}
 
-	// Background context is used to avoid canceling the operation if the context is canceled
-	go m.configureHost(context.Background(), rc)
-
-	return nil
-}
-
-func (m *installationManager) configureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
@@ -242,11 +224,11 @@ func (m *installationManager) configureHost(ctx context.Context, rc runtimeconfi
 	}()
 
 	opts := hostutils.InitForInstallOptions{
-		LicenseFile:  m.licenseFile,
+		License:      m.license,
 		AirgapBundle: m.airgapBundle,
 	}
 	if err := m.hostUtils.ConfigureHost(ctx, rc, opts); err != nil {
-		return fmt.Errorf("configure installation: %w", err)
+		return fmt.Errorf("configure host: %w", err)
 	}
 
 	return nil

@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
+	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
@@ -41,25 +42,27 @@ type RunHostPreflightsOptions struct {
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	install              types.Install
-	store                store.Store
 	installationManager  installation.InstallationManager
 	hostPreflightManager preflight.HostPreflightManager
 	infraManager         infra.InfraManager
-	rc                   runtimeconfig.RuntimeConfig
-	logger               logrus.FieldLogger
 	hostUtils            hostutils.HostUtilsInterface
 	netUtils             utils.NetUtils
 	metricsReporter      metrics.ReporterInterface
 	releaseData          *release.ReleaseData
 	password             string
 	tlsConfig            types.TLSConfig
-	licenseFile          string
+	license              []byte
 	airgapBundle         string
 	airgapInfo           *kotsv1beta1.Airgap
 	configValues         string
 	endUserConfig        *ecv1beta1.Config
-	mu                   sync.RWMutex
+
+	install      types.Install
+	store        store.Store
+	rc           runtimeconfig.RuntimeConfig
+	stateMachine statemachine.Interface
+	logger       logrus.FieldLogger
+	mu           sync.RWMutex
 }
 
 type InstallControllerOption func(*InstallController)
@@ -112,9 +115,9 @@ func WithTLSConfig(tlsConfig types.TLSConfig) InstallControllerOption {
 	}
 }
 
-func WithLicenseFile(licenseFile string) InstallControllerOption {
+func WithLicense(license []byte) InstallControllerOption {
 	return func(c *InstallController) {
-		c.licenseFile = licenseFile
+		c.license = license
 	}
 }
 
@@ -160,19 +163,22 @@ func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
 	}
 }
 
+func WithStateMachine(stateMachine statemachine.Interface) InstallControllerOption {
+	return func(c *InstallController) {
+		c.stateMachine = stateMachine
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
-	controller := &InstallController{}
+	controller := &InstallController{
+		store:        store.NewMemoryStore(),
+		rc:           runtimeconfig.New(nil),
+		logger:       logger.NewDiscardLogger(),
+		stateMachine: NewStateMachine(),
+	}
 
 	for _, opt := range opts {
 		opt(controller)
-	}
-
-	if controller.rc == nil {
-		controller.rc = runtimeconfig.New(nil)
-	}
-
-	if controller.logger == nil {
-		controller.logger = logger.NewDiscardLogger()
 	}
 
 	if controller.hostUtils == nil {
@@ -185,15 +191,11 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.netUtils = utils.NewNetUtils()
 	}
 
-	if controller.store == nil {
-		controller.store = store.NewMemoryStore()
-	}
-
 	if controller.installationManager == nil {
 		controller.installationManager = installation.NewInstallationManager(
 			installation.WithLogger(controller.logger),
 			installation.WithInstallationStore(controller.store.InstallationStore()),
-			installation.WithLicenseFile(controller.licenseFile),
+			installation.WithLicense(controller.license),
 			installation.WithAirgapBundle(controller.airgapBundle),
 			installation.WithHostUtils(controller.hostUtils),
 			installation.WithNetUtils(controller.netUtils),
@@ -215,7 +217,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithInfraStore(controller.store.InfraStore()),
 			infra.WithPassword(controller.password),
 			infra.WithTLSConfig(controller.tlsConfig),
-			infra.WithLicenseFile(controller.licenseFile),
+			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
 			infra.WithConfigValues(controller.configValues),
 			infra.WithReleaseData(controller.releaseData),

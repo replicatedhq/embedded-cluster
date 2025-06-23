@@ -2,7 +2,6 @@ package preflight
 
 import (
 	"context"
-	"sync"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
@@ -30,7 +29,6 @@ type hostPreflightManager struct {
 	netUtils           utils.NetUtils
 	logger             logrus.FieldLogger
 	metricsReporter    metrics.ReporterInterface
-	mu                 sync.RWMutex
 }
 
 type HostPreflightManagerOption func(*hostPreflightManager)

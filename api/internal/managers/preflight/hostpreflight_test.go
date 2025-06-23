@@ -425,20 +425,6 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			},
 			expectedFinalState: types.StateSucceeded,
 		},
-		{
-			name: "error - preflights already running",
-			initialState: types.HostPreflights{
-				Status: types.Status{
-					State: types.StateRunning,
-				},
-			},
-			opts: RunHostPreflightOptions{
-				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, metricsReporter *metrics.MockReporter, rc runtimeconfig.RuntimeConfig) {
-			},
-			expectedError: "host preflights are already running",
-		},
 	}
 
 	for _, tt := range tests {
@@ -467,19 +453,13 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			if tt.expectedError != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
-				mockRunner.AssertExpectations(t)
-				mockMetrics.AssertExpectations(t)
-				return
 			} else {
 				require.NoError(t, err)
 			}
 
-			// Use assert.Eventually to wait for async execution to complete
-			assert.Eventually(t, func() bool {
-				status, err := manager.GetHostPreflightStatus(t.Context())
-				require.NoError(t, err)
-				return tt.expectedFinalState == status.State
-			}, 2*time.Second, 50*time.Millisecond, "Async execution should complete within timeout")
+			status, err := manager.GetHostPreflightStatus(t.Context())
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedFinalState, status.State)
 
 			// Additional verification that calls were made in the correct order
 			mockRunner.AssertExpectations(t)

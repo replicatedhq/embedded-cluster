@@ -36,7 +36,7 @@ type apiConfig struct {
 	Password        string
 	TLSConfig       apitypes.TLSConfig
 	ManagerPort     int
-	LicenseFile     string
+	License         []byte
 	AirgapBundle    string
 	AirgapInfo      *kotsv1beta1.Airgap
 	ConfigValues    string
@@ -89,7 +89,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		api.WithMetricsReporter(config.MetricsReporter),
 		api.WithReleaseData(config.ReleaseData),
 		api.WithTLSConfig(config.TLSConfig),
-		api.WithLicenseFile(config.LicenseFile),
+		api.WithLicense(config.License),
 		api.WithAirgapBundle(config.AirgapBundle),
 		api.WithAirgapInfo(config.AirgapInfo),
 		api.WithConfigValues(config.ConfigValues),
