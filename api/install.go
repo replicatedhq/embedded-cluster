@@ -166,12 +166,20 @@ func (a *API) postInstallSetupInfra(w http.ResponseWriter, r *http.Request) {
 	err := a.installController.SetupInfra(r.Context(), req.IgnorePreflightFailures)
 	if err != nil {
 		a.logError(r, err, "failed to setup infra")
+
+		// Check for specific error types
 		if errors.Is(err, install.ErrPreflightChecksNotComplete) {
 			a.jsonError(w, r, types.NewForbiddenError(err))
 		} else if errors.Is(err, install.ErrPreflightChecksFailed) {
 			a.jsonError(w, r, types.NewBadRequestError(err))
 		} else {
-			a.jsonError(w, r, types.NewInternalServerError(err))
+			// Check if it's already a properly typed API error (like ConflictError)
+			var apiErr *types.APIError
+			if errors.As(err, &apiErr) {
+				a.jsonError(w, r, apiErr)
+			} else {
+				a.jsonError(w, r, types.NewInternalServerError(err))
+			}
 		}
 		return
 	}

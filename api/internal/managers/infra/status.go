@@ -1,7 +1,6 @@
 package infra
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -13,20 +12,6 @@ func (m *infraManager) GetStatus() (types.Status, error) {
 
 func (m *infraManager) SetStatus(status types.Status) error {
 	return m.infraStore.SetStatus(status)
-}
-
-func (m *infraManager) installDidRun() (bool, error) {
-	currStatus, err := m.GetStatus()
-	if err != nil {
-		return false, fmt.Errorf("get status: %w", err)
-	}
-	if currStatus.State == "" {
-		return false, nil
-	}
-	if currStatus.State == types.StatePending {
-		return false, nil
-	}
-	return true, nil
 }
 
 func (m *infraManager) setStatus(state types.State, description string) error {

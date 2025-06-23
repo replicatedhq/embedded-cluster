@@ -16,7 +16,6 @@ type Store interface {
 	SetOutput(output *types.HostPreflightsOutput) error
 	GetStatus() (types.Status, error)
 	SetStatus(status types.Status) error
-	IsRunning() bool
 }
 
 type memoryStore struct {
@@ -104,11 +103,4 @@ func (s *memoryStore) SetStatus(status types.Status) error {
 
 	s.hostPreflight.Status = status
 	return nil
-}
-
-func (s *memoryStore) IsRunning() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.hostPreflight.Status.State == types.StateRunning
 }

@@ -35,7 +35,7 @@ type apiConfig struct {
 	Password                  string
 	TLSConfig                 apitypes.TLSConfig
 	ManagerPort               int
-	LicenseFile               string
+	License                   []byte
 	AirgapBundle              string
 	ConfigValues              string
 	ReleaseData               *release.ReleaseData
@@ -88,7 +88,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		api.WithMetricsReporter(config.MetricsReporter),
 		api.WithReleaseData(config.ReleaseData),
 		api.WithTLSConfig(config.TLSConfig),
-		api.WithLicenseFile(config.LicenseFile),
+		api.WithLicense(config.License),
 		api.WithAirgapBundle(config.AirgapBundle),
 		api.WithConfigValues(config.ConfigValues),
 		api.WithEndUserConfig(config.EndUserConfig),
