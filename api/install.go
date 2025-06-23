@@ -162,22 +162,14 @@ func (a *API) postInstallSetupInfra(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Setup infrastructure with preflight validation handled internally
-	err := a.installController.SetupInfra(r.Context(), req.IgnorePreflightFailures)
+	err := a.installController.SetupInfra(r.Context(), req.IgnoreHostPreflights)
 	if err != nil {
 		a.logError(r, err, "failed to setup infra")
 		a.jsonError(w, r, err)
 		return
 	}
 
-	// Get the infra status for the response
-	infra, err := a.installController.GetInfra(r.Context())
-	if err != nil {
-		a.logError(r, err, "failed to get install infra status after setup")
-		a.jsonError(w, r, err)
-		return
-	}
-
-	a.json(w, r, http.StatusOK, infra)
+	a.getInstallInfraStatus(w, r)
 }
 
 // getInstallInfraStatus handler to get the status of the infra

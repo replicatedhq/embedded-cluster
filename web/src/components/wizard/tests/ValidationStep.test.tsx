@@ -275,8 +275,8 @@ describe('ValidationStep', () => {
     });
   });
 
-  // Phase 4.1 RED Tests: Verify ignorePreflightFailures parameter is sent
-  it('sends ignorePreflightFailures parameter when starting installation with failed preflights', async () => {
+  // Verify ignoreHostPreflights parameter is sent
+  it('sends ignoreHostPreflights parameter when starting installation with failed preflights', async () => {
     // Mock preflight status endpoint - returns failures with allowIgnoreHostPreflights: true
     server.use(
       http.get('*/api/install/host-preflights/status', () => {
@@ -295,8 +295,8 @@ describe('ValidationStep', () => {
       http.post('*/api/install/infra/setup', async ({ request }) => {
         const body = await request.json();
         
-        // Verify the request includes ignorePreflightFailures parameter
-        expect(body).toHaveProperty('ignorePreflightFailures', true);
+        // Verify the request includes ignoreHostPreflights parameter
+        expect(body).toHaveProperty('ignoreHostPreflights', true);
         
         return HttpResponse.json({ success: true });
       })
@@ -330,7 +330,7 @@ describe('ValidationStep', () => {
     });
   });
 
-  it('sends ignorePreflightFailures false when starting installation with passed preflights', async () => {
+  it('sends ignoreHostPreflights false when starting installation with passed preflights', async () => {
     // Mock preflight status endpoint - returns success
     server.use(
       http.get('*/api/install/host-preflights/status', () => {
@@ -349,8 +349,8 @@ describe('ValidationStep', () => {
       http.post('*/api/install/infra/setup', async ({ request }) => {
         const body = await request.json();
         
-        // Verify the request includes ignorePreflightFailures parameter as false
-        expect(body).toHaveProperty('ignorePreflightFailures', false);
+        // Verify the request includes ignoreHostPreflights parameter as false
+        expect(body).toHaveProperty('ignoreHostPreflights', false);
         
         return HttpResponse.json({ success: true });
       })
@@ -377,7 +377,7 @@ describe('ValidationStep', () => {
   });
 });
 
-// Phase 5: Additional robust frontend tests for error handling and edge cases
+// Additional robust frontend tests for error handling and edge cases
 describe('ValidationStep - Error Handling & Edge Cases', () => {
   beforeAll(() => server.listen());
   afterEach(() => server.resetHandlers());
@@ -429,7 +429,7 @@ describe('ValidationStep - Error Handling & Edge Cases', () => {
 
     // Should show error message instead of proceeding
     await waitFor(() => {
-      expect(screen.getByText(/Preflight checks failed/)).toBeInTheDocument();
+      expect(screen.getByText(/Preflight checks failed. Cannot proceed with installation./)).toBeInTheDocument();
     });
 
     // Should NOT proceed to next step
@@ -536,7 +536,7 @@ describe('ValidationStep - Error Handling & Edge Cases', () => {
         return HttpResponse.json(
           { 
             statusCode: 400,
-            message: 'Cannot ignore preflight failures without --ignore-host-preflights flag' 
+            message: 'preflight checks failed' 
           },
           { status: 400 }
         );
@@ -565,9 +565,9 @@ describe('ValidationStep - Error Handling & Edge Cases', () => {
     const continueButton = screen.getByText('Continue Anyway');
     fireEvent.click(continueButton);
 
-    // Should show error about CLI flag instead of proceeding
+    // Should show the specific API error message
     await waitFor(() => {
-      expect(screen.getByText(/Cannot ignore preflight failures without --ignore-host-preflights flag/)).toBeInTheDocument();
+      expect(screen.getByText(/preflight checks failed/)).toBeInTheDocument();
     });
 
     // Should NOT proceed to next step

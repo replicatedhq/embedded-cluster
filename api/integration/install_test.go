@@ -108,7 +108,7 @@ func (m *mockInstallController) GetHostPreflightTitles(ctx context.Context) ([]s
 	return []string{}, nil
 }
 
-func (m *mockInstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) error {
+func (m *mockInstallController) SetupInfra(ctx context.Context, ignoreHostPreflights bool) error {
 	return m.setupInfraError
 }
 
@@ -1227,7 +1227,7 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Create a request with proper JSON body
 		requestBody := types.InfraSetupRequest{
-			IgnorePreflightFailures: false,
+			IgnoreHostPreflights: false,
 		}
 		reqBodyBytes, err := json.Marshal(requestBody)
 		require.NoError(t, err)
@@ -1340,7 +1340,7 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Create a request with proper JSON body
 		requestBody := types.InfraSetupRequest{
-			IgnorePreflightFailures: false,
+			IgnoreHostPreflights: false,
 		}
 		reqBodyBytes, err := json.Marshal(requestBody)
 		require.NoError(t, err)
@@ -1398,9 +1398,9 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request with ignorePreflightFailures=true
+		// Create a request with ignoreHostPreflights=true
 		requestBody := types.InfraSetupRequest{
-			IgnorePreflightFailures: true,
+			IgnoreHostPreflights: true,
 		}
 		reqBodyBytes, err := json.Marshal(requestBody)
 		require.NoError(t, err)
@@ -1453,9 +1453,9 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request with ignorePreflightFailures=true
+		// Create a request with ignoreHostPreflights=true
 		requestBody := types.InfraSetupRequest{
-			IgnorePreflightFailures: true,
+			IgnoreHostPreflights: true,
 		}
 		reqBodyBytes, err := json.Marshal(requestBody)
 		require.NoError(t, err)
@@ -1515,9 +1515,9 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request with ignorePreflightFailures=false (client not requesting bypass)
+		// Create a request with ignoreHostPreflights=false (client not requesting bypass)
 		requestBody := types.InfraSetupRequest{
-			IgnorePreflightFailures: false,
+			IgnoreHostPreflights: false,
 		}
 		reqBodyBytes, err := json.Marshal(requestBody)
 		require.NoError(t, err)
@@ -1578,7 +1578,7 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Create a request with proper JSON body
 		requestBody := types.InfraSetupRequest{
-			IgnorePreflightFailures: false,
+			IgnoreHostPreflights: false,
 		}
 		reqBodyBytes, err := json.Marshal(requestBody)
 		require.NoError(t, err)
@@ -1593,7 +1593,7 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusConflict, rec.Code)
-		assert.Contains(t, rec.Body.String(), "preflight checks not complete")
+		assert.Contains(t, rec.Body.String(), "invalid transition")
 	})
 
 	// Test k0s already installed error
@@ -1643,7 +1643,7 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Create a request with proper JSON body
 		requestBody := types.InfraSetupRequest{
-			IgnorePreflightFailures: false,
+			IgnoreHostPreflights: false,
 		}
 		reqBodyBytes, err := json.Marshal(requestBody)
 		require.NoError(t, err)
@@ -1658,7 +1658,7 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusConflict, rec.Code)
-		assert.Contains(t, rec.Body.String(), "preflight checks not complete")
+		assert.Contains(t, rec.Body.String(), "invalid transition")
 	})
 
 	// Test k0s install error
@@ -1729,7 +1729,7 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Create a request with proper JSON body
 		requestBody := types.InfraSetupRequest{
-			IgnorePreflightFailures: false,
+			IgnoreHostPreflights: false,
 		}
 		reqBodyBytes, err := json.Marshal(requestBody)
 		require.NoError(t, err)

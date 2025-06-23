@@ -75,7 +75,7 @@ components:
       type: object
     types.InfraSetupRequest:
       properties:
-        ignorePreflightFailures:
+        ignoreHostPreflights:
           type: boolean
       type: object
     types.InstallHostPreflightsStatusResponse:

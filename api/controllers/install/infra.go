@@ -14,22 +14,12 @@ var (
 	ErrPreflightChecksNotComplete = errors.New("preflight checks not complete")
 )
 
-func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) (finalErr error) {
-	currentState := c.stateMachine.CurrentState()
-
-	// Check if preflights are complete
-	switch currentState {
-	case StatePreflightsSucceeded, StatePreflightsFailedBypassed:
-		// Proceed with infra setup - preflights are complete
-	case StatePreflightsFailed:
-		// Handle failed preflights - try to bypass if allowed
-		err := c.bypassPreflights(ctx, ignorePreflightFailures)
+func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights bool) (finalErr error) {
+	if c.stateMachine.CurrentState() == StatePreflightsFailed {
+		err := c.bypassPreflights(ctx, ignoreHostPreflights)
 		if err != nil {
 			return fmt.Errorf("bypass preflights: %w", err)
 		}
-	default:
-		// Any other state means preflights are not complete
-		return types.NewConflictError(ErrPreflightChecksNotComplete)
 	}
 
 	lock, err := c.stateMachine.AcquireLock()
@@ -84,8 +74,8 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 	return nil
 }
 
-func (c *InstallController) bypassPreflights(ctx context.Context, ignorePreflightFailures bool) error {
-	if !ignorePreflightFailures || !c.allowIgnoreHostPreflights {
+func (c *InstallController) bypassPreflights(ctx context.Context, ignoreHostPreflights bool) error {
+	if !ignoreHostPreflights || !c.allowIgnoreHostPreflights {
 		return types.NewBadRequestError(ErrPreflightChecksFailed)
 	}
 
@@ -105,6 +95,8 @@ func (c *InstallController) bypassPreflights(ctx context.Context, ignorePrefligh
 	if err != nil {
 		return fmt.Errorf("get install host preflight output: %w", err)
 	}
+
+	// Report that preflights were bypassed
 	if preflightOutput != nil {
 		c.metricsReporter.ReportPreflightsBypassed(ctx, preflightOutput)
 	}

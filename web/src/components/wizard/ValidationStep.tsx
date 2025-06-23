@@ -29,7 +29,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
   };
 
   const { mutate: startInstallation } = useMutation({
-    mutationFn: async ({ ignorePreflightFailures }: { ignorePreflightFailures: boolean }) => {
+    mutationFn: async ({ ignoreHostPreflights }: { ignoreHostPreflights: boolean }) => {
       const response = await fetch("/api/install/infra/setup", {
         method: "POST",
         headers: {
@@ -37,7 +37,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          ignorePreflightFailures: ignorePreflightFailures
+          ignoreHostPreflights: ignoreHostPreflights
         }),
       });
 
@@ -59,7 +59,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
   const handleNextClick = () => {
     // If preflights passed, proceed normally
     if (preflightSuccess) {
-      startInstallation({ ignorePreflightFailures: false }); // No need to ignore preflights
+      startInstallation({ ignoreHostPreflights: false }); // No need to ignore preflights
       return;
     }
 
@@ -76,7 +76,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
 
   const handleConfirmProceed = () => {
     setShowPreflightModal(false);
-    startInstallation({ ignorePreflightFailures: true }); // User confirmed they want to ignore preflight failures
+    startInstallation({ ignoreHostPreflights: true }); // User confirmed they want to ignore preflight failures
   };
 
   const canProceed = () => {
