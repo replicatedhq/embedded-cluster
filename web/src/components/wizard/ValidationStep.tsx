@@ -30,7 +30,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
 
   const { mutate: startInstallation } = useMutation({
     mutationFn: async ({ ignoreHostPreflights }: { ignoreHostPreflights: boolean }) => {
-      const response = await fetch("/api/install/infra/setup", {
+      const response = await fetch("/api/linux/install/infra/setup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

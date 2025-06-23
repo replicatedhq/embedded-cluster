@@ -54,7 +54,7 @@ func Test_serveAPI(t *testing.T) {
 	portInt, err := strconv.Atoi(port)
 	require.NoError(t, err)
 
-	config := apiConfig{
+	config := apiOptions{
 		Logger:      apilogger.NewDiscardLogger(),
 		Password:    "password",
 		ManagerPort: portInt,

@@ -197,7 +197,7 @@ paths:
       summary: Get the health of the API
       tags:
       - health
-  /install/host-preflights/run:
+  /linux/install/host-preflights/run:
     post:
       description: Run install host preflight checks using installation config and
         client-provided data
@@ -220,7 +220,7 @@ paths:
       summary: Run install host preflight checks
       tags:
       - install
-  /install/host-preflights/status:
+  /linux/install/host-preflights/status:
     get:
       description: Get the current status and results of host preflight checks for
         install
@@ -236,7 +236,7 @@ paths:
       summary: Get host preflight status for install
       tags:
       - install
-  /install/infra/setup:
+  /linux/install/infra/setup:
     post:
       description: Setup infra components
       requestBody:
@@ -258,7 +258,7 @@ paths:
       summary: Setup infra components
       tags:
       - install
-  /install/infra/status:
+  /linux/install/infra/status:
     get:
       description: Get the current status of the infra
       responses:
@@ -273,7 +273,7 @@ paths:
       summary: Get the status of the infra
       tags:
       - install
-  /install/installation/config:
+  /linux/install/installation/config:
     get:
       description: get the installation config
       responses:
@@ -288,7 +288,7 @@ paths:
       summary: Get the installation config
       tags:
       - install
-  /install/installation/configure:
+  /linux/install/installation/configure:
     post:
       description: configure the installation for install
       requestBody:
@@ -310,7 +310,7 @@ paths:
       summary: Configure the installation for install
       tags:
       - install
-  /install/installation/status:
+  /linux/install/installation/status:
     get:
       description: Get the current status of the installation configuration for install
       responses:
@@ -325,7 +325,7 @@ paths:
       summary: Get installation configuration status for install
       tags:
       - install
-  /install/status:
+  /linux/install/status:
     get:
       description: Get the current status of the install workflow
       responses:
