@@ -17,7 +17,7 @@ var (
 func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailures bool) (finalErr error) {
 	currentState := c.stateMachine.CurrentState()
 
-	// Check if preflights are complete - infra can only be installed from specific states
+	// Check if preflights are complete
 	switch currentState {
 	case StatePreflightsSucceeded, StatePreflightsFailedBypassed:
 		// Proceed with infra setup - preflights are complete
@@ -28,8 +28,8 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignorePreflightFailu
 			return fmt.Errorf("bypass preflights: %w", err)
 		}
 	default:
-		// Any other state means preflights are not complete - this is a state conflict
-		return types.NewConflictError(ErrPreflightChecksNotComplete)
+		// Any other state means preflights are not complete
+		return types.NewForbiddenError(ErrPreflightChecksNotComplete)
 	}
 
 	lock, err := c.stateMachine.AcquireLock()
