@@ -369,6 +369,9 @@ func addManagerExperienceFlags(cmd *cobra.Command, flags *InstallCmdFlags) error
 func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
 	if !slices.Contains([]string{"linux", "kubernetes"}, flags.target) {
 		return fmt.Errorf(`invalid target (must be one of: "linux", "kubernetes")`)
+
+	if !cmd.Flags().Changed("skip-host-preflights") && os.Getenv("SKIP_HOST_PREFLIGHTS") != "" {
+		flags.skipHostPreflights = true
 	}
 
 	if err := preRunInstallCommon(cmd, flags, rc); err != nil {
