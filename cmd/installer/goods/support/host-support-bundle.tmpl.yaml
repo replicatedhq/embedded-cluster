@@ -173,23 +173,10 @@ spec:
       collectorName: "ip-route-table"
       command: "ip"
       args: ["route"]
-  # Network interface information and statistics
-  - run:
-      collectorName: "ip-addr-show"
-      command: "ip"
-      args: ["addr", "show"]
-  - run:
-      collectorName: "ip-link-show"
-      command: "ip"
-      args: ["link", "show"]
-  - run:
-      collectorName: "ip-link-statistics"
-      command: "ip"
-      args: ["-s", "link", "show"]
   - run:
       collectorName: "ip-neighbor-show"
       command: "ip"
-      args: ["neigh", "show"]
+      args: ["-s", "-d", "neigh", "show"]
   # HTTP connectivity checks (only run for online installations)
   - http:
       collectorName: http-replicated-app
