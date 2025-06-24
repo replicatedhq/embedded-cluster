@@ -170,14 +170,17 @@ func WithStateMachine(stateMachine statemachine.Interface) InstallControllerOpti
 
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
-		store:        store.NewMemoryStore(),
-		rc:           runtimeconfig.New(nil),
-		logger:       logger.NewDiscardLogger(),
-		stateMachine: NewStateMachine(),
+		store:  store.NewMemoryStore(),
+		rc:     runtimeconfig.New(nil),
+		logger: logger.NewDiscardLogger(),
 	}
 
 	for _, opt := range opts {
 		opt(controller)
+	}
+
+	if controller.stateMachine == nil {
+		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
 	}
 
 	if controller.hostUtils == nil {

@@ -1,6 +1,9 @@
 package install
 
-import "github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
+import (
+	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
+	"github.com/sirupsen/logrus"
+)
 
 const (
 	// StateNew is the initial state of the install process
@@ -40,6 +43,7 @@ var validStateTransitions = map[statemachine.State][]statemachine.State{
 
 type StateMachineOptions struct {
 	CurrentState statemachine.State
+	Logger       logrus.FieldLogger
 }
 
 type StateMachineOption func(*StateMachineOptions)
@@ -47,6 +51,12 @@ type StateMachineOption func(*StateMachineOptions)
 func WithCurrentState(currentState statemachine.State) StateMachineOption {
 	return func(o *StateMachineOptions) {
 		o.CurrentState = currentState
+	}
+}
+
+func WithStateMachineLogger(logger logrus.FieldLogger) StateMachineOption {
+	return func(o *StateMachineOptions) {
+		o.Logger = logger
 	}
 }
 
@@ -58,5 +68,5 @@ func NewStateMachine(opts ...StateMachineOption) statemachine.Interface {
 	for _, opt := range opts {
 		opt(options)
 	}
-	return statemachine.New(options.CurrentState, validStateTransitions)
+	return statemachine.New(options.CurrentState, validStateTransitions, statemachine.WithLogger(options.Logger))
 }
