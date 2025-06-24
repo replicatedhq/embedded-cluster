@@ -86,6 +86,12 @@ func WithAirgapBundle(airgapBundle string) InfraManagerOption {
 	}
 }
 
+func WithAirgapInfo(airgapInfo *kotsv1beta1.Airgap) InfraManagerOption {
+	return func(c *infraManager) {
+		c.airgapInfo = airgapInfo
+	}
+}
+
 func WithConfigValues(configValues string) InfraManagerOption {
 	return func(c *infraManager) {
 		c.configValues = configValues

@@ -14,7 +14,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -97,14 +96,6 @@ func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConf
 	license := &kotsv1beta1.License{}
 	if err := kyaml.Unmarshal(m.license, license); err != nil {
 		return fmt.Errorf("parse license: %w", err)
-	}
-
-	if m.airgapBundle != "" {
-		var err error
-		m.airgapInfo, err = airgap.AirgapInfoFromPath(m.airgapBundle)
-		if err != nil {
-			return fmt.Errorf("failed to get airgap info: %w", err)
-		}
 	}
 
 	if err := m.initComponentsList(license, rc); err != nil {
