@@ -1,7 +1,7 @@
 package console
 
 import (
-	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 )
 
 type Controller interface {
