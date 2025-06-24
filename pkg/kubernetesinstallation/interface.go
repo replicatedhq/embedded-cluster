@@ -6,8 +6,11 @@ import (
 
 // Installation defines the interface for managing kubernetes installation
 type Installation interface {
-	Get() *ecv1beta1.KubernetesInstallationSpec
-	Set(spec *ecv1beta1.KubernetesInstallationSpec)
+	Get() *ecv1beta1.KubernetesInstallation
+	Set(installation *ecv1beta1.KubernetesInstallation)
+
+	GetStatus() ecv1beta1.KubernetesInstallationStatus
+	SetStatus(status ecv1beta1.KubernetesInstallationStatus)
 
 	AdminConsolePort() int
 	ManagerPort() int

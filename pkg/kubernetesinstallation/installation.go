@@ -15,8 +15,8 @@ type EnvSetter interface {
 }
 
 type kubernetesInstallation struct {
-	spec      *ecv1beta1.KubernetesInstallationSpec
-	envSetter EnvSetter
+	installation *ecv1beta1.KubernetesInstallation
+	envSetter    EnvSetter
 }
 
 type osEnvSetter struct{}
@@ -32,12 +32,14 @@ func WithEnvSetter(envSetter EnvSetter) Option {
 }
 
 // New creates a new KubernetesInstallation instance
-func New(spec *ecv1beta1.KubernetesInstallationSpec, opts ...Option) Installation {
-	if spec == nil {
-		spec = ecv1beta1.GetDefaultKubernetesInstallationSpec()
+func New(installation *ecv1beta1.KubernetesInstallation, opts ...Option) Installation {
+	if installation == nil {
+		installation = &ecv1beta1.KubernetesInstallation{
+			Spec: ecv1beta1.GetDefaultKubernetesInstallationSpec(),
+		}
 	}
 
-	ki := &kubernetesInstallation{spec: spec}
+	ki := &kubernetesInstallation{installation: installation}
 	for _, opt := range opts {
 		opt(ki)
 	}
@@ -49,17 +51,27 @@ func New(spec *ecv1beta1.KubernetesInstallationSpec, opts ...Option) Installatio
 	return ki
 }
 
-// Get returns the spec for the KubernetesInstallation.
-func (ki *kubernetesInstallation) Get() *ecv1beta1.KubernetesInstallationSpec {
-	return ki.spec
+// Get returns the KubernetesInstallation.
+func (ki *kubernetesInstallation) Get() *ecv1beta1.KubernetesInstallation {
+	return ki.installation
 }
 
-// Set sets the spec for the KubernetesInstallation.
-func (ki *kubernetesInstallation) Set(spec *ecv1beta1.KubernetesInstallationSpec) {
-	if spec == nil {
+// Set sets the KubernetesInstallation.
+func (ki *kubernetesInstallation) Set(installation *ecv1beta1.KubernetesInstallation) {
+	if installation == nil {
 		return
 	}
-	ki.spec = spec
+	ki.installation = installation
+}
+
+// SetStatus sets the status for the KubernetesInstallation.
+func (ki *kubernetesInstallation) SetStatus(status ecv1beta1.KubernetesInstallationStatus) {
+	ki.installation.SetStatus(status)
+}
+
+// GetStatus returns the status for the KubernetesInstallation.
+func (ki *kubernetesInstallation) GetStatus() ecv1beta1.KubernetesInstallationStatus {
+	return ki.installation.Status
 }
 
 // SetEnv sets the environment variables for the KubernetesInstallation.
@@ -70,8 +82,8 @@ func (ki *kubernetesInstallation) SetEnv() error {
 // AdminConsolePort returns the configured port for the admin console or the default if not
 // configured.
 func (ki *kubernetesInstallation) AdminConsolePort() int {
-	if ki.spec.AdminConsole.Port > 0 {
-		return ki.spec.AdminConsole.Port
+	if ki.installation.Spec.AdminConsole.Port > 0 {
+		return ki.installation.Spec.AdminConsole.Port
 	}
 	return ecv1beta1.DefaultAdminConsolePort
 }
@@ -79,28 +91,28 @@ func (ki *kubernetesInstallation) AdminConsolePort() int {
 // ManagerPort returns the configured port for the manager or the default if not
 // configured.
 func (ki *kubernetesInstallation) ManagerPort() int {
-	if ki.spec.Manager.Port > 0 {
-		return ki.spec.Manager.Port
+	if ki.installation.Spec.Manager.Port > 0 {
+		return ki.installation.Spec.Manager.Port
 	}
 	return ecv1beta1.DefaultManagerPort
 }
 
 // ProxySpec returns the configured proxy spec or nil if not configured.
 func (ki *kubernetesInstallation) ProxySpec() *ecv1beta1.ProxySpec {
-	return ki.spec.Proxy
+	return ki.installation.Spec.Proxy
 }
 
 // SetAdminConsolePort sets the port for the admin console.
 func (ki *kubernetesInstallation) SetAdminConsolePort(port int) {
-	ki.spec.AdminConsole.Port = port
+	ki.installation.Spec.AdminConsole.Port = port
 }
 
 // SetManagerPort sets the port for the manager.
 func (ki *kubernetesInstallation) SetManagerPort(port int) {
-	ki.spec.Manager.Port = port
+	ki.installation.Spec.Manager.Port = port
 }
 
 // SetProxySpec sets the proxy spec for the kubernetes installation.
 func (ki *kubernetesInstallation) SetProxySpec(proxySpec *ecv1beta1.ProxySpec) {
-	ki.spec.Proxy = proxySpec
+	ki.installation.Spec.Proxy = proxySpec
 }

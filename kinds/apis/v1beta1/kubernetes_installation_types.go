@@ -67,12 +67,6 @@ type KubernetesInstallationStatus struct {
 	Reason string `json:"reason,omitempty"`
 }
 
-// SetState sets the installation state and reason.
-func (s *KubernetesInstallationStatus) SetState(state KubernetesInstallationState, reason string) {
-	s.State = state
-	s.Reason = reason
-}
-
 // KubernetesInstallation is the Schema for the kubernetes installations API
 type KubernetesInstallation struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -82,9 +76,13 @@ type KubernetesInstallation struct {
 	Status KubernetesInstallationStatus `json:"status,omitempty"`
 }
 
-func GetDefaultKubernetesInstallationSpec() *KubernetesInstallationSpec {
-	c := &KubernetesInstallationSpec{}
-	kubernetesInstallationSpecSetDefaults(c)
+func (in *KubernetesInstallation) SetStatus(status KubernetesInstallationStatus) {
+	in.Status = status
+}
+
+func GetDefaultKubernetesInstallationSpec() KubernetesInstallationSpec {
+	c := KubernetesInstallationSpec{}
+	kubernetesInstallationSpecSetDefaults(&c)
 	return c
 }
 
