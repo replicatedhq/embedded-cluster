@@ -76,10 +76,6 @@ type KubernetesInstallation struct {
 	Status KubernetesInstallationStatus `json:"status,omitempty"`
 }
 
-func (in *KubernetesInstallation) SetStatus(status KubernetesInstallationStatus) {
-	in.Status = status
-}
-
 func GetDefaultKubernetesInstallationSpec() KubernetesInstallationSpec {
 	c := KubernetesInstallationSpec{}
 	kubernetesInstallationSpecSetDefaults(&c)

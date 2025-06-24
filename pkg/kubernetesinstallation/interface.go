@@ -9,6 +9,9 @@ type Installation interface {
 	Get() *ecv1beta1.KubernetesInstallation
 	Set(installation *ecv1beta1.KubernetesInstallation)
 
+	GetSpec() ecv1beta1.KubernetesInstallationSpec
+	SetSpec(spec ecv1beta1.KubernetesInstallationSpec)
+
 	GetStatus() ecv1beta1.KubernetesInstallationStatus
 	SetStatus(status ecv1beta1.KubernetesInstallationStatus)
 

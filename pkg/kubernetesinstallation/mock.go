@@ -26,6 +26,28 @@ func (m *MockInstallation) Set(installation *ecv1beta1.KubernetesInstallation) {
 	m.Called(installation)
 }
 
+// GetSpec mocks the GetSpec method
+func (m *MockInstallation) GetSpec() ecv1beta1.KubernetesInstallationSpec {
+	args := m.Called()
+	return args.Get(0).(ecv1beta1.KubernetesInstallationSpec)
+}
+
+// SetSpec mocks the SetSpec method
+func (m *MockInstallation) SetSpec(spec ecv1beta1.KubernetesInstallationSpec) {
+	m.Called(spec)
+}
+
+// GetStatus mocks the GetStatus method
+func (m *MockInstallation) GetStatus() ecv1beta1.KubernetesInstallationStatus {
+	args := m.Called()
+	return args.Get(0).(ecv1beta1.KubernetesInstallationStatus)
+}
+
+// SetStatus mocks the SetStatus method
+func (m *MockInstallation) SetStatus(status ecv1beta1.KubernetesInstallationStatus) {
+	m.Called(status)
+}
+
 // AdminConsolePort mocks the AdminConsolePort method
 func (m *MockInstallation) AdminConsolePort() int {
 	args := m.Called()
@@ -57,15 +79,4 @@ func (m *MockInstallation) SetManagerPort(port int) {
 // SetProxySpec mocks the SetProxySpec method
 func (m *MockInstallation) SetProxySpec(proxySpec *ecv1beta1.ProxySpec) {
 	m.Called(proxySpec)
-}
-
-// SetStatus mocks the SetStatus method
-func (m *MockInstallation) SetStatus(status ecv1beta1.KubernetesInstallationStatus) {
-	m.Called(status)
-}
-
-// GetStatus mocks the GetStatus method
-func (m *MockInstallation) GetStatus() ecv1beta1.KubernetesInstallationStatus {
-	args := m.Called()
-	return args.Get(0).(ecv1beta1.KubernetesInstallationStatus)
 }

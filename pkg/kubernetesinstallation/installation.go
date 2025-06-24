@@ -64,14 +64,24 @@ func (ki *kubernetesInstallation) Set(installation *ecv1beta1.KubernetesInstalla
 	ki.installation = installation
 }
 
-// SetStatus sets the status for the KubernetesInstallation.
-func (ki *kubernetesInstallation) SetStatus(status ecv1beta1.KubernetesInstallationStatus) {
-	ki.installation.SetStatus(status)
+// GetSpec returns the spec for the KubernetesInstallation.
+func (ki *kubernetesInstallation) GetSpec() ecv1beta1.KubernetesInstallationSpec {
+	return ki.installation.Spec
+}
+
+// SetSpec sets the spec for the KubernetesInstallation.
+func (ki *kubernetesInstallation) SetSpec(spec ecv1beta1.KubernetesInstallationSpec) {
+	ki.installation.Spec = spec
 }
 
 // GetStatus returns the status for the KubernetesInstallation.
 func (ki *kubernetesInstallation) GetStatus() ecv1beta1.KubernetesInstallationStatus {
 	return ki.installation.Status
+}
+
+// SetStatus sets the status for the KubernetesInstallation.
+func (ki *kubernetesInstallation) SetStatus(status ecv1beta1.KubernetesInstallationStatus) {
+	ki.installation.Status = status
 }
 
 // SetEnv sets the environment variables for the KubernetesInstallation.
