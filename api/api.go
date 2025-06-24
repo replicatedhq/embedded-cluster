@@ -5,13 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
 	"github.com/replicatedhq/embedded-cluster/api/docs"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
@@ -35,11 +42,20 @@ import (
 // @externalDocs.description	OpenAPI
 // @externalDocs.url			https://swagger.io/resources/open-api/
 type API struct {
-	authController    auth.Controller
-	consoleController console.Controller
-	installController install.Controller
-	configChan        chan<- *types.InstallationConfig
-	logger            logrus.FieldLogger
+	authController            auth.Controller
+	consoleController         console.Controller
+	installController         install.Controller
+	rc                        runtimeconfig.RuntimeConfig
+	releaseData               *release.ReleaseData
+	tlsConfig                 types.TLSConfig
+	license                   []byte
+	airgapBundle              string
+	configValues              string
+	endUserConfig             *ecv1beta1.Config
+	allowIgnoreHostPreflights bool
+	logger                    logrus.FieldLogger
+	hostUtils                 hostutils.HostUtilsInterface
+	metricsReporter           metrics.ReporterInterface
 }
 
 type APIOption func(*API)
@@ -62,22 +78,95 @@ func WithInstallController(installController install.Controller) APIOption {
 	}
 }
 
+func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) APIOption {
+	return func(a *API) {
+		a.rc = rc
+	}
+}
+
 func WithLogger(logger logrus.FieldLogger) APIOption {
 	return func(a *API) {
 		a.logger = logger
 	}
 }
 
-func WithConfigChan(configChan chan<- *types.InstallationConfig) APIOption {
+func WithHostUtils(hostUtils hostutils.HostUtilsInterface) APIOption {
 	return func(a *API) {
-		a.configChan = configChan
+		a.hostUtils = hostUtils
+	}
+}
+
+func WithMetricsReporter(metricsReporter metrics.ReporterInterface) APIOption {
+	return func(a *API) {
+		a.metricsReporter = metricsReporter
+	}
+}
+
+func WithReleaseData(releaseData *release.ReleaseData) APIOption {
+	return func(a *API) {
+		a.releaseData = releaseData
+	}
+}
+
+func WithTLSConfig(tlsConfig types.TLSConfig) APIOption {
+	return func(a *API) {
+		a.tlsConfig = tlsConfig
+	}
+}
+
+func WithLicense(license []byte) APIOption {
+	return func(a *API) {
+		a.license = license
+	}
+}
+
+func WithAirgapBundle(airgapBundle string) APIOption {
+	return func(a *API) {
+		a.airgapBundle = airgapBundle
+	}
+}
+
+func WithConfigValues(configValues string) APIOption {
+	return func(a *API) {
+		a.configValues = configValues
+	}
+}
+
+func WithEndUserConfig(endUserConfig *ecv1beta1.Config) APIOption {
+	return func(a *API) {
+		a.endUserConfig = endUserConfig
+	}
+}
+
+func WithAllowIgnoreHostPreflights(allowIgnoreHostPreflights bool) APIOption {
+	return func(a *API) {
+		a.allowIgnoreHostPreflights = allowIgnoreHostPreflights
 	}
 }
 
 func New(password string, opts ...APIOption) (*API, error) {
 	api := &API{}
+
 	for _, opt := range opts {
 		opt(api)
+	}
+
+	if api.rc == nil {
+		api.rc = runtimeconfig.New(nil)
+	}
+
+	if api.logger == nil {
+		l, err := logger.NewLogger()
+		if err != nil {
+			return nil, fmt.Errorf("create logger: %w", err)
+		}
+		api.logger = l
+	}
+
+	if api.hostUtils == nil {
+		api.hostUtils = hostutils.New(
+			hostutils.WithLogger(api.logger),
+		)
 	}
 
 	if api.authController == nil {
@@ -96,16 +185,26 @@ func New(password string, opts ...APIOption) (*API, error) {
 		api.consoleController = consoleController
 	}
 
+	// TODO (@team): discuss which of these should / should not be pointers
 	if api.installController == nil {
-		installController, err := install.NewInstallController()
+		installController, err := install.NewInstallController(
+			install.WithRuntimeConfig(api.rc),
+			install.WithLogger(api.logger),
+			install.WithHostUtils(api.hostUtils),
+			install.WithMetricsReporter(api.metricsReporter),
+			install.WithReleaseData(api.releaseData),
+			install.WithPassword(password),
+			install.WithTLSConfig(api.tlsConfig),
+			install.WithLicense(api.license),
+			install.WithAirgapBundle(api.airgapBundle),
+			install.WithConfigValues(api.configValues),
+			install.WithEndUserConfig(api.endUserConfig),
+			install.WithAllowIgnoreHostPreflights(api.allowIgnoreHostPreflights),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("new install controller: %w", err)
 		}
 		api.installController = installController
-	}
-
-	if api.logger == nil {
-		api.logger = NewDiscardLogger()
 	}
 
 	return api, nil
@@ -129,13 +228,33 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	authenticatedRouter.Use(a.authMiddleware)
 
 	installRouter := authenticatedRouter.PathPrefix("/install").Subrouter()
-	installRouter.HandleFunc("", a.getInstall).Methods("GET")
-	installRouter.HandleFunc("/config", a.setInstallConfig).Methods("POST")
-	installRouter.HandleFunc("/status", a.setInstallStatus).Methods("POST")
+	installRouter.HandleFunc("/installation/config", a.getInstallInstallationConfig).Methods("GET")
+	installRouter.HandleFunc("/installation/configure", a.postInstallConfigureInstallation).Methods("POST")
+	installRouter.HandleFunc("/installation/status", a.getInstallInstallationStatus).Methods("GET")
+
+	installRouter.HandleFunc("/host-preflights/run", a.postInstallRunHostPreflights).Methods("POST")
+	installRouter.HandleFunc("/host-preflights/status", a.getInstallHostPreflightsStatus).Methods("GET")
+
+	installRouter.HandleFunc("/infra/setup", a.postInstallSetupInfra).Methods("POST")
+	installRouter.HandleFunc("/infra/status", a.getInstallInfraStatus).Methods("GET")
+
+	// TODO (@salah): remove this once the cli isn't responsible for setting the install status
+	// and the ui isn't polling for it to know if the entire install is complete
 	installRouter.HandleFunc("/status", a.getInstallStatus).Methods("GET")
+	installRouter.HandleFunc("/status", a.setInstallStatus).Methods("POST")
 
 	consoleRouter := authenticatedRouter.PathPrefix("/console").Subrouter()
 	consoleRouter.HandleFunc("/available-network-interfaces", a.getListAvailableNetworkInterfaces).Methods("GET")
+}
+
+func (a *API) bindJSON(w http.ResponseWriter, r *http.Request, v any) error {
+	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+		a.logError(r, err, fmt.Sprintf("failed to decode %s %s request", strings.ToLower(r.Method), r.URL.Path))
+		a.jsonError(w, r, types.NewBadRequestError(err))
+		return err
+	}
+
+	return nil
 }
 
 func (a *API) json(w http.ResponseWriter, r *http.Request, code int, payload any) {
@@ -148,7 +267,7 @@ func (a *API) json(w http.ResponseWriter, r *http.Request, code int, payload any
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	w.Write(response)
+	_, _ = w.Write(response)
 }
 
 func (a *API) jsonError(w http.ResponseWriter, r *http.Request, err error) {
@@ -166,7 +285,7 @@ func (a *API) jsonError(w http.ResponseWriter, r *http.Request, err error) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(apiErr.StatusCode)
-	w.Write(response)
+	_, _ = w.Write(response)
 }
 
 func (a *API) logError(r *http.Request, err error, args ...any) {

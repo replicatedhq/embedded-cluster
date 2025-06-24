@@ -5,7 +5,12 @@ import (
 	"net"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
+)
+
+// Dependency injection variables for testing
+var (
+	networkInterfaceProvider = DefaultNetworkInterfaceProvider
 )
 
 // adapted from https://github.com/k0sproject/k0s/blob/v1.30.4%2Bk0s.0/internal/pkg/iface/iface.go#L61
@@ -13,9 +18,6 @@ func FirstValidAddress(networkInterface string) (string, error) {
 	ipnet, err := FirstValidIPNet(networkInterface)
 	if err != nil {
 		return "", fmt.Errorf("get ipnet for interface %s: %w", networkInterface, err)
-	}
-	if ipnet.IP.To4() == nil {
-		return "", fmt.Errorf("interface %s has no ipv4 addresses", networkInterface)
 	}
 	return ipnet.IP.String(), nil
 }
@@ -32,31 +34,31 @@ func FirstValidIPNet(networkInterface string) (*net.IPNet, error) {
 		return firstValidIPNet(ifs[0])
 	}
 	for _, i := range ifs {
-		if i.Name == networkInterface {
+		if i.Name() == networkInterface {
 			return firstValidIPNet(i)
 		}
 	}
 	var ifNames []string
 	for _, i := range ifs {
-		ifNames = append(ifNames, i.Name)
+		ifNames = append(ifNames, i.Name())
 	}
 	return nil, fmt.Errorf("interface %s not found or is not valid. The following interfaces were detected: %s", networkInterface, strings.Join(ifNames, ", "))
 }
 
 // ListValidNetworkInterfaces returns a list of valid network interfaces that are up and not
 // loopback.
-func ListValidNetworkInterfaces() ([]net.Interface, error) {
+func ListValidNetworkInterfaces() ([]NetworkInterface, error) {
 	ifs, err := listValidInterfaces()
 	if err != nil {
 		return nil, err
 	}
 
-	validIfs := []net.Interface{}
+	validIfs := []NetworkInterface{}
 	for _, i := range ifs {
-		if i.Flags&net.FlagUp == 0 {
+		if i.Flags()&net.FlagUp == 0 {
 			continue
 		}
-		if i.Flags&net.FlagLoopback != 0 {
+		if i.Flags()&net.FlagLoopback != 0 {
 			continue
 		}
 		validIfs = append(validIfs, i)
@@ -65,12 +67,12 @@ func ListValidNetworkInterfaces() ([]net.Interface, error) {
 }
 
 // listValidInterfaces returns a list of valid network interfaces for the node.
-func listValidInterfaces() ([]net.Interface, error) {
-	ifs, err := net.Interfaces()
+func listValidInterfaces() ([]NetworkInterface, error) {
+	ifs, err := networkInterfaceProvider.Interfaces()
 	if err != nil {
 		return nil, fmt.Errorf("list network interfaces: %w", err)
 	}
-	validIfs := []net.Interface{}
+	validIfs := []NetworkInterface{}
 	for _, i := range ifs {
 		if !isValidInterface(i) {
 			continue
@@ -80,28 +82,28 @@ func listValidInterfaces() ([]net.Interface, error) {
 	return validIfs, nil
 }
 
-func isValidInterface(i net.Interface) bool {
+func isValidInterface(i NetworkInterface) bool {
 	switch {
-	case i.Name == "vxlan.calico":
+	case i.Name() == "vxlan.calico":
 		return false
-	case i.Name == "kube-bridge":
+	case i.Name() == "kube-bridge":
 		return false
-	case i.Name == "dummyvip0":
+	case i.Name() == "dummyvip0":
 		return false
-	case strings.HasPrefix(i.Name, "veth"):
+	case strings.HasPrefix(i.Name(), "veth"):
 		return false
-	case strings.HasPrefix(i.Name, "cali"):
+	case strings.HasPrefix(i.Name(), "cali"):
 		return false
 	}
 	return hasValidIPNet(i)
 }
 
-func hasValidIPNet(i net.Interface) bool {
+func hasValidIPNet(i NetworkInterface) bool {
 	ipnet, err := firstValidIPNet(i)
 	return err == nil && ipnet != nil
 }
 
-func firstValidIPNet(i net.Interface) (*net.IPNet, error) {
+func firstValidIPNet(i NetworkInterface) (*net.IPNet, error) {
 	addresses, err := i.Addrs()
 	if err != nil {
 		return nil, fmt.Errorf("get addresses: %w", err)
@@ -138,7 +140,8 @@ func ListAllValidIPAddresses() ([]net.IP, error) {
 		}
 	}
 
-	publicIP := runtimeconfig.TryDiscoverPublicIP()
+	// try discovering the public IP if we're running in a cloud provider
+	publicIP := cloudutils.TryDiscoverPublicIP()
 	if publicIP != "" {
 		ipAddresses = append(ipAddresses, net.ParseIP(publicIP))
 	}

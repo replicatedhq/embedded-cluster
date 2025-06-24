@@ -231,6 +231,53 @@ spec:
           fi
       exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
   - run:
+      collectorName: "ip-address-stats"
+      command: "ip"
+      args: ["-s", "-s", "address"]
+  - run:
+      collectorName: "lspci"
+      command: "lspci"
+      args: ["-vvv", "-D"]
+  - run:
+      collectorName: "ethool-info"
+      command: "sh"
+      args:
+        - -c
+        - >
+            interfaces=$(ls /sys/class/net);
+            for iface in $interfaces; do
+            echo "==============================================";
+            echo "Interface: $iface";
+            echo "==============================================";
+
+            echo
+            echo "--- Basic Info ---"
+            ethtool "$iface"
+
+            echo
+            echo "--- Features (Offloads) ---"
+            ethtool -k "$iface"
+
+            echo
+            echo "--- Pause Parameters ---"
+            ethtool -a "$iface"
+
+            echo
+            echo "--- Ring Parameters ---"
+            ethtool -g "$iface"
+
+            echo
+            echo "--- Coalesce Settings ---"
+            ethtool -c "$iface"
+
+            echo
+            echo "--- Driver Info ---"
+            ethtool -i "$iface"
+
+            echo
+            echo
+            done
+  - run:
       collectorName: "sysctl"
       command: "sysctl"
       args: ["-a"]
@@ -287,6 +334,10 @@ spec:
       collectorName: "systemctl-cat-k0scontroller"
       command: "systemctl"
       args: ["cat", "k0scontroller.service"]
+  - run:
+      collectorName: "systemctl-k0scontroller-status"
+      command: "systemctl"
+      args: ["status", "k0scontroller.service"]
   - run:
       collectorName: "systemctl-cat-k0sworker"
       command: "systemctl"
@@ -356,6 +407,16 @@ spec:
       collectorName: "ps-detect-antivirus-and-security-tools"
       command: "sh"
       args: [-c, "ps -ef | grep -E 'clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp' | grep -v grep"]
+  - systemPackages:
+      collectorName: security-tools-packages
+      ubuntu:
+        - sdcss-kmod
+        - sdcss
+        - sdcss-scripts
+      rhel:
+        - sdcss-kmod
+        - sdcss
+        - sdcss-scripts
   - filesystemPerformance:
         collectorName: filesystem-write-latency-etcd
         timeout: 5m
@@ -677,7 +738,7 @@ spec:
   - textAnalyze:
       checkName: "Detect Threat Management and Network Security Tools"
       fileName: host-collectors/run-host/ps-detect-antivirus-and-security-tools.txt
-      regex: '\b(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon)\b'
+      regex: '\b(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp)\b'
       ignoreIfNoFiles: true
       outcomes:
         - fail:
@@ -686,6 +747,15 @@ spec:
         - pass:
             when: "false"
             message: "No antivirus or network security tools detected."
+  - systemPackages:
+      checkName: "Detected Security Packages"
+      collectorName: security-tools-packages
+      outcomes:
+        - fail:
+            when: '{{ "{{" }} .IsInstalled {{ "}}" }}'
+            message: Package {{ "{{" }} .Name {{ "}}" }} is installed. This tool can interfere with kubernetes operation. Ensure the tool is either disabled or configured to not interfere with kubernetes operation.
+        - pass:
+            message: Package {{ "{{" }} .Name {{ "}}" }} is not installed
   - filesystemPerformance:
       checkName: Filesystem Write Latency
       collectorName: filesystem-write-latency-etcd

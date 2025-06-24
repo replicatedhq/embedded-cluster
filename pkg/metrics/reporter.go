@@ -9,9 +9,9 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
-	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -171,7 +171,7 @@ func (r *Reporter) ReportJoinFailed(ctx context.Context, err error) {
 }
 
 // ReportPreflightsFailed reports that the preflights failed.
-func (r *Reporter) ReportPreflightsFailed(ctx context.Context, output preflightstypes.Output) {
+func (r *Reporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
 	outputJSON, err := json.Marshal(output)
 	if err != nil {
 		logrus.Warnf("unable to marshal preflight output: %s", err)
@@ -187,7 +187,7 @@ func (r *Reporter) ReportPreflightsFailed(ctx context.Context, output preflights
 }
 
 // ReportPreflightsBypassed reports that the preflights failed but were bypassed.
-func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output preflightstypes.Output) {
+func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
 	outputJSON, err := json.Marshal(output)
 	if err != nil {
 		logrus.Warnf("unable to marshal preflight output: %s", err)

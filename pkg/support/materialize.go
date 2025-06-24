@@ -7,7 +7,7 @@ import (
 	"text/template"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutil"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
@@ -24,8 +24,7 @@ type TemplateData struct {
 	NoProxy          string
 }
 
-func MaterializeSupportBundleSpec(isAirgap bool, proxy *ecv1beta1.ProxySpec) error {
-	// Get the domain configuration (same as replicatedAppURL() and proxyRegistryURL() functions)
+func MaterializeSupportBundleSpec(rc runtimeconfig.RuntimeConfig, isAirgap bool) error {
 	var embCfgSpec *ecv1beta1.ConfigSpec
 	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
 		embCfgSpec = &embCfg.Spec
@@ -33,22 +32,22 @@ func MaterializeSupportBundleSpec(isAirgap bool, proxy *ecv1beta1.ProxySpec) err
 	domains := runtimeconfig.GetDomains(embCfgSpec)
 
 	data := TemplateData{
-		DataDir:          runtimeconfig.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:       runtimeconfig.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:   runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
+		DataDir:          rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:       rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:   rc.EmbeddedClusterOpenEBSLocalSubDir(),
 		IsAirgap:         isAirgap,
-		ReplicatedAppURL: netutil.MaybeAddHTTPS(domains.ReplicatedAppDomain),
-		ProxyRegistryURL: netutil.MaybeAddHTTPS(domains.ProxyRegistryDomain),
+		ReplicatedAppURL: netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
+		ProxyRegistryURL: netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
 	}
 
 	// Add proxy configuration if available
-	if proxy != nil {
+	if proxy := rc.ProxySpec(); proxy != nil {
 		data.HTTPProxy = proxy.HTTPProxy
 		data.HTTPSProxy = proxy.HTTPSProxy
 		data.NoProxy = proxy.NoProxy
 	}
 
-	path := runtimeconfig.PathToEmbeddedClusterSupportFile("host-support-bundle.tmpl.yaml")
+	path := rc.PathToEmbeddedClusterSupportFile("host-support-bundle.tmpl.yaml")
 	tmpl, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read support bundle template: %w", err)
@@ -57,7 +56,7 @@ func MaterializeSupportBundleSpec(isAirgap bool, proxy *ecv1beta1.ProxySpec) err
 	if err != nil {
 		return fmt.Errorf("render support bundle template: %w", err)
 	}
-	path = runtimeconfig.PathToEmbeddedClusterSupportFile("host-support-bundle.yaml")
+	path = rc.PathToEmbeddedClusterSupportFile("host-support-bundle.yaml")
 	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
 		return fmt.Errorf("write support bundle spec: %w", err)
 	}

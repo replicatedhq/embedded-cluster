@@ -6,8 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -16,16 +18,21 @@ import (
 )
 
 func TestK0sDir(t *testing.T) {
-	k0sDir := filepath.Join(t.TempDir(), "k0s")
+	k0sDir := filepath.Join(t.TempDir(), "other-k0s")
+
+	rcSpec := ecv1beta1.GetDefaultRuntimeConfig()
+	rcSpec.K0sDataDirOverride = k0sDir
+
+	rc := runtimeconfig.New(rcSpec)
+
 	addon := &velero.Velero{
-		DryRun:                   true,
-		EmbeddedClusterK0sSubDir: k0sDir,
+		DryRun: true,
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{})
 	require.NoError(t, err, "NewClient should not return an error")
 
-	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, nil, nil)
+	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, rc, ecv1beta1.Domains{}, nil)
 	require.NoError(t, err, "velero.Install should not return an error")
 
 	manifests := addon.DryRunManifests()

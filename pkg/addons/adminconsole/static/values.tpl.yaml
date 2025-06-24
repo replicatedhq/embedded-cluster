@@ -19,3 +19,6 @@ passwordSecretRef:
     name: kotsadm-password
 service:
     enabled: false
+extraEnv:
+  - name: SSL_CERT_CONFIGMAP
+    value: "kotsadm-private-cas"

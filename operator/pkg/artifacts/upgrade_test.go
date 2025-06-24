@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr/testr"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"
@@ -267,8 +268,10 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 				}()
 			}
 
+			rc := runtimeconfig.New(tt.args.in.Spec.RuntimeConfig)
+
 			if err := EnsureArtifactsJobForNodes(
-				ctx, cli, tt.args.in,
+				ctx, cli, rc, tt.args.in,
 				tt.args.localArtifactMirrorImage,
 				tt.args.licenseID,
 				tt.args.appSlug,
@@ -497,9 +500,11 @@ func TestGetArtifactJobForNode_HostCABundle(t *testing.T) {
 			},
 		}
 
+		rc := runtimeconfig.New(installation.Spec.RuntimeConfig)
+
 		// Call the function under test
 		job, err := getArtifactJobForNode(
-			ctx, cli, installation, node,
+			ctx, cli, rc, installation, node,
 			"local-artifact-mirror:latest",
 			"app-slug",
 			"channel-id",
@@ -590,9 +595,11 @@ func TestGetArtifactJobForNode_HostCABundle(t *testing.T) {
 			},
 		}
 
+		rc := runtimeconfig.New(installation.Spec.RuntimeConfig)
+
 		// Call the function under test
 		job, err := getArtifactJobForNode(
-			ctx, cli, installation, node,
+			ctx, cli, rc, installation, node,
 			"local-artifact-mirror:latest",
 			"app-slug",
 			"channel-id",

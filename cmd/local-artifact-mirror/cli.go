@@ -12,6 +12,7 @@ import (
 )
 
 type CLI struct {
+	RC                runtimeconfig.RuntimeConfig
 	Name              string
 	V                 *viper.Viper
 	KCLIGetter        func() (client.Client, error)
@@ -21,6 +22,7 @@ type CLI struct {
 
 func NewCLI(name string) *CLI {
 	cli := &CLI{
+		RC:                runtimeconfig.New(nil),
 		Name:              name,
 		V:                 viper.New(),
 		KCLIGetter:        kubeutils.KubeClient,
@@ -45,8 +47,8 @@ func (cli *CLI) bindFlags(flags *pflag.FlagSet) {
 func (cli *CLI) setupDataDir() {
 	dataDir := cli.V.GetString("data-dir")
 	if dataDir != "" {
-		runtimeconfig.SetDataDir(dataDir)
+		cli.RC.SetDataDir(dataDir)
 	}
 
-	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+	os.Setenv("TMPDIR", cli.RC.EmbeddedClusterTmpSubDir())
 }

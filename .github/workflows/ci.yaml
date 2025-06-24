@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request: {}
+
   push:
     branches:
       - main
@@ -43,6 +44,29 @@ jobs:
         with:
           args: --build-tags containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay
 
+  web-tests:
+    name: Web unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./web/.nvmrc
+      - name: Install dependencies
+        run: |
+          cd web
+          npm install
+      - name: Run web lint
+        run: |
+          cd web
+          npm run lint
+      - name: Run web unit tests
+        run: |
+          cd web
+          npm run test:unit
+
   test:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -62,10 +86,28 @@ jobs:
     name: Integration tests
     runs-on: ubuntu-latest
     needs:
+      - int-tests-api
       - int-tests-kind
     steps:
       - name: Succeed if all tests passed
         run: echo "Integration tests succeeded"
+
+  int-tests-api:
+    name: Integration tests (api)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+      - name: Run tests
+        run: |
+          make test-integration
 
   int-tests-kind:
     name: Integration tests (kind)
@@ -381,6 +423,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Free up runner disk space
+        uses: ./.github/actions/free-disk-space
+
       - name: Cache embedded bins
         uses: actions/cache@v4
         with:
@@ -551,19 +596,19 @@ jobs:
           export APP_VERSION="appver-${SHORT_SHA}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
-          
+
           # then install a version with alternate unsupported overrides
           export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
           export APP_VERSION="appver-${SHORT_SHA}-unsupported-overrides"
           export RELEASE_YAML_DIR=e2e/kots-release-unsupported-overrides
           ./scripts/ci-release-app.sh
-          
+
           # then install a version with additional failing host preflights
           export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
           export APP_VERSION="appver-${SHORT_SHA}-failing-preflights"
           export RELEASE_YAML_DIR=e2e/kots-release-install-failing-preflights
           ./scripts/ci-release-app.sh
-          
+
           # then install a version with additional warning host preflights
           export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
           export APP_VERSION="appver-${SHORT_SHA}-warning-preflights"
@@ -744,7 +789,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: ./.github/actions/e2e-troubleshoot
         with:
-          test-name: '${{ matrix.test }}'
+          test-name: "${{ matrix.test }}"
 
   e2e:
     name: E2E # this name is used by .github/workflows/automated-prs-manager.yaml
@@ -794,8 +839,8 @@ jobs:
 
       - uses: ./.github/actions/e2e
         with:
-          test-name: '${{ matrix.test }}'
-          is-lxd: '${{ matrix.is-lxd || false }}'
+          test-name: "${{ matrix.test }}"
+          is-lxd: "${{ matrix.is-lxd || false }}"
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.build-current.outputs.k0s_version }}
@@ -832,7 +877,7 @@ jobs:
 
       - uses: ./.github/actions/e2e
         with:
-          test-name: '${{ matrix.test }}'
+          test-name: "${{ matrix.test }}"
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.build-current.outputs.k0s_version }}
@@ -854,6 +899,7 @@ jobs:
       - sanitize
       - test
       - int-tests
+      - web-tests
       - dryrun-tests
       - check-images
       - check-operator-crds

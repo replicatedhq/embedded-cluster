@@ -1,17 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export interface ClusterConfig {
-  clusterName: string;
-  namespace: string;
   storageClass: string;
-  domain: string;
-  useHttps: boolean;
-  adminUsername: string;
-  adminPassword: string;
-  adminEmail: string;
   adminConsolePort?: number;
   localArtifactMirrorPort?: number;
-  databaseType: 'internal' | 'external';
   dataDirectory: string;
   useProxy: boolean;
   httpProxy?: string;
@@ -19,13 +11,6 @@ export interface ClusterConfig {
   noProxy?: string;
   networkInterface?: string;
   globalCidr?: string;
-  databaseConfig?: {
-    host: string;
-    port: number;
-    username: string;
-    password: string;
-    database: string;
-  };
 }
 
 interface PrototypeSettings {
@@ -52,15 +37,7 @@ interface ConfigContextType {
 }
 
 const defaultConfig: ClusterConfig = {
-  clusterName: '',
-  namespace: '',
   storageClass: 'standard',
-  domain: '',
-  useHttps: true,
-  adminUsername: 'admin',
-  adminPassword: '',
-  adminEmail: '',
-  databaseType: 'internal',
   dataDirectory: '/var/lib/embedded-cluster',
   useProxy: false,
 };
@@ -80,7 +57,7 @@ const defaultPrototypeSettings: PrototypeSettings = {
 
 const PROTOTYPE_SETTINGS_KEY = 'app-prototype-settings';
 
-const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
+export const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 
 export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [config, setConfig] = useState<ClusterConfig>(defaultConfig);

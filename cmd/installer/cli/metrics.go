@@ -5,18 +5,18 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
-	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/spf13/pflag"
 )
 
 type InstallReporter struct {
-	reporter  *metrics.Reporter
+	reporter  metrics.ReporterInterface
 	licenseID string
 	appSlug   string
 }
 
-func NewInstallReporter(baseURL string, clusterID uuid.UUID, cmd string, args []string, licenseID string, appSlug string) *InstallReporter {
+func newInstallReporter(baseURL string, clusterID uuid.UUID, cmd string, args []string, licenseID string, appSlug string) *InstallReporter {
 	executionID := uuid.New().String()
 	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd, args)
 	return &InstallReporter{
@@ -38,11 +38,11 @@ func (r *InstallReporter) ReportInstallationFailed(ctx context.Context, err erro
 	r.reporter.ReportInstallationFailed(ctx, err)
 }
 
-func (r *InstallReporter) ReportPreflightsFailed(ctx context.Context, output preflightstypes.Output) {
+func (r *InstallReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
 	r.reporter.ReportPreflightsFailed(ctx, output)
 }
 
-func (r *InstallReporter) ReportPreflightsBypassed(ctx context.Context, output preflightstypes.Output) {
+func (r *InstallReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
 	r.reporter.ReportPreflightsBypassed(ctx, output)
 }
 
@@ -51,10 +51,10 @@ func (r *InstallReporter) ReportSignalAborted(ctx context.Context, sig os.Signal
 }
 
 type JoinReporter struct {
-	reporter *metrics.Reporter
+	reporter metrics.ReporterInterface
 }
 
-func NewJoinReporter(baseURL string, clusterID uuid.UUID, cmd string, flags []string) *JoinReporter {
+func newJoinReporter(baseURL string, clusterID uuid.UUID, cmd string, flags []string) *JoinReporter {
 	executionID := uuid.New().String()
 	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd, flags)
 	return &JoinReporter{
@@ -74,11 +74,11 @@ func (r *JoinReporter) ReportJoinFailed(ctx context.Context, err error) {
 	r.reporter.ReportJoinFailed(ctx, err)
 }
 
-func (r *JoinReporter) ReportPreflightsFailed(ctx context.Context, output preflightstypes.Output) {
+func (r *JoinReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
 	r.reporter.ReportPreflightsFailed(ctx, output)
 }
 
-func (r *JoinReporter) ReportPreflightsBypassed(ctx context.Context, output preflightstypes.Output) {
+func (r *JoinReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
 	r.reporter.ReportPreflightsBypassed(ctx, output)
 }
 

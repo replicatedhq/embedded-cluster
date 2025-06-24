@@ -4,8 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 )
 
 func TestPreflights(t *testing.T) {
@@ -64,18 +65,18 @@ func TestPreflights(t *testing.T) {
 		t.Fatalf("failed to list preflight bundle: err=%v, stderr=%s", err, stderr)
 	}
 
-	results, err := types.OutputFromReader(strings.NewReader(stdout))
+	results, err := preflights.OutputFromReader(strings.NewReader(stdout))
 	if err != nil {
 		t.Fatalf("failed to parse preflight results: %v", err)
 	}
 
 	tests := []struct {
 		name   string
-		assert func(t *testing.T, results *types.Output)
+		assert func(t *testing.T, results *apitypes.HostPreflightsOutput)
 	}{
 		{
 			name: "Should contain fio results",
-			assert: func(t *testing.T, results *types.Output) {
+			assert: func(t *testing.T, results *apitypes.HostPreflightsOutput) {
 				for _, res := range results.Pass {
 					if res.Title == "Filesystem Write Latency" {
 						t.Logf("fio test passed: %s", res.Message)
@@ -95,7 +96,7 @@ func TestPreflights(t *testing.T) {
 		},
 		{
 			name: "Should not contain unexpected failures",
-			assert: func(t *testing.T, results *types.Output) {
+			assert: func(t *testing.T, results *apitypes.HostPreflightsOutput) {
 				expected := map[string]bool{
 					// TODO: work to remove these
 					"System Clock":                            true,
@@ -120,7 +121,7 @@ func TestPreflights(t *testing.T) {
 		},
 		{
 			name: "Should not contain unexpected warnings",
-			assert: func(t *testing.T, results *types.Output) {
+			assert: func(t *testing.T, results *apitypes.HostPreflightsOutput) {
 				expected := map[string]bool{
 					"Default Route": true,
 				}
@@ -135,7 +136,7 @@ func TestPreflights(t *testing.T) {
 		},
 		{
 			name: "Should contain port failures",
-			assert: func(t *testing.T, results *types.Output) {
+			assert: func(t *testing.T, results *apitypes.HostPreflightsOutput) {
 				expected := map[string]bool{
 					"Kubelet Port Availability":               false,
 					"Calico Communication Port Availability":  false,
@@ -155,7 +156,7 @@ func TestPreflights(t *testing.T) {
 		},
 		{
 			name: "Should contain data directory permissions failures",
-			assert: func(t *testing.T, results *types.Output) {
+			assert: func(t *testing.T, results *apitypes.HostPreflightsOutput) {
 				for _, res := range results.Fail {
 					if res.Title == "Data Directory Permissions" {
 						// should not contain data dir as we automatically fix it

@@ -18,6 +18,8 @@ import (
 
 // EnableHACmd is the command for enabling HA mode.
 func EnableHACmd(ctx context.Context, name string) *cobra.Command {
+	var rc runtimeconfig.RuntimeConfig
+
 	cmd := &cobra.Command{
 		Use:   "enable-ha",
 		Short: fmt.Sprintf("Enable high availability for the %s cluster", name),
@@ -26,18 +28,17 @@ func EnableHACmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("enable-ha command must be run as root")
 			}
 
-			rcutil.InitBestRuntimeConfig(cmd.Context())
+			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
 
-			os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
-			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+			_ = rc.SetEnv()
 
 			return nil
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
-			runtimeconfig.Cleanup()
+			rc.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runEnableHA(cmd.Context()); err != nil {
+			if err := runEnableHA(cmd.Context(), rc); err != nil {
 				return err
 			}
 
@@ -48,7 +49,7 @@ func EnableHACmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runEnableHA(ctx context.Context) error {
+func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to get kube client: %w", err)
@@ -57,15 +58,6 @@ func runEnableHA(ctx context.Context) error {
 	mcli, err := kubeutils.MetadataClient()
 	if err != nil {
 		return fmt.Errorf("unable to create metadata client: %w", err)
-	}
-
-	canEnableHA, reason, err := addons.CanEnableHA(ctx, kcli)
-	if err != nil {
-		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
-	}
-	if !canEnableHA {
-		logrus.Warnf("High availability cannot be enabled: %s", reason)
-		return NewErrorNothingElseToAdd(fmt.Errorf("high availability cannot be enabled: %s", reason))
 	}
 
 	kclient, err := kubeutils.GetClientset()
@@ -80,11 +72,11 @@ func runEnableHA(ctx context.Context) error {
 
 	airgapChartsPath := ""
 	if in.Spec.AirGap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		KubeConfig: rc.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
@@ -93,8 +85,26 @@ func runEnableHA(ctx context.Context) error {
 	}
 	defer hcli.Close()
 
+	addOns := addons.New(
+		addons.WithLogFunc(logrus.Debugf),
+		addons.WithKubernetesClient(kcli),
+		addons.WithKubernetesClientSet(kclient),
+		addons.WithMetadataClient(mcli),
+		addons.WithHelmClient(hcli),
+		addons.WithRuntimeConfig(rc),
+	)
+
+	canEnableHA, reason, err := addOns.CanEnableHA(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
+	}
+	if !canEnableHA {
+		logrus.Warnf("High availability cannot be enabled: %s", reason)
+		return NewErrorNothingElseToAdd(fmt.Errorf("high availability cannot be enabled: %s", reason))
+	}
+
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addons.EnableHA(ctx, logrus.Debugf, kcli, mcli, kclient, hcli, in.Spec.Network.ServiceCIDR, in.Spec, loading)
+	return addOns.EnableHA(ctx, in.Spec, loading)
 }

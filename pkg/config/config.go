@@ -19,8 +19,7 @@ import (
 )
 
 const (
-	DefaultServiceNodePortRange = "80-32767"
-	DefaultVendorChartOrder     = 10
+	DefaultVendorChartOrder = 10
 )
 
 // k0sConfigPathOverride is used during tests to override the path to the k0s config file.
@@ -30,7 +29,7 @@ var k0sConfigPathOverride string
 func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 	cfg := k0sconfig.DefaultClusterConfig()
 	// Customize the default k0s configuration to our taste.
-	cfg.Name = runtimeconfig.BinaryName()
+	cfg.Name = "k0s"
 	cfg.Spec.Konnectivity = nil
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"
@@ -44,7 +43,7 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 	if cfg.Spec.API.ExtraArgs == nil {
 		cfg.Spec.API.ExtraArgs = map[string]string{}
 	}
-	cfg.Spec.API.ExtraArgs["service-node-port-range"] = DefaultServiceNodePortRange
+	cfg.Spec.API.ExtraArgs["service-node-port-range"] = embeddedclusterv1beta1.DefaultNetworkNodePortRange
 	cfg.Spec.API.SANs = append(cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
 	cfg.Spec.Network.NodeLocalLoadBalancing.Enabled = true
 	cfg.Spec.Network.NodeLocalLoadBalancing.Type = k0sconfig.NllbTypeEnvoyProxy
@@ -117,14 +116,14 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string, respectImmuta
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags(nodeIP string) ([]string, error) {
+func InstallFlags(rc runtimeconfig.RuntimeConfig, nodeIP string) ([]string, error) {
 	flags := []string{
 		"install",
 		"controller",
 		"--labels", strings.Join(nodeLabels(), ","),
 		"--enable-worker",
 		"--no-taints",
-		"-c", runtimeconfig.PathToK0sConfig(),
+		"-c", runtimeconfig.K0sConfigPath,
 	}
 	profile, err := ProfileInstallFlag()
 	if err != nil {
@@ -133,17 +132,17 @@ func InstallFlags(nodeIP string) ([]string, error) {
 	if profile != "" {
 		flags = append(flags, profile)
 	}
-	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
+	flags = append(flags, AdditionalInstallFlags(rc, nodeIP)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
 	return flags, nil
 }
 
-func AdditionalInstallFlags(nodeIP string) []string {
+func AdditionalInstallFlags(rc runtimeconfig.RuntimeConfig, nodeIP string) []string {
 	return []string{
 		// NOTE: quotes are not supported in older systemd
 		// kardianos/service will escape spaces with "\x20"
 		"--kubelet-extra-args", fmt.Sprintf("--node-ip=%s", nodeIP),
-		"--data-dir", runtimeconfig.EmbeddedClusterK0sSubDir(),
+		"--data-dir", rc.EmbeddedClusterK0sSubDir(),
 	}
 }
 
@@ -211,7 +210,7 @@ func additionalControllerLabels() map[string]string {
 
 func controllerWorkerProfile() (string, error) {
 	// Read the k0s config file
-	k0sPath := runtimeconfig.PathToK0sConfig()
+	k0sPath := runtimeconfig.K0sConfigPath
 	if k0sConfigPathOverride != "" {
 		k0sPath = k0sConfigPathOverride
 	}

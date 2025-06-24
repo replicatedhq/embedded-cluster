@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,10 +35,11 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 	}
 
 	tests := []struct {
-		name   string
-		in     *ecv1beta1.Installation
-		meta   *ectypes.ReleaseMetadata
-		verify func(t *testing.T, addons []types.AddOn, err error)
+		name    string
+		domains ecv1beta1.Domains
+		in      *ecv1beta1.Installation
+		meta    *ectypes.ReleaseMetadata
+		verify  func(t *testing.T, addons []types.AddOn, err error)
 	}{
 		{
 			name: "online installation",
@@ -80,10 +82,12 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 				Spec: ecv1beta1.InstallationSpec{
 					AirGap:           true,
 					HighAvailability: false,
-					Network: &ecv1beta1.NetworkSpec{
-						ServiceCIDR: "10.96.0.0/12",
+					BinaryName:       "test-binary-name",
+					RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
+						Network: ecv1beta1.NetworkSpec{
+							ServiceCIDR: "10.96.0.0/12",
+						},
 					},
-					BinaryName: "test-binary-name",
 				},
 			},
 			meta: meta,
@@ -123,13 +127,15 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 				Spec: ecv1beta1.InstallationSpec{
 					AirGap:           false,
 					HighAvailability: false,
-					Network: &ecv1beta1.NetworkSpec{
-						ServiceCIDR: "10.96.0.0/12",
-					},
 					LicenseInfo: &ecv1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: true,
 					},
 					BinaryName: "test-binary-name",
+					RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
+						Network: ecv1beta1.NetworkSpec{
+							ServiceCIDR: "10.96.0.0/12",
+						},
+					},
 				},
 			},
 			meta: meta,
@@ -168,18 +174,20 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 				Spec: ecv1beta1.InstallationSpec{
 					AirGap:           true,
 					HighAvailability: true,
-					Network: &ecv1beta1.NetworkSpec{
-						ServiceCIDR: "10.96.0.0/12",
-					},
 					LicenseInfo: &ecv1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: true,
 					},
-					Proxy: &ecv1beta1.ProxySpec{
-						HTTPProxy:  "http://proxy.example.com",
-						HTTPSProxy: "https://proxy.example.com",
-						NoProxy:    "localhost,127.0.0.1",
-					},
 					BinaryName: "test-binary-name",
+					RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
+						Network: ecv1beta1.NetworkSpec{
+							ServiceCIDR: "10.96.0.0/12",
+						},
+						Proxy: &ecv1beta1.ProxySpec{
+							HTTPProxy:  "http://proxy.example.com",
+							HTTPSProxy: "https://proxy.example.com",
+							NoProxy:    "localhost,127.0.0.1",
+						},
+					},
 				},
 			},
 			meta: meta,
@@ -261,7 +269,9 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			addons, err := getAddOnsForUpgrade(tt.in, tt.meta)
+			rc := runtimeconfig.New(tt.in.Spec.RuntimeConfig)
+			addOns := New(WithRuntimeConfig(rc))
+			addons, err := addOns.getAddOnsForUpgrade(tt.domains, tt.in, tt.meta)
 			tt.verify(t, addons, err)
 		})
 	}

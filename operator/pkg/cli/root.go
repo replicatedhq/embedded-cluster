@@ -6,6 +6,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/operator/controllers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -72,6 +73,7 @@ func RootCmd() *cobra.Command {
 				Scheme:         mgr.GetScheme(),
 				Discovery:      discovery.NewDiscoveryClientForConfigOrDie(ctrl.GetConfigOrDie()),
 				Recorder:       mgr.GetEventRecorderFor("installation-controller"),
+				RuntimeConfig:  runtimeconfig.New(nil),
 			}).SetupWithManager(mgr); err != nil {
 				setupLog.Error(err, "unable to create controller", "controller", "Installation")
 				os.Exit(1)

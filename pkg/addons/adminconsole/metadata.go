@@ -1,11 +1,30 @@
 package adminconsole
 
 import (
+	_ "embed"
+
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"k8s.io/utils/ptr"
+)
+
+var (
+	//go:embed static/metadata.yaml
+	rawmetadata []byte
+	// Metadata is the unmarshal version of rawmetadata.
+	Metadata release.AddonMetadata
+)
+
+var (
+	// Overwritten by -ldflags in Makefile
+	AdminConsoleChartRepoOverride       = ""
+	AdminConsoleImageOverride           = ""
+	AdminConsoleMigrationsImageOverride = ""
+	AdminConsoleKurlProxyImageOverride  = ""
+	KotsVersion                         = ""
 )
 
 func Version() map[string]string {
@@ -31,11 +50,11 @@ func GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	}
 
 	chartConfig := ecv1beta1.Chart{
-		Name:         releaseName,
-		ChartName:    (&AdminConsole{}).ChartLocation(),
+		Name:         _releaseName,
+		ChartName:    (&AdminConsole{}).ChartLocation(ecv1beta1.Domains{}),
 		Version:      Metadata.Version,
 		Values:       string(values),
-		TargetNS:     namespace,
+		TargetNS:     _namespace,
 		ForceUpgrade: ptr.To(false),
 		Order:        5,
 	}

@@ -14,9 +14,8 @@ import (
 )
 
 func UpdateCmd(ctx context.Context, name string) *cobra.Command {
-	var (
-		airgapBundle string
-	)
+	var airgapBundle string
+	var rc runtimeconfig.RuntimeConfig
 
 	cmd := &cobra.Command{
 		Use:   "update",
@@ -26,17 +25,19 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("update command must be run as root")
 			}
 
-			if err := rcutil.InitRuntimeConfigFromCluster(ctx); err != nil {
+			var err error
+			rc, err = rcutil.GetRuntimeConfigFromCluster(ctx)
+			if err != nil {
 				return fmt.Errorf("failed to init runtime config from cluster: %w", err)
 			}
 
-			os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
-			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+			os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
+			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
 			return nil
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
-			runtimeconfig.Cleanup()
+			rc.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if airgapBundle != "" {
@@ -52,9 +53,10 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if err := kotscli.AirgapUpdate(kotscli.AirgapUpdateOptions{
-				AppSlug:      rel.AppSlug,
-				Namespace:    runtimeconfig.KotsadmNamespace,
-				AirgapBundle: airgapBundle,
+				RuntimeConfig: rc,
+				AppSlug:       rel.AppSlug,
+				Namespace:     runtimeconfig.KotsadmNamespace,
+				AirgapBundle:  airgapBundle,
 			}); err != nil {
 				return err
 			}

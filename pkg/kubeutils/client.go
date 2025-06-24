@@ -62,7 +62,7 @@ func (k *KubeUtils) RESTClientGetterFactory(namespace string) genericclioptions.
 	return cfgFlags
 }
 
-func GetClientset() (*kubernetes.Clientset, error) {
+func (k *KubeUtils) GetClientset() (kubernetes.Interface, error) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("get kubernetes client config: %w", err)

@@ -45,14 +45,14 @@ func ServeCmd(cli *CLI) *cobra.Command {
 
 			handler := http.NewServeMux()
 
-			fileServer := http.FileServer(http.Dir(runtimeconfig.EmbeddedClusterHomeDirectory()))
+			fileServer := http.FileServer(http.Dir(cli.RC.EmbeddedClusterHomeDirectory()))
 			loggedFileServer := logAndFilterRequest(fileServer)
 			handler.Handle("/", loggedFileServer)
 
 			ctx, cancel := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer cancel()
 
-			if err := startBinaryWatcher(cancel); err != nil {
+			if err := startBinaryWatcher(cancel, cli.RC); err != nil {
 				panic(err)
 			}
 
@@ -89,8 +89,8 @@ func ServeCmd(cli *CLI) *cobra.Command {
 // startBinaryWatcher starts a loop that observes the binary until its modification
 // time changes. When the modification time changes a SIGTERM is send in the provided
 // channel.
-func startBinaryWatcher(cancel context.CancelFunc) error {
-	fpath := runtimeconfig.PathToEmbeddedClusterBinary("local-artifact-mirror")
+func startBinaryWatcher(cancel context.CancelFunc, rc runtimeconfig.RuntimeConfig) error {
+	fpath := rc.PathToEmbeddedClusterBinary("local-artifact-mirror")
 	stat, err := os.Stat(fpath)
 	if err != nil {
 		return fmt.Errorf("unable to stat %s: %s", fpath, err)

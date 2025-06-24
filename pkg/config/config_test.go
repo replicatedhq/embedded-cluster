@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
@@ -100,10 +102,10 @@ func Test_extractK0sConfigPatch(t *testing.T) {
 }
 
 func TestRenderK0sConfig(t *testing.T) {
-	cfg := RenderK0sConfig(runtimeconfig.DefaultProxyRegistryDomain)
+	cfg := RenderK0sConfig(domains.DefaultProxyRegistryDomain)
 
 	assert.Equal(t, "calico", cfg.Spec.Network.Provider)
-	assert.Equal(t, DefaultServiceNodePortRange, cfg.Spec.API.ExtraArgs["service-node-port-range"])
+	assert.Equal(t, embeddedclusterv1beta1.DefaultNetworkNodePortRange, cfg.Spec.API.ExtraArgs["service-node-port-range"])
 	assert.Contains(t, cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
 	val, err := json.Marshal(&cfg.Spec.Telemetry.Enabled)
 	require.NoError(t, err)
@@ -138,6 +140,8 @@ func TestInstallFlags(t *testing.T) {
 	err = os.WriteFile(profileTmpFile.Name(), k0sProfileConfigBytes, 0644)
 	require.NoError(t, err)
 
+	rc := runtimeconfig.New(nil)
+
 	tests := []struct {
 		name           string
 		nodeIP         string
@@ -158,9 +162,9 @@ func TestInstallFlags(t *testing.T) {
 				"--labels", "kots.io/embedded-cluster-role-0=controller,kots.io/embedded-cluster-role=total-1",
 				"--enable-worker",
 				"--no-taints",
-				"-c", runtimeconfig.PathToK0sConfig(),
+				"-c", runtimeconfig.K0sConfigPath,
 				"--kubelet-extra-args", "--node-ip=192.168.1.10",
-				"--data-dir", runtimeconfig.EmbeddedClusterK0sSubDir(),
+				"--data-dir", rc.EmbeddedClusterK0sSubDir(),
 				"--disable-components", "konnectivity-server",
 				"--enable-dynamic-config",
 			},
@@ -190,10 +194,10 @@ spec:
 				"--labels", "environment=test,kots.io/embedded-cluster-role-0=custom-controller,kots.io/embedded-cluster-role=total-1",
 				"--enable-worker",
 				"--no-taints",
-				"-c", runtimeconfig.PathToK0sConfig(),
+				"-c", runtimeconfig.K0sConfigPath,
 				"--profile=test-profile",
 				"--kubelet-extra-args", "--node-ip=192.168.1.10",
-				"--data-dir", runtimeconfig.EmbeddedClusterK0sSubDir(),
+				"--data-dir", rc.EmbeddedClusterK0sSubDir(),
 				"--disable-components", "konnectivity-server",
 				"--enable-dynamic-config",
 			},
@@ -217,7 +221,7 @@ spec:
 			})
 
 			// Run test
-			flags, err := InstallFlags(tt.nodeIP)
+			flags, err := InstallFlags(rc, tt.nodeIP)
 			if tt.expectedError {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErrMsg)

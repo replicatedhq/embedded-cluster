@@ -8,10 +8,10 @@ import (
 	"io"
 	"os"
 
-	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/utils/pkg/embed"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
-	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	"gopkg.in/yaml.v2"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
@@ -27,16 +27,21 @@ var (
 type ReleaseData struct {
 	data                  []byte
 	Application           *kotsv1beta1.Application
-	HostPreflights        *v1beta2.HostPreflightSpec
-	EmbeddedClusterConfig *embeddedclusterv1beta1.Config
+	HostPreflights        *troubleshootv1beta2.HostPreflightSpec
+	EmbeddedClusterConfig *ecv1beta1.Config
 	ChannelRelease        *ChannelRelease
 	VeleroBackup          *velerov1.Backup
 	VeleroRestore         *velerov1.Restore
 }
 
+// GetReleaseData returns the release data.
+func GetReleaseData() *ReleaseData {
+	return _releaseData
+}
+
 // GetHostPreflights returns a list of HostPreflight specs that are found in the
 // binary. These are part of the embedded Kots Application Release.
-func GetHostPreflights() *v1beta2.HostPreflightSpec {
+func GetHostPreflights() *troubleshootv1beta2.HostPreflightSpec {
 	return _releaseData.HostPreflights
 }
 
@@ -49,7 +54,7 @@ func GetApplication() *kotsv1beta1.Application {
 
 // GetEmbeddedClusterConfig reads the embedded cluster config from the embedded Kots
 // Application Release.
-func GetEmbeddedClusterConfig() *embeddedclusterv1beta1.Config {
+func GetEmbeddedClusterConfig() *ecv1beta1.Config {
 	return _releaseData.EmbeddedClusterConfig
 }
 
@@ -121,7 +126,7 @@ func parseApplication(data []byte) (*kotsv1beta1.Application, error) {
 	return &app, nil
 }
 
-func parseHostPreflights(data []byte) (*v1beta2.HostPreflightSpec, error) {
+func parseHostPreflights(data []byte) (*troubleshootv1beta2.HostPreflightSpec, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
@@ -129,24 +134,24 @@ func parseHostPreflights(data []byte) (*v1beta2.HostPreflightSpec, error) {
 }
 
 // unserializeHostPreflightSpec unserializes a HostPreflightSpec from a raw slice of bytes.
-func unserializeHostPreflightSpec(data []byte) (*v1beta2.HostPreflightSpec, error) {
+func unserializeHostPreflightSpec(data []byte) (*troubleshootv1beta2.HostPreflightSpec, error) {
 	scheme := kruntime.NewScheme()
-	if err := v1beta2.AddToScheme(scheme); err != nil {
+	if err := troubleshootv1beta2.AddToScheme(scheme); err != nil {
 		return nil, err
 	}
 	decoder := conversion.NewDecoder(scheme)
-	var hpf v1beta2.HostPreflight
+	var hpf troubleshootv1beta2.HostPreflight
 	if err := decoder.DecodeInto(data, &hpf); err != nil {
 		return nil, err
 	}
 	return &hpf.Spec, nil
 }
 
-func parseEmbeddedClusterConfig(data []byte) (*embeddedclusterv1beta1.Config, error) {
+func parseEmbeddedClusterConfig(data []byte) (*ecv1beta1.Config, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
-	var cfg embeddedclusterv1beta1.Config
+	var cfg ecv1beta1.Config
 	if err := kyaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal embedded cluster config: %w", err)
 	}
@@ -256,7 +261,7 @@ func (r *ReleaseData) parse() error {
 			}
 			if hostPreflights != nil {
 				if r.HostPreflights == nil {
-					r.HostPreflights = &v1beta2.HostPreflightSpec{}
+					r.HostPreflights = &troubleshootv1beta2.HostPreflightSpec{}
 				}
 				r.HostPreflights.Collectors = append(r.HostPreflights.Collectors, hostPreflights.Collectors...)
 				r.HostPreflights.Analyzers = append(r.HostPreflights.Analyzers, hostPreflights.Analyzers...)

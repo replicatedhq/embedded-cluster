@@ -147,7 +147,7 @@ main() {
     if ! ensure_release_builtin_overrides; then
         exit 1
     fi
-    if ! systemctl status embedded-cluster; then
+    if ! systemctl status "${EMBEDDED_CLUSTER_BIN}"; then
         echo "Failed to get status of embedded-cluster service"
         exit 1
     fi
@@ -160,6 +160,10 @@ main() {
     # if this is the current version in CI
     if echo "$version" | grep -qvE "(previous-stable)" ; then
         if ! ensure_license_in_data_dir; then
+            exit 1
+        fi
+
+        if ! ensure_copy_host_preflight_results_configmap; then
             exit 1
         fi
     fi

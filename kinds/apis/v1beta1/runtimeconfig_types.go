@@ -9,6 +9,7 @@ const (
 	DefaultAdminConsolePort        = 30000
 	DefaultLocalArtifactMirrorPort = 50000
 	DefaultNetworkCIDR             = "10.244.0.0/16"
+	DefaultNetworkNodePortRange    = "80-32767"
 	DefaultManagerPort             = 30080
 )
 
@@ -25,6 +26,11 @@ type RuntimeConfigSpec struct {
 	OpenEBSDataDirOverride string `json:"openEBSDataDirOverride,omitempty"`
 	// HostCABundlePath holds the path to the CA bundle for the host.
 	HostCABundlePath string `json:"hostCABundlePath,omitempty"`
+
+	// Proxy holds the proxy configuration.
+	Proxy *ProxySpec `json:"proxy,omitempty"`
+	// Network holds the network configuration.
+	Network NetworkSpec `json:"network,omitempty"`
 
 	// AdminConsole holds the Admin Console configuration.
 	AdminConsole AdminConsoleSpec `json:"adminConsole,omitempty"`
@@ -54,9 +60,19 @@ func runtimeConfigSetDefaults(c *RuntimeConfigSpec) {
 	if c.DataDir == "" {
 		c.DataDir = DefaultDataDir
 	}
+	networkSpecSetDefaults(&c.Network)
 	adminConsoleSpecSetDefaults(&c.AdminConsole)
 	localArtifactMirrorSpecSetDefaults(&c.LocalArtifactMirror)
 	managerSpecSetDefaults(&c.Manager)
+}
+
+func networkSpecSetDefaults(s *NetworkSpec) {
+	if s.GlobalCIDR == "" {
+		s.GlobalCIDR = DefaultNetworkCIDR
+	}
+	if s.NodePortRange == "" {
+		s.NodePortRange = DefaultNetworkNodePortRange
+	}
 }
 
 func adminConsoleSpecSetDefaults(s *AdminConsoleSpec) {
