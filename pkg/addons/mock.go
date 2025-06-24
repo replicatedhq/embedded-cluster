@@ -35,8 +35,8 @@ func (m *MockAddOns) CanEnableHA(ctx context.Context) (bool, string, error) {
 }
 
 // EnableHA mocks the EnableHA method
-func (m *MockAddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec, spinner *spinner.MessageWriter, opts EnableHAOptions) error {
-	args := m.Called(ctx, inSpec, spinner, opts)
+func (m *MockAddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec, opts EnableHAOptions, spinner *spinner.MessageWriter) error {
+	args := m.Called(ctx, inSpec, opts, spinner)
 	return args.Error(0)
 }
 

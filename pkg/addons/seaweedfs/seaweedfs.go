@@ -28,8 +28,8 @@ const (
 var _ types.AddOn = (*SeaweedFS)(nil)
 
 type SeaweedFS struct {
-	ServiceCIDR     string
-	SeaweedfsSubDir string
+	ServiceCIDR      string
+	SeaweedfsDataDir string
 }
 
 func (s *SeaweedFS) Name() string {

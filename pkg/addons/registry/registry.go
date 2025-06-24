@@ -23,7 +23,7 @@ type Registry struct {
 
 const (
 	_releaseName = "docker-registry"
-	// TODO(screspo): get the namespace from somewhere else
+
 	_namespace = constants.RegistryNamespace
 
 	_tlsSecretName    = "registry-tls"

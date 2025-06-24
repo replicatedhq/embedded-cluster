@@ -79,7 +79,9 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	}
 
 	t.Logf("%s installing openebs", formattedTime())
-	addon := &openebs.OpenEBS{}
+	addon := &openebs.OpenEBS{
+		OpenEBSDataDir: rc.EmbeddedClusterOpenEBSLocalSubDir(),
+	}
 	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
@@ -152,7 +154,11 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	loading := newTestingSpinner(t)
 	func() {
 		defer loading.Close()
-		err = addOns.EnableHA(t.Context(), inSpec, loading)
+		opts := addons.EnableHAOptions{
+			ServiceCIDR: rc.ServiceCIDR(),
+			ProxySpec:   rc.ProxySpec(),
+		}
+		err = addOns.EnableHA(t.Context(), inSpec, opts, loading)
 		require.NoError(t, err)
 	}()
 
@@ -210,7 +216,11 @@ func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSp
 	defer loading.Close()
 
 	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
-	err = addOns.EnableHA(ctx, inSpec, loading)
+	opts := addons.EnableHAOptions{
+		ServiceCIDR: inSpec.RuntimeConfig.Network.ServiceCIDR,
+		ProxySpec:   inSpec.RuntimeConfig.Proxy,
+	}
+	err = addOns.EnableHA(ctx, inSpec, opts, loading)
 	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
 	t.Logf("%s cancelled context and got error: %v", formattedTime(), err)
 }

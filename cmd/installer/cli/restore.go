@@ -481,8 +481,8 @@ func installAddonsForRestore(ctx context.Context, kcli client.Client, mcli metad
 		EndUserConfigSpec:  nil, // TODO: support for end user config overrides
 		ProxySpec:          rc.ProxySpec(),
 		HostCABundlePath:   rc.HostCABundlePath(),
-		OpenEBSLocalSubDir: rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		K0sSubDir:          rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:     rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
 	}); err != nil {
 		return fmt.Errorf("install addons: %w", err)
 	}

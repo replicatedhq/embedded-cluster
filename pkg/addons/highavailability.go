@@ -53,7 +53,7 @@ func (a *AddOns) CanEnableHA(ctx context.Context) (bool, string, error) {
 }
 
 // EnableHA enables high availability.
-func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec, spinner *spinner.MessageWriter, opts EnableHAOptions) error {
+func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec, opts EnableHAOptions, spinner *spinner.MessageWriter) error {
 	if inSpec.AirGap {
 		logrus.Debugf("Enabling high availability")
 		spinner.Infof("Enabling high availability")

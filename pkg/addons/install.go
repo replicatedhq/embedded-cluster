@@ -29,8 +29,8 @@ type InstallOptions struct {
 	KotsInstaller           adminconsole.KotsInstaller
 	ProxySpec               *ecv1beta1.ProxySpec
 	HostCABundlePath        string
-	OpenEBSLocalSubDir      string
-	K0sSubDir               string
+	OpenEBSDataDir          string
+	K0sDataDir              string
 	ServiceCIDR             string
 }
 
@@ -58,8 +58,8 @@ type RestoreOptions struct {
 	EndUserConfigSpec  *ecv1beta1.ConfigSpec
 	ProxySpec          *ecv1beta1.ProxySpec
 	HostCABundlePath   string
-	OpenEBSLocalSubDir string
-	K0sSubDir          string
+	OpenEBSDataDir     string
+	K0sDataDir         string
 }
 
 func (a *AddOns) Restore(ctx context.Context, opts RestoreOptions) error {
@@ -84,7 +84,7 @@ func (a *AddOns) Restore(ctx context.Context, opts RestoreOptions) error {
 func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{
-			OpenEBSDataDir: opts.OpenEBSLocalSubDir,
+			OpenEBSDataDir: opts.OpenEBSDataDir,
 		},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
 			IsAirgap:         opts.IsAirgap,
@@ -103,7 +103,7 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		addOns = append(addOns, &velero.Velero{
 			Proxy:            opts.ProxySpec,
 			HostCABundlePath: opts.HostCABundlePath,
-			K0sDataDir:       opts.K0sSubDir,
+			K0sDataDir:       opts.K0sDataDir,
 		})
 	}
 
@@ -126,12 +126,12 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 func GetAddOnsForRestore(opts RestoreOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{
-			OpenEBSDataDir: opts.OpenEBSLocalSubDir,
+			OpenEBSDataDir: opts.OpenEBSDataDir,
 		},
 		&velero.Velero{
 			Proxy:            opts.ProxySpec,
 			HostCABundlePath: opts.HostCABundlePath,
-			K0sDataDir:       opts.K0sSubDir,
+			K0sDataDir:       opts.K0sDataDir,
 		},
 	}
 	return addOns

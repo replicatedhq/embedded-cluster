@@ -92,7 +92,6 @@ func ensureDataMigrationPod(ctx context.Context, cli client.Client, image string
 func maybeDeleteDataMigrationPod(ctx context.Context, cli client.Client) error {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			// TODO(screspo): get the namespace from somewhere else
 			Namespace: constants.RegistryNamespace,
 			Name:      dataMigrationPodName,
 		},

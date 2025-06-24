@@ -11,7 +11,7 @@ import (
 
 const (
 	_releaseName = "admin-console"
-	// TODO(screspo): get the namespace from somewhere else
+
 	_namespace = constants.KotsadmNamespace
 )
 

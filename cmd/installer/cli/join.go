@@ -21,6 +21,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
@@ -112,7 +113,8 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 }
 
 func preRunJoin(flags *JoinCmdFlags) error {
-	if os.Getuid() != 0 {
+	// Skip root check if dryrun mode is enabled
+	if !dryrun.Enabled() && os.Getuid() != 0 {
 		return fmt.Errorf("join command must be run as root")
 	}
 
@@ -659,5 +661,5 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		ProxySpec:   rc.ProxySpec(),
 	}
 
-	return addOns.EnableHA(ctx, jcmd.InstallationSpec, loading, opts)
+	return addOns.EnableHA(ctx, jcmd.InstallationSpec, opts, loading)
 }

@@ -80,8 +80,8 @@ func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runti
 		DisasterRecoveryEnabled: license.Spec.IsDisasterRecoverySupported,
 		ProxySpec:               rc.ProxySpec(),
 		HostCABundlePath:        rc.HostCABundlePath(),
-		OpenEBSLocalSubDir:      rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		K0sSubDir:               rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
 		ServiceCIDR:             rc.ServiceCIDR(),
 	})
 	for _, addOn := range addOns {
@@ -310,8 +310,8 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 		EndUserConfigSpec:       m.getEndUserConfigSpec(),
 		ProxySpec:               rc.ProxySpec(),
 		HostCABundlePath:        rc.HostCABundlePath(),
-		OpenEBSLocalSubDir:      rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		K0sSubDir:               rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
 		ServiceCIDR:             rc.ServiceCIDR(),
 	}
 

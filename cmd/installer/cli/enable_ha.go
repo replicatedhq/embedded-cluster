@@ -7,6 +7,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -26,7 +27,8 @@ func EnableHACmd(ctx context.Context, name string) *cobra.Command {
 		Use:   "enable-ha",
 		Short: fmt.Sprintf("Enable high availability for the %s cluster", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if os.Getuid() != 0 {
+			// Skip root check if dryrun mode is enabled
+			if !dryrun.Enabled() && os.Getuid() != 0 {
 				return fmt.Errorf("enable-ha command must be run as root")
 			}
 
@@ -113,5 +115,5 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 		ProxySpec:   rc.ProxySpec(),
 	}
 
-	return addOns.EnableHA(ctx, in.Spec, loading, opts)
+	return addOns.EnableHA(ctx, in.Spec, opts, loading)
 }
