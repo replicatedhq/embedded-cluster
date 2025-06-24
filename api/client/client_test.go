@@ -103,7 +103,7 @@ func TestGetInstallationConfig(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
-		assert.Equal(t, "/api/install/installation/config", r.URL.Path)
+		assert.Equal(t, "/api/linux/install/installation/config", r.URL.Path)
 
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
@@ -150,7 +150,7 @@ func TestConfigureInstallation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check request method and path
 		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "/api/install/installation/configure", r.URL.Path)
+		assert.Equal(t, "/api/linux/install/installation/configure", r.URL.Path)
 
 		// Check headers
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
@@ -206,7 +206,7 @@ func TestSetupInfra(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "/api/install/infra/setup", r.URL.Path)
+		assert.Equal(t, "/api/linux/install/infra/setup", r.URL.Path)
 
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
@@ -254,7 +254,7 @@ func TestGetInfraStatus(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
-		assert.Equal(t, "/api/install/infra/status", r.URL.Path)
+		assert.Equal(t, "/api/linux/install/infra/status", r.URL.Path)
 
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
@@ -302,7 +302,7 @@ func TestSetInstallStatus(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "/api/install/status", r.URL.Path)
+		assert.Equal(t, "/api/linux/install/status", r.URL.Path)
 
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))

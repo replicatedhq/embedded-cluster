@@ -413,7 +413,7 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 		return fmt.Errorf("process overrides file: %w", err)
 	}
 
-	apiConfig := apiConfig{
+	apiConfig := apiOptions{
 		// TODO (@salah): implement reporting in api
 		// MetricsReporter: installReporter,
 		RuntimeConfig: rc,

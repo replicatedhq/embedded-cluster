@@ -24,6 +24,14 @@ components:
         token:
           type: string
       type: object
+    types.GetListAvailableNetworkInterfacesResponse:
+      properties:
+        networkInterfaces:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      type: object
     types.Health:
       properties:
         status:
@@ -161,6 +169,7 @@ paths:
   /auth/login:
     post:
       description: Authenticate a user
+      operationId: postAuthLogin
       requestBody:
         content:
           application/json:
@@ -184,9 +193,24 @@ paths:
       summary: Authenticate a user
       tags:
       - auth
+  /console/available-network-interfaces:
+    get:
+      description: List available network interfaces
+      operationId: getConsoleListAvailableNetworkInterfaces
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.GetListAvailableNetworkInterfacesResponse'
+          description: OK
+      summary: List available network interfaces
+      tags:
+      - console
   /health:
     get:
       description: get the health of the API
+      operationId: getHealth
       responses:
         "200":
           content:
@@ -197,10 +221,11 @@ paths:
       summary: Get the health of the API
       tags:
       - health
-  /install/host-preflights/run:
+  /linux/install/host-preflights/run:
     post:
       description: Run install host preflight checks using installation config and
         client-provided data
+      operationId: postLinuxInstallRunHostPreflights
       requestBody:
         content:
           application/json:
@@ -219,11 +244,12 @@ paths:
       - bearerauth: []
       summary: Run install host preflight checks
       tags:
-      - install
-  /install/host-preflights/status:
+      - linux-install
+  /linux/install/host-preflights/status:
     get:
       description: Get the current status and results of host preflight checks for
         install
+      operationId: getLinuxInstallHostPreflightsStatus
       responses:
         "200":
           content:
@@ -235,10 +261,11 @@ paths:
       - bearerauth: []
       summary: Get host preflight status for install
       tags:
-      - install
-  /install/infra/setup:
+      - linux-install
+  /linux/install/infra/setup:
     post:
       description: Setup infra components
+      operationId: postLinuxInstallSetupInfra
       requestBody:
         content:
           application/json:
@@ -257,10 +284,11 @@ paths:
       - bearerauth: []
       summary: Setup infra components
       tags:
-      - install
-  /install/infra/status:
+      - linux-install
+  /linux/install/infra/status:
     get:
       description: Get the current status of the infra
+      operationId: getLinuxInstallInfraStatus
       responses:
         "200":
           content:
@@ -272,10 +300,11 @@ paths:
       - bearerauth: []
       summary: Get the status of the infra
       tags:
-      - install
-  /install/installation/config:
+      - linux-install
+  /linux/install/installation/config:
     get:
       description: get the installation config
+      operationId: getLinuxInstallInstallationConfig
       responses:
         "200":
           content:
@@ -287,10 +316,11 @@ paths:
       - bearerauth: []
       summary: Get the installation config
       tags:
-      - install
-  /install/installation/configure:
+      - linux-install
+  /linux/install/installation/configure:
     post:
       description: configure the installation for install
+      operationId: postLinuxInstallConfigureInstallation
       requestBody:
         content:
           application/json:
@@ -309,10 +339,11 @@ paths:
       - bearerauth: []
       summary: Configure the installation for install
       tags:
-      - install
-  /install/installation/status:
+      - linux-install
+  /linux/install/installation/status:
     get:
       description: Get the current status of the installation configuration for install
+      operationId: getLinuxInstallInstallationStatus
       responses:
         "200":
           content:
@@ -324,10 +355,11 @@ paths:
       - bearerauth: []
       summary: Get installation configuration status for install
       tags:
-      - install
-  /install/status:
+      - linux-install
+  /linux/install/status:
     get:
       description: Get the current status of the install workflow
+      operationId: getLinuxInstallStatus
       responses:
         "200":
           content:
@@ -339,9 +371,10 @@ paths:
       - bearerauth: []
       summary: Get the status of the install workflow
       tags:
-      - install
+      - linux-install
     post:
       description: Set the status of the install workflow
+      operationId: postLinuxInstallSetStatus
       requestBody:
         content:
           application/json:
@@ -360,6 +393,6 @@ paths:
       - bearerauth: []
       summary: Set the status of the install workflow
       tags:
-      - install
+      - linux-install
 servers:
 - url: /api

@@ -66,7 +66,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   // Mutation to run preflight checks
   const { mutate: runPreflights, error: preflightsRunError } = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/install/host-preflights/run", {
+      const response = await fetch("/api/linux/install/host-preflights/run", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -91,7 +91,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   const { data: installationStatus } = useQuery<InstallationStatusResponse, Error>({
     queryKey: ["installationStatus"],
     queryFn: async () => {
-      const response = await fetch("/api/install/installation/status", {
+      const response = await fetch("/api/linux/install/installation/status", {
         headers: {
           ...(localStorage.getItem("auth") && {
             Authorization: `Bearer ${localStorage.getItem("auth")}`,
@@ -112,7 +112,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   const { data: preflightResponse } = useQuery<PreflightResponse, Error>({
     queryKey: ["preflightStatus"],
     queryFn: async () => {
-      const response = await fetch("/api/install/host-preflights/status", {
+      const response = await fetch("/api/linux/install/host-preflights/status", {
         headers: {
           ...(localStorage.getItem("auth") && {
             Authorization: `Bearer ${localStorage.getItem("auth")}`,
