@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
-	"github.com/replicatedhq/embedded-cluster/api/handlers/utils"
+	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 

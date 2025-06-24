@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
-	"github.com/replicatedhq/embedded-cluster/api/handlers/utils"
+	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/sirupsen/logrus"
