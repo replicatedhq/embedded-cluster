@@ -155,7 +155,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 
 func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	cmd.Flags().StringVar(&flags.target, "target", "linux", "The target platform to install to. Valid options are 'linux' or 'kubernetes'.")
-	if os.Getenv("ENABLE_V3") == "1" {
+	if os.Getenv("ENABLE_V3") != "1" {
 		if err := cmd.Flags().MarkHidden("target"); err != nil {
 			return err
 		}
