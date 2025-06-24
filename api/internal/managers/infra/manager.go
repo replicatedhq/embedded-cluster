@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,6 +34,7 @@ type infraManager struct {
 	tlsConfig     types.TLSConfig
 	license       []byte
 	airgapBundle  string
+	airgapInfo    *kotsv1beta1.Airgap
 	configValues  string
 	releaseData   *release.ReleaseData
 	endUserConfig *ecv1beta1.Config

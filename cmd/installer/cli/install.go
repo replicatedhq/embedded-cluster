@@ -53,6 +53,7 @@ type InstallCmdFlags struct {
 	adminConsolePort        int
 	airgapBundle            string
 	isAirgap                bool
+	airgapInfo              *kotsv1beta1.Airgap
 	dataDir                 string
 	licenseFile             string
 	localArtifactMirrorPort int
@@ -105,7 +106,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				}
 			}
 
-			if err := verifyAndPrompt(ctx, name, flags, prompts.New(), airgapInfo); err != nil {
+			if err := verifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
 				return err
 			}
 			if err := preRunInstall(cmd, &flags, rc); err != nil {
@@ -275,6 +276,13 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 	}
 
 	flags.isAirgap = flags.airgapBundle != ""
+	if flags.airgapBundle != "" {
+		var err error
+		flags.airgapInfo, err = airgap.AirgapInfoFromPath(flags.airgapBundle)
+		if err != nil {
+			return fmt.Errorf("failed to get airgap info: %w", err)
+		}
+	}
 
 	hostCABundlePath, err := findHostCABundle()
 	if err != nil {
@@ -463,7 +471,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, rc, installReporter.reporter, airgapInfo); err != nil {
+	if err := runInstallPreflights(ctx, flags, rc, installReporter.reporter); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -588,7 +596,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 	return opts, nil
 }
 
-func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt, airgapInfo *kotsv1beta1.Airgap) error {
+func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "reinstall")
 	if err != nil {
@@ -605,9 +613,9 @@ func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, pr
 	if err != nil {
 		return err
 	}
-	if airgapInfo != nil {
+	if flags.airgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
-		if err := checkAirgapMatches(airgapInfo); err != nil {
+		if err := checkAirgapMatches(flags.airgapInfo); err != nil {
 			return err // we want the user to see the error message without a prefix
 		}
 	}

@@ -8,13 +8,11 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
-	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -44,16 +42,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			rc.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var airgapInfo *kotsv1beta1.Airgap
-			if flags.airgapBundle != "" {
-				var err error
-				airgapInfo, err = airgap.AirgapInfoFromPath(flags.airgapBundle)
-				if err != nil {
-					return fmt.Errorf("failed to get airgap info: %w", err)
-				}
-			}
-
-			if err := runInstallRunPreflights(cmd.Context(), name, flags, rc, airgapInfo); err != nil {
+			if err := runInstallRunPreflights(cmd.Context(), name, flags, rc); err != nil {
 				return err
 			}
 
@@ -71,8 +60,8 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, airgapInfo *kotsv1beta1.Airgap) error {
-	if err := verifyAndPrompt(ctx, name, flags, prompts.New(), airgapInfo); err != nil {
+func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
+	if err := verifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
 		return err
 	}
 
@@ -90,7 +79,7 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, rc, nil, airgapInfo); err != nil {
+	if err := runInstallPreflights(ctx, flags, rc, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -102,7 +91,7 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, metricsReporter metrics.ReporterInterface, airgapInfo *kotsv1beta1.Airgap) error {
+func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, metricsReporter metrics.ReporterInterface) error {
 	replicatedAppURL := replicatedAppURL()
 	proxyRegistryURL := proxyRegistryURL()
 
@@ -113,8 +102,8 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtime
 
 	// Calculate airgap storage space requirement (2x uncompressed size for controller nodes)
 	var controllerAirgapStorageSpace string
-	if airgapInfo != nil {
-		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(airgapInfo.Spec.UncompressedSize, true)
+	if flags.airgapInfo != nil {
+		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(flags.airgapInfo.Spec.UncompressedSize, true)
 	}
 
 	opts := preflights.PrepareOptions{

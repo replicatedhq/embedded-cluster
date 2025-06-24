@@ -25,7 +25,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -37,7 +36,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
@@ -135,18 +133,9 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 		return err
 	}
 
-	var airgapInfo *kotsv1beta1.Airgap
-	if flags.isAirgap {
+	if flags.airgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
-
-		// read file from path
-		var err error
-		airgapInfo, err = airgap.AirgapInfoFromPath(flags.airgapBundle)
-		if err != nil {
-			return fmt.Errorf("failed to get airgap bundle versions: %w", err)
-		}
-
-		if err := checkAirgapMatches(airgapInfo); err != nil {
+		if err := checkAirgapMatches(flags.airgapInfo); err != nil {
 			return err // we want the user to see the error message without a prefix
 		}
 	}
@@ -204,7 +193,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 
 	switch state {
 	case ecRestoreStateNew:
-		err = runRestoreStepNew(ctx, name, flags, rc, &s3Store, skipStoreValidation, airgapInfo)
+		err = runRestoreStepNew(ctx, name, flags, rc, &s3Store, skipStoreValidation)
 		if err != nil {
 			return err
 		}
@@ -359,7 +348,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	return nil
 }
 
-func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, s3Store *s3BackupStore, skipStoreValidation bool, airgapInfo *kotsv1beta1.Airgap) error {
+func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, s3Store *s3BackupStore, skipStoreValidation bool) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "restore")
 	if err != nil {
@@ -391,7 +380,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, rc, nil, airgapInfo); err != nil {
+	if err := runInstallPreflights(ctx, flags, rc, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}

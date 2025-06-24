@@ -99,10 +99,9 @@ func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConf
 		return fmt.Errorf("parse license: %w", err)
 	}
 
-	var airgapInfo *kotsv1beta1.Airgap
 	if m.airgapBundle != "" {
 		var err error
-		airgapInfo, err = airgap.AirgapInfoFromPath(m.airgapBundle)
+		m.airgapInfo, err = airgap.AirgapInfoFromPath(m.airgapBundle)
 		if err != nil {
 			return fmt.Errorf("failed to get airgap info: %w", err)
 		}
@@ -133,7 +132,7 @@ func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConf
 	}
 	defer hcli.Close()
 
-	in, err := m.recordInstallation(ctx, kcli, license, rc, airgapInfo)
+	in, err := m.recordInstallation(ctx, kcli, license, rc)
 	if err != nil {
 		return fmt.Errorf("record installation: %w", err)
 	}
@@ -228,7 +227,7 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 	return k0sCfg, nil
 }
 
-func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig, airgapInfo *kotsv1beta1.Airgap) (*ecv1beta1.Installation, error) {
+func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) (*ecv1beta1.Installation, error) {
 	logFn := m.logFn("metadata")
 
 	// get the configured custom domains
@@ -236,8 +235,8 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 
 	// extract airgap uncompressed size if airgap info is provided
 	var airgapUncompressedSize int64
-	if airgapInfo != nil {
-		airgapUncompressedSize = airgapInfo.Spec.UncompressedSize
+	if m.airgapInfo != nil {
+		airgapUncompressedSize = m.airgapInfo.Spec.UncompressedSize
 	}
 
 	// record the installation
