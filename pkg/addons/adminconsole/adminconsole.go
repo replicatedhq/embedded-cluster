@@ -5,13 +5,14 @@ import (
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 const (
 	_releaseName = "admin-console"
-	_namespace   = runtimeconfig.KotsadmNamespace
+	// TODO(screspo): get the namespace from somewhere else
+	_namespace = constants.KotsadmNamespace
 )
 
 var _ types.AddOn = (*AdminConsole)(nil)
@@ -27,6 +28,10 @@ type AdminConsole struct {
 	Hostname           string
 	KotsInstaller      KotsInstaller
 	IsMultiNodeEnabled bool
+	HostCABundlePath   string
+	DataDir            string
+	K0sDataDir         string
+	AdminConsolePort   int
 
 	// DryRun is a flag to enable dry-run mode for Admin Console.
 	// If true, Admin Console will only render the helm template and additional manifests, but not install

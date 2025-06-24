@@ -7,13 +7,12 @@ import (
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	registrymigrate "github.com/replicatedhq/embedded-cluster/pkg/addons/registry/migrate"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
-	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -21,6 +20,11 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+type EnableHAOptions struct {
+	ServiceCIDR string
+	ProxySpec   *ecv1beta1.ProxySpec
+}
 
 // CanEnableHA checks if high availability can be enabled in the cluster.
 func (a *AddOns) CanEnableHA(ctx context.Context) (bool, string, error) {
@@ -49,7 +53,7 @@ func (a *AddOns) CanEnableHA(ctx context.Context) (bool, string, error) {
 }
 
 // EnableHA enables high availability.
-func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec, spinner *spinner.MessageWriter) error {
+func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec, spinner *spinner.MessageWriter, opts EnableHAOptions) error {
 	if inSpec.AirGap {
 		logrus.Debugf("Enabling high availability")
 		spinner.Infof("Enabling high availability")
@@ -59,7 +63,7 @@ func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec
 			return errors.Wrap(err, "check if registry data has been migrated")
 		} else if !hasMigrated {
 			logrus.Debugf("Installing seaweedfs")
-			err = a.ensureSeaweedfs(ctx, a.rc.ServiceCIDR(), inSpec.Config)
+			err = a.ensureSeaweedfs(ctx, opts.ServiceCIDR, inSpec.Config)
 			if err != nil {
 				return errors.Wrap(err, "ensure seaweedfs")
 			}
@@ -83,7 +87,7 @@ func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec
 
 			logrus.Debugf("Enabling high availability for the registry")
 			spinner.Infof("Enabling high availability for the registry")
-			err = a.enableRegistryHA(ctx, a.rc.ServiceCIDR(), inSpec.Config)
+			err = a.enableRegistryHA(ctx, opts.ServiceCIDR, inSpec.Config)
 			if err != nil {
 				return errors.Wrap(err, "enable registry high availability")
 			}
@@ -93,7 +97,7 @@ func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec
 
 	logrus.Debugf("Updating the Admin Console for high availability")
 	spinner.Infof("Updating the Admin Console for high availability")
-	err := a.EnableAdminConsoleHA(ctx, inSpec.AirGap, inSpec.Config, inSpec.LicenseInfo)
+	err := a.EnableAdminConsoleHA(ctx, inSpec.AirGap, inSpec.Config, inSpec.LicenseInfo, opts)
 	if err != nil {
 		return errors.Wrap(err, "enable admin console high availability")
 	}
@@ -122,7 +126,7 @@ func (a *AddOns) maybeScaleRegistryBackOnFailure() {
 
 	deploy := &appsv1.Deployment{}
 	// this should use the background context as we want it to run even if the context expired
-	err := a.kcli.Get(context.Background(), client.ObjectKey{Namespace: runtimeconfig.RegistryNamespace, Name: "registry"}, deploy)
+	err := a.kcli.Get(context.Background(), client.ObjectKey{Namespace: constants.RegistryNamespace, Name: "registry"}, deploy)
 	if err != nil {
 		logrus.Errorf("Failed to get registry deployment: %v", err)
 		return
@@ -150,7 +154,7 @@ func (a *AddOns) maybeScaleRegistryBackOnFailure() {
 // scaleRegistryDown scales the registry deployment to 0 replicas.
 func (a *AddOns) scaleRegistryDown(ctx context.Context) error {
 	deploy := &appsv1.Deployment{}
-	err := a.kcli.Get(ctx, client.ObjectKey{Namespace: runtimeconfig.RegistryNamespace, Name: "registry"}, deploy)
+	err := a.kcli.Get(ctx, client.ObjectKey{Namespace: constants.RegistryNamespace, Name: "registry"}, deploy)
 	if err != nil {
 		return fmt.Errorf("get registry deployment: %w", err)
 	}
@@ -176,9 +180,8 @@ func (a *AddOns) migrateRegistryData(ctx context.Context, cfgspec *ecv1beta1.Con
 	if err != nil {
 		return errors.Wrap(err, "get operator image")
 	}
-	domains := runtimeconfig.GetDomains(cfgspec)
-	if domains.ProxyRegistryDomain != "" {
-		operatorImage = strings.Replace(operatorImage, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
+	if a.domains.ProxyRegistryDomain != "" {
+		operatorImage = strings.Replace(operatorImage, "proxy.replicated.com", a.domains.ProxyRegistryDomain, 1)
 	}
 
 	// TODO: timeout
@@ -196,14 +199,12 @@ func (a *AddOns) migrateRegistryData(ctx context.Context, cfgspec *ecv1beta1.Con
 
 // ensureSeaweedfs ensures that seaweedfs is installed.
 func (a *AddOns) ensureSeaweedfs(ctx context.Context, serviceCIDR string, cfgspec *ecv1beta1.ConfigSpec) error {
-	domains := runtimeconfig.GetDomains(cfgspec)
-
 	// TODO (@salah): add support for end user overrides
 	sw := &seaweedfs.SeaweedFS{
 		ServiceCIDR: serviceCIDR,
 	}
 
-	if err := sw.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.rc, domains, a.addOnOverrides(sw, cfgspec, nil)); err != nil {
+	if err := sw.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, a.addOnOverrides(sw, cfgspec, nil)); err != nil {
 		return errors.Wrap(err, "upgrade seaweedfs")
 	}
 
@@ -213,14 +214,12 @@ func (a *AddOns) ensureSeaweedfs(ctx context.Context, serviceCIDR string, cfgspe
 // enableRegistryHA enables high availability for the registry and scales the registry deployment
 // to the desired number of replicas.
 func (a *AddOns) enableRegistryHA(ctx context.Context, serviceCIDR string, cfgspec *ecv1beta1.ConfigSpec) error {
-	domains := runtimeconfig.GetDomains(cfgspec)
-
 	// TODO (@salah): add support for end user overrides
 	r := &registry.Registry{
 		ServiceCIDR: serviceCIDR,
 		IsHA:        true,
 	}
-	if err := r.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.rc, domains, a.addOnOverrides(r, cfgspec, nil)); err != nil {
+	if err := r.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, a.addOnOverrides(r, cfgspec, nil)); err != nil {
 		return errors.Wrap(err, "upgrade registry")
 	}
 
@@ -228,22 +227,20 @@ func (a *AddOns) enableRegistryHA(ctx context.Context, serviceCIDR string, cfgsp
 }
 
 // EnableAdminConsoleHA enables high availability for the admin console.
-func (a *AddOns) EnableAdminConsoleHA(ctx context.Context, isAirgap bool, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo) error {
-	domains := runtimeconfig.GetDomains(cfgspec)
-
+func (a *AddOns) EnableAdminConsoleHA(ctx context.Context, isAirgap bool, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo, opts EnableHAOptions) error {
 	// TODO (@salah): add support for end user overrides
 	ac := &adminconsole.AdminConsole{
 		IsAirgap:           isAirgap,
 		IsHA:               true,
-		Proxy:              a.rc.ProxySpec(),
-		ServiceCIDR:        a.rc.ServiceCIDR(),
+		Proxy:              opts.ProxySpec,
+		ServiceCIDR:        opts.ServiceCIDR,
 		IsMultiNodeEnabled: licenseInfo != nil && licenseInfo.IsMultiNodeEnabled,
 	}
-	if err := ac.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.rc, domains, a.addOnOverrides(ac, cfgspec, nil)); err != nil {
+	if err := ac.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, a.addOnOverrides(ac, cfgspec, nil)); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
 	}
 
-	if err := kubeutils.WaitForStatefulset(ctx, a.kcli, runtimeconfig.KotsadmNamespace, "kotsadm-rqlite", nil); err != nil {
+	if err := kubeutils.WaitForStatefulset(ctx, a.kcli, constants.KotsadmNamespace, "kotsadm-rqlite", nil); err != nil {
 		return errors.Wrap(err, "wait for rqlite to be ready")
 	}
 

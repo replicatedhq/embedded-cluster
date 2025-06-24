@@ -14,6 +14,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
@@ -451,7 +452,7 @@ func installK0sBinary(rc runtimeconfig.RuntimeConfig) error {
 }
 
 func applyNetworkConfiguration(rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
-	domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
+	domains := domains.GetDomains(jcmd.InstallationSpec.Config, release.GetChannelRelease())
 	clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 
 	address, err := netutils.FirstValidAddress(rc.NetworkInterface())
@@ -617,7 +618,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		addons.WithKubernetesClientSet(kclient),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(getDomains()),
 	)
 
 	canEnableHA, _, err := addOns.CanEnableHA(ctx)
@@ -653,5 +654,10 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addOns.EnableHA(ctx, jcmd.InstallationSpec, loading)
+	opts := addons.EnableHAOptions{
+		ServiceCIDR: rc.ServiceCIDR(),
+		ProxySpec:   rc.ProxySpec(),
+	}
+
+	return addOns.EnableHA(ctx, jcmd.InstallationSpec, loading, opts)
 }

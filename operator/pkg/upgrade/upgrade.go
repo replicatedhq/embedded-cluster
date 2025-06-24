@@ -13,6 +13,7 @@ import (
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
@@ -180,7 +181,9 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 		return fmt.Errorf("get cluster config: %w", err)
 	}
 
-	domains := runtimeconfig.GetDomains(in.Spec.Config)
+	// We use the domains from the installation spec and fall back to default here, as this is the
+	// operator binary so the channel release is not embedded.
+	domains := domains.GetDomains(in.Spec.Config, nil)
 
 	didUpdate := false
 
@@ -267,14 +270,24 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc 
 		return fmt.Errorf("create metadata client: %w", err)
 	}
 
+	// We use the domains from the installation spec and fall back to default here, as this is the
+	// operator binary so the channel release is not embedded.
+	domains := domains.GetDomains(in.Spec.Config, nil)
+
 	addOns := addons.New(
 		addons.WithLogFunc(slog.Info),
 		addons.WithKubernetesClient(cli),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(domains),
 	)
-	if err := addOns.Upgrade(ctx, in, meta); err != nil {
+
+	opts := addons.UpgradeOptions{
+		ServiceCIDR: rc.ServiceCIDR(),
+		ProxySpec:   rc.ProxySpec(),
+	}
+
+	if err := addOns.Upgrade(ctx, in, meta, opts); err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 

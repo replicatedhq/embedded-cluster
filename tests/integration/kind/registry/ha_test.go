@@ -73,12 +73,14 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	})
 
 	domains := ecv1beta1.Domains{
-		ProxyRegistryDomain: "proxy.replicated.com",
+		ReplicatedAppDomain:      "replicated.app",
+		ProxyRegistryDomain:      "proxy.replicated.com",
+		ReplicatedRegistryDomain: "registry.replicated.com",
 	}
 
 	t.Logf("%s installing openebs", formattedTime())
 	addon := &openebs.OpenEBS{}
-	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil); err != nil {
+	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 
@@ -90,7 +92,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		ServiceCIDR: "10.96.0.0/12",
 		IsHA:        false,
 	}
-	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil))
+	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
 
 	t.Logf("%s creating hostport service", formattedTime())
 	registryAddr := createHostPortService(t, clusterName, kubeconfig)
@@ -101,7 +103,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		IsHA:        false,
 		ServiceCIDR: "10.96.0.0/12",
 	}
-	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil))
+	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
 
 	t.Logf("%s pushing image to registry", formattedTime())
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")
@@ -117,9 +119,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	inSpec := ecv1beta1.InstallationSpec{
 		AirGap: true,
 		Config: &ecv1beta1.ConfigSpec{
-			Domains: ecv1beta1.Domains{
-				ProxyRegistryDomain: "proxy.replicated.com",
-			},
+			Domains: domains,
 		},
 		RuntimeConfig: rc.Get(),
 	}
@@ -129,7 +129,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		addons.WithKubernetesClientSet(kclient),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(domains),
 	)
 
 	enableHAAndCancelContextOnMessage(t, addOns, inSpec,

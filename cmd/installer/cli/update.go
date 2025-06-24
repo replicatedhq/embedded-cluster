@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
@@ -55,7 +56,7 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 			if err := kotscli.AirgapUpdate(kotscli.AirgapUpdateOptions{
 				RuntimeConfig: rc,
 				AppSlug:       rel.AppSlug,
-				Namespace:     runtimeconfig.KotsadmNamespace,
+				Namespace:     constants.KotsadmNamespace,
 				AirgapBundle:  airgapBundle,
 			}); err != nil {
 				return err

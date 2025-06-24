@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -91,7 +93,7 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 		addons.WithKubernetesClientSet(kclient),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(domains.GetDomains(in.Spec.Config, release.GetChannelRelease())),
 	)
 
 	canEnableHA, reason, err := addOns.CanEnableHA(ctx)
@@ -106,5 +108,10 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addOns.EnableHA(ctx, in.Spec, loading)
+	opts := addons.EnableHAOptions{
+		ServiceCIDR: rc.ServiceCIDR(),
+		ProxySpec:   rc.ProxySpec(),
+	}
+
+	return addOns.EnableHA(ctx, in.Spec, loading, opts)
 }

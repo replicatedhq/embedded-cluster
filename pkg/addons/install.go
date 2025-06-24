@@ -12,7 +12,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
@@ -28,23 +27,22 @@ type InstallOptions struct {
 	EmbeddedConfigSpec      *ecv1beta1.ConfigSpec
 	EndUserConfigSpec       *ecv1beta1.ConfigSpec
 	KotsInstaller           adminconsole.KotsInstaller
-	IsRestore               bool
+	ProxySpec               *ecv1beta1.ProxySpec
+	HostCABundlePath        string
+	OpenEBSLocalSubDir      string
+	K0sSubDir               string
+	ServiceCIDR             string
 }
 
 func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
-	addons := GetAddOnsForInstall(a.rc, opts)
-	if opts.IsRestore {
-		addons = GetAddOnsForRestore(a.rc, opts)
-	}
-
-	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
+	addons := GetAddOnsForInstall(opts)
 
 	for _, addon := range addons {
 		a.sendProgress(addon.Name(), apitypes.StateRunning, "Installing")
 
 		overrides := a.addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
-		if err := addon.Install(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.rc, domains, overrides); err != nil {
+		if err := addon.Install(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, overrides); err != nil {
 			a.sendProgress(addon.Name(), apitypes.StateFailed, err.Error())
 			return errors.Wrapf(err, "install %s", addon.Name())
 		}
@@ -55,31 +53,64 @@ func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
 	return nil
 }
 
-func GetAddOnsForInstall(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
+type RestoreOptions struct {
+	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
+	EndUserConfigSpec  *ecv1beta1.ConfigSpec
+	ProxySpec          *ecv1beta1.ProxySpec
+	HostCABundlePath   string
+	OpenEBSLocalSubDir string
+	K0sSubDir          string
+}
+
+func (a *AddOns) Restore(ctx context.Context, opts RestoreOptions) error {
+	addons := GetAddOnsForRestore(opts)
+
+	for _, addon := range addons {
+		a.sendProgress(addon.Name(), apitypes.StateRunning, "Installing")
+
+		overrides := a.addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
+
+		if err := addon.Install(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, overrides); err != nil {
+			a.sendProgress(addon.Name(), apitypes.StateFailed, err.Error())
+			return errors.Wrapf(err, "install %s", addon.Name())
+		}
+
+		a.sendProgress(addon.Name(), apitypes.StateSucceeded, "Installed")
+	}
+
+	return nil
+}
+
+func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
+		&openebs.OpenEBS{
+			OpenEBSDataDir: opts.OpenEBSLocalSubDir,
+		},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
-			IsAirgap: opts.IsAirgap,
-			Proxy:    rc.ProxySpec(),
+			IsAirgap:         opts.IsAirgap,
+			Proxy:            opts.ProxySpec,
+			HostCABundlePath: opts.HostCABundlePath,
 		},
 	}
 
 	if opts.IsAirgap {
 		addOns = append(addOns, &registry.Registry{
-			ServiceCIDR: rc.ServiceCIDR(),
+			ServiceCIDR: opts.ServiceCIDR,
 		})
 	}
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			Proxy: rc.ProxySpec(),
+			Proxy:            opts.ProxySpec,
+			HostCABundlePath: opts.HostCABundlePath,
+			K0sDataDir:       opts.K0sSubDir,
 		})
 	}
 
 	adminConsoleAddOn := &adminconsole.AdminConsole{
 		IsAirgap:           opts.IsAirgap,
-		Proxy:              rc.ProxySpec(),
-		ServiceCIDR:        rc.ServiceCIDR(),
+		Proxy:              opts.ProxySpec,
+		ServiceCIDR:        opts.ServiceCIDR,
 		Password:           opts.AdminConsolePwd,
 		TLSCertBytes:       opts.TLSCertBytes,
 		TLSKeyBytes:        opts.TLSKeyBytes,
@@ -92,11 +123,15 @@ func GetAddOnsForInstall(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []
 	return addOns
 }
 
-func GetAddOnsForRestore(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
+func GetAddOnsForRestore(opts RestoreOptions) []types.AddOn {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
+		&openebs.OpenEBS{
+			OpenEBSDataDir: opts.OpenEBSLocalSubDir,
+		},
 		&velero.Velero{
-			Proxy: rc.ProxySpec(),
+			Proxy:            opts.ProxySpec,
+			HostCABundlePath: opts.HostCABundlePath,
+			K0sDataDir:       opts.K0sSubDir,
 		},
 	}
 	return addOns

@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	ecmetadata "github.com/replicatedhq/embedded-cluster/pkg-new/metadata"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
@@ -74,9 +75,14 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) error {
 	components := []types.InfraComponent{{Name: K0sComponentName}}
 
-	addOns := addons.GetAddOnsForInstall(rc, addons.InstallOptions{
+	addOns := addons.GetAddOnsForInstall(addons.InstallOptions{
 		IsAirgap:                m.airgapBundle != "",
 		DisasterRecoveryEnabled: license.Spec.IsDisasterRecoverySupported,
+		ProxySpec:               rc.ProxySpec(),
+		HostCABundlePath:        rc.HostCABundlePath(),
+		OpenEBSLocalSubDir:      rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		K0sSubDir:               rc.EmbeddedClusterK0sSubDir(),
+		ServiceCIDR:             rc.ServiceCIDR(),
 	})
 	for _, addOn := range addOns {
 		components = append(components, types.InfraComponent{Name: addOn.Name()})
@@ -274,7 +280,7 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 		addons.WithKubernetesClient(kcli),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(utils.GetDomains(m.releaseData)),
 		addons.WithProgressChannel(progressChan),
 	)
 
@@ -302,6 +308,11 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 		IsMultiNodeEnabled:      license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec:      m.getECConfigSpec(),
 		EndUserConfigSpec:       m.getEndUserConfigSpec(),
+		ProxySpec:               rc.ProxySpec(),
+		HostCABundlePath:        rc.HostCABundlePath(),
+		OpenEBSLocalSubDir:      rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		K0sSubDir:               rc.EmbeddedClusterK0sSubDir(),
+		ServiceCIDR:             rc.ServiceCIDR(),
 	}
 
 	if m.kotsInstaller != nil { // used for testing
@@ -312,7 +323,7 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 				RuntimeConfig:         rc,
 				AppSlug:               license.Spec.AppSlug,
 				License:               m.license,
-				Namespace:             runtimeconfig.KotsadmNamespace,
+				Namespace:             constants.KotsadmNamespace,
 				AirgapBundle:          m.airgapBundle,
 				ConfigValuesFile:      m.configValues,
 				ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
