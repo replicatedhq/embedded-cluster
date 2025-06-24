@@ -98,7 +98,7 @@ func New(cfg types.APIConfig, opts ...APIOption) (*API, error) {
 	}
 
 	if err := api.InitHandlers(api.cfg); err != nil {
-		return nil, fmt.Errorf("register handlers: %w", err)
+		return nil, fmt.Errorf("init handlers: %w", err)
 	}
 
 	return api, nil
