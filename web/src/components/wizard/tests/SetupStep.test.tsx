@@ -26,7 +26,6 @@ const server = setupServer(
 
 describe("SetupStep", () => {
   const mockOnNext = vi.fn();
-  const mockOnBack = vi.fn();
 
   beforeAll(() => {
     server.listen();
@@ -45,8 +44,8 @@ describe("SetupStep", () => {
     server.close();
   });
 
-  it("renders the linux setup form when it's embedded", async () => {
-    renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+  it("renders the linux setup form when the install target is linux", async () => {
+    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {
@@ -127,7 +126,7 @@ describe("SetupStep", () => {
       })
     );
 
-    renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {
@@ -230,7 +229,7 @@ describe("SetupStep", () => {
       })
     );
 
-    renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {

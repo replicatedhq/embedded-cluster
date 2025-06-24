@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -65,6 +66,7 @@ type InstallCmdFlags struct {
 
 	// guided UI flags
 	enableManagerExperience bool
+	target                  string
 	managerPort             int
 	tlsCertFile             string
 	tlsKeyFile              string
@@ -204,26 +206,37 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) err
 }
 
 func addManagerExperienceFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
-	cmd.Flags().BoolVar(&flags.enableManagerExperience, "manager-experience", false, "Run the browser-based installation experience.")
+	// If the ENABLE_V3 environment variable is set, default to the new manager experience and do
+	// not hide the new flags.
+	enableV3 := os.Getenv("ENABLE_V3") != ""
+
+	cmd.Flags().BoolVar(&flags.enableManagerExperience, "manager-experience", enableV3, "Run the browser-based installation experience.")
+	if err := cmd.Flags().MarkHidden("manager-experience"); err != nil {
+		return err
+	}
+
+	cmd.Flags().StringVar(&flags.target, "target", "linux", "The target platform to install to. Valid options are 'linux' or 'kubernetes'.")
 	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
 	cmd.Flags().StringVar(&flags.tlsCertFile, "tls-cert", "", "Path to the TLS certificate file")
 	cmd.Flags().StringVar(&flags.tlsKeyFile, "tls-key", "", "Path to the TLS key file")
 	cmd.Flags().StringVar(&flags.hostname, "hostname", "", "Hostname to use for TLS configuration")
 
-	if err := cmd.Flags().MarkHidden("manager-experience"); err != nil {
-		return err
-	}
-	if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
-		return err
-	}
-	if err := cmd.Flags().MarkHidden("tls-cert"); err != nil {
-		return err
-	}
-	if err := cmd.Flags().MarkHidden("tls-key"); err != nil {
-		return err
-	}
-	if err := cmd.Flags().MarkHidden("hostname"); err != nil {
-		return err
+	if enableV3 {
+		if err := cmd.Flags().MarkHidden("target"); err != nil {
+			return err
+		}
+		if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
+			return err
+		}
+		if err := cmd.Flags().MarkHidden("tls-cert"); err != nil {
+			return err
+		}
+		if err := cmd.Flags().MarkHidden("tls-key"); err != nil {
+			return err
+		}
+		if err := cmd.Flags().MarkHidden("hostname"); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -237,6 +250,10 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 	// set the umask to 022 so that we can create files/directories with 755 permissions
 	// this does not return an error - it returns the previous umask
 	_ = syscall.Umask(0o022)
+
+	if !slices.Contains([]string{"linux", "kubernetes"}, flags.target) {
+		return fmt.Errorf(`invalid target (must be one of: "linux", "kubernetes")`)
+	}
 
 	// license file can be empty for restore
 	if flags.licenseFile != "" {
@@ -414,10 +431,11 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 	}
 
 	apiConfig := apiOptions{
+		InstallTarget: flags.target,
+		RuntimeConfig: rc,
 		// TODO (@salah): implement reporting in api
 		// MetricsReporter: installReporter,
-		RuntimeConfig: rc,
-		Password:      flags.adminConsolePassword,
+		Password: flags.adminConsolePassword,
 		TLSConfig: apitypes.TLSConfig{
 			CertBytes: flags.tlsCertBytes,
 			KeyBytes:  flags.tlsKeyBytes,

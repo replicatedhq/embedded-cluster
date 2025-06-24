@@ -37,7 +37,7 @@ interface LinuxSetupProps {
     globalCidr?: string;
   };
   prototypeSettings: {
-    clusterMode: string;
+    installTarget: string;
     availableNetworkInterfaces?: Array<{
       name: string;
     }>;
