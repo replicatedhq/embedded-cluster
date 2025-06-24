@@ -154,6 +154,13 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 }
 
 func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
+	cmd.Flags().StringVar(&flags.target, "target", "linux", "The target platform to install to. Valid options are 'linux' or 'kubernetes'.")
+	if os.Getenv("ENABLE_V3") == "1" {
+		if err := cmd.Flags().MarkHidden("target"); err != nil {
+			return err
+		}
+	}
+
 	cmd.Flags().StringVar(&flags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
 	cmd.Flags().StringVar(&flags.dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	cmd.Flags().IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
@@ -208,23 +215,19 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) err
 func addManagerExperienceFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	// If the ENABLE_V3 environment variable is set, default to the new manager experience and do
 	// not hide the new flags.
-	enableV3 := os.Getenv("ENABLE_V3") != ""
+	enableV3 := os.Getenv("ENABLE_V3") == "1"
 
 	cmd.Flags().BoolVar(&flags.enableManagerExperience, "manager-experience", enableV3, "Run the browser-based installation experience.")
 	if err := cmd.Flags().MarkHidden("manager-experience"); err != nil {
 		return err
 	}
 
-	cmd.Flags().StringVar(&flags.target, "target", "linux", "The target platform to install to. Valid options are 'linux' or 'kubernetes'.")
 	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
 	cmd.Flags().StringVar(&flags.tlsCertFile, "tls-cert", "", "Path to the TLS certificate file")
 	cmd.Flags().StringVar(&flags.tlsKeyFile, "tls-key", "", "Path to the TLS key file")
 	cmd.Flags().StringVar(&flags.hostname, "hostname", "", "Hostname to use for TLS configuration")
 
-	if enableV3 {
-		if err := cmd.Flags().MarkHidden("target"); err != nil {
-			return err
-		}
+	if !enableV3 {
 		if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
 			return err
 		}
