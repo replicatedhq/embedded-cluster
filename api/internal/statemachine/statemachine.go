@@ -26,6 +26,8 @@ type Interface interface {
 	Transition(lock Lock, nextState State) error
 	// AcquireLock acquires a lock on the state machine.
 	AcquireLock() (Lock, error)
+	// IsLockAcquired checks if a lock already exists on the state machine.
+	IsLockAcquired() bool
 }
 
 type Lock interface {
@@ -81,6 +83,13 @@ func (sm *stateMachine) AcquireLock() (Lock, error) {
 	}
 
 	return sm.lock, nil
+}
+
+func (sm *stateMachine) IsLockAcquired() bool {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	return sm.lock != nil
 }
 
 func (sm *stateMachine) ValidateTransition(lock Lock, nextState State) error {

@@ -29,7 +29,7 @@ type Controller interface {
 	GetHostPreflightStatus(ctx context.Context) (types.Status, error)
 	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
-	SetupInfra(ctx context.Context) error
+	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
 	SetStatus(ctx context.Context, status types.Status) error
 	GetStatus(ctx context.Context) (types.Status, error)
@@ -57,12 +57,13 @@ type InstallController struct {
 	configValues         string
 	endUserConfig        *ecv1beta1.Config
 
-	install      types.Install
-	store        store.Store
-	rc           runtimeconfig.RuntimeConfig
-	stateMachine statemachine.Interface
-	logger       logrus.FieldLogger
-	mu           sync.RWMutex
+	install                   types.Install
+	store                     store.Store
+	rc                        runtimeconfig.RuntimeConfig
+	stateMachine              statemachine.Interface
+	logger                    logrus.FieldLogger
+	mu                        sync.RWMutex
+	allowIgnoreHostPreflights bool
 }
 
 type InstallControllerOption func(*InstallController)
@@ -142,6 +143,12 @@ func WithConfigValues(configValues string) InstallControllerOption {
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InstallControllerOption {
 	return func(c *InstallController) {
 		c.endUserConfig = endUserConfig
+	}
+}
+
+func WithAllowIgnoreHostPreflights(allowIgnoreHostPreflights bool) InstallControllerOption {
+	return func(c *InstallController) {
+		c.allowIgnoreHostPreflights = allowIgnoreHostPreflights
 	}
 }
 

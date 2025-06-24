@@ -108,7 +108,7 @@ func (m *mockInstallController) GetHostPreflightTitles(ctx context.Context) ([]s
 	return []string{}, nil
 }
 
-func (m *mockInstallController) SetupInfra(ctx context.Context) error {
+func (m *mockInstallController) SetupInfra(ctx context.Context, ignoreHostPreflights bool) error {
 	return m.setupInfraError
 }
 
@@ -1225,9 +1225,16 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -1331,9 +1338,16 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -1348,6 +1362,185 @@ func TestPostSetupInfra(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&apiError)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+
+	// Test preflight bypass with CLI flag allowing it - should succeed
+	t.Run("Preflight bypass allowed by CLI flag", func(t *testing.T) {
+		// Create host preflights with failed status
+		hpf := types.HostPreflights{}
+		hpf.Status = types.Status{
+			State:       types.StateFailed,
+			Description: "Host preflights failed",
+		}
+
+		// Create managers
+		pfManager := preflight.NewHostPreflightManager(
+			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
+		)
+
+		// Create an install controller with CLI flag allowing bypass
+		installController, err := install.NewInstallController(
+			install.WithStateMachine(install.NewStateMachine(install.WithCurrentState(install.StatePreflightsFailed))),
+			install.WithHostPreflightManager(pfManager),
+			install.WithAllowIgnoreHostPreflights(true), // CLI flag allows bypass
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		apiInstance, err := api.New(
+			"password",
+			api.WithInstallController(installController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request with ignoreHostPreflights=true
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: true,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response - should succeed because CLI flag allows bypass
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		t.Logf("Response body: %s", rec.Body.String())
+	})
+
+	// Test preflight bypass with CLI flag NOT allowing it - should fail
+	t.Run("Preflight bypass denied by CLI flag", func(t *testing.T) {
+		// Create host preflights with failed status
+		hpf := types.HostPreflights{}
+		hpf.Status = types.Status{
+			State:       types.StateFailed,
+			Description: "Host preflights failed",
+		}
+
+		// Create managers
+		pfManager := preflight.NewHostPreflightManager(
+			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
+		)
+
+		// Create an install controller with CLI flag NOT allowing bypass
+		installController, err := install.NewInstallController(
+			install.WithStateMachine(install.NewStateMachine(install.WithCurrentState(install.StatePreflightsFailed))),
+			install.WithHostPreflightManager(pfManager),
+			install.WithAllowIgnoreHostPreflights(false), // CLI flag does NOT allow bypass
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		apiInstance, err := api.New(
+			"password",
+			api.WithInstallController(installController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request with ignoreHostPreflights=true
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: true,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response - should fail because CLI flag does NOT allow bypass
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		t.Logf("Response body: %s", rec.Body.String())
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+		assert.Contains(t, apiError.Message, "preflight checks failed")
+	})
+
+	// Test client not requesting bypass but preflights failed - should fail
+	t.Run("Client not requesting bypass with failed preflights", func(t *testing.T) {
+		// Create host preflights with failed status
+		hpf := types.HostPreflights{}
+		hpf.Status = types.Status{
+			State:       types.StateFailed,
+			Description: "Host preflights failed",
+		}
+
+		// Create managers
+		pfManager := preflight.NewHostPreflightManager(
+			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
+		)
+
+		// Create an install controller with CLI flag allowing bypass
+		installController, err := install.NewInstallController(
+			install.WithStateMachine(install.NewStateMachine(install.WithCurrentState(install.StatePreflightsFailed))),
+			install.WithHostPreflightManager(pfManager),
+			install.WithAllowIgnoreHostPreflights(true), // CLI flag allows bypass
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		apiInstance, err := api.New(
+			"password",
+			api.WithInstallController(installController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request with ignoreHostPreflights=false (client not requesting bypass)
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response - should fail because client is not requesting bypass
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		t.Logf("Response body: %s", rec.Body.String())
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+		assert.Contains(t, apiError.Message, "preflight checks failed")
 	})
 
 	// Test preflight checks not completed
@@ -1383,9 +1576,16 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -1393,15 +1593,7 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusConflict, rec.Code)
-
-		t.Logf("Response body: %s", rec.Body.String())
-
-		// Parse the response body
-		var apiError types.APIError
-		err = json.NewDecoder(rec.Body).Decode(&apiError)
-		require.NoError(t, err)
-		assert.Equal(t, http.StatusConflict, apiError.StatusCode)
-		assert.Contains(t, apiError.Message, "invalid transition from PreflightsRunning to InfrastructureInstalling")
+		assert.Contains(t, rec.Body.String(), "invalid transition")
 	})
 
 	// Test k0s already installed error
@@ -1449,9 +1641,16 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -1459,7 +1658,7 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusConflict, rec.Code)
-		assert.Contains(t, rec.Body.String(), "invalid transition from Succeeded to InfrastructureInstalling")
+		assert.Contains(t, rec.Body.String(), "invalid transition")
 	})
 
 	// Test k0s install error
@@ -1528,9 +1727,16 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request

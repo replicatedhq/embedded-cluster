@@ -2,15 +2,21 @@ package install
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
+var (
+	ErrPreflightChecksFailed      = errors.New("preflight checks failed")
+	ErrPreflightChecksNotComplete = errors.New("preflight checks not complete")
+)
+
+func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights bool) (finalErr error) {
 	if c.stateMachine.CurrentState() == StatePreflightsFailed {
-		err := c.bypassPreflights(ctx)
+		err := c.bypassPreflights(ctx, ignoreHostPreflights)
 		if err != nil {
 			return fmt.Errorf("bypass preflights: %w", err)
 		}
@@ -68,7 +74,11 @@ func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
 	return nil
 }
 
-func (c *InstallController) bypassPreflights(ctx context.Context) error {
+func (c *InstallController) bypassPreflights(ctx context.Context, ignoreHostPreflights bool) error {
+	if !ignoreHostPreflights || !c.allowIgnoreHostPreflights {
+		return types.NewBadRequestError(ErrPreflightChecksFailed)
+	}
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -85,6 +95,8 @@ func (c *InstallController) bypassPreflights(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("get install host preflight output: %w", err)
 	}
+
+	// Report that preflights were bypassed
 	if preflightOutput != nil {
 		c.metricsReporter.ReportPreflightsBypassed(ctx, preflightOutput)
 	}

@@ -246,6 +246,7 @@ func TestConfigureInstallation(t *testing.T) {
 			assert.Eventually(t, func() bool {
 				return sm.CurrentState() == tt.expectedState
 			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after configuration")
 
 			mockManager.AssertExpectations(t)
 		})
@@ -413,6 +414,7 @@ func TestRunHostPreflights(t *testing.T) {
 			assert.Eventually(t, func() bool {
 				return sm.CurrentState() == tt.expectedState
 			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after running preflights")
 
 			mockPreflightManager.AssertExpectations(t)
 		})
@@ -639,27 +641,33 @@ func TestGetInstallationStatus(t *testing.T) {
 
 func TestSetupInfra(t *testing.T) {
 	tests := []struct {
-		name          string
-		currentState  statemachine.State
-		expectedState statemachine.State
-		setupMocks    func(runtimeconfig.RuntimeConfig, *preflight.MockHostPreflightManager, *installation.MockInstallationManager, *infra.MockInfraManager, *metrics.MockReporter)
-		expectedErr   bool
+		name                            string
+		clientIgnoreHostPreflights      bool // From HTTP request
+		serverAllowIgnoreHostPreflights bool // From CLI flag
+		currentState                    statemachine.State
+		expectedState                   statemachine.State
+		setupMocks                      func(runtimeconfig.RuntimeConfig, *preflight.MockHostPreflightManager, *installation.MockInstallationManager, *infra.MockInfraManager, *metrics.MockReporter)
+		expectedErr                     error
 	}{
 		{
-			name:          "successful setup with passed preflights",
-			currentState:  StatePreflightsSucceeded,
-			expectedState: StateSucceeded,
+			name:                            "successful setup with passed preflights",
+			clientIgnoreHostPreflights:      false,
+			serverAllowIgnoreHostPreflights: true,
+			currentState:                    StatePreflightsSucceeded,
+			expectedState:                   StateSucceeded,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 				mock.InOrder(
 					fm.On("Install", mock.Anything, rc).Return(nil),
 				)
 			},
-			expectedErr: false,
+			expectedErr: nil,
 		},
 		{
-			name:          "successful setup with failed preflights",
-			currentState:  StatePreflightsFailed,
-			expectedState: StateSucceeded,
+			name:                            "successful setup with failed preflights - ignored with CLI flag",
+			clientIgnoreHostPreflights:      true,
+			serverAllowIgnoreHostPreflights: true,
+			currentState:                    StatePreflightsFailed,
+			expectedState:                   StateSucceeded,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 				preflightOutput := &types.HostPreflightsOutput{
 					Fail: []types.HostPreflightsRecord{
@@ -675,37 +683,73 @@ func TestSetupInfra(t *testing.T) {
 					fm.On("Install", mock.Anything, rc).Return(nil),
 				)
 			},
-			expectedErr: false,
+			expectedErr: nil,
 		},
 		{
-			name:          "preflight output error",
-			currentState:  StatePreflightsFailed,
-			expectedState: StatePreflightsFailed,
+			name:                            "failed setup with failed preflights - not ignored",
+			clientIgnoreHostPreflights:      false,
+			serverAllowIgnoreHostPreflights: true,
+			currentState:                    StatePreflightsFailed,
+			expectedState:                   StatePreflightsFailed,
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
+			},
+			expectedErr: types.NewBadRequestError(ErrPreflightChecksFailed),
+		},
+		{
+			name:                            "preflight output error",
+			clientIgnoreHostPreflights:      true,
+			serverAllowIgnoreHostPreflights: true,
+			currentState:                    StatePreflightsFailed,
+			expectedState:                   StatePreflightsFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 				mock.InOrder(
 					pm.On("GetHostPreflightOutput", t.Context()).Return(nil, errors.New("get output error")),
 				)
 			},
-			expectedErr: true,
+			expectedErr: errors.New("any error"), // Just check that an error occurs, don't care about exact message
 		},
 		{
-			name:          "install infra error",
-			currentState:  StatePreflightsSucceeded,
-			expectedState: StateFailed,
+			name:                            "install infra error",
+			clientIgnoreHostPreflights:      false,
+			serverAllowIgnoreHostPreflights: true,
+			currentState:                    StatePreflightsSucceeded,
+			expectedState:                   StateFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 				mock.InOrder(
 					fm.On("Install", mock.Anything, rc).Return(errors.New("install error")),
 				)
 			},
-			expectedErr: false,
+			expectedErr: nil,
 		},
 		{
-			name:          "invalid state transition",
-			currentState:  StateInstallationConfigured,
-			expectedState: StateInstallationConfigured,
+			name:                            "invalid state transition",
+			clientIgnoreHostPreflights:      false,
+			serverAllowIgnoreHostPreflights: true,
+			currentState:                    StateInstallationConfigured,
+			expectedState:                   StateInstallationConfigured,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 			},
-			expectedErr: true,
+			expectedErr: errors.New("invalid transition"), // Just check that an error occurs, don't care about exact message
+		},
+		{
+			name:                            "failed preflights with ignore flag but CLI flag disabled",
+			clientIgnoreHostPreflights:      true,
+			serverAllowIgnoreHostPreflights: false,
+			currentState:                    StatePreflightsFailed,
+			expectedState:                   StatePreflightsFailed,
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
+			},
+			expectedErr: types.NewBadRequestError(ErrPreflightChecksFailed),
+		},
+		{
+			name:                            "failed preflights without ignore flag and CLI flag disabled",
+			clientIgnoreHostPreflights:      false,
+			serverAllowIgnoreHostPreflights: false,
+			currentState:                    StatePreflightsFailed,
+			expectedState:                   StatePreflightsFailed,
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
+			},
+			expectedErr: types.NewBadRequestError(ErrPreflightChecksFailed),
 		},
 	}
 
@@ -730,13 +774,24 @@ func TestSetupInfra(t *testing.T) {
 				WithInstallationManager(mockInstallationManager),
 				WithInfraManager(mockInfraManager),
 				WithMetricsReporter(mockMetricsReporter),
+				WithAllowIgnoreHostPreflights(tt.serverAllowIgnoreHostPreflights),
 			)
 			require.NoError(t, err)
 
-			err = controller.SetupInfra(t.Context())
+			err = controller.SetupInfra(t.Context(), tt.clientIgnoreHostPreflights)
 
-			if tt.expectedErr {
+			if tt.expectedErr != nil {
 				require.Error(t, err)
+
+				// Check for specific error types
+				var expectedAPIErr *types.APIError
+				if errors.As(tt.expectedErr, &expectedAPIErr) {
+					// For API errors, check the exact type and status code
+					var actualAPIErr *types.APIError
+					require.True(t, errors.As(err, &actualAPIErr), "expected error to be of type *types.APIError, got %T", err)
+					assert.Equal(t, expectedAPIErr.StatusCode, actualAPIErr.StatusCode, "status codes should match")
+					assert.Contains(t, actualAPIErr.Error(), expectedAPIErr.Unwrap().Error(), "error messages should contain expected content")
+				}
 			} else {
 				require.NoError(t, err)
 
@@ -746,6 +801,7 @@ func TestSetupInfra(t *testing.T) {
 			assert.Eventually(t, func() bool {
 				return sm.CurrentState() == tt.expectedState
 			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after running infra setup")
 
 			mockPreflightManager.AssertExpectations(t)
 			mockInstallationManager.AssertExpectations(t)

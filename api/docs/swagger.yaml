@@ -73,8 +73,15 @@ components:
         status:
           $ref: '#/components/schemas/types.Status'
       type: object
+    types.InfraSetupRequest:
+      properties:
+        ignoreHostPreflights:
+          type: boolean
+      type: object
     types.InstallHostPreflightsStatusResponse:
       properties:
+        allowIgnoreHostPreflights:
+          type: boolean
         output:
           $ref: '#/components/schemas/types.HostPreflightsOutput'
         status:
@@ -232,6 +239,13 @@ paths:
   /install/infra/setup:
     post:
       description: Setup infra components
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.InfraSetupRequest'
+        description: Infra Setup Request
+        required: true
       responses:
         "200":
           content:
