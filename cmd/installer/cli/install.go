@@ -97,15 +97,6 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var airgapInfo *kotsv1beta1.Airgap
-			if flags.airgapBundle != "" {
-				var err error
-				airgapInfo, err = airgap.AirgapInfoFromPath(flags.airgapBundle)
-				if err != nil {
-					return fmt.Errorf("failed to get airgap info: %w", err)
-				}
-			}
-
 			if err := verifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
 				return err
 			}
@@ -114,7 +105,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if flags.enableManagerExperience {
-				return runManagerExperienceInstall(ctx, flags, rc, airgapInfo)
+				return runManagerExperienceInstall(ctx, flags, rc)
 			}
 
 			_ = rc.SetEnv()
@@ -131,7 +122,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				installReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runInstall(cmd.Context(), flags, rc, installReporter, airgapInfo); err != nil {
+			if err := runInstall(cmd.Context(), flags, rc, installReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
 					installReporter.ReportSignalAborted(ctx, syscall.SIGINT)
@@ -374,7 +365,7 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 	return cidrCfg, nil
 }
 
-func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, airgapInfo *kotsv1beta1.Airgap) (finalErr error) {
+func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) (finalErr error) {
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
 	ipAddresses, err := netutils.ListAllValidIPAddresses()
@@ -443,7 +434,7 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 		ManagerPort:               flags.managerPort,
 		License:                   flags.licenseBytes,
 		AirgapBundle:              flags.airgapBundle,
-		AirgapInfo:                airgapInfo,
+		AirgapInfo:                flags.airgapInfo,
 		ConfigValues:              flags.configValues,
 		ReleaseData:               release.GetReleaseData(),
 		EndUserConfig:             eucfg,
@@ -461,7 +452,7 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 	return nil
 }
 
-func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter, airgapInfo *kotsv1beta1.Airgap) (finalErr error) {
+func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) (finalErr error) {
 	if flags.enableManagerExperience {
 		return nil
 	}
@@ -496,7 +487,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	in, err := recordInstallation(ctx, kcli, flags, rc, flags.license, airgapInfo)
+	in, err := recordInstallation(ctx, kcli, flags, rc, flags.license)
 	if err != nil {
 		return fmt.Errorf("unable to record installation: %w", err)
 	}
@@ -1070,7 +1061,7 @@ func waitForNode(ctx context.Context) error {
 }
 
 func recordInstallation(
-	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, license *kotsv1beta1.License, airgapInfo *kotsv1beta1.Airgap,
+	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, license *kotsv1beta1.License,
 ) (*ecv1beta1.Installation, error) {
 	// get the embedded cluster config
 	cfg := release.GetEmbeddedClusterConfig()
@@ -1087,8 +1078,8 @@ func recordInstallation(
 
 	// extract airgap uncompressed size if airgap info is provided
 	var airgapUncompressedSize int64
-	if airgapInfo != nil {
-		airgapUncompressedSize = airgapInfo.Spec.UncompressedSize
+	if flags.airgapInfo != nil {
+		airgapUncompressedSize = flags.airgapInfo.Spec.UncompressedSize
 	}
 
 	// record the installation
