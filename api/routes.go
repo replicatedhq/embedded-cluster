@@ -8,7 +8,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
-func (a *API) RegisterRoutes(router *mux.Router) {
+func (a *api) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/health", a.handlers.health.GetHealth).Methods("GET")
 
 	// Hack to fix issue
@@ -30,7 +30,7 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	a.registerConsoleRoutes(authenticatedRouter)
 }
 
-func (a *API) registerLinuxRoutes(router *mux.Router) {
+func (a *api) registerLinuxRoutes(router *mux.Router) {
 	linuxRouter := router.PathPrefix("/linux").Subrouter()
 
 	installRouter := linuxRouter.PathPrefix("/install").Subrouter()
@@ -50,11 +50,11 @@ func (a *API) registerLinuxRoutes(router *mux.Router) {
 	installRouter.HandleFunc("/status", a.handlers.linux.PostSetStatus).Methods("POST")
 }
 
-func (a *API) registerKubernetesRoutes(router *mux.Router) {
+func (a *api) registerKubernetesRoutes(router *mux.Router) {
 	// kubernetesRouter := router.PathPrefix("/kubernetes").Subrouter()
 }
 
-func (a *API) registerConsoleRoutes(router *mux.Router) {
+func (a *api) registerConsoleRoutes(router *mux.Router) {
 	consoleRouter := router.PathPrefix("/console").Subrouter()
 	consoleRouter.HandleFunc("/available-network-interfaces", a.handlers.console.GetListAvailableNetworkInterfaces).Methods("GET")
 }

@@ -31,7 +31,7 @@ import (
 
 // @externalDocs.description	OpenAPI
 // @externalDocs.url			https://swagger.io/resources/open-api/
-type API struct {
+type api struct {
 	cfg types.APIConfig
 
 	logger          logrus.FieldLogger
@@ -41,43 +41,43 @@ type API struct {
 	consoleController      console.Controller
 	linuxInstallController linuxinstall.Controller
 
-	handlers Handlers
+	handlers handlers
 }
 
-type APIOption func(*API)
+type apiOption func(*api)
 
-func WithAuthController(authController auth.Controller) APIOption {
-	return func(a *API) {
+func WithAuthController(authController auth.Controller) apiOption {
+	return func(a *api) {
 		a.authController = authController
 	}
 }
 
-func WithConsoleController(consoleController console.Controller) APIOption {
-	return func(a *API) {
+func WithConsoleController(consoleController console.Controller) apiOption {
+	return func(a *api) {
 		a.consoleController = consoleController
 	}
 }
 
-func WithLinuxInstallController(linuxInstallController linuxinstall.Controller) APIOption {
-	return func(a *API) {
+func WithLinuxInstallController(linuxInstallController linuxinstall.Controller) apiOption {
+	return func(a *api) {
 		a.linuxInstallController = linuxInstallController
 	}
 }
 
-func WithLogger(logger logrus.FieldLogger) APIOption {
-	return func(a *API) {
+func WithLogger(logger logrus.FieldLogger) apiOption {
+	return func(a *api) {
 		a.logger = logger
 	}
 }
 
-func WithMetricsReporter(metricsReporter metrics.ReporterInterface) APIOption {
-	return func(a *API) {
+func WithMetricsReporter(metricsReporter metrics.ReporterInterface) apiOption {
+	return func(a *api) {
 		a.metricsReporter = metricsReporter
 	}
 }
 
-func New(cfg types.APIConfig, opts ...APIOption) (*API, error) {
-	api := &API{
+func New(cfg types.APIConfig, opts ...apiOption) (*api, error) {
+	api := &api{
 		cfg: cfg,
 	}
 
@@ -97,7 +97,7 @@ func New(cfg types.APIConfig, opts ...APIOption) (*API, error) {
 		api.logger = l
 	}
 
-	if err := api.InitHandlers(api.cfg); err != nil {
+	if err := api.initHandlers(); err != nil {
 		return nil, fmt.Errorf("init handlers: %w", err)
 	}
 
