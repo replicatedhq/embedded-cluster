@@ -1,0 +1,121 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Go Testing Standards
+
+Follow these testing patterns for Go code to create valuable, maintainable tests.
+
+## Test Types and Strategy
+
+**Unit Tests**
+- Test individual functions/methods in isolation
+- Mock external dependencies
+- Focus on business logic and edge cases
+- Should be fast and not require external resources
+
+**Integration Tests**
+- Test component interactions
+- Use real implementations where feasible
+- Place in appropriate directories (`integration/`, `*_integration_test.go`)
+- May use external resources but should be self-contained
+
+## Test Value and Purpose
+
+**Focus on Behavioral Testing**
+- Verify actual function behavior and business logic, not just object instantiation
+- Test the contract and expected outcomes of functions
+- Ensure tests validate meaningful functionality rather than trivial operations
+- Include realistic scenarios that represent actual use cases
+
+**Comprehensive Test Coverage**
+- Test both success and failure paths
+- Include edge cases and boundary conditions
+- Test error conditions explicitly with proper error type validation
+
+## Test Organization and Structure
+
+**Use Table-Driven Tests for Multiple Scenarios**
+- Structure tests with `tests := []struct{}` pattern for comprehensive coverage
+- Use descriptive test names that explain the scenario being tested
+- Group related test cases logically within table-driven tests
+- Follow the Arrange-Act-Assert pattern within each test case
+
+**Test Setup and Cleanup**
+- Use `t.TempDir()` for temporary directories - it handles cleanup automatically
+- Use `t.Cleanup()` for custom cleanup functions when needed
+- Use `defer` statements for resource cleanup within test functions
+- Prefer `t.Setenv()` over manual environment variable manipulation
+
+## Assertion and Error Testing
+
+**Use Testify Consistently**
+- Use `require.NoError(t, err)` for critical assertions that should stop test execution
+- Use `assert.NoError(t, err)` for non-critical assertions that allow test to continue
+- Use `require.True(t, ok)` for type assertions and critical boolean checks
+- Use `assert.Equal()`, `assert.Contains()`, `assert.Empty()` for value comparisons
+
+**Error Testing Best Practices**
+- Test specific error types, not just that an error occurred
+- Use `errors.Is()` and `errors.As()` for error checking in tests
+- Test error messages when they're part of the API contract
+- Test error propagation through the call stack
+
+## Mock Usage Guidelines
+
+**When to Use Mocks**
+- Mock external dependencies, not the code under test
+- Use interface-based mocking for better testability
+- Consider using real implementations for lightweight dependencies
+- Mock at the right level of abstraction
+
+**How to Use Mocks Effectively**
+- Prefer dependency injection to enable clean mocking
+- Set up mock expectations that match real-world scenarios using `mock.InOrder()` when sequence matters
+- Don't mock simple value objects or data structures
+- Always call `mockObject.AssertExpectations(t)` to verify mock usage
+
+## Specialized Testing Patterns
+
+### HTTP and API Testing
+
+**Use httptest for HTTP Testing**
+- Use `httptest.NewServer()` for integration-style HTTP tests
+- Use `httptest.NewRequest()` and `httptest.NewRecorder()` for handler unit tests
+- Test both request handling and response formatting
+- Verify HTTP status codes, headers, and response bodies
+
+**API Client Testing**
+- Test both successful and error response scenarios
+- Verify request construction (method, path, headers, body)
+- Test error handling and proper error type conversion
+- Use `defer server.Close()` to clean up test servers
+
+### Kubernetes and Controller Testing
+
+**Use envtest for Kubernetes Testing**
+- Use `envtest.Environment` for testing Kubernetes controllers
+- Use `fake.NewClientBuilder()` for lightweight client testing
+- Set up proper schemes with `AddToScheme()` calls
+- Use `t.Cleanup()` to stop test environments
+
+**Controller Runtime Testing Patterns**
+- Create realistic Kubernetes objects for testing
+- Test both creation and update scenarios
+- Verify object state changes and status updates
+- Use proper context handling with `logr.NewContext()`
+
+## Test Data and Resource Management
+
+**Keep Test Data Clean**
+- Use test-specific data that doesn't depend on external state
+- Create test data within test functions or table-driven test cases
+- Use embedded test files when appropriate (`//go:embed`)
+- Avoid shared mutable state between tests
+
+**Temporary Resources**
+- Use `t.TempDir()` for file-based operations
+- Clean up network resources (listeners, servers) with defer statements
+- Use unique names/ports to avoid conflicts between parallel tests
+- Create minimal test fixtures that focus on the specific test scenario
