@@ -45,24 +45,31 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 	"k8s.io/client-go/metadata"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type InstallCmdFlags struct {
-	adminConsolePassword    string
-	adminConsolePort        int
-	airgapBundle            string
-	isAirgap                bool
+	adminConsolePassword string
+	adminConsolePort     int
+	airgapBundle         string
+	isAirgap             bool
+	licenseFile          string
+	assumeYes            bool
+	overrides            string
+	configValues         string
+
+	// linux flags
 	dataDir                 string
-	licenseFile             string
 	localArtifactMirrorPort int
-	assumeYes               bool
-	overrides               string
 	skipHostPreflights      bool
 	ignoreHostPreflights    bool
-	configValues            string
 	networkInterface        string
+
+	// kubernetes flags
+	kubernetesEnvSettings *helmcli.EnvSettings
 
 	// guided UI flags
 	enableManagerExperience bool
@@ -72,12 +79,17 @@ type InstallCmdFlags struct {
 	tlsKeyFile              string
 	hostname                string
 
-	// TODO: move to substruct
+	installConfig
+}
+
+type installConfig struct {
 	license      *kotsv1beta1.License
 	licenseBytes []byte
 	tlsCert      tls.Certificate
 	tlsCertBytes []byte
 	tlsKeyBytes  []byte
+
+	kubernetesRestConfig *rest.Config
 }
 
 // webAssetsFS is the filesystem to be used by the web component. Defaults to nil allowing the web server to use the default assets embedded in the binary. Useful for testing.
@@ -146,9 +158,8 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd.SetUsageTemplate(defaultUsageTemplateV3)
 
-	if err := addInstallFlags(cmd, &flags); err != nil {
-		panic(err)
-	}
+	mustAddInstallFlags(cmd, &flags)
+
 	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
@@ -187,33 +198,79 @@ func installCmdExample(name string) string {
 	return fmt.Sprintf(installCmdExampleText, name, name)
 }
 
+func mustAddInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) {
+	enableV3 := os.Getenv("ENABLE_V3") == "1"
+
+	normalizeFuncs := []func(f *pflag.FlagSet, name string) pflag.NormalizedName{}
+
+	commonFlagSet := newCommonInstallFlags(flags, enableV3)
+	cmd.Flags().AddFlagSet(commonFlagSet)
+	if fn := commonFlagSet.GetNormalizeFunc(); fn != nil {
+		normalizeFuncs = append(normalizeFuncs, fn)
+	}
+
+	linuxFlagSet := newLinuxInstallFlags(flags)
+	cmd.Flags().AddFlagSet(linuxFlagSet)
+	if fn := linuxFlagSet.GetNormalizeFunc(); fn != nil {
+		normalizeFuncs = append(normalizeFuncs, fn)
+	}
+
+	kubernetesFlagSet := newKubernetesInstallFlags(flags, enableV3)
+	cmd.Flags().AddFlagSet(kubernetesFlagSet)
+	if fn := kubernetesFlagSet.GetNormalizeFunc(); fn != nil {
+		normalizeFuncs = append(normalizeFuncs, fn)
+	}
+
+	cmd.Flags().SetNormalizeFunc(func(f *pflag.FlagSet, name string) pflag.NormalizedName {
+		result := pflag.NormalizedName(strings.ToLower(name))
+		for _, fn := range normalizeFuncs {
+			if fn != nil {
+				result = fn(f, string(result))
+			}
+		}
+		return result
+	})
+}
+
+func newCommonInstallFlags(flags *InstallCmdFlags, enableV3 bool) *pflag.FlagSet {
+	flagSet := pflag.NewFlagSet("common", pflag.ContinueOnError)
+
+	flagSet.StringVar(&flags.target, "target", "linux", "The target platform to install to. Valid options are 'linux' or 'kubernetes'.")
+	if !enableV3 {
+		mustMarkFlagHidden(flagSet, "target")
+	}
+
+	flagSet.StringVar(&flags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
+
+	flagSet.StringVar(&flags.overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
+	mustMarkFlagHidden(flagSet, "overrides")
+
+	mustAddProxyFlags(flagSet)
+
+	flagSet.BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
+	flagSet.SetNormalizeFunc(normalizeNoPromptToYes)
+
+	return flagSet
+}
+
 func newLinuxInstallFlags(flags *InstallCmdFlags) *pflag.FlagSet {
-	flagSet := pflag.NewFlagSet("linux", pflag.ExitOnError)
+	flagSet := pflag.NewFlagSet("linux", pflag.ContinueOnError)
 
 	flagSet.StringVar(&flags.dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	flagSet.IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	flagSet.StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
 
 	flagSet.StringSlice("private-ca", []string{}, "Path to a trusted private CA certificate file")
-	if err := flagSet.MarkHidden("private-ca"); err != nil {
-		panic(err)
-	}
-	if err := flagSet.MarkDeprecated("private-ca", "This flag is no longer used and will be removed in a future version. The CA bundle will be automatically detected from the host."); err != nil {
-		panic(err)
-	}
+	mustMarkFlagHidden(flagSet, "private-ca")
+	mustMarkFlagDeprecated(flagSet, "private-ca", "This flag is no longer used and will be removed in a future version. The CA bundle will be automatically detected from the host.")
 
 	flagSet.BoolVar(&flags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
-	if err := flagSet.MarkHidden("skip-host-preflights"); err != nil {
-		panic(err)
-	}
-	if err := flagSet.MarkDeprecated("skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead."); err != nil {
-		panic(err)
-	}
+	mustMarkFlagHidden(flagSet, "skip-host-preflights")
+	mustMarkFlagDeprecated(flagSet, "skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead.")
+
 	flagSet.BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
 
-	if err := addCIDRFlags(flagSet); err != nil {
-		panic(err)
-	}
+	mustAddCIDRFlags(flagSet)
 
 	flagSet.VisitAll(func(flag *pflag.Flag) {
 		mustSetFlagTargetLinux(flagSet, flag.Name)
@@ -222,56 +279,44 @@ func newLinuxInstallFlags(flags *InstallCmdFlags) *pflag.FlagSet {
 	return flagSet
 }
 
-func newKubernetesInstallFlags(flags *InstallCmdFlags) *pflag.FlagSet {
-	// If the ENABLE_V3 environment variable is set, do not hide the new flags.
-	enableV3 := os.Getenv("ENABLE_V3") == "1"
+func newKubernetesInstallFlags(flags *InstallCmdFlags, enableV3 bool) *pflag.FlagSet {
+	flagSet := pflag.NewFlagSet("kubernetes", pflag.ContinueOnError)
 
-	flagSet := pflag.NewFlagSet("kubernetes", pflag.ExitOnError)
-
-	flagSet.String("kubeconfig", "", "Path to the kubeconfig file")
-
-	if !enableV3 {
-		if err := flagSet.MarkHidden("kubeconfig"); err != nil {
-			panic(err)
-		}
-	}
+	addKubernetesCLIFlags(flagSet, flags)
 
 	flagSet.VisitAll(func(flag *pflag.Flag) {
+		if !enableV3 {
+			mustMarkFlagHidden(flagSet, flag.Name)
+		}
 		mustSetFlagTargetKubernetes(flagSet, flag.Name)
 	})
 
 	return flagSet
 }
 
-func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
-	cmd.Flags().StringVar(&flags.target, "target", "linux", "The target platform to install to. Valid options are 'linux' or 'kubernetes'.")
-	if os.Getenv("ENABLE_V3") != "1" {
-		if err := cmd.Flags().MarkHidden("target"); err != nil {
-			return err
-		}
-	}
+func addKubernetesCLIFlags(flagSet *pflag.FlagSet, flags *InstallCmdFlags) {
+	// From helm
+	// https://github.com/helm/helm/blob/v3.18.3/pkg/cli/environment.go#L145-L163
 
-	cmd.Flags().StringVar(&flags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
+	s := helmcli.New()
 
-	cmd.Flags().StringVar(&flags.overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
-	if err := cmd.Flags().MarkHidden("overrides"); err != nil {
-		return err
-	}
+	flagSet.StringVar(&s.KubeConfig, "kubeconfig", "", "Path to the kubeconfig file")
+	flagSet.StringVar(&s.KubeContext, "kube-context", s.KubeContext, "Name of the kubeconfig context to use")
+	flagSet.StringVar(&s.KubeToken, "kube-token", s.KubeToken, "Bearer token used for authentication")
+	flagSet.StringVar(&s.KubeAsUser, "kube-as-user", s.KubeAsUser, "Username to impersonate for the operation")
+	flagSet.StringArrayVar(&s.KubeAsGroups, "kube-as-group", s.KubeAsGroups, "Group to impersonate for the operation, this flag can be repeated to specify multiple groups.")
+	flagSet.StringVar(&s.KubeAPIServer, "kube-apiserver", s.KubeAPIServer, "The address and the port for the Kubernetes API server")
+	flagSet.StringVar(&s.KubeCaFile, "kube-ca-file", s.KubeCaFile, "The certificate authority file for the Kubernetes API server connection")
+	flagSet.StringVar(&s.KubeTLSServerName, "kube-tls-server-name", s.KubeTLSServerName, "Server name to use for Kubernetes API server certificate validation. If it is not provided, the hostname used to contact the server is used")
+	// flagSet.BoolVar(&s.Debug, "helm-debug", s.Debug, "enable verbose output")
+	flagSet.BoolVar(&s.KubeInsecureSkipTLSVerify, "kube-insecure-skip-tls-verify", s.KubeInsecureSkipTLSVerify, "If true, the Kubernetes API server's certificate will not be checked for validity. This will make your HTTPS connections insecure")
+	// flagSet.StringVar(&s.RegistryConfig, "helm-registry-config", s.RegistryConfig, "Path to the Helm registry config file")
+	// flagSet.StringVar(&s.RepositoryConfig, "helm-repository-config", s.RepositoryConfig, "Path to the file containing Helm repository names and URLs")
+	// flagSet.StringVar(&s.RepositoryCache, "helm-repository-cache", s.RepositoryCache, "Path to the directory containing cached Helm repository indexes")
+	flagSet.IntVar(&s.BurstLimit, "burst-limit", s.BurstLimit, "Kubernetes API client-side default throttling limit")
+	flagSet.Float32Var(&s.QPS, "qps", s.QPS, "Queries per second used when communicating with the Kubernetes API, not including bursting")
 
-	if err := addProxyFlags(cmd); err != nil {
-		return err
-	}
-
-	cmd.Flags().BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
-	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
-
-	linuxFlagSet := newLinuxInstallFlags(flags)
-	cmd.Flags().AddFlagSet(linuxFlagSet)
-
-	kubernetesFlagSet := newKubernetesInstallFlags(flags)
-	cmd.Flags().AddFlagSet(kubernetesFlagSet)
-
-	return nil
+	flags.kubernetesEnvSettings = s
 }
 
 func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
@@ -320,18 +365,25 @@ func addManagerExperienceFlags(cmd *cobra.Command, flags *InstallCmdFlags) error
 }
 
 func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
-	if os.Getuid() != 0 {
-		return fmt.Errorf("install command must be run as root")
-	}
-
-	// set the umask to 022 so that we can create files/directories with 755 permissions
-	// this does not return an error - it returns the previous umask
-	_ = syscall.Umask(0o022)
-
 	if !slices.Contains([]string{"linux", "kubernetes"}, flags.target) {
 		return fmt.Errorf(`invalid target (must be one of: "linux", "kubernetes")`)
 	}
 
+	if err := preRunInstallCommon(cmd, flags, rc); err != nil {
+		return err
+	}
+
+	switch flags.target {
+	case "linux":
+		return preRunInstallLinux(cmd, flags, rc)
+	case "kubernetes":
+		return preRunInstallKubernetes(cmd, flags)
+	}
+
+	return nil
+}
+
+func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
 	// license file can be empty for restore
 	if flags.licenseFile != "" {
 		b, err := os.ReadFile(flags.licenseFile)
@@ -361,6 +413,33 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 
 	flags.isAirgap = flags.airgapBundle != ""
 
+	proxy, err := proxyConfigFromCmd(cmd, flags.assumeYes)
+	if err != nil {
+		return err
+	}
+
+	// restore command doesn't have a password flag
+	if cmd.Flags().Lookup("admin-console-password") != nil {
+		if err := ensureAdminConsolePassword(flags); err != nil {
+			return err
+		}
+	}
+
+	// TODO: runtimeconfig is only relevant for linux installs
+	rc.SetProxySpec(proxy)
+
+	return nil
+}
+
+func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
+	if os.Getuid() != 0 {
+		return fmt.Errorf("install command must be run as root")
+	}
+
+	// set the umask to 022 so that we can create files/directories with 755 permissions
+	// this does not return an error - it returns the previous umask
+	_ = syscall.Umask(0o022)
+
 	hostCABundlePath, err := findHostCABundle()
 	if err != nil {
 		return fmt.Errorf("unable to find host CA bundle: %w", err)
@@ -386,11 +465,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 		return fmt.Errorf("process overrides file: %w", err)
 	}
 
-	proxy, err := proxyConfigFromCmd(cmd, flags.assumeYes)
-	if err != nil {
-		return err
-	}
-
 	cidrCfg, err := cidrConfigFromCmd(cmd)
 	if err != nil {
 		return err
@@ -412,14 +486,32 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 	rc.SetAdminConsolePort(flags.adminConsolePort)
 	rc.SetHostCABundlePath(hostCABundlePath)
 	rc.SetNetworkSpec(networkSpec)
-	rc.SetProxySpec(proxy)
 
-	// restore command doesn't have a password flag
-	if cmd.Flags().Lookup("admin-console-password") != nil {
-		if err := ensureAdminConsolePassword(flags); err != nil {
-			return err
+	return nil
+}
+
+func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags) error {
+	// If set, validate that the kubeconfig file exists and can be read
+	if flags.kubernetesEnvSettings.KubeConfig != "" {
+		if _, err := os.Stat(flags.kubernetesEnvSettings.KubeConfig); os.IsNotExist(err) {
+			return fmt.Errorf("kubeconfig file does not exist: %s", flags.kubernetesEnvSettings.KubeConfig)
+		} else if err != nil {
+			return fmt.Errorf("unable to stat kubeconfig file: %w", err)
 		}
 	}
+
+	restConfig, err := flags.kubernetesEnvSettings.RESTClientGetter().ToRESTConfig()
+	if err != nil {
+		return fmt.Errorf("failed to discover kubeconfig: %w", err)
+	}
+
+	// If this is the default host, there was probably no kubeconfig discovered.
+	// HACK: This is fragile but it is the best thing I could come up with
+	if flags.kubernetesEnvSettings.KubeConfig == "" && restConfig.Host == "http://localhost:8080" {
+		return fmt.Errorf("a kubeconfig is required when using kubernetes")
+	}
+
+	flags.installConfig.kubernetesRestConfig = restConfig
 
 	return nil
 }
