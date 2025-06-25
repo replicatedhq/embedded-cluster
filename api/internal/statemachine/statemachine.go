@@ -103,9 +103,13 @@ func (sm *stateMachine) ValidateTransition(lock Lock, nextState State) error {
 	return nil
 }
 
-func (sm *stateMachine) Transition(lock Lock, nextState State) error {
+func (sm *stateMachine) Transition(lock Lock, nextState State) (finalError error) {
 	sm.mu.Lock()
-	defer sm.mu.Unlock()
+	defer func() {
+		if finalError != nil {
+			sm.mu.Unlock()
+		}
+	}()
 
 	if sm.lock == nil {
 		return fmt.Errorf("lock not acquired")
@@ -121,7 +125,23 @@ func (sm *stateMachine) Transition(lock Lock, nextState State) error {
 	sm.currentState = nextState
 
 	// Trigger event handlers after successful transition
-	sm.triggerHandlers(fromState, nextState)
+	handlers, exists := sm.eventHandlers[nextState]
+	safeHandlers := make([]EventHandler, len(handlers))
+	copy(safeHandlers, handlers) // Copy to avoid holding the lock while calling handlers
+
+	// We can release the lock here since the transition is successful and there will be no further operations to the state machine internal state
+	sm.mu.Unlock()
+
+	if !exists || len(safeHandlers) == 0 {
+		return nil
+	}
+
+	for _, handler := range safeHandlers {
+		err := handler.TriggerHandler(context.Background(), fromState, nextState)
+		if err != nil {
+			sm.logger.WithFields(logrus.Fields{"fromState": fromState, "toState": nextState}).Errorf("event handler error: %v", err)
+		}
+	}
 
 	return nil
 }
@@ -136,20 +156,6 @@ func (sm *stateMachine) UnregisterEventHandler(targetState State) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	delete(sm.eventHandlers, targetState)
-}
-
-// triggerHandlers triggers event handlers
-func (sm *stateMachine) triggerHandlers(from, next State) {
-	handlers, exists := sm.eventHandlers[next]
-	if !exists || len(handlers) == 0 {
-		return
-	}
-	for _, handler := range handlers {
-		err := handler.TriggerHandler(context.Background(), from, next)
-		if err != nil {
-			sm.logger.WithFields(logrus.Fields{"fromState": from, "toState": next}).Errorf("event handler error: %v", err)
-		}
-	}
 }
 
 func (sm *stateMachine) isValidTransition(currentState State, newState State) bool {
