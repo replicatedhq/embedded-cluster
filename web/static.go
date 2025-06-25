@@ -28,8 +28,9 @@ func init() {
 }
 
 type InitialState struct {
-	Title string `json:"title"`
-	Icon  string `json:"icon"`
+	Title         string `json:"title"`
+	Icon          string `json:"icon"`
+	InstallTarget string `json:"installTarget"`
 }
 
 type Web struct {
