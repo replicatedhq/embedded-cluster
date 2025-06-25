@@ -98,7 +98,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "install",
 		Short:   short,
-		Example: installCmdExample(),
+		Example: installCmdExample(name),
 		PostRun: func(cmd *cobra.Command, args []string) {
 			rc.Cleanup()
 			cancel() // Cancel context when command completes
@@ -161,27 +161,30 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func installCmdExample() string {
+const (
+	installCmdExampleText = `
+  # Install on a Linux host
+  %s install \
+      --target linux \
+      --data-dir /opt/embedded-cluster \
+      --license ./license.yaml \
+      --yes
+
+  # Install in a Kubernetes cluster
+  %s install \
+      --target kubernetes \
+      --kubeconfig ./kubeconfig \
+      --airgap-bundle ./replicated.airgap \
+      --license ./license.yaml
+`
+)
+
+func installCmdExample(name string) string {
 	if os.Getenv("ENABLE_V3") != "1" {
 		return ""
 	}
 
-	return `
-  # Install on a Linux host
-  replicated install \
-      --target linux \
-      --data-dir /opt/embedded-cluster \
-      --cidr 10.244.0.0/16 \
-      --license ./license.yaml \
-      --yes
-
-  # Install into an existing Kubernetes cluster
-  replicated install \
-      --target kubernetes \
-      --k8s-admin-console-ns replicated-admin \
-      --airgap-bundle ./replicated.airgap \
-      --license ./license.yaml
-`
+	return fmt.Sprintf(installCmdExampleText, name, name)
 }
 
 func newLinuxInstallFlags(flags *InstallCmdFlags) *pflag.FlagSet {
