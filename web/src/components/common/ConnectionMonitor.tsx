@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 
 // Connection modal component
 const ConnectionModal: React.FC<{ onRetry: () => void; isRetrying: boolean }> = ({ onRetry, isRetrying }) => {
@@ -52,9 +52,8 @@ const ConnectionModal: React.FC<{ onRetry: () => void; isRetrying: boolean }> = 
 const ConnectionMonitor: React.FC = () => {
   const [isConnected, setIsConnected] = useState(true);
   const [isChecking, setIsChecking] = useState(false);
-  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
 
-  const checkConnection = async () => {
+  const checkConnection = useCallback(async () => {
     setIsChecking(true);
     
     try {
@@ -78,7 +77,6 @@ const ConnectionMonitor: React.FC = () => {
           
           if (response.ok) {
             setIsConnected(true);
-            setConsecutiveFailures(0); // Reset failure counter on success
             return;
           } else {
             throw new Error(`HTTP ${response.status}`);
@@ -91,32 +89,25 @@ const ConnectionMonitor: React.FC = () => {
         }
       }
       
-      // All attempts failed - increment consecutive failures
-      setConsecutiveFailures(prev => prev + 1);
+      // All attempts failed - show modal immediately
+      setIsConnected(false);
       
-      // Only show modal after 3 consecutive failures
-      if (consecutiveFailures >= 2) {
-        setIsConnected(false);
-      }
     } catch {
-      setConsecutiveFailures(prev => prev + 1);
-      if (consecutiveFailures >= 2) {
-        setIsConnected(false);
-      }
+      setIsConnected(false);
     } finally {
       setIsChecking(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     // Initial check
     checkConnection();
     
-    // Set up periodic health checks every 2 seconds
-    const interval = setInterval(checkConnection, 2000);
+    // Set up periodic health checks every 5 seconds
+    const interval = setInterval(checkConnection, 5000);
     
     return () => clearInterval(interval);
-  }, [consecutiveFailures]);
+  }, [checkConnection]);
 
   return (
     <>

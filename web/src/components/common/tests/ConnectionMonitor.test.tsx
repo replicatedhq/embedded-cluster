@@ -43,17 +43,22 @@ describe('ConnectionMonitor', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Cannot connect')).toBeInTheDocument();
-    }, { timeout: 7000 });
-  });
+    }, { timeout: 4000 });
+  }, 6000);
 
   it('should handle manual retry', async () => {
     let callCount = 0;
+    let manualRetryClicked = false;
+    
     server.use(
       http.get('*/api/health', () => {
         callCount++;
-        if (callCount <= 6) {
+        
+        // Keep failing until manual retry is clicked, then succeed
+        if (!manualRetryClicked) {
           return HttpResponse.error();
         }
+        
         return new HttpResponse(JSON.stringify({ status: 'ok' }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
@@ -63,19 +68,25 @@ describe('ConnectionMonitor', () => {
 
     render(<ConnectionMonitor />);
 
-    // Wait for modal to appear
+    // Wait for modal to appear after first health check fails
+    await waitFor(() => {
+      expect(screen.getByText('Cannot connect')).toBeInTheDocument();
+    }, { timeout: 6000 });
+
+    // Wait for the retry button to be available
     await waitFor(() => {
       expect(screen.getByText('Try Now')).toBeInTheDocument();
-    }, { timeout: 7000 });
+    }, { timeout: 1000 });
 
-    // Click retry button
+    // Mark that manual retry was clicked, then click it
+    manualRetryClicked = true;
     fireEvent.click(screen.getByText('Try Now'));
 
     // Modal should disappear when connection is restored
     await waitFor(() => {
       expect(screen.queryByText('Cannot connect')).not.toBeInTheDocument();
-    }, { timeout: 15000 });
-  });
+    }, { timeout: 6000 });
+  }, 12000);
 
   it('should show retry countdown timer', async () => {
     server.use(
@@ -86,12 +97,10 @@ describe('ConnectionMonitor', () => {
 
     render(<ConnectionMonitor />);
 
-    // Wait for modal to appear
     await waitFor(() => {
       expect(screen.getByText('Cannot connect')).toBeInTheDocument();
-    }, { timeout: 7000 });
+    }, { timeout: 4000 });
 
-    // Should show countdown
     expect(screen.getByText(/Trying again in \d+ second/)).toBeInTheDocument();
-  });
+  }, 6000);
 });
