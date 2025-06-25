@@ -200,9 +200,9 @@ spec:
         - -c
         - |
           if [ -n "{{ .HTTPSProxy }}" ]; then
-            curl --connect-timeout 5 --max-time 10 -v --proxy "{{ .HTTPSProxy }}" "{{ .ReplicatedAppURL }}/healthz"
+            curl --connect-timeout 5 --max-time 10 -v --proxy "{{ .HTTPSProxy }}" "{{ .ReplicatedAppURL }}/healthz" 2>&1
           else
-            curl --connect-timeout 5 --max-time 10 -v "{{ .ReplicatedAppURL }}"
+            curl --connect-timeout 5 --max-time 10 -v "{{ .ReplicatedAppURL }}" 2>&1
           fi
       exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") }}'
   - run:
@@ -212,9 +212,9 @@ spec:
         - -c
         - |
           if [ -n "{{ .HTTPSProxy }}" ]; then
-            curl --connect-timeout 5 --max-time 10 -v --proxy "{{ .HTTPSProxy }}" "{{ .ProxyRegistryURL }}/v2/"
+            curl --connect-timeout 5 --max-time 10 -v --proxy "{{ .HTTPSProxy }}" "{{ .ProxyRegistryURL }}/v2/" 2>&1
           else
-            curl --connect-timeout 5 --max-time 10 -v "{{ .ProxyRegistryURL }}/v2/"
+            curl --connect-timeout 5 --max-time 10 -v "{{ .ProxyRegistryURL }}/v2/" 2>&1
           fi
       exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
   - run:
