@@ -1,32 +1,15 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-
-interface ConnectionContextType {
-  isConnected: boolean;
-  isChecking: boolean;
-}
-
-const ConnectionContext = createContext<ConnectionContextType | undefined>(undefined);
-
-interface ConnectionProviderProps {
-  children: ReactNode;
-}
+import React, { useEffect, useState } from 'react';
 
 // Connection modal component
-const ConnectionModal: React.FC<{ isVisible: boolean; onRetry: () => void; isRetrying: boolean }> = ({ isVisible, onRetry, isRetrying }) => {
+const ConnectionModal: React.FC<{ onRetry: () => void; isRetrying: boolean }> = ({ onRetry, isRetrying }) => {
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    if (isVisible) {
-      const interval = setInterval(() => {
-        setRetryCount(count => count + 1);
-      }, 1000);
-      return () => clearInterval(interval);
-    } else {
-      setRetryCount(0);
-    }
-  }, [isVisible]);
-
-  if (!isVisible) return null;
+    const interval = setInterval(() => {
+      setRetryCount(count => count + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
@@ -66,7 +49,7 @@ const ConnectionModal: React.FC<{ isVisible: boolean; onRetry: () => void; isRet
   );
 };
 
-export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children }) => {
+const ConnectionMonitor: React.FC = () => {
   const [isConnected, setIsConnected] = useState(true);
   const [isChecking, setIsChecking] = useState(false);
 
@@ -125,27 +108,16 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     return () => clearInterval(interval);
   }, []);
 
-  const value: ConnectionContextType = {
-    isConnected,
-    isChecking,
-  };
-
   return (
-    <ConnectionContext.Provider value={value}>
-      {children}
-      <ConnectionModal 
-        isVisible={!isConnected} 
-        onRetry={checkConnection}
-        isRetrying={isChecking}
-      />
-    </ConnectionContext.Provider>
+    <>
+      {!isConnected && (
+        <ConnectionModal 
+          onRetry={checkConnection}
+          isRetrying={isChecking}
+        />
+      )}
+    </>
   );
 };
 
-export const useConnection = (): ConnectionContextType => {
-  const context = useContext(ConnectionContext);
-  if (context === undefined) {
-    throw new Error('useConnection must be used within a ConnectionProvider');
-  }
-  return context;
-};
+export default ConnectionMonitor; 
