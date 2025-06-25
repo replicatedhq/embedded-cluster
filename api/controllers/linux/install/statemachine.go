@@ -8,8 +8,12 @@ import (
 const (
 	// StateNew is the initial state of the install process
 	StateNew statemachine.State = "New"
+	// StateInstallationConfigurationFailed is the state of the install process when the installation failed to be configured
+	StateInstallationConfigurationFailed statemachine.State = "InstallationConfigurationFailed"
 	// StateInstallationConfigured is the state of the install process when the installation is configured
 	StateInstallationConfigured statemachine.State = "InstallationConfigured"
+	// StateHostConfigurationFailed is the state of the install process when the installation failed to be configured
+	StateHostConfigurationFailed statemachine.State = "HostConfigurationFailed"
 	// StateHostConfigured is the state of the install process when the host is configured
 	StateHostConfigured statemachine.State = "HostConfigured"
 	// StatePreflightsRunning is the state of the install process when the preflights are running
@@ -22,23 +26,25 @@ const (
 	StatePreflightsFailedBypassed statemachine.State = "PreflightsFailedBypassed"
 	// StateInfrastructureInstalling is the state of the install process when the infrastructure is being installed
 	StateInfrastructureInstalling statemachine.State = "InfrastructureInstalling"
+	// StateInfrastructureInstallFailed is a final state of the install process when the infrastructure failed to isntall
+	StateInfrastructureInstallFailed statemachine.State = "InfrastructureInstallFailed"
 	// StateSucceeded is the final state of the install process when the install has succeeded
 	StateSucceeded statemachine.State = "Succeeded"
-	// StateFailed is the final state of the install process when the install has failed
-	StateFailed statemachine.State = "Failed"
 )
 
 var validStateTransitions = map[statemachine.State][]statemachine.State{
-	StateNew:                      {StateInstallationConfigured},
-	StateInstallationConfigured:   {StateHostConfigured, StateInstallationConfigured},
-	StateHostConfigured:           {StatePreflightsRunning, StateInstallationConfigured},
-	StatePreflightsRunning:        {StatePreflightsSucceeded, StatePreflightsFailed},
-	StatePreflightsSucceeded:      {StateInfrastructureInstalling, StatePreflightsRunning, StateInstallationConfigured},
-	StatePreflightsFailed:         {StatePreflightsFailedBypassed, StatePreflightsRunning, StateInstallationConfigured},
-	StatePreflightsFailedBypassed: {StateInfrastructureInstalling, StatePreflightsRunning, StateInstallationConfigured},
-	StateInfrastructureInstalling: {StateSucceeded, StateFailed},
-	StateSucceeded:                {},
-	StateFailed:                   {},
+	StateNew:                             {StateInstallationConfigured, StateInstallationConfigurationFailed},
+	StateInstallationConfigurationFailed: {StateInstallationConfigured, StateInstallationConfigurationFailed},
+	StateInstallationConfigured:          {StateHostConfigured, StateHostConfigurationFailed},
+	StateHostConfigurationFailed:         {StateInstallationConfigured, StateInstallationConfigurationFailed},
+	StateHostConfigured:                  {StatePreflightsRunning, StateInstallationConfigured, StateInstallationConfigurationFailed},
+	StatePreflightsRunning:               {StatePreflightsSucceeded, StatePreflightsFailed},
+	StatePreflightsSucceeded:             {StateInfrastructureInstalling, StatePreflightsRunning, StateInstallationConfigured, StateInstallationConfigurationFailed},
+	StatePreflightsFailed:                {StatePreflightsFailedBypassed, StatePreflightsRunning, StateInstallationConfigured, StateInstallationConfigurationFailed},
+	StatePreflightsFailedBypassed:        {StateInfrastructureInstalling, StatePreflightsRunning, StateInstallationConfigured, StateInstallationConfigurationFailed},
+	StateInfrastructureInstalling:        {StateSucceeded, StateInfrastructureInstallFailed},
+	StateInfrastructureInstallFailed:     {},
+	StateSucceeded:                       {},
 }
 
 type StateMachineOptions struct {

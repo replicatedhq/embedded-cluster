@@ -3,6 +3,7 @@ package install
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -48,6 +49,10 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 
 		if err != nil {
 			c.logger.Error("failed to configure host", "error", err)
+			err = c.stateMachine.Transition(lock, StateHostConfigurationFailed)
+			if err != nil {
+				c.logger.Error("failed to transition states", "error", err)
+			}
 		} else {
 			err = c.stateMachine.Transition(lock, StateHostConfigured)
 			if err != nil {
@@ -59,7 +64,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 	return nil
 }
 
-func (c *InstallController) configureInstallation(ctx context.Context, config types.InstallationConfig) error {
+func (c *InstallController) configureInstallation(ctx context.Context, config types.InstallationConfig) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -69,6 +74,20 @@ func (c *InstallController) configureInstallation(ctx context.Context, config ty
 	if err := c.stateMachine.ValidateTransition(lock, StateInstallationConfigured); err != nil {
 		return types.NewConflictError(err)
 	}
+
+	defer func() {
+		if finalErr != nil {
+			if err := c.stateMachine.Transition(lock, StateInstallationConfigurationFailed); err != nil {
+				c.logger.Errorf("failed to transition states: %w", err)
+			}
+
+			c.store.InstallationStore().SetStatus(types.Status{
+				State:       types.StateFailed,
+				Description: finalErr.Error(),
+				LastUpdated: time.Now(),
+			})
+		}
+	}()
 
 	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
 		return fmt.Errorf("validate: %w", err)

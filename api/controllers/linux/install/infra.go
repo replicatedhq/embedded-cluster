@@ -54,7 +54,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 			if finalErr != nil {
 				c.logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, StateFailed); err != nil {
+				if err := c.stateMachine.Transition(lock, StateInfrastructureInstallFailed); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
 			} else {

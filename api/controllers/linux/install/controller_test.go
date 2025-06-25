@@ -140,10 +140,30 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name:          "validate error",
+			name:          "validatation error",
 			config:        types.InstallationConfig{},
 			currentState:  StateNew,
-			expectedState: StateNew,
+			expectedState: StateInstallationConfigurationFailed,
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+				m.On("ValidateConfig", config, 9001).Return(errors.New("validation error"))
+			},
+			expectedErr: true,
+		},
+		{
+			name:          "validation error on retry from host already configured",
+			config:        types.InstallationConfig{},
+			currentState:  StateHostConfigured,
+			expectedState: StateInstallationConfigurationFailed,
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+				m.On("ValidateConfig", config, 9001).Return(errors.New("validation error"))
+			},
+			expectedErr: true,
+		},
+		{
+			name:          "validation error on retry from host that failed to configure",
+			config:        types.InstallationConfig{},
+			currentState:  StateHostConfigurationFailed,
+			expectedState: StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
 				m.On("ValidateConfig", config, 9001).Return(errors.New("validation error"))
 			},
@@ -153,7 +173,33 @@ func TestConfigureInstallation(t *testing.T) {
 			name:          "set config error",
 			config:        types.InstallationConfig{},
 			currentState:  StateNew,
-			expectedState: StateNew,
+			expectedState: StateInstallationConfigurationFailed,
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+				mock.InOrder(
+					m.On("ValidateConfig", config, 9001).Return(nil),
+					m.On("SetConfig", config).Return(errors.New("set config error")),
+				)
+			},
+			expectedErr: true,
+		},
+		{
+			name:          "set config error on retry from host already configured",
+			config:        types.InstallationConfig{},
+			currentState:  StateHostConfigured,
+			expectedState: StateInstallationConfigurationFailed,
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+				mock.InOrder(
+					m.On("ValidateConfig", config, 9001).Return(nil),
+					m.On("SetConfig", config).Return(errors.New("set config error")),
+				)
+			},
+			expectedErr: true,
+		},
+		{
+			name:          "set config error on retry from host that failed to configure",
+			config:        types.InstallationConfig{},
+			currentState:  StateHostConfigurationFailed,
+			expectedState: StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
 				mock.InOrder(
 					m.On("ValidateConfig", config, 9001).Return(nil),
@@ -169,7 +215,41 @@ func TestConfigureInstallation(t *testing.T) {
 				DataDirectory:           t.TempDir(),
 			},
 			currentState:  StateNew,
-			expectedState: StateInstallationConfigured,
+			expectedState: StateHostConfigurationFailed,
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+				mock.InOrder(
+					m.On("ValidateConfig", config, 9001).Return(nil),
+					m.On("SetConfig", config).Return(nil),
+					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
+				)
+			},
+			expectedErr: false,
+		},
+		{
+			name: "configure host error on retry from host already configured",
+			config: types.InstallationConfig{
+				LocalArtifactMirrorPort: 9000,
+				DataDirectory:           t.TempDir(),
+			},
+			currentState:  StateHostConfigured,
+			expectedState: StateHostConfigurationFailed,
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+				mock.InOrder(
+					m.On("ValidateConfig", config, 9001).Return(nil),
+					m.On("SetConfig", config).Return(nil),
+					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
+				)
+			},
+			expectedErr: false,
+		},
+		{
+			name: "configure host error on retry from host that failed to configure",
+			config: types.InstallationConfig{
+				LocalArtifactMirrorPort: 9000,
+				DataDirectory:           t.TempDir(),
+			},
+			currentState:  StateHostConfigurationFailed,
+			expectedState: StateHostConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
 				mock.InOrder(
 					m.On("ValidateConfig", config, 9001).Return(nil),
@@ -713,7 +793,7 @@ func TestSetupInfra(t *testing.T) {
 			clientIgnoreHostPreflights:      false,
 			serverAllowIgnoreHostPreflights: true,
 			currentState:                    StatePreflightsSucceeded,
-			expectedState:                   StateFailed,
+			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, r *metrics.MockReporter) {
 				mock.InOrder(
 					fm.On("Install", mock.Anything, rc).Return(errors.New("install error")),

@@ -18,7 +18,6 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/api"
 	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
-	"github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
@@ -278,7 +277,7 @@ func TestConfigureInstallation(t *testing.T) {
 			// Create an install controller with the config manager
 			installController, err := linuxinstall.NewInstallController(
 				linuxinstall.WithRuntimeConfig(rc),
-				linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured))),
+				linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
 				linuxinstall.WithHostUtils(tc.mockHostUtils),
 				linuxinstall.WithNetUtils(tc.mockNetUtils),
 			)
@@ -1409,10 +1408,10 @@ func TestPostSetupInfra(t *testing.T) {
 		)
 
 		// Create an install controller with CLI flag allowing bypass
-		installController, err := install.NewInstallController(
-			install.WithStateMachine(install.NewStateMachine(install.WithCurrentState(install.StatePreflightsFailed))),
-			install.WithHostPreflightManager(pfManager),
-			install.WithAllowIgnoreHostPreflights(true), // CLI flag allows bypass
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsFailed))),
+			linuxinstall.WithHostPreflightManager(pfManager),
+			linuxinstall.WithAllowIgnoreHostPreflights(true), // CLI flag allows bypass
 		)
 		require.NoError(t, err)
 
@@ -1466,10 +1465,10 @@ func TestPostSetupInfra(t *testing.T) {
 		)
 
 		// Create an install controller with CLI flag NOT allowing bypass
-		installController, err := install.NewInstallController(
-			install.WithStateMachine(install.NewStateMachine(install.WithCurrentState(install.StatePreflightsFailed))),
-			install.WithHostPreflightManager(pfManager),
-			install.WithAllowIgnoreHostPreflights(false), // CLI flag does NOT allow bypass
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsFailed))),
+			linuxinstall.WithHostPreflightManager(pfManager),
+			linuxinstall.WithAllowIgnoreHostPreflights(false), // CLI flag does NOT allow bypass
 		)
 		require.NoError(t, err)
 
@@ -1530,10 +1529,10 @@ func TestPostSetupInfra(t *testing.T) {
 		)
 
 		// Create an install controller with CLI flag allowing bypass
-		installController, err := install.NewInstallController(
-			install.WithStateMachine(install.NewStateMachine(install.WithCurrentState(install.StatePreflightsFailed))),
-			install.WithHostPreflightManager(pfManager),
-			install.WithAllowIgnoreHostPreflights(true), // CLI flag allows bypass
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsFailed))),
+			linuxinstall.WithHostPreflightManager(pfManager),
+			linuxinstall.WithAllowIgnoreHostPreflights(true), // CLI flag allows bypass
 		)
 		require.NoError(t, err)
 
