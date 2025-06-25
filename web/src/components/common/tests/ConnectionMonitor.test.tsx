@@ -43,7 +43,7 @@ describe('ConnectionMonitor', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Cannot connect')).toBeInTheDocument();
-    }, { timeout: 10000 });
+    }, { timeout: 7000 });
   });
 
   it('should handle manual retry', async () => {
@@ -66,7 +66,7 @@ describe('ConnectionMonitor', () => {
     // Wait for modal to appear
     await waitFor(() => {
       expect(screen.getByText('Try Now')).toBeInTheDocument();
-    }, { timeout: 10000 });
+    }, { timeout: 7000 });
 
     // Click retry button
     fireEvent.click(screen.getByText('Try Now'));
@@ -74,7 +74,7 @@ describe('ConnectionMonitor', () => {
     // Modal should disappear when connection is restored
     await waitFor(() => {
       expect(screen.queryByText('Cannot connect')).not.toBeInTheDocument();
-    }, { timeout: 20000 });
+    }, { timeout: 15000 });
   });
 
   it('should show retry countdown timer', async () => {
@@ -89,7 +89,7 @@ describe('ConnectionMonitor', () => {
     // Wait for modal to appear
     await waitFor(() => {
       expect(screen.getByText('Cannot connect')).toBeInTheDocument();
-    }, { timeout: 10000 });
+    }, { timeout: 7000 });
 
     // Should show countdown
     expect(screen.getByText(/Trying again in \d+ second/)).toBeInTheDocument();

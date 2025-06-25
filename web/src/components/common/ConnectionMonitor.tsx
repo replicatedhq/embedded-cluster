@@ -52,6 +52,7 @@ const ConnectionModal: React.FC<{ onRetry: () => void; isRetrying: boolean }> = 
 const ConnectionMonitor: React.FC = () => {
   const [isConnected, setIsConnected] = useState(true);
   const [isChecking, setIsChecking] = useState(false);
+  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
 
   const checkConnection = async () => {
     setIsChecking(true);
@@ -65,7 +66,7 @@ const ConnectionMonitor: React.FC = () => {
         try {
           // Create a timeout promise
           const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout')), 1000)
+            setTimeout(() => reject(new Error('Timeout')), 5000)
           );
           
           const fetchPromise = fetch('/api/health', {
@@ -77,6 +78,7 @@ const ConnectionMonitor: React.FC = () => {
           
           if (response.ok) {
             setIsConnected(true);
+            setConsecutiveFailures(0); // Reset failure counter on success
             return;
           } else {
             throw new Error(`HTTP ${response.status}`);
@@ -84,15 +86,23 @@ const ConnectionMonitor: React.FC = () => {
         } catch {
           attempts++;
           if (attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
       }
       
-      // All attempts failed
-      setIsConnected(false);
+      // All attempts failed - increment consecutive failures
+      setConsecutiveFailures(prev => prev + 1);
+      
+      // Only show modal after 3 consecutive failures
+      if (consecutiveFailures >= 2) {
+        setIsConnected(false);
+      }
     } catch {
-      setIsConnected(false);
+      setConsecutiveFailures(prev => prev + 1);
+      if (consecutiveFailures >= 2) {
+        setIsConnected(false);
+      }
     } finally {
       setIsChecking(false);
     }
@@ -102,11 +112,11 @@ const ConnectionMonitor: React.FC = () => {
     // Initial check
     checkConnection();
     
-    // Set up periodic health checks every 10 seconds
-    const interval = setInterval(checkConnection, 10000);
+    // Set up periodic health checks every 2 seconds
+    const interval = setInterval(checkConnection, 2000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [consecutiveFailures]);
 
   return (
     <>
