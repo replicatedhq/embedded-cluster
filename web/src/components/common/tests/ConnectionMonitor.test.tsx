@@ -47,12 +47,10 @@ describe('ConnectionMonitor', () => {
   }, 6000);
 
   it('should handle manual retry', async () => {
-    let callCount = 0;
     let manualRetryClicked = false;
     
     server.use(
       http.get('*/api/health', () => {
-        callCount++;
         
         // Keep failing until manual retry is clicked, then succeed
         if (!manualRetryClicked) {
