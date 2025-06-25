@@ -10,18 +10,14 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func addCIDRFlags(flagSet *pflag.FlagSet) error {
-	flagSet.String("pod-cidr", k0sv1beta1.DefaultNetwork().PodCIDR, "IP address range for Pods")
-	if err := flagSet.MarkHidden("pod-cidr"); err != nil {
-		return err
-	}
-	flagSet.String("service-cidr", k0sv1beta1.DefaultNetwork().ServiceCIDR, "IP address range for Services")
-	if err := flagSet.MarkHidden("service-cidr"); err != nil {
-		return err
-	}
+func mustAddCIDRFlags(flagSet *pflag.FlagSet) {
 	flagSet.String("cidr", ecv1beta1.DefaultNetworkCIDR, "CIDR block of available private IP addresses (/16 or larger)")
 
-	return nil
+	flagSet.String("pod-cidr", k0sv1beta1.DefaultNetwork().PodCIDR, "IP address range for Pods")
+	mustMarkFlagHidden(flagSet, "pod-cidr")
+
+	flagSet.String("service-cidr", k0sv1beta1.DefaultNetwork().ServiceCIDR, "IP address range for Services")
+	mustMarkFlagHidden(flagSet, "service-cidr")
 }
 
 func validateCIDRFlags(cmd *cobra.Command) error {
