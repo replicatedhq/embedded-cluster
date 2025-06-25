@@ -675,7 +675,7 @@ func TestEventHandlerPanicRecovery(t *testing.T) {
 }
 
 func TestEventHandlerContextTimeout(t *testing.T) {
-	sm := New(StateNew, validStateTransitions, WithHandlerTimeout(time.Millisecond))
+	sm := New(StateNew, validStateTransitions)
 
 	mockHandler := &MockEventHandler{}
 	mockHandler.On("Handle", mock.Anything, StateNew, StateInstallationConfigured).Return()
@@ -684,7 +684,7 @@ func TestEventHandlerContextTimeout(t *testing.T) {
 		mockHandler.Handle(ctx, from, to)
 	}
 
-	sm.RegisterEventHandler(StateInstallationConfigured, handler)
+	sm.RegisterEventHandler(StateInstallationConfigured, handler, WithHandlerTimeout(time.Millisecond))
 
 	// Perform transition
 	lock, err := sm.AcquireLock()
