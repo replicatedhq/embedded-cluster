@@ -4,7 +4,7 @@ import Button from "../common/Button";
 import Input from "../common/Input";
 import { AppIcon } from "../common/Logo";
 import { ChevronRight, Lock, AlertTriangle } from "lucide-react";
-import { useWizardMode } from "../../contexts/WizardModeContext";
+import { useWizard } from "../../contexts/WizardModeContext";
 import { useConfig } from "../../contexts/ConfigContext";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
@@ -18,7 +18,7 @@ interface LoginResponse {
 }
 
 const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
-  const { text } = useWizardMode();
+  const { text } = useWizard();
   const { prototypeSettings } = useConfig();
   const [password, setPassword] = useState("");
   const { setToken, isAuthenticated } = useAuth();

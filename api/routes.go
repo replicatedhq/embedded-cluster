@@ -45,15 +45,15 @@ func (a *API) registerLinuxRoutes(router *mux.Router) {
 
 	installRouter.HandleFunc("/infra/setup", a.handlers.linux.PostSetupInfra).Methods("POST")
 	installRouter.HandleFunc("/infra/status", a.handlers.linux.GetInfraStatus).Methods("GET")
-
-	// TODO (@salah): remove this once the cli isn't responsible for setting the install status
-	// and the ui isn't polling for it to know if the entire install is complete
-	installRouter.HandleFunc("/status", a.handlers.linux.GetStatus).Methods("GET")
-	installRouter.HandleFunc("/status", a.handlers.linux.PostSetStatus).Methods("POST")
 }
 
 func (a *API) registerKubernetesRoutes(router *mux.Router) {
-	// kubernetesRouter := router.PathPrefix("/kubernetes").Subrouter()
+	kubernetesRouter := router.PathPrefix("/kubernetes").Subrouter()
+
+	installRouter := kubernetesRouter.PathPrefix("/install").Subrouter()
+	installRouter.HandleFunc("/installation/config", a.handlers.kubernetes.GetInstallationConfig).Methods("GET")
+	installRouter.HandleFunc("/installation/configure", a.handlers.kubernetes.PostConfigureInstallation).Methods("POST")
+	installRouter.HandleFunc("/installation/status", a.handlers.kubernetes.GetInstallationStatus).Methods("GET")
 }
 
 func (a *API) registerConsoleRoutes(router *mux.Router) {

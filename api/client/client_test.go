@@ -99,7 +99,7 @@ func TestLogin(t *testing.T) {
 	assert.Equal(t, "Invalid password", apiErr.Message)
 }
 
-func TestGetInstallationConfig(t *testing.T) {
+func TestLinuxGetInstallationConfig(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
@@ -110,7 +110,7 @@ func TestGetInstallationConfig(t *testing.T) {
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(types.InstallationConfig{
+		json.NewEncoder(w).Encode(types.LinuxInstallationConfig{
 			GlobalCIDR:       "10.0.0.0/24",
 			AdminConsolePort: 8080,
 		})
@@ -119,7 +119,7 @@ func TestGetInstallationConfig(t *testing.T) {
 
 	// Test successful get
 	c := New(server.URL, WithToken("test-token"))
-	config, err := c.GetInstallationConfig()
+	config, err := c.GetLinuxInstallationConfig()
 	assert.NoError(t, err)
 	assert.Equal(t, "10.0.0.0/24", config.GlobalCIDR)
 	assert.Equal(t, 8080, config.AdminConsolePort)
@@ -135,9 +135,9 @@ func TestGetInstallationConfig(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	config, err = c.GetInstallationConfig()
+	config, err = c.GetLinuxInstallationConfig()
 	assert.Error(t, err)
-	assert.Equal(t, types.InstallationConfig{}, config)
+	assert.Equal(t, types.LinuxInstallationConfig{}, config)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -145,7 +145,7 @@ func TestGetInstallationConfig(t *testing.T) {
 	assert.Equal(t, "Internal Server Error", apiErr.Message)
 }
 
-func TestConfigureInstallation(t *testing.T) {
+func TestLinuxConfigureInstallation(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check request method and path
@@ -157,7 +157,7 @@ func TestConfigureInstallation(t *testing.T) {
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 
 		// Decode request body
-		var config types.InstallationConfig
+		var config types.LinuxInstallationConfig
 		err := json.NewDecoder(r.Body).Decode(&config)
 		require.NoError(t, err, "Failed to decode request body")
 
@@ -172,11 +172,11 @@ func TestConfigureInstallation(t *testing.T) {
 
 	// Test successful configure
 	c := New(server.URL, WithToken("test-token"))
-	config := types.InstallationConfig{
+	config := types.LinuxInstallationConfig{
 		GlobalCIDR:              "20.0.0.0/24",
 		LocalArtifactMirrorPort: 9081,
 	}
-	status, err := c.ConfigureInstallation(config)
+	status, err := c.ConfigureLinuxInstallation(config)
 	assert.NoError(t, err)
 	assert.Equal(t, types.StateRunning, status.State)
 	assert.Equal(t, "Configuring installation", status.Description)
@@ -192,7 +192,7 @@ func TestConfigureInstallation(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	status, err = c.ConfigureInstallation(config)
+	status, err = c.ConfigureLinuxInstallation(config)
 	assert.Error(t, err)
 	assert.Equal(t, types.Status{}, status)
 
@@ -202,7 +202,7 @@ func TestConfigureInstallation(t *testing.T) {
 	assert.Equal(t, "Bad Request", apiErr.Message)
 }
 
-func TestSetupInfra(t *testing.T) {
+func TestLinuxSetupInfra(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
@@ -213,7 +213,7 @@ func TestSetupInfra(t *testing.T) {
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(types.Infra{
+		json.NewEncoder(w).Encode(types.LinuxInfra{
 			Status: types.Status{
 				State:       types.StateRunning,
 				Description: "Installing infra",
@@ -224,7 +224,7 @@ func TestSetupInfra(t *testing.T) {
 
 	// Test successful setup
 	c := New(server.URL, WithToken("test-token"))
-	infra, err := c.SetupInfra()
+	infra, err := c.SetupLinuxInfra()
 	assert.NoError(t, err)
 	assert.Equal(t, types.StateRunning, infra.Status.State)
 	assert.Equal(t, "Installing infra", infra.Status.Description)
@@ -240,9 +240,9 @@ func TestSetupInfra(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	infra, err = c.SetupInfra()
+	infra, err = c.SetupLinuxInfra()
 	assert.Error(t, err)
-	assert.Equal(t, types.Infra{}, infra)
+	assert.Equal(t, types.LinuxInfra{}, infra)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -250,7 +250,7 @@ func TestSetupInfra(t *testing.T) {
 	assert.Equal(t, "Internal Server Error", apiErr.Message)
 }
 
-func TestGetInfraStatus(t *testing.T) {
+func TestLinuxGetInfraStatus(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
@@ -261,7 +261,7 @@ func TestGetInfraStatus(t *testing.T) {
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(types.Infra{
+		json.NewEncoder(w).Encode(types.LinuxInfra{
 			Status: types.Status{
 				State:       types.StateSucceeded,
 				Description: "Installation successful",
@@ -272,7 +272,7 @@ func TestGetInfraStatus(t *testing.T) {
 
 	// Test successful get
 	c := New(server.URL, WithToken("test-token"))
-	infra, err := c.GetInfraStatus()
+	infra, err := c.GetLinuxInfraStatus()
 	assert.NoError(t, err)
 	assert.Equal(t, types.StateSucceeded, infra.Status.State)
 	assert.Equal(t, "Installation successful", infra.Status.Description)
@@ -288,9 +288,9 @@ func TestGetInfraStatus(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	infra, err = c.GetInfraStatus()
+	infra, err = c.GetLinuxInfraStatus()
 	assert.Error(t, err)
-	assert.Equal(t, types.Infra{}, infra)
+	assert.Equal(t, types.LinuxInfra{}, infra)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -298,7 +298,7 @@ func TestGetInfraStatus(t *testing.T) {
 	assert.Equal(t, "Internal Server Error", apiErr.Message)
 }
 
-func TestSetInstallStatus(t *testing.T) {
+func TestLinuxSetInstallStatus(t *testing.T) {
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
@@ -324,7 +324,7 @@ func TestSetInstallStatus(t *testing.T) {
 		State:       types.StateSucceeded,
 		Description: "Installation successful",
 	}
-	newStatus, err := c.SetInstallStatus(status)
+	newStatus, err := c.SetLinuxInstallStatus(status)
 	assert.NoError(t, err)
 	assert.Equal(t, status, newStatus)
 
@@ -339,7 +339,7 @@ func TestSetInstallStatus(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	newStatus, err = c.SetInstallStatus(status)
+	newStatus, err = c.SetLinuxInstallStatus(status)
 	assert.Error(t, err)
 	assert.Equal(t, types.Status{}, newStatus)
 
@@ -349,7 +349,7 @@ func TestSetInstallStatus(t *testing.T) {
 	assert.Equal(t, "Bad Request", apiErr.Message)
 }
 
-func TestErrorFromResponse(t *testing.T) {
+func TestLinuxErrorFromResponse(t *testing.T) {
 	// Create a response with an error
 	resp := &http.Response{
 		StatusCode: http.StatusBadRequest,

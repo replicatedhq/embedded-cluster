@@ -62,30 +62,6 @@ components:
         title:
           type: string
       type: object
-    types.Infra:
-      properties:
-        components:
-          items:
-            $ref: '#/components/schemas/types.InfraComponent'
-          type: array
-          uniqueItems: false
-        logs:
-          type: string
-        status:
-          $ref: '#/components/schemas/types.Status'
-      type: object
-    types.InfraComponent:
-      properties:
-        name:
-          type: string
-        status:
-          $ref: '#/components/schemas/types.Status'
-      type: object
-    types.InfraSetupRequest:
-      properties:
-        ignoreHostPreflights:
-          type: boolean
-      type: object
     types.InstallHostPreflightsStatusResponse:
       properties:
         allowIgnoreHostPreflights:
@@ -100,7 +76,42 @@ components:
           type: array
           uniqueItems: false
       type: object
-    types.InstallationConfig:
+    types.KubernetesInstallationConfig:
+      properties:
+        adminConsolePort:
+          type: integer
+        httpProxy:
+          type: string
+        httpsProxy:
+          type: string
+        noProxy:
+          type: string
+      type: object
+    types.LinuxInfra:
+      properties:
+        components:
+          items:
+            $ref: '#/components/schemas/types.LinuxInfraComponent'
+          type: array
+          uniqueItems: false
+        logs:
+          type: string
+        status:
+          $ref: '#/components/schemas/types.Status'
+      type: object
+    types.LinuxInfraComponent:
+      properties:
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/types.Status'
+      type: object
+    types.LinuxInfraSetupRequest:
+      properties:
+        ignoreHostPreflights:
+          type: boolean
+      type: object
+    types.LinuxInstallationConfig:
       properties:
         adminConsolePort:
           type: integer
@@ -221,6 +232,61 @@ paths:
       summary: Get the health of the API
       tags:
       - health
+  /kubernetes/install/installation/config:
+    get:
+      description: get the Kubernetes installation config
+      operationId: getKubernetesInstallInstallationConfig
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.KubernetesInstallationConfig'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the Kubernetes installation config
+      tags:
+      - kubernetes-install
+  /kubernetes/install/installation/configure:
+    post:
+      description: configure the Kubernetes installation for install
+      operationId: postKubernetesInstallConfigureInstallation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.KubernetesInstallationConfig'
+        description: Installation config
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Status'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Configure the Kubernetes installation for install
+      tags:
+      - kubernetes-install
+  /kubernetes/install/installation/status:
+    get:
+      description: Get the current status of the installation configuration for install
+      operationId: getKubernetesInstallInstallationStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Status'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get installation configuration status for install
+      tags:
+      - kubernetes-install
   /linux/install/host-preflights/run:
     post:
       description: Run install host preflight checks using installation config and
@@ -270,7 +336,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.InfraSetupRequest'
+              $ref: '#/components/schemas/types.LinuxInfraSetupRequest'
         description: Infra Setup Request
         required: true
       responses:
@@ -278,7 +344,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.Infra'
+                $ref: '#/components/schemas/types.LinuxInfra'
           description: OK
       security:
       - bearerauth: []
@@ -294,7 +360,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.Infra'
+                $ref: '#/components/schemas/types.LinuxInfra'
           description: OK
       security:
       - bearerauth: []
@@ -310,7 +376,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.InstallationConfig'
+                $ref: '#/components/schemas/types.LinuxInstallationConfig'
           description: OK
       security:
       - bearerauth: []
@@ -325,7 +391,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.InstallationConfig'
+              $ref: '#/components/schemas/types.LinuxInstallationConfig'
         description: Installation config
         required: true
       responses:
@@ -354,44 +420,6 @@ paths:
       security:
       - bearerauth: []
       summary: Get installation configuration status for install
-      tags:
-      - linux-install
-  /linux/install/status:
-    get:
-      description: Get the current status of the install workflow
-      operationId: getLinuxInstallStatus
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Status'
-          description: OK
-      security:
-      - bearerauth: []
-      summary: Get the status of the install workflow
-      tags:
-      - linux-install
-    post:
-      description: Set the status of the install workflow
-      operationId: postLinuxInstallSetStatus
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/types.Status'
-        description: Status
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Status'
-          description: OK
-      security:
-      - bearerauth: []
-      summary: Set the status of the install workflow
       tags:
       - linux-install
 servers:

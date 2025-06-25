@@ -18,6 +18,7 @@ const (
 var _ types.AddOn = (*AdminConsole)(nil)
 
 type AdminConsole struct {
+	InstallTarget      constants.InstallTarget
 	IsAirgap           bool
 	IsHA               bool
 	Proxy              *ecv1beta1.ProxySpec

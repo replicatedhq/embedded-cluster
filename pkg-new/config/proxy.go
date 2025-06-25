@@ -52,6 +52,26 @@ func GetProxySpec(httpProxy, httpsProxy, noProxy string, podCIDR string, service
 	return proxy, nil
 }
 
+func GetKubernetesProxySpec(httpProxy, httpsProxy, noProxy string) (*ecv1beta1.ProxySpec, error) {
+	proxy := &ecv1beta1.ProxySpec{
+		HTTPProxy:       httpProxy,
+		HTTPSProxy:      httpsProxy,
+		ProvidedNoProxy: noProxy,
+	}
+
+	SetProxyDefaults(proxy)
+
+	// Now that we have all no-proxy entries (from flags/env), merge in defaults
+	if err := populateKubernetesNoProxy(proxy); err != nil {
+		return nil, fmt.Errorf("unable to combine no-proxy supplied values and defaults: %w", err)
+	}
+
+	if proxy.HTTPProxy == "" && proxy.HTTPSProxy == "" && proxy.NoProxy == "" {
+		return nil, nil
+	}
+	return proxy, nil
+}
+
 func SetProxyDefaults(proxy *ecv1beta1.ProxySpec) {
 	if proxy.HTTPProxy == "" {
 		if envValue := os.Getenv("http_proxy"); envValue != "" {
@@ -119,6 +139,23 @@ func populateNoProxy(proxy *ecv1beta1.ProxySpec, podCIDR string, serviceCIDR str
 			logrus.Debugf("The node IP (%q) is not included in the no-proxy list. Adding the network interface's subnet (%q).", ipnet.IP.String(), cleanIPNet)
 			noProxy = append(noProxy, cleanIPNet)
 		}
+	}
+
+	proxy.NoProxy = strings.Join(noProxy, ",")
+	return nil
+}
+
+func populateKubernetesNoProxy(proxy *ecv1beta1.ProxySpec) error {
+	if proxy.ProvidedNoProxy == "" && proxy.HTTPProxy == "" && proxy.HTTPSProxy == "" {
+		return nil
+	}
+
+	// Start with runtime defaults
+	noProxy := runtimeconfig.DefaultNoProxy
+
+	// Add user-provided no-proxy values
+	if proxy.ProvidedNoProxy != "" {
+		noProxy = append(noProxy, strings.Split(proxy.ProvidedNoProxy, ",")...)
 	}
 
 	proxy.NoProxy = strings.Join(noProxy, ",")

@@ -1,17 +1,28 @@
 package types
 
-// InfraSetupRequest represents a request to set up infrastructure
-type InfraSetupRequest struct {
+// LinuxInfraSetupRequest represents a request to set up infrastructure
+type LinuxInfraSetupRequest struct {
 	IgnoreHostPreflights bool `json:"ignoreHostPreflights"`
 }
 
-type Infra struct {
-	Components []InfraComponent `json:"components"`
-	Logs       string           `json:"logs"`
-	Status     Status           `json:"status"`
+type LinuxInfra struct {
+	Components []LinuxInfraComponent `json:"components"`
+	Logs       string                `json:"logs"`
+	Status     Status                `json:"status"`
 }
 
-type InfraComponent struct {
+type LinuxInfraComponent struct {
+	Name   string `json:"name"`
+	Status Status `json:"status"`
+}
+
+type KubernetesInfra struct {
+	Components []KubernetesInfraComponent `json:"components"`
+	Logs       string                     `json:"logs"`
+	Status     Status                     `json:"status"`
+}
+
+type KubernetesInfraComponent struct {
 	Name   string `json:"name"`
 	Status Status `json:"status"`
 }
