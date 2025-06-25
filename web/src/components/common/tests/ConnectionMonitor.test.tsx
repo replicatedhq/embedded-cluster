@@ -94,4 +94,4 @@ describe('ConnectionMonitor', () => {
     // Should show countdown
     expect(screen.getByText(/Trying again in \d+ second/)).toBeInTheDocument();
   });
-}); 
+});

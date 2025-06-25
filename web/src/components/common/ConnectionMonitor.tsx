@@ -120,4 +120,4 @@ const ConnectionMonitor: React.FC = () => {
   );
 };
 
-export default ConnectionMonitor; 
+export default ConnectionMonitor;
