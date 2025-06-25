@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
+	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -120,6 +121,7 @@ func TestConfigureInstallation(t *testing.T) {
 		currentState  statemachine.State
 		expectedState statemachine.State
 		setupMock     func(*installation.MockInstallationManager, runtimeconfig.RuntimeConfig, types.InstallationConfig)
+		validateStore func(*testing.T, store.Store)
 		expectedErr   bool
 	}{
 		{
@@ -147,6 +149,13 @@ func TestConfigureInstallation(t *testing.T) {
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
 				m.On("ValidateConfig", config, 9001).Return(errors.New("validation error"))
 			},
+			validateStore: func(t *testing.T, s store.Store) {
+				// Validate the status is correctly set in the store when validation fails
+				status, err := s.InstallationStore().GetStatus()
+				require.NoError(t, err)
+				assert.Equal(t, types.StateFailed, status.State)
+				assert.Contains(t, status.Description, "validation error")
+			},
 			expectedErr: true,
 		},
 		{
@@ -157,6 +166,13 @@ func TestConfigureInstallation(t *testing.T) {
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
 				m.On("ValidateConfig", config, 9001).Return(errors.New("validation error"))
 			},
+			validateStore: func(t *testing.T, s store.Store) {
+				// Validate the status is correctly set in the store when validation fails
+				status, err := s.InstallationStore().GetStatus()
+				require.NoError(t, err)
+				assert.Equal(t, types.StateFailed, status.State)
+				assert.Contains(t, status.Description, "validation error")
+			},
 			expectedErr: true,
 		},
 		{
@@ -166,6 +182,13 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
 				m.On("ValidateConfig", config, 9001).Return(errors.New("validation error"))
+			},
+			validateStore: func(t *testing.T, s store.Store) {
+				// Validate the status is correctly set in the store when validation fails
+				status, err := s.InstallationStore().GetStatus()
+				require.NoError(t, err)
+				assert.Equal(t, types.StateFailed, status.State)
+				assert.Contains(t, status.Description, "validation error")
 			},
 			expectedErr: true,
 		},
@@ -180,6 +203,13 @@ func TestConfigureInstallation(t *testing.T) {
 					m.On("SetConfig", config).Return(errors.New("set config error")),
 				)
 			},
+			validateStore: func(t *testing.T, s store.Store) {
+				// Validate the status is correctly set in the store when setting config fails
+				status, err := s.InstallationStore().GetStatus()
+				require.NoError(t, err)
+				assert.Equal(t, types.StateFailed, status.State)
+				assert.Contains(t, status.Description, "set config error")
+			},
 			expectedErr: true,
 		},
 		{
@@ -193,6 +223,13 @@ func TestConfigureInstallation(t *testing.T) {
 					m.On("SetConfig", config).Return(errors.New("set config error")),
 				)
 			},
+			validateStore: func(t *testing.T, s store.Store) {
+				// Validate the status is correctly set in the store when setting config fails
+				status, err := s.InstallationStore().GetStatus()
+				require.NoError(t, err)
+				assert.Equal(t, types.StateFailed, status.State)
+				assert.Contains(t, status.Description, "set config error")
+			},
 			expectedErr: true,
 		},
 		{
@@ -205,6 +242,13 @@ func TestConfigureInstallation(t *testing.T) {
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("SetConfig", config).Return(errors.New("set config error")),
 				)
+			},
+			validateStore: func(t *testing.T, s store.Store) {
+				// Validate the status is correctly set in the store when setting config fails
+				status, err := s.InstallationStore().GetStatus()
+				require.NoError(t, err)
+				assert.Equal(t, types.StateFailed, status.State)
+				assert.Contains(t, status.Description, "set config error")
 			},
 			expectedErr: true,
 		},
@@ -327,6 +371,11 @@ func TestConfigureInstallation(t *testing.T) {
 				return sm.CurrentState() == tt.expectedState
 			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
 			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after configuration")
+
+			// Run the store validation if provided
+			if tt.validateStore != nil {
+				tt.validateStore(t, controller.store)
+			}
 
 			mockManager.AssertExpectations(t)
 		})
