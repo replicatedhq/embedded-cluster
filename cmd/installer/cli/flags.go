@@ -100,6 +100,20 @@ func mustSetFlagTarget(flags *pflag.FlagSet, name string, target string) {
 	}
 }
 
+func mustMarkFlagHidden(flags *pflag.FlagSet, name string) {
+	err := flags.MarkHidden(name)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func mustMarkFlagDeprecated(flags *pflag.FlagSet, name string, deprecationMessage string) {
+	err := flags.MarkDeprecated(name, deprecationMessage)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func filterFlagSetByTarget(flags *pflag.FlagSet, target string) *pflag.FlagSet {
 	if flags == nil {
 		return nil
