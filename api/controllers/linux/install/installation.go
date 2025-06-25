@@ -81,11 +81,15 @@ func (c *InstallController) configureInstallation(ctx context.Context, config ty
 				c.logger.Errorf("failed to transition states: %w", err)
 			}
 
-			c.store.InstallationStore().SetStatus(types.Status{
+			failureStatus := types.Status{
 				State:       types.StateFailed,
 				Description: finalErr.Error(),
 				LastUpdated: time.Now(),
-			})
+			}
+
+			if err = c.store.InstallationStore().SetStatus(failureStatus); err != nil {
+				c.logger.Errorf("failed to update status: %w", err)
+			}
 		}
 	}()
 

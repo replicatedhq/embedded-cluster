@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -136,7 +137,8 @@ func TestConfigureInstallation(t *testing.T) {
 		mockNetUtils          *utils.MockNetUtils
 		token                 string
 		config                types.InstallationConfig
-		expectedStatus        int
+		expectedStatus        *types.Status
+		expectedStatusCode    int
 		expectedError         bool
 		validateRuntimeConfig func(t *testing.T, rc runtimeconfig.RuntimeConfig)
 	}{
@@ -168,8 +170,12 @@ func TestConfigureInstallation(t *testing.T) {
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
 			},
-			expectedStatus: http.StatusOK,
-			expectedError:  false,
+			expectedStatus: &types.Status{
+				State:       types.StateSucceeded,
+				Description: "Installation configured",
+			},
+			expectedStatusCode: http.StatusOK,
+			expectedError:      false,
 			validateRuntimeConfig: func(t *testing.T, rc runtimeconfig.RuntimeConfig) {
 				assert.Equal(t, "/tmp/data", rc.EmbeddedClusterHomeDirectory())
 				assert.Equal(t, 8000, rc.AdminConsolePort())
@@ -222,8 +228,12 @@ func TestConfigureInstallation(t *testing.T) {
 				HTTPSProxy:              "https://proxy.example.com",
 				NoProxy:                 "somecompany.internal,192.168.17.0/24",
 			},
-			expectedStatus: http.StatusOK,
-			expectedError:  false,
+			expectedStatus: &types.Status{
+				State:       types.StateSucceeded,
+				Description: "Installation configured",
+			},
+			expectedStatusCode: http.StatusOK,
+			expectedError:      false,
 			validateRuntimeConfig: func(t *testing.T, rc runtimeconfig.RuntimeConfig) {
 				assert.Equal(t, "/tmp/data", rc.EmbeddedClusterHomeDirectory())
 				assert.Equal(t, 8000, rc.AdminConsolePort())
@@ -255,17 +265,21 @@ func TestConfigureInstallation(t *testing.T) {
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  true,
+			expectedStatus: &types.Status{
+				State:       types.StateFailed,
+				Description: "validate: field errors: adminConsolePort and localArtifactMirrorPort cannot be equal",
+			},
+			expectedStatusCode: http.StatusBadRequest,
+			expectedError:      true,
 		},
 		{
-			name:           "Unauthorized",
-			mockHostUtils:  &hostutils.MockHostUtils{},
-			mockNetUtils:   &utils.MockNetUtils{},
-			token:          "NOT_A_TOKEN",
-			config:         types.InstallationConfig{},
-			expectedStatus: http.StatusUnauthorized,
-			expectedError:  true,
+			name:               "Unauthorized",
+			mockHostUtils:      &hostutils.MockHostUtils{},
+			mockNetUtils:       &utils.MockNetUtils{},
+			token:              "NOT_A_TOKEN",
+			config:             types.InstallationConfig{},
+			expectedStatusCode: http.StatusUnauthorized,
+			expectedError:      true,
 		},
 	}
 
@@ -312,7 +326,7 @@ func TestConfigureInstallation(t *testing.T) {
 			router.ServeHTTP(rec, req)
 
 			// Check the response
-			assert.Equal(t, tc.expectedStatus, rec.Code)
+			assert.Equal(t, tc.expectedStatusCode, rec.Code)
 
 			t.Logf("Response body: %s", rec.Body.String())
 
@@ -321,7 +335,7 @@ func TestConfigureInstallation(t *testing.T) {
 				var apiError types.APIError
 				err = json.NewDecoder(rec.Body).Decode(&apiError)
 				require.NoError(t, err)
-				assert.Equal(t, tc.expectedStatus, apiError.StatusCode)
+				assert.Equal(t, tc.expectedStatusCode, apiError.StatusCode)
 				assert.NotEmpty(t, apiError.Message)
 			} else {
 				var status types.Status
@@ -333,13 +347,16 @@ func TestConfigureInstallation(t *testing.T) {
 				assert.NotEqual(t, types.StatePending, status.State)
 			}
 
-			if !tc.expectedError {
-				// The status is set to succeeded in a goroutine, so we need to wait for it
+			// We might not have an expected status if the test is expected to fail before running the controller logic
+			if tc.expectedStatus != nil {
+				// The status is set in a goroutine, so we need to wait for it
+				var status types.Status
 				assert.Eventually(t, func() bool {
-					status, err := installController.GetInstallationStatus(t.Context())
+					status, err = installController.GetInstallationStatus(t.Context())
 					require.NoError(t, err)
-					return status.State == types.StateSucceeded && status.Description == "Installation configured"
-				}, 1*time.Second, 100*time.Millisecond, "status should eventually be succeeded")
+					return status.State == tc.expectedStatus.State
+				}, 1*time.Second, 100*time.Millisecond, fmt.Sprintf("Expected status to be %s", tc.expectedStatus.State))
+				assert.Contains(t, status.Description, tc.expectedStatus.Description)
 			}
 
 			if !tc.expectedError {
