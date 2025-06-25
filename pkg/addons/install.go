@@ -31,8 +31,8 @@ type InstallOptions struct {
 	ProxySpec               *ecv1beta1.ProxySpec
 	HostCABundlePath        string
 	DataDir                 string
-	OpenEBSDataDir          string
 	K0sDataDir              string
+	OpenEBSDataDir          string
 	ServiceCIDR             string
 }
 
@@ -87,7 +87,6 @@ func (a *AddOns) Restore(ctx context.Context, opts RestoreOptions) error {
 func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{
-			DataDir:        opts.DataDir,
 			OpenEBSDataDir: opts.OpenEBSDataDir,
 		},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
@@ -101,6 +100,7 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	if opts.IsAirgap {
 		addOns = append(addOns, &registry.Registry{
 			ServiceCIDR: opts.ServiceCIDR,
+			IsHA:        false,
 		})
 	}
 
@@ -115,15 +115,20 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 
 	adminConsoleAddOn := &adminconsole.AdminConsole{
 		IsAirgap:           opts.IsAirgap,
+		IsHA:               false,
 		Proxy:              opts.ProxySpec,
 		ServiceCIDR:        opts.ServiceCIDR,
-		Password:           opts.AdminConsolePwd,
-		TLSCertBytes:       opts.TLSCertBytes,
-		TLSKeyBytes:        opts.TLSKeyBytes,
-		Hostname:           opts.Hostname,
-		KotsInstaller:      opts.KotsInstaller,
 		IsMultiNodeEnabled: opts.IsMultiNodeEnabled,
+		HostCABundlePath:   opts.HostCABundlePath,
+		DataDir:            opts.DataDir,
+		K0sDataDir:         opts.K0sDataDir,
 		AdminConsolePort:   opts.AdminConsolePort,
+
+		Password:      opts.AdminConsolePwd,
+		TLSCertBytes:  opts.TLSCertBytes,
+		TLSKeyBytes:   opts.TLSKeyBytes,
+		Hostname:      opts.Hostname,
+		KotsInstaller: opts.KotsInstaller,
 	}
 	addOns = append(addOns, adminConsoleAddOn)
 
@@ -133,7 +138,6 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 func GetAddOnsForRestore(opts RestoreOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{
-			DataDir:        opts.DataDir,
 			OpenEBSDataDir: opts.OpenEBSDataDir,
 		},
 		&velero.Velero{

@@ -22,16 +22,18 @@ type AdminConsole struct {
 	IsHA               bool
 	Proxy              *ecv1beta1.ProxySpec
 	ServiceCIDR        string
-	Password           string
-	TLSCertBytes       []byte
-	TLSKeyBytes        []byte
-	Hostname           string
-	KotsInstaller      KotsInstaller
 	IsMultiNodeEnabled bool
 	HostCABundlePath   string
 	DataDir            string
 	K0sDataDir         string
 	AdminConsolePort   int
+
+	// These options are only used during installation
+	Password      string
+	TLSCertBytes  []byte
+	TLSKeyBytes   []byte
+	Hostname      string
+	KotsInstaller KotsInstaller
 
 	// DryRun is a flag to enable dry-run mode for Admin Console.
 	// If true, Admin Console will only render the helm template and additional manifests, but not install

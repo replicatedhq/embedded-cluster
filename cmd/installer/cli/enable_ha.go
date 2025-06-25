@@ -111,9 +111,18 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	defer loading.Close()
 
 	opts := addons.EnableHAOptions{
-		ServiceCIDR: rc.ServiceCIDR(),
-		ProxySpec:   rc.ProxySpec(),
+		AdminConsolePort:   rc.AdminConsolePort(),
+		IsAirgap:           in.Spec.AirGap,
+		IsMultiNodeEnabled: in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
+		EmbeddedConfigSpec: in.Spec.Config,
+		EndUserConfigSpec:  nil, // TODO: add support for end user config spec
+		ProxySpec:          rc.ProxySpec(),
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
+		ServiceCIDR:        rc.ServiceCIDR(),
 	}
 
-	return addOns.EnableHA(ctx, in.Spec, opts, loading)
+	return addOns.EnableHA(ctx, opts, loading)
 }

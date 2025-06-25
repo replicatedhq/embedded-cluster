@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -29,7 +30,7 @@ func MaterializeSupportBundleSpec(rc runtimeconfig.RuntimeConfig, isAirgap bool)
 	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
 		embCfgSpec = &embCfg.Spec
 	}
-	domains := runtimeconfig.GetDomains(embCfgSpec)
+	domains := domains.GetDomains(embCfgSpec, nil)
 
 	data := TemplateData{
 		DataDir:          rc.EmbeddedClusterHomeDirectory(),

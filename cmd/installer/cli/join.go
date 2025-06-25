@@ -657,9 +657,18 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 	defer loading.Close()
 
 	opts := addons.EnableHAOptions{
-		ServiceCIDR: rc.ServiceCIDR(),
-		ProxySpec:   rc.ProxySpec(),
+		AdminConsolePort:   rc.AdminConsolePort(),
+		IsAirgap:           jcmd.InstallationSpec.AirGap,
+		IsMultiNodeEnabled: jcmd.InstallationSpec.LicenseInfo != nil && jcmd.InstallationSpec.LicenseInfo.IsMultiNodeEnabled,
+		EmbeddedConfigSpec: jcmd.InstallationSpec.Config,
+		EndUserConfigSpec:  nil, // TODO: add support for end user config spec
+		ProxySpec:          rc.ProxySpec(),
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
+		ServiceCIDR:        rc.ServiceCIDR(),
 	}
 
-	return addOns.EnableHA(ctx, jcmd.InstallationSpec, opts, loading)
+	return addOns.EnableHA(ctx, opts, loading)
 }

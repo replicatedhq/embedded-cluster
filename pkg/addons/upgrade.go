@@ -21,13 +21,24 @@ import (
 )
 
 type UpgradeOptions struct {
-	ServiceCIDR string
-	ProxySpec   *ecv1beta1.ProxySpec
-	DataDir     string
+	AdminConsolePort        int
+	IsAirgap                bool
+	IsHA                    bool
+	DisasterRecoveryEnabled bool
+	IsMultiNodeEnabled      bool
+	EmbeddedConfigSpec      *ecv1beta1.ConfigSpec
+	EndUserConfigSpec       *ecv1beta1.ConfigSpec
+	ProxySpec               *ecv1beta1.ProxySpec
+	HostCABundlePath        string
+	DataDir                 string
+	K0sDataDir              string
+	OpenEBSDataDir          string
+	SeaweedFSDataDir        string
+	ServiceCIDR             string
 }
 
 func (a *AddOns) Upgrade(ctx context.Context, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata, opts UpgradeOptions) error {
-	addons, err := a.getAddOnsForUpgrade(in, meta, opts)
+	addons, err := a.getAddOnsForUpgrade(meta, opts)
 	if err != nil {
 		return errors.Wrap(err, "get addons for upgrade")
 	}
@@ -41,14 +52,12 @@ func (a *AddOns) Upgrade(ctx context.Context, in *ecv1beta1.Installation, meta *
 	return nil
 }
 
-func (a *AddOns) getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata, opts UpgradeOptions) ([]types.AddOn, error) {
+func (a *AddOns) getAddOnsForUpgrade(meta *ectypes.ReleaseMetadata, opts UpgradeOptions) ([]types.AddOn, error) {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{
-			DataDir: opts.DataDir,
+			OpenEBSDataDir: opts.OpenEBSDataDir,
 		},
 	}
-
-	serviceCIDR := opts.ServiceCIDR
 
 	// ECO's embedded (wrong) metadata values do not match the published (correct) metadata values.
 	// This is because we re-generate the metadata.yaml file _after_ building the ECO binary / image.
@@ -63,8 +72,11 @@ func (a *AddOns) getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.R
 		return nil, errors.Wrap(err, "get operator images")
 	}
 	addOns = append(addOns, &embeddedclusteroperator.EmbeddedClusterOperator{
-		IsAirgap:              in.Spec.AirGap,
-		Proxy:                 opts.ProxySpec,
+		IsAirgap:         opts.IsAirgap,
+		Proxy:            opts.ProxySpec,
+		HostCABundlePath: opts.HostCABundlePath,
+		DataDir:          opts.DataDir,
+
 		ChartLocationOverride: ecoChartLocation,
 		ChartVersionOverride:  ecoChartVersion,
 		ImageRepoOverride:     ecoImageRepo,
@@ -72,31 +84,39 @@ func (a *AddOns) getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.R
 		UtilsImageOverride:    ecoUtilsImage,
 	})
 
-	if in.Spec.AirGap {
+	if opts.IsAirgap {
 		addOns = append(addOns, &registry.Registry{
-			ServiceCIDR: serviceCIDR,
-			IsHA:        in.Spec.HighAvailability,
+			ServiceCIDR: opts.ServiceCIDR,
+			IsHA:        opts.IsHA,
 		})
 
-		if in.Spec.HighAvailability {
+		if opts.IsHA {
 			addOns = append(addOns, &seaweedfs.SeaweedFS{
-				ServiceCIDR: serviceCIDR,
+				ServiceCIDR:      opts.ServiceCIDR,
+				SeaweedFSDataDir: opts.SeaweedFSDataDir,
 			})
 		}
 	}
 
-	if in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
+	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			Proxy: opts.ProxySpec,
+			Proxy:            opts.ProxySpec,
+			HostCABundlePath: opts.HostCABundlePath,
+			DataDir:          opts.DataDir,
+			K0sDataDir:       opts.K0sDataDir,
 		})
 	}
 
 	addOns = append(addOns, &adminconsole.AdminConsole{
-		IsAirgap:           in.Spec.AirGap,
-		IsHA:               in.Spec.HighAvailability,
+		IsAirgap:           opts.IsAirgap,
+		IsHA:               opts.IsHA,
 		Proxy:              opts.ProxySpec,
-		ServiceCIDR:        serviceCIDR,
-		IsMultiNodeEnabled: in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
+		ServiceCIDR:        opts.ServiceCIDR,
+		IsMultiNodeEnabled: opts.IsMultiNodeEnabled,
+		HostCABundlePath:   opts.HostCABundlePath,
+		DataDir:            opts.DataDir,
+		K0sDataDir:         opts.K0sDataDir,
+		AdminConsolePort:   opts.AdminConsolePort,
 	})
 
 	return addOns, nil

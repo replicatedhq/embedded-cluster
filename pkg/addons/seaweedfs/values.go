@@ -50,18 +50,13 @@ func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, kcli client.Client, 
 		return nil, errors.Wrap(err, "unmarshal helm values")
 	}
 
-	// TODO (@screspod): is rc. check EmbeddedClusterSeaweedfsSubDir()
-	// dataPath := filepath.Join(rc.EmbeddedClusterSeaweedfsSubDir(), "ssd")
-	if s.SeaweedfsDataDir == "" {
-		s.SeaweedfsDataDir = filepath.Join(s.DataDir, "seaweedfs")
-	}
-	dataPath := filepath.Join(s.SeaweedfsDataDir, "ssd")
+	dataPath := filepath.Join(s.SeaweedFSDataDir, "ssd")
 	err = helm.SetValue(copiedValues, "master.data.hostPathPrefix", dataPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm values global.data.hostPathPrefix")
 	}
 
-	logsPath := filepath.Join(s.SeaweedfsDataDir, "storage")
+	logsPath := filepath.Join(s.SeaweedFSDataDir, "storage")
 	err = helm.SetValue(copiedValues, "master.logs.hostPathPrefix", logsPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm values global.logs.hostPathPrefix")

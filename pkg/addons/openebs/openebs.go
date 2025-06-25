@@ -15,7 +15,6 @@ const (
 var _ types.AddOn = (*OpenEBS)(nil)
 
 type OpenEBS struct {
-	DataDir        string
 	OpenEBSDataDir string
 }
 

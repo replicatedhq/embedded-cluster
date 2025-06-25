@@ -283,8 +283,20 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc 
 	)
 
 	opts := addons.UpgradeOptions{
-		ServiceCIDR: rc.ServiceCIDR(),
-		ProxySpec:   rc.ProxySpec(),
+		AdminConsolePort:        rc.AdminConsolePort(),
+		IsAirgap:                in.Spec.AirGap,
+		IsHA:                    in.Spec.HighAvailability,
+		DisasterRecoveryEnabled: in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported,
+		IsMultiNodeEnabled:      in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
+		EmbeddedConfigSpec:      in.Spec.Config,
+		EndUserConfigSpec:       nil, // TODO: add support for end user config spec
+		ProxySpec:               rc.ProxySpec(),
+		HostCABundlePath:        rc.HostCABundlePath(),
+		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		SeaweedFSDataDir:        rc.EmbeddedClusterSeaweedFSSubDir(),
+		ServiceCIDR:             rc.ServiceCIDR(),
 	}
 
 	if err := addOns.Upgrade(ctx, in, meta, opts); err != nil {

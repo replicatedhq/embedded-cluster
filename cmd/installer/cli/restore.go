@@ -604,6 +604,15 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
 	}
 
+	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return fmt.Errorf("parse end user config: %w", err)
+	}
+	var euCfgSpec *ecv1beta1.ConfigSpec
+	if euCfg != nil {
+		euCfgSpec = &euCfg.Spec
+	}
+
 	hcli, err := helm.NewClient(helm.HelmOptions{
 		KubeConfig: rc.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
@@ -623,13 +632,20 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	)
 
 	opts := addons.EnableHAOptions{
-		ServiceCIDR:      rc.ServiceCIDR(),
-		ProxySpec:        rc.ProxySpec(),
-		DataDir:          rc.EmbeddedClusterHomeDirectory(),
-		AdminConsolePort: rc.AdminConsolePort(),
+		AdminConsolePort:   rc.AdminConsolePort(),
+		IsAirgap:           in.Spec.AirGap,
+		IsMultiNodeEnabled: in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
+		EmbeddedConfigSpec: in.Spec.Config,
+		EndUserConfigSpec:  euCfgSpec,
+		ProxySpec:          rc.ProxySpec(),
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
+		ServiceCIDR:        rc.ServiceCIDR(),
 	}
 
-	err = addOns.EnableAdminConsoleHA(ctx, flags.isAirgap, in.Spec.Config, in.Spec.LicenseInfo, opts)
+	err = addOns.EnableAdminConsoleHA(ctx, opts)
 	if err != nil {
 		return err
 	}

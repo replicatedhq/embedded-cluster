@@ -75,15 +75,7 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) error {
 	components := []types.InfraComponent{{Name: K0sComponentName}}
 
-	addOns := addons.GetAddOnsForInstall(addons.InstallOptions{
-		IsAirgap:                m.airgapBundle != "",
-		DisasterRecoveryEnabled: license.Spec.IsDisasterRecoverySupported,
-		ProxySpec:               rc.ProxySpec(),
-		HostCABundlePath:        rc.HostCABundlePath(),
-		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
-		ServiceCIDR:             rc.ServiceCIDR(),
-	})
+	addOns := addons.GetAddOnsForInstall(m.getAddonInstallOpts(license, rc))
 	for _, addOn := range addOns {
 		components = append(components, types.InfraComponent{Name: addOn.Name()})
 	}
@@ -299,6 +291,7 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 
 	opts := addons.InstallOptions{
 		AdminConsolePwd:         m.password,
+		AdminConsolePort:        rc.AdminConsolePort(),
 		License:                 license,
 		IsAirgap:                m.airgapBundle != "",
 		TLSCertBytes:            m.tlsConfig.CertBytes,
@@ -310,9 +303,9 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 		EndUserConfigSpec:       m.getEndUserConfigSpec(),
 		ProxySpec:               rc.ProxySpec(),
 		HostCABundlePath:        rc.HostCABundlePath(),
-		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
 		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
 		ServiceCIDR:             rc.ServiceCIDR(),
 	}
 

@@ -22,10 +22,17 @@ import (
 )
 
 type EnableHAOptions struct {
-	AdminConsolePort int
-	ServiceCIDR      string
-	ProxySpec        *ecv1beta1.ProxySpec
-	DataDir          string
+	AdminConsolePort   int
+	IsAirgap           bool
+	IsMultiNodeEnabled bool
+	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
+	EndUserConfigSpec  *ecv1beta1.ConfigSpec
+	ProxySpec          *ecv1beta1.ProxySpec
+	HostCABundlePath   string
+	DataDir            string
+	K0sDataDir         string
+	SeaweedFSDataDir   string
+	ServiceCIDR        string
 }
 
 // CanEnableHA checks if high availability can be enabled in the cluster.
@@ -55,8 +62,8 @@ func (a *AddOns) CanEnableHA(ctx context.Context) (bool, string, error) {
 }
 
 // EnableHA enables high availability.
-func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec, opts EnableHAOptions, spinner *spinner.MessageWriter) error {
-	if inSpec.AirGap {
+func (a *AddOns) EnableHA(ctx context.Context, opts EnableHAOptions, spinner *spinner.MessageWriter) error {
+	if opts.IsAirgap {
 		logrus.Debugf("Enabling high availability")
 		spinner.Infof("Enabling high availability")
 
@@ -65,7 +72,7 @@ func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec
 			return errors.Wrap(err, "check if registry data has been migrated")
 		} else if !hasMigrated {
 			logrus.Debugf("Installing seaweedfs")
-			err = a.ensureSeaweedfs(ctx, opts.ServiceCIDR, inSpec.RuntimeConfig.DataDir, inSpec.Config)
+			err = a.ensureSeaweedfs(ctx, opts)
 			if err != nil {
 				return errors.Wrap(err, "ensure seaweedfs")
 			}
@@ -81,7 +88,7 @@ func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec
 
 			logrus.Debugf("Migrating data for high availability")
 			spinner.Infof("Migrating data for high availability")
-			err = a.migrateRegistryData(ctx, inSpec.Config, spinner)
+			err = a.migrateRegistryData(ctx, opts.EmbeddedConfigSpec, spinner)
 			if err != nil {
 				return errors.Wrap(err, "migrate registry data")
 			}
@@ -89,7 +96,7 @@ func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec
 
 			logrus.Debugf("Enabling high availability for the registry")
 			spinner.Infof("Enabling high availability for the registry")
-			err = a.enableRegistryHA(ctx, opts.ServiceCIDR, inSpec.Config)
+			err = a.enableRegistryHA(ctx, opts)
 			if err != nil {
 				return errors.Wrap(err, "enable registry high availability")
 			}
@@ -99,7 +106,7 @@ func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec
 
 	logrus.Debugf("Updating the Admin Console for high availability")
 	spinner.Infof("Updating the Admin Console for high availability")
-	err := a.EnableAdminConsoleHA(ctx, inSpec.AirGap, inSpec.Config, inSpec.LicenseInfo, opts)
+	err := a.EnableAdminConsoleHA(ctx, opts)
 	if err != nil {
 		return errors.Wrap(err, "enable admin console high availability")
 	}
@@ -200,14 +207,14 @@ func (a *AddOns) migrateRegistryData(ctx context.Context, cfgspec *ecv1beta1.Con
 }
 
 // ensureSeaweedfs ensures that seaweedfs is installed.
-func (a *AddOns) ensureSeaweedfs(ctx context.Context, serviceCIDR, dataDir string, cfgspec *ecv1beta1.ConfigSpec) error {
+func (a *AddOns) ensureSeaweedfs(ctx context.Context, opts EnableHAOptions) error {
 	// TODO (@salah): add support for end user overrides
 	sw := &seaweedfs.SeaweedFS{
-		DataDir:     dataDir,
-		ServiceCIDR: serviceCIDR,
+		ServiceCIDR:      opts.ServiceCIDR,
+		SeaweedFSDataDir: opts.SeaweedFSDataDir,
 	}
 
-	if err := sw.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, a.addOnOverrides(sw, cfgspec, nil)); err != nil {
+	if err := sw.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, a.addOnOverrides(sw, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)); err != nil {
 		return errors.Wrap(err, "upgrade seaweedfs")
 	}
 
@@ -216,13 +223,13 @@ func (a *AddOns) ensureSeaweedfs(ctx context.Context, serviceCIDR, dataDir strin
 
 // enableRegistryHA enables high availability for the registry and scales the registry deployment
 // to the desired number of replicas.
-func (a *AddOns) enableRegistryHA(ctx context.Context, serviceCIDR string, cfgspec *ecv1beta1.ConfigSpec) error {
+func (a *AddOns) enableRegistryHA(ctx context.Context, opts EnableHAOptions) error {
 	// TODO (@salah): add support for end user overrides
 	r := &registry.Registry{
-		ServiceCIDR: serviceCIDR,
+		ServiceCIDR: opts.ServiceCIDR,
 		IsHA:        true,
 	}
-	if err := r.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, a.addOnOverrides(r, cfgspec, nil)); err != nil {
+	if err := r.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, a.addOnOverrides(r, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)); err != nil {
 		return errors.Wrap(err, "upgrade registry")
 	}
 
@@ -230,18 +237,20 @@ func (a *AddOns) enableRegistryHA(ctx context.Context, serviceCIDR string, cfgsp
 }
 
 // EnableAdminConsoleHA enables high availability for the admin console.
-func (a *AddOns) EnableAdminConsoleHA(ctx context.Context, isAirgap bool, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo, opts EnableHAOptions) error {
+func (a *AddOns) EnableAdminConsoleHA(ctx context.Context, opts EnableHAOptions) error {
 	// TODO (@salah): add support for end user overrides
 	ac := &adminconsole.AdminConsole{
-		AdminConsolePort:   opts.AdminConsolePort,
-		IsAirgap:           isAirgap,
+		IsAirgap:           opts.IsAirgap,
 		IsHA:               true,
 		Proxy:              opts.ProxySpec,
 		ServiceCIDR:        opts.ServiceCIDR,
-		IsMultiNodeEnabled: licenseInfo != nil && licenseInfo.IsMultiNodeEnabled,
+		IsMultiNodeEnabled: opts.IsMultiNodeEnabled,
+		HostCABundlePath:   opts.HostCABundlePath,
 		DataDir:            opts.DataDir,
+		K0sDataDir:         opts.K0sDataDir,
+		AdminConsolePort:   opts.AdminConsolePort,
 	}
-	if err := ac.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, a.addOnOverrides(ac, cfgspec, nil)); err != nil {
+	if err := ac.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, a.addOnOverrides(ac, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
 	}
 

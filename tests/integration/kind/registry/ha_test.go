@@ -101,9 +101,15 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 	t.Logf("%s installing admin console", formattedTime())
 	adminConsoleAddon := &adminconsole.AdminConsole{
-		IsAirgap:    true,
-		IsHA:        false,
-		ServiceCIDR: "10.96.0.0/12",
+		IsAirgap:           true,
+		IsHA:               false,
+		Proxy:              rc.ProxySpec(),
+		ServiceCIDR:        "10.96.0.0/12",
+		IsMultiNodeEnabled: false,
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		AdminConsolePort:   rc.AdminConsolePort(),
 	}
 	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
 
@@ -158,7 +164,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 			ServiceCIDR: rc.ServiceCIDR(),
 			ProxySpec:   rc.ProxySpec(),
 		}
-		err = addOns.EnableHA(t.Context(), inSpec, opts, loading)
+		err = addOns.EnableHA(t.Context(), opts, loading)
 		require.NoError(t, err)
 	}()
 
@@ -215,12 +221,23 @@ func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSp
 	loading := newTestingSpinner(t)
 	defer loading.Close()
 
+	rc := runtimeconfig.New(inSpec.RuntimeConfig)
+
 	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
 	opts := addons.EnableHAOptions{
-		ServiceCIDR: inSpec.RuntimeConfig.Network.ServiceCIDR,
-		ProxySpec:   inSpec.RuntimeConfig.Proxy,
+		AdminConsolePort:   rc.AdminConsolePort(),
+		IsAirgap:           true,
+		IsMultiNodeEnabled: false,
+		EmbeddedConfigSpec: inSpec.Config,
+		EndUserConfigSpec:  inSpec.Config,
+		ProxySpec:          rc.ProxySpec(),
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
+		ServiceCIDR:        inSpec.RuntimeConfig.Network.ServiceCIDR,
 	}
-	err = addOns.EnableHA(ctx, inSpec, opts, loading)
+	err = addOns.EnableHA(ctx, opts, loading)
 	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
 	t.Logf("%s cancelled context and got error: %v", formattedTime(), err)
 }

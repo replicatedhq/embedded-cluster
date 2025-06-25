@@ -35,13 +35,13 @@ func (m *MockAddOns) CanEnableHA(ctx context.Context) (bool, string, error) {
 }
 
 // EnableHA mocks the EnableHA method
-func (m *MockAddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec, opts EnableHAOptions, spinner *spinner.MessageWriter) error {
-	args := m.Called(ctx, inSpec, opts, spinner)
+func (m *MockAddOns) EnableHA(ctx context.Context, opts EnableHAOptions, spinner *spinner.MessageWriter) error {
+	args := m.Called(ctx, opts, spinner)
 	return args.Error(0)
 }
 
 // EnableAdminConsoleHA mocks the EnableAdminConsoleHA method
-func (m *MockAddOns) EnableAdminConsoleHA(ctx context.Context, isAirgap bool, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo, opts EnableHAOptions) error {
-	args := m.Called(ctx, isAirgap, cfgspec, licenseInfo, opts)
+func (m *MockAddOns) EnableAdminConsoleHA(ctx context.Context, opts EnableHAOptions) error {
+	args := m.Called(ctx, opts)
 	return args.Error(0)
 }
