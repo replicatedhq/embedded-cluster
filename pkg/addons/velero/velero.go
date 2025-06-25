@@ -35,7 +35,6 @@ var _ types.AddOn = (*Velero)(nil)
 type Velero struct {
 	Proxy            *ecv1beta1.ProxySpec
 	HostCABundlePath string
-	DataDir          string
 	K0sDataDir       string
 
 	// DryRun is a flag to enable dry-run mode for Velero.

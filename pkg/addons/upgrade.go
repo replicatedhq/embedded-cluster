@@ -75,7 +75,6 @@ func (a *AddOns) getAddOnsForUpgrade(meta *ectypes.ReleaseMetadata, opts Upgrade
 		IsAirgap:         opts.IsAirgap,
 		Proxy:            opts.ProxySpec,
 		HostCABundlePath: opts.HostCABundlePath,
-		DataDir:          opts.DataDir,
 
 		ChartLocationOverride: ecoChartLocation,
 		ChartVersionOverride:  ecoChartVersion,
@@ -102,7 +101,6 @@ func (a *AddOns) getAddOnsForUpgrade(meta *ectypes.ReleaseMetadata, opts Upgrade
 		addOns = append(addOns, &velero.Velero{
 			Proxy:            opts.ProxySpec,
 			HostCABundlePath: opts.HostCABundlePath,
-			DataDir:          opts.DataDir,
 			K0sDataDir:       opts.K0sDataDir,
 		})
 	}

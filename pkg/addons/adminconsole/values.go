@@ -141,10 +141,6 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	copiedValues["extraVolumes"] = extraVolumes
 	copiedValues["extraVolumeMounts"] = extraVolumeMounts
 
-	// TODO (@screspod): check func (rc *runtimeConfig) AdminConsolePort()
-	if a.AdminConsolePort <= 0 {
-		a.AdminConsolePort = ecv1beta1.DefaultAdminConsolePort
-	}
 	err = helm.SetValue(copiedValues, "kurlProxy.nodePort", a.AdminConsolePort)
 	if err != nil {
 		return nil, errors.Wrap(err, "set kurlProxy.nodePort")

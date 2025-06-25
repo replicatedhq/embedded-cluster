@@ -93,7 +93,6 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 			IsAirgap:         opts.IsAirgap,
 			Proxy:            opts.ProxySpec,
 			HostCABundlePath: opts.HostCABundlePath,
-			DataDir:          opts.DataDir,
 		},
 	}
 
@@ -108,7 +107,6 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		addOns = append(addOns, &velero.Velero{
 			Proxy:            opts.ProxySpec,
 			HostCABundlePath: opts.HostCABundlePath,
-			DataDir:          opts.DataDir,
 			K0sDataDir:       opts.K0sDataDir,
 		})
 	}
@@ -143,7 +141,6 @@ func GetAddOnsForRestore(opts RestoreOptions) []types.AddOn {
 		&velero.Velero{
 			Proxy:            opts.ProxySpec,
 			HostCABundlePath: opts.HostCABundlePath,
-			DataDir:          opts.DataDir,
 			K0sDataDir:       opts.K0sDataDir,
 		},
 	}

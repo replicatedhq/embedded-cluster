@@ -11,7 +11,6 @@ import (
 
 func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	e := &EmbeddedClusterOperator{
-		DataDir:          t.TempDir(),
 		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
 	}
 

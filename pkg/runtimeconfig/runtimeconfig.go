@@ -97,7 +97,6 @@ func (rc *runtimeConfig) Cleanup() {
 
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
 // store all the embedded-cluster related files.
-// TODO (@screspod): check seaweedfs comment
 func (rc *runtimeConfig) EmbeddedClusterHomeDirectory() string {
 	if rc.spec.DataDir != "" {
 		return rc.spec.DataDir
