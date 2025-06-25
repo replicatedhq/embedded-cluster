@@ -148,4 +148,4 @@ export const useConnection = (): ConnectionContextType => {
     throw new Error('useConnection must be used within a ConnectionProvider');
   }
   return context;
-}; 
+};
