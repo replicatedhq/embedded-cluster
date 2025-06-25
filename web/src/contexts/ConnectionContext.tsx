@@ -98,7 +98,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
           } else {
             throw new Error(`HTTP ${response.status}`);
           }
-        } catch (error) {
+        } catch {
           attempts++;
           if (attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -108,7 +108,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
       
       // All attempts failed
       setIsConnected(false);
-    } catch (error) {
+    } catch {
       setIsConnected(false);
     } finally {
       setIsChecking(false);
