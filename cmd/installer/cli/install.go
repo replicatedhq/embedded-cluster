@@ -90,9 +90,15 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	ctx, cancel := context.WithCancel(ctx)
 	rc := runtimeconfig.New(nil)
 
+	short := fmt.Sprintf("Install %s", name)
+	if os.Getenv("ENABLE_V3") == "1" {
+		short = fmt.Sprintf("Install %s onto Linux or Kubernetes", name)
+	}
+
 	cmd := &cobra.Command{
-		Use:   "install",
-		Short: fmt.Sprintf("Install %s", name),
+		Use:     "install",
+		Short:   short,
+		Example: installCmdExample(),
 		PostRun: func(cmd *cobra.Command, args []string) {
 			rc.Cleanup()
 			cancel() // Cancel context when command completes
@@ -138,6 +144,8 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
+	cmd.SetUsageTemplate(defaultUsageTemplateV3)
+
 	if err := addInstallFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
@@ -153,6 +161,85 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
+func installCmdExample() string {
+	if os.Getenv("ENABLE_V3") != "1" {
+		return ""
+	}
+
+	return `
+  # Install on a Linux host
+  replicated install \
+      --target linux \
+      --data-dir /opt/embedded-cluster \
+      --cidr 10.244.0.0/16 \
+      --license ./license.yaml \
+      --yes
+
+  # Install into an existing Kubernetes cluster
+  replicated install \
+      --target kubernetes \
+      --k8s-admin-console-ns replicated-admin \
+      --airgap-bundle ./replicated.airgap \
+      --license ./license.yaml
+`
+}
+
+func newLinuxInstallFlags(flags *InstallCmdFlags) *pflag.FlagSet {
+	flagSet := pflag.NewFlagSet("linux", pflag.ExitOnError)
+
+	flagSet.StringVar(&flags.dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
+	flagSet.IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
+	flagSet.StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
+
+	flagSet.StringSlice("private-ca", []string{}, "Path to a trusted private CA certificate file")
+	if err := flagSet.MarkHidden("private-ca"); err != nil {
+		panic(err)
+	}
+	if err := flagSet.MarkDeprecated("private-ca", "This flag is no longer used and will be removed in a future version. The CA bundle will be automatically detected from the host."); err != nil {
+		panic(err)
+	}
+
+	flagSet.BoolVar(&flags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
+	if err := flagSet.MarkHidden("skip-host-preflights"); err != nil {
+		panic(err)
+	}
+	if err := flagSet.MarkDeprecated("skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead."); err != nil {
+		panic(err)
+	}
+	flagSet.BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
+
+	if err := addCIDRFlags(flagSet); err != nil {
+		panic(err)
+	}
+
+	flagSet.VisitAll(func(flag *pflag.Flag) {
+		mustSetFlagTargetLinux(flagSet, flag.Name)
+	})
+
+	return flagSet
+}
+
+func newKubernetesInstallFlags(flags *InstallCmdFlags) *pflag.FlagSet {
+	// If the ENABLE_V3 environment variable is set, do not hide the new flags.
+	enableV3 := os.Getenv("ENABLE_V3") == "1"
+
+	flagSet := pflag.NewFlagSet("kubernetes", pflag.ExitOnError)
+
+	flagSet.String("kubeconfig", "", "Path to the kubeconfig file")
+
+	if !enableV3 {
+		if err := flagSet.MarkHidden("kubeconfig"); err != nil {
+			panic(err)
+		}
+	}
+
+	flagSet.VisitAll(func(flag *pflag.Flag) {
+		mustSetFlagTargetKubernetes(flagSet, flag.Name)
+	})
+
+	return flagSet
+}
+
 func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	cmd.Flags().StringVar(&flags.target, "target", "linux", "The target platform to install to. Valid options are 'linux' or 'kubernetes'.")
 	if os.Getenv("ENABLE_V3") != "1" {
@@ -162,40 +249,24 @@ func addInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	}
 
 	cmd.Flags().StringVar(&flags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
-	cmd.Flags().StringVar(&flags.dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
-	cmd.Flags().IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
-	cmd.Flags().StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
-	cmd.Flags().BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
-	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	cmd.Flags().StringVar(&flags.overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
 	if err := cmd.Flags().MarkHidden("overrides"); err != nil {
 		return err
 	}
 
-	cmd.Flags().StringSlice("private-ca", []string{}, "Path to a trusted private CA certificate file")
-	if err := cmd.Flags().MarkHidden("private-ca"); err != nil {
-		return err
-	}
-	if err := cmd.Flags().MarkDeprecated("private-ca", "This flag is no longer used and will be removed in a future version. The CA bundle will be automatically detected from the host."); err != nil {
-		return err
-	}
-
 	if err := addProxyFlags(cmd); err != nil {
 		return err
 	}
-	if err := addCIDRFlags(cmd); err != nil {
-		return err
-	}
 
-	cmd.Flags().BoolVar(&flags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
-	if err := cmd.Flags().MarkHidden("skip-host-preflights"); err != nil {
-		return err
-	}
-	if err := cmd.Flags().MarkDeprecated("skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead."); err != nil {
-		return err
-	}
-	cmd.Flags().BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
+	cmd.Flags().BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
+	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
+
+	linuxFlagSet := newLinuxInstallFlags(flags)
+	cmd.Flags().AddFlagSet(linuxFlagSet)
+
+	kubernetesFlagSet := newKubernetesInstallFlags(flags)
+	cmd.Flags().AddFlagSet(kubernetesFlagSet)
 
 	return nil
 }
