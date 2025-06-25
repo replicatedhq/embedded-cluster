@@ -151,7 +151,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &cobra.Command{}
-			addCIDRFlags(cmd)
+			addCIDRFlags(cmd.Flags())
 			addProxyFlags(cmd)
 			cmd.Flags().String("network-interface", "", "The network interface to use for the cluster")
 

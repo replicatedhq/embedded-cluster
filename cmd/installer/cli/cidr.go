@@ -7,18 +7,19 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
-func addCIDRFlags(cmd *cobra.Command) error {
-	cmd.Flags().String("pod-cidr", k0sv1beta1.DefaultNetwork().PodCIDR, "IP address range for Pods")
-	if err := cmd.Flags().MarkHidden("pod-cidr"); err != nil {
+func addCIDRFlags(flagSet *pflag.FlagSet) error {
+	flagSet.String("pod-cidr", k0sv1beta1.DefaultNetwork().PodCIDR, "IP address range for Pods")
+	if err := flagSet.MarkHidden("pod-cidr"); err != nil {
 		return err
 	}
-	cmd.Flags().String("service-cidr", k0sv1beta1.DefaultNetwork().ServiceCIDR, "IP address range for Services")
-	if err := cmd.Flags().MarkHidden("service-cidr"); err != nil {
+	flagSet.String("service-cidr", k0sv1beta1.DefaultNetwork().ServiceCIDR, "IP address range for Services")
+	if err := flagSet.MarkHidden("service-cidr"); err != nil {
 		return err
 	}
-	cmd.Flags().String("cidr", ecv1beta1.DefaultNetworkCIDR, "CIDR block of available private IP addresses (/16 or larger)")
+	flagSet.String("cidr", ecv1beta1.DefaultNetworkCIDR, "CIDR block of available private IP addresses (/16 or larger)")
 
 	return nil
 }
