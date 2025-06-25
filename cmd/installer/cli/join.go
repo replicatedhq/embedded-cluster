@@ -341,7 +341,8 @@ func materializeFilesForJoin(ctx context.Context, rc runtimeconfig.RuntimeConfig
 	if err := materializer.Materialize(); err != nil {
 		return fmt.Errorf("materialize binaries: %w", err)
 	}
-	if err := support.MaterializeSupportBundleSpec(rc); err != nil {
+
+	if err := support.MaterializeSupportBundleSpec(rc, jcmd.InstallationSpec.AirGap); err != nil {
 		return fmt.Errorf("materialize support bundle spec: %w", err)
 	}
 
