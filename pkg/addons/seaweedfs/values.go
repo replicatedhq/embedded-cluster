@@ -52,7 +52,9 @@ func (s *SeaweedFS) GenerateHelmValues(ctx context.Context, kcli client.Client, 
 
 	// TODO (@screspod): is rc. check EmbeddedClusterSeaweedfsSubDir()
 	// dataPath := filepath.Join(rc.EmbeddedClusterSeaweedfsSubDir(), "ssd")
-	s.SeaweedfsDataDir = filepath.Join(ecv1beta1.DefaultDataDir, "seaweedfs")
+	if s.SeaweedfsDataDir == "" {
+		s.SeaweedfsDataDir = filepath.Join(s.DataDir, "seaweedfs")
+	}
 	dataPath := filepath.Join(s.SeaweedfsDataDir, "ssd")
 	err = helm.SetValue(copiedValues, "master.data.hostPathPrefix", dataPath)
 	if err != nil {

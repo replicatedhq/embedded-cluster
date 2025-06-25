@@ -23,8 +23,7 @@ type Registry struct {
 
 const (
 	_releaseName = "docker-registry"
-
-	_namespace = constants.RegistryNamespace
+	_namespace   = constants.RegistryNamespace
 
 	_tlsSecretName    = "registry-tls"
 	_lowerBandIPIndex = 10

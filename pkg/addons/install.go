@@ -17,6 +17,7 @@ import (
 
 type InstallOptions struct {
 	AdminConsolePwd         string
+	AdminConsolePort        int
 	License                 *kotsv1beta1.License
 	IsAirgap                bool
 	TLSCertBytes            []byte
@@ -29,6 +30,7 @@ type InstallOptions struct {
 	KotsInstaller           adminconsole.KotsInstaller
 	ProxySpec               *ecv1beta1.ProxySpec
 	HostCABundlePath        string
+	DataDir                 string
 	OpenEBSDataDir          string
 	K0sDataDir              string
 	ServiceCIDR             string
@@ -58,6 +60,7 @@ type RestoreOptions struct {
 	EndUserConfigSpec  *ecv1beta1.ConfigSpec
 	ProxySpec          *ecv1beta1.ProxySpec
 	HostCABundlePath   string
+	DataDir            string
 	OpenEBSDataDir     string
 	K0sDataDir         string
 }
@@ -84,12 +87,14 @@ func (a *AddOns) Restore(ctx context.Context, opts RestoreOptions) error {
 func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{
+			DataDir:        opts.DataDir,
 			OpenEBSDataDir: opts.OpenEBSDataDir,
 		},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
 			IsAirgap:         opts.IsAirgap,
 			Proxy:            opts.ProxySpec,
 			HostCABundlePath: opts.HostCABundlePath,
+			DataDir:          opts.DataDir,
 		},
 	}
 
@@ -103,6 +108,7 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		addOns = append(addOns, &velero.Velero{
 			Proxy:            opts.ProxySpec,
 			HostCABundlePath: opts.HostCABundlePath,
+			DataDir:          opts.DataDir,
 			K0sDataDir:       opts.K0sDataDir,
 		})
 	}
@@ -117,6 +123,7 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		Hostname:           opts.Hostname,
 		KotsInstaller:      opts.KotsInstaller,
 		IsMultiNodeEnabled: opts.IsMultiNodeEnabled,
+		AdminConsolePort:   opts.AdminConsolePort,
 	}
 	addOns = append(addOns, adminConsoleAddOn)
 
@@ -126,11 +133,13 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 func GetAddOnsForRestore(opts RestoreOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{
+			DataDir:        opts.DataDir,
 			OpenEBSDataDir: opts.OpenEBSDataDir,
 		},
 		&velero.Velero{
 			Proxy:            opts.ProxySpec,
 			HostCABundlePath: opts.HostCABundlePath,
+			DataDir:          opts.DataDir,
 			K0sDataDir:       opts.K0sDataDir,
 		},
 	}

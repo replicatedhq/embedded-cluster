@@ -3,6 +3,7 @@ package adminconsole
 import (
 	"context"
 	_ "embed"
+	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -65,8 +66,17 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	}
 
 	copiedValues["embeddedClusterID"] = metrics.ClusterID().String()
+	// TODO (@screspod): correct these
+	if a.DataDir == "" {
+		a.DataDir = ecv1beta1.DefaultDataDir
+	}
 	copiedValues["embeddedClusterDataDir"] = a.DataDir
+
+	if a.K0sDataDir == "" {
+		a.K0sDataDir = filepath.Join(a.DataDir, "k0s")
+	}
 	copiedValues["embeddedClusterK0sDir"] = a.K0sDataDir
+
 	copiedValues["isHA"] = a.IsHA
 	copiedValues["isMultiNodeEnabled"] = a.IsMultiNodeEnabled
 
@@ -142,7 +152,9 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	copiedValues["extraVolumeMounts"] = extraVolumeMounts
 
 	// TODO (@screspod): check func (rc *runtimeConfig) AdminConsolePort()
-	a.AdminConsolePort = ecv1beta1.DefaultAdminConsolePort
+	if a.AdminConsolePort <= 0 {
+		a.AdminConsolePort = ecv1beta1.DefaultAdminConsolePort
+	}
 	err = helm.SetValue(copiedValues, "kurlProxy.nodePort", a.AdminConsolePort)
 	if err != nil {
 		return nil, errors.Wrap(err, "set kurlProxy.nodePort")

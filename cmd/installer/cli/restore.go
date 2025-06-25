@@ -481,6 +481,7 @@ func installAddonsForRestore(ctx context.Context, kcli client.Client, mcli metad
 		EndUserConfigSpec:  nil, // TODO: support for end user config overrides
 		ProxySpec:          rc.ProxySpec(),
 		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
 		OpenEBSDataDir:     rc.EmbeddedClusterOpenEBSLocalSubDir(),
 		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
 	}); err != nil {
@@ -622,8 +623,10 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	)
 
 	opts := addons.EnableHAOptions{
-		ServiceCIDR: rc.ServiceCIDR(),
-		ProxySpec:   rc.ProxySpec(),
+		ServiceCIDR:      rc.ServiceCIDR(),
+		ProxySpec:        rc.ProxySpec(),
+		DataDir:          rc.EmbeddedClusterHomeDirectory(),
+		AdminConsolePort: rc.AdminConsolePort(),
 	}
 
 	err = addOns.EnableAdminConsoleHA(ctx, flags.isAirgap, in.Spec.Config, in.Spec.LicenseInfo, opts)

@@ -23,6 +23,7 @@ import (
 type UpgradeOptions struct {
 	ServiceCIDR string
 	ProxySpec   *ecv1beta1.ProxySpec
+	DataDir     string
 }
 
 func (a *AddOns) Upgrade(ctx context.Context, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata, opts UpgradeOptions) error {
@@ -42,7 +43,9 @@ func (a *AddOns) Upgrade(ctx context.Context, in *ecv1beta1.Installation, meta *
 
 func (a *AddOns) getAddOnsForUpgrade(in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata, opts UpgradeOptions) ([]types.AddOn, error) {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
+		&openebs.OpenEBS{
+			DataDir: opts.DataDir,
+		},
 	}
 
 	serviceCIDR := opts.ServiceCIDR

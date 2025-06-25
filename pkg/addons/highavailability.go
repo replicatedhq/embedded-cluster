@@ -22,8 +22,10 @@ import (
 )
 
 type EnableHAOptions struct {
-	ServiceCIDR string
-	ProxySpec   *ecv1beta1.ProxySpec
+	AdminConsolePort int
+	ServiceCIDR      string
+	ProxySpec        *ecv1beta1.ProxySpec
+	DataDir          string
 }
 
 // CanEnableHA checks if high availability can be enabled in the cluster.
@@ -63,7 +65,7 @@ func (a *AddOns) EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec
 			return errors.Wrap(err, "check if registry data has been migrated")
 		} else if !hasMigrated {
 			logrus.Debugf("Installing seaweedfs")
-			err = a.ensureSeaweedfs(ctx, opts.ServiceCIDR, inSpec.Config)
+			err = a.ensureSeaweedfs(ctx, opts.ServiceCIDR, inSpec.RuntimeConfig.DataDir, inSpec.Config)
 			if err != nil {
 				return errors.Wrap(err, "ensure seaweedfs")
 			}
@@ -198,9 +200,10 @@ func (a *AddOns) migrateRegistryData(ctx context.Context, cfgspec *ecv1beta1.Con
 }
 
 // ensureSeaweedfs ensures that seaweedfs is installed.
-func (a *AddOns) ensureSeaweedfs(ctx context.Context, serviceCIDR string, cfgspec *ecv1beta1.ConfigSpec) error {
+func (a *AddOns) ensureSeaweedfs(ctx context.Context, serviceCIDR, dataDir string, cfgspec *ecv1beta1.ConfigSpec) error {
 	// TODO (@salah): add support for end user overrides
 	sw := &seaweedfs.SeaweedFS{
+		DataDir:     dataDir,
 		ServiceCIDR: serviceCIDR,
 	}
 
@@ -230,11 +233,13 @@ func (a *AddOns) enableRegistryHA(ctx context.Context, serviceCIDR string, cfgsp
 func (a *AddOns) EnableAdminConsoleHA(ctx context.Context, isAirgap bool, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo, opts EnableHAOptions) error {
 	// TODO (@salah): add support for end user overrides
 	ac := &adminconsole.AdminConsole{
+		AdminConsolePort:   opts.AdminConsolePort,
 		IsAirgap:           isAirgap,
 		IsHA:               true,
 		Proxy:              opts.ProxySpec,
 		ServiceCIDR:        opts.ServiceCIDR,
 		IsMultiNodeEnabled: licenseInfo != nil && licenseInfo.IsMultiNodeEnabled,
+		DataDir:            opts.DataDir,
 	}
 	if err := ac.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, a.addOnOverrides(ac, cfgspec, nil)); err != nil {
 		return errors.Wrap(err, "upgrade admin console")

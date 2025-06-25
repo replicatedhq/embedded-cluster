@@ -311,6 +311,7 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 		ProxySpec:               rc.ProxySpec(),
 		HostCABundlePath:        rc.HostCABundlePath(),
 		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
 		ServiceCIDR:             rc.ServiceCIDR(),
 	}

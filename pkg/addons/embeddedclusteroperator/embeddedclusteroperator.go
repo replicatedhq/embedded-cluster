@@ -31,8 +31,8 @@ var _ types.AddOn = (*EmbeddedClusterOperator)(nil)
 type EmbeddedClusterOperator struct {
 	IsAirgap         bool
 	Proxy            *ecv1beta1.ProxySpec
-	DataDir          string
 	HostCABundlePath string
+	DataDir          string
 
 	ChartLocationOverride string
 	ChartVersionOverride  string
