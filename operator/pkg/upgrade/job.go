@@ -294,8 +294,9 @@ func operatorImageName(ctx context.Context, cli client.Client, in *ecv1beta1.Ins
 	}
 	for _, image := range meta.Images {
 		if strings.Contains(image, "embedded-cluster-operator-image") {
-			// We use the domains from the installation spec and fall back to default here, as this is the
-			// operator binary so the channel release is not embedded.
+			// TODO: This will not work in a non-production environment.
+			// The domains in the release are used to supply alternative defaults for staging and the dev environment.
+			// The GetDomains function will always fall back to production defaults.
 			domains := domains.GetDomains(in.Spec.Config, nil)
 			image = strings.Replace(image, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 			return image, nil

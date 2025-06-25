@@ -181,8 +181,9 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 		return fmt.Errorf("get cluster config: %w", err)
 	}
 
-	// We use the domains from the installation spec and fall back to default here, as this is the
-	// operator binary so the channel release is not embedded.
+	// TODO: This will not work in a non-production environment.
+	// The domains in the release are used to supply alternative defaults for staging and the dev environment.
+	// The GetDomains function will always fall back to production defaults.
 	domains := domains.GetDomains(in.Spec.Config, nil)
 
 	didUpdate := false
@@ -270,8 +271,9 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc 
 		return fmt.Errorf("create metadata client: %w", err)
 	}
 
-	// We use the domains from the installation spec and fall back to default here, as this is the
-	// operator binary so the channel release is not embedded.
+	// TODO: This will not work in a non-production environment.
+	// The domains in the release are used to supply alternative defaults for staging and the dev environment.
+	// The GetDomains function will always fall back to production defaults.
 	domains := domains.GetDomains(in.Spec.Config, nil)
 
 	addOns := addons.New(
