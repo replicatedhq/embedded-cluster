@@ -2,6 +2,7 @@ package install
 
 import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/sirupsen/logrus"
 )
 
@@ -73,6 +74,7 @@ func WithStateMachineLogger(logger logrus.FieldLogger) StateMachineOption {
 func NewStateMachine(opts ...StateMachineOption) statemachine.Interface {
 	options := &StateMachineOptions{
 		CurrentState: StateNew,
+		Logger: logger.NewDiscardLogger(),
 	}
 	for _, opt := range opts {
 		opt(options)

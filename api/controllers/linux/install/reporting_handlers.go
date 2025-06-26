@@ -9,7 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (c *InstallController) RegisterReportingHandlers() {
+func (c *InstallController) registerReportingHandlers() {
 	c.stateMachine.RegisterEventHandler(StateSucceeded, c.reportInstallSucceeded)
 	c.stateMachine.RegisterEventHandler(StateInfrastructureInstallFailed, c.reportInstallFailed)
 	c.stateMachine.RegisterEventHandler(StateHostConfigurationFailed, c.reportInstallFailed)
@@ -54,6 +54,7 @@ func (c *InstallController) reportPreflightsFailed(ctx context.Context, _, _ sta
 	output, err := c.store.PreflightStore().GetOutput()
 	if err != nil {
 		c.logger.WithError(fmt.Errorf("failed to get output from preflight store: %w", err)).Error("failed to report preflights failed")
+		return
 	}
 	c.metricsReporter.ReportPreflightsFailed(ctx, output)
 }
@@ -62,6 +63,7 @@ func (c *InstallController) reportPreflightsBypassed(ctx context.Context, _, _ s
 	output, err := c.store.PreflightStore().GetOutput()
 	if err != nil {
 		c.logger.WithError(fmt.Errorf("failed to get output from preflight store: %w", err)).Error("failed to report preflights bypassed")
+		return
 	}
 	c.metricsReporter.ReportPreflightsBypassed(ctx, output)
 }

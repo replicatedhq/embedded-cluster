@@ -168,6 +168,12 @@ func WithStateMachine(stateMachine statemachine.Interface) InstallControllerOpti
 	}
 }
 
+func WithStore(store store.Store) InstallControllerOption {
+	return func(c *InstallController) {
+		c.store = store
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		store:  store.NewMemoryStore(),
@@ -225,6 +231,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithEndUserConfig(controller.endUserConfig),
 		)
 	}
+
+	controller.registerReportingHandlers()
 
 	return controller, nil
 }
