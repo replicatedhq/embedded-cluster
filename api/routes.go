@@ -8,6 +8,8 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
+// RegisterRoutes registers the routes for the API. A router is passed in to allow for the routes
+// to be registered on a subrouter.
 func (a *API) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/health", a.handlers.health.GetHealth).Methods("GET")
 
