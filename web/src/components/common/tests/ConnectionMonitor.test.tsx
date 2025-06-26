@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -46,14 +46,15 @@ describe('ConnectionMonitor', () => {
     }, { timeout: 4000 });
   }, 6000);
 
-  it('should handle manual retry', async () => {
-    let manualRetryClicked = false;
+  it('should handle automatic retry', async () => {
+    let retryCount = 0;
     
     server.use(
       http.get('*/api/health', () => {
+        retryCount++;
         
-        // Keep failing until manual retry is clicked, then succeed
-        if (!manualRetryClicked) {
+        // Fail first time, succeed on second automatic retry
+        if (retryCount === 1) {
           return HttpResponse.error();
         }
         
@@ -71,20 +72,16 @@ describe('ConnectionMonitor', () => {
       expect(screen.getByText('Cannot connect')).toBeInTheDocument();
     }, { timeout: 6000 });
 
-    // Wait for the retry button to be available
+    // Should show countdown
     await waitFor(() => {
-      expect(screen.getByText('Try Now')).toBeInTheDocument();
+      expect(screen.getByText(/Retrying in \d+ second/)).toBeInTheDocument();
     }, { timeout: 1000 });
 
-    // Mark that manual retry was clicked, then click it
-    manualRetryClicked = true;
-    fireEvent.click(screen.getByText('Try Now'));
-
-    // Modal should disappear when connection is restored
+    // Modal should disappear when automatic retry succeeds
     await waitFor(() => {
       expect(screen.queryByText('Cannot connect')).not.toBeInTheDocument();
-    }, { timeout: 6000 });
-  }, 12000);
+    }, { timeout: 12000 });
+  }, 15000);
 
   it('should show retry countdown timer', async () => {
     server.use(
@@ -99,6 +96,6 @@ describe('ConnectionMonitor', () => {
       expect(screen.getByText('Cannot connect')).toBeInTheDocument();
     }, { timeout: 4000 });
 
-    expect(screen.getByText(/Trying again in \d+ second/)).toBeInTheDocument();
+    expect(screen.getByText(/Retrying in \d+ second/)).toBeInTheDocument();
   }, 6000);
 });
