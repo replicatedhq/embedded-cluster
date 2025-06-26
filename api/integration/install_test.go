@@ -24,10 +24,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
 	preflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/preflight"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -1334,11 +1335,11 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Verify kotsadm namespace and kotsadm-password secret were created
 		var gotKotsadmNamespace corev1.Namespace
-		err = fakeKcli.Get(t.Context(), client.ObjectKey{Name: runtimeconfig.KotsadmNamespace}, &gotKotsadmNamespace)
+		err = fakeKcli.Get(t.Context(), client.ObjectKey{Name: constants.KotsadmNamespace}, &gotKotsadmNamespace)
 		require.NoError(t, err)
 
 		var gotKotsadmPasswordSecret corev1.Secret
-		err = fakeKcli.Get(t.Context(), client.ObjectKey{Namespace: runtimeconfig.KotsadmNamespace, Name: "kotsadm-password"}, &gotKotsadmPasswordSecret)
+		err = fakeKcli.Get(t.Context(), client.ObjectKey{Namespace: constants.KotsadmNamespace, Name: "kotsadm-password"}, &gotKotsadmPasswordSecret)
 		require.NoError(t, err)
 		assert.NotEmpty(t, gotKotsadmPasswordSecret.Data["passwordBcrypt"])
 

@@ -7,20 +7,19 @@ import (
 	consolehandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/console"
 	healthhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/health"
 	linuxhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/linux"
-	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-type Handlers struct {
+type handlers struct {
 	auth    *authhandler.Handler
 	console *consolehandler.Handler
 	health  *healthhandler.Handler
 	linux   *linuxhandler.Handler
 }
 
-func (a *API) InitHandlers(cfg types.APIConfig) error {
+func (a *API) initHandlers() error {
 	// Auth handler
 	authHandler, err := authhandler.New(
-		cfg.Password,
+		a.cfg.Password,
 		authhandler.WithLogger(a.logger),
 		authhandler.WithAuthController(a.authController),
 	)
@@ -50,7 +49,7 @@ func (a *API) InitHandlers(cfg types.APIConfig) error {
 
 	// Linux handler
 	linuxHandler, err := linuxhandler.New(
-		cfg,
+		a.cfg,
 		linuxhandler.WithLogger(a.logger),
 		linuxhandler.WithMetricsReporter(a.metricsReporter),
 		linuxhandler.WithInstallController(a.linuxInstallController),

@@ -15,6 +15,7 @@ const (
 var _ types.AddOn = (*OpenEBS)(nil)
 
 type OpenEBS struct {
+	OpenEBSDataDir string
 }
 
 func (o *OpenEBS) Name() string {

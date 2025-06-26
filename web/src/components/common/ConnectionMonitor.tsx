@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 
 // Connection modal component
+<<<<<<< HEAD
 const ConnectionModal: React.FC<{ 
   onRetry: () => void; 
   isRetrying: boolean;
@@ -25,6 +26,17 @@ const ConnectionModal: React.FC<{
     const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
   }, [nextRetryTime]);
+=======
+const ConnectionModal: React.FC<{ onRetry: () => void; isRetrying: boolean }> = ({ onRetry, isRetrying }) => {
+  const [retryCount, setRetryCount] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRetryCount(count => count + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+>>>>>>> main
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
@@ -48,6 +60,7 @@ const ConnectionModal: React.FC<{
         
         <div className="flex items-center justify-between">
           <div className="flex items-center text-sm font-semibold text-gray-600">
+<<<<<<< HEAD
             {isRetrying ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
@@ -64,6 +77,10 @@ const ConnectionModal: React.FC<{
                 Retrying...
               </>
             )}
+=======
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+            Trying again in {Math.max(1, 10 - (retryCount % 10))} second{Math.max(1, 10 - (retryCount % 10)) !== 1 ? 's' : ''}
+>>>>>>> main
           </div>
           <button 
             onClick={onRetry}
@@ -81,6 +98,7 @@ const ConnectionModal: React.FC<{
 const ConnectionMonitor: React.FC = () => {
   const [isConnected, setIsConnected] = useState(true);
   const [isChecking, setIsChecking] = useState(false);
+<<<<<<< HEAD
   const [nextRetryTime, setNextRetryTime] = useState<number | undefined>();
   const [currentInterval, setCurrentInterval] = useState<NodeJS.Timeout | null>(null);
   
@@ -91,6 +109,11 @@ const ConnectionMonitor: React.FC = () => {
     setNextRetryTime(undefined); // Clear countdown while checking
     
     let connectionFailed = false;
+=======
+
+  const checkConnection = useCallback(async () => {
+    setIsChecking(true);
+>>>>>>> main
     
     try {
       // Try up to 3 times before marking as disconnected
@@ -113,7 +136,10 @@ const ConnectionMonitor: React.FC = () => {
           
           if (response.ok) {
             setIsConnected(true);
+<<<<<<< HEAD
             setNextRetryTime(undefined);
+=======
+>>>>>>> main
             return;
           } else {
             throw new Error(`HTTP ${response.status}`);
@@ -126,6 +152,7 @@ const ConnectionMonitor: React.FC = () => {
         }
       }
       
+<<<<<<< HEAD
       // All attempts failed
       connectionFailed = true;
       setIsConnected(false);
@@ -162,11 +189,23 @@ const ConnectionMonitor: React.FC = () => {
       }
     }
   }, [RETRY_INTERVAL, currentInterval]);
+=======
+      // All attempts failed - show modal immediately
+      setIsConnected(false);
+      
+    } catch {
+      setIsConnected(false);
+    } finally {
+      setIsChecking(false);
+    }
+  }, []);
+>>>>>>> main
 
   useEffect(() => {
     // Initial check
     checkConnection();
     
+<<<<<<< HEAD
     // Set up initial periodic health checks only if no interval exists
     if (!currentInterval) {
       const interval = setInterval(checkConnection, RETRY_INTERVAL);
@@ -189,6 +228,13 @@ const ConnectionMonitor: React.FC = () => {
       }
     };
   }, [currentInterval]);
+=======
+    // Set up periodic health checks every 5 seconds
+    const interval = setInterval(checkConnection, 5000);
+    
+    return () => clearInterval(interval);
+  }, [checkConnection]);
+>>>>>>> main
 
   return (
     <>
@@ -196,8 +242,11 @@ const ConnectionMonitor: React.FC = () => {
         <ConnectionModal 
           onRetry={checkConnection}
           isRetrying={isChecking}
+<<<<<<< HEAD
           nextRetryTime={nextRetryTime}
           retryInterval={RETRY_INTERVAL}
+=======
+>>>>>>> main
         />
       )}
     </>

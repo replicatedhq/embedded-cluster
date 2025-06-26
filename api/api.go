@@ -13,6 +13,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// API represents the main HTTP API server for the Embedded Cluster application.
+//
 //	@title			Embedded Cluster API
 //	@version		0.1
 //	@description	This is the API for the Embedded Cluster project.
@@ -41,42 +43,49 @@ type API struct {
 	consoleController      console.Controller
 	linuxInstallController linuxinstall.Controller
 
-	handlers Handlers
+	handlers handlers
 }
 
-type APIOption func(*API)
+// Option is a function that configures the API.
+type Option func(*API)
 
-func WithAuthController(authController auth.Controller) APIOption {
+// WithAuthController configures the auth controller for the API.
+func WithAuthController(authController auth.Controller) Option {
 	return func(a *API) {
 		a.authController = authController
 	}
 }
 
-func WithConsoleController(consoleController console.Controller) APIOption {
+// WithConsoleController configures the console controller for the API.
+func WithConsoleController(consoleController console.Controller) Option {
 	return func(a *API) {
 		a.consoleController = consoleController
 	}
 }
 
-func WithLinuxInstallController(linuxInstallController linuxinstall.Controller) APIOption {
+// WithLinuxInstallController configures the linux install controller for the API.
+func WithLinuxInstallController(linuxInstallController linuxinstall.Controller) Option {
 	return func(a *API) {
 		a.linuxInstallController = linuxInstallController
 	}
 }
 
-func WithLogger(logger logrus.FieldLogger) APIOption {
+// WithLogger configures the logger for the API. If not provided, a default logger will be created.
+func WithLogger(logger logrus.FieldLogger) Option {
 	return func(a *API) {
 		a.logger = logger
 	}
 }
 
-func WithMetricsReporter(metricsReporter metrics.ReporterInterface) APIOption {
+// WithMetricsReporter configures the metrics reporter for the API.
+func WithMetricsReporter(metricsReporter metrics.ReporterInterface) Option {
 	return func(a *API) {
 		a.metricsReporter = metricsReporter
 	}
 }
 
-func New(cfg types.APIConfig, opts ...APIOption) (*API, error) {
+// New creates a new API instance.
+func New(cfg types.APIConfig, opts ...Option) (*API, error) {
 	api := &API{
 		cfg: cfg,
 	}
@@ -97,7 +106,7 @@ func New(cfg types.APIConfig, opts ...APIOption) (*API, error) {
 		api.logger = l
 	}
 
-	if err := api.InitHandlers(api.cfg); err != nil {
+	if err := api.initHandlers(); err != nil {
 		return nil, fmt.Errorf("init handlers: %w", err)
 	}
 

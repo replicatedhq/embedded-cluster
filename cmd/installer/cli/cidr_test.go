@@ -83,7 +83,7 @@ func Test_getCIDRConfig(t *testing.T) {
 			req := require.New(t)
 
 			cmd := &cobra.Command{}
-			addCIDRFlags(cmd)
+			mustAddCIDRFlags(cmd.Flags())
 
 			test.setFlags(cmd.Flags())
 
