@@ -618,8 +618,14 @@ func Test_preRunInstall_SkipHostPreflightsEnvVar(t *testing.T) {
 		expectedSkipPreflights bool
 	}{
 		{
-			name:                   "env var set, no flag",
+			name:                   "env var set to 1, no flag",
 			envVarValue:            "1",
+			flagValue:              nil,
+			expectedSkipPreflights: true,
+		},
+		{
+			name:                   "env var set to true, no flag",
+			envVarValue:            "true",
 			flagValue:              nil,
 			expectedSkipPreflights: true,
 		},
@@ -680,7 +686,7 @@ func Test_preRunInstall_SkipHostPreflightsEnvVar(t *testing.T) {
 
 			// Call preRunInstall (this would normally require root, but we're just testing the flag logic)
 			// We expect this to fail due to non-root execution, but we can check the flag value before it fails
-			err := preRunInstall(cmd, flags, rc)
+			err := preRunInstallLinux(cmd, flags, rc)
 
 			// The function will fail due to non-root check, but we can verify the flag was set correctly
 			// by checking the flag value before the root check fails

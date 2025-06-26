@@ -434,12 +434,12 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 }
 
 func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
-	if os.Getuid() != 0 {
-		return fmt.Errorf("install command must be run as root")
-	}
-
 	if !cmd.Flags().Changed("skip-host-preflights") && (os.Getenv("SKIP_HOST_PREFLIGHTS") == "1" || os.Getenv("SKIP_HOST_PREFLIGHTS") == "true") {
 		flags.skipHostPreflights = true
+	}
+
+	if os.Getuid() != 0 {
+		return fmt.Errorf("install command must be run as root")
 	}
 
 	// set the umask to 022 so that we can create files/directories with 755 permissions
