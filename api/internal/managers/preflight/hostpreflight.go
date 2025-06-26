@@ -105,13 +105,8 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtime
 		m.logger.WithField("error", err).Warn("copy preflight bundle to embedded-cluster support dir")
 	}
 
-	if output.HasFail() || output.HasWarn() {
-		if m.metricsReporter != nil {
-			m.metricsReporter.ReportPreflightsFailed(ctx, output)
-		}
-	}
-
 	// Set final status based on results
+	// TODO @jgantunes: we're currently not handling warnings in the output.
 	if output.HasFail() {
 		if err := m.setCompletedStatus(types.StateFailed, "Host preflights failed", output); err != nil {
 			return fmt.Errorf("set failed status: %w", err)

@@ -15,79 +15,110 @@ func TestStateMachineTransitions(t *testing.T) {
 		validTransitions []statemachine.State
 	}{
 		{
-			name:       `State "New" can transition to "InstallationConfigured"`,
+			name:       `State "New" can transition to "InstallationConfigured" or "InstallationConfigurationFailed"`,
 			startState: StateNew,
 			validTransitions: []statemachine.State{
 				StateInstallationConfigured,
+				StateInstallationConfigurationFailed,
 			},
 		},
 		{
-			name:       `State "InstallationConfigured" can transition to "HostConfigured" or "InstallationConfigured"`,
+			name:       `State "InstallationConfigurationFailed" can transition to "InstallationConfigured" or "InstallationConfigurationFailed"`,
+			startState: StateInstallationConfigurationFailed,
+			validTransitions: []statemachine.State{
+				StateInstallationConfigured,
+				StateInstallationConfigurationFailed,
+			},
+		},
+		{
+			name:       `State "InstallationConfigured" can transition to "HostConfigured" or "HostConfigurationFailed"`,
 			startState: StateInstallationConfigured,
 			validTransitions: []statemachine.State{
 				StateHostConfigured,
-				StateInstallationConfigured,
+				StateHostConfigurationFailed,
 			},
 		},
 		{
-			name:       `State "HostConfigured" can transition to "PreflightsRunning" or "InstallationConfigured"`,
+			name:       `State "HostConfigurationFailed" can transition to "InstallationConfigured" or "InstallationConfigurationFailed"`,
+			startState: StateHostConfigurationFailed,
+			validTransitions: []statemachine.State{
+				StateInstallationConfigured,
+				StateInstallationConfigurationFailed,
+			},
+		},
+		{
+			name:       `State "HostConfigured" can transition to "PreflightsRunning" or "InstallationConfigured" or "InstallationConfigurationFailed"`,
 			startState: StateHostConfigured,
 			validTransitions: []statemachine.State{
 				StatePreflightsRunning,
 				StateInstallationConfigured,
+				StateInstallationConfigurationFailed,
 			},
 		},
 		{
-			name:       `State "PreflightsRunning" can transition to "PreflightsSucceeded" or "PreflightsFailed"`,
+			name:       `State "PreflightsRunning" can transition to "PreflightsSucceeded", "PreflightsFailed", or "PreflightsExecutionFailed"`,
 			startState: StatePreflightsRunning,
 			validTransitions: []statemachine.State{
 				StatePreflightsSucceeded,
 				StatePreflightsFailed,
+				StatePreflightsExecutionFailed,
 			},
 		},
 		{
-			name:       `State "PreflightsSucceeded" can transition to "InfrastructureInstalling", "PreflightsRunning" or "InstallationConfigured"`,
+			name:       `State "PreflightsExecutionFailed" can transition to "PreflightsRunning", "InstallationConfigured", or "InstallationConfigurationFailed"`,
+			startState: StatePreflightsExecutionFailed,
+			validTransitions: []statemachine.State{
+				StatePreflightsRunning,
+				StateInstallationConfigured,
+				StateInstallationConfigurationFailed,
+			},
+		},
+		{
+			name:       `State "PreflightsSucceeded" can transition to "InfrastructureInstalling", "PreflightsRunning", "InstallationConfigured", or "InstallationConfigurationFailed"`,
 			startState: StatePreflightsSucceeded,
 			validTransitions: []statemachine.State{
 				StateInfrastructureInstalling,
 				StatePreflightsRunning,
 				StateInstallationConfigured,
+				StateInstallationConfigurationFailed,
 			},
 		},
 		{
-			name:       `State "PreflightsFailed" can transition to "PreflightsFailedBypassed" , "PreflightsRunning" or "InstallationConfigured"`,
+			name:       `State "PreflightsFailed" can transition to "PreflightsFailedBypassed", "PreflightsRunning", "InstallationConfigured", or "InstallationConfigurationFailed"`,
 			startState: StatePreflightsFailed,
 			validTransitions: []statemachine.State{
 				StatePreflightsFailedBypassed,
 				StatePreflightsRunning,
 				StateInstallationConfigured,
+				StateInstallationConfigurationFailed,
 			},
 		},
 		{
-			name:       `State "PreflightsFailedBypassed" can transition to "InfrastructureInstalling", "PreflightsRunning" or "InstallationConfigured"`,
+			name:       `State "PreflightsFailedBypassed" can transition to "InfrastructureInstalling", "PreflightsRunning", "InstallationConfigured", or "InstallationConfigurationFailed"`,
 			startState: StatePreflightsFailedBypassed,
 			validTransitions: []statemachine.State{
 				StateInfrastructureInstalling,
 				StatePreflightsRunning,
 				StateInstallationConfigured,
+				StateInstallationConfigurationFailed,
 			},
 		},
 		{
-			name:       `State "InfrastructureInstalling" can transition to "Succeeded" or "Failed"`,
+			name:       `State "InfrastructureInstalling" can transition to "Succeeded" or "InfrastructureInstallFailed"`,
 			startState: StateInfrastructureInstalling,
 			validTransitions: []statemachine.State{
 				StateSucceeded,
-				StateFailed,
+				StateInfrastructureInstallFailed,
 			},
+		},
+		{
+			name:             `State "InfrastructureInstallFailed" can not transition to any other state`,
+			startState:       StateInfrastructureInstallFailed,
+			validTransitions: []statemachine.State{},
 		},
 		{
 			name:             `State "Succeeded" can not transition to any other state`,
 			startState:       StateSucceeded,
-			validTransitions: []statemachine.State{},
-		},
-		{
-			name:             `State "Failed" can not transition to any other state`,
-			startState:       StateFailed,
 			validTransitions: []statemachine.State{},
 		},
 	}
@@ -120,7 +151,7 @@ func TestStateMachineTransitions(t *testing.T) {
 func TestIsFinalState(t *testing.T) {
 	finalStates := []statemachine.State{
 		StateSucceeded,
-		StateFailed,
+		StateInfrastructureInstallFailed,
 	}
 
 	for state := range validStateTransitions {

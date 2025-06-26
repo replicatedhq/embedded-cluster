@@ -168,16 +168,25 @@ func WithStateMachine(stateMachine statemachine.Interface) InstallControllerOpti
 	}
 }
 
+func WithStore(store store.Store) InstallControllerOption {
+	return func(c *InstallController) {
+		c.store = store
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
-		store:        store.NewMemoryStore(),
-		rc:           runtimeconfig.New(nil),
-		logger:       logger.NewDiscardLogger(),
-		stateMachine: NewStateMachine(),
+		store:  store.NewMemoryStore(),
+		rc:     runtimeconfig.New(nil),
+		logger: logger.NewDiscardLogger(),
 	}
 
 	for _, opt := range opts {
 		opt(controller)
+	}
+
+	if controller.stateMachine == nil {
+		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
 	}
 
 	if controller.hostUtils == nil {
@@ -204,7 +213,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.hostPreflightManager == nil {
 		controller.hostPreflightManager = preflight.NewHostPreflightManager(
 			preflight.WithLogger(controller.logger),
-			preflight.WithMetricsReporter(controller.metricsReporter),
 			preflight.WithHostPreflightStore(controller.store.PreflightStore()),
 			preflight.WithNetUtils(controller.netUtils),
 		)
@@ -223,6 +231,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithEndUserConfig(controller.endUserConfig),
 		)
 	}
+
+	controller.registerReportingHandlers()
 
 	return controller, nil
 }
