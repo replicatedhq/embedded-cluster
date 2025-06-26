@@ -6,7 +6,7 @@ import (
 	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"

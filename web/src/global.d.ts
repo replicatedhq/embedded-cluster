@@ -10,5 +10,6 @@ declare global {
   interface InitialState {
     icon?: string;
     title?: string;
+    installTarget?: string;
   }
 }

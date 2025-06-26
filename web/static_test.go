@@ -73,6 +73,9 @@ func TestNew(t *testing.T) {
 	// Create a test logger
 	logger, _ := logtest.NewNullLogger()
 
+	// Set the development environment variable to false
+	t.Setenv("EC_DEV_ENV", "false")
+
 	// Create a new Web instance
 	web, err := New(initialState, WithLogger(logger), WithAssetsFS(createMockFS()))
 	require.NoError(t, err, "Failed to create Web instance")
@@ -97,6 +100,9 @@ func TestNewWithDefaultFS(t *testing.T) {
 
 	// Create a test logger
 	logger, _ := logtest.NewNullLogger()
+
+	// Set the development environment variable to false
+	t.Setenv("EC_DEV_ENV", "false")
 
 	// Create a new Web instance
 	web, err := New(initialState, WithLogger(logger))
@@ -139,6 +145,9 @@ func TestNewWithIndexHTML(t *testing.T) {
 	// Create a test logger
 	logger, _ := logtest.NewNullLogger()
 
+	// Set the development environment variable to false
+	t.Setenv("EC_DEV_ENV", "false")
+
 	// Create a new Web instance, using the actual index.html template
 	web, err := New(initialState, WithLogger(logger), WithAssetsFS(mockFS))
 	require.NoError(t, err, "Failed to create Web instance")
@@ -171,6 +180,9 @@ func TestNewWithNonExistentTemplate(t *testing.T) {
 	// Create a test logger
 	logger, _ := logtest.NewNullLogger()
 
+	// Set the development environment variable to false
+	t.Setenv("EC_DEV_ENV", "false")
+
 	// Try to create a new Web instance without providing an HTML template
 	web, err := New(initialState, WithLogger(logger), WithAssetsFS(mockFS))
 
@@ -192,6 +204,9 @@ func TestRootHandler(t *testing.T) {
 
 	// Create a test logger
 	logger, _ := logtest.NewNullLogger()
+
+	// Set the development environment variable to false
+	t.Setenv("EC_DEV_ENV", "false")
 
 	// Create a new Web instance
 	web, err := New(initialState, WithLogger(logger), WithAssetsFS(createMockFS()))
@@ -227,6 +242,9 @@ func TestRootHandlerTemplateError(t *testing.T) {
 
 	// Create a test logger
 	logger, _ := logtest.NewNullLogger()
+
+	// Set the development environment variable to false
+	t.Setenv("EC_DEV_ENV", "false")
 
 	// Create a new Web instance
 	web, err := New(initialState, WithLogger(logger), WithAssetsFS(createMockFS()))
@@ -265,6 +283,9 @@ func TestRegisterRoutes(t *testing.T) {
 
 	// Create a test logger
 	logger, _ := logtest.NewNullLogger()
+
+	// Set the development environment variable to false
+	t.Setenv("EC_DEV_ENV", "false")
 
 	// Create a new Web instance
 	web, err := New(initialState, WithLogger(logger), WithAssetsFS(createMockFS()))

@@ -9,7 +9,7 @@ import (
 )
 
 func (c *client) GetInstallationConfig() (types.InstallationConfig, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/install/installation/config", nil)
+	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/installation/config", nil)
 	if err != nil {
 		return types.InstallationConfig{}, err
 	}
@@ -41,7 +41,7 @@ func (c *client) ConfigureInstallation(config types.InstallationConfig) (types.S
 		return types.Status{}, err
 	}
 
-	req, err := http.NewRequest("POST", c.apiURL+"/api/install/installation/configure", bytes.NewBuffer(b))
+	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/installation/configure", bytes.NewBuffer(b))
 	if err != nil {
 		return types.Status{}, err
 	}
@@ -68,7 +68,7 @@ func (c *client) ConfigureInstallation(config types.InstallationConfig) (types.S
 }
 
 func (c *client) GetInstallationStatus() (types.Status, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/install/installation/status", nil)
+	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/installation/status", nil)
 	if err != nil {
 		return types.Status{}, err
 	}
@@ -95,7 +95,7 @@ func (c *client) GetInstallationStatus() (types.Status, error) {
 }
 
 func (c *client) SetupInfra() (types.Infra, error) {
-	req, err := http.NewRequest("POST", c.apiURL+"/api/install/infra/setup", nil)
+	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/infra/setup", nil)
 	if err != nil {
 		return types.Infra{}, err
 	}
@@ -122,7 +122,7 @@ func (c *client) SetupInfra() (types.Infra, error) {
 }
 
 func (c *client) GetInfraStatus() (types.Infra, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/install/infra/status", nil)
+	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/infra/status", nil)
 	if err != nil {
 		return types.Infra{}, err
 	}
@@ -154,7 +154,7 @@ func (c *client) SetInstallStatus(s types.Status) (types.Status, error) {
 		return types.Status{}, err
 	}
 
-	req, err := http.NewRequest("POST", c.apiURL+"/api/install/status", bytes.NewBuffer(b))
+	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/status", bytes.NewBuffer(b))
 	if err != nil {
 		return types.Status{}, err
 	}

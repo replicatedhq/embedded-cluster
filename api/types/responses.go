@@ -7,3 +7,8 @@ type InstallHostPreflightsStatusResponse struct {
 	Status                    Status                `json:"status,omitempty"`
 	AllowIgnoreHostPreflights bool                  `json:"allowIgnoreHostPreflights"`
 }
+
+// GetListAvailableNetworkInterfacesResponse represents the response when listing available network interfaces
+type GetListAvailableNetworkInterfacesResponse struct {
+	NetworkInterfaces []string `json:"networkInterfaces"`
+}

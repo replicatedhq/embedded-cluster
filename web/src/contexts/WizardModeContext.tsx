@@ -1,5 +1,4 @@
 import React, { createContext, useContext } from "react";
-import { useConfig } from "./ConfigContext";
 import { useBranding } from "./BrandingContext";
 
 export type WizardMode = "install" | "upgrade";
@@ -19,13 +18,13 @@ interface WizardText {
   nextButtonText: string;
 }
 
-const getTextVariations = (isEmbedded: boolean, title: string): Record<WizardMode, WizardText> => ({
+const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, WizardText> => ({
   install: {
     title: title || "",
     subtitle: "Installation Wizard",
     welcomeTitle: `Welcome to ${title}`,
     welcomeDescription: `This wizard will guide you through installing ${title} on your ${
-      isEmbedded ? "Linux machine" : "Kubernetes cluster"
+      isLinux ? "Linux machine" : "Kubernetes cluster"
     }.`,
     setupTitle: "Setup",
     setupDescription: "Configure the host settings for this installation.",
@@ -41,7 +40,7 @@ const getTextVariations = (isEmbedded: boolean, title: string): Record<WizardMod
     subtitle: "Upgrade Wizard",
     welcomeTitle: `Welcome to ${title}`,
     welcomeDescription: `This wizard will guide you through upgrading ${title} on your ${
-      isEmbedded ? "Linux machine" : "Kubernetes cluster"
+      isLinux ? "Linux machine" : "Kubernetes cluster"
     }.`,
     setupTitle: "Setup",
     setupDescription: "Set up the hosts to use for this upgrade.",
@@ -65,10 +64,12 @@ export const WizardModeProvider: React.FC<{
   children: React.ReactNode;
   mode: WizardMode;
 }> = ({ children, mode }) => {
-  const { prototypeSettings } = useConfig();
+  // __INITIAL_STATE__ is a global variable that can be set by the server-side rendering process
+  // as a way to pass initial data to the client.
+  const initialState = window.__INITIAL_STATE__ || {};
   const { title } = useBranding();
-  const isEmbedded = prototypeSettings.clusterMode === "embedded";
-  const text = getTextVariations(isEmbedded, title)[mode];
+  const isLinux = initialState.installTarget === "linux";
+  const text = getTextVariations(isLinux, title)[mode];
 
   return <WizardModeContext.Provider value={{ mode, text }}>{children}</WizardModeContext.Provider>;
 };

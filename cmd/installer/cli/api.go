@@ -14,7 +14,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
-	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
 	apilogger "github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -28,8 +27,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// apiConfig holds the configuration for the API server
-type apiConfig struct {
+// apiOptions holds the configuration options for the API server
+type apiOptions struct {
+	InstallTarget             string
 	RuntimeConfig             runtimeconfig.RuntimeConfig
 	Logger                    logrus.FieldLogger
 	MetricsReporter           metrics.ReporterInterface
@@ -42,25 +42,25 @@ type apiConfig struct {
 	ConfigValues              string
 	ReleaseData               *release.ReleaseData
 	EndUserConfig             *ecv1beta1.Config
-	WebAssetsFS               fs.FS
 	AllowIgnoreHostPreflights bool
+	WebAssetsFS               fs.FS
 }
 
-func startAPI(ctx context.Context, cert tls.Certificate, config apiConfig) error {
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", config.ManagerPort))
+func startAPI(ctx context.Context, cert tls.Certificate, opts apiOptions) error {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opts.ManagerPort))
 	if err != nil {
 		return fmt.Errorf("unable to create listener: %w", err)
 	}
 
 	go func() {
-		if err := serveAPI(ctx, listener, cert, config); err != nil {
+		if err := serveAPI(ctx, listener, cert, opts); err != nil {
 			if !errors.Is(err, http.ErrServerClosed) {
 				logrus.Errorf("api error: %v", err)
 			}
 		}
 	}()
 
-	addr := fmt.Sprintf("localhost:%d", config.ManagerPort)
+	addr := fmt.Sprintf("localhost:%d", opts.ManagerPort)
 	if err := waitForAPI(ctx, addr); err != nil {
 		return fmt.Errorf("unable to wait for api: %w", err)
 	}
@@ -68,43 +68,48 @@ func startAPI(ctx context.Context, cert tls.Certificate, config apiConfig) error
 	return nil
 }
 
-func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, config apiConfig) error {
+func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, opts apiOptions) error {
 	router := mux.NewRouter()
 
-	if config.ReleaseData == nil {
+	if opts.ReleaseData == nil {
 		return fmt.Errorf("release not found")
 	}
-	if config.ReleaseData.Application == nil {
+	if opts.ReleaseData.Application == nil {
 		return fmt.Errorf("application not found")
 	}
 
-	logger, err := loggerFromConfig(config)
+	logger, err := loggerFromOptions(opts)
 	if err != nil {
 		return fmt.Errorf("new api logger: %w", err)
 	}
 
+	cfg := apitypes.APIConfig{
+		RuntimeConfig:             opts.RuntimeConfig,
+		Password:                  opts.Password,
+		TLSConfig:                 opts.TLSConfig,
+		License:                   opts.License,
+		AirgapBundle:              opts.AirgapBundle,
+		AirgapInfo:                opts.AirgapInfo,
+		ConfigValues:              opts.ConfigValues,
+		ReleaseData:               opts.ReleaseData,
+		EndUserConfig:             opts.EndUserConfig,
+		AllowIgnoreHostPreflights: opts.AllowIgnoreHostPreflights,
+	}
+
 	api, err := api.New(
-		config.Password,
+		cfg,
 		api.WithLogger(logger),
-		api.WithRuntimeConfig(config.RuntimeConfig),
-		api.WithMetricsReporter(config.MetricsReporter),
-		api.WithReleaseData(config.ReleaseData),
-		api.WithTLSConfig(config.TLSConfig),
-		api.WithLicense(config.License),
-		api.WithAirgapBundle(config.AirgapBundle),
-		api.WithAirgapInfo(config.AirgapInfo),
-		api.WithConfigValues(config.ConfigValues),
-		api.WithEndUserConfig(config.EndUserConfig),
-		api.WithAllowIgnoreHostPreflights(config.AllowIgnoreHostPreflights),
+		api.WithMetricsReporter(opts.MetricsReporter),
 	)
 	if err != nil {
 		return fmt.Errorf("new api: %w", err)
 	}
 
 	webServer, err := web.New(web.InitialState{
-		Title: config.ReleaseData.Application.Spec.Title,
-		Icon:  config.ReleaseData.Application.Spec.Icon,
-	}, web.WithLogger(logger), web.WithAssetsFS(config.WebAssetsFS))
+		Title:         opts.ReleaseData.Application.Spec.Title,
+		Icon:          opts.ReleaseData.Application.Spec.Icon,
+		InstallTarget: opts.InstallTarget,
+	}, web.WithLogger(logger), web.WithAssetsFS(opts.WebAssetsFS))
 	if err != nil {
 		return fmt.Errorf("new web server: %w", err)
 	}
@@ -122,15 +127,15 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 	go func() {
 		<-ctx.Done()
 		logrus.Debugf("Shutting down API")
-		server.Shutdown(context.Background())
+		_ = server.Shutdown(context.Background())
 	}()
 
 	return server.ServeTLS(listener, "", "")
 }
 
-func loggerFromConfig(config apiConfig) (logrus.FieldLogger, error) {
-	if config.Logger != nil {
-		return config.Logger, nil
+func loggerFromOptions(opts apiOptions) (logrus.FieldLogger, error) {
+	if opts.Logger != nil {
+		return opts.Logger, nil
 	}
 	logger, err := apilogger.NewLogger()
 	if err != nil {
@@ -174,45 +179,6 @@ func waitForAPI(ctx context.Context, addr string) error {
 			}
 		}
 	}
-}
-
-func markUIInstallComplete(password string, managerPort int, installErr error) error {
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			Proxy: nil, // This is a local client so no proxy is needed
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
-	apiClient := apiclient.New(
-		fmt.Sprintf("https://localhost:%d", managerPort),
-		apiclient.WithHTTPClient(httpClient),
-	)
-	if err := apiClient.Authenticate(password); err != nil {
-		return fmt.Errorf("unable to authenticate: %w", err)
-	}
-
-	var state apitypes.State
-	var description string
-	if installErr != nil {
-		state = apitypes.StateFailed
-		description = fmt.Sprintf("Installation failed: %v", installErr)
-	} else {
-		state = apitypes.StateSucceeded
-		description = "Installation succeeded"
-	}
-
-	_, err := apiClient.SetInstallStatus(apitypes.Status{
-		State:       state,
-		Description: description,
-		LastUpdated: time.Now(),
-	})
-	if err != nil {
-		return fmt.Errorf("unable to set install status: %w", err)
-	}
-
-	return nil
 }
 
 func getManagerURL(hostname string, port int) string {
