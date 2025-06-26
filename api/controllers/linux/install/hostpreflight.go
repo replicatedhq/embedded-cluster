@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
+	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -61,16 +62,21 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 			if r := recover(); r != nil {
 				finalErr = fmt.Errorf("panic running host preflights: %v: %s", r, string(debug.Stack()))
 			}
+			// Handle errors from preflight execution
 			if finalErr != nil {
 				c.logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, StatePreflightsFailed); err != nil {
+				if err := c.stateMachine.Transition(lock, StatePreflightsExecutionFailed); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
-			} else {
-				if err := c.stateMachine.Transition(lock, StatePreflightsSucceeded); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
-				}
+				return
+			}
+
+			// Get the state from the preflights output
+			state := c.getStateFromPreflightsOutput(ctx)
+			// Transition to the appropriate state based on preflight results
+			if err := c.stateMachine.Transition(lock, state); err != nil {
+				c.logger.Errorf("failed to transition states: %w", err)
 			}
 		}()
 
@@ -85,6 +91,19 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 	}()
 
 	return nil
+}
+
+func (c *InstallController) getStateFromPreflightsOutput(ctx context.Context) statemachine.State {
+	output, err := c.GetHostPreflightOutput(ctx)
+	// If there was an error getting the state or if there's no output, we assume preflight execution failed
+	if err != nil || output == nil {
+		c.logger.WithError(err).Error("failed generate state based on prelights output, got error or niloutput")
+		return StatePreflightsExecutionFailed
+	}
+	if output.HasFail() {
+		return StatePreflightsFailed
+	}
+	return StatePreflightsSucceeded
 }
 
 func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (types.Status, error) {
