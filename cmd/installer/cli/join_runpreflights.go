@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
@@ -104,22 +105,39 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 
 	domains := domains.GetDomains(jcmd.InstallationSpec.Config, release.GetChannelRelease())
 
+	// Calculate airgap storage space requirement based on node type
+	var controllerAirgapStorageSpace string
+	var workerAirgapStorageSpace string
+	if jcmd.InstallationSpec.AirGap && jcmd.InstallationSpec.AirgapUncompressedSize > 0 {
+		// Determine if this is a controller node by checking the join command
+		isController := strings.Contains(jcmd.K0sJoinCommand, "controller")
+		if isController {
+			logrus.Debug("Node type determined from join command: controller")
+			controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(jcmd.InstallationSpec.AirgapUncompressedSize, true)
+		} else {
+			logrus.Debug("Node type determined from join command: worker")
+			workerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(jcmd.InstallationSpec.AirgapUncompressedSize, false)
+		}
+	}
+
 	hpf, err := preflights.Prepare(ctx, preflights.PrepareOptions{
-		HostPreflightSpec:       release.GetHostPreflights(),
-		ReplicatedAppURL:        netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
-		ProxyRegistryURL:        netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
-		AdminConsolePort:        rc.AdminConsolePort(),
-		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
-		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                   rc.ProxySpec(),
-		PodCIDR:                 cidrCfg.PodCIDR,
-		ServiceCIDR:             cidrCfg.ServiceCIDR,
-		NodeIP:                  nodeIP,
-		IsAirgap:                jcmd.InstallationSpec.AirGap,
-		TCPConnectionsRequired:  jcmd.TCPConnectionsRequired,
-		IsJoin:                  true,
+		HostPreflightSpec:            release.GetHostPreflights(),
+		ReplicatedAppURL:             netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
+		ProxyRegistryURL:             netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
+		AdminConsolePort:             rc.AdminConsolePort(),
+		LocalArtifactMirrorPort:      rc.LocalArtifactMirrorPort(),
+		DataDir:                      rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:                   rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:               rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                        rc.ProxySpec(),
+		PodCIDR:                      cidrCfg.PodCIDR,
+		ServiceCIDR:                  cidrCfg.ServiceCIDR,
+		NodeIP:                       nodeIP,
+		IsAirgap:                     jcmd.InstallationSpec.AirGap,
+		TCPConnectionsRequired:       jcmd.TCPConnectionsRequired,
+		IsJoin:                       true,
+		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
+		WorkerAirgapStorageSpace:     workerAirgapStorageSpace,
 	})
 	if err != nil {
 		return err

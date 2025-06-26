@@ -57,6 +57,7 @@ type InstallCmdFlags struct {
 	adminConsolePassword string
 	adminConsolePort     int
 	airgapBundle         string
+	airgapInfo           *kotsv1beta1.Airgap
 	isAirgap             bool
 	licenseFile          string
 	assumeYes            bool
@@ -414,6 +415,13 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 	}
 
 	flags.isAirgap = flags.airgapBundle != ""
+	if flags.airgapBundle != "" {
+		var err error
+		flags.airgapInfo, err = airgap.AirgapInfoFromPath(flags.airgapBundle)
+		if err != nil {
+			return fmt.Errorf("failed to get airgap info: %w", err)
+		}
+	}
 
 	proxy, err := proxyConfigFromCmd(cmd, flags.assumeYes)
 	if err != nil {
@@ -614,6 +622,7 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 		ManagerPort:               flags.managerPort,
 		License:                   flags.licenseBytes,
 		AirgapBundle:              flags.airgapBundle,
+		AirgapInfo:                flags.airgapInfo,
 		ConfigValues:              flags.configValues,
 		ReleaseData:               release.GetReleaseData(),
 		EndUserConfig:             eucfg,
@@ -791,9 +800,9 @@ func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, pr
 	if err != nil {
 		return err
 	}
-	if flags.isAirgap {
+	if flags.airgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
-		if err := checkAirgapMatches(flags.airgapBundle); err != nil {
+		if err := checkAirgapMatches(flags.airgapInfo); err != nil {
 			return err // we want the user to see the error message without a prefix
 		}
 	}
@@ -1102,23 +1111,15 @@ func installExtensions(ctx context.Context, hcli helm.Client) error {
 	return nil
 }
 
-func checkAirgapMatches(airgapBundle string) error {
+func checkAirgapMatches(airgapInfo *kotsv1beta1.Airgap) error {
 	rel := release.GetChannelRelease()
 	if rel == nil {
 		return fmt.Errorf("airgap bundle provided but no release was found in binary, please rerun without the airgap-bundle flag")
 	}
 
-	// read file from path
-	rawfile, err := os.Open(airgapBundle)
-	if err != nil {
-		return fmt.Errorf("failed to open airgap file: %w", err)
-	}
-	defer rawfile.Close()
-
-	appSlug, channelID, airgapVersion, err := airgap.ChannelReleaseMetadata(rawfile)
-	if err != nil {
-		return fmt.Errorf("failed to get airgap bundle versions: %w", err)
-	}
+	appSlug := airgapInfo.Spec.AppSlug
+	channelID := airgapInfo.Spec.ChannelID
+	airgapVersion := airgapInfo.Spec.VersionLabel
 
 	// Check if the airgap bundle matches the application version data
 	if rel.AppSlug != appSlug {
@@ -1271,14 +1272,21 @@ func recordInstallation(
 		return nil, fmt.Errorf("process overrides file: %w", err)
 	}
 
+	// extract airgap uncompressed size if airgap info is provided
+	var airgapUncompressedSize int64
+	if flags.airgapInfo != nil {
+		airgapUncompressedSize = flags.airgapInfo.Spec.UncompressedSize
+	}
+
 	// record the installation
 	installation, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
-		IsAirgap:       flags.isAirgap,
-		License:        license,
-		ConfigSpec:     cfgspec,
-		MetricsBaseURL: replicatedAppURL(),
-		RuntimeConfig:  rc.Get(),
-		EndUserConfig:  eucfg,
+		IsAirgap:               flags.isAirgap,
+		License:                license,
+		ConfigSpec:             cfgspec,
+		MetricsBaseURL:         replicatedAppURL(),
+		RuntimeConfig:          rc.Get(),
+		EndUserConfig:          eucfg,
+		AirgapUncompressedSize: airgapUncompressedSize,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("record installation: %w", err)

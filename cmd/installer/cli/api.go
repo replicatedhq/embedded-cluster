@@ -23,6 +23,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/web"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -37,6 +38,7 @@ type apiOptions struct {
 	ManagerPort               int
 	License                   []byte
 	AirgapBundle              string
+	AirgapInfo                *kotsv1beta1.Airgap
 	ConfigValues              string
 	ReleaseData               *release.ReleaseData
 	EndUserConfig             *ecv1beta1.Config
@@ -87,6 +89,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		TLSConfig:                 opts.TLSConfig,
 		License:                   opts.License,
 		AirgapBundle:              opts.AirgapBundle,
+		AirgapInfo:                opts.AirgapInfo,
 		ConfigValues:              opts.ConfigValues,
 		ReleaseData:               opts.ReleaseData,
 		EndUserConfig:             opts.EndUserConfig,

@@ -99,20 +99,27 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtime
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
 
+	// Calculate airgap storage space requirement (2x uncompressed size for controller nodes)
+	var controllerAirgapStorageSpace string
+	if flags.airgapInfo != nil {
+		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(flags.airgapInfo.Spec.UncompressedSize, true)
+	}
+
 	opts := preflights.PrepareOptions{
-		HostPreflightSpec:       release.GetHostPreflights(),
-		ReplicatedAppURL:        replicatedAppURL,
-		ProxyRegistryURL:        proxyRegistryURL,
-		AdminConsolePort:        rc.AdminConsolePort(),
-		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
-		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                   rc.ProxySpec(),
-		PodCIDR:                 rc.PodCIDR(),
-		ServiceCIDR:             rc.ServiceCIDR(),
-		NodeIP:                  nodeIP,
-		IsAirgap:                flags.isAirgap,
+		HostPreflightSpec:            release.GetHostPreflights(),
+		ReplicatedAppURL:             replicatedAppURL,
+		ProxyRegistryURL:             proxyRegistryURL,
+		AdminConsolePort:             rc.AdminConsolePort(),
+		LocalArtifactMirrorPort:      rc.LocalArtifactMirrorPort(),
+		DataDir:                      rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:                   rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:               rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                        rc.ProxySpec(),
+		PodCIDR:                      rc.PodCIDR(),
+		ServiceCIDR:                  rc.ServiceCIDR(),
+		NodeIP:                       nodeIP,
+		IsAirgap:                     flags.isAirgap,
+		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
 	}
 	if globalCIDR := rc.GlobalCIDR(); globalCIDR != "" {
 		opts.GlobalCIDR = &globalCIDR

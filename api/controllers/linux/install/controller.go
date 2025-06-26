@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -52,6 +53,7 @@ type InstallController struct {
 	tlsConfig            types.TLSConfig
 	license              []byte
 	airgapBundle         string
+	airgapInfo           *kotsv1beta1.Airgap
 	configValues         string
 	endUserConfig        *ecv1beta1.Config
 
@@ -123,6 +125,12 @@ func WithLicense(license []byte) InstallControllerOption {
 func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	return func(c *InstallController) {
 		c.airgapBundle = airgapBundle
+	}
+}
+
+func WithAirgapInfo(airgapInfo *kotsv1beta1.Airgap) InstallControllerOption {
+	return func(c *InstallController) {
+		c.airgapInfo = airgapInfo
 	}
 }
 
@@ -226,6 +234,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
+			infra.WithAirgapInfo(controller.airgapInfo),
 			infra.WithConfigValues(controller.configValues),
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
