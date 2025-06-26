@@ -95,15 +95,16 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 
 func (c *InstallController) getStateFromPreflightsOutput(ctx context.Context) statemachine.State {
 	output, err := c.GetHostPreflightOutput(ctx)
-	// If there was an error getting the state or if there's no output, we assume preflight execution failed
-	if err != nil || output == nil {
-		c.logger.WithError(err).Error("failed generate state based on prelights output, got error or niloutput")
+	// If there was an error getting the state we assume preflight execution failed
+	if err != nil {
+		c.logger.WithError(err).Error("error getting preflight output")
 		return StatePreflightsExecutionFailed
 	}
-	if output.HasFail() {
-		return StatePreflightsFailed
+	// If there is no output, we assume preflights succeeded
+	if output == nil || !output.HasFail() {
+		return StatePreflightsSucceeded
 	}
-	return StatePreflightsSucceeded
+	return StatePreflightsFailed
 }
 
 func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (types.Status, error) {
