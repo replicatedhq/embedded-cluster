@@ -438,7 +438,7 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 		return fmt.Errorf("install command must be run as root")
 	}
 
-	if !cmd.Flags().Changed("skip-host-preflights") && os.Getenv("SKIP_HOST_PREFLIGHTS") != "" {
+	if !cmd.Flags().Changed("skip-host-preflights") && (os.Getenv("SKIP_HOST_PREFLIGHTS") == "1" || os.Getenv("SKIP_HOST_PREFLIGHTS") == "true") {
 		flags.skipHostPreflights = true
 	}
 
