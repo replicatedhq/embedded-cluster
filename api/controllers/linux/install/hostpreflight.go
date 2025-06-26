@@ -43,12 +43,12 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		IsUI:                  opts.IsUI,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to prepare host preflights: %w", err)
+		return fmt.Errorf("prepare host preflights: %w", err)
 	}
 
 	err = c.stateMachine.Transition(lock, StatePreflightsRunning)
 	if err != nil {
-		return fmt.Errorf("failed to transition states: %w", err)
+		return fmt.Errorf("transition states: %w", err)
 	}
 
 	go func() (finalErr error) {
@@ -78,7 +78,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 			HostPreflightSpec: hpf,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to run host preflights: %w", err)
+			return fmt.Errorf("run host preflights: %w", err)
 		}
 
 		return nil
