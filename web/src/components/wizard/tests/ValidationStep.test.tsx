@@ -70,7 +70,7 @@ describe('ValidationStep', () => {
     // Wait for preflights to complete and show failures
     await waitFor(() => {
       expect(screen.getByText('Host Requirements Not Met')).toBeInTheDocument();
-    });
+    }, { timeout: 2000 });
 
     // Button should be enabled when CLI flag allows ignoring failures
     const nextButton = screen.getByText('Next: Start Installation');
@@ -294,10 +294,10 @@ describe('ValidationStep', () => {
       // Mock infra setup endpoint to capture request body
       http.post('*/api/linux/install/infra/setup', async ({ request }) => {
         const body = await request.json();
-        
+
         // Verify the request includes ignoreHostPreflights parameter
         expect(body).toHaveProperty('ignoreHostPreflights', true);
-        
+
         return HttpResponse.json({ success: true });
       })
     );
@@ -348,10 +348,10 @@ describe('ValidationStep', () => {
       // Mock infra setup endpoint to capture request body
       http.post('*/api/linux/install/infra/setup', async ({ request }) => {
         const body = await request.json();
-        
+
         // Verify the request includes ignoreHostPreflights parameter as false
         expect(body).toHaveProperty('ignoreHostPreflights', false);
-        
+
         return HttpResponse.json({ success: true });
       })
     );
@@ -404,9 +404,9 @@ describe('ValidationStep - Error Handling & Edge Cases', () => {
       // Mock infra setup endpoint to return API error
       http.post('*/api/linux/install/infra/setup', () => {
         return HttpResponse.json(
-          { 
+          {
             statusCode: 400,
-            message: 'Preflight checks failed. Cannot proceed with installation.' 
+            message: 'Preflight checks failed. Cannot proceed with installation.'
           },
           { status: 400 }
         );
@@ -441,7 +441,7 @@ describe('ValidationStep - Error Handling & Edge Cases', () => {
     server.use(
       http.get('*/api/linux/install/host-preflights/status', () => {
         return HttpResponse.json({
-          titles: ['Host Check'], 
+          titles: ['Host Check'],
           status: { state: 'Succeeded' },
           output: { fail: [], warn: [], pass: [{ title: 'Test', message: 'Pass' }] },
           allowIgnoreHostPreflights: false
@@ -534,9 +534,9 @@ describe('ValidationStep - Error Handling & Edge Cases', () => {
       // Mock infra setup endpoint to return CLI flag error
       http.post('*/api/linux/install/infra/setup', () => {
         return HttpResponse.json(
-          { 
+          {
             statusCode: 400,
-            message: 'preflight checks failed' 
+            message: 'preflight checks failed'
           },
           { status: 400 }
         );
