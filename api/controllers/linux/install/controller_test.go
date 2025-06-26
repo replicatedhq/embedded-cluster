@@ -147,8 +147,7 @@ func TestConfigureInstallation(t *testing.T) {
 		config        types.InstallationConfig
 		currentState  statemachine.State
 		expectedState statemachine.State
-		setupMock     func(*installation.MockInstallationManager, runtimeconfig.RuntimeConfig, types.InstallationConfig)
-		validateStore func(*testing.T, store.Store)
+		setupMock     func(*installation.MockInstallationManager, runtimeconfig.RuntimeConfig, types.InstallationConfig, *store.MockStore, *metrics.MockReporter)
 		expectedErr   bool
 	}{
 		{
@@ -159,7 +158,8 @@ func TestConfigureInstallation(t *testing.T) {
 			},
 			currentState:  StateNew,
 			expectedState: StateHostConfigured,
-			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("SetConfig", config).Return(nil),
@@ -173,15 +173,16 @@ func TestConfigureInstallation(t *testing.T) {
 			config:        types.InstallationConfig{},
 			currentState:  StateNew,
 			expectedState: StateInstallationConfigurationFailed,
-			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
-				m.On("ValidateConfig", config, 9001).Return(errors.New("validation error"))
-			},
-			validateStore: func(t *testing.T, s store.Store) {
-				// Validate the status is correctly set in the store when validation fails
-				status, err := s.InstallationStore().GetStatus()
-				require.NoError(t, err)
-				assert.Equal(t, types.StateFailed, status.State)
-				assert.Contains(t, status.Description, "validation error")
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
+				mock.InOrder(
+					m.On("ValidateConfig", config, 9001).Return(errors.New("validation error")),
+					// Status is set in the store by the controller when configuring the installation
+					st.InstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "validate: validation error"
+					})).Return(nil),
+					st.InstallationMockStore.On("GetStatus").Return(types.Status{Description: "validate: validation error"}, nil),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validate: validation error")),
+				)
 			},
 			expectedErr: true,
 		},
@@ -190,15 +191,16 @@ func TestConfigureInstallation(t *testing.T) {
 			config:        types.InstallationConfig{},
 			currentState:  StateHostConfigured,
 			expectedState: StateInstallationConfigurationFailed,
-			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
-				m.On("ValidateConfig", config, 9001).Return(errors.New("validation error"))
-			},
-			validateStore: func(t *testing.T, s store.Store) {
-				// Validate the status is correctly set in the store when validation fails
-				status, err := s.InstallationStore().GetStatus()
-				require.NoError(t, err)
-				assert.Equal(t, types.StateFailed, status.State)
-				assert.Contains(t, status.Description, "validation error")
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
+				mock.InOrder(
+					m.On("ValidateConfig", config, 9001).Return(errors.New("validation error")),
+					// Status is set in the store by the controller when configuring the installation
+					st.InstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "validate: validation error"
+					})).Return(nil),
+					st.InstallationMockStore.On("GetStatus").Return(types.Status{Description: "validate: validation error"}, nil),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validate: validation error")),
+				)
 			},
 			expectedErr: true,
 		},
@@ -207,15 +209,16 @@ func TestConfigureInstallation(t *testing.T) {
 			config:        types.InstallationConfig{},
 			currentState:  StateHostConfigurationFailed,
 			expectedState: StateInstallationConfigurationFailed,
-			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
-				m.On("ValidateConfig", config, 9001).Return(errors.New("validation error"))
-			},
-			validateStore: func(t *testing.T, s store.Store) {
-				// Validate the status is correctly set in the store when validation fails
-				status, err := s.InstallationStore().GetStatus()
-				require.NoError(t, err)
-				assert.Equal(t, types.StateFailed, status.State)
-				assert.Contains(t, status.Description, "validation error")
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
+				mock.InOrder(
+					m.On("ValidateConfig", config, 9001).Return(errors.New("validation error")),
+					// Status is set in the store by the controller when configuring the installation
+					st.InstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "validate: validation error"
+					})).Return(nil),
+					st.InstallationMockStore.On("GetStatus").Return(types.Status{Description: "validate: validation error"}, nil),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validate: validation error")),
+				)
 			},
 			expectedErr: true,
 		},
@@ -224,18 +227,17 @@ func TestConfigureInstallation(t *testing.T) {
 			config:        types.InstallationConfig{},
 			currentState:  StateNew,
 			expectedState: StateInstallationConfigurationFailed,
-			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("SetConfig", config).Return(errors.New("set config error")),
+					// Status is set in the store by the controller when configuring the installation
+					st.InstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "write: set config error"
+					})).Return(nil),
+					st.InstallationMockStore.On("GetStatus").Return(types.Status{Description: "validate: validation error"}, nil),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validate: validation error")),
 				)
-			},
-			validateStore: func(t *testing.T, s store.Store) {
-				// Validate the status is correctly set in the store when setting config fails
-				status, err := s.InstallationStore().GetStatus()
-				require.NoError(t, err)
-				assert.Equal(t, types.StateFailed, status.State)
-				assert.Contains(t, status.Description, "set config error")
 			},
 			expectedErr: true,
 		},
@@ -244,18 +246,17 @@ func TestConfigureInstallation(t *testing.T) {
 			config:        types.InstallationConfig{},
 			currentState:  StateHostConfigured,
 			expectedState: StateInstallationConfigurationFailed,
-			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("SetConfig", config).Return(errors.New("set config error")),
+					// Status is set in the store by the controller when configuring the installation
+					st.InstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "write: set config error"
+					})).Return(nil),
+					st.InstallationMockStore.On("GetStatus").Return(types.Status{Description: "write: set config error"}, nil),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("write: set config error")),
 				)
-			},
-			validateStore: func(t *testing.T, s store.Store) {
-				// Validate the status is correctly set in the store when setting config fails
-				status, err := s.InstallationStore().GetStatus()
-				require.NoError(t, err)
-				assert.Equal(t, types.StateFailed, status.State)
-				assert.Contains(t, status.Description, "set config error")
 			},
 			expectedErr: true,
 		},
@@ -264,18 +265,17 @@ func TestConfigureInstallation(t *testing.T) {
 			config:        types.InstallationConfig{},
 			currentState:  StateHostConfigurationFailed,
 			expectedState: StateInstallationConfigurationFailed,
-			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("SetConfig", config).Return(errors.New("set config error")),
+					// Status is set in the store by the controller when configuring the installation
+					st.InstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "write: set config error"
+					})).Return(nil),
+					st.InstallationMockStore.On("GetStatus").Return(types.Status{Description: "write: set config error"}, nil),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("write: set config error")),
 				)
-			},
-			validateStore: func(t *testing.T, s store.Store) {
-				// Validate the status is correctly set in the store when setting config fails
-				status, err := s.InstallationStore().GetStatus()
-				require.NoError(t, err)
-				assert.Equal(t, types.StateFailed, status.State)
-				assert.Contains(t, status.Description, "set config error")
 			},
 			expectedErr: true,
 		},
@@ -287,11 +287,13 @@ func TestConfigureInstallation(t *testing.T) {
 			},
 			currentState:  StateNew,
 			expectedState: StateHostConfigurationFailed,
-			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("SetConfig", config).Return(nil),
 					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
+					st.InstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure host error"}, nil),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure host error")),
 				)
 			},
 			expectedErr: false,
@@ -304,11 +306,13 @@ func TestConfigureInstallation(t *testing.T) {
 			},
 			currentState:  StateHostConfigured,
 			expectedState: StateHostConfigurationFailed,
-			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("SetConfig", config).Return(nil),
 					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
+					st.InstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure host error"}, nil),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure host error")),
 				)
 			},
 			expectedErr: false,
@@ -321,11 +325,13 @@ func TestConfigureInstallation(t *testing.T) {
 			},
 			currentState:  StateHostConfigurationFailed,
 			expectedState: StateHostConfigurationFailed,
-			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("SetConfig", config).Return(nil),
 					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
+					st.InstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure host error"}, nil),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure host error")),
 				)
 			},
 			expectedErr: false,
@@ -338,7 +344,7 @@ func TestConfigureInstallation(t *testing.T) {
 			},
 			currentState:  StateNew,
 			expectedState: StateHostConfigured,
-			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				// Create a copy with expected CIDR values after computation
 				configWithCIDRs := config
 				configWithCIDRs.PodCIDR = "10.0.0.0/17"
@@ -360,7 +366,7 @@ func TestConfigureInstallation(t *testing.T) {
 			},
 			currentState:  StateInfrastructureInstalling,
 			expectedState: StateInfrastructureInstalling,
-			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig) {
+			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.InstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 			},
 			expectedErr: true,
 		},
@@ -375,13 +381,17 @@ func TestConfigureInstallation(t *testing.T) {
 			sm := NewStateMachine(WithCurrentState(tt.currentState))
 
 			mockManager := &installation.MockInstallationManager{}
+			metricsReporter := &metrics.MockReporter{}
+			mockStore := &store.MockStore{}
 
-			tt.setupMock(mockManager, rc, tt.config)
+			tt.setupMock(mockManager, rc, tt.config, mockStore, metricsReporter)
 
 			controller, err := NewInstallController(
 				WithRuntimeConfig(rc),
 				WithStateMachine(sm),
 				WithInstallationManager(mockManager),
+				WithStore(mockStore),
+				WithMetricsReporter(metricsReporter),
 			)
 			require.NoError(t, err)
 
@@ -399,12 +409,11 @@ func TestConfigureInstallation(t *testing.T) {
 			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
 			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after configuration")
 
-			// Run the store validation if provided
-			if tt.validateStore != nil {
-				tt.validateStore(t, controller.store)
-			}
-
 			mockManager.AssertExpectations(t)
+			metricsReporter.AssertExpectations(t)
+			mockStore.InfraMockStore.AssertExpectations(t)
+			mockStore.InstallationMockStore.AssertExpectations(t)
+			mockStore.PreflightMockStore.AssertExpectations(t)
 		})
 	}
 }
@@ -481,14 +490,14 @@ func TestRunHostPreflights(t *testing.T) {
 		name          string
 		currentState  statemachine.State
 		expectedState statemachine.State
-		setupMocks    func(*preflight.MockHostPreflightManager, runtimeconfig.RuntimeConfig)
+		setupMocks    func(*preflight.MockHostPreflightManager, runtimeconfig.RuntimeConfig, *metrics.MockReporter, *store.MockStore)
 		expectedErr   bool
 	}{
 		{
 			name:          "successful run preflights without preflight errors",
 			currentState:  StateHostConfigured,
 			expectedState: StatePreflightsSucceeded,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
@@ -503,7 +512,7 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "successful run preflights from preflights execution failed state without preflight errors",
 			currentState:  StatePreflightsExecutionFailed,
 			expectedState: StatePreflightsSucceeded,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
@@ -518,7 +527,7 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "successful run preflights from preflights failed state without preflight errors",
 			currentState:  StatePreflightsFailed,
 			expectedState: StatePreflightsSucceeded,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
@@ -533,7 +542,7 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "successful run preflights from preflights failure bypassed state without preflight errors",
 			currentState:  StatePreflightsFailedBypassed,
 			expectedState: StatePreflightsSucceeded,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
@@ -548,13 +557,31 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "successful run preflights with preflight errors",
 			currentState:  StatePreflightsFailedBypassed,
 			expectedState: StatePreflightsFailed,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
 					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
+					st.PreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
+					mr.On("ReportPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
+				)
+			},
+			expectedErr: false,
+		},
+		{
+			name:          "successful run preflights with preflight errors and failure to get output for reporting",
+			currentState:  StatePreflightsFailedBypassed,
+			expectedState: StatePreflightsFailed,
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
+				mock.InOrder(
+					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
+					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
+						return expectedHPF == opts.HostPreflightSpec
+					})).Return(nil),
+					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
+					st.PreflightMockStore.On("GetOutput").Return(nil, assert.AnError),
 				)
 			},
 			expectedErr: false,
@@ -563,13 +590,15 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "successful run preflights from preflights execution failed state with preflight errors",
 			currentState:  StatePreflightsExecutionFailed,
 			expectedState: StatePreflightsFailed,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
 					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
+					st.PreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
+					mr.On("ReportPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -578,13 +607,15 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "successful run preflights from preflights failed state with preflight errors",
 			currentState:  StatePreflightsFailed,
 			expectedState: StatePreflightsFailed,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
 					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
+					st.PreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
+					mr.On("ReportPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -593,13 +624,15 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "successful run preflights from preflights failure bypassed state with preflight errors",
 			currentState:  StatePreflightsFailedBypassed,
 			expectedState: StatePreflightsFailed,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
 					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
+					st.PreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
+					mr.On("ReportPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -608,7 +641,7 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "successful run preflights with get preflight output error",
 			currentState:  StateHostConfigured,
 			expectedState: StatePreflightsExecutionFailed,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
@@ -623,7 +656,7 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "successful run preflights with nil preflight output",
 			currentState:  StateHostConfigured,
 			expectedState: StatePreflightsSucceeded,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
@@ -638,7 +671,7 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "successful run preflights with preflight warnings",
 			currentState:  StateHostConfigured,
 			expectedState: StatePreflightsSucceeded,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
@@ -653,7 +686,7 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "prepare preflights error",
 			currentState:  StateHostConfigured,
 			expectedState: StateHostConfigured,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(nil, errors.New("prepare error")),
 				)
@@ -664,7 +697,7 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "run preflights error",
 			currentState:  StateHostConfigured,
 			expectedState: StatePreflightsExecutionFailed,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
@@ -678,7 +711,7 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "run preflights panic",
 			currentState:  StateHostConfigured,
 			expectedState: StatePreflightsExecutionFailed,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
@@ -692,7 +725,7 @@ func TestRunHostPreflights(t *testing.T) {
 			name:          "invalid state transition",
 			currentState:  StateInfrastructureInstalling,
 			expectedState: StateInfrastructureInstalling,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 			},
 			expectedErr: true,
 		},
@@ -712,13 +745,17 @@ func TestRunHostPreflights(t *testing.T) {
 			sm := NewStateMachine(WithCurrentState(tt.currentState))
 
 			mockPreflightManager := &preflight.MockHostPreflightManager{}
-			tt.setupMocks(mockPreflightManager, rc)
+			mockReporter := &metrics.MockReporter{}
+			mockStore := &store.MockStore{}
+			tt.setupMocks(mockPreflightManager, rc, mockReporter, mockStore)
 
 			controller, err := NewInstallController(
 				WithRuntimeConfig(rc),
 				WithStateMachine(sm),
 				WithHostPreflightManager(mockPreflightManager),
 				WithReleaseData(getTestReleaseData()),
+				WithMetricsReporter(mockReporter),
+				WithStore(mockStore),
 			)
 			require.NoError(t, err)
 
@@ -738,6 +775,10 @@ func TestRunHostPreflights(t *testing.T) {
 			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after running preflights")
 
 			mockPreflightManager.AssertExpectations(t)
+			mockReporter.AssertExpectations(t)
+			mockStore.InfraMockStore.AssertExpectations(t)
+			mockStore.InstallationMockStore.AssertExpectations(t)
+			mockStore.PreflightMockStore.AssertExpectations(t)
 		})
 	}
 }
@@ -1007,6 +1048,20 @@ func TestSetupInfra(t *testing.T) {
 					fm.On("Install", mock.Anything, rc).Return(errors.New("install error")),
 					st.InfraMockStore.On("GetStatus").Return(types.Status{Description: "install error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("install error")),
+				)
+			},
+			expectedErr: nil,
+		},
+		{
+			name:                            "install infra error without report if infra store fails",
+			clientIgnoreHostPreflights:      false,
+			serverAllowIgnoreHostPreflights: true,
+			currentState:                    StatePreflightsSucceeded,
+			expectedState:                   StateInfrastructureInstallFailed,
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
+				mock.InOrder(
+					fm.On("Install", mock.Anything, rc).Return(errors.New("install error")),
+					st.InfraMockStore.On("GetStatus").Return(nil, assert.AnError),
 				)
 			},
 			expectedErr: nil,

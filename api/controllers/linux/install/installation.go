@@ -77,10 +77,6 @@ func (c *InstallController) configureInstallation(ctx context.Context, config ty
 
 	defer func() {
 		if finalErr != nil {
-			if err := c.stateMachine.Transition(lock, StateInstallationConfigurationFailed); err != nil {
-				c.logger.Errorf("failed to transition states: %w", err)
-			}
-
 			failureStatus := types.Status{
 				State:       types.StateFailed,
 				Description: finalErr.Error(),
@@ -89,6 +85,10 @@ func (c *InstallController) configureInstallation(ctx context.Context, config ty
 
 			if err = c.store.InstallationStore().SetStatus(failureStatus); err != nil {
 				c.logger.Errorf("failed to update status: %w", err)
+			}
+
+			if err := c.stateMachine.Transition(lock, StateInstallationConfigurationFailed); err != nil {
+				c.logger.Errorf("failed to transition states: %w", err)
 			}
 		}
 	}()
