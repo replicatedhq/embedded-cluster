@@ -207,7 +207,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.hostPreflightManager == nil {
 		controller.hostPreflightManager = preflight.NewHostPreflightManager(
 			preflight.WithLogger(controller.logger),
-			preflight.WithMetricsReporter(controller.metricsReporter),
 			preflight.WithHostPreflightStore(controller.store.PreflightStore()),
 			preflight.WithNetUtils(controller.netUtils),
 		)

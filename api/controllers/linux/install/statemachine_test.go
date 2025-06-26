@@ -56,11 +56,21 @@ func TestStateMachineTransitions(t *testing.T) {
 			},
 		},
 		{
-			name:       `State "PreflightsRunning" can transition to "PreflightsSucceeded" or "PreflightsFailed"`,
+			name:       `State "PreflightsRunning" can transition to "PreflightsSucceeded", "PreflightsFailed", or "PreflightsExecutionFailed"`,
 			startState: StatePreflightsRunning,
 			validTransitions: []statemachine.State{
 				StatePreflightsSucceeded,
 				StatePreflightsFailed,
+				StatePreflightsExecutionFailed,
+			},
+		},
+		{
+			name:       `State "PreflightsExecutionFailed" can transition to "PreflightsRunning", "InstallationConfigured", or "InstallationConfigurationFailed"`,
+			startState: StatePreflightsExecutionFailed,
+			validTransitions: []statemachine.State{
+				StatePreflightsRunning,
+				StateInstallationConfigured,
+				StateInstallationConfigurationFailed,
 			},
 		},
 		{

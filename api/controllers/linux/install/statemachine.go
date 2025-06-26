@@ -18,11 +18,13 @@ const (
 	StateHostConfigured statemachine.State = "HostConfigured"
 	// StatePreflightsRunning is the state of the install process when the preflights are running
 	StatePreflightsRunning statemachine.State = "PreflightsRunning"
+	// StatePreflightsExecutionFailed is the state of the install process when the preflights failed to execute due to an underlying system error
+	StatePreflightsExecutionFailed statemachine.State = "PreflightsExecutionFailed"
 	// StatePreflightsSucceeded is the state of the install process when the preflights have succeeded
 	StatePreflightsSucceeded statemachine.State = "PreflightsSucceeded"
-	// StatePreflightsFailed is the state of the install process when the preflights have failed
+	// StatePreflightsFailed is the state of the install process when the preflights execution succeeded but the preflights detected issues on the host
 	StatePreflightsFailed statemachine.State = "PreflightsFailed"
-	// StatePreflightsFailedBypassed is the state of the install process when the preflights have failed bypassed
+	// StatePreflightsFailedBypassed is the state of the install process when, despite preflights failing, the user has chosen to bypass the preflights and continue with the installation
 	StatePreflightsFailedBypassed statemachine.State = "PreflightsFailedBypassed"
 	// StateInfrastructureInstalling is the state of the install process when the infrastructure is being installed
 	StateInfrastructureInstalling statemachine.State = "InfrastructureInstalling"
@@ -38,7 +40,8 @@ var validStateTransitions = map[statemachine.State][]statemachine.State{
 	StateInstallationConfigured:          {StateHostConfigured, StateHostConfigurationFailed},
 	StateHostConfigurationFailed:         {StateInstallationConfigured, StateInstallationConfigurationFailed},
 	StateHostConfigured:                  {StatePreflightsRunning, StateInstallationConfigured, StateInstallationConfigurationFailed},
-	StatePreflightsRunning:               {StatePreflightsSucceeded, StatePreflightsFailed},
+	StatePreflightsRunning:               {StatePreflightsSucceeded, StatePreflightsFailed, StatePreflightsExecutionFailed},
+	StatePreflightsExecutionFailed:       {StatePreflightsRunning, StateInstallationConfigured, StateInstallationConfigurationFailed},
 	StatePreflightsSucceeded:             {StateInfrastructureInstalling, StatePreflightsRunning, StateInstallationConfigured, StateInstallationConfigurationFailed},
 	StatePreflightsFailed:                {StatePreflightsFailedBypassed, StatePreflightsRunning, StateInstallationConfigured, StateInstallationConfigurationFailed},
 	StatePreflightsFailedBypassed:        {StateInfrastructureInstalling, StatePreflightsRunning, StateInstallationConfigured, StateInstallationConfigurationFailed},
