@@ -19,6 +19,8 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	ecmetadata "github.com/replicatedhq/embedded-cluster/pkg-new/metadata"
@@ -740,6 +742,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 
 	opts := &addons.InstallOptions{
 		AdminConsolePwd:         flags.adminConsolePassword,
+		AdminConsolePort:        rc.AdminConsolePort(),
 		License:                 flags.license,
 		IsAirgap:                flags.airgapBundle != "",
 		TLSCertBytes:            flags.tlsCertBytes,
@@ -749,12 +752,18 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 		IsMultiNodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec:      embCfgSpec,
 		EndUserConfigSpec:       euCfgSpec,
+		ProxySpec:               rc.ProxySpec(),
+		HostCABundlePath:        rc.HostCABundlePath(),
+		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		ServiceCIDR:             rc.ServiceCIDR(),
 		KotsInstaller: func() error {
 			opts := kotscli.InstallOptions{
 				RuntimeConfig:         rc,
 				AppSlug:               flags.license.Spec.AppSlug,
 				License:               flags.licenseBytes,
-				Namespace:             runtimeconfig.KotsadmNamespace,
+				Namespace:             constants.KotsadmNamespace,
 				AirgapBundle:          flags.airgapBundle,
 				ConfigValuesFile:      flags.configValues,
 				ReplicatedAppEndpoint: replicatedAppURL(),
@@ -1046,7 +1055,7 @@ func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		addons.WithKubernetesClient(kcli),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(getDomains()),
 		addons.WithProgressChannel(progressChan),
 	)
 
@@ -1060,6 +1069,15 @@ func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interf
 	}
 
 	return nil
+}
+
+func getDomains() ecv1beta1.Domains {
+	var embCfgSpec *ecv1beta1.ConfigSpec
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
+		embCfgSpec = &embCfg.Spec
+	}
+
+	return domains.GetDomains(embCfgSpec, release.GetChannelRelease())
 }
 
 func installExtensions(ctx context.Context, hcli helm.Client) error {
@@ -1213,20 +1231,12 @@ func validateAdminConsolePassword(password, passwordCheck string) bool {
 }
 
 func replicatedAppURL() string {
-	var embCfgSpec *ecv1beta1.ConfigSpec
-	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
-		embCfgSpec = &embCfg.Spec
-	}
-	domains := runtimeconfig.GetDomains(embCfgSpec)
+	domains := getDomains()
 	return netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain)
 }
 
 func proxyRegistryURL() string {
-	var embCfgSpec *ecv1beta1.ConfigSpec
-	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
-		embCfgSpec = &embCfg.Spec
-	}
-	domains := runtimeconfig.GetDomains(embCfgSpec)
+	domains := getDomains()
 	return netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain)
 }
 

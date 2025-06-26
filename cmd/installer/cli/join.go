@@ -14,12 +14,14 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
@@ -111,7 +113,8 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 }
 
 func preRunJoin(flags *JoinCmdFlags) error {
-	if os.Getuid() != 0 {
+	// Skip root check if dryrun mode is enabled
+	if !dryrun.Enabled() && os.Getuid() != 0 {
 		return fmt.Errorf("join command must be run as root")
 	}
 
@@ -451,7 +454,7 @@ func installK0sBinary(rc runtimeconfig.RuntimeConfig) error {
 }
 
 func applyNetworkConfiguration(rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
-	domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
+	domains := domains.GetDomains(jcmd.InstallationSpec.Config, release.GetChannelRelease())
 	clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 
 	address, err := netutils.FirstValidAddress(rc.NetworkInterface())
@@ -617,7 +620,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		addons.WithKubernetesClientSet(kclient),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(getDomains()),
 	)
 
 	canEnableHA, _, err := addOns.CanEnableHA(ctx)
@@ -653,5 +656,19 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addOns.EnableHA(ctx, jcmd.InstallationSpec, loading)
+	opts := addons.EnableHAOptions{
+		AdminConsolePort:   rc.AdminConsolePort(),
+		IsAirgap:           jcmd.InstallationSpec.AirGap,
+		IsMultiNodeEnabled: jcmd.InstallationSpec.LicenseInfo != nil && jcmd.InstallationSpec.LicenseInfo.IsMultiNodeEnabled,
+		EmbeddedConfigSpec: jcmd.InstallationSpec.Config,
+		EndUserConfigSpec:  nil, // TODO: add support for end user config spec
+		ProxySpec:          rc.ProxySpec(),
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
+		ServiceCIDR:        rc.ServiceCIDR(),
+	}
+
+	return addOns.EnableHA(ctx, opts, loading)
 }

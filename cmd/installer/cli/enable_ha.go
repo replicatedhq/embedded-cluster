@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -24,7 +27,8 @@ func EnableHACmd(ctx context.Context, name string) *cobra.Command {
 		Use:   "enable-ha",
 		Short: fmt.Sprintf("Enable high availability for the %s cluster", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if os.Getuid() != 0 {
+			// Skip root check if dryrun mode is enabled
+			if !dryrun.Enabled() && os.Getuid() != 0 {
 				return fmt.Errorf("enable-ha command must be run as root")
 			}
 
@@ -91,7 +95,7 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 		addons.WithKubernetesClientSet(kclient),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(domains.GetDomains(in.Spec.Config, release.GetChannelRelease())),
 	)
 
 	canEnableHA, reason, err := addOns.CanEnableHA(ctx)
@@ -106,5 +110,19 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addOns.EnableHA(ctx, in.Spec, loading)
+	opts := addons.EnableHAOptions{
+		AdminConsolePort:   rc.AdminConsolePort(),
+		IsAirgap:           in.Spec.AirGap,
+		IsMultiNodeEnabled: in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
+		EmbeddedConfigSpec: in.Spec.Config,
+		EndUserConfigSpec:  nil, // TODO: add support for end user config spec
+		ProxySpec:          rc.ProxySpec(),
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
+		ServiceCIDR:        rc.ServiceCIDR(),
+	}
+
+	return addOns.EnableHA(ctx, opts, loading)
 }

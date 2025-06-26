@@ -5,7 +5,6 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -23,15 +22,15 @@ func TestVelero_HostCABundle(t *testing.T) {
 	mcli := util.MetadataClient(t, kubeconfig)
 	hcli := util.HelmClient(t, kubeconfig)
 
-	rc := runtimeconfig.New(nil)
-	rc.SetHostCABundlePath("/etc/ssl/certs/ca-certificates.crt")
-
 	domains := ecv1beta1.Domains{
 		ProxyRegistryDomain: "proxy.replicated.com",
 	}
 
-	addon := &velero.Velero{}
-	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, rc, domains, nil); err != nil {
+	addon := &velero.Velero{
+		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
+	}
+
+	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, domains, nil); err != nil {
 		t.Fatalf("failed to install velero: %v", err)
 	}
 

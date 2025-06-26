@@ -10,7 +10,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -34,7 +33,7 @@ func init() {
 	helmValues = hv
 }
 
-func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error) {
+func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error) {
 	// create a copy of the helm values so we don't modify the original
 	marshalled, err := helm.MarshalValues(helmValues)
 	if err != nil {
@@ -72,11 +71,11 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, rc 
 		}...)
 	}
 
-	if rc.HostCABundlePath() != "" {
+	if v.HostCABundlePath != "" {
 		extraVolumes = append(extraVolumes, map[string]any{
 			"name": "host-ca-bundle",
 			"hostPath": map[string]any{
-				"path": rc.HostCABundlePath(),
+				"path": v.HostCABundlePath,
 				"type": "FileOrCreate",
 			},
 		})
@@ -103,12 +102,12 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, rc 
 		"extraVolumeMounts": extraVolumeMounts,
 	}
 
-	podVolumePath := filepath.Join(rc.EmbeddedClusterK0sSubDir(), "kubelet/pods")
+	podVolumePath := filepath.Join(v.K0sDataDir, "kubelet/pods")
 	err = helm.SetValue(copiedValues, "nodeAgent.podVolumePath", podVolumePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm value nodeAgent.podVolumePath")
 	}
-	pluginVolumePath := filepath.Join(rc.EmbeddedClusterK0sSubDir(), "kubelet/plugins")
+	pluginVolumePath := filepath.Join(v.K0sDataDir, "kubelet/plugins")
 	err = helm.SetValue(copiedValues, "nodeAgent.pluginVolumePath", pluginVolumePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm value nodeAgent.pluginVolumePath")
