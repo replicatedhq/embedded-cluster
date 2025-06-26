@@ -5,8 +5,7 @@ const ConnectionModal: React.FC<{
   onRetry: () => void; 
   isRetrying: boolean;
   nextRetryTime?: number;
-  retryInterval: number;
-}> = ({ onRetry, isRetrying, nextRetryTime, retryInterval }) => {
+}> = ({ onRetry, isRetrying, nextRetryTime }) => {
   const [secondsUntilRetry, setSecondsUntilRetry] = useState(0);
 
   useEffect(() => {
@@ -179,6 +178,7 @@ const ConnectionMonitor: React.FC = () => {
         clearInterval(currentInterval);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array to prevent infinite loops
 
   // Separate effect to handle interval reference updates
@@ -197,7 +197,6 @@ const ConnectionMonitor: React.FC = () => {
           onRetry={checkConnection}
           isRetrying={isChecking}
           nextRetryTime={nextRetryTime}
-          retryInterval={RETRY_INTERVAL}
         />
       )}
     </>
