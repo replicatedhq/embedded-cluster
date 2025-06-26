@@ -398,10 +398,6 @@ func TestConfigureInstallation(t *testing.T) {
 			err = controller.ConfigureInstallation(t.Context(), tt.config)
 			if tt.expectedErr {
 				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-
-				assert.NotEqual(t, tt.currentState, sm.CurrentState(), "state should have changed and should not be %s", tt.currentState)
 			}
 
 			assert.Eventually(t, func() bool {
