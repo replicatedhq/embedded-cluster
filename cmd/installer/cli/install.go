@@ -371,10 +371,6 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 		return fmt.Errorf(`invalid target (must be one of: "linux", "kubernetes")`)
 	}
 
-	if !cmd.Flags().Changed("skip-host-preflights") && os.Getenv("SKIP_HOST_PREFLIGHTS") != "" {
-		flags.skipHostPreflights = true
-	}
-
 	if err := preRunInstallCommon(cmd, flags, rc); err != nil {
 		return err
 	}
@@ -440,6 +436,10 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
 	if os.Getuid() != 0 {
 		return fmt.Errorf("install command must be run as root")
+	}
+
+	if !cmd.Flags().Changed("skip-host-preflights") && os.Getenv("SKIP_HOST_PREFLIGHTS") != "" {
+		flags.skipHostPreflights = true
 	}
 
 	// set the umask to 022 so that we can create files/directories with 755 permissions
