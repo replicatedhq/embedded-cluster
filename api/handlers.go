@@ -16,7 +16,7 @@ type handlers struct {
 	linux   *linuxhandler.Handler
 }
 
-func (a *api) initHandlers() error {
+func (a *API) initHandlers() error {
 	// Auth handler
 	authHandler, err := authhandler.New(
 		a.cfg.Password,

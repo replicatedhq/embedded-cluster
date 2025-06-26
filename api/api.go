@@ -31,7 +31,7 @@ import (
 
 // @externalDocs.description	OpenAPI
 // @externalDocs.url			https://swagger.io/resources/open-api/
-type api struct {
+type API struct {
 	cfg types.APIConfig
 
 	logger          logrus.FieldLogger
@@ -44,40 +44,40 @@ type api struct {
 	handlers handlers
 }
 
-type apiOption func(*api)
+type Option func(*API)
 
-func WithAuthController(authController auth.Controller) apiOption {
-	return func(a *api) {
+func WithAuthController(authController auth.Controller) Option {
+	return func(a *API) {
 		a.authController = authController
 	}
 }
 
-func WithConsoleController(consoleController console.Controller) apiOption {
-	return func(a *api) {
+func WithConsoleController(consoleController console.Controller) Option {
+	return func(a *API) {
 		a.consoleController = consoleController
 	}
 }
 
-func WithLinuxInstallController(linuxInstallController linuxinstall.Controller) apiOption {
-	return func(a *api) {
+func WithLinuxInstallController(linuxInstallController linuxinstall.Controller) Option {
+	return func(a *API) {
 		a.linuxInstallController = linuxInstallController
 	}
 }
 
-func WithLogger(logger logrus.FieldLogger) apiOption {
-	return func(a *api) {
+func WithLogger(logger logrus.FieldLogger) Option {
+	return func(a *API) {
 		a.logger = logger
 	}
 }
 
-func WithMetricsReporter(metricsReporter metrics.ReporterInterface) apiOption {
-	return func(a *api) {
+func WithMetricsReporter(metricsReporter metrics.ReporterInterface) Option {
+	return func(a *API) {
 		a.metricsReporter = metricsReporter
 	}
 }
 
-func New(cfg types.APIConfig, opts ...apiOption) (*api, error) {
-	api := &api{
+func New(cfg types.APIConfig, opts ...Option) (*API, error) {
+	api := &API{
 		cfg: cfg,
 	}
 
