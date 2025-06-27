@@ -17,7 +17,6 @@ type Client interface {
 	SetupLinuxInfra() (types.LinuxInfra, error)
 	GetLinuxInfraStatus() (types.LinuxInfra, error)
 
-	// TODO NOW: add kubernetes client methods
 	GetKubernetesInstallationConfig() (types.KubernetesInstallationConfig, error)
 	ConfigureKubernetesInstallation(config types.KubernetesInstallationConfig) (types.Status, error)
 	GetKubernetesInstallationStatus() (types.Status, error)
