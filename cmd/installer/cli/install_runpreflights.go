@@ -8,6 +8,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -23,14 +24,16 @@ var ErrPreflightsHaveFail = metrics.NewErrorNoFail(fmt.Errorf("host preflight fa
 
 func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var flags InstallCmdFlags
+
 	rc := runtimeconfig.New(nil)
+	ki := kubernetesinstallation.New(nil)
 
 	cmd := &cobra.Command{
 		Use:    "run-preflights",
 		Short:  "Run install host preflights",
 		Hidden: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &flags, rc); err != nil {
+			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
 				return err
 			}
 

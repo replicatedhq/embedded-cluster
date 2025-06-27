@@ -34,6 +34,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -102,7 +103,9 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	var flags InstallCmdFlags
 
 	ctx, cancel := context.WithCancel(ctx)
+
 	rc := runtimeconfig.New(nil)
+	ki := kubernetesinstallation.New(nil)
 
 	short := fmt.Sprintf("Install %s", name)
 	if os.Getenv("ENABLE_V3") == "1" {
@@ -121,7 +124,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			if err := verifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
 				return err
 			}
-			if err := preRunInstall(cmd, &flags, rc); err != nil {
+			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
 				return err
 			}
 
@@ -133,7 +136,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			installReporter.ReportInstallationStarted(ctx)
 
 			if flags.enableManagerExperience {
-				return runManagerExperienceInstall(ctx, flags, rc, installReporter)
+				return runManagerExperienceInstall(ctx, flags, rc, ki, installReporter)
 			}
 
 			_ = rc.SetEnv()
@@ -366,12 +369,12 @@ func addManagerExperienceFlags(cmd *cobra.Command, flags *InstallCmdFlags) error
 	return nil
 }
 
-func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
+func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation) error {
 	if !slices.Contains([]string{"linux", "kubernetes"}, flags.target) {
 		return fmt.Errorf(`invalid target (must be one of: "linux", "kubernetes")`)
 	}
 
-	if err := preRunInstallCommon(cmd, flags, rc); err != nil {
+	if err := preRunInstallCommon(cmd, flags, rc, ki); err != nil {
 		return err
 	}
 
@@ -379,13 +382,13 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 	case "linux":
 		return preRunInstallLinux(cmd, flags, rc)
 	case "kubernetes":
-		return preRunInstallKubernetes(cmd, flags)
+		return preRunInstallKubernetes(cmd, flags, ki)
 	}
 
 	return nil
 }
 
-func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
+func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation) error {
 	// license file can be empty for restore
 	if flags.licenseFile != "" {
 		b, err := os.ReadFile(flags.licenseFile)
@@ -415,6 +418,12 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 
 	flags.isAirgap = flags.airgapBundle != ""
 
+	if flags.managerPort != 0 && flags.adminConsolePort != 0 {
+		if flags.managerPort == flags.adminConsolePort {
+			return fmt.Errorf("manager port cannot be the same as admin console port")
+		}
+	}
+
 	proxy, err := proxyConfigFromCmd(cmd, flags.assumeYes)
 	if err != nil {
 		return err
@@ -427,8 +436,14 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 		}
 	}
 
-	// TODO: runtimeconfig is only relevant for linux installs
+	rc.SetAdminConsolePort(flags.adminConsolePort)
+	ki.SetAdminConsolePort(flags.adminConsolePort)
+
+	rc.SetManagerPort(flags.managerPort)
+	ki.SetManagerPort(flags.managerPort)
+
 	rc.SetProxySpec(proxy)
+	ki.SetProxySpec(proxy)
 
 	return nil
 }
@@ -485,14 +500,13 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 	// TODO: validate that a single port isn't used for multiple services
 	rc.SetDataDir(flags.dataDir)
 	rc.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
-	rc.SetAdminConsolePort(flags.adminConsolePort)
 	rc.SetHostCABundlePath(hostCABundlePath)
 	rc.SetNetworkSpec(networkSpec)
 
 	return nil
 }
 
-func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags) error {
+func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kubernetesinstallation.Installation) error {
 	// If set, validate that the kubeconfig file exists and can be read
 	if flags.kubernetesEnvSettings.KubeConfig != "" {
 		if _, err := os.Stat(flags.kubernetesEnvSettings.KubeConfig); os.IsNotExist(err) {
@@ -545,7 +559,7 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 	return cidrCfg, nil
 }
 
-func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) (finalErr error) {
+func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation, installReporter *InstallReporter) (finalErr error) {
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
 	ipAddresses, err := netutils.ListAllValidIPAddresses()
@@ -602,30 +616,44 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 	}
 
 	apiConfig := apiOptions{
-		InstallTarget:   flags.target,
-		RuntimeConfig:   rc,
-		MetricsReporter: installReporter.reporter,
-		Password:        flags.adminConsolePassword,
-		TLSConfig: apitypes.TLSConfig{
-			CertBytes: flags.tlsCertBytes,
-			KeyBytes:  flags.tlsKeyBytes,
-			Hostname:  flags.hostname,
+		APIConfig: apitypes.APIConfig{
+			Password: flags.adminConsolePassword,
+			TLSConfig: apitypes.TLSConfig{
+				CertBytes: flags.tlsCertBytes,
+				KeyBytes:  flags.tlsKeyBytes,
+				Hostname:  flags.hostname,
+			},
+			License:       flags.licenseBytes,
+			AirgapBundle:  flags.airgapBundle,
+			ConfigValues:  flags.configValues,
+			ReleaseData:   release.GetReleaseData(),
+			EndUserConfig: eucfg,
+
+			LinuxConfig: apitypes.LinuxConfig{
+				RuntimeConfig:             rc,
+				AllowIgnoreHostPreflights: flags.ignoreHostPreflights,
+			},
+			KubernetesConfig: apitypes.KubernetesConfig{
+				RESTConfig:   flags.installConfig.kubernetesRestConfig,
+				Installation: ki,
+			},
 		},
-		ManagerPort:               flags.managerPort,
-		License:                   flags.licenseBytes,
-		AirgapBundle:              flags.airgapBundle,
-		ConfigValues:              flags.configValues,
-		ReleaseData:               release.GetReleaseData(),
-		EndUserConfig:             eucfg,
-		AllowIgnoreHostPreflights: flags.ignoreHostPreflights,
+
+		ManagerPort:     flags.managerPort,
+		InstallTarget:   flags.target,
+		MetricsReporter: installReporter.reporter,
 	}
 
-	if err := startAPI(ctx, flags.tlsCert, apiConfig); err != nil {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	if err := startAPI(ctx, flags.tlsCert, apiConfig, cancel); err != nil {
 		return fmt.Errorf("unable to start api: %w", err)
 	}
 
-	// TODO: add app name to this message (e.g., App Name manager)
-	logrus.Infof("\nVisit the manager to continue: %s\n", getManagerURL(flags.hostname, flags.managerPort))
+	logrus.Infof("\nVisit the %s manager to continue: %s\n",
+		runtimeconfig.BinaryName(),
+		getManagerURL(flags.hostname, flags.managerPort))
 	<-ctx.Done()
 
 	return nil
