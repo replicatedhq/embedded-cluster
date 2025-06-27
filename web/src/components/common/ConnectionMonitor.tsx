@@ -1,15 +1,34 @@
 import React, { useEffect, useState, useCallback } from 'react';
 
+const RETRY_INTERVAL = 10000; // 10 seconds
+
+// Reusable spinner component
+const Spinner: React.FC = () => (
+  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+);
+
 // Connection modal component
-const ConnectionModal: React.FC<{ onRetry: () => void; isRetrying: boolean }> = ({ onRetry, isRetrying }) => {
-  const [retryCount, setRetryCount] = useState(0);
+const ConnectionModal: React.FC<{ 
+  nextRetryTime?: number;
+}> = ({ nextRetryTime }) => {
+  const [secondsUntilRetry, setSecondsUntilRetry] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setRetryCount(count => count + 1);
-    }, 1000);
+    if (!nextRetryTime) return;
+    
+    const updateCountdown = () => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((nextRetryTime - now) / 1000));
+      setSecondsUntilRetry(remaining);
+    };
+    
+    // Update immediately
+    updateCountdown();
+    
+    // Update every second
+    const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [nextRetryTime]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
@@ -31,71 +50,56 @@ const ConnectionModal: React.FC<{ onRetry: () => void; isRetrying: boolean }> = 
           installer is running and accessible.
         </p>
         
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-center">
           <div className="flex items-center text-sm font-semibold text-gray-600">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-            Trying again in {Math.max(1, 10 - (retryCount % 10))} second{Math.max(1, 10 - (retryCount % 10)) !== 1 ? 's' : ''}
+            {secondsUntilRetry > 0 ? (
+              <>
+                <Spinner />
+                Retrying in {secondsUntilRetry} second{secondsUntilRetry !== 1 ? 's' : ''}
+              </>
+            ) : (
+              <>
+                <Spinner />
+                Retrying now...
+              </>
+            )}
           </div>
-          <button 
-            onClick={onRetry}
-            disabled={isRetrying}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isRetrying ? 'Retrying...' : 'Try Now'}
-          </button>
         </div>
       </div>
     </div>
   );
 };
 
-const ConnectionMonitor: React.FC = () => {
+// Custom hook for connection monitoring logic
+const useConnectionMonitor = () => {
   const [isConnected, setIsConnected] = useState(true);
-  const [isChecking, setIsChecking] = useState(false);
+  const [nextRetryTime, setNextRetryTime] = useState<number | undefined>();
+  const [checkInterval, setCheckInterval] = useState<NodeJS.Timeout | null>(null);
 
   const checkConnection = useCallback(async () => {
-    setIsChecking(true);
-    
     try {
-      // Try up to 3 times before marking as disconnected
-      let attempts = 0;
-      const maxAttempts = 3;
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 5000)
+      );
       
-      while (attempts < maxAttempts) {
-        try {
-          // Create a timeout promise
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout')), 5000)
-          );
-          
-          const fetchPromise = fetch('/api/health', {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-          });
-          
-          const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
-          
-          if (response.ok) {
-            setIsConnected(true);
-            return;
-          } else {
-            throw new Error(`HTTP ${response.status}`);
-          }
-        } catch {
-          attempts++;
-          if (attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
+      const fetchPromise = fetch('/api/health', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+      
+      if (response.ok) {
+        setIsConnected(true);
+        setNextRetryTime(undefined);
+      } else {
+        throw new Error(`HTTP ${response.status}`);
       }
-      
-      // All attempts failed - show modal immediately
-      setIsConnected(false);
-      
     } catch {
+      // Connection failed - set up countdown for next retry
       setIsConnected(false);
-    } finally {
-      setIsChecking(false);
+      const retryTime = Date.now() + RETRY_INTERVAL;
+      setNextRetryTime(retryTime);
     }
   }, []);
 
@@ -103,18 +107,42 @@ const ConnectionMonitor: React.FC = () => {
     // Initial check
     checkConnection();
     
-    // Set up periodic health checks every 5 seconds
-    const interval = setInterval(checkConnection, 5000);
+    // Set up regular interval checks
+    const interval = setInterval(checkConnection, RETRY_INTERVAL);
+    setCheckInterval(interval);
     
-    return () => clearInterval(interval);
-  }, [checkConnection]);
+    // Cleanup on unmount
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array to prevent infinite loops
+
+  // Cleanup interval when it changes
+  useEffect(() => {
+    return () => {
+      if (checkInterval) {
+        clearInterval(checkInterval);
+      }
+    };
+  }, [checkInterval]);
+
+  return {
+    isConnected,
+    nextRetryTime,
+  };
+};
+
+const ConnectionMonitor: React.FC = () => {
+  const { isConnected, nextRetryTime } = useConnectionMonitor();
 
   return (
     <>
       {!isConnected && (
         <ConnectionModal 
-          onRetry={checkConnection}
-          isRetrying={isChecking}
+          nextRetryTime={nextRetryTime}
         />
       )}
     </>
