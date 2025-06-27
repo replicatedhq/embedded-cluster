@@ -549,7 +549,7 @@ func TestGetInstallationConfig(t *testing.T) {
 
 	// Set some initial config
 	initialConfig := types.InstallationConfig{
-		DataDirectory:           rc.EmbeddedClusterHomeDirectory(), // Use same method as controller
+		DataDirectory:           rc.EmbeddedClusterHomeDirectory(),
 		AdminConsolePort:        8080,
 		LocalArtifactMirrorPort: 8081,
 		GlobalCIDR:              "10.0.0.0/16",
@@ -656,7 +656,7 @@ func TestGetInstallationConfig(t *testing.T) {
 
 		// Verify the installation data contains defaults or empty values
 		// Note: DataDirectory gets overridden with the temp directory from RuntimeConfig
-		assert.Equal(t, defaultTempDir, config.DataDirectory)
+		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), config.DataDirectory)
 		assert.Equal(t, 30000, config.AdminConsolePort)
 		assert.Equal(t, 50000, config.LocalArtifactMirrorPort)
 		assert.Equal(t, "10.244.0.0/16", config.GlobalCIDR)
@@ -1016,7 +1016,7 @@ func TestInstallWithAPIClient(t *testing.T) {
 
 	// Set some initial config
 	initialConfig := types.InstallationConfig{
-		DataDirectory:           rc.EmbeddedClusterHomeDirectory(), // Use same method as controller
+		DataDirectory:           rc.EmbeddedClusterHomeDirectory(),
 		AdminConsolePort:        8080,
 		LocalArtifactMirrorPort: 8081,
 		GlobalCIDR:              "10.0.0.0/16",
