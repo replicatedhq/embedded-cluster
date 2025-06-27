@@ -12,7 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/client"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
-	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -166,7 +166,7 @@ func TestAPIClientLogin(t *testing.T) {
 		require.NoError(t, err, "API client login should succeed with correct password")
 
 		// Verify we can make authenticated requests after login
-		_, err = c.GetInstallationStatus()
+		_, err = c.GetLinuxInstallationStatus()
 		require.NoError(t, err, "API client should be able to get installation status after successful login")
 	})
 
@@ -185,7 +185,7 @@ func TestAPIClientLogin(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode, "Error should have Unauthorized status code")
 
 		// Verify we can't make authenticated requests
-		_, err = c.GetInstallationStatus()
+		_, err = c.GetLinuxInstallationStatus()
 		require.Error(t, err, "API client should not be able to get installation status after failed login")
 	})
 }

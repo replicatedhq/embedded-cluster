@@ -16,7 +16,7 @@ import (
 //	@Tags			linux-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.InstallationConfig
+//	@Success		200	{object}	types.LinuxInstallationConfig
 //	@Router			/linux/install/installation/config [get]
 func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) {
 	config, err := h.installController.GetInstallationConfig(r.Context())
@@ -38,11 +38,11 @@ func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) 
 //	@Security		bearerauth
 //	@Accept			json
 //	@Produce		json
-//	@Param			installationConfig	body		types.InstallationConfig	true	"Installation config"
+//	@Param			installationConfig	body		types.LinuxInstallationConfig	true	"Installation config"
 //	@Success		200					{object}	types.Status
 //	@Router			/linux/install/installation/configure [post]
 func (h *Handler) PostConfigureInstallation(w http.ResponseWriter, r *http.Request) {
-	var config types.InstallationConfig
+	var config types.LinuxInstallationConfig
 	if err := utils.BindJSON(w, r, &config, h.logger); err != nil {
 		return
 	}
@@ -158,11 +158,11 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 //	@Security		bearerauth
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		types.InfraSetupRequest	true	"Infra Setup Request"
-//	@Success		200		{object}	types.Infra
+//	@Param			request	body		types.LinuxInfraSetupRequest	true	"Infra Setup Request"
+//	@Success		200		{object}	types.LinuxInfra
 //	@Router			/linux/install/infra/setup [post]
 func (h *Handler) PostSetupInfra(w http.ResponseWriter, r *http.Request) {
-	var req types.InfraSetupRequest
+	var req types.LinuxInfraSetupRequest
 	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
 		return
 	}
@@ -185,7 +185,7 @@ func (h *Handler) PostSetupInfra(w http.ResponseWriter, r *http.Request) {
 //	@Tags			linux-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.Infra
+//	@Success		200	{object}	types.LinuxInfra
 //	@Router			/linux/install/infra/status [get]
 func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	infra, err := h.installController.GetInfra(r.Context())
@@ -196,58 +196,4 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSON(w, r, http.StatusOK, infra, h.logger)
-}
-
-// PostSetStatus handler to set the status of the install workflow
-//
-//	@ID				postLinuxInstallSetStatus
-//	@Summary		Set the status of the install workflow
-//	@Description	Set the status of the install workflow
-//	@Tags			linux-install
-//	@Security		bearerauth
-//	@Accept			json
-//	@Produce		json
-//	@Param			status	body		types.Status	true	"Status"
-//	@Success		200		{object}	types.Status
-//	@Router			/linux/install/status [post]
-func (h *Handler) PostSetStatus(w http.ResponseWriter, r *http.Request) {
-	var status types.Status
-	if err := utils.BindJSON(w, r, &status, h.logger); err != nil {
-		return
-	}
-
-	if err := types.ValidateStatus(status); err != nil {
-		utils.LogError(r, err, h.logger, "invalid install status")
-		utils.JSONError(w, r, err, h.logger)
-		return
-	}
-
-	if err := h.installController.SetStatus(r.Context(), status); err != nil {
-		utils.LogError(r, err, h.logger, "failed to set install status")
-		utils.JSONError(w, r, err, h.logger)
-		return
-	}
-
-	h.GetStatus(w, r)
-}
-
-// GetStatus handler to get the status of the install workflow
-//
-//	@ID				getLinuxInstallStatus
-//	@Summary		Get the status of the install workflow
-//	@Description	Get the current status of the install workflow
-//	@Tags			linux-install
-//	@Security		bearerauth
-//	@Produce		json
-//	@Success		200	{object}	types.Status
-//	@Router			/linux/install/status [get]
-func (h *Handler) GetStatus(w http.ResponseWriter, r *http.Request) {
-	status, err := h.installController.GetStatus(r.Context())
-	if err != nil {
-		utils.LogError(r, err, h.logger, "failed to get install status")
-		utils.JSONError(w, r, err, h.logger)
-		return
-	}
-
-	utils.JSON(w, r, http.StatusOK, status, h.logger)
 }
