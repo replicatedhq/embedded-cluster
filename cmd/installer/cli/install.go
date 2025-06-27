@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"syscall"
@@ -480,6 +481,10 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 	networkSpec.NetworkInterface = flags.networkInterface
 	if cidrCfg.GlobalCIDR != nil {
 		networkSpec.GlobalCIDR = *cidrCfg.GlobalCIDR
+	}
+
+	if flags.enableManagerExperience && !cmd.Flags().Changed("data-dir") {
+		flags.dataDir = filepath.Join("/var/lib", runtimeconfig.BinaryName())
 	}
 
 	// TODO: validate that a single port isn't used for multiple services

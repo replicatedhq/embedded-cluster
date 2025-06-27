@@ -21,6 +21,13 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.In
 		return types.InstallationConfig{}, fmt.Errorf("set defaults: %w", err)
 	}
 
+	// Use the RuntimeConfig's data directory instead of the hardcoded default
+	// This ensures the UI shows the same data directory that was set by the CLI
+	rcDataDir := c.rc.EmbeddedClusterHomeDirectory()
+	if rcDataDir != ecv1beta1.DefaultDataDir {
+		config.DataDirectory = rcDataDir
+	}
+
 	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
 		return types.InstallationConfig{}, fmt.Errorf("validate: %w", err)
 	}
