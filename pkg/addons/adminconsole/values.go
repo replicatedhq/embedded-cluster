@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -64,11 +65,13 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 		return nil, errors.Wrap(err, "unmarshal helm values")
 	}
 
-	copiedValues["embeddedClusterID"] = metrics.ClusterID().String()
-	copiedValues["embeddedClusterDataDir"] = a.DataDir
-	copiedValues["embeddedClusterK0sDir"] = a.K0sDataDir
-	copiedValues["isHA"] = a.IsHA
-	copiedValues["isMultiNodeEnabled"] = a.IsMultiNodeEnabled
+	if a.InstallTarget != constants.InstallTargetKubernetes {
+		copiedValues["embeddedClusterID"] = metrics.ClusterID().String()
+		copiedValues["embeddedClusterDataDir"] = a.DataDir
+		copiedValues["embeddedClusterK0sDir"] = a.K0sDataDir
+		copiedValues["isHA"] = a.IsHA
+		copiedValues["isMultiNodeEnabled"] = a.IsMultiNodeEnabled
+	}
 
 	if a.IsAirgap {
 		copiedValues["isAirgap"] = "true"
@@ -86,15 +89,19 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 		copiedValues["proxyRegistryDomain"] = domains.ProxyRegistryDomain
 	}
 
-	extraEnv := []map[string]interface{}{
-		{
-			"name":  "ENABLE_IMPROVED_DR",
-			"value": "true",
-		},
-		{
-			"name":  "SSL_CERT_CONFIGMAP",
-			"value": "kotsadm-private-cas",
-		},
+	extraEnv := []map[string]interface{}{}
+
+	if a.InstallTarget != constants.InstallTargetKubernetes {
+		extraEnv = []map[string]interface{}{
+			map[string]interface{}{
+				"name":  "ENABLE_IMPROVED_DR",
+				"value": "true",
+			},
+			map[string]interface{}{
+				"name":  "SSL_CERT_CONFIGMAP",
+				"value": "kotsadm-private-cas",
+			},
+		}
 	}
 
 	if a.Proxy != nil {

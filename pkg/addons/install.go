@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
@@ -38,6 +39,34 @@ type InstallOptions struct {
 
 func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
 	addons := GetAddOnsForInstall(opts)
+
+	for _, addon := range addons {
+		a.sendProgress(addon.Name(), apitypes.StateRunning, "Installing")
+
+		overrides := a.addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
+
+		if err := addon.Install(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, overrides); err != nil {
+			a.sendProgress(addon.Name(), apitypes.StateFailed, err.Error())
+			return errors.Wrapf(err, "install %s", addon.Name())
+		}
+
+		a.sendProgress(addon.Name(), apitypes.StateSucceeded, "Installed")
+	}
+
+	return nil
+}
+
+type KubernetesInstallOptions struct {
+	AdminConsolePwd    string
+	AdminConsolePort   int
+	ProxySpec          *ecv1beta1.ProxySpec
+	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
+	EndUserConfigSpec  *ecv1beta1.ConfigSpec
+	IsAirgap           bool
+}
+
+func (a *AddOns) InstallKubernetes(ctx context.Context, opts KubernetesInstallOptions) error {
+	addons := GetAddOnsForKubernetesInstall(opts)
 
 	for _, addon := range addons {
 		a.sendProgress(addon.Name(), apitypes.StateRunning, "Installing")
@@ -129,6 +158,20 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		KotsInstaller: opts.KotsInstaller,
 	}
 	addOns = append(addOns, adminConsoleAddOn)
+
+	return addOns
+}
+
+func GetAddOnsForKubernetesInstall(opts KubernetesInstallOptions) []types.AddOn {
+	addOns := []types.AddOn{
+		&adminconsole.AdminConsole{
+			InstallTarget:    constants.InstallTargetKubernetes,
+			IsAirgap:         opts.IsAirgap,
+			Proxy:            opts.ProxySpec,
+			AdminConsolePort: opts.AdminConsolePort,
+			Password:         opts.AdminConsolePwd,
+		},
+	}
 
 	return addOns
 }

@@ -6,7 +6,7 @@ import { vi } from "vitest";
 
 import { createQueryClient } from "../query-client";
 import { ConfigContext, ClusterConfig } from "../contexts/ConfigContext";
-import { WizardModeContext, WizardMode } from "../contexts/WizardModeContext";
+import { WizardContext, WizardMode, WizardTarget } from "../contexts/WizardModeContext";
 import { BrandingContext } from "../contexts/BrandingContext";
 import { AuthContext } from "../contexts/AuthContext";
 
@@ -55,14 +55,15 @@ interface MockProviderProps {
       resetConfig: () => void;
     };
     wizardModeContext: {
+      target: WizardTarget;
       mode: WizardMode;
       text: {
         title: string;
         subtitle: string;
         welcomeTitle: string;
         welcomeDescription: string;
-        setupTitle: string;
-        setupDescription: string;
+        linuxSetupTitle: string;
+        linuxSetupDescription: string;
         validationTitle: string;
         validationDescription: string;
         installationTitle: string;
@@ -94,7 +95,7 @@ const MockProvider = ({ children, queryClient, contexts }: MockProviderProps) =>
       <AuthContext.Provider value={{ ...contexts.authContext, isLoading: false }}>
         <ConfigContext.Provider value={contexts.configContext}>
           <BrandingContext.Provider value={contexts.brandingContext}>
-            <WizardModeContext.Provider value={contexts.wizardModeContext}>{children}</WizardModeContext.Provider>
+            <WizardContext.Provider value={contexts.wizardModeContext}>{children}</WizardContext.Provider>
           </BrandingContext.Provider>
         </ConfigContext.Provider>
       </AuthContext.Provider>
@@ -109,6 +110,7 @@ interface RenderWithProvidersOptions extends RenderOptions {
     routePath?: string;
     authenticated?: boolean;
     authToken?: string;
+    target?: WizardTarget;
   };
   wrapper?: React.ComponentType<{ children: React.ReactNode }>;
 }
@@ -129,7 +131,7 @@ export const renderWithProviders = (
         failPreflights: false,
         failInstallation: false,
         failHostPreflights: false,
-        installTarget: "linux",
+        installTarget: options.wrapperProps?.target || "linux",
         themeColor: "#316DE6",
         skipNodeValidation: false,
         useSelfSignedCert: false,
@@ -141,14 +143,15 @@ export const renderWithProviders = (
       resetConfig: () => {},
     },
     wizardModeContext: {
+      target: options.wrapperProps?.target || "linux",
       mode: "install",
       text: {
         title: "My App",
         subtitle: "Installation Wizard",
         welcomeTitle: "Welcome to My App",
-        welcomeDescription: "This wizard will guide you through installing My App on your Linux machine.",
-        setupTitle: "Setup",
-        setupDescription: "Set up the hosts to use for this installation.",
+        welcomeDescription: `This wizard will guide you through installing My App on your ${options.wrapperProps?.target === "kubernetes" ? "Kubernetes cluster" : "Linux machine"}.`,
+        linuxSetupTitle: "Setup",
+        linuxSetupDescription: "Set up the hosts to use for this installation.",
         validationTitle: "Validation",
         validationDescription: "Validate the host requirements before proceeding with installation.",
         installationTitle: "Installing My App",

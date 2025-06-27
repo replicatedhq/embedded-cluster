@@ -5,6 +5,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
+	kubernetesinstall "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -39,9 +40,10 @@ type API struct {
 	logger          logrus.FieldLogger
 	metricsReporter metrics.ReporterInterface
 
-	authController         auth.Controller
-	consoleController      console.Controller
-	linuxInstallController linuxinstall.Controller
+	authController              auth.Controller
+	consoleController           console.Controller
+	linuxInstallController      linuxinstall.Controller
+	kubernetesInstallController kubernetesinstall.Controller
 
 	handlers handlers
 }

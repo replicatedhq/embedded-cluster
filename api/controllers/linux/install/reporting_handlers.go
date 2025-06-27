@@ -28,17 +28,17 @@ func (c *InstallController) reportInstallFailed(ctx context.Context, _, toState 
 
 	switch toState {
 	case StateInstallationConfigurationFailed:
-		status, err = c.store.InstallationStore().GetStatus()
+		status, err = c.store.LinuxInstallationStore().GetStatus()
 		if err != nil {
 			err = fmt.Errorf("failed to get status from installation store: %w", err)
 		}
 	case StateHostConfigurationFailed:
-		status, err = c.store.InstallationStore().GetStatus()
+		status, err = c.store.LinuxInstallationStore().GetStatus()
 		if err != nil {
 			err = fmt.Errorf("failed to get status from installation store: %w", err)
 		}
 	case StateInfrastructureInstallFailed:
-		status, err = c.store.InfraStore().GetStatus()
+		status, err = c.store.LinuxInfraStore().GetStatus()
 		if err != nil {
 			err = fmt.Errorf("failed to get status from infra store: %w", err)
 		}
@@ -51,7 +51,7 @@ func (c *InstallController) reportInstallFailed(ctx context.Context, _, toState 
 }
 
 func (c *InstallController) reportPreflightsFailed(ctx context.Context, _, _ statemachine.State) {
-	output, err := c.store.PreflightStore().GetOutput()
+	output, err := c.store.LinuxPreflightStore().GetOutput()
 	if err != nil {
 		c.logger.WithError(fmt.Errorf("failed to get output from preflight store: %w", err)).Error("failed to report preflights failed")
 		return
@@ -60,7 +60,7 @@ func (c *InstallController) reportPreflightsFailed(ctx context.Context, _, _ sta
 }
 
 func (c *InstallController) reportPreflightsBypassed(ctx context.Context, _, _ statemachine.State) {
-	output, err := c.store.PreflightStore().GetOutput()
+	output, err := c.store.LinuxPreflightStore().GetOutput()
 	if err != nil {
 		c.logger.WithError(fmt.Errorf("failed to get output from preflight store: %w", err)).Error("failed to report preflights bypassed")
 		return

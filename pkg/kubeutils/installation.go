@@ -13,6 +13,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/crds"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -27,6 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 type ErrNoInstallations struct{}
@@ -438,4 +440,39 @@ func CheckInstallationConditionStatus(inStat ecv1beta1.InstallationStatus, condi
 	}
 
 	return ""
+}
+
+func RecordKubernetesInstallation(ctx context.Context, kcli client.Client, ki kubernetesinstallation.Installation) error {
+	// ensure that the embedded-cluster namespace exists
+	ns := corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: constants.KotsadmNamespace,
+		},
+	}
+	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
+		return fmt.Errorf("create kotsadm namespace: %w", err)
+	}
+
+	// Marshal installation to YAML
+	yamlData, err := kyaml.Marshal(ki)
+	if err != nil {
+		return fmt.Errorf("marshal installation: %w", err)
+	}
+
+	// Create ConfigMap with installation data
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-installation", ki.Get().Name),
+			Namespace: constants.KotsadmNamespace,
+		},
+		Data: map[string]string{
+			"installation.yaml": string(yamlData),
+		},
+	}
+
+	if err := kcli.Create(ctx, cm); err != nil {
+		return fmt.Errorf("create installation configmap: %w", err)
+	}
+
+	return nil
 }

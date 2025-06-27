@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ConfigProvider } from "./contexts/ConfigContext";
-import { WizardModeProvider } from "./contexts/WizardModeContext";
+import { WizardProvider } from "./contexts/WizardModeContext";
 import { BrandingProvider } from "./contexts/BrandingContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import ConnectionMonitor from "./components/common/ConnectionMonitor";
@@ -21,9 +21,9 @@ function App() {
                   <Route
                     path="/"
                     element={
-                      <WizardModeProvider mode="install">
+                      <WizardProvider mode="install">
                         <InstallWizard />
-                      </WizardModeProvider>
+                      </WizardProvider>
                     }
                   />
 
