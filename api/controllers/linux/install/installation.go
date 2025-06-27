@@ -3,6 +3,7 @@ package install
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -54,6 +55,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 				c.logger.Error("failed to transition states", "error", err)
 			}
 		} else {
+			c.logger.Infof("host configured")
 			err = c.stateMachine.Transition(lock, StateHostConfigured)
 			if err != nil {
 				c.logger.Error("failed to transition states", "error", err)
@@ -64,7 +66,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 	return nil
 }
 
-func (c *InstallController) configureInstallation(ctx context.Context, config types.InstallationConfig) (finalErr error) {
+func (c *InstallController) configureInstallation(_ context.Context, config types.InstallationConfig) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -76,7 +78,13 @@ func (c *InstallController) configureInstallation(ctx context.Context, config ty
 	}
 
 	defer func() {
+		if r := recover(); r != nil {
+			finalErr = fmt.Errorf("panic configuring installation: %v: %s", r, string(debug.Stack()))
+		}
+
 		if finalErr != nil {
+			c.logger.Error(finalErr)
+
 			failureStatus := types.Status{
 				State:       types.StateFailed,
 				Description: finalErr.Error(),
@@ -90,6 +98,8 @@ func (c *InstallController) configureInstallation(ctx context.Context, config ty
 			if err := c.stateMachine.Transition(lock, StateInstallationConfigurationFailed); err != nil {
 				c.logger.Errorf("failed to transition states: %w", err)
 			}
+		} else {
+			c.logger.Infof("installation configured")
 		}
 	}()
 

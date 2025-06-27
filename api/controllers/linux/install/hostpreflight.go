@@ -21,6 +21,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+			c.logger.Error(finalErr)
 		}
 		if finalErr != nil {
 			lock.Release()
@@ -70,6 +71,8 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
 				return
+			} else {
+				c.logger.Infof("host preflights completed")
 			}
 
 			// Get the state from the preflights output
