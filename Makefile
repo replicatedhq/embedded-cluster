@@ -349,6 +349,7 @@ create-node%: K0S_DATA_DIR_V3 = $(shell \
 	else \
 		echo "/var/lib/embedded-cluster-smoke-test-staging-app/k0s"; \
 	fi)
+create-node%: ENABLE_V3 = 0
 create-node%:
 	@echo "Mounting data directories:"
 	@echo "  v2: $(K0S_DATA_DIR)"
