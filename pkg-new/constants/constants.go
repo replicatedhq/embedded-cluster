@@ -12,10 +12,3 @@ const (
 const (
 	EcRestoreStateCMName = "embedded-cluster-restore-state"
 )
-
-type InstallTarget string
-
-const (
-	InstallTargetLinux      InstallTarget = "linux"
-	InstallTargetKubernetes InstallTarget = "kubernetes"
-)
