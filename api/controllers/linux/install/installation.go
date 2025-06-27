@@ -17,13 +17,9 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.In
 		return types.InstallationConfig{}, err
 	}
 
-	if err := c.installationManager.SetConfigDefaults(&config); err != nil {
+	if err := c.installationManager.SetConfigDefaults(&config, c.rc); err != nil {
 		return types.InstallationConfig{}, fmt.Errorf("set defaults: %w", err)
 	}
-
-	// Always use the RuntimeConfig's data directory
-	// This ensures the UI shows the same data directory that was set by the CLI
-	config.DataDirectory = c.rc.EmbeddedClusterHomeDirectory()
 
 	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
 		return types.InstallationConfig{}, fmt.Errorf("validate: %w", err)

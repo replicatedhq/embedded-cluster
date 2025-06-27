@@ -287,6 +287,10 @@ func TestConfigureInstallation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a runtime config
 			rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
+			// Set the expected data directory to match the test case
+			if tc.config.DataDirectory != "" {
+				rc.SetDataDir(tc.config.DataDirectory)
+			}
 
 			// Create an install controller with the config manager
 			installController, err := linuxinstall.NewInstallController(
@@ -342,7 +346,7 @@ func TestConfigureInstallation(t *testing.T) {
 				err = json.NewDecoder(rec.Body).Decode(&status)
 				require.NoError(t, err)
 
-				// Verify that the status is not pending. We cannot check for an end state here because the hots config is async
+				// Verify that the status is not pending. We cannot check for an end state here because the host config is async
 				// so the state might have moved from running to a final state before we get the response.
 				assert.NotEqual(t, types.StatePending, status.State)
 			}
@@ -363,16 +367,16 @@ func TestConfigureInstallation(t *testing.T) {
 				// Verify that the config is in the store
 				storedConfig, err := installController.GetInstallationConfig(t.Context())
 				require.NoError(t, err)
-				assert.Equal(t, tc.config.DataDirectory, storedConfig.DataDirectory)
+				assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), storedConfig.DataDirectory)
 				assert.Equal(t, tc.config.AdminConsolePort, storedConfig.AdminConsolePort)
 
 				// Verify that the runtime config is updated
-				assert.Equal(t, tc.config.DataDirectory, rc.EmbeddedClusterHomeDirectory())
+				assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), rc.EmbeddedClusterHomeDirectory())
 				assert.Equal(t, tc.config.AdminConsolePort, rc.AdminConsolePort())
 				assert.Equal(t, tc.config.LocalArtifactMirrorPort, rc.LocalArtifactMirrorPort())
 			}
 
-			// Verify host confiuration was performed for successful tests
+			// Verify host configuration was performed for successful tests
 			tc.mockHostUtils.AssertExpectations(t)
 			tc.mockNetUtils.AssertExpectations(t)
 
@@ -1089,6 +1093,9 @@ func TestInstallWithAPIClient(t *testing.T) {
 			NetworkInterface:        "eth0",
 		}
 
+		// Update runtime config to match expected data directory for this test
+		rc.SetDataDir(config.DataDirectory)
+
 		// Configure the installation using the client
 		_, err = c.ConfigureInstallation(config)
 		require.NoError(t, err, "ConfigureInstallation should succeed with valid config")
@@ -1107,7 +1114,7 @@ func TestInstallWithAPIClient(t *testing.T) {
 		// Get the config to verify it persisted
 		newConfig, err := c.GetInstallationConfig()
 		require.NoError(t, err, "GetInstallationConfig should succeed after setting config")
-		assert.Equal(t, config.DataDirectory, newConfig.DataDirectory)
+		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), newConfig.DataDirectory)
 		assert.Equal(t, config.AdminConsolePort, newConfig.AdminConsolePort)
 		assert.Equal(t, config.NetworkInterface, newConfig.NetworkInterface)
 

@@ -57,24 +57,24 @@ func TestGetInstallationConfig(t *testing.T) {
 		expectedValue func(string) types.InstallationConfig
 	}{
 		{
-			name: "successful get",
+			name: "successful read and defaults",
 			setupMock: func(m *installation.MockInstallationManager, tempDir string) {
 				config := types.InstallationConfig{
 					AdminConsolePort: 9000,
 					GlobalCIDR:       "10.0.0.1/16",
 				}
 
-				// The expected config after data directory override
-				finalConfig := types.InstallationConfig{
-					AdminConsolePort: 9000,
-					GlobalCIDR:       "10.0.0.1/16",
-					DataDirectory:    tempDir, // This gets set by the override logic
-				}
-
 				mock.InOrder(
 					m.On("GetConfig").Return(config, nil),
-					m.On("SetConfigDefaults", &config).Return(nil),
-					m.On("ValidateConfig", finalConfig, 9001).Return(nil),
+					m.On("SetConfigDefaults", &config, mock.AnythingOfType("*runtimeconfig.runtimeConfig")).Run(func(args mock.Arguments) {
+						cfg := args.Get(0).(*types.InstallationConfig)
+						cfg.DataDirectory = tempDir
+					}).Return(nil),
+					m.On("ValidateConfig", mock.MatchedBy(func(cfg types.InstallationConfig) bool {
+						return cfg.AdminConsolePort == 9000 &&
+							cfg.GlobalCIDR == "10.0.0.1/16" &&
+							cfg.DataDirectory == tempDir
+					}), 9001).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -82,7 +82,7 @@ func TestGetInstallationConfig(t *testing.T) {
 				return types.InstallationConfig{
 					AdminConsolePort: 9000,
 					GlobalCIDR:       "10.0.0.1/16",
-					DataDirectory:    tempDir, // The returned config also has the temp directory
+					DataDirectory:    tempDir,
 				}
 			},
 		},
@@ -102,7 +102,7 @@ func TestGetInstallationConfig(t *testing.T) {
 				config := types.InstallationConfig{}
 				mock.InOrder(
 					m.On("GetConfig").Return(config, nil),
-					m.On("SetConfigDefaults", &config).Return(errors.New("defaults error")),
+					m.On("SetConfigDefaults", &config, mock.AnythingOfType("*runtimeconfig.runtimeConfig")).Return(errors.New("defaults error")),
 				)
 			},
 			expectedErr: true,
@@ -115,15 +115,15 @@ func TestGetInstallationConfig(t *testing.T) {
 			setupMock: func(m *installation.MockInstallationManager, tempDir string) {
 				config := types.InstallationConfig{}
 
-				// The expected config after data directory override
-				finalConfig := types.InstallationConfig{
-					DataDirectory: tempDir, // This gets set by the override logic
-				}
-
 				mock.InOrder(
 					m.On("GetConfig").Return(config, nil),
-					m.On("SetConfigDefaults", &config).Return(nil),
-					m.On("ValidateConfig", finalConfig, 9001).Return(errors.New("validation error")),
+					m.On("SetConfigDefaults", &config, mock.AnythingOfType("*runtimeconfig.runtimeConfig")).Run(func(args mock.Arguments) {
+						cfg := args.Get(0).(*types.InstallationConfig)
+						cfg.DataDirectory = tempDir
+					}).Return(nil),
+					m.On("ValidateConfig", mock.MatchedBy(func(cfg types.InstallationConfig) bool {
+						return cfg.DataDirectory == tempDir
+					}), 9001).Return(errors.New("validation error")),
 				)
 			},
 			expectedErr: true,

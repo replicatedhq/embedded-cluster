@@ -21,7 +21,7 @@ type InstallationManager interface {
 	GetStatus() (types.Status, error)
 	SetStatus(status types.Status) error
 	ValidateConfig(config types.InstallationConfig, managerPort int) error
-	SetConfigDefaults(config *types.InstallationConfig) error
+	SetConfigDefaults(config *types.InstallationConfig, rc runtimeconfig.RuntimeConfig) error
 	ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
 }
 
