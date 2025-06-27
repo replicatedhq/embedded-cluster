@@ -259,7 +259,13 @@ func newCommonInstallFlags(flags *InstallCmdFlags, enableV3 bool) *pflag.FlagSet
 func newLinuxInstallFlags(flags *InstallCmdFlags) *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("linux", pflag.ContinueOnError)
 
-	flagSet.StringVar(&flags.dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
+	// Use the app slug as default data directory only when ENABLE_V3 is set
+	defaultDataDir := ecv1beta1.DefaultDataDir
+	if os.Getenv("ENABLE_V3") == "1" {
+		defaultDataDir = filepath.Join("/var/lib", runtimeconfig.BinaryName())
+	}
+
+	flagSet.StringVar(&flags.dataDir, "data-dir", defaultDataDir, "Path to the data directory")
 	flagSet.IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	flagSet.StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
 
@@ -481,10 +487,6 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 	networkSpec.NetworkInterface = flags.networkInterface
 	if cidrCfg.GlobalCIDR != nil {
 		networkSpec.GlobalCIDR = *cidrCfg.GlobalCIDR
-	}
-
-	if flags.enableManagerExperience && !cmd.Flags().Changed("data-dir") {
-		flags.dataDir = filepath.Join("/var/lib", runtimeconfig.BinaryName())
 	}
 
 	// TODO: validate that a single port isn't used for multiple services

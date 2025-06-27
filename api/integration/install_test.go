@@ -534,7 +534,8 @@ func TestConfigureInstallationControllerError(t *testing.T) {
 // Test the getInstall endpoint returns installation data correctly
 func TestGetInstallationConfig(t *testing.T) {
 	rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
-	rc.SetDataDir(t.TempDir())
+	tempDir := t.TempDir()
+	rc.SetDataDir(tempDir)
 
 	// Create a config manager
 	installationManager := installation.NewInstallationManager()
@@ -548,7 +549,7 @@ func TestGetInstallationConfig(t *testing.T) {
 
 	// Set some initial config
 	initialConfig := types.InstallationConfig{
-		DataDirectory:           "/tmp/test-data",
+		DataDirectory:           rc.EmbeddedClusterHomeDirectory(), // Use same method as controller
 		AdminConsolePort:        8080,
 		LocalArtifactMirrorPort: 8081,
 		GlobalCIDR:              "10.0.0.0/16",
@@ -592,7 +593,7 @@ func TestGetInstallationConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify the installation data matches what we expect
-		assert.Equal(t, initialConfig.DataDirectory, config.DataDirectory)
+		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), config.DataDirectory)
 		assert.Equal(t, initialConfig.AdminConsolePort, config.AdminConsolePort)
 		assert.Equal(t, initialConfig.LocalArtifactMirrorPort, config.LocalArtifactMirrorPort)
 		assert.Equal(t, initialConfig.GlobalCIDR, config.GlobalCIDR)
@@ -606,7 +607,8 @@ func TestGetInstallationConfig(t *testing.T) {
 		netUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Once()
 
 		rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
-		rc.SetDataDir(t.TempDir())
+		defaultTempDir := t.TempDir()
+		rc.SetDataDir(defaultTempDir)
 
 		// Create a fresh config manager without writing anything
 		emptyInstallationManager := installation.NewInstallationManager(
@@ -653,7 +655,8 @@ func TestGetInstallationConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify the installation data contains defaults or empty values
-		assert.Equal(t, "/var/lib/embedded-cluster", config.DataDirectory)
+		// Note: DataDirectory gets overridden with the temp directory from RuntimeConfig
+		assert.Equal(t, defaultTempDir, config.DataDirectory)
 		assert.Equal(t, 30000, config.AdminConsolePort)
 		assert.Equal(t, 50000, config.LocalArtifactMirrorPort)
 		assert.Equal(t, "10.244.0.0/16", config.GlobalCIDR)
@@ -992,7 +995,8 @@ func TestInstallWithAPIClient(t *testing.T) {
 
 	// Create a runtimeconfig to be used in the install process
 	rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
-	rc.SetDataDir(t.TempDir())
+	tempDir := t.TempDir()
+	rc.SetDataDir(tempDir)
 
 	// Create a mock hostutils
 	mockHostUtils := &hostutils.MockHostUtils{}
@@ -1012,11 +1016,11 @@ func TestInstallWithAPIClient(t *testing.T) {
 
 	// Set some initial config
 	initialConfig := types.InstallationConfig{
-		DataDirectory:           "/tmp/test-data-for-client",
-		AdminConsolePort:        9080,
-		LocalArtifactMirrorPort: 9081,
-		GlobalCIDR:              "192.168.0.0/16",
-		NetworkInterface:        "eth1",
+		DataDirectory:           rc.EmbeddedClusterHomeDirectory(), // Use same method as controller
+		AdminConsolePort:        8080,
+		LocalArtifactMirrorPort: 8081,
+		GlobalCIDR:              "10.0.0.0/16",
+		NetworkInterface:        "eth0",
 	}
 	err = installationManager.SetConfig(initialConfig)
 	require.NoError(t, err)
@@ -1058,11 +1062,12 @@ func TestInstallWithAPIClient(t *testing.T) {
 		require.NoError(t, err, "GetInstallationConfig should succeed")
 
 		// Verify values
-		assert.Equal(t, "/tmp/test-data-for-client", config.DataDirectory)
-		assert.Equal(t, 9080, config.AdminConsolePort)
-		assert.Equal(t, 9081, config.LocalArtifactMirrorPort)
-		assert.Equal(t, "192.168.0.0/16", config.GlobalCIDR)
-		assert.Equal(t, "eth1", config.NetworkInterface)
+		// Note: DataDirectory gets overridden with the temp directory from RuntimeConfig
+		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), config.DataDirectory)
+		assert.Equal(t, 8080, config.AdminConsolePort)
+		assert.Equal(t, 8081, config.LocalArtifactMirrorPort)
+		assert.Equal(t, "10.0.0.0/16", config.GlobalCIDR)
+		assert.Equal(t, "eth0", config.NetworkInterface)
 	})
 
 	// Test GetInstallationStatus
