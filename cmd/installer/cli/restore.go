@@ -29,6 +29,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -92,12 +93,13 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	var skipStoreValidation bool
 
 	rc := runtimeconfig.New(nil)
+	ki := kubernetesinstallation.New(nil)
 
 	cmd := &cobra.Command{
 		Use:   "restore",
 		Short: fmt.Sprintf("Restore %s from a backup", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &flags, rc); err != nil {
+			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
 				return err
 			}
 
