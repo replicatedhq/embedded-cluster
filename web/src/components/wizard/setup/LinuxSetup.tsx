@@ -48,6 +48,7 @@ interface ConfigError extends Error {
 const LinuxSetup: React.FC<LinuxSetupProps> = ({ onNext }) => {
   const { config, updateConfig, prototypeSettings } = useConfig();
   const { text } = useWizard();
+  const { title } = useBranding();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { token } = useAuth();
@@ -184,7 +185,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({ onNext }) => {
                 value={config.dataDirectory || ""}
                 onChange={handleInputChange}
                 placeholder="/var/lib/embedded-cluster"
-                helpText={`Directory where ${useBranding().title} will store its data`}
+                helpText={`Directory where ${title} will store its data`}
                 error={getFieldError("dataDirectory")}
                 required
               />
@@ -275,7 +276,7 @@ const LinuxSetup: React.FC<LinuxSetupProps> = ({ onNext }) => {
                             label: iface.name,
                           }))),
                     ]}
-                    helpText={`Network interface to use for ${useBranding().title}`}
+                    helpText={`Network interface to use for ${title}`}
                     error={getFieldError("networkInterface")}
                     required
                     placeholder="Select a network interface"

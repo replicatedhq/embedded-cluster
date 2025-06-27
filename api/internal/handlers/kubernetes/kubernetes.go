@@ -58,6 +58,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 			install.WithReleaseData(h.cfg.ReleaseData),
 			install.WithEndUserConfig(h.cfg.EndUserConfig),
 			install.WithPassword(h.cfg.Password),
+			install.WithInstallation(h.cfg.KubernetesConfig.Installation),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("new install controller: %w", err)
