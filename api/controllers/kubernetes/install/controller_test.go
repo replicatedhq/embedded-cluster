@@ -83,14 +83,13 @@ func TestGetInstallationConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockInstallation := &kubernetesinstallation.MockInstallation{}
-			mockInstallation.On("ManagerPort").Return(9001)
+			ki := kubernetesinstallation.New(nil)
 
 			mockManager := &installation.MockInstallationManager{}
 			tt.setupMock(mockManager)
 
 			controller, err := NewInstallController(
-				WithInstallation(mockInstallation),
+				WithInstallation(ki),
 				WithInstallationManager(mockManager),
 			)
 			require.NoError(t, err)
@@ -106,7 +105,6 @@ func TestGetInstallationConfig(t *testing.T) {
 			}
 
 			mockManager.AssertExpectations(t)
-			mockInstallation.AssertExpectations(t)
 		})
 	}
 }

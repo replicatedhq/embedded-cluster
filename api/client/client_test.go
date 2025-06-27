@@ -367,8 +367,8 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(types.Status{
-			State:       types.StateRunning,
-			Description: "Configuring installation",
+			State:       types.StateSucceeded,
+			Description: "Installation configured",
 		})
 	}))
 	defer server.Close()
