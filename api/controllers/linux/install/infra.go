@@ -52,7 +52,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 
 		defer func() {
 			if r := recover(); r != nil {
-				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+				finalErr = fmt.Errorf("panic installing infrastructure: %v: %s", r, string(debug.Stack()))
 			}
 			if finalErr != nil {
 				c.logger.Error(finalErr)
@@ -61,6 +61,8 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
 			} else {
+				c.logger.Infof("infrastructure installed")
+
 				if err := c.stateMachine.Transition(lock, StateSucceeded); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}

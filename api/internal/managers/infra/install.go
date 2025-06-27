@@ -251,11 +251,11 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 	go func() {
 		for progress := range progressChan {
 			// capture progress in debug logs
-			m.logger.WithFields(logrus.Fields{"addon": progress.Name, "state": progress.Status.State, "description": progress.Status.Description}).Debugf("addon progress")
+			m.logger.WithFields(logrus.Fields{"addon": progress.Name, "state": progress.Status.State, "description": progress.Status.Description}).Debug("addon progress")
 
 			// if in progress, update the overall status to reflect the current component
 			if progress.Status.State == types.StateRunning {
-				m.setStatusDesc(fmt.Sprintf("%s %s", progress.Status.Description, progress.Name))
+				_ = m.setStatusDesc(fmt.Sprintf("%s %s", progress.Status.Description, progress.Name))
 			}
 
 			// update the status for the current component
