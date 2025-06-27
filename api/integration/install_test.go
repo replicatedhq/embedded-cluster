@@ -371,7 +371,7 @@ func TestConfigureInstallation(t *testing.T) {
 				assert.Equal(t, tc.config.AdminConsolePort, storedConfig.AdminConsolePort)
 
 				// Verify that the runtime config is updated
-				assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), rc.EmbeddedClusterHomeDirectory())
+				assert.Equal(t, tc.config.DataDirectory, rc.EmbeddedClusterHomeDirectory())
 				assert.Equal(t, tc.config.AdminConsolePort, rc.AdminConsolePort())
 				assert.Equal(t, tc.config.LocalArtifactMirrorPort, rc.LocalArtifactMirrorPort())
 			}
@@ -1021,10 +1021,10 @@ func TestInstallWithAPIClient(t *testing.T) {
 	// Set some initial config
 	initialConfig := types.InstallationConfig{
 		DataDirectory:           rc.EmbeddedClusterHomeDirectory(),
-		AdminConsolePort:        8080,
-		LocalArtifactMirrorPort: 8081,
-		GlobalCIDR:              "10.0.0.0/16",
-		NetworkInterface:        "eth0",
+		AdminConsolePort:        9080,
+		LocalArtifactMirrorPort: 9081,
+		GlobalCIDR:              "192.168.0.0/16",
+		NetworkInterface:        "eth1",
 	}
 	err = installationManager.SetConfig(initialConfig)
 	require.NoError(t, err)
@@ -1068,10 +1068,10 @@ func TestInstallWithAPIClient(t *testing.T) {
 		// Verify values
 		// Note: DataDirectory gets overridden with the temp directory from RuntimeConfig
 		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), config.DataDirectory)
-		assert.Equal(t, 8080, config.AdminConsolePort)
-		assert.Equal(t, 8081, config.LocalArtifactMirrorPort)
-		assert.Equal(t, "10.0.0.0/16", config.GlobalCIDR)
-		assert.Equal(t, "eth0", config.NetworkInterface)
+		assert.Equal(t, 9080, config.AdminConsolePort)
+		assert.Equal(t, 9081, config.LocalArtifactMirrorPort)
+		assert.Equal(t, "192.168.0.0/16", config.GlobalCIDR)
+		assert.Equal(t, "eth1", config.NetworkInterface)
 	})
 
 	// Test GetInstallationStatus
