@@ -137,7 +137,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			installReporter.ReportInstallationStarted(ctx)
 
 			if flags.enableManagerExperience {
-				return runManagerExperienceInstall(ctx, flags, rc, ki, installReporter)
+				return runManagerExperienceInstall(ctx, flags, rc, ki, installReporter, name)
 			}
 
 			_ = rc.SetEnv()
@@ -570,7 +570,7 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 	return cidrCfg, nil
 }
 
-func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation, installReporter *InstallReporter) (finalErr error) {
+func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation, installReporter *InstallReporter, name string) (finalErr error) {
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
 	ipAddresses, err := netutils.ListAllValidIPAddresses()
@@ -663,7 +663,7 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue: %s\n",
-		runtimeconfig.BinaryName(),
+		name,
 		getManagerURL(flags.hostname, flags.managerPort))
 	<-ctx.Done()
 

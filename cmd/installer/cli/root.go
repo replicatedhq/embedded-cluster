@@ -9,6 +9,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -96,18 +97,25 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(InstallCmd(ctx, name))
-	cmd.AddCommand(JoinCmd(ctx, name))
-	cmd.AddCommand(ShellCmd(ctx, name))
-	cmd.AddCommand(NodeCmd(ctx, name))
-	cmd.AddCommand(EnableHACmd(ctx, name))
-	cmd.AddCommand(VersionCmd(ctx, name))
-	cmd.AddCommand(ResetCmd(ctx, name))
-	cmd.AddCommand(MaterializeCmd(ctx, name))
-	cmd.AddCommand(UpdateCmd(ctx, name))
-	cmd.AddCommand(RestoreCmd(ctx, name))
-	cmd.AddCommand(AdminConsoleCmd(ctx, name))
-	cmd.AddCommand(SupportBundleCmd(ctx, name))
+	// Use release title if set, otherwise fall back to name parameter (name is the app slug for embedded releases,
+	// or executable basename for standalone builds)
+	releaseName := release.GetReleaseTitle()
+	if releaseName == "" {
+		releaseName = name
+	}
+
+	cmd.AddCommand(InstallCmd(ctx, releaseName))
+	cmd.AddCommand(JoinCmd(ctx, releaseName))
+	cmd.AddCommand(ShellCmd(ctx, releaseName))
+	cmd.AddCommand(NodeCmd(ctx, releaseName))
+	cmd.AddCommand(EnableHACmd(ctx, releaseName))
+	cmd.AddCommand(VersionCmd(ctx, releaseName))
+	cmd.AddCommand(ResetCmd(ctx, releaseName))
+	cmd.AddCommand(MaterializeCmd(ctx, releaseName))
+	cmd.AddCommand(UpdateCmd(ctx, releaseName))
+	cmd.AddCommand(RestoreCmd(ctx, releaseName))
+	cmd.AddCommand(AdminConsoleCmd(ctx, releaseName))
+	cmd.AddCommand(SupportBundleCmd(ctx, releaseName))
 
 	return cmd
 }
