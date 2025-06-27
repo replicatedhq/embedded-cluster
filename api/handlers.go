@@ -65,6 +65,7 @@ func (a *API) initHandlers() error {
 	kubernetesHandler, err := kuberneteshandler.New(
 		a.cfg,
 		kuberneteshandler.WithLogger(a.logger),
+		kuberneteshandler.WithInstallController(a.kubernetesInstallController),
 	)
 	if err != nil {
 		return fmt.Errorf("new kubernetes handler: %w", err)

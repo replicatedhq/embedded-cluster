@@ -72,6 +72,13 @@ func WithLinuxInstallController(linuxInstallController linuxinstall.Controller) 
 	}
 }
 
+// WithKubernetesInstallController configures the kubernetes install controller for the API.
+func WithKubernetesInstallController(kubernetesInstallController kubernetesinstall.Controller) Option {
+	return func(a *API) {
+		a.kubernetesInstallController = kubernetesInstallController
+	}
+}
+
 // WithLogger configures the logger for the API. If not provided, a default logger will be created.
 func WithLogger(logger logrus.FieldLogger) Option {
 	return func(a *API) {
