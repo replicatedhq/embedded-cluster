@@ -149,14 +149,12 @@ func (m *installationManager) validateDataDirectory(config types.InstallationCon
 }
 
 // SetConfigDefaults sets default values for the installation configuration
-func (m *installationManager) SetConfigDefaults(config *types.InstallationConfig) error {
+func (m *installationManager) SetConfigDefaults(config *types.InstallationConfig, rc runtimeconfig.RuntimeConfig) error {
 	if config.AdminConsolePort == 0 {
 		config.AdminConsolePort = ecv1beta1.DefaultAdminConsolePort
 	}
 
-	if config.DataDirectory == "" {
-		config.DataDirectory = ecv1beta1.DefaultDataDir
-	}
+	config.DataDirectory = rc.EmbeddedClusterHomeDirectory()
 
 	if config.LocalArtifactMirrorPort == 0 {
 		config.LocalArtifactMirrorPort = ecv1beta1.DefaultLocalArtifactMirrorPort
