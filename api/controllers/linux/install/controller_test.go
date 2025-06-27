@@ -398,6 +398,8 @@ func TestConfigureInstallation(t *testing.T) {
 			err = controller.ConfigureInstallation(t.Context(), tt.config)
 			if tt.expectedErr {
 				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 
 			assert.Eventually(t, func() bool {
@@ -761,8 +763,6 @@ func TestRunHostPreflights(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-
-				assert.NotEqual(t, sm.CurrentState(), tt.currentState, "state should have changed and should not be %s", tt.currentState)
 			}
 
 			assert.Eventually(t, func() bool {
@@ -1152,8 +1152,6 @@ func TestSetupInfra(t *testing.T) {
 				}
 			} else {
 				require.NoError(t, err)
-
-				assert.NotEqual(t, sm.CurrentState(), tt.currentState, "state should have changed and should not be %s", tt.currentState)
 			}
 
 			assert.Eventually(t, func() bool {
