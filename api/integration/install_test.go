@@ -6,11 +6,11 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -19,15 +19,16 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/api"
 	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
-	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
+	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
 	preflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/preflight"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -49,10 +50,10 @@ import (
 
 var (
 	//go:embed assets/license.yaml
-	licenseData string
+	licenseData []byte
 )
 
-// Mock implementation of the install.Controller interface
+// Mock implementation of the linuxinstall.Controller interface
 type mockInstallController struct {
 	configureInstallationError  error
 	getInstallationConfigError  error
@@ -84,7 +85,7 @@ func (m *mockInstallController) GetInstallationStatus(ctx context.Context) (type
 	return types.Status{}, nil
 }
 
-func (m *mockInstallController) RunHostPreflights(ctx context.Context, opts install.RunHostPreflightsOptions) error {
+func (m *mockInstallController) RunHostPreflights(ctx context.Context, opts linuxinstall.RunHostPreflightsOptions) error {
 	return m.runHostPreflightsError
 }
 
@@ -109,7 +110,7 @@ func (m *mockInstallController) GetHostPreflightTitles(ctx context.Context) ([]s
 	return []string{}, nil
 }
 
-func (m *mockInstallController) SetupInfra(ctx context.Context) error {
+func (m *mockInstallController) SetupInfra(ctx context.Context, ignoreHostPreflights bool) error {
 	return m.setupInfraError
 }
 
@@ -136,7 +137,8 @@ func TestConfigureInstallation(t *testing.T) {
 		mockNetUtils          *utils.MockNetUtils
 		token                 string
 		config                types.InstallationConfig
-		expectedStatus        int
+		expectedStatus        *types.Status
+		expectedStatusCode    int
 		expectedError         bool
 		validateRuntimeConfig func(t *testing.T, rc runtimeconfig.RuntimeConfig)
 	}{
@@ -168,8 +170,12 @@ func TestConfigureInstallation(t *testing.T) {
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
 			},
-			expectedStatus: http.StatusOK,
-			expectedError:  false,
+			expectedStatus: &types.Status{
+				State:       types.StateSucceeded,
+				Description: "Installation configured",
+			},
+			expectedStatusCode: http.StatusOK,
+			expectedError:      false,
 			validateRuntimeConfig: func(t *testing.T, rc runtimeconfig.RuntimeConfig) {
 				assert.Equal(t, "/tmp/data", rc.EmbeddedClusterHomeDirectory())
 				assert.Equal(t, 8000, rc.AdminConsolePort())
@@ -222,8 +228,12 @@ func TestConfigureInstallation(t *testing.T) {
 				HTTPSProxy:              "https://proxy.example.com",
 				NoProxy:                 "somecompany.internal,192.168.17.0/24",
 			},
-			expectedStatus: http.StatusOK,
-			expectedError:  false,
+			expectedStatus: &types.Status{
+				State:       types.StateSucceeded,
+				Description: "Installation configured",
+			},
+			expectedStatusCode: http.StatusOK,
+			expectedError:      false,
 			validateRuntimeConfig: func(t *testing.T, rc runtimeconfig.RuntimeConfig) {
 				assert.Equal(t, "/tmp/data", rc.EmbeddedClusterHomeDirectory())
 				assert.Equal(t, 8000, rc.AdminConsolePort())
@@ -255,17 +265,21 @@ func TestConfigureInstallation(t *testing.T) {
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  true,
+			expectedStatus: &types.Status{
+				State:       types.StateFailed,
+				Description: "validate: field errors: adminConsolePort and localArtifactMirrorPort cannot be equal",
+			},
+			expectedStatusCode: http.StatusBadRequest,
+			expectedError:      true,
 		},
 		{
-			name:           "Unauthorized",
-			mockHostUtils:  &hostutils.MockHostUtils{},
-			mockNetUtils:   &utils.MockNetUtils{},
-			token:          "NOT_A_TOKEN",
-			config:         types.InstallationConfig{},
-			expectedStatus: http.StatusUnauthorized,
-			expectedError:  true,
+			name:               "Unauthorized",
+			mockHostUtils:      &hostutils.MockHostUtils{},
+			mockNetUtils:       &utils.MockNetUtils{},
+			token:              "NOT_A_TOKEN",
+			config:             types.InstallationConfig{},
+			expectedStatusCode: http.StatusUnauthorized,
+			expectedError:      true,
 		},
 	}
 
@@ -275,17 +289,20 @@ func TestConfigureInstallation(t *testing.T) {
 			rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
 
 			// Create an install controller with the config manager
-			installController, err := install.NewInstallController(
-				install.WithRuntimeConfig(rc),
-				install.WithHostUtils(tc.mockHostUtils),
-				install.WithNetUtils(tc.mockNetUtils),
+			installController, err := linuxinstall.NewInstallController(
+				linuxinstall.WithRuntimeConfig(rc),
+				linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
+				linuxinstall.WithHostUtils(tc.mockHostUtils),
+				linuxinstall.WithNetUtils(tc.mockNetUtils),
 			)
 			require.NoError(t, err)
 
 			// Create the API with the install controller
 			apiInstance, err := api.New(
-				"password",
-				api.WithInstallController(installController),
+				types.APIConfig{
+					Password: "password",
+				},
+				api.WithLinuxInstallController(installController),
 				api.WithAuthController(&staticAuthController{"TOKEN"}),
 				api.WithLogger(logger.NewDiscardLogger()),
 			)
@@ -300,7 +317,7 @@ func TestConfigureInstallation(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create a request
-			req := httptest.NewRequest(http.MethodPost, "/install/installation/configure", bytes.NewReader(configJSON))
+			req := httptest.NewRequest(http.MethodPost, "/linux/install/installation/configure", bytes.NewReader(configJSON))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer "+tc.token)
 			rec := httptest.NewRecorder()
@@ -309,7 +326,7 @@ func TestConfigureInstallation(t *testing.T) {
 			router.ServeHTTP(rec, req)
 
 			// Check the response
-			assert.Equal(t, tc.expectedStatus, rec.Code)
+			assert.Equal(t, tc.expectedStatusCode, rec.Code)
 
 			t.Logf("Response body: %s", rec.Body.String())
 
@@ -318,7 +335,7 @@ func TestConfigureInstallation(t *testing.T) {
 				var apiError types.APIError
 				err = json.NewDecoder(rec.Body).Decode(&apiError)
 				require.NoError(t, err)
-				assert.Equal(t, tc.expectedStatus, apiError.StatusCode)
+				assert.Equal(t, tc.expectedStatusCode, apiError.StatusCode)
 				assert.NotEmpty(t, apiError.Message)
 			} else {
 				var status types.Status
@@ -330,13 +347,16 @@ func TestConfigureInstallation(t *testing.T) {
 				assert.NotEqual(t, types.StatePending, status.State)
 			}
 
-			if !tc.expectedError {
-				// The status is set to succeeded in a goroutine, so we need to wait for it
+			// We might not have an expected status if the test is expected to fail before running the controller logic
+			if tc.expectedStatus != nil {
+				// The status is set in a goroutine, so we need to wait for it
+				var status types.Status
 				assert.Eventually(t, func() bool {
-					status, err := installController.GetInstallationStatus(t.Context())
+					status, err = installController.GetInstallationStatus(t.Context())
 					require.NoError(t, err)
-					return status.State == types.StateSucceeded && status.Description == "Installation configured"
-				}, 1*time.Second, 100*time.Millisecond, "status should eventually be succeeded")
+					return status.State == tc.expectedStatus.State
+				}, 1*time.Second, 100*time.Millisecond, fmt.Sprintf("Expected status to be %s", tc.expectedStatus.State))
+				assert.Contains(t, status.Description, tc.expectedStatus.Description)
 			}
 
 			if !tc.expectedError {
@@ -369,15 +389,18 @@ func TestConfigureInstallationValidation(t *testing.T) {
 	rc.SetDataDir(t.TempDir())
 
 	// Create an install controller with the config manager
-	installController, err := install.NewInstallController(
-		install.WithRuntimeConfig(rc),
+	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithRuntimeConfig(rc),
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured))),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
-		"password",
-		api.WithInstallController(installController),
+		types.APIConfig{
+			Password: "password",
+		},
+		api.WithLinuxInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
@@ -401,7 +424,7 @@ func TestConfigureInstallationValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a request
-	req := httptest.NewRequest(http.MethodPost, "/install/installation/configure", bytes.NewReader(configJSON))
+	req := httptest.NewRequest(http.MethodPost, "/linux/install/installation/configure", bytes.NewReader(configJSON))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+"TOKEN")
 	rec := httptest.NewRecorder()
@@ -429,14 +452,17 @@ func TestConfigureInstallationBadRequest(t *testing.T) {
 	rc.SetDataDir(t.TempDir())
 
 	// Create an install controller with the config manager
-	installController, err := install.NewInstallController(
-		install.WithRuntimeConfig(rc),
+	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithRuntimeConfig(rc),
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured))),
 	)
 	require.NoError(t, err)
 
 	apiInstance, err := api.New(
-		"password",
-		api.WithInstallController(installController),
+		types.APIConfig{
+			Password: "password",
+		},
+		api.WithLinuxInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
@@ -446,7 +472,7 @@ func TestConfigureInstallationBadRequest(t *testing.T) {
 	apiInstance.RegisterRoutes(router)
 
 	// Create a request with invalid JSON
-	req := httptest.NewRequest(http.MethodPost, "/install/installation/configure",
+	req := httptest.NewRequest(http.MethodPost, "/linux/install/installation/configure",
 		bytes.NewReader([]byte(`{"dataDirectory": "/tmp/data", "adminConsolePort": "not-a-number"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+"TOKEN")
@@ -470,8 +496,10 @@ func TestConfigureInstallationControllerError(t *testing.T) {
 
 	// Create the API with the mock controller
 	apiInstance, err := api.New(
-		"password",
-		api.WithInstallController(mockController),
+		types.APIConfig{
+			Password: "password",
+		},
+		api.WithLinuxInstallController(mockController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
@@ -489,7 +517,7 @@ func TestConfigureInstallationControllerError(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a request
-	req := httptest.NewRequest(http.MethodPost, "/install/installation/configure", bytes.NewReader(configJSON))
+	req := httptest.NewRequest(http.MethodPost, "/linux/install/installation/configure", bytes.NewReader(configJSON))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+"TOKEN")
 	rec := httptest.NewRecorder()
@@ -512,9 +540,9 @@ func TestGetInstallationConfig(t *testing.T) {
 	installationManager := installation.NewInstallationManager()
 
 	// Create an install controller with the config manager
-	installController, err := install.NewInstallController(
-		install.WithRuntimeConfig(rc),
-		install.WithInstallationManager(installationManager),
+	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithRuntimeConfig(rc),
+		linuxinstall.WithInstallationManager(installationManager),
 	)
 	require.NoError(t, err)
 
@@ -531,8 +559,10 @@ func TestGetInstallationConfig(t *testing.T) {
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
-		"password",
-		api.WithInstallController(installController),
+		types.APIConfig{
+			Password: "password",
+		},
+		api.WithLinuxInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
@@ -545,7 +575,7 @@ func TestGetInstallationConfig(t *testing.T) {
 	// Test successful get
 	t.Run("Success", func(t *testing.T) {
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install/installation/config", nil)
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/installation/config", nil)
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -584,16 +614,18 @@ func TestGetInstallationConfig(t *testing.T) {
 		)
 
 		// Create an install controller with the empty config manager
-		emptyInstallController, err := install.NewInstallController(
-			install.WithRuntimeConfig(rc),
-			install.WithInstallationManager(emptyInstallationManager),
+		emptyInstallController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithInstallationManager(emptyInstallationManager),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
 		emptyAPI, err := api.New(
-			"password",
-			api.WithInstallController(emptyInstallController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(emptyInstallController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -604,7 +636,7 @@ func TestGetInstallationConfig(t *testing.T) {
 		emptyAPI.RegisterRoutes(emptyRouter)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install/installation/config", nil)
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/installation/config", nil)
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -631,7 +663,7 @@ func TestGetInstallationConfig(t *testing.T) {
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install/installation/config", nil)
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/installation/config", nil)
 		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -657,8 +689,10 @@ func TestGetInstallationConfig(t *testing.T) {
 
 		// Create the API with the mock controller
 		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(mockController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -668,7 +702,7 @@ func TestGetInstallationConfig(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install/installation/config", nil)
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/installation/config", nil)
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -687,10 +721,10 @@ func TestGetInstallationConfig(t *testing.T) {
 	})
 }
 
-// Test the getInstallStatus endpoint returns install status correctly
+// Test the getLinuxInstallStatus endpoint returns install status correctly
 func TestGetInstallStatus(t *testing.T) {
 	// Create an install controller with the config manager
-	installController, err := install.NewInstallController()
+	installController, err := linuxinstall.NewInstallController()
 	require.NoError(t, err)
 
 	// Set some initial status
@@ -703,8 +737,10 @@ func TestGetInstallStatus(t *testing.T) {
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
-		"password",
-		api.WithInstallController(installController),
+		types.APIConfig{
+			Password: "password",
+		},
+		api.WithLinuxInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
@@ -717,7 +753,7 @@ func TestGetInstallStatus(t *testing.T) {
 	// Test successful get
 	t.Run("Success", func(t *testing.T) {
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install/status", nil)
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/status", nil)
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -741,7 +777,7 @@ func TestGetInstallStatus(t *testing.T) {
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install/status", nil)
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/status", nil)
 		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -767,8 +803,10 @@ func TestGetInstallStatus(t *testing.T) {
 
 		// Create the API with the mock controller
 		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(mockController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -778,7 +816,7 @@ func TestGetInstallStatus(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install/status", nil)
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/status", nil)
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -797,16 +835,18 @@ func TestGetInstallStatus(t *testing.T) {
 	})
 }
 
-// Test the setInstallStatus endpoint sets install status correctly
+// Test the setLinuxInstallStatus endpoint sets install status correctly
 func TestSetInstallStatus(t *testing.T) {
 	// Create an install controller with the config manager
-	installController, err := install.NewInstallController()
+	installController, err := linuxinstall.NewInstallController()
 	require.NoError(t, err)
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
-		"password",
-		api.WithInstallController(installController),
+		types.APIConfig{
+			Password: "password",
+		},
+		api.WithLinuxInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
@@ -830,7 +870,7 @@ func TestSetInstallStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/status", bytes.NewReader(statusJSON))
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/status", bytes.NewReader(statusJSON))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
@@ -864,7 +904,7 @@ func TestSetInstallStatus(t *testing.T) {
 	// Test that the endpoint properly handles validation errors
 	t.Run("Validation error", func(t *testing.T) {
 		// Create a request with invalid JSON
-		req := httptest.NewRequest(http.MethodPost, "/install/status",
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/status",
 			bytes.NewReader([]byte(`{"state": "INVALID_STATE"}`)))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
@@ -882,7 +922,7 @@ func TestSetInstallStatus(t *testing.T) {
 	// Test authorization errors
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create a request with invalid JSON
-		req := httptest.NewRequest(http.MethodPost, "/install/status",
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/status",
 			bytes.NewReader([]byte(`{}`)))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
@@ -910,8 +950,10 @@ func TestSetInstallStatus(t *testing.T) {
 
 		// Create the API with the mock controller
 		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(mockController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -929,7 +971,7 @@ func TestSetInstallStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/status", bytes.NewReader(statusJSON))
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/status", bytes.NewReader(statusJSON))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
@@ -962,9 +1004,9 @@ func TestInstallWithAPIClient(t *testing.T) {
 	)
 
 	// Create an install controller with the config manager
-	installController, err := install.NewInstallController(
-		install.WithRuntimeConfig(rc),
-		install.WithInstallationManager(installationManager),
+	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithRuntimeConfig(rc),
+		linuxinstall.WithInstallationManager(installationManager),
 	)
 	require.NoError(t, err)
 
@@ -989,9 +1031,11 @@ func TestInstallWithAPIClient(t *testing.T) {
 
 	// Create the API with controllers
 	apiInstance, err := api.New(
-		password,
+		types.APIConfig{
+			Password: password,
+		},
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
-		api.WithInstallController(installController),
+		api.WithLinuxInstallController(installController),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
@@ -1150,17 +1194,13 @@ func TestPostSetupInfra(t *testing.T) {
 			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
 		)
 
-		// Create license file
-		licenseFile := filepath.Join(t.TempDir(), "license.yaml")
-		require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
-
 		// Create infra manager with mocks
 		infraManager := infra.NewInfraManager(
 			infra.WithK0s(k0sMock),
 			infra.WithKubeClient(fakeKcli),
 			infra.WithMetadataClient(fakeMcli),
 			infra.WithHelmClient(helmMock),
-			infra.WithLicenseFile(licenseFile),
+			infra.WithLicense(licenseData),
 			infra.WithHostUtils(hostutilsMock),
 			infra.WithKotsInstaller(func() error {
 				return nil
@@ -1197,10 +1237,12 @@ func TestPostSetupInfra(t *testing.T) {
 		)
 
 		// Create an install controller with the mocked managers
-		installController, err := install.NewInstallController(
-			install.WithHostPreflightManager(pfManager),
-			install.WithInfraManager(infraManager),
-			install.WithReleaseData(&release.ReleaseData{
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsSucceeded))),
+			linuxinstall.WithHostPreflightManager(pfManager),
+			linuxinstall.WithInfraManager(infraManager),
+			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
 					DefaultDomains: release.Domains{
@@ -1209,14 +1251,15 @@ func TestPostSetupInfra(t *testing.T) {
 					},
 				},
 			}),
-			install.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
 		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(installController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -1226,9 +1269,16 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -1251,7 +1301,7 @@ func TestPostSetupInfra(t *testing.T) {
 		// Helper function to get infra status
 		getInfraStatus := func() types.Infra {
 			// Create a request to get infra status
-			req := httptest.NewRequest(http.MethodGet, "/install/infra/status", nil)
+			req := httptest.NewRequest(http.MethodGet, "/linux/install/infra/status", nil)
 			req.Header.Set("Authorization", "Bearer TOKEN")
 			rec := httptest.NewRecorder()
 
@@ -1301,11 +1351,11 @@ func TestPostSetupInfra(t *testing.T) {
 
 		// Verify kotsadm namespace and kotsadm-password secret were created
 		var gotKotsadmNamespace corev1.Namespace
-		err = fakeKcli.Get(t.Context(), client.ObjectKey{Name: runtimeconfig.KotsadmNamespace}, &gotKotsadmNamespace)
+		err = fakeKcli.Get(t.Context(), client.ObjectKey{Name: constants.KotsadmNamespace}, &gotKotsadmNamespace)
 		require.NoError(t, err)
 
 		var gotKotsadmPasswordSecret corev1.Secret
-		err = fakeKcli.Get(t.Context(), client.ObjectKey{Namespace: runtimeconfig.KotsadmNamespace, Name: "kotsadm-password"}, &gotKotsadmPasswordSecret)
+		err = fakeKcli.Get(t.Context(), client.ObjectKey{Namespace: constants.KotsadmNamespace, Name: "kotsadm-password"}, &gotKotsadmPasswordSecret)
 		require.NoError(t, err)
 		assert.NotEmpty(t, gotKotsadmPasswordSecret.Data["passwordBcrypt"])
 
@@ -1322,7 +1372,9 @@ func TestPostSetupInfra(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create the API
 		apiInstance, err := api.New(
-			"password",
+			types.APIConfig{
+				Password: "password",
+			},
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -1332,9 +1384,16 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -1349,6 +1408,191 @@ func TestPostSetupInfra(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&apiError)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+
+	// Test preflight bypass with CLI flag allowing it - should succeed
+	t.Run("Preflight bypass allowed by CLI flag", func(t *testing.T) {
+		// Create host preflights with failed status
+		hpf := types.HostPreflights{}
+		hpf.Status = types.Status{
+			State:       types.StateFailed,
+			Description: "Host preflights failed",
+		}
+
+		// Create managers
+		pfManager := preflight.NewHostPreflightManager(
+			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
+		)
+
+		// Create an install controller with CLI flag allowing bypass
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsFailed))),
+			linuxinstall.WithHostPreflightManager(pfManager),
+			linuxinstall.WithAllowIgnoreHostPreflights(true), // CLI flag allows bypass
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		apiInstance, err := api.New(
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request with ignoreHostPreflights=true
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: true,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/infra/setup", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response - should succeed because CLI flag allows bypass
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		t.Logf("Response body: %s", rec.Body.String())
+	})
+
+	// Test preflight bypass with CLI flag NOT allowing it - should fail
+	t.Run("Preflight bypass denied by CLI flag", func(t *testing.T) {
+		// Create host preflights with failed status
+		hpf := types.HostPreflights{}
+		hpf.Status = types.Status{
+			State:       types.StateFailed,
+			Description: "Host preflights failed",
+		}
+
+		// Create managers
+		pfManager := preflight.NewHostPreflightManager(
+			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
+		)
+
+		// Create an install controller with CLI flag NOT allowing bypass
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsFailed))),
+			linuxinstall.WithHostPreflightManager(pfManager),
+			linuxinstall.WithAllowIgnoreHostPreflights(false), // CLI flag does NOT allow bypass
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		apiInstance, err := api.New(
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request with ignoreHostPreflights=true
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: true,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/infra/setup", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response - should fail because CLI flag does NOT allow bypass
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		t.Logf("Response body: %s", rec.Body.String())
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+		assert.Contains(t, apiError.Message, "preflight checks failed")
+	})
+
+	// Test client not requesting bypass but preflights failed - should fail
+	t.Run("Client not requesting bypass with failed preflights", func(t *testing.T) {
+		// Create host preflights with failed status
+		hpf := types.HostPreflights{}
+		hpf.Status = types.Status{
+			State:       types.StateFailed,
+			Description: "Host preflights failed",
+		}
+
+		// Create managers
+		pfManager := preflight.NewHostPreflightManager(
+			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
+		)
+
+		// Create an install controller with CLI flag allowing bypass
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsFailed))),
+			linuxinstall.WithHostPreflightManager(pfManager),
+			linuxinstall.WithAllowIgnoreHostPreflights(true), // CLI flag allows bypass
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		apiInstance, err := api.New(
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request with ignoreHostPreflights=false (client not requesting bypass)
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/infra/setup", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response - should fail because client is not requesting bypass
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		t.Logf("Response body: %s", rec.Body.String())
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+		assert.Contains(t, apiError.Message, "preflight checks failed")
 	})
 
 	// Test preflight checks not completed
@@ -1366,15 +1610,18 @@ func TestPostSetupInfra(t *testing.T) {
 		)
 
 		// Create an install controller
-		installController, err := install.NewInstallController(
-			install.WithHostPreflightManager(pfManager),
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsRunning))),
+			linuxinstall.WithHostPreflightManager(pfManager),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
 		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(installController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -1383,32 +1630,28 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
 		router.ServeHTTP(rec, req)
 
 		// Check the response
-		assert.Equal(t, http.StatusInternalServerError, rec.Code)
-
-		t.Logf("Response body: %s", rec.Body.String())
-
-		// Parse the response body
-		var apiError types.APIError
-		err = json.NewDecoder(rec.Body).Decode(&apiError)
-		require.NoError(t, err)
-		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
-		assert.Contains(t, apiError.Message, "host preflight checks did not complete")
+		assert.Equal(t, http.StatusConflict, rec.Code)
+		assert.Contains(t, rec.Body.String(), "invalid transition")
 	})
 
 	// Test k0s already installed error
 	t.Run("K0s already installed", func(t *testing.T) {
-		// Create mocks
-		k0sMock := &k0s.MockK0s{}
-
 		// Create a runtime config
 		rc := runtimeconfig.New(nil)
 		rc.SetDataDir(t.TempDir())
@@ -1427,29 +1670,25 @@ func TestPostSetupInfra(t *testing.T) {
 		pfManager := preflight.NewHostPreflightManager(
 			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
 		)
-		infraManager := infra.NewInfraManager(
-			infra.WithK0s(k0sMock),
-		)
-
-		// Setup k0s mock to return already installed
-		k0sMock.On("IsInstalled").Return(true, nil)
 
 		// Create an install controller
-		installController, err := install.NewInstallController(
-			install.WithHostPreflightManager(pfManager),
-			install.WithInfraManager(infraManager),
-			install.WithReleaseData(&release.ReleaseData{
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateSucceeded))),
+			linuxinstall.WithHostPreflightManager(pfManager),
+			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease:        &release.ChannelRelease{},
 			}),
-			install.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
 		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(installController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -1458,20 +1697,24 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
 		router.ServeHTTP(rec, req)
 
 		// Check the response
-		assert.Equal(t, http.StatusInternalServerError, rec.Code)
-		assert.Contains(t, rec.Body.String(), "installation is detected")
-
-		// Verify that the mock expectations were met
-		k0sMock.AssertExpectations(t)
+		assert.Equal(t, http.StatusConflict, rec.Code)
+		assert.Contains(t, rec.Body.String(), "invalid transition")
 	})
 
 	// Test k0s install error
@@ -1496,10 +1739,6 @@ func TestPostSetupInfra(t *testing.T) {
 			Description: "Host preflights succeeded",
 		}
 
-		// Create license file
-		licenseFile := filepath.Join(t.TempDir(), "license.yaml")
-		require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
-
 		// Create managers
 		pfManager := preflight.NewHostPreflightManager(
 			preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
@@ -1507,7 +1746,7 @@ func TestPostSetupInfra(t *testing.T) {
 		infraManager := infra.NewInfraManager(
 			infra.WithK0s(k0sMock),
 			infra.WithHostUtils(hostutilsMock),
-			infra.WithLicenseFile(licenseFile),
+			infra.WithLicense(licenseData),
 		)
 
 		// Setup k0s mock expectations with failure
@@ -1520,21 +1759,24 @@ func TestPostSetupInfra(t *testing.T) {
 		)
 
 		// Create an install controller
-		installController, err := install.NewInstallController(
-			install.WithHostPreflightManager(pfManager),
-			install.WithInfraManager(infraManager),
-			install.WithReleaseData(&release.ReleaseData{
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithHostPreflightManager(pfManager),
+			linuxinstall.WithInfraManager(infraManager),
+			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease:        &release.ChannelRelease{},
 			}),
-			install.WithRuntimeConfig(rc),
+			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsSucceeded))),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
 		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(installController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -1543,9 +1785,16 @@ func TestPostSetupInfra(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/infra/setup", nil)
+		// Create a request with proper JSON body
+		requestBody := types.InfraSetupRequest{
+			IgnoreHostPreflights: false,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/infra/setup", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -1557,7 +1806,7 @@ func TestPostSetupInfra(t *testing.T) {
 		// The status should eventually be set to failed due to k0s install error
 		assert.Eventually(t, func() bool {
 			// Create a request to get infra status
-			req := httptest.NewRequest(http.MethodGet, "/install/infra/status", nil)
+			req := httptest.NewRequest(http.MethodGet, "/linux/install/infra/status", nil)
 			req.Header.Set("Authorization", "Bearer TOKEN")
 			rec := httptest.NewRecorder()
 

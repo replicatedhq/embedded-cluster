@@ -7,9 +7,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
+	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
@@ -27,7 +28,7 @@ type Controller interface {
 	GetHostPreflightStatus(ctx context.Context) (types.Status, error)
 	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
-	SetupInfra(ctx context.Context) error
+	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
 	SetStatus(ctx context.Context, status types.Status) error
 	GetStatus(ctx context.Context) (types.Status, error)
@@ -40,24 +41,27 @@ type RunHostPreflightsOptions struct {
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	install              types.Install
-	store                store.Store
 	installationManager  installation.InstallationManager
 	hostPreflightManager preflight.HostPreflightManager
 	infraManager         infra.InfraManager
-	rc                   runtimeconfig.RuntimeConfig
-	logger               logrus.FieldLogger
 	hostUtils            hostutils.HostUtilsInterface
 	netUtils             utils.NetUtils
 	metricsReporter      metrics.ReporterInterface
 	releaseData          *release.ReleaseData
 	password             string
 	tlsConfig            types.TLSConfig
-	licenseFile          string
+	license              []byte
 	airgapBundle         string
 	configValues         string
 	endUserConfig        *ecv1beta1.Config
-	mu                   sync.RWMutex
+
+	install                   types.Install
+	store                     store.Store
+	rc                        runtimeconfig.RuntimeConfig
+	stateMachine              statemachine.Interface
+	logger                    logrus.FieldLogger
+	mu                        sync.RWMutex
+	allowIgnoreHostPreflights bool
 }
 
 type InstallControllerOption func(*InstallController)
@@ -110,9 +114,9 @@ func WithTLSConfig(tlsConfig types.TLSConfig) InstallControllerOption {
 	}
 }
 
-func WithLicenseFile(licenseFile string) InstallControllerOption {
+func WithLicense(license []byte) InstallControllerOption {
 	return func(c *InstallController) {
-		c.licenseFile = licenseFile
+		c.license = license
 	}
 }
 
@@ -134,6 +138,12 @@ func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InstallControllerOption 
 	}
 }
 
+func WithAllowIgnoreHostPreflights(allowIgnoreHostPreflights bool) InstallControllerOption {
+	return func(c *InstallController) {
+		c.allowIgnoreHostPreflights = allowIgnoreHostPreflights
+	}
+}
+
 func WithInstallationManager(installationManager installation.InstallationManager) InstallControllerOption {
 	return func(c *InstallController) {
 		c.installationManager = installationManager
@@ -152,19 +162,31 @@ func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
 	}
 }
 
+func WithStateMachine(stateMachine statemachine.Interface) InstallControllerOption {
+	return func(c *InstallController) {
+		c.stateMachine = stateMachine
+	}
+}
+
+func WithStore(store store.Store) InstallControllerOption {
+	return func(c *InstallController) {
+		c.store = store
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
-	controller := &InstallController{}
+	controller := &InstallController{
+		store:  store.NewMemoryStore(),
+		rc:     runtimeconfig.New(nil),
+		logger: logger.NewDiscardLogger(),
+	}
 
 	for _, opt := range opts {
 		opt(controller)
 	}
 
-	if controller.rc == nil {
-		controller.rc = runtimeconfig.New(nil)
-	}
-
-	if controller.logger == nil {
-		controller.logger = logger.NewDiscardLogger()
+	if controller.stateMachine == nil {
+		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
 	}
 
 	if controller.hostUtils == nil {
@@ -177,15 +199,11 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.netUtils = utils.NewNetUtils()
 	}
 
-	if controller.store == nil {
-		controller.store = store.NewMemoryStore()
-	}
-
 	if controller.installationManager == nil {
 		controller.installationManager = installation.NewInstallationManager(
 			installation.WithLogger(controller.logger),
 			installation.WithInstallationStore(controller.store.InstallationStore()),
-			installation.WithLicenseFile(controller.licenseFile),
+			installation.WithLicense(controller.license),
 			installation.WithAirgapBundle(controller.airgapBundle),
 			installation.WithHostUtils(controller.hostUtils),
 			installation.WithNetUtils(controller.netUtils),
@@ -195,7 +213,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.hostPreflightManager == nil {
 		controller.hostPreflightManager = preflight.NewHostPreflightManager(
 			preflight.WithLogger(controller.logger),
-			preflight.WithMetricsReporter(controller.metricsReporter),
 			preflight.WithHostPreflightStore(controller.store.PreflightStore()),
 			preflight.WithNetUtils(controller.netUtils),
 		)
@@ -207,13 +224,15 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithInfraStore(controller.store.InfraStore()),
 			infra.WithPassword(controller.password),
 			infra.WithTLSConfig(controller.tlsConfig),
-			infra.WithLicenseFile(controller.licenseFile),
+			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
 			infra.WithConfigValues(controller.configValues),
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 		)
 	}
+
+	controller.registerReportingHandlers()
 
 	return controller, nil
 }

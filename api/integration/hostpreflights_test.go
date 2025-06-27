@@ -10,7 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
-	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
+	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
 	installationstore "github.com/replicatedhq/embedded-cluster/api/internal/store/installation"
@@ -64,13 +64,17 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 		preflight.WithPreflightRunner(runner),
 	)
 	// Create an install controller
-	installController, err := install.NewInstallController(install.WithHostPreflightManager(manager))
+	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithHostPreflightManager(manager),
+	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
-		"password",
-		api.WithInstallController(installController),
+		types.APIConfig{
+			Password: "password",
+		},
+		api.WithLinuxInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
@@ -83,7 +87,7 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 	// Test successful get
 	t.Run("Success", func(t *testing.T) {
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install/host-preflights/status", nil)
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/host-preflights/status", nil)
 		req.Header.Set("Authorization", "Bearer TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -108,7 +112,7 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install/host-preflights/status", nil)
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/host-preflights/status", nil)
 		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -135,8 +139,10 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 
 		// Create the API with the mock controller
 		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(mockController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -146,7 +152,7 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/install/host-preflights/status", nil)
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/host-preflights/status", nil)
 		req.Header.Set("Authorization", "Bearer TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -163,6 +169,93 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, apiError.StatusCode)
 		assert.NotEmpty(t, apiError.Message)
 	})
+}
+
+// Test the getHostPreflightsStatus endpoint returns AllowIgnoreHostPreflights flag correctly
+func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
+	tests := []struct {
+		name                      string
+		allowIgnoreHostPreflights bool
+		expectedAllowIgnore       bool
+	}{
+		{
+			name:                      "allow ignore host preflights true",
+			allowIgnoreHostPreflights: true,
+			expectedAllowIgnore:       true,
+		},
+		{
+			name:                      "allow ignore host preflights false",
+			allowIgnoreHostPreflights: false,
+			expectedAllowIgnore:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hpf := types.HostPreflights{
+				Output: &types.HostPreflightsOutput{
+					Pass: []types.HostPreflightsRecord{
+						{
+							Title:   "Some Preflight",
+							Message: "All good",
+						},
+					},
+				},
+				Titles: []string{"Some Preflight"},
+				Status: types.Status{
+					State:       types.StateSucceeded,
+					Description: "All preflights passed",
+				},
+			}
+			runner := &preflights.MockPreflightRunner{}
+			// Create a host preflights manager
+			manager := preflight.NewHostPreflightManager(
+				preflight.WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(hpf))),
+				preflight.WithPreflightRunner(runner),
+			)
+			// Create an install controller
+			installController, err := linuxinstall.NewInstallController(linuxinstall.WithHostPreflightManager(manager))
+			require.NoError(t, err)
+
+			// Create the API with allow ignore host preflights flag
+			apiInstance, err := api.New(
+				types.APIConfig{
+					Password: "password",
+					LinuxConfig: types.LinuxConfig{
+						AllowIgnoreHostPreflights: tt.allowIgnoreHostPreflights,
+					},
+				},
+				api.WithLinuxInstallController(installController),
+				api.WithAuthController(&staticAuthController{"TOKEN"}),
+				api.WithLogger(logger.NewDiscardLogger()),
+			)
+			require.NoError(t, err)
+
+			// Create a router and register the API routes
+			router := mux.NewRouter()
+			apiInstance.RegisterRoutes(router)
+
+			// Create a request
+			req := httptest.NewRequest(http.MethodGet, "/linux/install/host-preflights/status", nil)
+			req.Header.Set("Authorization", "Bearer TOKEN")
+			rec := httptest.NewRecorder()
+
+			// Serve the request
+			router.ServeHTTP(rec, req)
+
+			// Check the response
+			require.Equal(t, http.StatusOK, rec.Code, "expected status ok, got %d with body %s", rec.Code, rec.Body.String())
+			assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+			// Parse the response body
+			var status types.InstallHostPreflightsStatusResponse
+			err = json.NewDecoder(rec.Body).Decode(&status)
+			require.NoError(t, err)
+
+			// Verify the flag is present and correctly set by the handler
+			assert.Equal(t, tt.expectedAllowIgnore, status.AllowIgnoreHostPreflights)
+		})
+	}
 }
 
 // Test the postRunHostPreflights endpoint runs host preflights correctly
@@ -189,11 +282,14 @@ func TestPostRunHostPreflights(t *testing.T) {
 		)
 
 		// Create an install controller with the mocked manager
-		installController, err := install.NewInstallController(
-			install.WithHostPreflightManager(pfManager),
-			install.WithInstallationManager(iManager),
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
+				linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured),
+			)),
+			linuxinstall.WithHostPreflightManager(pfManager),
+			linuxinstall.WithInstallationManager(iManager),
 			// Mock the release data used by the preflight runner
-			install.WithReleaseData(&release.ReleaseData{
+			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
 					DefaultDomains: release.Domains{
@@ -202,7 +298,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 					},
 				},
 			}),
-			install.WithRuntimeConfig(rc),
+			linuxinstall.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
 
@@ -234,8 +330,10 @@ func TestPostRunHostPreflights(t *testing.T) {
 
 		// Create the API with the install controller
 		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(installController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -246,7 +344,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
 		req.Header.Set("Authorization", "Bearer TOKEN")
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
@@ -290,20 +388,25 @@ func TestPostRunHostPreflights(t *testing.T) {
 		)
 
 		// Create an install controller
-		installController, err := install.NewInstallController(
-			install.WithHostPreflightManager(manager),
-			install.WithReleaseData(&release.ReleaseData{
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
+				linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured),
+			)),
+			linuxinstall.WithHostPreflightManager(manager),
+			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease:        &release.ChannelRelease{},
 			}),
-			install.WithRuntimeConfig(rc),
+			linuxinstall.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
 		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(installController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -314,7 +417,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
 		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
@@ -345,20 +448,25 @@ func TestPostRunHostPreflights(t *testing.T) {
 		)
 
 		// Create an install controller with the failing manager
-		installController, err := install.NewInstallController(
-			install.WithHostPreflightManager(manager),
-			install.WithReleaseData(&release.ReleaseData{
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
+				linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured),
+			)),
+			linuxinstall.WithHostPreflightManager(manager),
+			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease:        &release.ChannelRelease{},
 			}),
-			install.WithRuntimeConfig(rc),
+			linuxinstall.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
 		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(installController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -368,7 +476,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
 		req.Header.Set("Authorization", "Bearer TOKEN")
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
@@ -401,20 +509,25 @@ func TestPostRunHostPreflights(t *testing.T) {
 		)
 
 		// Create an install controller with the failing manager
-		installController, err := install.NewInstallController(
-			install.WithHostPreflightManager(manager),
-			install.WithReleaseData(&release.ReleaseData{
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
+				linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured),
+			)),
+			linuxinstall.WithHostPreflightManager(manager),
+			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease:        &release.ChannelRelease{},
 			}),
-			install.WithRuntimeConfig(rc),
+			linuxinstall.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
 		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(installController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -424,7 +537,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
 		req.Header.Set("Authorization", "Bearer TOKEN")
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
@@ -470,20 +583,25 @@ func TestPostRunHostPreflights(t *testing.T) {
 		)
 
 		// Create an install controller with the failing manager
-		installController, err := install.NewInstallController(
-			install.WithHostPreflightManager(manager),
-			install.WithReleaseData(&release.ReleaseData{
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
+				linuxinstall.WithCurrentState(linuxinstall.StatePreflightsRunning),
+			)),
+			linuxinstall.WithHostPreflightManager(manager),
+			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease:        &release.ChannelRelease{},
 			}),
-			install.WithRuntimeConfig(rc),
+			linuxinstall.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
 		apiInstance, err := api.New(
-			"password",
-			api.WithInstallController(installController),
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
 			api.WithAuthController(&staticAuthController{"TOKEN"}),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -493,7 +611,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/host-preflights/run", bytes.NewBuffer([]byte(`{"isUi": true}`)))
 		req.Header.Set("Authorization", "Bearer TOKEN")
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()

@@ -27,7 +27,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
   const { data: infraStatusResponse, error: infraStatusError } = useQuery<InfraStatusResponse, Error>({
     queryKey: ["infraStatus"],
     queryFn: async () => {
-      const response = await fetch("/api/install/infra/status", {
+      const response = await fetch("/api/linux/install/infra/status", {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,

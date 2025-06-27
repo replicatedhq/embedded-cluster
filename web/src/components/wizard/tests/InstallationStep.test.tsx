@@ -9,7 +9,7 @@ import { http, HttpResponse } from "msw";
 
 const server = setupServer(
   // Mock installation status endpoint
-  http.get("*/api/install/infra/status", () => {
+  http.get("*/api/linux/install/infra/status", () => {
     return HttpResponse.json({
       status: { state: "Running", description: "Installing..." },
       components: [
@@ -84,7 +84,7 @@ describe("InstallationStep", () => {
   it("shows progress as components complete", async () => {
     const mockOnNext = vi.fn();
     server.use(
-      http.get("*/api/install/infra/status", ({ request }) => {
+      http.get("*/api/linux/install/infra/status", ({ request }) => {
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
         return HttpResponse.json({
           status: { state: "InProgress", description: "Installing components..." },
@@ -130,7 +130,7 @@ describe("InstallationStep", () => {
   it("enables next button when installation succeeds", async () => {
     const mockOnNext = vi.fn();
     server.use(
-      http.get("*/api/install/infra/status", ({ request }) => {
+      http.get("*/api/linux/install/infra/status", ({ request }) => {
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
         return HttpResponse.json({
           status: { state: "Succeeded", description: "Installation complete" },
@@ -176,7 +176,7 @@ describe("InstallationStep", () => {
   it("shows error message when installation fails", async () => {
     const mockOnNext = vi.fn();
     server.use(
-      http.get("*/api/install/infra/status", ({ request }) => {
+      http.get("*/api/linux/install/infra/status", ({ request }) => {
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
         return HttpResponse.json({
           status: { 
@@ -227,7 +227,7 @@ describe("InstallationStep", () => {
   it("verify log viewer", async () => {
     const mockOnNext = vi.fn();
     server.use(
-      http.get("*/api/install/infra/status", () => {
+      http.get("*/api/linux/install/infra/status", () => {
         return HttpResponse.json({
           status: { state: "Running", description: "Installing..." },
           components: [

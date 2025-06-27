@@ -2,14 +2,12 @@ package preflight
 
 import (
 	"context"
-	"sync"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/preflight"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
@@ -29,8 +27,6 @@ type hostPreflightManager struct {
 	runner             preflights.PreflightsRunnerInterface
 	netUtils           utils.NetUtils
 	logger             logrus.FieldLogger
-	metricsReporter    metrics.ReporterInterface
-	mu                 sync.RWMutex
 }
 
 type HostPreflightManagerOption func(*hostPreflightManager)
@@ -38,12 +34,6 @@ type HostPreflightManagerOption func(*hostPreflightManager)
 func WithLogger(logger logrus.FieldLogger) HostPreflightManagerOption {
 	return func(m *hostPreflightManager) {
 		m.logger = logger
-	}
-}
-
-func WithMetricsReporter(metricsReporter metrics.ReporterInterface) HostPreflightManagerOption {
-	return func(m *hostPreflightManager) {
-		m.metricsReporter = metricsReporter
 	}
 }
 

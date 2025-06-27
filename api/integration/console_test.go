@@ -9,8 +9,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,7 +28,9 @@ func TestConsoleListAvailableNetworkInterfaces(t *testing.T) {
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
-		"password",
+		types.APIConfig{
+			Password: "password",
+		},
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -74,7 +76,9 @@ func TestConsoleListAvailableNetworkInterfacesUnauthorized(t *testing.T) {
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
-		"password",
+		types.APIConfig{
+			Password: "password",
+		},
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(&staticAuthController{"VALID_TOKEN"}),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -116,7 +120,9 @@ func TestConsoleListAvailableNetworkInterfacesError(t *testing.T) {
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
-		"password",
+		types.APIConfig{
+			Password: "password",
+		},
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
 		api.WithLogger(logger.NewDiscardLogger()),

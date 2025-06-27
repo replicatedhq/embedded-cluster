@@ -56,9 +56,3 @@ func (m *MockStore) SetStatus(status types.Status) error {
 	args := m.Called(status)
 	return args.Error(0)
 }
-
-// IsRunning mocks the IsRunning method
-func (m *MockStore) IsRunning() bool {
-	args := m.Called()
-	return args.Bool(0)
-}

@@ -21,14 +21,15 @@ import (
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -92,12 +93,13 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	var skipStoreValidation bool
 
 	rc := runtimeconfig.New(nil)
+	ki := kubernetesinstallation.New(nil)
 
 	cmd := &cobra.Command{
 		Use:   "restore",
 		Short: fmt.Sprintf("Restore %s from a backup", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &flags, rc); err != nil {
+			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
 				return err
 			}
 
@@ -120,9 +122,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	addS3Flags(cmd, &s3Store)
 	cmd.Flags().BoolVar(&skipStoreValidation, "skip-store-validation", false, "Skip validation of the backup storage location")
 
-	if err := addInstallFlags(cmd, &flags); err != nil {
-		panic(err)
-	}
+	mustAddInstallFlags(cmd, &flags)
 
 	return cmd
 }
@@ -436,7 +436,7 @@ func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, 
 		Path:            s3Store.prefix,
 		AccessKeyID:     s3Store.accessKeyID,
 		SecretAccessKey: s3Store.secretAccessKey,
-		Namespace:       runtimeconfig.KotsadmNamespace,
+		Namespace:       constants.KotsadmNamespace,
 	}); err != nil {
 		return err
 	}
@@ -474,15 +474,18 @@ func installAddonsForRestore(ctx context.Context, kcli client.Client, mcli metad
 		addons.WithKubernetesClient(kcli),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(getDomains()),
 		addons.WithProgressChannel(progressChan),
 	)
 
-	if err := addOns.Install(ctx, addons.InstallOptions{
-		IsAirgap:           flags.airgapBundle != "",
-		IsRestore:          true,
+	if err := addOns.Restore(ctx, addons.RestoreOptions{
 		EmbeddedConfigSpec: embCfgSpec,
 		EndUserConfigSpec:  nil, // TODO: support for end user config overrides
+		ProxySpec:          rc.ProxySpec(),
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		OpenEBSDataDir:     rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
 	}); err != nil {
 		return fmt.Errorf("install addons: %w", err)
 	}
@@ -603,6 +606,15 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
 	}
 
+	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return fmt.Errorf("parse end user config: %w", err)
+	}
+	var euCfgSpec *ecv1beta1.ConfigSpec
+	if euCfg != nil {
+		euCfgSpec = &euCfg.Spec
+	}
+
 	hcli, err := helm.NewClient(helm.HelmOptions{
 		KubeConfig: rc.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
@@ -618,10 +630,24 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		addons.WithKubernetesClient(kcli),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(getDomains()),
 	)
 
-	err = addOns.EnableAdminConsoleHA(ctx, flags.isAirgap, in.Spec.Config, in.Spec.LicenseInfo)
+	opts := addons.EnableHAOptions{
+		AdminConsolePort:   rc.AdminConsolePort(),
+		IsAirgap:           in.Spec.AirGap,
+		IsMultiNodeEnabled: in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
+		EmbeddedConfigSpec: in.Spec.Config,
+		EndUserConfigSpec:  euCfgSpec,
+		ProxySpec:          rc.ProxySpec(),
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
+		ServiceCIDR:        rc.ServiceCIDR(),
+	}
+
+	err = addOns.EnableAdminConsoleHA(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -772,7 +798,7 @@ func getECRestoreState(ctx context.Context) ecRestoreState {
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: runtimeconfig.EmbeddedClusterNamespace,
+			Namespace: constants.EmbeddedClusterNamespace,
 			Name:      constants.EcRestoreStateCMName,
 		},
 	}
@@ -804,7 +830,7 @@ func setECRestoreState(ctx context.Context, state ecRestoreState, backupName str
 
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: runtimeconfig.EmbeddedClusterNamespace,
+			Name: constants.EmbeddedClusterNamespace,
 		},
 	}
 
@@ -814,7 +840,7 @@ func setECRestoreState(ctx context.Context, state ecRestoreState, backupName str
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: runtimeconfig.EmbeddedClusterNamespace,
+			Namespace: constants.EmbeddedClusterNamespace,
 			Name:      constants.EcRestoreStateCMName,
 		},
 		Data: map[string]string{
@@ -847,7 +873,7 @@ func resetECRestoreState(ctx context.Context) error {
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: runtimeconfig.EmbeddedClusterNamespace,
+			Namespace: constants.EmbeddedClusterNamespace,
 			Name:      constants.EcRestoreStateCMName,
 		},
 	}
@@ -872,7 +898,7 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool, rc runtimecon
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: runtimeconfig.EmbeddedClusterNamespace,
+			Namespace: constants.EmbeddedClusterNamespace,
 			Name:      constants.EcRestoreStateCMName,
 		},
 	}
@@ -886,7 +912,7 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool, rc runtimecon
 		return nil, nil
 	}
 
-	backup, err := disasterrecovery.GetReplicatedBackup(ctx, kcli, runtimeconfig.VeleroNamespace, backupName)
+	backup, err := disasterrecovery.GetReplicatedBackup(ctx, kcli, constants.VeleroNamespace, backupName)
 	if err != nil {
 		return nil, err
 	}
@@ -1225,7 +1251,7 @@ func waitForVeleroRestoreCompleted(ctx context.Context, restoreName string) (*ve
 
 	for {
 		restore := velerov1.Restore{}
-		err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: runtimeconfig.VeleroNamespace}, &restore)
+		err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: constants.VeleroNamespace}, &restore)
 		if err != nil {
 			return nil, fmt.Errorf("unable to get restore: %w", err)
 		}
@@ -1323,7 +1349,7 @@ func ensureRestoreResourceModifiers(ctx context.Context, backup *velerov1.Backup
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: runtimeconfig.VeleroNamespace,
+			Namespace: constants.VeleroNamespace,
 			Name:      resourceModifiersCMName,
 		},
 		Data: map[string]string{
@@ -1379,7 +1405,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
-		if err := restoreWaitForAdminConsoleReady(ctx, kcli, runtimeconfig.KotsadmNamespace, loading); err != nil {
+		if err := restoreWaitForAdminConsoleReady(ctx, kcli, constants.KotsadmNamespace, loading); err != nil {
 			return fmt.Errorf("unable to wait for admin console: %w", err)
 		}
 	} else if drComponent == disasterRecoveryComponentSeaweedFS {
@@ -1389,7 +1415,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
-		if err := restoreWaitForSeaweedfsReady(ctx, kcli, runtimeconfig.SeaweedFSNamespace, nil); err != nil {
+		if err := restoreWaitForSeaweedfsReady(ctx, kcli, constants.SeaweedFSNamespace, nil); err != nil {
 			return fmt.Errorf("unable to wait for seaweedfs to be ready: %w", err)
 		}
 	} else if drComponent == disasterRecoveryComponentRegistry {
@@ -1399,7 +1425,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
-		if err := kubeutils.WaitForDeployment(ctx, kcli, runtimeconfig.RegistryNamespace, "registry", nil); err != nil {
+		if err := kubeutils.WaitForDeployment(ctx, kcli, constants.RegistryNamespace, "registry", nil); err != nil {
 			return fmt.Errorf("unable to wait for registry to be ready: %w", err)
 		}
 	} else if drComponent == disasterRecoveryComponentECO {
@@ -1410,7 +1436,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		}
 
 		if isV2 {
-			if err := kubeutils.WaitForDeployment(ctx, kcli, runtimeconfig.EmbeddedClusterNamespace, "embedded-cluster-operator", nil); err != nil {
+			if err := kubeutils.WaitForDeployment(ctx, kcli, constants.EmbeddedClusterNamespace, "embedded-cluster-operator", nil); err != nil {
 				return fmt.Errorf("unable to wait for embedded cluster operator to be ready: %w", err)
 			}
 		} else {
@@ -1490,14 +1516,14 @@ func restoreAppFromBackup(ctx context.Context, backup *velerov1.Backup, restore 
 
 	// check if a restore object already exists
 	rest := velerov1.Restore{}
-	err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: runtimeconfig.VeleroNamespace}, &rest)
+	err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: constants.VeleroNamespace}, &rest)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return fmt.Errorf("unable to get restore: %w", err)
 	}
 
 	// create a new restore object if it doesn't exist
 	if k8serrors.IsNotFound(err) {
-		restore.Namespace = runtimeconfig.VeleroNamespace
+		restore.Namespace = constants.VeleroNamespace
 		restore.Name = restoreName
 		if restore.Annotations == nil {
 			restore.Annotations = map[string]string{}
@@ -1532,7 +1558,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 
 	// check if a restore object already exists
 	rest := velerov1.Restore{}
-	err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: runtimeconfig.VeleroNamespace}, &rest)
+	err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: constants.VeleroNamespace}, &rest)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return fmt.Errorf("unable to get restore: %w", err)
 	}
@@ -1555,7 +1581,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 
 		restore := &velerov1.Restore{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: runtimeconfig.VeleroNamespace,
+				Namespace: constants.VeleroNamespace,
 				Name:      restoreName,
 				Annotations: map[string]string{
 					disasterrecovery.BackupIsECAnnotation: "true",

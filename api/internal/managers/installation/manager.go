@@ -2,11 +2,10 @@ package installation
 
 import (
 	"context"
-	"sync"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/installation"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -29,12 +28,11 @@ type InstallationManager interface {
 // installationManager is an implementation of the InstallationManager interface
 type installationManager struct {
 	installationStore installation.Store
-	licenseFile       string
+	license           []byte
 	airgapBundle      string
 	netUtils          utils.NetUtils
 	hostUtils         hostutils.HostUtilsInterface
 	logger            logrus.FieldLogger
-	mu                sync.RWMutex
 }
 
 type InstallationManagerOption func(*installationManager)
@@ -51,9 +49,9 @@ func WithInstallationStore(installationStore installation.Store) InstallationMan
 	}
 }
 
-func WithLicenseFile(licenseFile string) InstallationManagerOption {
+func WithLicense(license []byte) InstallationManagerOption {
 	return func(c *installationManager) {
-		c.licenseFile = licenseFile
+		c.license = license
 	}
 }
 

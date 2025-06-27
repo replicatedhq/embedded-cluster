@@ -172,6 +172,20 @@ spec:
             dir="{{ .DataDir }}"
             while [ "$dir" != "/" ]; do find "$dir" -maxdepth 0 ! -perm -111; dir=$(dirname "$dir"); done
             find "/" -maxdepth 0 ! -perm -111
+    - run:
+        collectorName: 'xfs_info-data-dir'
+        command: 'sh'
+        args:
+         - '-c'
+         - >
+          # Get filesystem type
+          fstype=$(findmnt -n -o FSTYPE --target "{{ .DataDir }}")
+          if [ "$fstype" = "xfs" ]; then
+            echo "Filesystem is XFS. Running xfs_info..."
+            xfs_info "{{ .DataDir }}"
+          else
+            echo "Filesystem is not XFS (detected: $fstype). Skipping xfs_info."
+          fi
   analyzers:
     - cpu:
         checkName: CPU
@@ -937,7 +951,7 @@ spec:
                 The node IP {{ .NodeIP }} cannot be within the Pod CIDR range {{ .PodCIDR.CIDR }}. Use --pod-cidr to specify a different Pod CIDR, or use --network-interface to specify a different network interface.
                 {{- end }}
           - pass:
-              when: "false" 
+              when: "false"
               message: The node IP {{ .NodeIP }} is not within the Pod CIDR range {{ .PodCIDR.CIDR }}.
     - subnetContainsIP:
         checkName: Node IP in Service CIDR Check
@@ -1194,3 +1208,14 @@ spec:
           - fail:
               message: >-
                 The following directories lack execute permissions: {{ `{{ .Dirs | trim | splitList "\n" | join ", " }}` }}.
+    - textAnalyze:
+        checkName: Check filesystem on data directory path
+        fileName: host-collectors/run-host/xfs_info-data-dir.txt
+        regex: 'ftype=0'
+        outcomes:
+          - fail:
+              when: "true"
+              message: "The XFS filesystem at {{ .DataDir }} is configured with ftype=0, which is not supported. Reformat the filesystem with ftype=1, or choose a different data directory on a supported filesystem."
+          - pass:
+              when: "false"
+              message: "The filesystem at {{ .DataDir }} is either not XFS or is XFS with ftype=1."

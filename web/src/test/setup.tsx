@@ -29,7 +29,7 @@ interface PrototypeSettings {
   failPreflights: boolean;
   failInstallation: boolean;
   failHostPreflights: boolean;
-  clusterMode: "existing" | "embedded";
+  installTarget: "linux" | "kubernetes";
   themeColor: string;
   skipNodeValidation: boolean;
   useSelfSignedCert: boolean;
@@ -91,7 +91,7 @@ const MockProvider = ({ children, queryClient, contexts }: MockProviderProps) =>
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={contexts.authContext}>
+      <AuthContext.Provider value={{ ...contexts.authContext, isLoading: false }}>
         <ConfigContext.Provider value={contexts.configContext}>
           <BrandingContext.Provider value={contexts.brandingContext}>
             <WizardModeContext.Provider value={contexts.wizardModeContext}>{children}</WizardModeContext.Provider>
@@ -129,7 +129,7 @@ export const renderWithProviders = (
         failPreflights: false,
         failInstallation: false,
         failHostPreflights: false,
-        clusterMode: "embedded",
+        installTarget: "linux",
         themeColor: "#316DE6",
         skipNodeValidation: false,
         useSelfSignedCert: false,

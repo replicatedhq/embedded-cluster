@@ -149,8 +149,8 @@ func (rc *runtimeConfig) EmbeddedClusterK0sSubDir() string {
 	return filepath.Join(rc.EmbeddedClusterHomeDirectory(), "k0s")
 }
 
-// EmbeddedClusterSeaweedfsSubDir returns the path to the directory where seaweedfs data is stored.
-func (rc *runtimeConfig) EmbeddedClusterSeaweedfsSubDir() string {
+// EmbeddedClusterSeaweedFSSubDir returns the path to the directory where seaweedfs data is stored.
+func (rc *runtimeConfig) EmbeddedClusterSeaweedFSSubDir() string {
 	return filepath.Join(rc.EmbeddedClusterHomeDirectory(), "seaweedfs")
 }
 

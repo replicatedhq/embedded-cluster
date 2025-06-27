@@ -6,17 +6,17 @@ import (
 	"runtime/debug"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	ecmetadata "github.com/replicatedhq/embedded-cluster/pkg-new/metadata"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -25,6 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 const K0sComponentName = "runtime"
@@ -37,66 +38,18 @@ func AlreadyInstalledError() error {
 }
 
 func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) (finalErr error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	installed, err := m.k0scli.IsInstalled()
 	if err != nil {
-		return err
+		return fmt.Errorf("check if k0s is installed: %w", err)
 	}
 	if installed {
 		return AlreadyInstalledError()
-	}
-
-	didRun, err := m.installDidRun()
-	if err != nil {
-		return fmt.Errorf("check if install did run: %w", err)
-	}
-	if didRun {
-		return fmt.Errorf("install can only be run once")
-	}
-
-	license, err := helpers.ParseLicense(m.licenseFile)
-	if err != nil {
-		return fmt.Errorf("parse license: %w", err)
-	}
-
-	if err := m.initComponentsList(license, rc); err != nil {
-		return fmt.Errorf("init components: %w", err)
 	}
 
 	if err := m.setStatus(types.StateRunning, ""); err != nil {
 		return fmt.Errorf("set status: %w", err)
 	}
 
-	// Background context is used to avoid canceling the operation if the context is canceled
-	go m.install(context.Background(), license, rc)
-
-	return nil
-}
-
-func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) error {
-	components := []types.InfraComponent{{Name: K0sComponentName}}
-
-	addOns := addons.GetAddOnsForInstall(rc, addons.InstallOptions{
-		IsAirgap:                m.airgapBundle != "",
-		DisasterRecoveryEnabled: license.Spec.IsDisasterRecoverySupported,
-	})
-	for _, addOn := range addOns {
-		components = append(components, types.InfraComponent{Name: addOn.Name()})
-	}
-
-	components = append(components, types.InfraComponent{Name: "additional components"})
-
-	for _, component := range components {
-		if err := m.infraStore.RegisterComponent(component.Name); err != nil {
-			return fmt.Errorf("register component: %w", err)
-		}
-	}
-	return nil
-}
-
-func (m *infraManager) install(ctx context.Context, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
@@ -111,6 +64,41 @@ func (m *infraManager) install(ctx context.Context, license *kotsv1beta1.License
 			}
 		}
 	}()
+
+	if err := m.install(ctx, rc); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) error {
+	components := []types.InfraComponent{{Name: K0sComponentName}}
+
+	addOns := addons.GetAddOnsForInstall(m.getAddonInstallOpts(license, rc))
+	for _, addOn := range addOns {
+		components = append(components, types.InfraComponent{Name: addOn.Name()})
+	}
+
+	components = append(components, types.InfraComponent{Name: "additional components"})
+
+	for _, component := range components {
+		if err := m.infraStore.RegisterComponent(component.Name); err != nil {
+			return fmt.Errorf("register component: %w", err)
+		}
+	}
+	return nil
+}
+
+func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
+	license := &kotsv1beta1.License{}
+	if err := kyaml.Unmarshal(m.license, license); err != nil {
+		return fmt.Errorf("parse license: %w", err)
+	}
+
+	if err := m.initComponentsList(license, rc); err != nil {
+		return fmt.Errorf("init components: %w", err)
+	}
 
 	_, err := m.installK0s(ctx, rc)
 	if err != nil {
@@ -138,7 +126,7 @@ func (m *infraManager) install(ctx context.Context, license *kotsv1beta1.License
 		return fmt.Errorf("record installation: %w", err)
 	}
 
-	if err := m.installAddOns(ctx, license, kcli, mcli, hcli, rc); err != nil {
+	if err := m.installAddOns(ctx, kcli, mcli, hcli, license, rc); err != nil {
 		return fmt.Errorf("install addons: %w", err)
 	}
 
@@ -256,7 +244,7 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 	return in, nil
 }
 
-func (m *infraManager) installAddOns(ctx context.Context, license *kotsv1beta1.License, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig) error {
+func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) error {
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -284,7 +272,7 @@ func (m *infraManager) installAddOns(ctx context.Context, license *kotsv1beta1.L
 		addons.WithKubernetesClient(kcli),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(utils.GetDomains(m.releaseData)),
 		addons.WithProgressChannel(progressChan),
 	)
 
@@ -303,6 +291,7 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 
 	opts := addons.InstallOptions{
 		AdminConsolePwd:         m.password,
+		AdminConsolePort:        rc.AdminConsolePort(),
 		License:                 license,
 		IsAirgap:                m.airgapBundle != "",
 		TLSCertBytes:            m.tlsConfig.CertBytes,
@@ -312,6 +301,12 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 		IsMultiNodeEnabled:      license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec:      m.getECConfigSpec(),
 		EndUserConfigSpec:       m.getEndUserConfigSpec(),
+		ProxySpec:               rc.ProxySpec(),
+		HostCABundlePath:        rc.HostCABundlePath(),
+		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		ServiceCIDR:             rc.ServiceCIDR(),
 	}
 
 	if m.kotsInstaller != nil { // used for testing
@@ -321,8 +316,8 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 			opts := kotscli.InstallOptions{
 				RuntimeConfig:         rc,
 				AppSlug:               license.Spec.AppSlug,
-				LicenseFile:           m.licenseFile,
-				Namespace:             runtimeconfig.KotsadmNamespace,
+				License:               m.license,
+				Namespace:             constants.KotsadmNamespace,
 				AirgapBundle:          m.airgapBundle,
 				ConfigValuesFile:      m.configValues,
 				ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
