@@ -28,7 +28,7 @@ import (
 	kyaml "sigs.k8s.io/yaml"
 )
 
-const K0sComponentName = "Runtime"
+const K0sComponentName = "runtime"
 
 func AlreadyInstalledError() error {
 	return fmt.Errorf(
@@ -80,7 +80,7 @@ func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runti
 		components = append(components, types.InfraComponent{Name: addOn.Name()})
 	}
 
-	components = append(components, types.InfraComponent{Name: "Additional Components"})
+	components = append(components, types.InfraComponent{Name: "additional components"})
 
 	for _, component := range components {
 		if err := m.infraStore.RegisterComponent(component.Name); err != nil {
@@ -167,7 +167,7 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 		}
 	}()
 
-	m.setStatusDesc(fmt.Sprintf("Installing %s", componentName))
+	m.setStatusDesc(fmt.Sprintf("Installing %s...", componentName))
 
 	logFn := m.logFn("k0s")
 
@@ -197,7 +197,7 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 		return nil, fmt.Errorf("create kube client: %w", err)
 	}
 
-	m.setStatusDesc(fmt.Sprintf("Waiting for %s", componentName))
+	m.setStatusDesc(fmt.Sprintf("Waiting for %s...", componentName))
 
 	logFn("waiting for node to be ready")
 	if err := m.waitForNode(ctx, kcli); err != nil {
@@ -255,7 +255,7 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 
 			// if in progress, update the overall status to reflect the current component
 			if progress.Status.State == types.StateRunning {
-				m.setStatusDesc(fmt.Sprintf("%s %s", progress.Status.Description, progress.Name))
+				m.setStatusDesc(fmt.Sprintf("%s %s...", progress.Status.Description, progress.Name))
 			}
 
 			// update the status for the current component
@@ -332,7 +332,7 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 }
 
 func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) (finalErr error) {
-	componentName := "Additional Components"
+	componentName := "additional components"
 
 	if err := m.setComponentStatus(componentName, types.StateRunning, "Installing"); err != nil {
 		return fmt.Errorf("set extensions status: %w", err)
@@ -353,7 +353,7 @@ func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) 
 		}
 	}()
 
-	m.setStatusDesc(fmt.Sprintf("Installing %s", componentName))
+	m.setStatusDesc(fmt.Sprintf("Installing %s...", componentName))
 
 	logFn := m.logFn("extensions")
 	logFn("installing extensions")

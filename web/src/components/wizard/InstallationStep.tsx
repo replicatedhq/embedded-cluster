@@ -68,7 +68,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
     <div className="space-y-6">
       <InstallationProgress
         progress={getProgress()}
-        currentMessage={infraStatusResponse?.status?.description || ''}
+        currentMessage={infraStatusResponse?.status?.state === 'Failed' ? 'Installation failed' : (infraStatusResponse?.status?.description || '')}
         themeColor={themeColor}
         status={infraStatusResponse?.status?.state}
       />
@@ -77,7 +77,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
         {(infraStatusResponse?.components || []).map((component, index) => (
           <StatusIndicator 
             key={index}
-            title={component.name} 
+            title={component.name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
             status={component.status?.state}
             themeColor={themeColor}
           />
