@@ -2,7 +2,7 @@ import React from "react";
 import Card from "../common/Card";
 import Button from "../common/Button";
 import { Modal } from "../common/Modal";
-import { useWizardMode } from "../../contexts/WizardModeContext";
+import { useWizard } from "../../contexts/WizardModeContext";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import LinuxPreflightCheck from "./preflight/LinuxPreflightCheck";
 import { useMutation } from "@tanstack/react-query";
@@ -14,7 +14,7 @@ interface ValidationStepProps {
 }
 
 const ValidationStep: React.FC<ValidationStepProps> = ({ onNext, onBack }) => {
-  const { text } = useWizardMode();
+  const { text } = useWizard();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
   const [allowIgnoreHostPreflights, setAllowIgnoreHostPreflights] = React.useState(false);

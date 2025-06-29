@@ -1,46 +1,50 @@
 import React from 'react';
 import { WizardStep } from '../../types';
-import { ClipboardList, Settings, Download, CheckCircle } from 'lucide-react';
-import { useWizardMode } from '../../contexts/WizardModeContext';
+import { ClipboardList, Settings, Shield, Download, CheckCircle } from 'lucide-react';
+import { useWizard } from '../../contexts/WizardModeContext';
 import { useConfig } from '../../contexts/ConfigContext';
 
 interface StepNavigationProps {
   currentStep: WizardStep;
 }
 
-const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep }) => {
-  const { mode } = useWizardMode();
+interface NavigationStep {
+  id: WizardStep;
+  name: string;
+  icon: React.ElementType;
+  hidden?: boolean;
+  parentId?: WizardStep;
+}
+
+const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep: currentStepId }) => {
+  const { mode } = useWizard();
   const { prototypeSettings } = useConfig();
   const themeColor = prototypeSettings.themeColor;
 
-  // Navigation steps (validation is hidden but still part of the wizard flow)
-  const steps = [
-    { id: 'welcome', name: 'Welcome', icon: ClipboardList },
-    { id: 'setup', name: 'Setup', icon: Settings },
-    { id: 'installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
-    { id: 'completion', name: 'Completion', icon: CheckCircle },
+  const steps: NavigationStep[] = [
+    { id: 'welcome' as WizardStep, name: 'Welcome', icon: ClipboardList },
+    { id: 'setup' as WizardStep, name: 'Setup', icon: Settings },
+    { id: 'validation' as WizardStep, name: 'Validation', icon: Shield, hidden: true, parentId: 'setup' as WizardStep },
+    { id: 'installation' as WizardStep, name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
+    { id: 'completion' as WizardStep, name: 'Completion', icon: CheckCircle },
   ];
 
-  // All wizard steps for progress calculation
-  const allSteps: WizardStep[] = ['welcome', 'setup', 'validation', 'installation', 'completion'];
+  const currentStep = steps.find(step => step.id === currentStepId);
 
-  const getStepStatus = (step: { id: string }) => {
-    const stepIndex = allSteps.indexOf(step.id as WizardStep);
-    const currentStepIndex = allSteps.indexOf(currentStep);
+  const getStepStatus = (step: NavigationStep) => {
+    const stepIndex = steps.findIndex((s) => s.id === step.id);
+    const currentIndex = steps.findIndex((s) => currentStep?.hidden ? s.id === currentStep.parentId : s.id === currentStepId);
 
-    // Treat validation as part of setup for navigation purposes
-    const adjustedCurrentIndex = currentStep === 'validation' ? allSteps.indexOf('setup') : currentStepIndex;
-
-    if (stepIndex < adjustedCurrentIndex) return 'complete';
-    if (stepIndex === adjustedCurrentIndex || (step.id === 'setup' && currentStep === 'validation')) return 'current';
+    if (stepIndex < currentIndex) return 'complete';
+    if (stepIndex === currentIndex) return 'current';
     return 'upcoming';
   };
 
   return (
     <nav aria-label="Progress">
       <ol className="space-y-4 md:flex md:space-y-0 md:space-x-8">
-        {steps.map((step) => {
-          const status = getStepStatus(step as { id: string });
+        {steps.filter(s => !s.hidden).map((step) => {
+          const status = getStepStatus(step);
           const Icon = step.icon;
 
           return (
