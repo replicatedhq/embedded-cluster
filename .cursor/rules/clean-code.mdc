@@ -1,0 +1,30 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Clean Code
+
+Essential clean code principles for Go development in Embedded Cluster.
+
+## File Formatting
+
+### End of File
+- **Always leave a single newline at the end of every file**
+- This ensures proper POSIX compliance and clean git diffs
+
+## Comments
+
+### Keep Comments Concise
+- **Comments should be brief and to the point**
+- Explain *why*, not *what* the code does
+- Avoid redundant comments that just repeat the code
+
+### Function Comments
+- Use concise godoc format for exported functions
+- Focus on purpose and important behavior
+- Single line comments for simple functions
+
+### Inline Comments
+- Use sparingly for complex logic
+- Keep on same line when possible for short explanations
