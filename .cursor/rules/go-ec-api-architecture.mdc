@@ -1,0 +1,96 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Go Embedded Cluster API Architecture
+
+For comprehensive package structure and organization details, see [api/README.md](mdc:../api/README.md).
+
+## Handler → Controller → Manager Pattern
+
+Follow the three-layer architecture pattern consistently:
+
+### Handler Layer (`api/*.go`)
+- **Purpose**: HTTP protocol handling only
+- **Do**: Parse requests, call controllers, format responses, handle HTTP errors
+- **Don't**: Business logic, external service calls, data persistence
+
+```go
+func (a *API) postExample(w http.ResponseWriter, r *http.Request) {
+    var req types.ExampleRequest
+    if err := a.bindJSON(w, r, &req); err != nil {
+        return // bindJSON handles error response
+    }
+
+    result, err := a.controller.DoSomething(r.Context(), req)
+    if err != nil {
+        a.logError(r, err, "failed to do something")
+        a.jsonError(w, r, err)
+        return
+    }
+
+    a.json(w, r, http.StatusOK, result)
+}
+```
+
+### Controller Layer (`api/controllers/*/`)
+- **Purpose**: Business logic orchestration and workflow coordination
+- **Do**: Coordinate managers, handle business validation, manage state transitions
+- **Don't**: HTTP concerns, direct external service calls, low-level operations
+
+### Manager Layer (`api/internal/managers/*/`)
+- **Purpose**: Domain-specific operations and external system integration
+- **Do**: External system calls, data persistence, domain validation
+- **Don't**: HTTP logic, cross-domain coordination
+
+## Essential Patterns
+
+### Error Handling
+- Always log errors with context: `a.logError(r, err, "descriptive message")`
+- Use structured errors: `types.NewBadRequestError(err)`, `types.NewInternalServerError(err)`
+- Wrap errors with context: `fmt.Errorf("operation failed: %w", err)`
+
+### Request/Response
+- Use `a.bindJSON(w, r, &struct)` for parsing JSON requests
+- Use `a.json(w, r, statusCode, payload)` for success responses
+- Use `a.jsonError(w, r, err)` for error responses
+
+### Dependencies
+- Use functional options pattern for initialization
+- Define interfaces for all external dependencies
+- Inject dependencies via constructors
+
+### API Documentation
+- Add Swagger annotations to all handlers:
+```go
+// @Summary     Brief description
+// @Description Detailed description
+// @Tags        category
+// @Security    bearerauth
+// @Accept      json
+// @Produce     json
+// @Param       request body types.RequestType true "Request description"
+// @Success     200 {object} types.ResponseType
+// @Router      /path [method]
+```
+
+## Quick Reference
+
+### Adding New Functionality
+- **New endpoint**: Add handler → create/update controller → define types
+- **New business logic**: Add to appropriate controller or create new manager
+- **New types**: Add to `api/types/` with proper JSON tags
+- **New utilities**: Add to `api/pkg/` or `api/internal/`
+
+### File Naming
+- Handlers: `api/{domain}.go` (e.g., `install.go`, `auth.go`)
+- Controllers: `api/controllers/{domain}/controller.go`
+- Managers: `api/internal/managers/{domain}/manager.go`
+- Types: `api/types/{domain}.go`
+
+### Testing
+- Unit tests: `*_test.go` alongside source files
+- Integration tests: `api/integration/*_test.go`
+- Use table-driven tests with `testify/assert`
+- Mock all external dependencies
