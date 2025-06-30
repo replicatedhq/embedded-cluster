@@ -43,7 +43,7 @@ type hostInfo struct {
 	RoleName         string
 }
 
-func ResetCmd(ctx context.Context, appSlug string) *cobra.Command {
+func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 	var (
 		force     bool
 		assumeYes bool
@@ -53,7 +53,7 @@ func ResetCmd(ctx context.Context, appSlug string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "reset",
-		Short: fmt.Sprintf("Remove %s from the current node", appSlug),
+		Short: fmt.Sprintf("Remove %s from the current node", appTitle),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("reset command must be run as root")
@@ -221,7 +221,7 @@ func ResetCmd(ctx context.Context, appSlug string) *cobra.Command {
 	cmd.Flags().BoolVarP(&assumeYes, "yes", "y", false, "Assume yes to all prompts.")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
-	cmd.AddCommand(ResetFirewalldCmd(ctx))
+	cmd.AddCommand(ResetFirewalldCmd(ctx, appTitle))
 
 	return cmd
 }

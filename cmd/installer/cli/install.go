@@ -100,7 +100,7 @@ type installConfig struct {
 var webAssetsFS fs.FS = nil
 
 // InstallCmd returns a cobra command for installing the embedded cluster.
-func InstallCmd(ctx context.Context, appSlug string) *cobra.Command {
+func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	var flags InstallCmdFlags
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -108,9 +108,9 @@ func InstallCmd(ctx context.Context, appSlug string) *cobra.Command {
 	rc := runtimeconfig.New(nil)
 	ki := kubernetesinstallation.New(nil)
 
-	short := fmt.Sprintf("Install %s", appSlug)
+	short := fmt.Sprintf("Install %s", appTitle)
 	if os.Getenv("ENABLE_V3") == "1" {
-		short = fmt.Sprintf("Install %s onto Linux or Kubernetes", appSlug)
+		short = fmt.Sprintf("Install %s onto Linux or Kubernetes", appTitle)
 	}
 
 	cmd := &cobra.Command{
@@ -137,7 +137,7 @@ func InstallCmd(ctx context.Context, appSlug string) *cobra.Command {
 			installReporter.ReportInstallationStarted(ctx)
 
 			if flags.enableManagerExperience {
-				return runManagerExperienceInstall(ctx, flags, rc, ki, installReporter, appSlug)
+				return runManagerExperienceInstall(ctx, flags, rc, ki, installReporter, appTitle)
 			}
 
 			_ = rc.SetEnv()
@@ -570,7 +570,7 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 	return cidrCfg, nil
 }
 
-func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation, installReporter *InstallReporter, appSlug string) (finalErr error) {
+func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation, installReporter *InstallReporter, appTitle string) (finalErr error) {
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
 	ipAddresses, err := netutils.ListAllValidIPAddresses()
@@ -663,7 +663,7 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue: %s\n",
-		appSlug,
+		appTitle,
 		getManagerURL(flags.hostname, flags.managerPort))
 	<-ctx.Done()
 

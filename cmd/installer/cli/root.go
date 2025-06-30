@@ -104,17 +104,17 @@ func RootCmd(ctx context.Context, appSlug string) *cobra.Command {
 		appTitle = appSlug
 	}
 
-	cmd.AddCommand(InstallCmd(ctx, appSlug))
-	cmd.AddCommand(JoinCmd(ctx, appSlug))
-	cmd.AddCommand(ShellCmd(ctx, appSlug))
-	cmd.AddCommand(NodeCmd(ctx, appSlug))
-	cmd.AddCommand(EnableHACmd(ctx, appSlug))
-	cmd.AddCommand(VersionCmd(ctx, appSlug))
-	cmd.AddCommand(ResetCmd(ctx, appSlug))
+	cmd.AddCommand(InstallCmd(ctx, appSlug, appTitle))
+	cmd.AddCommand(JoinCmd(ctx, appSlug, appTitle))
+	cmd.AddCommand(ShellCmd(ctx, appTitle))
+	cmd.AddCommand(NodeCmd(ctx, appSlug, appTitle))
+	cmd.AddCommand(EnableHACmd(ctx, appTitle))
+	cmd.AddCommand(VersionCmd(ctx, appTitle))
+	cmd.AddCommand(ResetCmd(ctx, appTitle))
 	cmd.AddCommand(MaterializeCmd(ctx))
-	cmd.AddCommand(UpdateCmd(ctx, appSlug))
-	cmd.AddCommand(RestoreCmd(ctx, appSlug))
-	cmd.AddCommand(AdminConsoleCmd(ctx, appSlug))
+	cmd.AddCommand(UpdateCmd(ctx, appSlug, appTitle))
+	cmd.AddCommand(RestoreCmd(ctx, appSlug, appTitle))
+	cmd.AddCommand(AdminConsoleCmd(ctx, appTitle))
 	cmd.AddCommand(SupportBundleCmd(ctx))
 
 	return cmd

@@ -50,7 +50,7 @@ type JoinCmdFlags struct {
 }
 
 // JoinCmd returns a cobra command for joining a node to the cluster.
-func JoinCmd(ctx context.Context, appSlug string) *cobra.Command {
+func JoinCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	var flags JoinCmdFlags
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -58,7 +58,7 @@ func JoinCmd(ctx context.Context, appSlug string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "join <url> <token>",
-		Short: fmt.Sprintf("Join a node to the %s cluster", appSlug),
+		Short: fmt.Sprintf("Join a node to the %s cluster", appTitle),
 		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunJoin(&flags); err != nil {
@@ -106,8 +106,8 @@ func JoinCmd(ctx context.Context, appSlug string) *cobra.Command {
 		panic(err)
 	}
 
-	cmd.AddCommand(JoinRunPreflightsCmd(ctx, appSlug))
-	cmd.AddCommand(JoinPrintCommandCmd(ctx, appSlug))
+	cmd.AddCommand(JoinRunPreflightsCmd(ctx, appSlug, appTitle))
+	cmd.AddCommand(JoinPrintCommandCmd(ctx, appTitle))
 
 	return cmd
 }

@@ -8,20 +8,19 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-func UpdateCmd(ctx context.Context, appSlug string) *cobra.Command {
+func UpdateCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	var airgapBundle string
 	var rc runtimeconfig.RuntimeConfig
 
 	cmd := &cobra.Command{
 		Use:   "update",
-		Short: fmt.Sprintf("Update %s with a new air gap bundle", appSlug),
+		Short: fmt.Sprintf("Update %s with a new air gap bundle", appTitle),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Skip root check if dryrun mode is enabled
 			if !dryrun.Enabled() && os.Getuid() != 0 {
@@ -50,14 +49,9 @@ func UpdateCmd(ctx context.Context, appSlug string) *cobra.Command {
 				}
 			}
 
-			rel := release.GetChannelRelease()
-			if rel == nil {
-				return fmt.Errorf("no channel release found")
-			}
-
 			if err := kotscli.AirgapUpdate(kotscli.AirgapUpdateOptions{
 				RuntimeConfig: rc,
-				AppSlug:       rel.AppSlug,
+				AppSlug:       appSlug,
 				Namespace:     constants.KotsadmNamespace,
 				AirgapBundle:  airgapBundle,
 			}); err != nil {
