@@ -134,21 +134,16 @@ spec:
                                   type: string
                                 name:
                                   description: The repository name.
-                                  minLength: 1
                                   type: string
                                 password:
                                   description: Password for Basic HTTP authentication.
                                   type: string
                                 url:
                                   description: The repository URL.
-                                  minLength: 1
                                   type: string
                                 username:
                                   description: Username for Basic HTTP authentication.
                                   type: string
-                              required:
-                              - name
-                              - url
                               type: object
                             type: array
                         type: object
