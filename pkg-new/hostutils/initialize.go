@@ -46,7 +46,7 @@ func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeC
 	} else {
 
 		// Set selinux fcontext for embedded-cluster binary directory to bin_t
-		out, err := exec.Command("semanage", "fcontext", "-a", "-s", "system_u", "-t", "bin_t", rc.EmbeddedClusterBinsSubDir()+"/(.*)?").CombinedOutput()
+		out, err := exec.Command("semanage", "fcontext", "-a", "-s", "system_u", "-t", "bin_t", rc.EmbeddedClusterBinsSubDir()+"(/.*)?").CombinedOutput()
 		if err != nil {
 			h.logger.Debugf("unable to set contexts on binary directory: %v", err)
 			h.logger.Debugln(out)
