@@ -52,13 +52,13 @@ var warnPreflightOutput = &types.HostPreflightsOutput{
 func TestGetInstallationConfig(t *testing.T) {
 	tests := []struct {
 		name          string
-		setupMock     func(*installation.MockInstallationManager)
+		setupMock     func(*installation.MockInstallationManager, string)
 		expectedErr   bool
-		expectedValue types.InstallationConfig
+		expectedValue func(string) types.InstallationConfig
 	}{
 		{
-			name: "successful get",
-			setupMock: func(m *installation.MockInstallationManager) {
+			name: "successful read and defaults",
+			setupMock: func(m *installation.MockInstallationManager, tempDir string) {
 				config := types.InstallationConfig{
 					AdminConsolePort: 9000,
 					GlobalCIDR:       "10.0.0.1/16",
@@ -66,59 +66,82 @@ func TestGetInstallationConfig(t *testing.T) {
 
 				mock.InOrder(
 					m.On("GetConfig").Return(config, nil),
-					m.On("SetConfigDefaults", &config).Return(nil),
-					m.On("ValidateConfig", config, 9001).Return(nil),
+					m.On("SetConfigDefaults", &config, mock.AnythingOfType("*runtimeconfig.runtimeConfig")).Run(func(args mock.Arguments) {
+						cfg := args.Get(0).(*types.InstallationConfig)
+						cfg.DataDirectory = tempDir
+					}).Return(nil),
+					m.On("ValidateConfig", mock.MatchedBy(func(cfg types.InstallationConfig) bool {
+						return cfg.AdminConsolePort == 9000 &&
+							cfg.GlobalCIDR == "10.0.0.1/16" &&
+							cfg.DataDirectory == tempDir
+					}), 9001).Return(nil),
 				)
 			},
 			expectedErr: false,
-			expectedValue: types.InstallationConfig{
-				AdminConsolePort: 9000,
-				GlobalCIDR:       "10.0.0.1/16",
+			expectedValue: func(tempDir string) types.InstallationConfig {
+				return types.InstallationConfig{
+					AdminConsolePort: 9000,
+					GlobalCIDR:       "10.0.0.1/16",
+					DataDirectory:    tempDir,
+				}
 			},
 		},
 		{
 			name: "read config error",
-			setupMock: func(m *installation.MockInstallationManager) {
+			setupMock: func(m *installation.MockInstallationManager, tempDir string) {
 				m.On("GetConfig").Return(nil, errors.New("read error"))
 			},
-			expectedErr:   true,
-			expectedValue: types.InstallationConfig{},
+			expectedErr: true,
+			expectedValue: func(tempDir string) types.InstallationConfig {
+				return types.InstallationConfig{}
+			},
 		},
 		{
 			name: "set defaults error",
-			setupMock: func(m *installation.MockInstallationManager) {
+			setupMock: func(m *installation.MockInstallationManager, tempDir string) {
 				config := types.InstallationConfig{}
 				mock.InOrder(
 					m.On("GetConfig").Return(config, nil),
-					m.On("SetConfigDefaults", &config).Return(errors.New("defaults error")),
+					m.On("SetConfigDefaults", &config, mock.AnythingOfType("*runtimeconfig.runtimeConfig")).Return(errors.New("defaults error")),
 				)
 			},
-			expectedErr:   true,
-			expectedValue: types.InstallationConfig{},
+			expectedErr: true,
+			expectedValue: func(tempDir string) types.InstallationConfig {
+				return types.InstallationConfig{}
+			},
 		},
 		{
 			name: "validate error",
-			setupMock: func(m *installation.MockInstallationManager) {
+			setupMock: func(m *installation.MockInstallationManager, tempDir string) {
 				config := types.InstallationConfig{}
+
 				mock.InOrder(
 					m.On("GetConfig").Return(config, nil),
-					m.On("SetConfigDefaults", &config).Return(nil),
-					m.On("ValidateConfig", config, 9001).Return(errors.New("validation error")),
+					m.On("SetConfigDefaults", &config, mock.AnythingOfType("*runtimeconfig.runtimeConfig")).Run(func(args mock.Arguments) {
+						cfg := args.Get(0).(*types.InstallationConfig)
+						cfg.DataDirectory = tempDir
+					}).Return(nil),
+					m.On("ValidateConfig", mock.MatchedBy(func(cfg types.InstallationConfig) bool {
+						return cfg.DataDirectory == tempDir
+					}), 9001).Return(errors.New("validation error")),
 				)
 			},
-			expectedErr:   true,
-			expectedValue: types.InstallationConfig{},
+			expectedErr: true,
+			expectedValue: func(tempDir string) types.InstallationConfig {
+				return types.InstallationConfig{}
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
 			rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
-			rc.SetDataDir(t.TempDir())
+			rc.SetDataDir(tempDir)
 			rc.SetManagerPort(9001)
 
 			mockManager := &installation.MockInstallationManager{}
-			tt.setupMock(mockManager)
+			tt.setupMock(mockManager, rc.EmbeddedClusterHomeDirectory())
 
 			controller, err := NewInstallController(
 				WithRuntimeConfig(rc),
@@ -133,7 +156,7 @@ func TestGetInstallationConfig(t *testing.T) {
 				assert.Equal(t, types.InstallationConfig{}, result)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedValue, result)
+				assert.Equal(t, tt.expectedValue(rc.EmbeddedClusterHomeDirectory()), result)
 			}
 
 			mockManager.AssertExpectations(t)

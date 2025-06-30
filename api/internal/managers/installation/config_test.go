@@ -203,6 +203,11 @@ func TestSetConfigDefaults(t *testing.T) {
 	mockNetUtils := &utils.MockNetUtils{}
 	mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil)
 
+	// Create a mock RuntimeConfig
+	mockRC := &runtimeconfig.MockRuntimeConfig{}
+	testDataDir := "/test/data/dir"
+	mockRC.On("EmbeddedClusterHomeDirectory").Return(testDataDir)
+
 	tests := []struct {
 		name           string
 		inputConfig    types.InstallationConfig
@@ -213,7 +218,7 @@ func TestSetConfigDefaults(t *testing.T) {
 			inputConfig: types.InstallationConfig{},
 			expectedConfig: types.InstallationConfig{
 				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
-				DataDirectory:           ecv1beta1.DefaultDataDir,
+				DataDirectory:           testDataDir,
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				NetworkInterface:        "eth0",
 				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
@@ -241,7 +246,7 @@ func TestSetConfigDefaults(t *testing.T) {
 			},
 			expectedConfig: types.InstallationConfig{
 				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
-				DataDirectory:           ecv1beta1.DefaultDataDir,
+				DataDirectory:           testDataDir,
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				NetworkInterface:        "eth0",
 				PodCIDR:                 "10.1.0.0/17",
@@ -255,7 +260,7 @@ func TestSetConfigDefaults(t *testing.T) {
 			},
 			expectedConfig: types.InstallationConfig{
 				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
-				DataDirectory:           ecv1beta1.DefaultDataDir,
+				DataDirectory:           testDataDir,
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				NetworkInterface:        "eth0",
 				GlobalCIDR:              "192.168.0.0/16",
@@ -269,12 +274,25 @@ func TestSetConfigDefaults(t *testing.T) {
 			},
 			expectedConfig: types.InstallationConfig{
 				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
-				DataDirectory:           ecv1beta1.DefaultDataDir,
+				DataDirectory:           testDataDir,
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				NetworkInterface:        "eth0",
 				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
 				HTTPProxy:               "http://proxy.example.com:3128",
 				HTTPSProxy:              "https://proxy.example.com:3128",
+			},
+		},
+		{
+			name: "config with existing data directory should preserve it",
+			inputConfig: types.InstallationConfig{
+				DataDirectory: "/existing/custom/path",
+			},
+			expectedConfig: types.InstallationConfig{
+				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
+				DataDirectory:           "/existing/custom/path",
+				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
+				NetworkInterface:        "eth0",
+				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
 			},
 		},
 	}
@@ -283,7 +301,7 @@ func TestSetConfigDefaults(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			manager := NewInstallationManager(WithNetUtils(mockNetUtils))
 
-			err := manager.SetConfigDefaults(&tt.inputConfig)
+			err := manager.SetConfigDefaults(&tt.inputConfig, mockRC)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedConfig, tt.inputConfig)
 		})
@@ -297,11 +315,13 @@ func TestSetConfigDefaults(t *testing.T) {
 		manager := NewInstallationManager(WithNetUtils(failingMockNetUtils))
 
 		config := types.InstallationConfig{}
-		err := manager.SetConfigDefaults(&config)
+		err := manager.SetConfigDefaults(&config, mockRC)
 		assert.NoError(t, err)
 
 		// Network interface should remain empty when detection fails
 		assert.Empty(t, config.NetworkInterface)
+		// DataDirectory should still be set from RuntimeConfig
+		assert.Equal(t, testDataDir, config.DataDirectory)
 	})
 }
 

@@ -17,7 +17,7 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.In
 		return types.InstallationConfig{}, err
 	}
 
-	if err := c.installationManager.SetConfigDefaults(&config); err != nil {
+	if err := c.installationManager.SetConfigDefaults(&config, c.rc); err != nil {
 		return types.InstallationConfig{}, fmt.Errorf("set defaults: %w", err)
 	}
 

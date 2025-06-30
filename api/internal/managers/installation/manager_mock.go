@@ -52,8 +52,8 @@ func (m *MockInstallationManager) ValidateConfig(config types.InstallationConfig
 }
 
 // SetConfigDefaults mocks the SetConfigDefaults method
-func (m *MockInstallationManager) SetConfigDefaults(config *types.InstallationConfig) error {
-	args := m.Called(config)
+func (m *MockInstallationManager) SetConfigDefaults(config *types.InstallationConfig, rc runtimeconfig.RuntimeConfig) error {
+	args := m.Called(config, rc)
 	return args.Error(0)
 }
 
