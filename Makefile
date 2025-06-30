@@ -15,7 +15,7 @@ K0S_GO_VERSION = v1.30.9+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.29.9+k0s.0-ec.0
 PREVIOUS_K0S_GO_VERSION ?= v1.29.9+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.119.0
+TROUBLESHOOT_VERSION = v0.119.1
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
@@ -53,13 +53,11 @@ LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sBinaryURLOverride=$(METADATA_K0S_BINARY_URL_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.KOTSBinaryURLOverride=$(METADATA_KOTS_BINARY_URL_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.OperatorBinaryURLOverride=$(METADATA_OPERATOR_BINARY_URL_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleMigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleKurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE)
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleKurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION)
 DISABLE_FIO_BUILD ?= 0
 
 export PATH := $(shell pwd)/bin:$(PATH)
@@ -274,9 +272,14 @@ envtest:
 .PHONY: unit-tests
 unit-tests: envtest
 	KUBEBUILDER_ASSETS="$(shell ./operator/bin/setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/operator/bin -p path)" \
-		go test -tags $(GO_BUILD_TAGS) -v ./pkg/... ./cmd/... ./api/... ./web/... ./pkg-new/...
+		go test -race -tags $(GO_BUILD_TAGS) -v ./pkg/... ./cmd/... ./web/... ./pkg-new/...
+	$(MAKE) -C api unit-tests
 	$(MAKE) -C operator test
 	$(MAKE) -C utils unit-tests
+
+.PHONY: test-integration
+test-integration: static
+	$(MAKE) -C api test-integration
 
 .PHONY: vet
 vet:
@@ -340,19 +343,31 @@ create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
 create-node%: MANAGER_NODE_PORT = 30080
 create-node%: K0S_DATA_DIR = /var/lib/embedded-cluster/k0s
+create-node%: K0S_DATA_DIR_V3 = $(shell \
+	if [ -n "$(REPLICATED_APP)" ]; then \
+		echo "/var/lib/$(shell echo '$(REPLICATED_APP)' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')/k0s"; \
+	else \
+		echo "/var/lib/embedded-cluster-smoke-test-staging-app/k0s"; \
+	fi)
+create-node%: ENABLE_V3 = 0
 create-node%:
+	@echo "Mounting data directories:"
+	@echo "  v2: $(K0S_DATA_DIR)"
+	@echo "  v3: $(K0S_DATA_DIR_V3)"
 	@docker run -d \
 		--name node$* \
 		--hostname node$* \
 		--privileged \
 		--restart=unless-stopped \
 		-v $(K0S_DATA_DIR) \
+		-v $(K0S_DATA_DIR_V3) \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
 		$(if $(filter node0,node$*),-p $(MANAGER_NODE_PORT):$(MANAGER_NODE_PORT)) \
 		$(if $(filter node0,node$*),-p 30003:30003) \
 		-e EC_PUBLIC_ADDRESS=localhost \
+		-e ENABLE_V3=$(ENABLE_V3) \
 		replicated/ec-distro:$(DISTRO)
 
 	@$(MAKE) ssh-node$*

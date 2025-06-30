@@ -8,6 +8,7 @@ import (
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // NetworkLookup defines the interface for network lookups
@@ -23,12 +24,10 @@ func (d *defaultNetworkLookup) FirstValidIPNet(networkInterface string) (*net.IP
 
 var defaultNetworkLookupImpl NetworkLookup = &defaultNetworkLookup{}
 
-func addProxyFlags(cmd *cobra.Command) error {
-	cmd.Flags().String("http-proxy", "", "HTTP proxy to use for the installation (overrides http_proxy/HTTP_PROXY environment variables)")
-	cmd.Flags().String("https-proxy", "", "HTTPS proxy to use for the installation (overrides https_proxy/HTTPS_PROXY environment variables)")
-	cmd.Flags().String("no-proxy", "", "Comma-separated list of hosts for which not to use a proxy (overrides no_proxy/NO_PROXY environment variables)")
-
-	return nil
+func mustAddProxyFlags(flagSet *pflag.FlagSet) {
+	flagSet.String("http-proxy", "", "HTTP proxy to use for the installation (overrides http_proxy/HTTP_PROXY environment variables)")
+	flagSet.String("https-proxy", "", "HTTPS proxy to use for the installation (overrides https_proxy/HTTPS_PROXY environment variables)")
+	flagSet.String("no-proxy", "", "Comma-separated list of hosts for which not to use a proxy (overrides no_proxy/NO_PROXY environment variables)")
 }
 
 func parseProxyFlags(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {

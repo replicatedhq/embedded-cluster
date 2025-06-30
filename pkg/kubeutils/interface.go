@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -29,6 +30,7 @@ type KubeUtilsInterface interface {
 	WaitForService(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForJob(ctx context.Context, cli client.Client, ns, name string, completions int32, opts *WaitOptions) error
 	WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) (*corev1.Pod, error)
+	WaitForPodDeleted(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error
 	WaitForNodes(ctx context.Context, cli client.Client) error
 	WaitForNode(ctx context.Context, kcli client.Client, name string, isWorker bool) error
@@ -40,6 +42,7 @@ type KubeUtilsInterface interface {
 	WaitForCRDToBeReady(ctx context.Context, cli client.Client, name string) error
 	KubeClient() (client.Client, error)
 	MetadataClient() (metadata.Interface, error)
+	GetClientset() (kubernetes.Interface, error)
 }
 
 var DefaultBackoff = wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
@@ -85,6 +88,10 @@ func WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string,
 	return kb.WaitForPodComplete(ctx, cli, ns, name, opts)
 }
 
+func WaitForPodDeleted(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
+	return kb.WaitForPodDeleted(ctx, cli, ns, name, opts)
+}
+
 func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error {
 	return kb.WaitForInstallation(ctx, cli, writer)
 }
@@ -127,4 +134,8 @@ func KubeClient() (client.Client, error) {
 
 func MetadataClient() (metadata.Interface, error) {
 	return kb.MetadataClient()
+}
+
+func GetClientset() (kubernetes.Interface, error) {
+	return kb.GetClientset()
 }

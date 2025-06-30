@@ -3,13 +3,15 @@ package addons
 import (
 	"errors"
 	"strings"
+	"time"
 
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 )
 
-func addOnOverrides(addon types.AddOn, embCfgSpec *ecv1beta1.ConfigSpec, euCfgSpec *ecv1beta1.ConfigSpec) []string {
+func (a *AddOns) addOnOverrides(addon types.AddOn, embCfgSpec *ecv1beta1.ConfigSpec, euCfgSpec *ecv1beta1.ConfigSpec) []string {
 	overrides := []string{}
 	if embCfgSpec != nil {
 		overrides = append(overrides, embCfgSpec.OverrideForBuiltIn(addon.ReleaseName()))
@@ -20,7 +22,7 @@ func addOnOverrides(addon types.AddOn, embCfgSpec *ecv1beta1.ConfigSpec, euCfgSp
 	return overrides
 }
 
-func operatorChart(meta *ectypes.ReleaseMetadata) (string, string, error) {
+func (a *AddOns) operatorChart(meta *ectypes.ReleaseMetadata) (string, string, error) {
 	// search through for the operator chart, and find the location
 	for _, chart := range meta.Configs.Charts {
 		if chart.Name == "embedded-cluster-operator" {
@@ -30,7 +32,7 @@ func operatorChart(meta *ectypes.ReleaseMetadata) (string, string, error) {
 	return "", "", errors.New("no embedded-cluster-operator chart found in release metadata")
 }
 
-func operatorImages(images []string, proxyRegistryDomain string) (string, string, string, error) {
+func (a *AddOns) operatorImages(images []string) (string, string, string, error) {
 	// determine the images to use for the operator chart
 	ecOperatorImage := ""
 	ecUtilsImage := ""
@@ -52,13 +54,30 @@ func operatorImages(images []string, proxyRegistryDomain string) (string, string
 	}
 
 	// the override images for operator during upgrades also need to be updated to use a whitelabeled proxy registry
-	if proxyRegistryDomain != "" {
-		ecOperatorImage = strings.Replace(ecOperatorImage, "proxy.replicated.com", proxyRegistryDomain, 1)
-		ecUtilsImage = strings.Replace(ecUtilsImage, "proxy.replicated.com", proxyRegistryDomain, 1)
+	if a.domains.ProxyRegistryDomain != "" {
+		ecOperatorImage = strings.Replace(ecOperatorImage, "proxy.replicated.com", a.domains.ProxyRegistryDomain, 1)
+		ecUtilsImage = strings.Replace(ecUtilsImage, "proxy.replicated.com", a.domains.ProxyRegistryDomain, 1)
 	}
 
 	repo := strings.Split(ecOperatorImage, ":")[0]
 	tag := strings.Join(strings.Split(ecOperatorImage, ":")[1:], ":")
 
 	return repo, tag, ecUtilsImage, nil
+}
+
+func (a *AddOns) sendProgress(addOnName string, state apitypes.State, description string) {
+	if a.progress == nil {
+		return
+	}
+
+	status := apitypes.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	}
+
+	a.progress <- types.AddOnProgress{
+		Name:   addOnName,
+		Status: status,
+	}
 }

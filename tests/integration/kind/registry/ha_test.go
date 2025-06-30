@@ -20,16 +20,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util/kind"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/metadata"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestRegistry_EnableHAAirgap(t *testing.T) {
@@ -69,11 +66,23 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	kclient := util.KubeClient(t, kubeconfig)
 	hcli := util.HelmClient(t, kubeconfig)
 
+	rc := runtimeconfig.New(nil)
+	rc.SetNetworkSpec(ecv1beta1.NetworkSpec{
+		PodCIDR:     "10.85.0.0/12",
+		ServiceCIDR: "10.96.0.0/12",
+	})
+
+	domains := ecv1beta1.Domains{
+		ReplicatedAppDomain:      "replicated.app",
+		ProxyRegistryDomain:      "proxy.replicated.com",
+		ReplicatedRegistryDomain: "registry.replicated.com",
+	}
+
 	t.Logf("%s installing openebs", formattedTime())
 	addon := &openebs.OpenEBS{
-		ProxyRegistryDomain: "proxy.replicated.com",
+		OpenEBSDataDir: rc.EmbeddedClusterOpenEBSLocalSubDir(),
 	}
-	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, nil, nil); err != nil {
+	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 
@@ -82,23 +91,27 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 	t.Logf("%s installing registry", formattedTime())
 	registryAddon := &registry.Registry{
-		ServiceCIDR:         "10.96.0.0/12",
-		ProxyRegistryDomain: "proxy.replicated.com",
-		IsHA:                false,
+		ServiceCIDR: "10.96.0.0/12",
+		IsHA:        false,
 	}
-	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, mcli, hcli, nil, nil))
+	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
 
 	t.Logf("%s creating hostport service", formattedTime())
 	registryAddr := createHostPortService(t, clusterName, kubeconfig)
 
 	t.Logf("%s installing admin console", formattedTime())
 	adminConsoleAddon := &adminconsole.AdminConsole{
-		IsAirgap:            true,
-		ServiceCIDR:         "10.96.0.0/12",
-		ProxyRegistryDomain: "proxy.replicated.com",
-		IsHA:                false,
+		IsAirgap:           true,
+		IsHA:               false,
+		Proxy:              rc.ProxySpec(),
+		ServiceCIDR:        "10.96.0.0/12",
+		IsMultiNodeEnabled: false,
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		AdminConsolePort:   rc.AdminConsolePort(),
 	}
-	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, nil, nil))
+	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
 
 	t.Logf("%s pushing image to registry", formattedTime())
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")
@@ -114,25 +127,32 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	inSpec := ecv1beta1.InstallationSpec{
 		AirGap: true,
 		Config: &ecv1beta1.ConfigSpec{
-			Domains: ecv1beta1.Domains{
-				ProxyRegistryDomain: "proxy.replicated.com",
-			},
+			Domains: domains,
 		},
+		RuntimeConfig: rc.Get(),
 	}
 
-	enableHAAndCancelContextOnMessage(t, kcli, mcli, kclient, hcli, inSpec,
+	addOns := addons.New(
+		addons.WithKubernetesClient(kcli),
+		addons.WithKubernetesClientSet(kclient),
+		addons.WithMetadataClient(mcli),
+		addons.WithHelmClient(hcli),
+		addons.WithDomains(domains),
+	)
+
+	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
 		regexp.MustCompile(`StatefulSet is ready: seaweedfs`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, kcli, mcli, kclient, hcli, inSpec,
+	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
 		regexp.MustCompile(`Migrating data for high availability \(`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, kcli, mcli, kclient, hcli, inSpec,
+	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
 		regexp.MustCompile(`Updating the Admin Console for high availability`),
 	)
 
-	canEnable, reason, err := addons.CanEnableHA(t.Context(), kcli)
+	canEnable, reason, err := addOns.CanEnableHA(t.Context())
 	require.NoError(t, err)
 	require.True(t, canEnable, "should be able to enable HA: %s", reason)
 
@@ -140,7 +160,11 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	loading := newTestingSpinner(t)
 	func() {
 		defer loading.Close()
-		err = addons.EnableHA(ctx, t.Logf, kcli, mcli, kclient, hcli, "10.96.0.0/12", inSpec, loading)
+		opts := addons.EnableHAOptions{
+			ServiceCIDR: rc.ServiceCIDR(),
+			ProxySpec:   rc.ProxySpec(),
+		}
+		err = addOns.EnableHA(t.Context(), opts, loading)
 		require.NoError(t, err)
 	}()
 
@@ -154,12 +178,8 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	runPodAndValidateImagePull(t, kubeconfig, "pod-2", "pod2.yaml")
 }
 
-func enableHAAndCancelContextOnMessage(
-	t *testing.T, kcli client.Client, mcli metadata.Interface, kclient kubernetes.Interface, hcli helm.Client,
-	inSpec ecv1beta1.InstallationSpec,
-	re *regexp.Regexp,
-) {
-	canEnable, reason, err := addons.CanEnableHA(t.Context(), kcli)
+func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSpec ecv1beta1.InstallationSpec, re *regexp.Regexp) {
+	canEnable, reason, err := addOns.CanEnableHA(t.Context())
 	require.NoError(t, err)
 	require.True(t, canEnable, "should be able to enable HA: %s", reason)
 
@@ -201,8 +221,23 @@ func enableHAAndCancelContextOnMessage(
 	loading := newTestingSpinner(t)
 	defer loading.Close()
 
+	rc := runtimeconfig.New(inSpec.RuntimeConfig)
+
 	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
-	err = addons.EnableHA(ctx, t.Logf, kcli, mcli, kclient, hcli, "10.96.0.0/12", inSpec, loading)
+	opts := addons.EnableHAOptions{
+		AdminConsolePort:   rc.AdminConsolePort(),
+		IsAirgap:           true,
+		IsMultiNodeEnabled: false,
+		EmbeddedConfigSpec: inSpec.Config,
+		EndUserConfigSpec:  inSpec.Config,
+		ProxySpec:          rc.ProxySpec(),
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
+		ServiceCIDR:        inSpec.RuntimeConfig.Network.ServiceCIDR,
+	}
+	err = addOns.EnableHA(ctx, opts, loading)
 	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
 	t.Logf("%s cancelled context and got error: %v", formattedTime(), err)
 }

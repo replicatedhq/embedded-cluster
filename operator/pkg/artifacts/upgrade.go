@@ -89,6 +89,7 @@ var copyArtifactsJobCommandOnline = []string{
 	"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster " +
 		"--app-slug $APP_SLUG --channel-id $CHANNEL_ID --app-version $APP_VERSION " +
 		"$INSTALLATION_DATA; \n" +
+		"sleep 10; \n" + // wait for LAM to restart so k0s can pull from it. LAM restarts when it detects an EC binary update.
 		"echo 'done'",
 }
 
@@ -101,6 +102,7 @@ var copyArtifactsJobCommandAirgap = []string{
 		"/usr/local/bin/local-artifact-mirror pull helmcharts --data-dir /embedded-cluster $INSTALLATION_DATA; \n" +
 		"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade; \n" +
 		"rm /embedded-cluster/images/images-amd64-* || true; \n" +
+		"sleep 10; \n" + // wait for LAM to restart so k0s can pull from it. LAM restarts when it detects an EC binary update.
 		"echo 'done'",
 }
 
@@ -108,7 +110,7 @@ var copyArtifactsJobCommandAirgap = []string{
 // This is done by creating a job for each node in the cluster, which will pull the
 // artifacts from the internal registry.
 func EnsureArtifactsJobForNodes(
-	ctx context.Context, cli client.Client,
+	ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig,
 	in *clusterv1beta1.Installation,
 	localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion string,
 ) error {
@@ -134,7 +136,7 @@ func EnsureArtifactsJobForNodes(
 
 	for _, node := range nodes.Items {
 		_, err := ensureArtifactsJobForNode(
-			ctx, cli, in, node, localArtifactMirrorImage, appSlug, channelID, appVersion, cfghash,
+			ctx, cli, rc, in, node, localArtifactMirrorImage, appSlug, channelID, appVersion, cfghash,
 		)
 		if err != nil {
 			return fmt.Errorf("ensure artifacts job for node: %w", err)
@@ -226,12 +228,12 @@ func hashForAirgapConfig(in *clusterv1beta1.Installation) (string, error) {
 }
 
 func ensureArtifactsJobForNode(
-	ctx context.Context, cli client.Client, in *clusterv1beta1.Installation,
+	ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, in *clusterv1beta1.Installation,
 	node corev1.Node,
 	localArtifactMirrorImage, appSlug, channelID, appVersion string,
 	cfghash string,
 ) (*batchv1.Job, error) {
-	job, err := getArtifactJobForNode(ctx, cli, in, node, localArtifactMirrorImage, appSlug, channelID, appVersion)
+	job, err := getArtifactJobForNode(ctx, cli, rc, in, node, localArtifactMirrorImage, appSlug, channelID, appVersion)
 	if err != nil {
 		return nil, fmt.Errorf("get job for node: %w", err)
 	}
@@ -256,7 +258,7 @@ func ensureArtifactsJobForNode(
 }
 
 func getArtifactJobForNode(
-	ctx context.Context, cli client.Client, in *clusterv1beta1.Installation,
+	ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, in *clusterv1beta1.Installation,
 	node corev1.Node,
 	localArtifactMirrorImage, appSlug, channelID, appVersion string,
 ) (*batchv1.Job, error) {
@@ -276,7 +278,7 @@ func getArtifactJobForNode(
 	job.ObjectMeta.Labels = applyECOperatorLabels(job.ObjectMeta.Labels, "upgrader")
 	job.ObjectMeta.Annotations = applyArtifactsJobAnnotations(job.GetAnnotations(), in, hash)
 	job.Spec.Template.Spec.NodeName = node.Name
-	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = runtimeconfig.EmbeddedClusterHomeDirectory()
+	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = rc.EmbeddedClusterHomeDirectory()
 	if in.Spec.AirGap {
 		job.Spec.Template.Spec.Containers[0].Command = copyArtifactsJobCommandAirgap
 	} else {
@@ -298,12 +300,12 @@ func getArtifactJobForNode(
 	)
 
 	// Add proxy environment variables if proxy is configured
-	if in.Spec.Proxy != nil {
+	if proxy := rc.ProxySpec(); proxy != nil {
 		job.Spec.Template.Spec.Containers[0].Env = append(
 			job.Spec.Template.Spec.Containers[0].Env,
-			corev1.EnvVar{Name: "HTTP_PROXY", Value: in.Spec.Proxy.HTTPProxy},
-			corev1.EnvVar{Name: "HTTPS_PROXY", Value: in.Spec.Proxy.HTTPSProxy},
-			corev1.EnvVar{Name: "NO_PROXY", Value: in.Spec.Proxy.NoProxy},
+			corev1.EnvVar{Name: "HTTP_PROXY", Value: proxy.HTTPProxy},
+			corev1.EnvVar{Name: "HTTPS_PROXY", Value: proxy.HTTPSProxy},
+			corev1.EnvVar{Name: "NO_PROXY", Value: proxy.NoProxy},
 		)
 	}
 
@@ -381,7 +383,7 @@ func deleteArtifactsJobForNode(ctx context.Context, cli client.Client, node core
 
 // CreateAutopilotAirgapPlanCommand creates the plan to execute an aigrap upgrade in all nodes. The
 // return of this function is meant to be used as part of an autopilot plan.
-func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*autopilotv1beta2.PlanCommand, error) {
+func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, in *clusterv1beta1.Installation) (*autopilotv1beta2.PlanCommand, error) {
 	meta, err := release.MetadataFor(ctx, in, cli)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release metadata: %w", err)
@@ -399,7 +401,7 @@ func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, in
 
 	imageURL := fmt.Sprintf(
 		"http://127.0.0.1:%d/images/ec-images-amd64.tar",
-		runtimeconfig.LocalArtifactMirrorPort(),
+		rc.LocalArtifactMirrorPort(),
 	)
 
 	return &autopilotv1beta2.PlanCommand{

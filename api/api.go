@@ -1,21 +1,20 @@
 package api
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"net/http"
 
-	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
-	"github.com/replicatedhq/embedded-cluster/api/controllers/install"
-	"github.com/replicatedhq/embedded-cluster/api/docs"
+	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
-	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
+// API represents the main HTTP API server for the Embedded Cluster application.
+//
 //	@title			Embedded Cluster API
 //	@version		0.1
 //	@description	This is the API for the Embedded Cluster project.
@@ -35,147 +34,81 @@ import (
 // @externalDocs.description	OpenAPI
 // @externalDocs.url			https://swagger.io/resources/open-api/
 type API struct {
-	authController    auth.Controller
-	consoleController console.Controller
-	installController install.Controller
-	configChan        chan<- *types.InstallationConfig
-	logger            logrus.FieldLogger
+	cfg types.APIConfig
+
+	logger          logrus.FieldLogger
+	metricsReporter metrics.ReporterInterface
+
+	authController         auth.Controller
+	consoleController      console.Controller
+	linuxInstallController linuxinstall.Controller
+
+	handlers handlers
 }
 
-type APIOption func(*API)
+// Option is a function that configures the API.
+type Option func(*API)
 
-func WithAuthController(authController auth.Controller) APIOption {
+// WithAuthController configures the auth controller for the API.
+func WithAuthController(authController auth.Controller) Option {
 	return func(a *API) {
 		a.authController = authController
 	}
 }
 
-func WithConsoleController(consoleController console.Controller) APIOption {
+// WithConsoleController configures the console controller for the API.
+func WithConsoleController(consoleController console.Controller) Option {
 	return func(a *API) {
 		a.consoleController = consoleController
 	}
 }
 
-func WithInstallController(installController install.Controller) APIOption {
+// WithLinuxInstallController configures the linux install controller for the API.
+func WithLinuxInstallController(linuxInstallController linuxinstall.Controller) Option {
 	return func(a *API) {
-		a.installController = installController
+		a.linuxInstallController = linuxInstallController
 	}
 }
 
-func WithLogger(logger logrus.FieldLogger) APIOption {
+// WithLogger configures the logger for the API. If not provided, a default logger will be created.
+func WithLogger(logger logrus.FieldLogger) Option {
 	return func(a *API) {
 		a.logger = logger
 	}
 }
 
-func WithConfigChan(configChan chan<- *types.InstallationConfig) APIOption {
+// WithMetricsReporter configures the metrics reporter for the API.
+func WithMetricsReporter(metricsReporter metrics.ReporterInterface) Option {
 	return func(a *API) {
-		a.configChan = configChan
+		a.metricsReporter = metricsReporter
 	}
 }
 
-func New(password string, opts ...APIOption) (*API, error) {
-	api := &API{}
+// New creates a new API instance.
+func New(cfg types.APIConfig, opts ...Option) (*API, error) {
+	api := &API{
+		cfg: cfg,
+	}
+
 	for _, opt := range opts {
 		opt(api)
 	}
 
-	if api.authController == nil {
-		authController, err := auth.NewAuthController(password)
-		if err != nil {
-			return nil, fmt.Errorf("new auth controller: %w", err)
-		}
-		api.authController = authController
-	}
-
-	if api.consoleController == nil {
-		consoleController, err := console.NewConsoleController()
-		if err != nil {
-			return nil, fmt.Errorf("new console controller: %w", err)
-		}
-		api.consoleController = consoleController
-	}
-
-	if api.installController == nil {
-		installController, err := install.NewInstallController()
-		if err != nil {
-			return nil, fmt.Errorf("new install controller: %w", err)
-		}
-		api.installController = installController
+	if api.cfg.RuntimeConfig == nil {
+		api.cfg.RuntimeConfig = runtimeconfig.New(nil)
 	}
 
 	if api.logger == nil {
-		api.logger = NewDiscardLogger()
+		l, err := logger.NewLogger()
+		if err != nil {
+			return nil, fmt.Errorf("create logger: %w", err)
+		}
+		api.logger = l
+	}
+
+	if err := api.initHandlers(); err != nil {
+		return nil, fmt.Errorf("init handlers: %w", err)
 	}
 
 	return api, nil
-}
-
-func (a *API) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/health", a.getHealth).Methods("GET")
-
-	// Hack to fix issue
-	// https://github.com/swaggo/swag/issues/1588#issuecomment-2797801240
-	router.HandleFunc("/swagger/doc.json", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write([]byte(docs.SwaggerInfo.ReadDoc()))
-	}).Methods("GET")
-	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
-
-	router.HandleFunc("/auth/login", a.postAuthLogin).Methods("POST")
-
-	authenticatedRouter := router.PathPrefix("/").Subrouter()
-	authenticatedRouter.Use(a.authMiddleware)
-
-	installRouter := authenticatedRouter.PathPrefix("/install").Subrouter()
-	installRouter.HandleFunc("", a.getInstall).Methods("GET")
-	installRouter.HandleFunc("/config", a.setInstallConfig).Methods("POST")
-	installRouter.HandleFunc("/status", a.setInstallStatus).Methods("POST")
-	installRouter.HandleFunc("/status", a.getInstallStatus).Methods("GET")
-
-	consoleRouter := authenticatedRouter.PathPrefix("/console").Subrouter()
-	consoleRouter.HandleFunc("/available-network-interfaces", a.getListAvailableNetworkInterfaces).Methods("GET")
-}
-
-func (a *API) json(w http.ResponseWriter, r *http.Request, code int, payload any) {
-	response, err := json.Marshal(payload)
-	if err != nil {
-		a.logError(r, err, "failed to encode response")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	w.Write(response)
-}
-
-func (a *API) jsonError(w http.ResponseWriter, r *http.Request, err error) {
-	var apiErr *types.APIError
-	if !errors.As(err, &apiErr) {
-		apiErr = types.NewInternalServerError(err)
-	}
-
-	response, err := json.Marshal(apiErr)
-	if err != nil {
-		a.logError(r, err, "failed to encode response")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(apiErr.StatusCode)
-	w.Write(response)
-}
-
-func (a *API) logError(r *http.Request, err error, args ...any) {
-	a.logger.WithFields(logrusFieldsFromRequest(r)).WithError(err).Error(args...)
-}
-
-func logrusFieldsFromRequest(r *http.Request) logrus.Fields {
-	return logrus.Fields{
-		"method": r.Method,
-		"path":   r.URL.Path,
-	}
 }

@@ -5,7 +5,7 @@ interface Branding {
   icon?: string;
 }
 
-const BrandingContext = createContext<Branding>({ title: "My App" });
+export const BrandingContext = createContext<Branding>({ title: "My App" });
 
 export const useBranding = () => {
   const context = useContext(BrandingContext);

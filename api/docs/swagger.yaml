@@ -24,65 +24,81 @@ components:
         token:
           type: string
       type: object
+    types.GetListAvailableNetworkInterfacesResponse:
+      properties:
+        networkInterfaces:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      type: object
     types.Health:
       properties:
         status:
           type: string
       type: object
-    types.HostPreflightOutput:
+    types.HostPreflightsOutput:
       properties:
         fail:
           items:
-            $ref: '#/components/schemas/types.HostPreflightRecord'
+            $ref: '#/components/schemas/types.HostPreflightsRecord'
           type: array
           uniqueItems: false
         pass:
           items:
-            $ref: '#/components/schemas/types.HostPreflightRecord'
+            $ref: '#/components/schemas/types.HostPreflightsRecord'
           type: array
           uniqueItems: false
         warn:
           items:
-            $ref: '#/components/schemas/types.HostPreflightRecord'
+            $ref: '#/components/schemas/types.HostPreflightsRecord'
           type: array
           uniqueItems: false
       type: object
-    types.HostPreflightRecord:
+    types.HostPreflightsRecord:
       properties:
         message:
           type: string
         title:
           type: string
       type: object
-    types.HostPreflightState:
-      type: string
-      x-enum-varnames:
-      - HostPreflightStatePending
-      - HostPreflightStateRunning
-      - HostPreflightStateSucceeded
-      - HostPreflightStateFailed
-    types.HostPreflightStatus:
+    types.Infra:
       properties:
-        description:
+        components:
+          items:
+            $ref: '#/components/schemas/types.InfraComponent'
+          type: array
+          uniqueItems: false
+        logs:
           type: string
-        lastUpdated:
-          type: string
-        state:
-          $ref: '#/components/schemas/types.HostPreflightState'
+        status:
+          $ref: '#/components/schemas/types.Status'
       type: object
-    types.HostPreflightStatusResponse:
+    types.InfraComponent:
       properties:
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/types.Status'
+      type: object
+    types.InfraSetupRequest:
+      properties:
+        ignoreHostPreflights:
+          type: boolean
+      type: object
+    types.InstallHostPreflightsStatusResponse:
+      properties:
+        allowIgnoreHostPreflights:
+          type: boolean
         output:
-          $ref: '#/components/schemas/types.HostPreflightOutput'
+          $ref: '#/components/schemas/types.HostPreflightsOutput'
         status:
-          $ref: '#/components/schemas/types.HostPreflightStatus'
-      type: object
-    types.Install:
-      properties:
-        config:
-          $ref: '#/components/schemas/types.InstallationConfig'
-        status:
-          $ref: '#/components/schemas/types.InstallationStatus'
+          $ref: '#/components/schemas/types.Status'
+        titles:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
       type: object
     types.InstallationConfig:
       properties:
@@ -107,26 +123,26 @@ components:
         serviceCidr:
           type: string
       type: object
-    types.InstallationState:
+    types.PostInstallRunHostPreflightsRequest:
+      properties:
+        isUi:
+          type: boolean
+      type: object
+    types.State:
       type: string
       x-enum-varnames:
-      - InstallationStatePending
-      - InstallationStateRunning
-      - InstallationStateSucceeded
-      - InstallationStateFailed
-    types.InstallationStatus:
+      - StatePending
+      - StateRunning
+      - StateSucceeded
+      - StateFailed
+    types.Status:
       properties:
         description:
           type: string
         lastUpdated:
           type: string
         state:
-          $ref: '#/components/schemas/types.InstallationState'
-      type: object
-    types.RunHostPreflightResponse:
-      properties:
-        status:
-          $ref: '#/components/schemas/types.HostPreflightStatus'
+          $ref: '#/components/schemas/types.State'
       type: object
   securitySchemes:
     bearerauth:
@@ -153,6 +169,7 @@ paths:
   /auth/login:
     post:
       description: Authenticate a user
+      operationId: postAuthLogin
       requestBody:
         content:
           application/json:
@@ -176,9 +193,24 @@ paths:
       summary: Authenticate a user
       tags:
       - auth
+  /console/available-network-interfaces:
+    get:
+      description: List available network interfaces
+      operationId: getConsoleListAvailableNetworkInterfaces
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.GetListAvailableNetworkInterfacesResponse'
+          description: OK
+      summary: List available network interfaces
+      tags:
+      - console
   /health:
     get:
       description: get the health of the API
+      operationId: getHealth
       responses:
         "200":
           content:
@@ -189,24 +221,106 @@ paths:
       summary: Get the health of the API
       tags:
       - health
-  /install:
-    get:
-      description: get the install object
+  /linux/install/host-preflights/run:
+    post:
+      description: Run install host preflight checks using installation config and
+        client-provided data
+      operationId: postLinuxInstallRunHostPreflights
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.PostInstallRunHostPreflightsRequest'
+        description: Post Install Run Host Preflights Request
+        required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.Install'
+                $ref: '#/components/schemas/types.InstallHostPreflightsStatusResponse'
           description: OK
       security:
       - bearerauth: []
-      summary: Get the install object
+      summary: Run install host preflight checks
       tags:
-      - install
-  /install/config:
+      - linux-install
+  /linux/install/host-preflights/status:
+    get:
+      description: Get the current status and results of host preflight checks for
+        install
+      operationId: getLinuxInstallHostPreflightsStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.InstallHostPreflightsStatusResponse'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get host preflight status for install
+      tags:
+      - linux-install
+  /linux/install/infra/setup:
     post:
-      description: set the installation config
+      description: Setup infra components
+      operationId: postLinuxInstallSetupInfra
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.InfraSetupRequest'
+        description: Infra Setup Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Infra'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Setup infra components
+      tags:
+      - linux-install
+  /linux/install/infra/status:
+    get:
+      description: Get the current status of the infra
+      operationId: getLinuxInstallInfraStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Infra'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the status of the infra
+      tags:
+      - linux-install
+  /linux/install/installation/config:
+    get:
+      description: get the installation config
+      operationId: getLinuxInstallInstallationConfig
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.InstallationConfig'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the installation config
+      tags:
+      - linux-install
+  /linux/install/installation/configure:
+    post:
+      description: configure the installation for install
+      operationId: postLinuxInstallConfigureInstallation
       requestBody:
         content:
           application/json:
@@ -219,78 +333,66 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.Install'
+                $ref: '#/components/schemas/types.Status'
           description: OK
       security:
       - bearerauth: []
-      summary: Set the installation config
+      summary: Configure the installation for install
       tags:
-      - install
-  /install/host-preflights:
+      - linux-install
+  /linux/install/installation/status:
     get:
-      description: Get the current status and results of host preflight checks
+      description: Get the current status of the installation configuration for install
+      operationId: getLinuxInstallInstallationStatus
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.HostPreflightStatusResponse'
+                $ref: '#/components/schemas/types.Status'
           description: OK
       security:
       - bearerauth: []
-      summary: Get host preflight status
+      summary: Get installation configuration status for install
       tags:
-      - install
-    post:
-      description: Run install host preflight checks using installation config and
-        client-provided data
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.RunHostPreflightResponse'
-          description: OK
-      security:
-      - bearerauth: []
-      summary: Run install host preflight checks
-      tags:
-      - install
-  /install/status:
+      - linux-install
+  /linux/install/status:
     get:
-      description: get the installation status
+      description: Get the current status of the install workflow
+      operationId: getLinuxInstallStatus
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.InstallationStatus'
+                $ref: '#/components/schemas/types.Status'
           description: OK
       security:
       - bearerauth: []
-      summary: Get the installation status
+      summary: Get the status of the install workflow
       tags:
-      - install
+      - linux-install
     post:
-      description: set the installation status
+      description: Set the status of the install workflow
+      operationId: postLinuxInstallSetStatus
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.InstallationStatus'
-        description: Installation status
+              $ref: '#/components/schemas/types.Status'
+        description: Status
         required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.Install'
+                $ref: '#/components/schemas/types.Status'
           description: OK
       security:
       - bearerauth: []
-      summary: Set the installation status
+      summary: Set the status of the install workflow
       tags:
-      - install
+      - linux-install
 servers:
 - url: /api

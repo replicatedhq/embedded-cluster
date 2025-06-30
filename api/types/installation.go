@@ -1,7 +1,11 @@
 package types
 
-import "time"
+type Installation struct {
+	Config InstallationConfig `json:"config"`
+	Status Status             `json:"status"`
+}
 
+// InstallationConfig represents the configuration for an installation
 type InstallationConfig struct {
 	AdminConsolePort        int    `json:"adminConsolePort"`
 	DataDirectory           string `json:"dataDirectory"`
@@ -14,18 +18,3 @@ type InstallationConfig struct {
 	ServiceCIDR             string `json:"serviceCidr"`
 	GlobalCIDR              string `json:"globalCidr"`
 }
-
-type InstallationStatus struct {
-	State       InstallationState `json:"state"`
-	Description string            `json:"description"`
-	LastUpdated time.Time         `json:"lastUpdated"`
-}
-
-type InstallationState string
-
-const (
-	InstallationStatePending   InstallationState = "Pending"
-	InstallationStateRunning   InstallationState = "Running"
-	InstallationStateSucceeded InstallationState = "Succeeded"
-	InstallationStateFailed    InstallationState = "Failed"
-)

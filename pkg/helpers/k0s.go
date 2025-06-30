@@ -6,6 +6,7 @@ import (
 	"time"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -85,4 +86,21 @@ func objectToUnstructured(obj runtime.Object) (*unstructured.Unstructured, error
 	unstructuredObj := &unstructured.Unstructured{}
 	unstructuredObj.Object = objMap
 	return unstructuredObj, nil
+}
+
+func NetworkSpecFromK0sConfig(k0sCfg *k0sv1beta1.ClusterConfig) ecv1beta1.NetworkSpec {
+	network := ecv1beta1.NetworkSpec{}
+
+	if k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil {
+		network.PodCIDR = k0sCfg.Spec.Network.PodCIDR
+		network.ServiceCIDR = k0sCfg.Spec.Network.ServiceCIDR
+	}
+
+	if k0sCfg.Spec.API != nil {
+		if val, ok := k0sCfg.Spec.API.ExtraArgs["service-node-port-range"]; ok {
+			network.NodePortRange = val
+		}
+	}
+
+	return network
 }

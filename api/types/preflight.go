@@ -1,44 +1,35 @@
 package types
 
-import "time"
-
-// RunHostPreflightResponse represents the response from starting host preflight checks
-type RunHostPreflightResponse struct {
-	Status HostPreflightStatus `json:"status"`
+type PostInstallRunHostPreflightsRequest struct {
+	IsUI bool `json:"isUi"`
 }
 
-// HostPreflightStatusResponse represents the response when polling host preflight status
-type HostPreflightStatusResponse struct {
-	Status HostPreflightStatus  `json:"status"`
-	Output *HostPreflightOutput `json:"output,omitempty"`
+// HostPreflights represents the host preflight checks state
+type HostPreflights struct {
+	Titles                    []string              `json:"titles"`
+	Output                    *HostPreflightsOutput `json:"output"`
+	Status                    Status                `json:"status"`
+	AllowIgnoreHostPreflights bool                  `json:"allowIgnoreHostPreflights"`
 }
 
-// HostPreflightStatus represents the current status of host preflight checks
-type HostPreflightStatus struct {
-	State       HostPreflightState `json:"state"`
-	Description string             `json:"description"`
-	LastUpdated time.Time          `json:"lastUpdated"`
+type HostPreflightsOutput struct {
+	Pass []HostPreflightsRecord `json:"pass"`
+	Warn []HostPreflightsRecord `json:"warn"`
+	Fail []HostPreflightsRecord `json:"fail"`
 }
 
-// HostPreflightState represents the possible states of host preflight execution
-type HostPreflightState string
-
-const (
-	HostPreflightStatePending   HostPreflightState = "Pending"
-	HostPreflightStateRunning   HostPreflightState = "Running"
-	HostPreflightStateSucceeded HostPreflightState = "Succeeded"
-	HostPreflightStateFailed    HostPreflightState = "Failed"
-)
-
-// HostPreflightOutput represents the output of host preflight checks
-type HostPreflightOutput struct {
-	Pass []HostPreflightRecord `json:"pass"`
-	Warn []HostPreflightRecord `json:"warn"`
-	Fail []HostPreflightRecord `json:"fail"`
-}
-
-// HostPreflightRecord represents a single host preflight check result
-type HostPreflightRecord struct {
+// HostPreflightsRecord represents a single host preflight check result
+type HostPreflightsRecord struct {
 	Title   string `json:"title"`
 	Message string `json:"message"`
+}
+
+// HasFail returns true if any of the preflight checks failed.
+func (o HostPreflightsOutput) HasFail() bool {
+	return len(o.Fail) > 0
+}
+
+// HasWarn returns true if any of the preflight checks returned a warning.
+func (o HostPreflightsOutput) HasWarn() bool {
+	return len(o.Warn) > 0
 }

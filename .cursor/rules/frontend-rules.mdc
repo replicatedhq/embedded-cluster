@@ -1,0 +1,45 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# manager experience (front end) rules and guidelines
+
+`/web` is the web ui for the Manager Experience
+
+
+### general guidelines
+
+- Use the Tailwind colors we have defined in @tailwind.config.js
+- Always use functional React.
+- Do not `import React from "react"`, use direct imports. Importing React is not needed with React 18, which we use.
+- Use `import cx from classnames` when using dynamic classNames.
+- Use `<>...</>` (Fragment) instead of `<div>...</div>` when you only need a wrapper for multiple elements and don't require a DOM node.
+- When designing your code's architecture, use the model of parent data fetching component and child presentational component.
+- Use the logical `&&` operator instead of ternary operators when rendering large component or logic blocks for improved readability.
+- Place external library imports at the top of files, separated by an empty line from other imports.
+- Perform data transformations (filter, sort, search, etc.) outside of JSX. Define these operations in variables or useMemo hooks above the return statement for better readability and performance.
+- We use Sentence casing for buttons, form labels, page sub-section titles, and modal headers. Only use title case for page titles.
+- Extract logic into variables when possible for improved readability.
+- Do not use extra divs/components when fewer divs/components (or a Fragment) would suffice.
+- When making API requests, use Tanstack Query and the `fetch` library. There are examples of this in [SetupStep.tsx](mdc:web/src/components/wizard/SetupStep.tsx)
+- When importing router-related hooks such as `useLocation`, `useParams`, and `useNavigate`, always import them from `react-router-dom` and **not** from `react-router`. 
+
+
+### front end unit tests
+
+- Unit tests are written with Vitest and React Testing Library.
+- Use the test utils in @setup.tsx
+- Use the mock test data variables and functions in @testData.ts so that the types match our type definitions in @index.ts
+- Use `renderWithProviders` in @setup.tsx to render components for testing.
+- Use the `msw` library to mock API requests.
+- Use the `wrapperProps` prop in `renderWithProviders` to mock the preloaded state of the redux store for hooks (rather than mocking the hook itself).
+- Feature flag values should be mocked by customizing the response of the `/features` request with Mock Service Worker (msw).
+- Unit tests that rely on specific feature flag or entitlement values will most likely need some request mocking per test case.
+- Use `data-testid` attributes when selectors might be ambiguous or when you need a more stable selector that won't break with UI changes. This makes tests more reliable and easier to maintain. When adding data-testids:
+  - Use consistent naming patterns like `{component-name}-{element-type}-{description}` (e.g., `install-wizard-button-next`, `user-table-row-${id}`)
+  - When adding a data-testid to an element, add them to similar elements in the same component or pattern (e.g., if adding to a "next" button, also add to "back" and "submit" buttons)
+
+
+
+Please validate and run unit tests with `npm run test:unit <path to file>` from the `web` directory.

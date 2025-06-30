@@ -1,46 +1,21 @@
 package openebs
 
 import (
-	_ "embed"
 	"strings"
 
-	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"gopkg.in/yaml.v3"
+)
+
+const (
+	_releaseName = "openebs"
+	_namespace   = "openebs"
 )
 
 var _ types.AddOn = (*OpenEBS)(nil)
 
 type OpenEBS struct {
-	ProxyRegistryDomain string
-}
-
-const (
-	releaseName = "openebs"
-	namespace   = "openebs"
-)
-
-var (
-	//go:embed static/values.tpl.yaml
-	rawvalues []byte
-	// helmValues is the unmarshal version of rawvalues.
-	helmValues map[string]interface{}
-	//go:embed static/metadata.yaml
-	rawmetadata []byte
-	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.AddonMetadata
-)
-
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal metadata"))
-	}
-	hv, err := release.RenderHelmValues(rawvalues, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal values"))
-	}
-	helmValues = hv
+	OpenEBSDataDir string
 }
 
 func (o *OpenEBS) Name() string {
@@ -52,16 +27,16 @@ func (o *OpenEBS) Version() string {
 }
 
 func (o *OpenEBS) ReleaseName() string {
-	return releaseName
+	return _releaseName
 }
 
 func (o *OpenEBS) Namespace() string {
-	return namespace
+	return _namespace
 }
 
-func (o *OpenEBS) ChartLocation() string {
-	if o.ProxyRegistryDomain == "" {
+func (o *OpenEBS) ChartLocation(domains ecv1beta1.Domains) string {
+	if domains.ProxyRegistryDomain == "" {
 		return Metadata.Location
 	}
-	return strings.Replace(Metadata.Location, "proxy.replicated.com", o.ProxyRegistryDomain, 1)
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 }

@@ -3,26 +3,20 @@ package cli
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
-	"testing/fstest"
-	"time"
 
-	"github.com/replicatedhq/embedded-cluster/api"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
-	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -537,87 +531,6 @@ versionLabel: testversion
 	}
 }
 
-func Test_runInstallAPI(t *testing.T) {
-	logrus.SetLevel(logrus.DebugLevel)
-
-	listener, err := net.Listen("tcp", ":0")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = listener.Close()
-	})
-
-	ctx, cancel := context.WithCancel(t.Context())
-	t.Cleanup(cancel)
-
-	errCh := make(chan error)
-
-	logger := api.NewDiscardLogger()
-
-	_, port, err := net.SplitHostPort(listener.Addr().String())
-	require.NoError(t, err)
-
-	cert, _, _, err := tlsutils.GenerateCertificate("localhost", nil)
-	require.NoError(t, err)
-
-	certPool := x509.NewCertPool()
-	certPool.AddCert(cert.Leaf)
-
-	// We need a release object to pass over to the Web component.
-	dataMap := map[string][]byte{
-		"kots-app.yaml": []byte(`
-apiVersion: kots.io/v1beta1
-kind: Application
-`),
-	}
-	err = release.SetReleaseDataForTests(dataMap)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		release.SetReleaseDataForTests(nil)
-	})
-
-	// Mock the web assets filesystem so that we don't need to embed the web assets.
-	webAssetsFS = fstest.MapFS{
-		"index.html": &fstest.MapFile{
-			Data: []byte(""),
-			Mode: 0644,
-		},
-	}
-	defer func() { webAssetsFS = nil }()
-
-	go func() {
-		err := runInstallAPI(ctx, listener, cert, logger, "password", nil)
-		t.Logf("Install API exited with error: %v", err)
-		errCh <- err
-	}()
-
-	t.Logf("Waiting for install API to start on %s", listener.Addr().String())
-	err = waitForInstallAPI(ctx, net.JoinHostPort("localhost", port))
-	assert.NoError(t, err)
-
-	url := "https://" + net.JoinHostPort("localhost", port) + "/api/health"
-	t.Logf("Making request to %s", url)
-	httpClient := http.Client{
-		Timeout: 2 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs: certPool,
-			},
-		},
-	}
-	resp, err := httpClient.Get(url)
-	require.NoError(t, err)
-	if resp != nil {
-		defer resp.Body.Close()
-	}
-
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	cancel()
-	assert.ErrorIs(t, <-errCh, http.ErrServerClosed)
-	t.Logf("Install API exited")
-}
-
 func Test_verifyProxyConfig(t *testing.T) {
 	tests := []struct {
 		name                  string
@@ -695,4 +608,98 @@ func Test_verifyProxyConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_preRunInstall_SkipHostPreflightsEnvVar(t *testing.T) {
+	tests := []struct {
+		name                   string
+		envVarValue            string
+		flagValue              *bool // nil means not set, true/false means explicitly set
+		expectedSkipPreflights bool
+	}{
+		{
+			name:                   "env var set to 1, no flag",
+			envVarValue:            "1",
+			flagValue:              nil,
+			expectedSkipPreflights: true,
+		},
+		{
+			name:                   "env var set to true, no flag",
+			envVarValue:            "true",
+			flagValue:              nil,
+			expectedSkipPreflights: true,
+		},
+		{
+			name:                   "env var set, flag explicitly false (flag takes precedence)",
+			envVarValue:            "1",
+			flagValue:              boolPtr(false),
+			expectedSkipPreflights: false,
+		},
+		{
+			name:                   "env var set, flag explicitly true",
+			envVarValue:            "1",
+			flagValue:              boolPtr(true),
+			expectedSkipPreflights: true,
+		},
+		{
+			name:                   "env var not set, no flag",
+			envVarValue:            "",
+			flagValue:              nil,
+			expectedSkipPreflights: false,
+		},
+		{
+			name:                   "env var not set, flag explicitly false",
+			envVarValue:            "",
+			flagValue:              boolPtr(false),
+			expectedSkipPreflights: false,
+		},
+		{
+			name:                   "env var not set, flag explicitly true",
+			envVarValue:            "",
+			flagValue:              boolPtr(true),
+			expectedSkipPreflights: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up environment variable
+			if tt.envVarValue != "" {
+				t.Setenv("SKIP_HOST_PREFLIGHTS", tt.envVarValue)
+			}
+
+			// Create a mock cobra command to simulate flag behavior
+			cmd := &cobra.Command{}
+			flags := &InstallCmdFlags{}
+
+			// Add the flag to the command (similar to addInstallFlags)
+			cmd.Flags().BoolVar(&flags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks")
+
+			// Set the flag if explicitly provided in test
+			if tt.flagValue != nil {
+				err := cmd.Flags().Set("skip-host-preflights", fmt.Sprintf("%t", *tt.flagValue))
+				require.NoError(t, err)
+			}
+
+			// Create a minimal runtime config for the test
+			rc := runtimeconfig.New(nil)
+
+			// Call preRunInstall (this would normally require root, but we're just testing the flag logic)
+			// We expect this to fail due to non-root execution, but we can check the flag value before it fails
+			err := preRunInstallLinux(cmd, flags, rc)
+
+			// The function will fail due to non-root check, but we can verify the flag was set correctly
+			// by checking the flag value before the root check fails
+			assert.Equal(t, tt.expectedSkipPreflights, flags.skipHostPreflights)
+
+			// We expect an error due to non-root execution
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "install command must be run as root")
+		})
+	}
+}
+
+// Helper function to create bool pointer
+func boolPtr(b bool) *bool {
+	return &b
 }

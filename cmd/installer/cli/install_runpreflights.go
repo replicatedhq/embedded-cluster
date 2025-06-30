@@ -4,35 +4,48 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
+// ErrPreflightsHaveFail is an error returned when we managed to execute the host preflights but
+// they contain failures. We use this to differentiate the way we provide user feedback.
+var ErrPreflightsHaveFail = metrics.NewErrorNoFail(fmt.Errorf("host preflight failures detected"))
+
 func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var flags InstallCmdFlags
+
+	rc := runtimeconfig.New(nil)
+	ki := kubernetesinstallation.New(nil)
 
 	cmd := &cobra.Command{
 		Use:    "run-preflights",
 		Short:  "Run install host preflights",
 		Hidden: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &flags); err != nil {
+			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
 				return err
 			}
+
+			_ = rc.SetEnv()
 
 			return nil
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
-			runtimeconfig.Cleanup()
+			rc.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runInstallRunPreflights(cmd.Context(), name, flags); err != nil {
+			if err := runInstallRunPreflights(cmd.Context(), name, flags, rc); err != nil {
 				return err
 			}
 
@@ -40,9 +53,8 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
-	if err := addInstallFlags(cmd, &flags); err != nil {
-		panic(err)
-	}
+	mustAddInstallFlags(cmd, &flags)
+
 	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
@@ -50,28 +62,26 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdFlags) error {
-	if err := runInstallVerifyAndPrompt(ctx, name, &flags, prompts.New()); err != nil {
+func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
+	if err := verifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
 		return err
 	}
 
-	logrus.Debugf("materializing binaries")
-	if err := materializeFiles(flags.airgapBundle); err != nil {
-		return fmt.Errorf("unable to materialize files: %w", err)
+	licenseBytes, err := os.ReadFile(flags.licenseFile)
+	if err != nil {
+		return fmt.Errorf("unable to read license file: %w", err)
 	}
 
-	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
-		logrus.Debugf("unable to configure sysctl: %v", err)
-	}
-
-	logrus.Debugf("configuring kernel modules")
-	if err := configutils.ConfigureKernelModules(); err != nil {
-		logrus.Debugf("unable to configure kernel modules: %v", err)
+	logrus.Debugf("configuring host")
+	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
+		License:      licenseBytes,
+		AirgapBundle: flags.airgapBundle,
+	}); err != nil {
+		return fmt.Errorf("configure host: %w", err)
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, nil); err != nil {
+	if err := runInstallPreflights(ctx, flags, rc, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -83,29 +93,40 @@ func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdF
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, metricsReported preflights.MetricsReporter) error {
+func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, metricsReporter metrics.ReporterInterface) error {
 	replicatedAppURL := replicatedAppURL()
 	proxyRegistryURL := proxyRegistryURL()
 
-	nodeIP, err := netutils.FirstValidAddress(flags.networkInterface)
+	nodeIP, err := netutils.FirstValidAddress(rc.NetworkInterface())
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
 
-	if err := preflights.PrepareAndRun(ctx, preflights.PrepareAndRunOptions{
-		ReplicatedAppURL:     replicatedAppURL,
-		ProxyRegistryURL:     proxyRegistryURL,
-		Proxy:                flags.proxy,
-		PodCIDR:              flags.cidrCfg.PodCIDR,
-		ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
-		GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
-		NodeIP:               nodeIP,
-		IsAirgap:             flags.isAirgap,
-		SkipHostPreflights:   flags.skipHostPreflights,
-		IgnoreHostPreflights: flags.ignoreHostPreflights,
-		AssumeYes:            flags.assumeYes,
-		MetricsReporter:      metricsReported,
-	}); err != nil {
+	opts := preflights.PrepareOptions{
+		HostPreflightSpec:       release.GetHostPreflights(),
+		ReplicatedAppURL:        replicatedAppURL,
+		ProxyRegistryURL:        proxyRegistryURL,
+		AdminConsolePort:        rc.AdminConsolePort(),
+		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
+		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                   rc.ProxySpec(),
+		PodCIDR:                 rc.PodCIDR(),
+		ServiceCIDR:             rc.ServiceCIDR(),
+		NodeIP:                  nodeIP,
+		IsAirgap:                flags.isAirgap,
+	}
+	if globalCIDR := rc.GlobalCIDR(); globalCIDR != "" {
+		opts.GlobalCIDR = &globalCIDR
+	}
+
+	hpf, err := preflights.Prepare(ctx, opts)
+	if err != nil {
+		return err
+	}
+
+	if err := runHostPreflights(ctx, hpf, rc, flags.skipHostPreflights, flags.ignoreHostPreflights, flags.assumeYes, metricsReporter); err != nil {
 		return err
 	}
 

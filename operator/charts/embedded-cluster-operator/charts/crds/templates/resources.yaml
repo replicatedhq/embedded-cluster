@@ -570,8 +570,12 @@ spec:
                 description: MetricsBaseURL holds the base URL for the metrics server.
                 type: string
               network:
-                description: Network holds the network configuration.
+                description: NetworkSpec holds the network configuration.
                 properties:
+                  globalCIDR:
+                    type: string
+                  networkInterface:
+                    type: string
                   nodePortRange:
                     type: string
                   podCIDR:
@@ -580,7 +584,7 @@ spec:
                     type: string
                 type: object
               proxy:
-                description: Proxy holds the proxy configuration.
+                description: ProxySpec holds the proxy configuration.
                 properties:
                   httpProxy:
                     type: string
@@ -628,11 +632,37 @@ spec:
                         description: Port holds the port on which the manager will be served.
                         type: integer
                     type: object
+                  network:
+                    description: Network holds the network configuration.
+                    properties:
+                      globalCIDR:
+                        type: string
+                      networkInterface:
+                        type: string
+                      nodePortRange:
+                        type: string
+                      podCIDR:
+                        type: string
+                      serviceCIDR:
+                        type: string
+                    type: object
                   openEBSDataDirOverride:
                     description: |-
                       OpenEBSDataDirOverride holds the override for the data directory for the OpenEBS storage
                       provisioner. By default the data will be stored in a subdirectory of DataDir.
                     type: string
+                  proxy:
+                    description: Proxy holds the proxy configuration.
+                    properties:
+                      httpProxy:
+                        type: string
+                      httpsProxy:
+                        type: string
+                      noProxy:
+                        type: string
+                      providedNoProxy:
+                        type: string
+                    type: object
                 type: object
               sourceType:
                 description: SourceType indicates where this Installation object is stored (CRD, ConfigMap, etc...).

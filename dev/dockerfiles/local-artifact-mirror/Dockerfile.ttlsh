@@ -10,7 +10,9 @@ RUN --mount=type=cache,target="/go/pkg/mod" go mod download
 COPY common.mk common.mk
 COPY local-artifact-mirror/ local-artifact-mirror/
 COPY pkg/ pkg/
+COPY pkg-new/ pkg-new/
 COPY cmd/ cmd/
+COPY api/ api/
 COPY kinds/ kinds/
 COPY utils/ utils/
 

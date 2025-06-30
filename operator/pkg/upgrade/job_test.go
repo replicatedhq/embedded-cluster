@@ -7,6 +7,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"
@@ -56,9 +57,11 @@ func TestCreateUpgradeJob_NodeAffinity(t *testing.T) {
 		WithObjects(installation).
 		Build()
 
+	rc := runtimeconfig.New(nil)
+
 	// Call the function under test
 	err := CreateUpgradeJob(
-		context.Background(), cli, installation,
+		context.Background(), cli, rc, installation,
 		"registry.example.com/local-artifact-mirror:1.2.3",
 		"license-id", "app-slug", "channel-id", testVersion,
 		"1.2.2",
@@ -134,9 +137,11 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 			WithObjects(installation).
 			Build()
 
+		rc := runtimeconfig.New(nil)
+
 		// Call the function under test
 		err := CreateUpgradeJob(
-			context.Background(), cli, installation,
+			context.Background(), cli, rc, installation,
 			"registry.example.com/local-artifact-mirror:1.2.3",
 			"license-id", "app-slug", "channel-id", testVersion,
 			"1.2.2",
@@ -241,9 +246,11 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 			WithObjects(installation).
 			Build()
 
+		rc := runtimeconfig.New(nil)
+
 		// Call the function under test
 		err := CreateUpgradeJob(
-			context.Background(), cli, installation,
+			context.Background(), cli, rc, installation,
 			"registry.example.com/local-artifact-mirror:1.2.3",
 			"license-id", "app-slug", "channel-id", testVersion,
 			"1.2.2",

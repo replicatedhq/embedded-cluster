@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +14,7 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
 	}
 
-	values, err := v.GenerateHelmValues(context.Background(), nil, nil)
+	values, err := v.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
 	require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 	require.NotEmpty(t, values["extraVolumes"])

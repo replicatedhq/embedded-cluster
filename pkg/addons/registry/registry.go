@@ -2,16 +2,14 @@ package registry
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -19,52 +17,22 @@ import (
 var _ types.AddOn = (*Registry)(nil)
 
 type Registry struct {
-	ServiceCIDR         string
-	IsHA                bool
-	ProxyRegistryDomain string
+	ServiceCIDR string
+	IsHA        bool
 }
 
 const (
-	releaseName      = "docker-registry"
-	namespace        = runtimeconfig.RegistryNamespace
-	tlsSecretName    = "registry-tls"
-	lowerBandIPIndex = 10
+	_releaseName = "docker-registry"
+	_namespace   = constants.RegistryNamespace
+
+	_tlsSecretName    = "registry-tls"
+	_lowerBandIPIndex = 10
 )
 
 var (
-	//go:embed static/values.tpl.yaml
-	rawvalues []byte
-	// helmValues is the unmarshal version of rawvalues.
-	helmValues map[string]interface{}
-	//go:embed static/values-ha.tpl.yaml
-	rawvaluesha []byte
-	// helmValuesHA is the unmarshal version of rawvaluesha.
-	helmValuesHA map[string]interface{}
-	//go:embed static/metadata.yaml
-	rawmetadata []byte
-	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.AddonMetadata
 	// registryPassword is the password for the registry.
 	registryPassword = helpers.RandString(20)
 )
-
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal metadata"))
-	}
-
-	hv, err := release.RenderHelmValues(rawvalues, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal values"))
-	}
-	helmValues = hv
-
-	hvHA, err := release.RenderHelmValues(rawvaluesha, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal ha values"))
-	}
-	helmValuesHA = hvHA
-}
 
 func (r *Registry) Name() string {
 	return "Registry"
@@ -75,11 +43,11 @@ func (r *Registry) Version() string {
 }
 
 func (r *Registry) ReleaseName() string {
-	return releaseName
+	return _releaseName
 }
 
 func (r *Registry) Namespace() string {
-	return namespace
+	return _namespace
 }
 
 func GetRegistryPassword() string {
@@ -89,7 +57,7 @@ func GetRegistryPassword() string {
 // GetRegistryClusterIP returns the cluster IP for the registry service.
 // This function is deterministic.
 func GetRegistryClusterIP(serviceCIDR string) (string, error) {
-	svcIP, err := helpers.GetLowerBandIP(serviceCIDR, lowerBandIPIndex)
+	svcIP, err := helpers.GetLowerBandIP(serviceCIDR, _lowerBandIPIndex)
 	if err != nil {
 		return "", errors.Wrap(err, "get cluster IP for registry service")
 	}
@@ -102,17 +70,17 @@ func getBackupLabels() map[string]string {
 	}
 }
 
-func (r *Registry) ChartLocation() string {
-	if r.ProxyRegistryDomain == "" {
+func (r *Registry) ChartLocation(domains ecv1beta1.Domains) string {
+	if domains.ProxyRegistryDomain == "" {
 		return Metadata.Location
 	}
-	return strings.Replace(Metadata.Location, "proxy.replicated.com", r.ProxyRegistryDomain, 1)
+	return strings.Replace(Metadata.Location, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 }
 
 // IsRegistryHA checks if the registry deployment has greater than 1 replica.
 func IsRegistryHA(ctx context.Context, kcli client.Client) (bool, error) {
 	deploy := appsv1.Deployment{}
-	err := kcli.Get(ctx, client.ObjectKey{Namespace: namespace, Name: "registry"}, &deploy)
+	err := kcli.Get(ctx, client.ObjectKey{Namespace: _namespace, Name: "registry"}, &deploy)
 	if err != nil {
 		return false, fmt.Errorf("get registry deployment: %w", err)
 	}

@@ -116,6 +116,78 @@ spec:
 				},
 			},
 		},
+		{
+			name: "proxy configuration",
+			args: args{
+				in: `
+apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Installation
+metadata:
+  name: test
+spec:
+  config:
+    version: 1.29.1+k0s.0
+  proxy:
+    httpProxy: http://proxy.example.com:8080
+    httpsProxy: https://proxy.example.com:8443
+    noProxy: localhost,127.0.0.1
+`,
+			},
+			want: InstallationSpec{
+				Config: &ConfigSpec{
+					Version: "1.29.1+k0s.0",
+				},
+				SourceType: InstallationSourceTypeCRD,
+				RuntimeConfig: &RuntimeConfigSpec{
+					Proxy: &ProxySpec{
+						HTTPProxy:  "http://proxy.example.com:8080",
+						HTTPSProxy: "https://proxy.example.com:8443",
+						NoProxy:    "localhost,127.0.0.1",
+					},
+				},
+				Deprecated_Proxy: &ProxySpec{
+					HTTPProxy:  "http://proxy.example.com:8080",
+					HTTPSProxy: "https://proxy.example.com:8443",
+					NoProxy:    "localhost,127.0.0.1",
+				},
+			},
+		},
+		{
+			name: "network configuration",
+			args: args{
+				in: `
+apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Installation
+metadata:
+  name: test
+spec:
+  config:
+    version: 1.29.1+k0s.0
+  network:
+    podCIDR: 10.244.0.0/16
+    serviceCIDR: 10.96.0.0/12
+    nodePortRange: 30000-32767
+`,
+			},
+			want: InstallationSpec{
+				Config: &ConfigSpec{
+					Version: "1.29.1+k0s.0",
+				},
+				SourceType: InstallationSourceTypeCRD,
+				RuntimeConfig: &RuntimeConfigSpec{
+					Network: NetworkSpec{
+						PodCIDR:       "10.244.0.0/16",
+						ServiceCIDR:   "10.96.0.0/12",
+						NodePortRange: "30000-32767",
+					},
+				},
+				Deprecated_Network: &NetworkSpec{
+					PodCIDR:       "10.244.0.0/16",
+					ServiceCIDR:   "10.96.0.0/12",
+					NodePortRange: "30000-32767",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		scheme := runtime.NewScheme()

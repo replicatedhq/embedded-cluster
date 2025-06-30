@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
@@ -184,8 +185,9 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			files := embedFSToMap(t, tt.releaseFS)
 			release.SetReleaseDataForTests(files)
+			rc := runtimeconfig.New(nil)
 
-			got, got1 := isReplicatedBackupRestorable(tt.args.backup, tt.args.rel, tt.args.isAirgap, tt.args.k0sCfg)
+			got, got1 := isReplicatedBackupRestorable(tt.args.backup, tt.args.rel, tt.args.isAirgap, tt.args.k0sCfg, rc)
 			assert.Equal(t, tt.want, got)
 			assert.Equal(t, tt.want1, got1)
 		})
@@ -324,8 +326,9 @@ func Test_waitForBackups(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			files := embedFSToMap(t, tt.releaseFS)
 			release.SetReleaseDataForTests(files)
+			rc := runtimeconfig.New(nil)
 
-			got, err := waitForBackups(context.Background(), io.Discard, tt.args.kcli, tt.args.k0sCfg, tt.args.isAirgap)
+			got, err := waitForBackups(context.Background(), io.Discard, tt.args.kcli, tt.args.k0sCfg, rc, tt.args.isAirgap)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v12 "k8s.io/api/core/v1"
@@ -101,7 +101,8 @@ func Test_canEnableHA(t *testing.T) {
 			req := require.New(t)
 			assert := assert.New(t)
 			ctx := context.Background()
-			got, reason, err := CanEnableHA(ctx, tt.args.kcli)
+			addOns := New(WithKubernetesClient(tt.args.kcli))
+			got, reason, err := addOns.CanEnableHA(ctx)
 			if tt.wantErr {
 				req.Error(err)
 				return

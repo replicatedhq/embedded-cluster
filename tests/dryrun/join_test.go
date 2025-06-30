@@ -39,9 +39,11 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool) {
 			MetricsBaseURL: "https://testing.com",
 			Config:         &ecv1beta1.ConfigSpec{UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{}},
 			AirGap:         isAirgap,
-			Network: &ecv1beta1.NetworkSpec{
-				PodCIDR:     "10.2.0.0/17",
-				ServiceCIDR: "10.2.128.0/17",
+			RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
+				Network: ecv1beta1.NetworkSpec{
+					PodCIDR:     "10.2.0.0/17",
+					ServiceCIDR: "10.2.128.0/17",
+				},
 			},
 		},
 		TCPConnectionsRequired: []string{"10.0.0.1:6443", "10.0.0.1:9443"},
