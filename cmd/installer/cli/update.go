@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/sirupsen/logrus"
@@ -49,9 +50,14 @@ func UpdateCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				}
 			}
 
+			rel := release.GetChannelRelease()
+			if rel == nil {
+				return fmt.Errorf("no channel release found")
+			}
+
 			if err := kotscli.AirgapUpdate(kotscli.AirgapUpdateOptions{
 				RuntimeConfig: rc,
-				AppSlug:       appSlug,
+				AppSlug:       rel.AppSlug,
 				Namespace:     constants.KotsadmNamespace,
 				AirgapBundle:  airgapBundle,
 			}); err != nil {
