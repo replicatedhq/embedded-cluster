@@ -24,7 +24,7 @@ func VersionCmd(ctx context.Context, appTitle string) *cobra.Command {
 			writer.AppendHeader(table.Row{"component", "version"})
 			channelRelease := release.GetChannelRelease()
 			if channelRelease != nil {
-				writer.AppendRow(table.Row{runtimeconfig.BinaryName(), channelRelease.VersionLabel})
+				writer.AppendRow(table.Row{runtimeconfig.AppSlug(), channelRelease.VersionLabel})
 			}
 			writer.AppendRow(table.Row{"Installer", versions.Version})
 			writer.AppendRow(table.Row{"Kubernetes", versions.K0sVersion})

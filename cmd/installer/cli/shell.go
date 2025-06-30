@@ -55,7 +55,7 @@ func ShellCmd(ctx context.Context, appTitle string) *cobra.Command {
 				shpath = "/bin/bash"
 			}
 
-			fmt.Printf(welcome, runtimeconfig.BinaryName())
+			fmt.Printf(welcome, runtimeconfig.AppSlug())
 			shell := exec.Command(shpath)
 			shell.Env = os.Environ()
 
