@@ -154,7 +154,9 @@ func (m *installationManager) SetConfigDefaults(config *types.InstallationConfig
 		config.AdminConsolePort = ecv1beta1.DefaultAdminConsolePort
 	}
 
-	config.DataDirectory = rc.EmbeddedClusterHomeDirectory()
+	if config.DataDirectory == "" {
+		config.DataDirectory = rc.EmbeddedClusterHomeDirectory()
+	}
 
 	if config.LocalArtifactMirrorPort == 0 {
 		config.LocalArtifactMirrorPort = ecv1beta1.DefaultLocalArtifactMirrorPort

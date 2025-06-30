@@ -232,7 +232,7 @@ func TestSetConfigDefaults(t *testing.T) {
 			},
 			expectedConfig: types.InstallationConfig{
 				AdminConsolePort:        9000,
-				DataDirectory:           testDataDir,
+				DataDirectory:           "/custom/dir",
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				NetworkInterface:        "eth0",
 				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
@@ -280,6 +280,19 @@ func TestSetConfigDefaults(t *testing.T) {
 				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
 				HTTPProxy:               "http://proxy.example.com:3128",
 				HTTPSProxy:              "https://proxy.example.com:3128",
+			},
+		},
+		{
+			name: "config with existing data directory should preserve it",
+			inputConfig: types.InstallationConfig{
+				DataDirectory: "/existing/custom/path",
+			},
+			expectedConfig: types.InstallationConfig{
+				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
+				DataDirectory:           "/existing/custom/path",
+				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
+				NetworkInterface:        "eth0",
+				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
 			},
 		},
 	}
