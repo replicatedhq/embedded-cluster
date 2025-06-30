@@ -15,13 +15,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func AdminConsoleResetPasswordCmd(ctx context.Context, releaseName string) *cobra.Command {
+func AdminConsoleResetPasswordCmd(ctx context.Context, appSlug string) *cobra.Command {
 	var rc runtimeconfig.RuntimeConfig
 
 	cmd := &cobra.Command{
 		Use:   "reset-password [password]",
 		Args:  cobra.MaximumNArgs(1),
-		Short: fmt.Sprintf("Reset the %s Admin Console password. If no password is provided, you will be prompted to enter a new one.", releaseName),
+		Short: fmt.Sprintf("Reset the %s Admin Console password. If no password is provided, you will be prompted to enter a new one.", appSlug),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Skip root check if dryrun mode is enabled
 			if !dryrun.Enabled() && os.Getuid() != 0 {

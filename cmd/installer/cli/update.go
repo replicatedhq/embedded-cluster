@@ -15,13 +15,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func UpdateCmd(ctx context.Context, releaseName string) *cobra.Command {
+func UpdateCmd(ctx context.Context, appSlug string) *cobra.Command {
 	var airgapBundle string
 	var rc runtimeconfig.RuntimeConfig
 
 	cmd := &cobra.Command{
 		Use:   "update",
-		Short: fmt.Sprintf("Update %s with a new air gap bundle", releaseName),
+		Short: fmt.Sprintf("Update %s with a new air gap bundle", appSlug),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Skip root check if dryrun mode is enabled
 			if !dryrun.Enabled() && os.Getuid() != 0 {

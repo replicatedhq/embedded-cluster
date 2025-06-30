@@ -31,8 +31,8 @@ func NewErrorNothingElseToAdd(err error) ErrorNothingElseToAdd {
 	}
 }
 
-func InitAndExecute(ctx context.Context, name string) {
-	cmd := RootCmd(ctx, name)
+func InitAndExecute(ctx context.Context, appSlug string) {
+	cmd := RootCmd(ctx, appSlug)
 	err := cmd.Execute()
 	if err != nil {
 		if !errors.As(err, &ErrorNothingElseToAdd{}) {
@@ -49,10 +49,10 @@ func InitAndExecute(ctx context.Context, name string) {
 	}
 }
 
-func RootCmd(ctx context.Context, name string) *cobra.Command {
+func RootCmd(ctx context.Context, appSlug string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:           name,
-		Short:         name,
+		Use:           appSlug,
+		Short:         appSlug,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -99,22 +99,22 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 
 	// Use release title if set, otherwise fall back to name parameter (name is the app slug for embedded releases,
 	// or executable basename for standalone builds)
-	releaseName := release.GetReleaseTitle()
-	if releaseName == "" {
-		releaseName = name
+	appTitle := release.GetReleaseTitle()
+	if appTitle == "" {
+		appTitle = appSlug
 	}
 
-	cmd.AddCommand(InstallCmd(ctx, releaseName))
-	cmd.AddCommand(JoinCmd(ctx, releaseName))
-	cmd.AddCommand(ShellCmd(ctx, releaseName))
-	cmd.AddCommand(NodeCmd(ctx, releaseName))
-	cmd.AddCommand(EnableHACmd(ctx, releaseName))
-	cmd.AddCommand(VersionCmd(ctx, releaseName))
-	cmd.AddCommand(ResetCmd(ctx, releaseName))
+	cmd.AddCommand(InstallCmd(ctx, appSlug))
+	cmd.AddCommand(JoinCmd(ctx, appSlug))
+	cmd.AddCommand(ShellCmd(ctx, appSlug))
+	cmd.AddCommand(NodeCmd(ctx, appSlug))
+	cmd.AddCommand(EnableHACmd(ctx, appSlug))
+	cmd.AddCommand(VersionCmd(ctx, appSlug))
+	cmd.AddCommand(ResetCmd(ctx, appSlug))
 	cmd.AddCommand(MaterializeCmd(ctx))
-	cmd.AddCommand(UpdateCmd(ctx, releaseName))
-	cmd.AddCommand(RestoreCmd(ctx, releaseName))
-	cmd.AddCommand(AdminConsoleCmd(ctx, releaseName))
+	cmd.AddCommand(UpdateCmd(ctx, appSlug))
+	cmd.AddCommand(RestoreCmd(ctx, appSlug))
+	cmd.AddCommand(AdminConsoleCmd(ctx, appSlug))
 	cmd.AddCommand(SupportBundleCmd(ctx))
 
 	return cmd
