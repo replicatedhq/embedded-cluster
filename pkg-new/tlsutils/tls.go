@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	certutil "k8s.io/client-go/util/cert"
 )
 
@@ -57,7 +57,7 @@ func GetTLSConfig(cert tls.Certificate) *tls.Config {
 }
 
 func generateCertHostnames(hostname string) (string, []string) {
-	namespace := runtimeconfig.KotsadmNamespace
+	namespace := constants.KotsadmNamespace
 
 	if hostname == "" {
 		hostname = fmt.Sprintf("kotsadm.%s.svc.cluster.local", namespace)

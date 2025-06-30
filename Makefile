@@ -277,6 +277,10 @@ unit-tests: envtest
 	$(MAKE) -C operator test
 	$(MAKE) -C utils unit-tests
 
+.PHONY: test-integration
+test-integration: static
+	$(MAKE) -C api test-integration
+
 .PHONY: vet
 vet:
 	go vet -tags $(GO_BUILD_TAGS) ./...
@@ -339,6 +343,7 @@ create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
 create-node%: MANAGER_NODE_PORT = 30080
 create-node%: K0S_DATA_DIR = /var/lib/embedded-cluster/k0s
+create-node%: ENABLE_V3 = 0
 create-node%:
 	@docker run -d \
 		--name node$* \
@@ -352,6 +357,7 @@ create-node%:
 		$(if $(filter node0,node$*),-p $(MANAGER_NODE_PORT):$(MANAGER_NODE_PORT)) \
 		$(if $(filter node0,node$*),-p 30003:30003) \
 		-e EC_PUBLIC_ADDRESS=localhost \
+		-e ENABLE_V3=$(ENABLE_V3) \
 		replicated/ec-distro:$(DISTRO)
 
 	@$(MAKE) ssh-node$*

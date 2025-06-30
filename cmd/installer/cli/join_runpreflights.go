@@ -7,6 +7,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
@@ -101,7 +102,7 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
 
-	domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
+	domains := domains.GetDomains(jcmd.InstallationSpec.Config, release.GetChannelRelease())
 
 	hpf, err := preflights.Prepare(ctx, preflights.PrepareOptions{
 		HostPreflightSpec:       release.GetHostPreflights(),

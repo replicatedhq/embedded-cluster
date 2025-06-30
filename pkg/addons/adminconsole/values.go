@@ -11,7 +11,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,7 +47,7 @@ func init() {
 	}
 }
 
-func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error) {
+func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Client, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error) {
 	// create a copy of the helm values so we don't modify the original
 	marshalled, err := helm.MarshalValues(helmValues)
 	if err != nil {
@@ -66,8 +65,8 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	}
 
 	copiedValues["embeddedClusterID"] = metrics.ClusterID().String()
-	copiedValues["embeddedClusterDataDir"] = rc.EmbeddedClusterHomeDirectory()
-	copiedValues["embeddedClusterK0sDir"] = rc.EmbeddedClusterK0sSubDir()
+	copiedValues["embeddedClusterDataDir"] = a.DataDir
+	copiedValues["embeddedClusterK0sDir"] = a.K0sDataDir
 	copiedValues["isHA"] = a.IsHA
 	copiedValues["isMultiNodeEnabled"] = a.IsMultiNodeEnabled
 
@@ -118,11 +117,11 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	extraVolumes := []map[string]interface{}{}
 	extraVolumeMounts := []map[string]interface{}{}
 
-	if rc.HostCABundlePath() != "" {
+	if a.HostCABundlePath != "" {
 		extraVolumes = append(extraVolumes, map[string]interface{}{
 			"name": "host-ca-bundle",
 			"hostPath": map[string]interface{}{
-				"path": rc.HostCABundlePath(),
+				"path": a.HostCABundlePath,
 				"type": "FileOrCreate",
 			},
 		})
@@ -142,7 +141,7 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	copiedValues["extraVolumes"] = extraVolumes
 	copiedValues["extraVolumeMounts"] = extraVolumeMounts
 
-	err = helm.SetValue(copiedValues, "kurlProxy.nodePort", rc.AdminConsolePort())
+	err = helm.SetValue(copiedValues, "kurlProxy.nodePort", a.AdminConsolePort)
 	if err != nil {
 		return nil, errors.Wrap(err, "set kurlProxy.nodePort")
 	}

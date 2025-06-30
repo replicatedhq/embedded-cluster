@@ -1,17 +1,17 @@
 package types
 
-type Infra struct {
-	Components []InfraComponent `json:"components"`
-	Status     *Status          `json:"status"`
-}
-type InfraComponent struct {
-	Name   string  `json:"name"`
-	Status *Status `json:"status"`
+// InfraSetupRequest represents a request to set up infrastructure
+type InfraSetupRequest struct {
+	IgnoreHostPreflights bool `json:"ignoreHostPreflights"`
 }
 
-func NewInfra() *Infra {
-	return &Infra{
-		Components: []InfraComponent{},
-		Status:     NewStatus(),
-	}
+type Infra struct {
+	Components []InfraComponent `json:"components"`
+	Logs       string           `json:"logs"`
+	Status     Status           `json:"status"`
+}
+
+type InfraComponent struct {
+	Name   string `json:"name"`
+	Status Status `json:"status"`
 }
