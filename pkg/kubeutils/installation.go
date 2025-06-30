@@ -10,10 +10,9 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/crds"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -124,8 +123,6 @@ func writeInstallationStatusMessage(writer *spinner.MessageWriter, install *ecv1
 
 type RecordInstallationOptions struct {
 	IsAirgap       bool
-	Proxy          *ecv1beta1.ProxySpec
-	K0sConfig      *k0sv1beta1.ClusterConfig
 	License        *kotsv1beta1.License
 	ConfigSpec     *ecv1beta1.ConfigSpec
 	MetricsBaseURL string
@@ -137,7 +134,7 @@ func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInst
 	// ensure that the embedded-cluster namespace exists
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: runtimeconfig.EmbeddedClusterNamespace,
+			Name: constants.EmbeddedClusterNamespace,
 		},
 	}
 	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
@@ -166,8 +163,6 @@ func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInst
 			ClusterID:                 metrics.ClusterID().String(),
 			MetricsBaseURL:            opts.MetricsBaseURL,
 			AirGap:                    opts.IsAirgap,
-			Proxy:                     opts.Proxy,
-			Network:                   helpers.NetworkSpecFromK0sConfig(opts.K0sConfig),
 			Config:                    opts.ConfigSpec,
 			RuntimeConfig:             opts.RuntimeConfig,
 			EndUserK0sConfigOverrides: euOverrides,

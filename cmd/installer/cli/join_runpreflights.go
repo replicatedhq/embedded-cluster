@@ -7,6 +7,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
@@ -77,7 +78,7 @@ func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, 
 		logrus.Debugf("unable to configure kernel modules: %v", err)
 	}
 
-	cidrCfg, err := getJoinCIDRConfig(jcmd)
+	cidrCfg, err := getJoinCIDRConfig(rc)
 	if err != nil {
 		return fmt.Errorf("unable to get join CIDR config: %w", err)
 	}
@@ -101,7 +102,7 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
 
-	domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
+	domains := domains.GetDomains(jcmd.InstallationSpec.Config, release.GetChannelRelease())
 
 	hpf, err := preflights.Prepare(ctx, preflights.PrepareOptions{
 		HostPreflightSpec:       release.GetHostPreflights(),
@@ -112,7 +113,7 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                   jcmd.InstallationSpec.Proxy,
+		Proxy:                   rc.ProxySpec(),
 		PodCIDR:                 cidrCfg.PodCIDR,
 		ServiceCIDR:             cidrCfg.ServiceCIDR,
 		NodeIP:                  nodeIP,
@@ -124,7 +125,7 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		return err
 	}
 
-	if err := runHostPreflights(ctx, hpf, jcmd.InstallationSpec.Proxy, rc, flags.skipHostPreflights, flags.ignoreHostPreflights, flags.assumeYes, metricsReporter); err != nil {
+	if err := runHostPreflights(ctx, hpf, rc, flags.skipHostPreflights, flags.ignoreHostPreflights, flags.assumeYes, metricsReporter); err != nil {
 		return err
 	}
 

@@ -25,7 +25,7 @@ var (
 type InstallOptions struct {
 	RuntimeConfig         runtimeconfig.RuntimeConfig
 	AppSlug               string
-	LicenseFile           string
+	License               []byte
 	Namespace             string
 	AirgapBundle          string
 	ConfigValuesFile      string
@@ -53,12 +53,22 @@ func Install(opts InstallOptions) error {
 		upstreamURI = fmt.Sprintf("%s/%s", upstreamURI, channelSlug)
 	}
 
+	licenseFile, err := os.CreateTemp("", "license")
+	if err != nil {
+		return fmt.Errorf("unable to create temp file: %w", err)
+	}
+	defer os.Remove(licenseFile.Name())
+
+	if _, err := licenseFile.Write(opts.License); err != nil {
+		return fmt.Errorf("unable to write license to temp file: %w", err)
+	}
+
 	maskfn := MaskKotsOutputForOnline()
 	installArgs := []string{
 		"install",
 		upstreamURI,
 		"--license-file",
-		opts.LicenseFile,
+		licenseFile.Name(),
 		"--namespace",
 		opts.Namespace,
 		"--app-version-label",
@@ -73,11 +83,9 @@ func Install(opts InstallOptions) error {
 		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
 	}
 
-	if opts.Stdout != nil {
-		if msg, ok := opts.Stdout.(*spinner.MessageWriter); ok {
-			msg.SetMask(maskfn)
-			defer msg.SetMask(nil)
-		}
+	if msg, ok := opts.Stdout.(*spinner.MessageWriter); ok && msg != nil {
+		msg.SetMask(maskfn)
+		defer msg.SetMask(nil)
 	}
 
 	runCommandOptions := helpers.RunCommandOptions{

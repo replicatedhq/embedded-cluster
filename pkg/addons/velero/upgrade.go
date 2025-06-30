@@ -7,7 +7,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -16,7 +15,7 @@ import (
 func (v *Velero) Upgrade(
 	ctx context.Context, logf types.LogFunc,
 	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
-	rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains, overrides []string,
+	domains ecv1beta1.Domains, overrides []string,
 ) error {
 	exists, err := hcli.ReleaseExists(ctx, v.Namespace(), v.ReleaseName())
 	if err != nil {
@@ -24,13 +23,13 @@ func (v *Velero) Upgrade(
 	}
 	if !exists {
 		logrus.Debugf("Release not found, installing release %s in namespace %s", v.ReleaseName(), v.Namespace())
-		if err := v.Install(ctx, logf, kcli, mcli, hcli, rc, domains, overrides); err != nil {
+		if err := v.Install(ctx, logf, kcli, mcli, hcli, domains, overrides); err != nil {
 			return errors.Wrap(err, "install")
 		}
 		return nil
 	}
 
-	values, err := v.GenerateHelmValues(ctx, kcli, rc, domains, overrides)
+	values, err := v.GenerateHelmValues(ctx, kcli, domains, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}

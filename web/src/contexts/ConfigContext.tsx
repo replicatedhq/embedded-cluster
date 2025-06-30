@@ -18,7 +18,7 @@ interface PrototypeSettings {
   failPreflights: boolean;
   failInstallation: boolean;
   failHostPreflights: boolean;
-  clusterMode: 'existing' | 'embedded';
+  installTarget: 'linux' | 'kubernetes';
   themeColor: string;
   skipNodeValidation: boolean;
   useSelfSignedCert: boolean;
@@ -47,7 +47,7 @@ const defaultPrototypeSettings: PrototypeSettings = {
   failPreflights: false,
   failInstallation: false,
   failHostPreflights: false,
-  clusterMode: 'embedded',
+  installTarget: 'linux',
   themeColor: '#316DE6',
   skipNodeValidation: false,
   useSelfSignedCert: false,

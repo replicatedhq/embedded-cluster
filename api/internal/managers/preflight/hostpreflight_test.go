@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	preflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/preflight"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
@@ -27,25 +27,12 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 		runtimeSpec   *ecv1beta1.RuntimeConfigSpec
 		setupMocks    func(*preflights.MockPreflightRunner, *utils.MockNetUtils)
 		expectedHPF   *troubleshootv1beta2.HostPreflightSpec
-		expectedProxy *ecv1beta1.ProxySpec
 		expectedError string
-		assertResult  func(t *testing.T, hpf *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec)
+		assertResult  func(t *testing.T, hpf *troubleshootv1beta2.HostPreflightSpec)
 	}{
 		{
 			name: "success with proxy configuration",
 			opts: PrepareHostPreflightOptions{
-				InstallationConfig: &types.InstallationConfig{
-					NetworkInterface:        "eth0",
-					HTTPProxy:               "http://proxy:8080",
-					HTTPSProxy:              "https://proxy:8080",
-					NoProxy:                 "localhost,127.0.0.1",
-					AdminConsolePort:        30000,
-					LocalArtifactMirrorPort: 50000,
-					DataDirectory:           "/var/lib/embedded-cluster",
-					PodCIDR:                 "10.244.0.0/16",
-					ServiceCIDR:             "10.96.0.0/12",
-					GlobalCIDR:              "10.128.0.0/16",
-				},
 				ReplicatedAppURL:       "https://replicated.app",
 				ProxyRegistryURL:       "proxy.registry.url",
 				HostPreflightSpec:      &troubleshootv1beta2.HostPreflightSpec{},
@@ -56,6 +43,24 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 			},
 			runtimeSpec: &ecv1beta1.RuntimeConfigSpec{
 				DataDir: "/var/lib/embedded-cluster",
+				AdminConsole: ecv1beta1.AdminConsoleSpec{
+					Port: 30000,
+				},
+				LocalArtifactMirror: ecv1beta1.LocalArtifactMirrorSpec{
+					Port: 50000,
+				},
+				Network: ecv1beta1.NetworkSpec{
+					NetworkInterface: "eth0",
+					PodCIDR:          "10.244.0.0/16",
+					ServiceCIDR:      "10.96.0.0/12",
+					GlobalCIDR:       "10.128.0.0/16",
+					NodePortRange:    "80-32767",
+				},
+				Proxy: &ecv1beta1.ProxySpec{
+					HTTPProxy:  "http://proxy:8080",
+					HTTPSProxy: "https://proxy:8080",
+					NoProxy:    "localhost,127.0.0.1",
+				},
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
 				netUtils.On("FirstValidAddress", "eth0").Return("192.0.100.1", nil)
@@ -75,30 +80,31 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 				})).Return(&troubleshootv1beta2.HostPreflightSpec{}, nil)
 			},
 			expectedHPF: &troubleshootv1beta2.HostPreflightSpec{},
-			expectedProxy: &ecv1beta1.ProxySpec{
-				HTTPProxy:  "http://proxy:8080",
-				HTTPSProxy: "https://proxy:8080",
-				NoProxy:    "localhost,127.0.0.1",
-			},
 		},
 		{
 			name: "success without proxy configuration",
 			opts: PrepareHostPreflightOptions{
-				InstallationConfig: &types.InstallationConfig{
-					NetworkInterface:        "eth0",
-					AdminConsolePort:        30000,
-					LocalArtifactMirrorPort: 50000,
-					DataDirectory:           "/var/lib/embedded-cluster",
-					PodCIDR:                 "10.244.0.0/16",
-					ServiceCIDR:             "10.96.0.0/12",
-				},
 				ReplicatedAppURL:       "https://replicated.app",
 				HostPreflightSpec:      &troubleshootv1beta2.HostPreflightSpec{},
 				TCPConnectionsRequired: []string{"6443"},
 				IsAirgap:               true,
 				IsJoin:                 true,
 			},
-			runtimeSpec: nil, // Use defaults
+			runtimeSpec: &ecv1beta1.RuntimeConfigSpec{
+				DataDir: "/var/lib/embedded-cluster",
+				AdminConsole: ecv1beta1.AdminConsoleSpec{
+					Port: 30000,
+				},
+				LocalArtifactMirror: ecv1beta1.LocalArtifactMirrorSpec{
+					Port: 50000,
+				},
+				Network: ecv1beta1.NetworkSpec{
+					NetworkInterface: "eth0",
+					PodCIDR:          "10.244.0.0/16",
+					ServiceCIDR:      "10.96.0.0/12",
+					NodePortRange:    "80-32767",
+				},
+			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
 				netUtils.On("FirstValidAddress", "eth0").Return("192.0.100.1", nil)
 				runner.On("Prepare", mock.Anything, mock.MatchedBy(func(opts preflights.PrepareOptions) bool {
@@ -108,20 +114,11 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 						opts.IsJoin
 				})).Return(&troubleshootv1beta2.HostPreflightSpec{}, nil)
 			},
-			expectedHPF:   &troubleshootv1beta2.HostPreflightSpec{},
-			expectedProxy: nil,
+			expectedHPF: &troubleshootv1beta2.HostPreflightSpec{},
 		},
 		{
 			name: "success with custom k0s and openebs data dirs",
 			opts: PrepareHostPreflightOptions{
-				InstallationConfig: &types.InstallationConfig{
-					NetworkInterface:        "eth0",
-					AdminConsolePort:        30000,
-					LocalArtifactMirrorPort: 50000,
-					DataDirectory:           "/custom/data",
-					PodCIDR:                 "10.244.0.0/16",
-					ServiceCIDR:             "10.96.0.0/12",
-				},
 				ReplicatedAppURL:  "https://replicated.app",
 				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
 			},
@@ -129,6 +126,18 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 				DataDir:                "/custom/data",
 				K0sDataDirOverride:     "/custom/k0s",
 				OpenEBSDataDirOverride: "/custom/openebs",
+				AdminConsole: ecv1beta1.AdminConsoleSpec{
+					Port: 30000,
+				},
+				LocalArtifactMirror: ecv1beta1.LocalArtifactMirrorSpec{
+					Port: 50000,
+				},
+				Network: ecv1beta1.NetworkSpec{
+					NetworkInterface: "eth0",
+					PodCIDR:          "10.244.0.0/16",
+					ServiceCIDR:      "10.96.0.0/12",
+					NodePortRange:    "80-32767",
+				},
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
 				netUtils.On("FirstValidAddress", "eth0").Return("192.0.100.1", nil)
@@ -138,31 +147,26 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 						opts.OpenEBSDataDir == "/custom/openebs"
 				})).Return(&troubleshootv1beta2.HostPreflightSpec{}, nil)
 			},
-			expectedHPF:   &troubleshootv1beta2.HostPreflightSpec{},
-			expectedProxy: nil,
-		},
-		{
-			name: "error when installation config is nil",
-			opts: PrepareHostPreflightOptions{
-				InstallationConfig: nil,
-			},
-			runtimeSpec:   nil,
-			setupMocks:    func(*preflights.MockPreflightRunner, *utils.MockNetUtils) {},
-			expectedError: "installation config is required",
+			expectedHPF: &troubleshootv1beta2.HostPreflightSpec{},
 		},
 		{
 			name: "error when runner prepare fails",
-			opts: PrepareHostPreflightOptions{
-				InstallationConfig: &types.InstallationConfig{
-					NetworkInterface:        "eth0",
-					AdminConsolePort:        30000,
-					LocalArtifactMirrorPort: 50000,
-					DataDirectory:           "/var/lib/embedded-cluster",
-					PodCIDR:                 "10.244.0.0/16",
-					ServiceCIDR:             "10.96.0.0/12",
+			opts: PrepareHostPreflightOptions{},
+			runtimeSpec: &ecv1beta1.RuntimeConfigSpec{
+				DataDir: "/var/lib/embedded-cluster",
+				AdminConsole: ecv1beta1.AdminConsoleSpec{
+					Port: 30000,
+				},
+				LocalArtifactMirror: ecv1beta1.LocalArtifactMirrorSpec{
+					Port: 50000,
+				},
+				Network: ecv1beta1.NetworkSpec{
+					NetworkInterface: "eth0",
+					PodCIDR:          "10.244.0.0/16",
+					ServiceCIDR:      "10.96.0.0/12",
+					NodePortRange:    "80-32767",
 				},
 			},
-			runtimeSpec: nil,
 			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
 				netUtils.On("FirstValidAddress", "eth0").Return("192.0.100.1", nil)
 				runner.On("Prepare", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("prepare failed"))
@@ -171,17 +175,22 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 		},
 		{
 			name: "error when determining the node IP fails",
-			opts: PrepareHostPreflightOptions{
-				InstallationConfig: &types.InstallationConfig{
-					NetworkInterface:        "eth0",
-					AdminConsolePort:        30000,
-					LocalArtifactMirrorPort: 50000,
-					DataDirectory:           "/var/lib/embedded-cluster",
-					PodCIDR:                 "10.244.0.0/16",
-					ServiceCIDR:             "10.96.0.0/12",
+			opts: PrepareHostPreflightOptions{},
+			runtimeSpec: &ecv1beta1.RuntimeConfigSpec{
+				DataDir: "/var/lib/embedded-cluster",
+				AdminConsole: ecv1beta1.AdminConsoleSpec{
+					Port: 30000,
+				},
+				LocalArtifactMirror: ecv1beta1.LocalArtifactMirrorSpec{
+					Port: 50000,
+				},
+				Network: ecv1beta1.NetworkSpec{
+					NetworkInterface: "eth0",
+					PodCIDR:          "10.244.0.0/16",
+					ServiceCIDR:      "10.96.0.0/12",
+					NodePortRange:    "80-32767",
 				},
 			},
-			runtimeSpec: nil,
 			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
 				netUtils.On("FirstValidAddress", "eth0").Return("", assert.AnError)
 			},
@@ -193,8 +202,7 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mocks
 			mockRunner := &preflights.MockPreflightRunner{}
-			mockStore := &MockHostPreflightStore{}
-			mockMetrics := &metrics.MockReporter{}
+			mockStore := &preflightstore.MockStore{}
 			mockNetUtils := &utils.MockNetUtils{}
 
 			// Create real runtime config
@@ -206,28 +214,24 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 			manager := NewHostPreflightManager(
 				WithPreflightRunner(mockRunner),
 				WithHostPreflightStore(mockStore),
-				WithRuntimeConfig(rc),
 				WithLogger(logger.NewDiscardLogger()),
-				WithMetricsReporter(mockMetrics),
 				WithNetUtils(mockNetUtils),
 			)
 
 			// Execute
-			hpf, proxy, err := manager.PrepareHostPreflights(context.Background(), tt.opts)
+			hpf, err := manager.PrepareHostPreflights(context.Background(), rc, tt.opts)
 
 			// Assert
 			if tt.expectedError != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
 				assert.Nil(t, hpf)
-				assert.Nil(t, proxy)
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expectedHPF, hpf)
-				assert.Equal(t, tt.expectedProxy, proxy)
 
 				if tt.assertResult != nil {
-					tt.assertResult(t, hpf, proxy)
+					tt.assertResult(t, hpf)
 				}
 			}
 
@@ -241,8 +245,8 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 	tests := []struct {
 		name               string
 		opts               RunHostPreflightOptions
-		initialState       *types.HostPreflights
-		setupMocks         func(*preflights.MockPreflightRunner, *metrics.MockReporter, runtimeconfig.RuntimeConfig)
+		initialState       types.HostPreflights
+		setupMocks         func(*preflights.MockPreflightRunner, runtimeconfig.RuntimeConfig)
 		expectedFinalState types.State
 		// This is the expected error message returned by the RunHostPreflights method, synchronously
 		expectedError string
@@ -251,17 +255,16 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			name: "successful execution with no failures or warnings",
 			opts: RunHostPreflightOptions{
 				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-				Proxy:             nil,
 			},
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, metricsReporter *metrics.MockReporter, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock successful preflight execution
 				output := &types.HostPreflightsOutput{}
-				runner.On("Run", mock.Anything, mock.Anything, mock.Anything, rc).Return(output, "", nil)
+				runner.On("Run", mock.Anything, mock.Anything, rc).Return(output, "", nil)
 
 				// Mock save operations in order
 				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
@@ -273,14 +276,13 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			name: "execution with preflight failures",
 			opts: RunHostPreflightOptions{
 				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-				Proxy:             nil,
 			},
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, metricsReporter *metrics.MockReporter, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock failed preflight execution
 				output := &types.HostPreflightsOutput{
 					Fail: []types.HostPreflightsRecord{{
@@ -289,29 +291,25 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 					}},
 				}
 
-				runner.On("Run", mock.Anything, mock.Anything, mock.Anything, rc).Return(output, "", nil)
+				runner.On("Run", mock.Anything, mock.Anything, rc).Return(output, "", nil)
 
 				// Mock save operations
 				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
 				runner.On("CopyBundleTo", rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")).Return(nil)
-
-				// Mock metrics reporting
-				metricsReporter.On("ReportPreflightsFailed", mock.Anything, output).Return()
 			},
 			expectedFinalState: types.StateFailed,
 		},
 		{
 			name: "execution with preflight warnings",
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
 			opts: RunHostPreflightOptions{
 				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-				Proxy:             nil,
 			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, metricsReporter *metrics.MockReporter, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock preflight execution with warnings
 				output := &types.HostPreflightsOutput{
 					Warn: []types.HostPreflightsRecord{{
@@ -319,29 +317,25 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 						Message: "This is a sample warning message.",
 					}},
 				}
-				runner.On("Run", mock.Anything, mock.Anything, mock.Anything, rc).Return(output, "", nil)
+				runner.On("Run", mock.Anything, mock.Anything, rc).Return(output, "", nil)
 
 				// Mock save operations
 				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
 				runner.On("CopyBundleTo", rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")).Return(nil)
-
-				// Mock metrics reporting
-				metricsReporter.On("ReportPreflightsFailed", mock.Anything, output).Return()
 			},
 			expectedFinalState: types.StateSucceeded,
 		},
 		{
 			name: "execution with both failures and warnings",
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
 			opts: RunHostPreflightOptions{
 				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-				Proxy:             nil,
 			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, metricsReporter *metrics.MockReporter, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock preflight execution with both failures and warnings
 				output := &types.HostPreflightsOutput{
 					Fail: []types.HostPreflightsRecord{{
@@ -353,49 +347,44 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 						Message: "This is a sample warning message.",
 					}},
 				}
-				runner.On("Run", mock.Anything, mock.Anything, mock.Anything, rc).Return(output, "", nil)
+				runner.On("Run", mock.Anything, mock.Anything, rc).Return(output, "", nil)
 
 				// Mock save operations
 				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
 				runner.On("CopyBundleTo", rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")).Return(nil)
-
-				// Mock metrics reporting
-				metricsReporter.On("ReportPreflightsFailed", mock.Anything, output).Return()
 			},
 			expectedFinalState: types.StateFailed,
 		},
 		{
 			name: "runner execution fails",
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
 			opts: RunHostPreflightOptions{
 				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-				Proxy:             nil,
 			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, metricsReporter *metrics.MockReporter, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock runner failure
-				runner.On("Run", mock.Anything, mock.Anything, mock.Anything, rc).Return(nil, "stderr output", assert.AnError)
+				runner.On("Run", mock.Anything, mock.Anything, rc).Return(nil, "stderr output", assert.AnError)
 			},
 			expectedFinalState: types.StateFailed,
 		},
 		{
 			name: "SaveToDisk fails but execution continues",
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
 			opts: RunHostPreflightOptions{
 				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-				Proxy:             nil,
 			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, metricsReporter *metrics.MockReporter, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock successful preflight execution
 				output := &types.HostPreflightsOutput{}
-				runner.On("Run", mock.Anything, mock.Anything, mock.Anything, rc).Return(output, "", nil)
+				runner.On("Run", mock.Anything, mock.Anything, rc).Return(output, "", nil)
 
 				// Mock save operations - SaveToDisk fails but execution continues
 				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(assert.AnError)
@@ -405,19 +394,18 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 		},
 		{
 			name: "CopyBundleTo fails but execution continues",
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
+			initialState: types.HostPreflights{
+				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
 			opts: RunHostPreflightOptions{
 				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-				Proxy:             nil,
 			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, metricsReporter *metrics.MockReporter, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock successful preflight execution
 				output := &types.HostPreflightsOutput{}
-				runner.On("Run", mock.Anything, mock.Anything, mock.Anything, rc).Return(output, "", nil)
+				runner.On("Run", mock.Anything, mock.Anything, rc).Return(output, "", nil)
 
 				// Mock save operations - CopyBundleTo fails but execution continues
 				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
@@ -425,66 +413,42 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			},
 			expectedFinalState: types.StateSucceeded,
 		},
-		{
-			name: "error - preflights already running",
-			initialState: &types.HostPreflights{
-				Status: &types.Status{
-					State: types.StateRunning,
-				},
-			},
-			opts: RunHostPreflightOptions{
-				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, metricsReporter *metrics.MockReporter, rc runtimeconfig.RuntimeConfig) {
-			},
-			expectedError: "host preflights are already running",
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mocks
 			mockRunner := &preflights.MockPreflightRunner{}
-			mockMetrics := &metrics.MockReporter{}
 
 			// Create runtime config
 			rc := runtimeconfig.New(nil)
 			rc.SetDataDir(t.TempDir())
 
-			tt.setupMocks(mockRunner, mockMetrics, rc)
+			tt.setupMocks(mockRunner, rc)
 
 			// Create manager using builder pattern
 			manager := NewHostPreflightManager(
 				WithPreflightRunner(mockRunner),
-				WithHostPreflightStore(NewMemoryStore(tt.initialState)),
-				WithRuntimeConfig(rc),
+				WithHostPreflightStore(preflightstore.NewMemoryStore(preflightstore.WithHostPreflight(tt.initialState))),
 				WithLogger(logger.NewDiscardLogger()),
-				WithMetricsReporter(mockMetrics),
 			)
 
 			// Execute
-			err := manager.RunHostPreflights(context.Background(), tt.opts)
+			err := manager.RunHostPreflights(context.Background(), rc, tt.opts)
 			// If there's an error we don't need to wait for async execution
 			if tt.expectedError != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
-				mockRunner.AssertExpectations(t)
-				mockMetrics.AssertExpectations(t)
-				return
 			} else {
 				require.NoError(t, err)
 			}
 
-			// Use assert.Eventually to wait for async execution to complete
-			assert.Eventually(t, func() bool {
-				status, err := manager.GetHostPreflightStatus(t.Context())
-				require.NoError(t, err)
-				return tt.expectedFinalState == status.State
-			}, 2*time.Second, 50*time.Millisecond, "Async execution should complete within timeout")
+			status, err := manager.GetHostPreflightStatus(t.Context())
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedFinalState, status.State)
 
 			// Additional verification that calls were made in the correct order
 			mockRunner.AssertExpectations(t)
-			mockMetrics.AssertExpectations(t)
 		})
 	}
 }
@@ -492,27 +456,27 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 func TestHostPreflightManager_GetHostPreflightStatus(t *testing.T) {
 	tests := []struct {
 		name           string
-		setupMocks     func(*MockHostPreflightStore)
-		expectedStatus *types.Status
+		setupMocks     func(*preflightstore.MockStore)
+		expectedStatus types.Status
 		expectedError  string
 	}{
 		{
 			name: "success",
-			setupMocks: func(store *MockHostPreflightStore) {
-				store.On("GetStatus").Return(&types.Status{
+			setupMocks: func(store *preflightstore.MockStore) {
+				store.On("GetStatus").Return(types.Status{
 					State:       types.StateSucceeded,
 					Description: "Host preflights passed",
 					LastUpdated: time.Now(),
 				}, nil)
 			},
-			expectedStatus: &types.Status{
+			expectedStatus: types.Status{
 				State:       types.StateSucceeded,
 				Description: "Host preflights passed",
 			},
 		},
 		{
 			name: "error from store",
-			setupMocks: func(store *MockHostPreflightStore) {
+			setupMocks: func(store *preflightstore.MockStore) {
 				store.On("GetStatus").Return(nil, fmt.Errorf("store error"))
 			},
 			expectedError: "store error",
@@ -522,7 +486,7 @@ func TestHostPreflightManager_GetHostPreflightStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mocks
-			mockStore := &MockHostPreflightStore{}
+			mockStore := &preflightstore.MockStore{}
 			tt.setupMocks(mockStore)
 
 			// Create manager using builder pattern
@@ -537,7 +501,7 @@ func TestHostPreflightManager_GetHostPreflightStatus(t *testing.T) {
 			if tt.expectedError != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
-				assert.Nil(t, status)
+				assert.Equal(t, types.Status{}, status)
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expectedStatus.State, status.State)
@@ -553,13 +517,13 @@ func TestHostPreflightManager_GetHostPreflightStatus(t *testing.T) {
 func TestHostPreflightManager_GetHostPreflightOutput(t *testing.T) {
 	tests := []struct {
 		name           string
-		setupMocks     func(*MockHostPreflightStore)
+		setupMocks     func(*preflightstore.MockStore)
 		expectedOutput *types.HostPreflightsOutput
 		expectedError  string
 	}{
 		{
 			name: "success",
-			setupMocks: func(store *MockHostPreflightStore) {
+			setupMocks: func(store *preflightstore.MockStore) {
 				output := &types.HostPreflightsOutput{}
 				store.On("GetOutput").Return(output, nil)
 			},
@@ -567,7 +531,7 @@ func TestHostPreflightManager_GetHostPreflightOutput(t *testing.T) {
 		},
 		{
 			name: "error from store",
-			setupMocks: func(store *MockHostPreflightStore) {
+			setupMocks: func(store *preflightstore.MockStore) {
 				store.On("GetOutput").Return(nil, fmt.Errorf("store error"))
 			},
 			expectedError: "store error",
@@ -577,7 +541,7 @@ func TestHostPreflightManager_GetHostPreflightOutput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mocks
-			mockStore := &MockHostPreflightStore{}
+			mockStore := &preflightstore.MockStore{}
 			tt.setupMocks(mockStore)
 
 			// Create manager using builder pattern
@@ -607,13 +571,13 @@ func TestHostPreflightManager_GetHostPreflightOutput(t *testing.T) {
 func TestHostPreflightManager_GetHostPreflightTitles(t *testing.T) {
 	tests := []struct {
 		name           string
-		setupMocks     func(*MockHostPreflightStore)
+		setupMocks     func(*preflightstore.MockStore)
 		expectedTitles []string
 		expectedError  string
 	}{
 		{
 			name: "success",
-			setupMocks: func(store *MockHostPreflightStore) {
+			setupMocks: func(store *preflightstore.MockStore) {
 				titles := []string{"Memory Check", "Disk Space Check", "Network Check"}
 				store.On("GetTitles").Return(titles, nil)
 			},
@@ -621,14 +585,14 @@ func TestHostPreflightManager_GetHostPreflightTitles(t *testing.T) {
 		},
 		{
 			name: "success with empty titles",
-			setupMocks: func(store *MockHostPreflightStore) {
+			setupMocks: func(store *preflightstore.MockStore) {
 				store.On("GetTitles").Return([]string{}, nil)
 			},
 			expectedTitles: []string{},
 		},
 		{
 			name: "error from store",
-			setupMocks: func(store *MockHostPreflightStore) {
+			setupMocks: func(store *preflightstore.MockStore) {
 				store.On("GetTitles").Return(nil, fmt.Errorf("store error"))
 			},
 			expectedError: "store error",
@@ -638,7 +602,7 @@ func TestHostPreflightManager_GetHostPreflightTitles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mocks
-			mockStore := &MockHostPreflightStore{}
+			mockStore := &preflightstore.MockStore{}
 			tt.setupMocks(mockStore)
 
 			// Create manager using builder pattern

@@ -59,8 +59,8 @@ func Test_getAddOnsForInstall(t *testing.T) {
 			opts: InstallOptions{
 				IsAirgap:                true,
 				DisasterRecoveryEnabled: false,
-				ServiceCIDR:             "10.96.0.0/12",
 				AdminConsolePwd:         "password123",
+				ServiceCIDR:             "10.96.0.0/12",
 			},
 			verify: func(t *testing.T, addons []types.AddOn) {
 				assert.Len(t, addons, 4)
@@ -133,13 +133,13 @@ func Test_getAddOnsForInstall(t *testing.T) {
 			opts: InstallOptions{
 				IsAirgap:                true,
 				DisasterRecoveryEnabled: true,
+				AdminConsolePwd:         "password123",
 				ServiceCIDR:             "10.96.0.0/12",
-				Proxy: &ecv1beta1.ProxySpec{
+				ProxySpec: &ecv1beta1.ProxySpec{
 					HTTPProxy:  "http://proxy.example.com",
 					HTTPSProxy: "https://proxy.example.com",
 					NoProxy:    "localhost,127.0.0.1",
 				},
-				AdminConsolePwd: "password123",
 			},
 			verify: func(t *testing.T, addons []types.AddOn) {
 				assert.Len(t, addons, 5)

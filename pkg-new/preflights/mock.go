@@ -5,7 +5,6 @@ import (
 	"io"
 
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/mock"
@@ -28,8 +27,8 @@ func (m *MockPreflightRunner) Prepare(ctx context.Context, opts PrepareOptions) 
 }
 
 // Run mocks the Run method
-func (m *MockPreflightRunner) Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error) {
-	args := m.Called(ctx, spec, proxy, rc)
+func (m *MockPreflightRunner) Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error) {
+	args := m.Called(ctx, spec, rc)
 	if args.Get(0) == nil {
 		return nil, args.String(1), args.Error(2)
 	}

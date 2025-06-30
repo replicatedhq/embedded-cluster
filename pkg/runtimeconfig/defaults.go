@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/gosimple/slug"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 )
@@ -20,15 +18,6 @@ var DefaultNoProxy = []string{
 	// cloud metadata service
 	"169.254.169.254",
 }
-
-const (
-	KotsadmNamespace         = "kotsadm"
-	KotsadmServiceAccount    = "kotsadm"
-	SeaweedFSNamespace       = "seaweedfs"
-	RegistryNamespace        = "registry"
-	VeleroNamespace          = "velero"
-	EmbeddedClusterNamespace = "embedded-cluster"
-)
 
 const (
 	K0sBinaryPath           = "/usr/local/bin/k0s"
@@ -70,10 +59,4 @@ func EmbeddedClusterLogsSubDir() string {
 // if the file exists.
 func PathToLog(name string) string {
 	return filepath.Join(EmbeddedClusterLogsSubDir(), name)
-}
-
-// GetDomains returns the domains for the embedded cluster. The first priority is the domains configured within the provided config spec.
-// The second priority is the domains configured within the channel release. If neither is configured, the default domains are returned.
-func GetDomains(cfgspec *ecv1beta1.ConfigSpec) ecv1beta1.Domains {
-	return domains.GetDomains(cfgspec, release.GetChannelRelease())
 }
