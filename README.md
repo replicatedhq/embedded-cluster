@@ -91,6 +91,12 @@ Additionally, it includes a Registry when deployed in air gap mode, and SeaweedF
     make list-distros
     ```
 
+    **Note:** The development environment automatically mounts both data directories to support v2 and v3:
+    - **v2 mode:** Uses `/var/lib/embedded-cluster/k0s`
+    - **v3 mode:** Uses `/var/lib/{app-slug}/k0s` (determined from `REPLICATED_APP`)
+    
+    Both directories are mounted automatically, so the embedded cluster binary can use whichever one it needs without any manual configuration.
+
 1. In the Vendor Portal, create and download a license that is assigned to the channel.
 We recommend storing this license in the `local-dev/` directory, as it is gitignored and not otherwise used by the CI.
 

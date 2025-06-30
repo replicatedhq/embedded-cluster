@@ -6,10 +6,10 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,27 +18,31 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (s *SeaweedFS) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
+func (s *SeaweedFS) Install(
+	ctx context.Context, logf types.LogFunc,
+	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
+	domains ecv1beta1.Domains, overrides []string,
+) error {
 	if err := s.ensurePreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := s.GenerateHelmValues(ctx, kcli, overrides)
+	values, err := s.GenerateHelmValues(ctx, kcli, domains, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	err = ensurePostInstallHooksDeleted(ctx, kcli)
+	err = s.ensurePostInstallHooksDeleted(ctx, kcli)
 	if err != nil {
 		return errors.Wrap(err, "ensure hooks deleted")
 	}
 
 	_, err = hcli.Install(ctx, helm.InstallOptions{
-		ReleaseName:  releaseName,
-		ChartPath:    s.ChartLocation(),
+		ReleaseName:  s.ReleaseName(),
+		ChartPath:    s.ChartLocation(domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    s.Namespace(),
 		Labels:       getBackupLabels(),
 	})
 	if err != nil {
@@ -48,25 +52,25 @@ func (s *SeaweedFS) Install(ctx context.Context, logf types.LogFunc, kcli client
 }
 
 func (s *SeaweedFS) ensurePreRequisites(ctx context.Context, kcli client.Client) error {
-	if err := ensureNamespace(ctx, kcli, namespace); err != nil {
+	if err := s.ensureNamespace(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
 
-	if err := ensureService(ctx, kcli, s.ServiceCIDR); err != nil {
+	if err := s.ensureService(ctx, kcli, s.ServiceCIDR); err != nil {
 		return errors.Wrap(err, "create s3 service")
 	}
 
-	if err := ensureS3Secret(ctx, kcli); err != nil {
+	if err := s.ensureS3Secret(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create s3 secret")
 	}
 
 	return nil
 }
 
-func ensureNamespace(ctx context.Context, kcli client.Client, namespace string) error {
+func (s *SeaweedFS) ensureNamespace(ctx context.Context, kcli client.Client) error {
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+			Name: s.Namespace(),
 		},
 	}
 	if err := kcli.Create(ctx, &ns); client.IgnoreAlreadyExists(err) != nil {
@@ -75,7 +79,7 @@ func ensureNamespace(ctx context.Context, kcli client.Client, namespace string) 
 	return nil
 }
 
-func ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) error {
+func (s *SeaweedFS) ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) error {
 	if serviceCIDR == "" {
 		return errors.New("service CIDR not present")
 	}
@@ -86,7 +90,7 @@ func ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) 
 	}
 
 	obj := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: s3SVCName, Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: _s3SVCName, Namespace: s.Namespace()},
 		Spec: corev1.ServiceSpec{
 			ClusterIP: clusterIP,
 			Ports: []corev1.ServicePort{
@@ -127,7 +131,7 @@ func ensureService(ctx context.Context, kcli client.Client, serviceCIDR string) 
 	return nil
 }
 
-func ensureS3Secret(ctx context.Context, kcli client.Client) error {
+func (s *SeaweedFS) ensureS3Secret(ctx context.Context, kcli client.Client) error {
 	var config seaweedfsConfig
 	config.Identities = append(config.Identities, seaweedfsIdentity{
 		Name: "anvAdmin",
@@ -152,7 +156,7 @@ func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 	}
 
 	obj := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: s3SecretName, Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: _s3SecretName, Namespace: s.Namespace()},
 		Data: map[string][]byte{
 			"seaweedfs_s3_config": configData,
 		},
@@ -169,16 +173,16 @@ func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 
 // ensurePostInstallHooksDeleted will delete helm hooks if for some reason they fail. It is
 // necessary if the hook does not have the "before-hook-creation" delete policy.
-func ensurePostInstallHooksDeleted(ctx context.Context, kcli client.Client) error {
+func (s *SeaweedFS) ensurePostInstallHooksDeleted(ctx context.Context, kcli client.Client) error {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      fmt.Sprintf("%s-bucket-hook", releaseName),
+			Namespace: s.Namespace(),
+			Name:      fmt.Sprintf("%s-bucket-hook", s.ReleaseName()),
 		},
 	}
 	err := kcli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground))
 	if client.IgnoreNotFound(err) != nil {
-		return errors.Wrapf(err, "delete %s-bucket-hook job", releaseName)
+		return errors.Wrapf(err, "delete %s-bucket-hook job", s.ReleaseName())
 	}
 
 	return nil
@@ -198,7 +202,7 @@ func ApplyLabels(labels map[string]string, component string) map[string]string {
 
 func GetS3RWCreds(ctx context.Context, kcli client.Client) (string, string, error) {
 	secret := &corev1.Secret{}
-	err := kcli.Get(ctx, client.ObjectKey{Namespace: namespace, Name: s3SecretName}, secret)
+	err := kcli.Get(ctx, client.ObjectKey{Namespace: _namespace, Name: _s3SecretName}, secret)
 	if err != nil {
 		return "", "", errors.Wrap(err, "get s3 secret")
 	}
@@ -239,7 +243,7 @@ func GetS3Endpoint(serviceCIDR string) (string, error) {
 }
 
 func getServiceIP(serviceCIDR string) (string, error) {
-	ip, err := helpers.GetLowerBandIP(serviceCIDR, lowerBandIPIndex)
+	ip, err := helpers.GetLowerBandIP(serviceCIDR, _lowerBandIPIndex)
 	if err != nil {
 		return "", errors.Wrap(err, "get lower band ip")
 	}

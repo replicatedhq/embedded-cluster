@@ -193,3 +193,100 @@ func TestRemoveAll(t *testing.T) {
 		})
 	}
 }
+
+func TestCopyFile(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+
+	tests := []struct {
+		name        string
+		src         string
+		dst         string
+		mode        os.FileMode
+		setup       func() error
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "successful copy",
+			src:  filepath.Join(tmpDir, "source.txt"),
+			dst:  filepath.Join(tmpDir, "subdir", "dest.txt"),
+			mode: 0644,
+			setup: func() error {
+				return os.WriteFile(filepath.Join(tmpDir, "source.txt"), []byte("test content"), 0644)
+			},
+			wantErr: false,
+		},
+		{
+			name:        "empty source",
+			src:         "",
+			dst:         filepath.Join(tmpDir, "dest.txt"),
+			mode:        0644,
+			setup:       func() error { return nil },
+			wantErr:     true,
+			errContains: "source path cannot be empty",
+		},
+		{
+			name: "source is directory",
+			src:  filepath.Join(tmpDir, "sourcedir"),
+			dst:  filepath.Join(tmpDir, "dest.txt"),
+			mode: 0644,
+			setup: func() error {
+				return os.Mkdir(filepath.Join(tmpDir, "sourcedir"), 0755)
+			},
+			wantErr:     true,
+			errContains: "cannot copy directory",
+		},
+		{
+			name: "source does not exist",
+			src:  filepath.Join(tmpDir, "nonexistent.txt"),
+			dst:  filepath.Join(tmpDir, "dest.txt"),
+			mode: 0644,
+			setup: func() error {
+				return nil
+			},
+			wantErr:     true,
+			errContains: "stat source file",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			require := require.New(t)
+
+			// Setup test case
+			require.NoError(tt.setup(), "Setup failed")
+
+			// Run CopyFile
+			err := CopyFile(tt.src, tt.dst, tt.mode)
+
+			// Check error
+			if tt.wantErr {
+				assert.Error(err, "CopyFile() should return error")
+				if tt.errContains != "" {
+					assert.Contains(err.Error(), tt.errContains, "Error message should contain expected text")
+				}
+				return
+			}
+
+			require.NoError(err, "CopyFile() should not return error")
+
+			// Check if destination file exists
+			_, err = os.Stat(tt.dst)
+			require.NoError(err, "Destination file should exist")
+
+			// Check file mode
+			info, err := os.Stat(tt.dst)
+			require.NoError(err, "Should be able to stat destination file")
+			assert.Equal(tt.mode, info.Mode(), "Destination file mode should match expected mode")
+
+			// Check file contents
+			srcContent, err := os.ReadFile(tt.src)
+			require.NoError(err, "Should be able to read source file")
+			dstContent, err := os.ReadFile(tt.dst)
+			require.NoError(err, "Should be able to read destination file")
+			assert.Equal(string(srcContent), string(dstContent), "Destination file content should match source content")
+		})
+	}
+}

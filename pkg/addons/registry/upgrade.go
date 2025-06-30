@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -22,14 +23,18 @@ const (
 )
 
 // Upgrade upgrades the registry chart to the latest version.
-func (r *Registry) Upgrade(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, overrides []string) error {
-	exists, err := hcli.ReleaseExists(ctx, namespace, releaseName)
+func (r *Registry) Upgrade(
+	ctx context.Context, logf types.LogFunc,
+	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
+	domains ecv1beta1.Domains, overrides []string,
+) error {
+	exists, err := hcli.ReleaseExists(ctx, r.Namespace(), r.ReleaseName())
 	if err != nil {
 		return errors.Wrap(err, "check if release exists")
 	}
 	if !exists {
-		logrus.Debugf("Release not found, installing release %s in namespace %s", releaseName, namespace)
-		if err := r.Install(ctx, logf, kcli, mcli, hcli, overrides, nil); err != nil {
+		logrus.Debugf("Release not found, installing release %s in namespace %s", r.ReleaseName(), r.Namespace())
+		if err := r.Install(ctx, logf, kcli, mcli, hcli, domains, overrides); err != nil {
 			return errors.Wrap(err, "install")
 		}
 		return nil
@@ -39,17 +44,17 @@ func (r *Registry) Upgrade(ctx context.Context, logf types.LogFunc, kcli client.
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := r.GenerateHelmValues(ctx, kcli, overrides)
+	values, err := r.GenerateHelmValues(ctx, kcli, domains, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
-		ReleaseName:  releaseName,
-		ChartPath:    r.ChartLocation(),
+		ReleaseName:  r.ReleaseName(),
+		ChartPath:    r.ChartLocation(domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    r.Namespace(),
 		Labels:       getBackupLabels(),
 		Force:        false,
 	})
@@ -62,7 +67,7 @@ func (r *Registry) Upgrade(ctx context.Context, logf types.LogFunc, kcli client.
 
 func (r *Registry) createUpgradePreRequisites(ctx context.Context, kcli client.Client) error {
 	if r.IsHA {
-		if err := ensureS3Secret(ctx, kcli); err != nil {
+		if err := r.ensureS3Secret(ctx, kcli); err != nil {
 			return errors.Wrap(err, "create s3 secret")
 		}
 	}
@@ -70,14 +75,14 @@ func (r *Registry) createUpgradePreRequisites(ctx context.Context, kcli client.C
 	return nil
 }
 
-func ensureS3Secret(ctx context.Context, kcli client.Client) error {
+func (r *Registry) ensureS3Secret(ctx context.Context, kcli client.Client) error {
 	accessKey, secretKey, err := seaweedfs.GetS3RWCreds(ctx, kcli)
 	if err != nil {
 		return errors.Wrap(err, "get seaweedfs s3 rw creds")
 	}
 
 	obj := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: seaweedfsS3SecretName, Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: seaweedfsS3SecretName, Namespace: r.Namespace()},
 		Data: map[string][]byte{
 			"s3AccessKey": []byte(accessKey),
 			"s3SecretKey": []byte(secretKey),

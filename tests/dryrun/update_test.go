@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
-	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,7 +21,7 @@ import (
 func TestUpdateAirgapCurrent(t *testing.T) {
 	updateCmdSetupFilesystem(t, "/var/lib/embedded-cluster", "/var/lib/embedded-cluster/k0s")
 
-	k0sClient := &dryrun.K0sClient{}
+	k0sClient := &dryrun.K0s{}
 	kubeUtils := &dryrun.KubeUtils{}
 
 	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
@@ -81,7 +81,7 @@ func TestUpdateAirgapCurrent(t *testing.T) {
 func TestUpdateAirgapPreFS(t *testing.T) {
 	updateCmdSetupFilesystem(t, "/var/lib/embedded-cluster", "/var/lib/k0s")
 
-	k0sClient := &dryrun.K0sClient{}
+	k0sClient := &dryrun.K0s{}
 	kubeUtils := &dryrun.KubeUtils{}
 
 	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")

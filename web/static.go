@@ -28,8 +28,9 @@ func init() {
 }
 
 type InitialState struct {
-	Title string `json:"title"`
-	Icon  string `json:"icon"`
+	Title         string `json:"title"`
+	Icon          string `json:"icon"`
+	InstallTarget string `json:"installTarget"`
 }
 
 type Web struct {
@@ -142,6 +143,7 @@ func (web *Web) rootHandler(w http.ResponseWriter, r *http.Request) {
 		web.logger.WithError(err).
 			Info("failed to execute HTML template")
 		http.Error(w, "Template execution error", 500)
+		return
 	}
 
 	// Write the buffer contents to the response writer

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -23,6 +24,9 @@ func TestPullImagesCmd(t *testing.T) {
 	// Create temporary directory for test
 	dataDir := t.TempDir()
 	t.Setenv("TMPDIR", dataDir) // hack as the cli sets TMPDIR, this will reset it after the test
+
+	rc := runtimeconfig.New(nil)
+	rc.SetDataDir(dataDir)
 
 	// Create a fake client with test Installation
 	scheme := runtime.NewScheme()
@@ -164,6 +168,7 @@ func TestPullImagesCmd(t *testing.T) {
 
 			// Create the command
 			cli := &CLI{
+				RC:   rc,
 				Name: "local-artifact-mirror",
 				V:    viper.New(),
 				KCLIGetter: func() (client.Client, error) {

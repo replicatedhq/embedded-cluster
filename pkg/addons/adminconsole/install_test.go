@@ -43,7 +43,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      privateCASConfigMapName,
-				Namespace: namespace,
+				Namespace: _namespace,
 				Annotations: map[string]string{
 					"replicated.com/cas-checksum": checksum,
 				},
@@ -175,6 +175,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 
 			// Run test
 			addon := &AdminConsole{
+				DataDir:          t.TempDir(),
 				HostCABundlePath: tt.caPath,
 			}
 			err = addon.ensureCAConfigmap(t.Context(), t.Logf, kcli, mcli)

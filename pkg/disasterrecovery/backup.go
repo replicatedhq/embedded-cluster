@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -98,7 +98,7 @@ type ReplicatedBackup []velerov1.Backup
 
 // ListReplicatedBackups returns a sorted list of ReplicatedBackup backups by creation timestamp.
 func ListReplicatedBackups(ctx context.Context, cli client.Client) ([]ReplicatedBackup, error) {
-	backups, err := listBackups(ctx, cli, runtimeconfig.VeleroNamespace)
+	backups, err := listBackups(ctx, cli, constants.VeleroNamespace)
 	if err != nil {
 		return nil, err
 	}

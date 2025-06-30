@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -11,10 +12,11 @@ import (
 func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	t.Run("with host CA bundle path", func(t *testing.T) {
 		adminConsole := &AdminConsole{
+			DataDir:          t.TempDir(),
 			HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
 		}
 
-		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, nil)
+		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
 		require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 		// Verify structure types
@@ -57,11 +59,12 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	})
 
 	t.Run("without host CA bundle path", func(t *testing.T) {
+		// HostCABundlePath intentionally not set
 		adminConsole := &AdminConsole{
-			// HostCABundlePath intentionally not set
+			DataDir: t.TempDir(),
 		}
 
-		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, nil)
+		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
 		require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 		// Verify structure types

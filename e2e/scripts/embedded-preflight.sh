@@ -62,7 +62,7 @@ main() {
         echo "Failed to wait for healthy node"
         exit 1
     fi
-    if ! systemctl restart embedded-cluster; then
+    if ! systemctl restart "${EMBEDDED_CLUSTER_BIN}"; then
         echo "Failed to restart embedded-cluster service"
         exit 1
     fi

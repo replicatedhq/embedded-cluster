@@ -3,10 +3,13 @@ package kubeutils
 import (
 	"context"
 	"testing"
+	"time"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -360,6 +363,100 @@ func TestGetInstallation(t *testing.T) {
 			}
 			req.NoError(err)
 			req.Equal(tt.want, got)
+		})
+	}
+}
+
+func TestWaitForPodDeleted(t *testing.T) {
+	scheme := scheme.Scheme
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "test-namespace",
+		},
+	}
+
+	tests := []struct {
+		name        string
+		objects     []client.Object
+		cancelCtx   bool
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:    "pod already deleted",
+			objects: []client.Object{},
+			wantErr: false,
+		},
+		{
+			name:    "pod gets deleted during wait",
+			objects: []client.Object{pod},
+			wantErr: false,
+		},
+		{
+			name:        "context canceled",
+			objects:     []client.Object{pod},
+			cancelCtx:   true,
+			wantErr:     true,
+			errContains: "context canceled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
+			builder := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.objects...)
+
+			client := builder.Build()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			if tt.name == "pod gets deleted during wait" {
+				// For the deletion test, start a goroutine that deletes the pod
+				// after a short delay
+				go func() {
+					time.Sleep(100 * time.Millisecond)
+					err := client.Delete(ctx, pod)
+					req.NoError(err)
+				}()
+			}
+
+			if tt.cancelCtx {
+				// For the cancellation test, cancel the context after a short delay
+				go func() {
+					time.Sleep(100 * time.Millisecond)
+					cancel()
+				}()
+			}
+
+			ku := &KubeUtils{}
+
+			// Use a short backoff for tests
+			opts := &WaitOptions{
+				Backoff: &wait.Backoff{
+					Steps:    10,
+					Duration: 50 * time.Millisecond,
+					Factor:   1.0,
+					Jitter:   0.0,
+				},
+			}
+
+			err := ku.WaitForPodDeleted(ctx, client, "test-namespace", "test-pod", opts)
+
+			if tt.wantErr {
+				req.Error(err)
+				if tt.errContains != "" {
+					req.Contains(err.Error(), tt.errContains)
+				}
+			} else {
+				req.NoError(err)
+			}
 		})
 	}
 }

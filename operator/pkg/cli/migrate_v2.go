@@ -15,6 +15,7 @@ func MigrateV2Cmd() *cobra.Command {
 	var installationFile string
 
 	var installation *ecv1beta1.Installation
+	rc := runtimeconfig.New(nil)
 
 	cmd := &cobra.Command{
 		Use:          "migrate-v2",
@@ -29,7 +30,7 @@ func MigrateV2Cmd() *cobra.Command {
 
 			// set the runtime config from the installation spec
 			// NOTE: this is run in a pod so the data dir is not available
-			runtimeconfig.Set(installation.Spec.RuntimeConfig)
+			rc.Set(installation.Spec.RuntimeConfig)
 
 			return nil
 		},

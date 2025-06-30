@@ -3,6 +3,7 @@ package addons
 import (
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/require"
 )
 
@@ -12,13 +13,14 @@ func Test_operatorImages(t *testing.T) {
 		images         []string
 		wantRepo       string
 		wantTag        string
-		proxyRegistry  string
+		domains        ecv1beta1.Domains
 		wantUtilsImage string
 		wantErr        string
 	}{
 		{
 			name:    "no images",
 			images:  []string{},
+			domains: ecv1beta1.Domains{},
 			wantErr: "no embedded-cluster-operator-image found in images",
 		},
 		{
@@ -26,6 +28,7 @@ func Test_operatorImages(t *testing.T) {
 			images: []string{
 				"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
 			},
+			domains: ecv1beta1.Domains{},
 			wantErr: "no embedded-cluster-operator-image found in images",
 		},
 		{
@@ -34,6 +37,7 @@ func Test_operatorImages(t *testing.T) {
 				"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
 				"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
 			},
+			domains: ecv1beta1.Domains{},
 			wantErr: "no ec-utils found in images",
 		},
 		{
@@ -42,6 +46,7 @@ func Test_operatorImages(t *testing.T) {
 				"docker.io/replicated/embedded-cluster-operator-image:latest-amd64",
 				"docker.io/replicated/ec-utils:latest-amd64",
 			},
+			domains:        ecv1beta1.Domains{},
 			wantRepo:       "docker.io/replicated/embedded-cluster-operator-image",
 			wantTag:        "latest-amd64",
 			wantUtilsImage: "docker.io/replicated/ec-utils:latest-amd64",
@@ -72,6 +77,7 @@ func Test_operatorImages(t *testing.T) {
 				"proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:v1.14.2-k8s-1.29@sha256:54463ce6b6fba13a25138890aa1ac28ae4f93f53cdb78a99d15abfdc1b5eddf5",
 				"proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image:v1.14.2-k8s-1.29-amd64@sha256:45a45e2ec6b73d2db029354cccfe7eb150dd7ef9dffe806db36de9b9ba0a66c6",
 			},
+			domains:        ecv1beta1.Domains{},
 			wantRepo:       "proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image",
 			wantTag:        "v1.14.2-k8s-1.29-amd64@sha256:45a45e2ec6b73d2db029354cccfe7eb150dd7ef9dffe806db36de9b9ba0a66c6",
 			wantUtilsImage: "proxy.replicated.com/anonymous/replicated/ec-utils:latest-amd64@sha256:2f3c5d81565eae3aea22f408af9a8ee91cd4ba010612c50c6be564869390639f",
@@ -82,7 +88,9 @@ func Test_operatorImages(t *testing.T) {
 				"proxy.replicated.com/replicated/embedded-cluster-operator-image:latest-amd64",
 				"proxy.replicated.com/replicated/ec-utils:latest-amd64",
 			},
-			proxyRegistry:  "myproxy.test",
+			domains: ecv1beta1.Domains{
+				ProxyRegistryDomain: "myproxy.test",
+			},
 			wantRepo:       "myproxy.test/replicated/embedded-cluster-operator-image",
 			wantTag:        "latest-amd64",
 			wantUtilsImage: "myproxy.test/replicated/ec-utils:latest-amd64",
@@ -113,7 +121,9 @@ func Test_operatorImages(t *testing.T) {
 				"proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:v1.14.2-k8s-1.29@sha256:54463ce6b6fba13a25138890aa1ac28ae4f93f53cdb78a99d15abfdc1b5eddf5",
 				"proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image:v1.14.2-k8s-1.29-amd64@sha256:45a45e2ec6b73d2db029354cccfe7eb150dd7ef9dffe806db36de9b9ba0a66c6",
 			},
-			proxyRegistry:  "myproxy.test",
+			domains: ecv1beta1.Domains{
+				ProxyRegistryDomain: "myproxy.test",
+			},
 			wantRepo:       "myproxy.test/anonymous/replicated/embedded-cluster-operator-image",
 			wantTag:        "v1.14.2-k8s-1.29-amd64@sha256:45a45e2ec6b73d2db029354cccfe7eb150dd7ef9dffe806db36de9b9ba0a66c6",
 			wantUtilsImage: "myproxy.test/anonymous/replicated/ec-utils:latest-amd64@sha256:2f3c5d81565eae3aea22f408af9a8ee91cd4ba010612c50c6be564869390639f",
@@ -123,7 +133,8 @@ func Test_operatorImages(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			gotRepo, gotTag, gotUtilsImage, err := operatorImages(tt.images, tt.proxyRegistry)
+			addOns := New(WithDomains(tt.domains))
+			gotRepo, gotTag, gotUtilsImage, err := addOns.operatorImages(tt.images)
 			if tt.wantErr != "" {
 				req.Error(err)
 				req.EqualError(err, tt.wantErr)

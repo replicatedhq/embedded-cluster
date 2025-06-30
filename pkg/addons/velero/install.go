@@ -5,9 +5,9 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,22 +15,26 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (v *Velero) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
+func (v *Velero) Install(
+	ctx context.Context, logf types.LogFunc,
+	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
+	domains ecv1beta1.Domains, overrides []string,
+) error {
 	if err := v.createPreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := v.GenerateHelmValues(ctx, kcli, overrides)
+	values, err := v.GenerateHelmValues(ctx, kcli, domains, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
 	opts := helm.InstallOptions{
-		ReleaseName:  releaseName,
-		ChartPath:    v.ChartLocation(),
+		ReleaseName:  v.ReleaseName(),
+		ChartPath:    v.ChartLocation(domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    v.Namespace(),
 	}
 
 	if v.DryRun {
@@ -88,8 +92,8 @@ func (v *Velero) createCredentialsSecret(ctx context.Context, kcli client.Client
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      credentialsSecretName,
-			Namespace: namespace,
+			Name:      _credentialsSecretName,
+			Namespace: v.Namespace(),
 		},
 		Type: "Opaque",
 	}

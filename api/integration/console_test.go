@@ -2,7 +2,6 @@ package integration
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,26 +9,31 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConsoleListAvailableNetworkInterfaces(t *testing.T) {
-	netutils := &mockNetUtils{ifaces: []string{"eth0", "eth1"}}
+	netUtils := &utils.MockNetUtils{}
+	netUtils.On("ListValidNetworkInterfaces").Return([]string{"eth0", "eth1"}, nil).Once()
 
 	// Create a console controller
 	consoleController, err := console.NewConsoleController(
-		console.WithNetUtils(netutils),
+		console.WithNetUtils(netUtils),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
-		"password",
+		types.APIConfig{
+			Password: "password",
+		},
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 
@@ -61,20 +65,23 @@ func TestConsoleListAvailableNetworkInterfaces(t *testing.T) {
 }
 
 func TestConsoleListAvailableNetworkInterfacesUnauthorized(t *testing.T) {
-	netutils := &mockNetUtils{ifaces: []string{"eth0", "eth1"}}
+	netUtils := &utils.MockNetUtils{}
+	netUtils.On("ListValidNetworkInterfaces").Return([]string{"eth0", "eth1"}, nil).Once()
 
 	// Create a console controller
 	consoleController, err := console.NewConsoleController(
-		console.WithNetUtils(netutils),
+		console.WithNetUtils(netUtils),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
-		"password",
+		types.APIConfig{
+			Password: "password",
+		},
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(&staticAuthController{"VALID_TOKEN"}),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 
@@ -102,20 +109,23 @@ func TestConsoleListAvailableNetworkInterfacesUnauthorized(t *testing.T) {
 
 func TestConsoleListAvailableNetworkInterfacesError(t *testing.T) {
 	// Create a mock that returns an error
-	netutils := &mockNetUtils{err: errors.New("failed to list network interfaces")}
+	netUtils := &utils.MockNetUtils{}
+	netUtils.On("ListValidNetworkInterfaces").Return(nil, assert.AnError).Once()
 
 	// Create a console controller
 	consoleController, err := console.NewConsoleController(
-		console.WithNetUtils(netutils),
+		console.WithNetUtils(netUtils),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
-		"password",
+		types.APIConfig{
+			Password: "password",
+		},
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
-		api.WithLogger(api.NewDiscardLogger()),
+		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
 

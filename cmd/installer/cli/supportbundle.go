@@ -18,6 +18,8 @@ import (
 )
 
 func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
+	var rc runtimeconfig.RuntimeConfig
+
 	cmd := &cobra.Command{
 		Use:   "support-bundle",
 		Short: "Generate a support bundle",
@@ -26,21 +28,21 @@ func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("support-bundle command must be run as root")
 			}
 
-			rcutil.InitBestRuntimeConfig(cmd.Context())
-			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
+			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
 			return nil
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
-			runtimeconfig.Cleanup()
+			rc.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			supportBundle := runtimeconfig.PathToEmbeddedClusterBinary("kubectl-support_bundle")
+			supportBundle := rc.PathToEmbeddedClusterBinary("kubectl-support_bundle")
 			if _, err := os.Stat(supportBundle); err != nil {
 				return errors.New("support-bundle command can only be run after an install attempt")
 			}
 
-			hostSupportBundle := runtimeconfig.PathToEmbeddedClusterSupportFile("host-support-bundle.yaml")
+			hostSupportBundle := rc.PathToEmbeddedClusterSupportFile("host-support-bundle.yaml")
 			if _, err := os.Stat(hostSupportBundle); err != nil {
 				return fmt.Errorf("unable to find host support bundle: %w", err)
 			}
@@ -53,7 +55,7 @@ func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 			fname := fmt.Sprintf("support-bundle-%s.tar.gz", now)
 			destination := filepath.Join(pwd, fname)
 
-			kubeConfig := runtimeconfig.PathToKubeConfig()
+			kubeConfig := rc.PathToKubeConfig()
 			arguments := []string{}
 			if _, err := os.Stat(kubeConfig); err == nil {
 				arguments = append(arguments, fmt.Sprintf("--kubeconfig=%s", kubeConfig))

@@ -14,17 +14,19 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
-	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -52,6 +54,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	var flags JoinCmdFlags
 
 	ctx, cancel := context.WithCancel(ctx)
+	rc := runtimeconfig.New(nil)
 
 	cmd := &cobra.Command{
 		Use:   "join <url> <token>",
@@ -65,7 +68,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			return nil
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
-			runtimeconfig.Cleanup()
+			rc.Cleanup()
 			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -74,27 +77,27 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
-			metricsReporter := NewJoinReporter(
+			joinReporter := newJoinReporter(
 				jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 			)
-			metricsReporter.ReportJoinStarted(ctx)
+			joinReporter.ReportJoinStarted(ctx)
 
 			// Setup signal handler with the metrics reporter cleanup function
 			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
-				metricsReporter.ReportSignalAborted(ctx, sig)
+				joinReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runJoin(cmd.Context(), name, flags, jcmd, args[0], metricsReporter); err != nil {
+			if err := runJoin(cmd.Context(), name, flags, rc, jcmd, args[0], joinReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
-					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+					joinReporter.ReportSignalAborted(ctx, syscall.SIGINT)
 				} else {
-					metricsReporter.ReportJoinFailed(ctx, err)
+					joinReporter.ReportJoinFailed(ctx, err)
 				}
 				return err
 			}
 
-			metricsReporter.ReportJoinSucceeded(ctx)
+			joinReporter.ReportJoinSucceeded(ctx)
 			return nil
 		},
 	}
@@ -110,7 +113,8 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 }
 
 func preRunJoin(flags *JoinCmdFlags) error {
-	if os.Getuid() != 0 {
+	// Skip root check if dryrun mode is enabled
+	if !dryrun.Enabled() && os.Getuid() != 0 {
 		return fmt.Errorf("join command must be run as root")
 	}
 
@@ -149,24 +153,24 @@ func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
 	return nil
 }
 
-func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse, kotsAPIAddress string, metricsReporter preflights.MetricsReporter) error {
+func runJoin(ctx context.Context, name string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string, joinReporter *JoinReporter) error {
 	// both controller and worker nodes will have 'worker' in the join command
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if !isWorker {
 		logrus.Warn("\nDo not join another node until this node has joined successfully.")
 	}
 
-	if err := runJoinVerifyAndPrompt(name, flags, jcmd); err != nil {
+	if err := runJoinVerifyAndPrompt(name, flags, rc, jcmd); err != nil {
 		return err
 	}
 
-	cidrCfg, err := initializeJoin(ctx, name, jcmd, kotsAPIAddress)
+	cidrCfg, err := initializeJoin(ctx, name, rc, jcmd, kotsAPIAddress)
 	if err != nil {
 		return fmt.Errorf("unable to initialize join: %w", err)
 	}
 
 	logrus.Debugf("running join preflights")
-	if err := runJoinPreflights(ctx, jcmd, flags, cidrCfg, metricsReporter); err != nil {
+	if err := runJoinPreflights(ctx, jcmd, flags, rc, cidrCfg, joinReporter.reporter); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -176,7 +180,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.Jo
 	logrus.Debugf("installing and joining cluster")
 	loading := spinner.Start()
 	loading.Infof("Installing node")
-	if err := installAndJoinCluster(ctx, jcmd, name, flags, isWorker); err != nil {
+	if err := installAndJoinCluster(ctx, rc, jcmd, name, flags, isWorker); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return err
 	}
@@ -214,7 +218,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.Jo
 		return nil
 	}
 
-	if err := maybeEnableHA(ctx, kcli, mcli, flags, cidrCfg.ServiceCIDR, jcmd); err != nil {
+	if err := maybeEnableHA(ctx, kcli, mcli, flags, rc, jcmd); err != nil {
 		return fmt.Errorf("unable to enable high availability: %w", err)
 	}
 
@@ -222,27 +226,27 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, jcmd *join.Jo
 	return nil
 }
 
-func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinCommandResponse) error {
+func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(name, "join a node")
 	if err != nil {
 		return err
 	}
 
-	runtimeconfig.Set(jcmd.InstallationSpec.RuntimeConfig)
+	rc.Set(jcmd.InstallationSpec.RuntimeConfig)
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if isWorker {
-		os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeletConfig())
+		os.Setenv("KUBECONFIG", rc.PathToKubeletConfig())
 	} else {
-		os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
+		os.Setenv("KUBECONFIG", rc.PathToKubeConfig())
 	}
-	os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+	os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
-	if err := runtimeconfig.WriteToDisk(); err != nil {
+	if err := rc.WriteToDisk(); err != nil {
 		return fmt.Errorf("unable to write runtime config: %w", err)
 	}
 
-	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+	if err := os.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
 		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
 		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
 		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
@@ -261,24 +265,26 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, jcmd *join.JoinComm
 		return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
 	}
 
-	newconfig.SetProxyEnv(jcmd.InstallationSpec.Proxy)
+	if proxySpec := rc.ProxySpec(); proxySpec != nil {
+		newconfig.SetProxyEnv(proxySpec)
 
-	proxyOK, localIP, err := newconfig.CheckProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, flags.networkInterface, nil)
-	if err != nil {
-		return fmt.Errorf("failed to check proxy config for local IP: %w", err)
-	}
+		proxyOK, localIP, err := newconfig.CheckProxyConfigForLocalIP(proxySpec, flags.networkInterface, nil)
+		if err != nil {
+			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
+		}
 
-	if !proxyOK {
-		logrus.Errorf("\nThis node's IP address %s is not included in the no-proxy list (%s).", localIP, jcmd.InstallationSpec.Proxy.NoProxy)
-		logrus.Infof(`The no-proxy list cannot easily be modified after installing.`)
-		logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
-		return NewErrorNothingElseToAdd(errors.New("node ip address not included in no-proxy list"))
+		if !proxyOK {
+			logrus.Errorf("\nThis node's IP address %s is not included in the no-proxy list (%s).", localIP, proxySpec.NoProxy)
+			logrus.Infof(`The no-proxy list cannot easily be modified after installing.`)
+			logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
+			return NewErrorNothingElseToAdd(errors.New("node ip address not included in no-proxy list"))
+		}
 	}
 
 	return nil
 }
 
-func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResponse, kotsAPIAddress string) (cidrCfg *newconfig.CIDRConfig, err error) {
+func initializeJoin(ctx context.Context, name string, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string) (cidrCfg *newconfig.CIDRConfig, err error) {
 	logrus.Info("")
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
@@ -294,56 +300,57 @@ func initializeJoin(ctx context.Context, name string, jcmd *join.JoinCommandResp
 	// this does not return an error - it returns the previous umask
 	_ = syscall.Umask(0o022)
 
-	if err := os.Chmod(runtimeconfig.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+	if err := os.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
 		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
 		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
 		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
 	}
 
 	logrus.Debugf("materializing %s binaries", name)
-	if err := materializeFilesForJoin(ctx, jcmd, kotsAPIAddress); err != nil {
+	if err := materializeFilesForJoin(ctx, rc, jcmd, kotsAPIAddress); err != nil {
 		return nil, fmt.Errorf("failed to materialize files: %w", err)
 	}
 
 	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
+	if err := hostutils.ConfigureSysctl(); err != nil {
 		logrus.Debugf("unable to configure sysctl: %v", err)
 	}
 
 	logrus.Debugf("configuring kernel modules")
-	if err := configutils.ConfigureKernelModules(); err != nil {
+	if err := hostutils.ConfigureKernelModules(); err != nil {
 		logrus.Debugf("unable to configure kernel modules: %v", err)
 	}
 
 	logrus.Debugf("configuring network manager")
-	if err := configureNetworkManager(ctx); err != nil {
+	if err := hostutils.ConfigureNetworkManager(ctx, rc); err != nil {
 		return nil, fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
-	cidrCfg, err = getJoinCIDRConfig(jcmd)
+	cidrCfg, err = getJoinCIDRConfig(rc)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get join CIDR config: %w", err)
 	}
 
 	logrus.Debugf("configuring firewalld")
-	if err := configureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
+	if err := hostutils.ConfigureFirewalld(ctx, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR); err != nil {
 		logrus.Debugf("unable to configure firewalld: %v", err)
 	}
 
 	return cidrCfg, nil
 }
 
-func materializeFilesForJoin(ctx context.Context, jcmd *join.JoinCommandResponse, kotsAPIAddress string) error {
-	materializer := goods.NewMaterializer()
+func materializeFilesForJoin(ctx context.Context, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string) error {
+	materializer := goods.NewMaterializer(rc)
 	if err := materializer.Materialize(); err != nil {
 		return fmt.Errorf("materialize binaries: %w", err)
 	}
-	if err := support.MaterializeSupportBundleSpec(); err != nil {
+
+	if err := support.MaterializeSupportBundleSpec(rc, jcmd.InstallationSpec.AirGap); err != nil {
 		return fmt.Errorf("materialize support bundle spec: %w", err)
 	}
 
 	if jcmd.InstallationSpec.AirGap {
-		if err := airgap.FetchAndWriteArtifacts(ctx, kotsAPIAddress); err != nil {
+		if err := airgap.FetchAndWriteArtifacts(ctx, kotsAPIAddress, rc); err != nil {
 			return fmt.Errorf("failed to fetch artifacts: %w", err)
 		}
 	}
@@ -351,19 +358,22 @@ func materializeFilesForJoin(ctx context.Context, jcmd *join.JoinCommandResponse
 	return nil
 }
 
-func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*newconfig.CIDRConfig, error) {
-	podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
-	if err != nil {
-		return nil, fmt.Errorf("unable to split default network CIDR: %w", err)
+func getJoinCIDRConfig(rc runtimeconfig.RuntimeConfig) (*newconfig.CIDRConfig, error) {
+	globalCIDR := ecv1beta1.DefaultNetworkCIDR
+	if rc.GlobalCIDR() != "" {
+		globalCIDR = rc.GlobalCIDR()
 	}
 
-	if jcmd.InstallationSpec.Network != nil {
-		if jcmd.InstallationSpec.Network.PodCIDR != "" {
-			podCIDR = jcmd.InstallationSpec.Network.PodCIDR
-		}
-		if jcmd.InstallationSpec.Network.ServiceCIDR != "" {
-			serviceCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
-		}
+	podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(globalCIDR)
+	if err != nil {
+		return nil, fmt.Errorf("unable to split global network CIDR: %w", err)
+	}
+
+	if rc.PodCIDR() != "" {
+		podCIDR = rc.PodCIDR()
+	}
+	if rc.ServiceCIDR() != "" {
+		serviceCIDR = rc.ServiceCIDR()
 	}
 
 	return &newconfig.CIDRConfig{
@@ -372,30 +382,30 @@ func getJoinCIDRConfig(jcmd *join.JoinCommandResponse) (*newconfig.CIDRConfig, e
 	}, nil
 }
 
-func installAndJoinCluster(ctx context.Context, jcmd *join.JoinCommandResponse, name string, flags JoinCmdFlags, isWorker bool) error {
+func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, name string, flags JoinCmdFlags, isWorker bool) error {
 	logrus.Debugf("saving token to disk")
 	if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 		return fmt.Errorf("unable to save token to disk: %w", err)
 	}
 
 	logrus.Debugf("installing %s binaries", name)
-	if err := installK0sBinary(); err != nil {
+	if err := installK0sBinary(rc); err != nil {
 		return fmt.Errorf("unable to install k0s binary: %w", err)
 	}
 
 	if jcmd.AirgapRegistryAddress != "" {
-		if err := airgap.AddInsecureRegistry(jcmd.AirgapRegistryAddress); err != nil {
+		if err := hostutils.AddInsecureRegistry(jcmd.AirgapRegistryAddress); err != nil {
 			return fmt.Errorf("unable to add insecure registry: %w", err)
 		}
 	}
 
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(ctx, isWorker, jcmd.InstallationSpec.Proxy); err != nil {
+	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, isWorker); err != nil {
 		return fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 
 	logrus.Debugf("overriding network configuration")
-	if err := applyNetworkConfiguration(flags.networkInterface, jcmd); err != nil {
+	if err := applyNetworkConfiguration(rc, jcmd); err != nil {
 		return fmt.Errorf("unable to apply network configuration: %w", err)
 	}
 
@@ -410,7 +420,7 @@ func installAndJoinCluster(ctx context.Context, jcmd *join.JoinCommandResponse, 
 	}
 
 	logrus.Debugf("joining node to cluster")
-	if err := runK0sInstallCommand(flags.networkInterface, jcmd.K0sJoinCommand, profile); err != nil {
+	if err := runK0sInstallCommand(rc, flags.networkInterface, jcmd.K0sJoinCommand, profile); err != nil {
 		return fmt.Errorf("unable to join node to cluster: %w", err)
 	}
 
@@ -434,58 +444,65 @@ func saveTokenToDisk(token string) error {
 }
 
 // installK0sBinary moves the embedded k0s binary to its destination.
-func installK0sBinary() error {
-	ourbin := runtimeconfig.PathToEmbeddedClusterBinary("k0s")
-	hstbin := runtimeconfig.K0sBinaryPath()
+func installK0sBinary(rc runtimeconfig.RuntimeConfig) error {
+	ourbin := rc.PathToEmbeddedClusterBinary("k0s")
+	hstbin := runtimeconfig.K0sBinaryPath
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
 	}
 	return nil
 }
 
-func applyNetworkConfiguration(networkInterface string, jcmd *join.JoinCommandResponse) error {
-	if jcmd.InstallationSpec.Network != nil {
-		domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
-		clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
+func applyNetworkConfiguration(rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
+	domains := domains.GetDomains(jcmd.InstallationSpec.Config, release.GetChannelRelease())
+	clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 
-		address, err := netutils.FirstValidAddress(networkInterface)
-		if err != nil {
-			return fmt.Errorf("unable to find first valid address: %w", err)
-		}
-		clusterSpec.Spec.API.Address = address
-		clusterSpec.Spec.Storage.Etcd.PeerAddress = address
-		// NOTE: we should be copying everything from the in cluster config spec and overriding
-		// the node specific config from clusterSpec.GetClusterWideConfig()
-		clusterSpec.Spec.Network.PodCIDR = jcmd.InstallationSpec.Network.PodCIDR
-		clusterSpec.Spec.Network.ServiceCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
-		if jcmd.InstallationSpec.Network.NodePortRange != "" {
-			if clusterSpec.Spec.API.ExtraArgs == nil {
-				clusterSpec.Spec.API.ExtraArgs = map[string]string{}
-			}
-			clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = jcmd.InstallationSpec.Network.NodePortRange
-		}
-		clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
-
-		if err != nil {
-			return fmt.Errorf("unable to marshal cluster spec: %w", err)
-		}
-		err = os.WriteFile(runtimeconfig.PathToK0sConfig(), clusterSpecYaml, 0644)
-		if err != nil {
-			return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
-		}
+	address, err := netutils.FirstValidAddress(rc.NetworkInterface())
+	if err != nil {
+		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
+
+	cidrCfg, err := getJoinCIDRConfig(rc)
+	if err != nil {
+		return fmt.Errorf("unable to get join CIDR config: %w", err)
+	}
+
+	clusterSpec.Spec.API.Address = address
+	clusterSpec.Spec.Storage.Etcd.PeerAddress = address
+	// NOTE: we should be copying everything from the in cluster config spec and overriding
+	// the node specific config from clusterSpec.GetClusterWideConfig()
+	clusterSpec.Spec.Network.PodCIDR = cidrCfg.PodCIDR
+	clusterSpec.Spec.Network.ServiceCIDR = cidrCfg.ServiceCIDR
+
+	if rc.NodePortRange() != "" {
+		if clusterSpec.Spec.API.ExtraArgs == nil {
+			clusterSpec.Spec.API.ExtraArgs = map[string]string{}
+		}
+		clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = rc.NodePortRange()
+	}
+
+	clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
+	if err != nil {
+		return fmt.Errorf("unable to marshal cluster spec: %w", err)
+	}
+
+	err = os.WriteFile(runtimeconfig.K0sConfigPath, clusterSpecYaml, 0644)
+	if err != nil {
+		return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
+	}
+
 	return nil
 }
 
 // startAndWaitForK0s starts the k0s service and waits for the node to be ready.
 func startAndWaitForK0s(name string) error {
 	logrus.Debugf("starting %s service", name)
-	if _, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath(), "start"); err != nil {
+	if _, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath, "start"); err != nil {
 		return fmt.Errorf("unable to start service: %w", err)
 	}
 
 	logrus.Debugf("waiting for k0s to be ready")
-	if err := waitForK0s(); err != nil {
+	if err := k0s.WaitForK0s(); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 
@@ -503,7 +520,7 @@ func applyJoinConfigurationOverrides(jcmd *join.JoinCommandResponse) error {
 		if data, err := yaml.Marshal(patch); err != nil {
 			return fmt.Errorf("unable to marshal embedded overrides: %w", err)
 		} else if err := k0s.PatchK0sConfig(
-			runtimeconfig.PathToK0sConfig(), string(data),
+			runtimeconfig.K0sConfigPath, string(data),
 		); err != nil {
 			return fmt.Errorf("unable to patch config with embedded data: %w", err)
 		}
@@ -516,7 +533,7 @@ func applyJoinConfigurationOverrides(jcmd *join.JoinCommandResponse) error {
 	if data, err := yaml.Marshal(patch); err != nil {
 		return fmt.Errorf("unable to marshal embedded overrides: %w", err)
 	} else if err := k0s.PatchK0sConfig(
-		runtimeconfig.PathToK0sConfig(), string(data),
+		runtimeconfig.K0sConfigPath, string(data),
 	); err != nil {
 		return fmt.Errorf("unable to patch config with embedded data: %w", err)
 	}
@@ -524,7 +541,7 @@ func applyJoinConfigurationOverrides(jcmd *join.JoinCommandResponse) error {
 }
 
 func getFirstDefinedProfile() (string, error) {
-	k0scfg, err := os.Open(runtimeconfig.PathToK0sConfig())
+	k0scfg, err := os.Open(runtimeconfig.K0sConfigPath)
 	if err != nil {
 		return "", fmt.Errorf("unable to open k0s config: %w", err)
 	}
@@ -540,7 +557,7 @@ func getFirstDefinedProfile() (string, error) {
 }
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots
-func runK0sInstallCommand(networkInterface string, fullcmd string, profile string) error {
+func runK0sInstallCommand(rc runtimeconfig.RuntimeConfig, networkInterface string, fullcmd string, profile string) error {
 	args := strings.Split(fullcmd, " ")
 	args = append(args, "--token-file", "/etc/k0s/join-token")
 
@@ -553,7 +570,7 @@ func runK0sInstallCommand(networkInterface string, fullcmd string, profile strin
 		args = append(args, "--profile", profile)
 	}
 
-	args = append(args, config.AdditionalInstallFlags(nodeIP)...)
+	args = append(args, config.AdditionalInstallFlags(rc, nodeIP)...)
 
 	if strings.Contains(fullcmd, "controller") {
 		args = append(args, config.AdditionalInstallFlagsController()...)
@@ -572,13 +589,41 @@ func waitForNodeToJoin(ctx context.Context, kcli client.Client, hostname string,
 	return nil
 }
 
-func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interface, flags JoinCmdFlags, serviceCIDR string, jcmd *join.JoinCommandResponse) error {
+func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interface, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
 	if flags.noHA {
 		logrus.Debug("--no-ha flag provided, skipping high availability")
 		return nil
 	}
 
-	canEnableHA, _, err := addons.CanEnableHA(ctx, kcli)
+	kclient, err := kubeutils.GetClientset()
+	if err != nil {
+		return fmt.Errorf("unable to create kubernetes client: %w", err)
+	}
+
+	airgapChartsPath := ""
+	if jcmd.InstallationSpec.AirGap {
+		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
+	}
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		KubeConfig: rc.PathToKubeConfig(),
+		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create helm client: %w", err)
+	}
+	defer hcli.Close()
+
+	addOns := addons.New(
+		addons.WithLogFunc(logrus.Debugf),
+		addons.WithKubernetesClient(kcli),
+		addons.WithKubernetesClientSet(kclient),
+		addons.WithMetadataClient(mcli),
+		addons.WithHelmClient(hcli),
+		addons.WithDomains(getDomains()),
+	)
+
+	canEnableHA, _, err := addOns.CanEnableHA(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
 	}
@@ -608,37 +653,22 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		logrus.Info("")
 	}
 
-	kclient, err := kubeutils.GetClientset()
-	if err != nil {
-		return fmt.Errorf("unable to create kubernetes client: %w", err)
-	}
-
-	airgapChartsPath := ""
-	if jcmd.InstallationSpec.AirGap {
-		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
-	}
-	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to create helm client: %w", err)
-	}
-	defer hcli.Close()
-
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addons.EnableHA(
-		ctx,
-		logrus.Debugf,
-		kcli,
-		mcli,
-		kclient,
-		hcli,
-		serviceCIDR,
-		jcmd.InstallationSpec,
-		loading,
-	)
+	opts := addons.EnableHAOptions{
+		AdminConsolePort:   rc.AdminConsolePort(),
+		IsAirgap:           jcmd.InstallationSpec.AirGap,
+		IsMultiNodeEnabled: jcmd.InstallationSpec.LicenseInfo != nil && jcmd.InstallationSpec.LicenseInfo.IsMultiNodeEnabled,
+		EmbeddedConfigSpec: jcmd.InstallationSpec.Config,
+		EndUserConfigSpec:  nil, // TODO: add support for end user config spec
+		ProxySpec:          rc.ProxySpec(),
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
+		ServiceCIDR:        rc.ServiceCIDR(),
+	}
+
+	return addOns.EnableHA(ctx, opts, loading)
 }

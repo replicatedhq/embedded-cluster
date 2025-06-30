@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func EnsureInstallation(t *testing.T, kcli client.Client, spec ecv1beta1.InstallationSpec) {
-	err := embeddedclusteroperator.EnsureInstallationCRD(t.Context(), kcli)
+	err := kubeutils.EnsureInstallationCRD(t.Context(), kcli)
 	if err != nil {
 		t.Fatalf("failed to create installation CRD: %v", err)
 	}

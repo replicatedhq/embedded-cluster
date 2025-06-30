@@ -10,7 +10,16 @@ The root directory contains the main API setup files and request handlers.
 ### Subpackages
 
 #### `/controllers`
-Contains the business logic for different API endpoints. Each controller package focuses on a specific domain of functionality (e.g., authentication, console, installation) and implements the core business logic for that domain.
+Contains the business logic for different API endpoints. Each controller package focuses on a specific domain of functionality or workflow (e.g., authentication, console, install, upgrade, join, etc.) and implements the core business logic for that domain or workflow. Controllers can utilize multiple managers with each manager handling a specific subdomain of functionality.
+
+#### `/internal`
+Contains shared utilities and helper packages that provide common functionality used across different parts of the API. This includes both general-purpose utilities and domain-specific helpers.
+
+#### `/internal/managers`
+Each manager is responsible for a specific subdomain of functionality and provides a clean interface for controllers to interact with. For example, the Preflight Manager manages system requirement checks and validation.
+
+#### `/internal/statemachine`
+The statemachine is used by controllers to capture workflow state and enforce valid transitions.
 
 #### `/types`
 Defines the core data structures and types used throughout the API. This includes:
@@ -27,7 +36,7 @@ Contains Swagger-generated API documentation. This includes:
 - API operation descriptions
 
 #### `/pkg`
-Contains shared utilities and helper packages that provide common functionality used across different parts of the API. This includes both general-purpose utilities and domain-specific helpers.
+Contains helper packages that can be used by packages external to the API.
 
 #### `/client`
 Provides a client library for interacting with the API. The client package implements a clean interface for making API calls and handling responses, making it easy to integrate with the API from other parts of the system.
@@ -36,12 +45,12 @@ Provides a client library for interacting with the API. The client package imple
 
 1. **New API Endpoints**:
    - Add route definitions in the root API setup
-   - Create corresponding controller in `/controllers`
+   - Create or update corresponding controller in `/controllers`
    - Define request/response types in `/types`
 
 2. **New Business Logic**:
-   - Place in appropriate controller under `/controllers`
-   - Share common logic in `/pkg` if used across multiple controllers
+   - Place in appropriate controller under `/controllers` if the logic represents a distinct domain or workflow
+   - Place in appropriate manager under `/internal/managers` if the logic represents a distinct subdomain
 
 3. **New Types/Models**:
    - Add to `/types` directory

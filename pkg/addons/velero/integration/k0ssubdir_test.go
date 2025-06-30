@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/stretchr/testify/assert"
@@ -16,16 +17,17 @@ import (
 )
 
 func TestK0sDir(t *testing.T) {
-	k0sDir := filepath.Join(t.TempDir(), "k0s")
+	k0sDir := filepath.Join(t.TempDir(), "other-k0s")
+
 	addon := &velero.Velero{
-		DryRun:                   true,
-		EmbeddedClusterK0sSubDir: k0sDir,
+		DryRun:     true,
+		K0sDataDir: k0sDir,
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{})
 	require.NoError(t, err, "NewClient should not return an error")
 
-	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, nil, nil)
+	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, ecv1beta1.Domains{}, nil)
 	require.NoError(t, err, "velero.Install should not return an error")
 
 	manifests := addon.DryRunManifests()

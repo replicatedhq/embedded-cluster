@@ -8,11 +8,11 @@ import (
 	"io/fs"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -34,24 +34,28 @@ func init() {
 	})
 }
 
-func (a *AdminConsole) Install(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, hcli helm.Client, overrides []string, writer *spinner.MessageWriter) error {
+func (a *AdminConsole) Install(
+	ctx context.Context, logf types.LogFunc,
+	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
+	domains ecv1beta1.Domains, overrides []string,
+) error {
 	// some resources are not part of the helm chart and need to be created before the chart is installed
 	// TODO: move this to the helm chart
 	if err := a.createPreRequisites(ctx, logf, kcli, mcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := a.GenerateHelmValues(ctx, kcli, overrides)
+	values, err := a.GenerateHelmValues(ctx, kcli, domains, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
 
 	opts := helm.InstallOptions{
-		ReleaseName:  releaseName,
-		ChartPath:    a.ChartLocation(),
+		ReleaseName:  a.ReleaseName(),
+		ChartPath:    a.ChartLocation(domains),
 		ChartVersion: Metadata.Version,
 		Values:       values,
-		Namespace:    namespace,
+		Namespace:    a.Namespace(),
 		Labels:       getBackupLabels(),
 	}
 
@@ -69,7 +73,7 @@ func (a *AdminConsole) Install(ctx context.Context, logf types.LogFunc, kcli cli
 
 		// install the application
 		if a.KotsInstaller != nil {
-			err := a.KotsInstaller(writer)
+			err := a.KotsInstaller()
 			if err != nil {
 				return err
 			}
@@ -80,15 +84,15 @@ func (a *AdminConsole) Install(ctx context.Context, logf types.LogFunc, kcli cli
 }
 
 func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface) error {
-	if err := a.createNamespace(ctx, kcli, namespace); err != nil {
+	if err := a.createNamespace(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
 
-	if err := a.createPasswordSecret(ctx, kcli, namespace, a.Password); err != nil {
+	if err := a.createPasswordSecret(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create kots password secret")
 	}
 
-	if err := a.createTLSSecret(ctx, kcli, namespace); err != nil {
+	if err := a.createTLSSecret(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create kots TLS secret")
 	}
 
@@ -101,7 +105,7 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFu
 		if err != nil {
 			return errors.Wrap(err, "get registry cluster IP")
 		}
-		if err := a.createRegistrySecret(ctx, kcli, namespace, registryIP); err != nil {
+		if err := a.createRegistrySecret(ctx, kcli, registryIP); err != nil {
 			return errors.Wrap(err, "create registry secret")
 		}
 	}
@@ -109,10 +113,10 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFu
 	return nil
 }
 
-func (a *AdminConsole) createNamespace(ctx context.Context, kcli client.Client, namespace string) error {
+func (a *AdminConsole) createNamespace(ctx context.Context, kcli client.Client) error {
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+			Name: a.Namespace(),
 		},
 	}
 
@@ -130,8 +134,8 @@ func (a *AdminConsole) createNamespace(ctx context.Context, kcli client.Client, 
 	return nil
 }
 
-func (a *AdminConsole) createPasswordSecret(ctx context.Context, kcli client.Client, namespace string, password string) error {
-	passwordBcrypt, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+func (a *AdminConsole) createPasswordSecret(ctx context.Context, kcli client.Client) error {
+	passwordBcrypt, err := bcrypt.GenerateFromPassword([]byte(a.Password), 10)
 	if err != nil {
 		return errors.Wrap(err, "generate bcrypt from password")
 	}
@@ -143,7 +147,7 @@ func (a *AdminConsole) createPasswordSecret(ctx context.Context, kcli client.Cli
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "kotsadm-password",
-			Namespace: namespace,
+			Namespace: a.Namespace(),
 			Labels: map[string]string{
 				"kots.io/kotsadm":                        "true",
 				"replicated.com/disaster-recovery":       "infra",
@@ -171,7 +175,7 @@ func (a *AdminConsole) createPasswordSecret(ctx context.Context, kcli client.Cli
 	return nil
 }
 
-func (a *AdminConsole) createRegistrySecret(ctx context.Context, kcli client.Client, namespace string, registryIP string) error {
+func (a *AdminConsole) createRegistrySecret(ctx context.Context, kcli client.Client, registryIP string) error {
 	authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
 	authConfig := fmt.Sprintf(`{"auths":{"%s:5000":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`, registryIP, registry.GetRegistryPassword(), authString)
 
@@ -182,7 +186,7 @@ func (a *AdminConsole) createRegistrySecret(ctx context.Context, kcli client.Cli
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "registry-creds",
-			Namespace: namespace,
+			Namespace: a.Namespace(),
 			Labels: map[string]string{
 				"kots.io/kotsadm":                        "true",
 				"replicated.com/disaster-recovery":       "infra",
@@ -211,7 +215,7 @@ func (a *AdminConsole) createRegistrySecret(ctx context.Context, kcli client.Cli
 	return nil
 }
 
-func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client, namespace string) error {
+func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client) error {
 	if len(a.TLSCertBytes) == 0 || len(a.TLSKeyBytes) == 0 {
 		return nil
 	}
@@ -223,7 +227,7 @@ func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client, 
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "kotsadm-tls",
-			Namespace: namespace,
+			Namespace: a.Namespace(),
 			Labels: map[string]string{
 				"kots.io/kotsadm":                        "true",
 				"replicated.com/disaster-recovery":       "infra",

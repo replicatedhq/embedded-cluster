@@ -41,6 +41,8 @@ func directoryWithCommonGoFiles(dir *dagger.Directory, src *dagger.Directory) *d
 		WithFile("go.mod", src.File("go.mod")).
 		WithFile("go.sum", src.File("go.sum")).
 		WithDirectory("pkg", src.Directory("pkg")).
+		WithDirectory("pkg-new", src.Directory("pkg-new")).
+		WithDirectory("api", src.Directory("api")).
 		WithDirectory("kinds", src.Directory("kinds")).
 		WithDirectory("utils", src.Directory("utils"))
 }

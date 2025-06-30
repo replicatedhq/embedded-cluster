@@ -2,18 +2,50 @@ package registry
 
 import (
 	"context"
+	_ "embed"
 	"strings"
 
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	k8stypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, overrides []string) (map[string]interface{}, error) {
+var (
+	//go:embed static/values.tpl.yaml
+	rawvalues []byte
+	// helmValues is the unmarshal version of rawvalues.
+	helmValues map[string]interface{}
+	//go:embed static/values-ha.tpl.yaml
+	rawvaluesha []byte
+	// helmValuesHA is the unmarshal version of rawvaluesha.
+	helmValuesHA map[string]interface{}
+)
+
+func init() {
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(errors.Wrap(err, "unable to unmarshal metadata"))
+	}
+
+	hv, err := release.RenderHelmValues(rawvalues, Metadata)
+	if err != nil {
+		panic(errors.Wrap(err, "unable to unmarshal values"))
+	}
+	helmValues = hv
+
+	hvHA, err := release.RenderHelmValues(rawvaluesha, Metadata)
+	if err != nil {
+		panic(errors.Wrap(err, "unable to unmarshal ha values"))
+	}
+	helmValuesHA = hvHA
+}
+
+func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error) {
 	var values map[string]interface{}
 	if r.IsHA {
 		values = helmValuesHA
@@ -28,8 +60,8 @@ func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, o
 	}
 
 	// replace proxy.replicated.com with the potentially customized proxy registry domain
-	if r.ProxyRegistryDomain != "" {
-		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", r.ProxyRegistryDomain)
+	if domains.ProxyRegistryDomain != "" {
+		marshalled = strings.ReplaceAll(marshalled, "proxy.replicated.com", domains.ProxyRegistryDomain)
 	}
 
 	copiedValues, err := helm.UnmarshalValues(marshalled)
@@ -40,12 +72,12 @@ func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, o
 	// only add tls secret value if the secret exists
 	// this is for backwards compatibility when the registry was deployed without TLS
 	var secret corev1.Secret
-	if err := kcli.Get(ctx, k8stypes.NamespacedName{Namespace: namespace, Name: tlsSecretName}, &secret); err != nil {
+	if err := kcli.Get(ctx, client.ObjectKey{Namespace: r.Namespace(), Name: _tlsSecretName}, &secret); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return nil, errors.Wrap(err, "get tls secret")
 		}
 	} else {
-		copiedValues["tlsSecretName"] = tlsSecretName
+		copiedValues["tlsSecretName"] = _tlsSecretName
 	}
 
 	registryIP, err := GetRegistryClusterIP(r.ServiceCIDR)

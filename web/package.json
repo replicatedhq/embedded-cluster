@@ -6,33 +6,42 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
+    "lint-fix": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --fix",
+    "preview": "vite preview",
+    "test:unit": "vitest run"
   },
   "dependencies": {
     "@tailwindcss/forms": "^0.5.10",
-    "@tanstack/react-query": "^5.77.2",
-    "lucide-react": "^0.344.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.22.3"
+    "@tanstack/react-query": "^5.81.5",
+    "lucide-react": "^0.525.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.3"
   },
   "devDependencies": {
-    "@eslint/js": "^9.9.1",
-    "@types/node": "^22.15.23",
-    "@types/react": "^18.3.5",
+    "@eslint/js": "^9.30.0",
+    "@faker-js/faker": "^9.8.0",
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.4.3",
+    "@types/node": "^24.0.7",
+    "@types/react": "^19.1.8",
     "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "autoprefixer": "^10.4.18",
-    "eslint": "^9.9.1",
-    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
-    "eslint-plugin-react-refresh": "^0.4.11",
-    "globals": "^15.9.0",
-    "postcss": "^8.4.35",
+    "@vitejs/plugin-react": "^4.6.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.30.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.2.0",
+    "jsdom": "^26.1.0",
+    "msw": "2.10.2",
+    "postcss": "^8.5.6",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.5.3",
-    "typescript-eslint": "^8.3.0",
-    "vite": "^5.4.2",
-    "vite-plugin-static-copy": "^3.0.0"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.35.0",
+    "vite": "^6.3.5",
+    "vite-plugin-static-copy": "^3.1.0",
+    "vitest": "^3.2.4"
   }
 }

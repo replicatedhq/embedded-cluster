@@ -185,6 +185,11 @@ func (h *HelmClient) AddRepo(repo *repo.Entry) error {
 }
 
 func (h *HelmClient) Latest(reponame, chart string) (string, error) {
+	stableConstraint, err := semver.NewConstraint(">0.0.0") // search only for stable versions
+	if err != nil {
+		return "", fmt.Errorf("create stable constraint: %w", err)
+	}
+
 	for _, repository := range h.repos {
 		if repository.Name != reponame {
 			continue
@@ -207,14 +212,24 @@ func (h *HelmClient) Latest(reponame, chart string) (string, error) {
 		versions, ok := repoidx.Entries[chart]
 		if !ok {
 			return "", fmt.Errorf("chart %s not found", chart)
-		} else if len(versions) == 0 {
-			return "", fmt.Errorf("chart %s has no versions", chart)
 		}
 
 		if len(versions) == 0 {
 			return "", fmt.Errorf("chart %s has no versions", chart)
 		}
-		return versions[0].Version, nil
+
+		for _, version := range versions {
+			v, err := semver.NewVersion(version.Version)
+			if err != nil {
+				continue
+			}
+
+			if stableConstraint.Check(v) {
+				return version.Version, nil
+			}
+		}
+
+		return "", fmt.Errorf("no stable version found for chart %s", chart)
 	}
 	return "", fmt.Errorf("repository %s not found", reponame)
 }

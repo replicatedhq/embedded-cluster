@@ -6,17 +6,27 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg/crds"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 )
 
 type ErrNoInstallations struct{}
@@ -109,6 +119,120 @@ func writeInstallationStatusMessage(writer *spinner.MessageWriter, install *ecv1
 	} else {
 		writer.Infof("Finalizing additional components")
 	}
+}
+
+type RecordInstallationOptions struct {
+	IsAirgap       bool
+	License        *kotsv1beta1.License
+	ConfigSpec     *ecv1beta1.ConfigSpec
+	MetricsBaseURL string
+	RuntimeConfig  *ecv1beta1.RuntimeConfigSpec
+	EndUserConfig  *ecv1beta1.Config
+}
+
+func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInstallationOptions) (*ecv1beta1.Installation, error) {
+	// ensure that the embedded-cluster namespace exists
+	ns := corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: constants.EmbeddedClusterNamespace,
+		},
+	}
+	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
+		return nil, fmt.Errorf("create embedded-cluster namespace: %w", err)
+	}
+
+	// ensure that the installation CRD exists
+	if err := EnsureInstallationCRD(ctx, kcli); err != nil {
+		return nil, fmt.Errorf("create installation CRD: %w", err)
+	}
+
+	var euOverrides string
+	if opts.EndUserConfig != nil {
+		euOverrides = opts.EndUserConfig.Spec.UnsupportedOverrides.K0s
+	}
+
+	installation := &ecv1beta1.Installation{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: ecv1beta1.GroupVersion.String(),
+			Kind:       "Installation",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: time.Now().Format("20060102150405"),
+		},
+		Spec: ecv1beta1.InstallationSpec{
+			ClusterID:                 metrics.ClusterID().String(),
+			MetricsBaseURL:            opts.MetricsBaseURL,
+			AirGap:                    opts.IsAirgap,
+			Config:                    opts.ConfigSpec,
+			RuntimeConfig:             opts.RuntimeConfig,
+			EndUserK0sConfigOverrides: euOverrides,
+			BinaryName:                runtimeconfig.BinaryName(),
+			LicenseInfo: &ecv1beta1.LicenseInfo{
+				IsDisasterRecoverySupported: opts.License.Spec.IsDisasterRecoverySupported,
+				IsMultiNodeEnabled:          opts.License.Spec.IsEmbeddedClusterMultiNodeEnabled,
+			},
+		},
+	}
+	if err := CreateInstallation(ctx, kcli, installation); err != nil {
+		return nil, fmt.Errorf("create installation: %w", err)
+	}
+
+	// the kubernetes api does not allow us to set the state of an object when creating it
+	err := SetInstallationState(ctx, kcli, installation, ecv1beta1.InstallationStateKubernetesInstalled, "Kubernetes installed")
+	if err != nil {
+		return nil, fmt.Errorf("set installation state to KubernetesInstalled: %w", err)
+	}
+
+	return installation, nil
+}
+
+func EnsureInstallationCRD(ctx context.Context, kcli client.Client) error {
+	// decode the CRD file
+	crds := strings.SplitSeq(crds.InstallationCRDFile, "\n---\n")
+
+	for crdYaml := range crds {
+		var crd apiextensionsv1.CustomResourceDefinition
+		if err := yaml.Unmarshal([]byte(crdYaml), &crd); err != nil {
+			return fmt.Errorf("unmarshal installation CRD: %w", err)
+		}
+
+		// get the CRD from the cluster
+		var existingCrd apiextensionsv1.CustomResourceDefinition
+		if err := kcli.Get(ctx, client.ObjectKey{Name: crd.Name}, &existingCrd); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				return fmt.Errorf("get installation CRD: %w", err)
+			}
+
+			// apply labels and annotations so that the CRD can be taken over by helm shortly
+			if crd.Labels == nil {
+				crd.Labels = map[string]string{}
+			}
+			crd.Labels["app.kubernetes.io/managed-by"] = "Helm"
+			if crd.Annotations == nil {
+				crd.Annotations = map[string]string{}
+			}
+			crd.Annotations["meta.helm.sh/release-name"] = "embedded-cluster-operator"
+			crd.Annotations["meta.helm.sh/release-namespace"] = "embedded-cluster"
+
+			// create the CRD
+			if err := kcli.Create(ctx, &crd); err != nil {
+				return fmt.Errorf("apply installation CRD: %w", err)
+			}
+		} else {
+			// update the existing CRD spec to match the new CRD spec
+			existingCrd.Spec = crd.Spec
+			if err := kcli.Update(ctx, &existingCrd); err != nil {
+				return fmt.Errorf("update installation CRD: %w", err)
+			}
+		}
+
+		// wait for the CRD to be ready
+		if err := WaitForCRDToBeReady(ctx, kcli, crd.Name); err != nil {
+			return fmt.Errorf("wait for installation CRD to be ready: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func CreateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
