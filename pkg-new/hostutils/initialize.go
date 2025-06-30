@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -36,6 +37,17 @@ func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeC
 		h.logger.Debugf("write license file to %s", rc.EmbeddedClusterHomeDirectory())
 		if err := os.WriteFile(filepath.Join(rc.EmbeddedClusterHomeDirectory(), "license.yaml"), opts.License, 0400); err != nil {
 			h.logger.Warnf("unable to write license file to %s: %v", rc.EmbeddedClusterHomeDirectory(), err)
+		}
+	}
+
+	h.logger.Debugln("checking for restorecon binary in $PATH")
+	if _, err := exec.LookPath("restorecon"); err != nil {
+		h.logger.Debugln("restorecon not found")
+	} else {
+		out, err := exec.Command("restorecon", "-RvF", rc.EmbeddedClusterHomeDirectory()).CombinedOutput()
+		if err != nil {
+			h.logger.Debugf("unable to run restorecon: %v", err)
+			h.logger.Debugln(out)
 		}
 	}
 
