@@ -11,6 +11,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/crds"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -133,7 +134,7 @@ func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInst
 	// ensure that the embedded-cluster namespace exists
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: runtimeconfig.EmbeddedClusterNamespace,
+			Name: constants.EmbeddedClusterNamespace,
 		},
 	}
 	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {

@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootanalyze "github.com/replicatedhq/troubleshoot/pkg/analyze"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
@@ -28,47 +29,9 @@ type RunHostPreflightOptions struct {
 	HostPreflightSpec *troubleshootv1beta2.HostPreflightSpec
 }
 
-func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error) {
-	hpf, err := m.prepareHostPreflights(ctx, opts)
-	if err != nil {
-		return nil, err
-	}
-	return hpf, nil
-}
-
-func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, opts RunHostPreflightOptions) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.hostPreflightStore.IsRunning() {
-		return types.NewConflictError(fmt.Errorf("host preflights are already running"))
-	}
-
-	if err := m.setRunningStatus(opts.HostPreflightSpec); err != nil {
-		return fmt.Errorf("set running status: %w", err)
-	}
-
-	// Run preflights in background
-	go m.runHostPreflights(context.Background(), opts)
-
-	return nil
-}
-
-func (m *hostPreflightManager) GetHostPreflightStatus(ctx context.Context) (*types.Status, error) {
-	return m.hostPreflightStore.GetStatus()
-}
-
-func (m *hostPreflightManager) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error) {
-	return m.hostPreflightStore.GetOutput()
-}
-
-func (m *hostPreflightManager) GetHostPreflightTitles(ctx context.Context) ([]string, error) {
-	return m.hostPreflightStore.GetTitles()
-}
-
-func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error) {
+func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error) {
 	// Get node IP
-	nodeIP, err := m.netUtils.FirstValidAddress(m.rc.NetworkInterface())
+	nodeIP, err := m.netUtils.FirstValidAddress(rc.NetworkInterface())
 	if err != nil {
 		return nil, fmt.Errorf("determine node ip: %w", err)
 	}
@@ -78,21 +41,21 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts P
 		HostPreflightSpec:       opts.HostPreflightSpec,
 		ReplicatedAppURL:        opts.ReplicatedAppURL,
 		ProxyRegistryURL:        opts.ProxyRegistryURL,
-		AdminConsolePort:        m.rc.AdminConsolePort(),
-		LocalArtifactMirrorPort: m.rc.LocalArtifactMirrorPort(),
-		DataDir:                 m.rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:              m.rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:          m.rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                   m.rc.ProxySpec(),
-		PodCIDR:                 m.rc.PodCIDR(),
-		ServiceCIDR:             m.rc.ServiceCIDR(),
+		AdminConsolePort:        rc.AdminConsolePort(),
+		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
+		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                   rc.ProxySpec(),
+		PodCIDR:                 rc.PodCIDR(),
+		ServiceCIDR:             rc.ServiceCIDR(),
 		NodeIP:                  nodeIP,
 		IsAirgap:                opts.IsAirgap,
 		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
 		IsJoin:                  opts.IsJoin,
 		IsUI:                    opts.IsUI,
 	}
-	if cidr := m.rc.GlobalCIDR(); cidr != "" {
+	if cidr := rc.GlobalCIDR(); cidr != "" {
 		prepareOpts.GlobalCIDR = &cidr
 	}
 
@@ -105,52 +68,68 @@ func (m *hostPreflightManager) prepareHostPreflights(ctx context.Context, opts P
 	return hpf, nil
 }
 
-func (m *hostPreflightManager) runHostPreflights(ctx context.Context, opts RunHostPreflightOptions) {
+func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts RunHostPreflightOptions) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if err := m.setFailedStatus(fmt.Sprintf("panic: %v: %s", r, string(debug.Stack()))); err != nil {
+			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+
+			if err := m.setFailedStatus("Host preflights failed to run: panic"); err != nil {
 				m.logger.WithField("error", err).Error("set failed status")
 			}
 		}
 	}()
 
+	if err := m.setRunningStatus(opts.HostPreflightSpec); err != nil {
+		return fmt.Errorf("set running status: %w", err)
+	}
+
 	// Run the preflights using the shared core function
-	output, stderr, err := m.runner.Run(ctx, opts.HostPreflightSpec, m.rc)
+	output, stderr, err := m.runner.Run(ctx, opts.HostPreflightSpec, rc)
 	if err != nil {
 		errMsg := fmt.Sprintf("Host preflights failed to run: %v", err)
 		if stderr != "" {
 			errMsg += fmt.Sprintf(" (stderr: %s)", stderr)
 		}
+		m.logger.Error(errMsg)
 		if err := m.setFailedStatus(errMsg); err != nil {
-			m.logger.WithField("error", err).Error("set failed status")
+			return fmt.Errorf("set failed status: %w", err)
 		}
 		return
 	}
 
-	if err := m.runner.SaveToDisk(output, m.rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")); err != nil {
+	if err := m.runner.SaveToDisk(output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")); err != nil {
 		m.logger.WithField("error", err).Warn("save preflights output")
 	}
 
-	if err := m.runner.CopyBundleTo(m.rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")); err != nil {
+	if err := m.runner.CopyBundleTo(rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")); err != nil {
 		m.logger.WithField("error", err).Warn("copy preflight bundle to embedded-cluster support dir")
 	}
 
-	if output.HasFail() || output.HasWarn() {
-		if m.metricsReporter != nil {
-			m.metricsReporter.ReportPreflightsFailed(ctx, output)
-		}
-	}
-
 	// Set final status based on results
+	// TODO @jgantunes: we're currently not handling warnings in the output.
 	if output.HasFail() {
 		if err := m.setCompletedStatus(types.StateFailed, "Host preflights failed", output); err != nil {
-			m.logger.WithField("error", err).Error("set failed status")
+			return fmt.Errorf("set failed status: %w", err)
 		}
 	} else {
 		if err := m.setCompletedStatus(types.StateSucceeded, "Host preflights passed", output); err != nil {
-			m.logger.WithField("error", err).Error("set succeeded status")
+			return fmt.Errorf("set succeeded status: %w", err)
 		}
 	}
+
+	return nil
+}
+
+func (m *hostPreflightManager) GetHostPreflightStatus(ctx context.Context) (types.Status, error) {
+	return m.hostPreflightStore.GetStatus()
+}
+
+func (m *hostPreflightManager) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error) {
+	return m.hostPreflightStore.GetOutput()
+}
+
+func (m *hostPreflightManager) GetHostPreflightTitles(ctx context.Context) ([]string, error) {
+	return m.hostPreflightStore.GetTitles()
 }
 
 func (m *hostPreflightManager) setRunningStatus(hpf *troubleshootv1beta2.HostPreflightSpec) error {
@@ -167,7 +146,7 @@ func (m *hostPreflightManager) setRunningStatus(hpf *troubleshootv1beta2.HostPre
 		return fmt.Errorf("reset output: %w", err)
 	}
 
-	if err := m.hostPreflightStore.SetStatus(&types.Status{
+	if err := m.hostPreflightStore.SetStatus(types.Status{
 		State:       types.StateRunning,
 		Description: "Running host preflights",
 		LastUpdated: time.Now(),
@@ -179,9 +158,7 @@ func (m *hostPreflightManager) setRunningStatus(hpf *troubleshootv1beta2.HostPre
 }
 
 func (m *hostPreflightManager) setFailedStatus(description string) error {
-	m.logger.Error(description)
-
-	return m.hostPreflightStore.SetStatus(&types.Status{
+	return m.hostPreflightStore.SetStatus(types.Status{
 		State:       types.StateFailed,
 		Description: description,
 		LastUpdated: time.Now(),
@@ -193,7 +170,7 @@ func (m *hostPreflightManager) setCompletedStatus(state types.State, description
 		return fmt.Errorf("set output: %w", err)
 	}
 
-	return m.hostPreflightStore.SetStatus(&types.Status{
+	return m.hostPreflightStore.SetStatus(types.Status{
 		State:       state,
 		Description: description,
 		LastUpdated: time.Now(),

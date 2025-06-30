@@ -4,13 +4,13 @@ import (
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 const (
 	_releaseName = "seaweedfs"
-	_namespace   = runtimeconfig.SeaweedFSNamespace
+	_namespace   = constants.SeaweedFSNamespace
 
 	// _s3SVCName is the name of the Seaweedfs S3 service managed by the operator.
 	// HACK: This service has a hardcoded service IP shared by the cli and operator as it is used
@@ -28,7 +28,8 @@ const (
 var _ types.AddOn = (*SeaweedFS)(nil)
 
 type SeaweedFS struct {
-	ServiceCIDR string
+	ServiceCIDR      string
+	SeaweedFSDataDir string
 }
 
 func (s *SeaweedFS) Name() string {

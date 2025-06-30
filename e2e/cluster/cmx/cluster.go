@@ -504,9 +504,6 @@ func copyFileFromNode(node Node, src, dst string) error {
 func sshArgs() []string {
 	return []string{
 		"-o", "StrictHostKeyChecking=no",
-		"-o", "ServerAliveInterval=30",
-		"-o", "ServerAliveCountMax=10",
-		"-o", "ConnectTimeout=5",
 		"-o", "BatchMode=yes",
 	}
 }

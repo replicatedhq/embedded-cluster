@@ -9,7 +9,7 @@ import { MOCK_INSTALL_CONFIG, MOCK_NETWORK_INTERFACES, MOCK_PROTOTYPE_SETTINGS }
 
 const server = setupServer(
   // Mock install config endpoint
-  http.get("*/api/install/installation/config", () => {
+  http.get("*/api/linux/install/installation/config", () => {
     return HttpResponse.json({ config: MOCK_INSTALL_CONFIG });
   }),
 
@@ -19,14 +19,13 @@ const server = setupServer(
   }),
 
   // Mock config submission endpoint
-  http.post("*/api/install/installation/configure", () => {
+  http.post("*/api/linux/install/installation/configure", () => {
     return HttpResponse.json({ success: true });
   })
 );
 
 describe("SetupStep", () => {
   const mockOnNext = vi.fn();
-  const mockOnBack = vi.fn();
 
   beforeAll(() => {
     server.listen();
@@ -45,8 +44,8 @@ describe("SetupStep", () => {
     server.close();
   });
 
-  it("renders the linux setup form when it's embedded", async () => {
-    renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+  it("renders the linux setup form when the install target is linux", async () => {
+    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {
@@ -122,12 +121,12 @@ describe("SetupStep", () => {
         });
       }),
       // Mock config submission endpoint to return an error
-      http.post("*/api/install/installation/configure", () => {
+      http.post("*/api/linux/install/installation/configure", () => {
         return new HttpResponse(JSON.stringify({ message: "Invalid configuration" }), { status: 400 });
       })
     );
 
-    renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {
@@ -188,7 +187,7 @@ describe("SetupStep", () => {
     // Mock all required API endpoints
     server.use(
       // Mock install config endpoint
-      http.get("*/api/install/installation/config", ({ request }) => {
+      http.get("*/api/linux/install/installation/config", ({ request }) => {
         // Verify auth header
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
         return HttpResponse.json({
@@ -212,7 +211,7 @@ describe("SetupStep", () => {
         });
       }),
       // Mock config submission endpoint
-      http.post("*/api/install/installation/configure", async ({ request }) => {
+      http.post("*/api/linux/install/installation/configure", async ({ request }) => {
         // Verify auth header
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
         const body = await request.json();
@@ -230,7 +229,7 @@ describe("SetupStep", () => {
       })
     );
 
-    renderWithProviders(<SetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+    renderWithProviders(<SetupStep onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
         preloadedState: {

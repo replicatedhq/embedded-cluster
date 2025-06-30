@@ -33,7 +33,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext }) => {
   const { isLoading: isConfigLoading } = useQuery({
     queryKey: ["installConfig"],
     queryFn: async () => {
-      const response = await fetch("/api/install/installation/config", {
+      const response = await fetch("/api/linux/install/installation/config", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -76,7 +76,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onNext }) => {
   // Mutation for submitting the configuration
   const { mutate: submitConfig, error: submitError } = useMutation<Status, ConfigError, typeof config>({
     mutationFn: async (configData: typeof config) => {
-      const response = await fetch("/api/install/installation/configure", {
+      const response = await fetch("/api/linux/install/installation/configure", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
