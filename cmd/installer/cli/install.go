@@ -265,7 +265,7 @@ func newLinuxInstallFlags(flags *InstallCmdFlags) *pflag.FlagSet {
 	// Use the app slug as default data directory only when ENABLE_V3 is set
 	defaultDataDir := ecv1beta1.DefaultDataDir
 	if os.Getenv("ENABLE_V3") == "1" {
-		defaultDataDir = filepath.Join("/var/lib", runtimeconfig.BinaryName())
+		defaultDataDir = filepath.Join("/var/lib", runtimeconfig.AppSlug())
 	}
 
 	flagSet.StringVar(&flags.dataDir, "data-dir", defaultDataDir, "Path to the data directory")

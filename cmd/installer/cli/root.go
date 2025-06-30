@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -31,8 +32,8 @@ func NewErrorNothingElseToAdd(err error) ErrorNothingElseToAdd {
 	}
 }
 
-func InitAndExecute(ctx context.Context, appSlug string) {
-	cmd := RootCmd(ctx, appSlug)
+func InitAndExecute(ctx context.Context) {
+	cmd := RootCmd(ctx)
 	err := cmd.Execute()
 	if err != nil {
 		if !errors.As(err, &ErrorNothingElseToAdd{}) {
@@ -49,7 +50,9 @@ func InitAndExecute(ctx context.Context, appSlug string) {
 	}
 }
 
-func RootCmd(ctx context.Context, appSlug string) *cobra.Command {
+func RootCmd(ctx context.Context) *cobra.Command {
+	appSlug := runtimeconfig.AppSlug()
+
 	cmd := &cobra.Command{
 		Use:           appSlug,
 		Short:         appSlug,
