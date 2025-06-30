@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NodeCmd(ctx context.Context, name string) *cobra.Command {
+func NodeCmd(ctx context.Context, releaseName string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "node",
 		Short: "Manage cluster nodes",
@@ -17,11 +17,11 @@ func NodeCmd(ctx context.Context, name string) *cobra.Command {
 	}
 
 	// here for legacy reasons
-	joinCmd := JoinCmd(ctx, name)
+	joinCmd := JoinCmd(ctx, releaseName)
 	joinCmd.Hidden = true
 	cmd.AddCommand(joinCmd)
 
-	resetCmd := ResetCmd(ctx, name)
+	resetCmd := ResetCmd(ctx, releaseName)
 	resetCmd.Hidden = true
 	cmd.AddCommand(resetCmd)
 

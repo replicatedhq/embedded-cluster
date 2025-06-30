@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func ResetFirewalldCmd(ctx context.Context, name string) *cobra.Command {
+func ResetFirewalldCmd(ctx context.Context) *cobra.Command {
 	var rc runtimeconfig.RuntimeConfig
 
 	cmd := &cobra.Command{

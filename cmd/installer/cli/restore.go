@@ -86,7 +86,7 @@ const (
 	resourceModifiersCMName = "restore-resource-modifiers"
 )
 
-func RestoreCmd(ctx context.Context, name string) *cobra.Command {
+func RestoreCmd(ctx context.Context, releaseName string) *cobra.Command {
 	var flags InstallCmdFlags
 
 	var s3Store s3BackupStore
@@ -97,7 +97,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "restore",
-		Short: fmt.Sprintf("Restore %s from a backup", name),
+		Short: fmt.Sprintf("Restore %s from a backup", releaseName),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
 				return err
@@ -111,7 +111,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			rc.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runRestore(cmd.Context(), name, flags, rc, s3Store, skipStoreValidation); err != nil {
+			if err := runRestore(cmd.Context(), releaseName, flags, rc, s3Store, skipStoreValidation); err != nil {
 				return err
 			}
 
@@ -127,7 +127,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, s3Store s3BackupStore, skipStoreValidation bool) error {
+func runRestore(ctx context.Context, releaseName string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, s3Store s3BackupStore, skipStoreValidation bool) error {
 	err := verifyChannelRelease("restore", flags.isAirgap, flags.assumeYes)
 	if err != nil {
 		return err
@@ -193,7 +193,7 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 
 	switch state {
 	case ecRestoreStateNew:
-		err = runRestoreStepNew(ctx, name, flags, rc, &s3Store, skipStoreValidation)
+		err = runRestoreStepNew(ctx, releaseName, flags, rc, &s3Store, skipStoreValidation)
 		if err != nil {
 			return err
 		}
@@ -348,15 +348,15 @@ func runRestore(ctx context.Context, name string, flags InstallCmdFlags, rc runt
 	return nil
 }
 
-func runRestoreStepNew(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, s3Store *s3BackupStore, skipStoreValidation bool) error {
+func runRestoreStepNew(ctx context.Context, releaseName string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, s3Store *s3BackupStore, skipStoreValidation bool) error {
 	logrus.Debugf("checking if k0s is already installed")
-	err := verifyNoInstallation(name, "restore")
+	err := verifyNoInstallation(releaseName, "restore")
 	if err != nil {
 		return err
 	}
 
 	if !s3BackupStoreHasData(s3Store) {
-		logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", name)
+		logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", releaseName)
 		logrus.Info("Enter information to configure access to your backup storage location.\n")
 
 		if err := promptForS3BackupStore(s3Store); err != nil {

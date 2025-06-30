@@ -50,7 +50,7 @@ type JoinCmdFlags struct {
 }
 
 // JoinCmd returns a cobra command for joining a node to the cluster.
-func JoinCmd(ctx context.Context, name string) *cobra.Command {
+func JoinCmd(ctx context.Context, releaseName string) *cobra.Command {
 	var flags JoinCmdFlags
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -58,7 +58,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "join <url> <token>",
-		Short: fmt.Sprintf("Join a node to the %s cluster", name),
+		Short: fmt.Sprintf("Join a node to the %s cluster", releaseName),
 		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunJoin(&flags); err != nil {
@@ -87,7 +87,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				joinReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runJoin(cmd.Context(), name, flags, rc, jcmd, args[0], joinReporter); err != nil {
+			if err := runJoin(cmd.Context(), releaseName, flags, rc, jcmd, args[0], joinReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
 					joinReporter.ReportSignalAborted(ctx, syscall.SIGINT)
@@ -106,8 +106,8 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 		panic(err)
 	}
 
-	cmd.AddCommand(JoinRunPreflightsCmd(ctx, name))
-	cmd.AddCommand(JoinPrintCommandCmd(ctx, name))
+	cmd.AddCommand(JoinRunPreflightsCmd(ctx, releaseName))
+	cmd.AddCommand(JoinPrintCommandCmd(ctx, releaseName))
 
 	return cmd
 }
@@ -153,18 +153,18 @@ func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
 	return nil
 }
 
-func runJoin(ctx context.Context, name string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string, joinReporter *JoinReporter) error {
+func runJoin(ctx context.Context, releaseName string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string, joinReporter *JoinReporter) error {
 	// both controller and worker nodes will have 'worker' in the join command
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if !isWorker {
 		logrus.Warn("\nDo not join another node until this node has joined successfully.")
 	}
 
-	if err := runJoinVerifyAndPrompt(name, flags, rc, jcmd); err != nil {
+	if err := runJoinVerifyAndPrompt(releaseName, flags, rc, jcmd); err != nil {
 		return err
 	}
 
-	cidrCfg, err := initializeJoin(ctx, name, rc, jcmd, kotsAPIAddress)
+	cidrCfg, err := initializeJoin(ctx, releaseName, rc, jcmd, kotsAPIAddress)
 	if err != nil {
 		return fmt.Errorf("unable to initialize join: %w", err)
 	}
@@ -180,7 +180,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, rc runtimecon
 	logrus.Debugf("installing and joining cluster")
 	loading := spinner.Start()
 	loading.Infof("Installing node")
-	if err := installAndJoinCluster(ctx, rc, jcmd, name, flags, isWorker); err != nil {
+	if err := installAndJoinCluster(ctx, rc, jcmd, releaseName, flags, isWorker); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return err
 	}
@@ -226,9 +226,9 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, rc runtimecon
 	return nil
 }
 
-func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
+func runJoinVerifyAndPrompt(releaseName string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
 	logrus.Debugf("checking if k0s is already installed")
-	err := verifyNoInstallation(name, "join a node")
+	err := verifyNoInstallation(releaseName, "join a node")
 	if err != nil {
 		return err
 	}
@@ -284,7 +284,7 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, rc runtimeconfig.Ru
 	return nil
 }
 
-func initializeJoin(ctx context.Context, name string, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string) (cidrCfg *newconfig.CIDRConfig, err error) {
+func initializeJoin(ctx context.Context, releaseName string, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string) (cidrCfg *newconfig.CIDRConfig, err error) {
 	logrus.Info("")
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
@@ -306,7 +306,7 @@ func initializeJoin(ctx context.Context, name string, rc runtimeconfig.RuntimeCo
 		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
 	}
 
-	logrus.Debugf("materializing %s binaries", name)
+	logrus.Debugf("materializing %s binaries", releaseName)
 	if err := materializeFilesForJoin(ctx, rc, jcmd, kotsAPIAddress); err != nil {
 		return nil, fmt.Errorf("failed to materialize files: %w", err)
 	}
@@ -382,13 +382,13 @@ func getJoinCIDRConfig(rc runtimeconfig.RuntimeConfig) (*newconfig.CIDRConfig, e
 	}, nil
 }
 
-func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, name string, flags JoinCmdFlags, isWorker bool) error {
+func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, releaseName string, flags JoinCmdFlags, isWorker bool) error {
 	logrus.Debugf("saving token to disk")
 	if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 		return fmt.Errorf("unable to save token to disk: %w", err)
 	}
 
-	logrus.Debugf("installing %s binaries", name)
+	logrus.Debugf("installing %s binaries", releaseName)
 	if err := installK0sBinary(rc); err != nil {
 		return fmt.Errorf("unable to install k0s binary: %w", err)
 	}
@@ -424,7 +424,7 @@ func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, 
 		return fmt.Errorf("unable to join node to cluster: %w", err)
 	}
 
-	if err := startAndWaitForK0s(name); err != nil {
+	if err := startAndWaitForK0s(releaseName); err != nil {
 		return err
 	}
 
@@ -495,8 +495,8 @@ func applyNetworkConfiguration(rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCo
 }
 
 // startAndWaitForK0s starts the k0s service and waits for the node to be ready.
-func startAndWaitForK0s(name string) error {
-	logrus.Debugf("starting %s service", name)
+func startAndWaitForK0s(releaseName string) error {
+	logrus.Debugf("starting %s service", releaseName)
 	if _, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath, "start"); err != nil {
 		return fmt.Errorf("unable to start service: %w", err)
 	}

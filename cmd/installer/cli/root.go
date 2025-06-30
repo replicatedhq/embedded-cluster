@@ -111,11 +111,11 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.AddCommand(EnableHACmd(ctx, releaseName))
 	cmd.AddCommand(VersionCmd(ctx, releaseName))
 	cmd.AddCommand(ResetCmd(ctx, releaseName))
-	cmd.AddCommand(MaterializeCmd(ctx, releaseName))
+	cmd.AddCommand(MaterializeCmd(ctx))
 	cmd.AddCommand(UpdateCmd(ctx, releaseName))
 	cmd.AddCommand(RestoreCmd(ctx, releaseName))
 	cmd.AddCommand(AdminConsoleCmd(ctx, releaseName))
-	cmd.AddCommand(SupportBundleCmd(ctx, releaseName))
+	cmd.AddCommand(SupportBundleCmd(ctx))
 
 	return cmd
 }

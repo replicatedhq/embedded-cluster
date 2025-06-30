@@ -15,10 +15,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func VersionCmd(ctx context.Context, name string) *cobra.Command {
+func VersionCmd(ctx context.Context, releaseName string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
-		Short: fmt.Sprintf("Show the %s component versions", name),
+		Short: fmt.Sprintf("Show the %s component versions", releaseName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			writer := table.NewWriter()
 			writer.AppendHeader(table.Row{"component", "version"})
@@ -56,9 +56,9 @@ func VersionCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(VersionMetadataCmd(ctx, name))
-	cmd.AddCommand(VersionEmbeddedDataCmd(ctx, name))
-	cmd.AddCommand(VersionListImagesCmd(ctx, name))
+	cmd.AddCommand(VersionMetadataCmd(ctx))
+	cmd.AddCommand(VersionEmbeddedDataCmd(ctx))
+	cmd.AddCommand(VersionListImagesCmd(ctx))
 
 	return cmd
 }
