@@ -39,9 +39,9 @@ func GetReleaseData() *ReleaseData {
 	return _releaseData
 }
 
-// GetReleaseTitle returns the title from the kots application embedded as part of the
+// GetAppTitle returns the title from the kots application embedded as part of the
 // release. If no application is found, returns an empty string.
-func GetReleaseTitle() string {
+func GetAppTitle() string {
 	if _releaseData.Application == nil {
 		return ""
 	}

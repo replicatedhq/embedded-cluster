@@ -55,7 +55,7 @@ func TestGetHostPreflights(t *testing.T) {
 	assert.NotNil(t, preflights)
 }
 
-func TestGetReleaseTitle(t *testing.T) {
+func TestGetAppTitle(t *testing.T) {
 	release, err := newReleaseDataFrom(testReleaseData)
 	assert.NoError(t, err)
 	title := release.Application.Spec.Title

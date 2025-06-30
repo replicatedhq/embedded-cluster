@@ -97,9 +97,7 @@ func RootCmd(ctx context.Context, appSlug string) *cobra.Command {
 		},
 	}
 
-	// Use release title if set, otherwise fall back to name parameter (name is the app slug for embedded releases,
-	// or executable basename for standalone builds)
-	appTitle := release.GetReleaseTitle()
+	appTitle := release.GetAppTitle()
 	if appTitle == "" {
 		appTitle = appSlug
 	}
