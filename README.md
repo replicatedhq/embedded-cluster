@@ -9,7 +9,7 @@ In Embedded Cluster, all components and functionalities are consolidated into a 
 Embedded Cluster includes by default the Kots Admin Console, the OpenEBS Storage provisioner, and Velero for backups and disaster recovery.
 Additionally, it includes a Registry when deployed in air gap mode, and SeaweedFS for distributed object storage in high availability air gap mode.
 
-## Development
+## Developmentttttt
 
 ### Requirements
 
