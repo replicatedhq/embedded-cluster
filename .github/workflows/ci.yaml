@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: dorny/paths-filter@v3
-        id: filter
+        id: changes
         with:
           # api types are used in v2 code
           filters: |
