@@ -37,7 +37,6 @@ jobs:
               - '!**/*.md'        # exclude markdown
               - '!api/**'         # exclude api
               - '!web/**'         # exclude web
-              - 'api/types/**'    # re-include api/types
 
   git-sha:
     name: Git SHA
