@@ -8,7 +8,6 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// testinggggggggggggg
 // APIConfig holds the configuration for the API server
 type APIConfig struct {
 	Password      string

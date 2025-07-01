@@ -63,6 +63,7 @@ func WithConsoleController(consoleController console.Controller) Option {
 	}
 }
 
+// /testingggg
 // WithLinuxInstallController configures the linux install controller for the API.
 func WithLinuxInstallController(linuxInstallController linuxinstall.Controller) Option {
 	return func(a *API) {
