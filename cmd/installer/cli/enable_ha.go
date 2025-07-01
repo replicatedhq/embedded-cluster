@@ -20,12 +20,12 @@ import (
 )
 
 // EnableHACmd is the command for enabling HA mode.
-func EnableHACmd(ctx context.Context, name string) *cobra.Command {
+func EnableHACmd(ctx context.Context, appTitle string) *cobra.Command {
 	var rc runtimeconfig.RuntimeConfig
 
 	cmd := &cobra.Command{
 		Use:   "enable-ha",
-		Short: fmt.Sprintf("Enable high availability for the %s cluster", name),
+		Short: fmt.Sprintf("Enable high availability for the %s cluster", appTitle),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Skip root check if dryrun mode is enabled
 			if !dryrun.Enabled() && os.Getuid() != 0 {

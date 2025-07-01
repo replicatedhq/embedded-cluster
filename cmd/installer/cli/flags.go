@@ -65,7 +65,7 @@ func init() {
 	cobra.AddTemplateFuncs(template.FuncMap{
 		// usesTargetFlagMenu returns true if the target flag is present and the ENABLE_V3 environment variable is set.
 		"usesTargetFlagMenu": func(flagSet *pflag.FlagSet) bool {
-			if os.Getenv("ENABLE_V3") == "1" {
+			if isV3Enabled() {
 				return flagSet.Lookup("target") != nil
 			}
 			return false
@@ -85,6 +85,10 @@ func init() {
 	})
 }
 
+func isV3Enabled() bool {
+	return os.Getenv("ENABLE_V3") == "1"
+}
+
 func mustSetFlagTargetLinux(flags *pflag.FlagSet, name string) {
 	mustSetFlagTarget(flags, name, flagAnnotationTargetValueLinux)
 }
@@ -95,6 +99,13 @@ func mustSetFlagTargetKubernetes(flags *pflag.FlagSet, name string) {
 
 func mustSetFlagTarget(flags *pflag.FlagSet, name string, target string) {
 	err := flags.SetAnnotation(name, flagAnnotationTarget, []string{target})
+	if err != nil {
+		panic(err)
+	}
+}
+
+func mustMarkFlagRequired(flags *pflag.FlagSet, name string) {
+	err := cobra.MarkFlagRequired(flags, name)
 	if err != nil {
 		panic(err)
 	}

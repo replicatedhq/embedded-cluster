@@ -13,12 +13,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func ResetFirewalldCmd(ctx context.Context, name string) *cobra.Command {
+func ResetFirewalldCmd(ctx context.Context, appTitle string) *cobra.Command {
 	var rc runtimeconfig.RuntimeConfig
 
 	cmd := &cobra.Command{
 		Use:    "firewalld",
-		Short:  "Remove %s firewalld configuration from the current node",
+		Short:  fmt.Sprintf("Remove %s firewalld configuration from the current node", appTitle),
 		Hidden: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Skip root check if dryrun mode is enabled

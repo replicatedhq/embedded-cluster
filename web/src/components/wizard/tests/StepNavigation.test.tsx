@@ -1,23 +1,25 @@
 import React from "react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import StepNavigation from "../StepNavigation.tsx";
 import { WizardStep } from "../../../types/index.ts";
 
 describe("StepNavigation", () => {
-  const defaultPreloadedState = {
-    // Use generic settings instead of prototype-specific references
-    prototypeSettings: {
-      themeColor: "#316DE6",
+  const defaultContextValues = {
+    settingsContext: {
+      settings: {
+        themeColor: "#316DE6",
+      },
+      updateSettings: vi.fn(),
     },
   };
 
-  it("renders all navigation steps except validation", () => {
+  it("renders all navigation steps except linux-validation", () => {
     renderWithProviders(<StepNavigation currentStep="welcome" />, {
       wrapperProps: {
         authenticated: true,
-        preloadedState: defaultPreloadedState,
+        contextValues: defaultContextValues,
       },
     });
 
@@ -32,10 +34,10 @@ describe("StepNavigation", () => {
   });
 
   it("shows 'current' status for the current step", () => {
-    renderWithProviders(<StepNavigation currentStep="setup" />, {
+    renderWithProviders(<StepNavigation currentStep="linux-setup" />, {
       wrapperProps: {
         authenticated: true,
-        preloadedState: defaultPreloadedState,
+        contextValues: defaultContextValues,
       },
     });
 
@@ -46,14 +48,14 @@ describe("StepNavigation", () => {
   });
 
   it("treats validation step as part of setup for navigation", () => {
-    renderWithProviders(<StepNavigation currentStep="validation" />, {
+    renderWithProviders(<StepNavigation currentStep="linux-validation" />, {
       wrapperProps: {
         authenticated: true,
-        preloadedState: defaultPreloadedState,
+        contextValues: defaultContextValues,
       },
     });
 
-    // When currentStep is 'validation', setup should show as current
+    // When currentStep is 'linux-validation', linux-setup should show as current
     const setupStep = screen.getByText("Setup").closest("div");
     expect(setupStep).toHaveStyle({
       border: "1px solid #316DE6",
@@ -71,7 +73,7 @@ describe("StepNavigation", () => {
     renderWithProviders(<StepNavigation currentStep="welcome" />, {
       wrapperProps: {
         authenticated: true,
-        preloadedState: defaultPreloadedState,
+        contextValues: defaultContextValues,
       },
     });
 
@@ -93,7 +95,7 @@ describe("StepNavigation", () => {
     renderWithProviders(<StepNavigation currentStep="welcome" />, {
       wrapperProps: {
         authenticated: true,
-        preloadedState: defaultPreloadedState,
+        contextValues: defaultContextValues,
       },
     });
 
@@ -113,9 +115,9 @@ describe("StepNavigation", () => {
     // Test different current steps and their expected status
     const testCases = [
       { currentStep: "welcome", setupStatus: "upcoming", installStatus: "upcoming" },
-      { currentStep: "setup", setupStatus: "current", installStatus: "upcoming" },
-      { currentStep: "validation", setupStatus: "current", installStatus: "upcoming" },
-      { currentStep: "installation", setupStatus: "complete", installStatus: "current" },
+      { currentStep: "linux-setup", setupStatus: "current", installStatus: "upcoming" },
+      { currentStep: "linux-validation", setupStatus: "current", installStatus: "upcoming" },
+      { currentStep: "linux-installation", setupStatus: "complete", installStatus: "current" },
     ];
 
     testCases.forEach(({ currentStep, setupStatus, installStatus }) => {
@@ -124,7 +126,7 @@ describe("StepNavigation", () => {
         {
           wrapperProps: {
             authenticated: true,
-            preloadedState: defaultPreloadedState,
+            contextValues: defaultContextValues,
           },
         }
       );

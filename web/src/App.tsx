@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ConfigProvider } from "./contexts/ConfigContext";
-import { WizardModeProvider } from "./contexts/WizardModeContext";
+import { LinuxConfigProvider } from "./contexts/LinuxConfigContext";
+import { KubernetesConfigProvider } from "./contexts/KubernetesConfigContext";
+import { SettingsProvider } from "./contexts/SettingsContext";
+import { WizardProvider } from "./contexts/WizardModeContext";
 import { BrandingProvider } from "./contexts/BrandingContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import ConnectionMonitor from "./components/common/ConnectionMonitor";
@@ -13,26 +15,30 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ConfigProvider>
-          <BrandingProvider>
-            <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
-              <BrowserRouter>
-                <Routes>
-                  <Route
-                    path="/"
-                    element={
-                      <WizardModeProvider mode="install">
-                        <InstallWizard />
-                      </WizardModeProvider>
-                    }
-                  />
+        <SettingsProvider>
+          <LinuxConfigProvider>
+            <KubernetesConfigProvider>
+              <BrandingProvider>
+                <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+                  <BrowserRouter>
+                    <Routes>
+                      <Route
+                        path="/"
+                        element={
+                          <WizardProvider>
+                            <InstallWizard />
+                          </WizardProvider>
+                        }
+                      />
 
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </BrowserRouter>
-            </div>
-          </BrandingProvider>
-        </ConfigProvider>
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </BrowserRouter>
+                </div>
+              </BrandingProvider>
+            </KubernetesConfigProvider>
+          </LinuxConfigProvider>
+        </SettingsProvider>
       </AuthProvider>
       <ConnectionMonitor />
     </QueryClientProvider>

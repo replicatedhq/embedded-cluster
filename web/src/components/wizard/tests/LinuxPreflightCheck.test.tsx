@@ -1,7 +1,6 @@
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { renderWithProviders } from "../../../test/setup.tsx";
-import LinuxPreflightCheck from "../preflight/LinuxPreflightCheck";
-import { MOCK_PROTOTYPE_SETTINGS } from "../../../test/testData.ts";
+import LinuxPreflightCheck from "../validation/LinuxPreflightCheck.tsx";
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
@@ -70,9 +69,6 @@ describe("LinuxPreflightCheck", () => {
 
     renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
       wrapperProps: {
-        preloadedState: {
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
         authToken: TEST_TOKEN,
       },
     });
@@ -94,9 +90,6 @@ describe("LinuxPreflightCheck", () => {
 
     renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
       wrapperProps: {
-        preloadedState: {
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
         authToken: TEST_TOKEN,
       },
     });
@@ -110,9 +103,6 @@ describe("LinuxPreflightCheck", () => {
   it("displays preflight results correctly", async () => {
     renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
       wrapperProps: {
-        preloadedState: {
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
         authToken: TEST_TOKEN,
       },
     });
@@ -143,9 +133,6 @@ describe("LinuxPreflightCheck", () => {
 
     renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
       wrapperProps: {
-        preloadedState: {
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
         authToken: TEST_TOKEN,
       },
     });
@@ -182,9 +169,6 @@ describe("LinuxPreflightCheck", () => {
 
     renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
       wrapperProps: {
-        preloadedState: {
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
         authToken: TEST_TOKEN,
       },
     });
@@ -208,9 +192,6 @@ describe("LinuxPreflightCheck", () => {
 
     renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
       wrapperProps: {
-        preloadedState: {
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
         authToken: TEST_TOKEN,
       },
     });
@@ -224,9 +205,6 @@ describe("LinuxPreflightCheck", () => {
   it("allows re-running validation when there are failures", async () => {
     renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
       wrapperProps: {
-        preloadedState: {
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
         authToken: TEST_TOKEN,
       },
     });
@@ -268,9 +246,6 @@ describe("LinuxPreflightCheck", () => {
 
     renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
       wrapperProps: {
-        preloadedState: {
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
         authToken: TEST_TOKEN,
       },
     });
@@ -307,9 +282,6 @@ describe("LinuxPreflightCheck", () => {
 
     renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
       wrapperProps: {
-        preloadedState: {
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
         authToken: TEST_TOKEN,
       },
     });
