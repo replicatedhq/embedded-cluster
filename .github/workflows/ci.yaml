@@ -1,11 +1,15 @@
 name: CI
 
 on:
-  pull_request: {}
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
 
   push:
     branches:
       - main
+    paths-ignore:
+      - '**/*.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -15,6 +19,21 @@ permissions:
   contents: write
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      v2: ${{ steps.changes.outputs.v2 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            v2:
+              - '!api/**'
+              - '!web/**'
+
   git-sha:
     name: Git SHA
     runs-on: ubuntu-latest
@@ -220,7 +239,9 @@ jobs:
   build-current:
     name: Build current
     runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.v2 == 'true' }}
     needs:
+      - changes
       - git-sha
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
@@ -299,7 +320,9 @@ jobs:
   build-previous-k0s:
     name: Build previous k0s
     runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.v2 == 'true' }}
     needs:
+      - changes
       - git-sha
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
@@ -379,7 +402,9 @@ jobs:
   find-previous-stable:
     name: Determine previous stable version
     runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.v2 == 'true' }}
     needs:
+      - changes
       - git-sha
     outputs:
       ec_version: ${{ steps.export.outputs.ec_version }}
@@ -413,7 +438,9 @@ jobs:
   build-upgrade:
     name: Build upgrade
     runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.v2 == 'true' }}
     needs:
+      - changes
       - git-sha
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
