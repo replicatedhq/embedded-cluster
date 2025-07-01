@@ -63,7 +63,7 @@ func UpdateCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
-	cmd.MarkFlagRequired("airgap-bundle")
+	mustMarkFlagRequired(cmd.Flags(), "airgap-bundle")
 
 	return cmd
 }
