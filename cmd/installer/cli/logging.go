@@ -108,7 +108,7 @@ func SetupLogging() {
 		return
 	}
 	logrus.SetLevel(logrus.DebugLevel)
-	fname := fmt.Sprintf("%s-%s.log", runtimeconfig.BinaryName(), time.Now().Format("20060102150405.000"))
+	fname := fmt.Sprintf("%s-%s.log", runtimeconfig.AppSlug(), time.Now().Format("20060102150405.000"))
 	logpath := runtimeconfig.PathToLog(fname)
 	logfile, err := os.OpenFile(logpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0400)
 	if err != nil {

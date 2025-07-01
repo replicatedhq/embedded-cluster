@@ -100,7 +100,7 @@ type installConfig struct {
 var webAssetsFS fs.FS = nil
 
 // InstallCmd returns a cobra command for installing the embedded cluster.
-func InstallCmd(ctx context.Context, name string) *cobra.Command {
+func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	var flags InstallCmdFlags
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -108,21 +108,21 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	rc := runtimeconfig.New(nil)
 	ki := kubernetesinstallation.New(nil)
 
-	short := fmt.Sprintf("Install %s", name)
+	short := fmt.Sprintf("Install %s", appTitle)
 	if os.Getenv("ENABLE_V3") == "1" {
-		short = fmt.Sprintf("Install %s onto Linux or Kubernetes", name)
+		short = fmt.Sprintf("Install %s onto Linux or Kubernetes", appTitle)
 	}
 
 	cmd := &cobra.Command{
 		Use:     "install",
 		Short:   short,
-		Example: installCmdExample(name),
+		Example: installCmdExample(appSlug),
 		PostRun: func(cmd *cobra.Command, args []string) {
 			rc.Cleanup()
 			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := verifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
+			if err := verifyAndPrompt(ctx, appSlug, flags, prompts.New()); err != nil {
 				return err
 			}
 			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
@@ -137,7 +137,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			installReporter.ReportInstallationStarted(ctx)
 
 			if flags.enableManagerExperience {
-				return runManagerExperienceInstall(ctx, flags, rc, ki, installReporter)
+				return runManagerExperienceInstall(ctx, flags, rc, ki, installReporter, appTitle)
 			}
 
 			_ = rc.SetEnv()
@@ -173,7 +173,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		panic(err)
 	}
 
-	cmd.AddCommand(InstallRunPreflightsCmd(ctx, name))
+	cmd.AddCommand(InstallRunPreflightsCmd(ctx, appSlug))
 
 	return cmd
 }
@@ -196,12 +196,12 @@ const (
 `
 )
 
-func installCmdExample(name string) string {
+func installCmdExample(appSlug string) string {
 	if os.Getenv("ENABLE_V3") != "1" {
 		return ""
 	}
 
-	return fmt.Sprintf(installCmdExampleText, name, name)
+	return fmt.Sprintf(installCmdExampleText, appSlug, appSlug)
 }
 
 func mustAddInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) {
@@ -265,7 +265,7 @@ func newLinuxInstallFlags(flags *InstallCmdFlags) *pflag.FlagSet {
 	// Use the app slug as default data directory only when ENABLE_V3 is set
 	defaultDataDir := ecv1beta1.DefaultDataDir
 	if os.Getenv("ENABLE_V3") == "1" {
-		defaultDataDir = filepath.Join("/var/lib", runtimeconfig.BinaryName())
+		defaultDataDir = filepath.Join("/var/lib", runtimeconfig.AppSlug())
 	}
 
 	flagSet.StringVar(&flags.dataDir, "data-dir", defaultDataDir, "Path to the data directory")
@@ -570,7 +570,7 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 	return cidrCfg, nil
 }
 
-func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation, installReporter *InstallReporter) (finalErr error) {
+func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation, installReporter *InstallReporter, appTitle string) (finalErr error) {
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
 	ipAddresses, err := netutils.ListAllValidIPAddresses()
@@ -663,7 +663,7 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue: %s\n",
-		runtimeconfig.BinaryName(),
+		appTitle,
 		getManagerURL(flags.hostname, flags.managerPort))
 	<-ctx.Done()
 
@@ -813,9 +813,9 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 	return opts, nil
 }
 
-func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, prompt prompts.Prompt) error {
+func verifyAndPrompt(ctx context.Context, appSlug string, flags InstallCmdFlags, prompt prompts.Prompt) error {
 	logrus.Debugf("checking if k0s is already installed")
-	err := verifyNoInstallation(name, "reinstall")
+	err := verifyNoInstallation(appSlug, "reinstall")
 	if err != nil {
 		return err
 	}
@@ -987,7 +987,7 @@ func verifyChannelRelease(cmdName string, isAirgap bool, assumeYes bool) error {
 	return nil
 }
 
-func verifyNoInstallation(name string, cmdName string) error {
+func verifyNoInstallation(appSlug string, cmdName string) error {
 	installed, err := k0s.IsInstalled()
 	if err != nil {
 		return err
@@ -996,7 +996,7 @@ func verifyNoInstallation(name string, cmdName string) error {
 		logrus.Errorf("\nAn installation is detected on this machine.")
 		logrus.Infof("To %s, you must first remove the existing installation.", cmdName)
 		logrus.Infof("You can do this by running the following command:")
-		logrus.Infof("\n  sudo ./%s reset\n", name)
+		logrus.Infof("\n  sudo ./%s reset\n", appSlug)
 		return NewErrorNothingElseToAdd(errors.New("previous installation detected"))
 	}
 	return nil

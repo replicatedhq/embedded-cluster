@@ -33,7 +33,7 @@ const K0sComponentName = "Runtime"
 func AlreadyInstalledError() error {
 	return fmt.Errorf(
 		"\nAn installation is detected on this machine.\nTo install, you must first remove the existing installation.\nYou can do this by running the following command:\n\n  sudo ./%s reset\n",
-		runtimeconfig.BinaryName(),
+		runtimeconfig.AppSlug(),
 	)
 }
 

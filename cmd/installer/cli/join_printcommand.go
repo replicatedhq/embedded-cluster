@@ -12,12 +12,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func JoinPrintCommandCmd(ctx context.Context, name string) *cobra.Command {
+func JoinPrintCommandCmd(ctx context.Context, appTitle string) *cobra.Command {
 	var rc runtimeconfig.RuntimeConfig
 
 	cmd := &cobra.Command{
 		Use:   "print-command",
-		Short: fmt.Sprintf("Print controller join command for %s", name),
+		Short: fmt.Sprintf("Print controller join command for %s", appTitle),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Skip root check if dryrun mode is enabled
 			if !dryrun.Enabled() && os.Getuid() != 0 {

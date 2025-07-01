@@ -86,7 +86,7 @@ func GatherVersionMetadata(channelRelease *release.ChannelRelease) (*types.Relea
 	versionsMap["Troubleshoot"] = versions.TroubleshootVersion
 
 	if channelRelease != nil {
-		versionsMap[runtimeconfig.BinaryName()] = channelRelease.VersionLabel
+		versionsMap[runtimeconfig.AppSlug()] = channelRelease.VersionLabel
 	}
 
 	sha, err := goods.K0sBinarySHA256()

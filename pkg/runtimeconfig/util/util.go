@@ -44,7 +44,7 @@ func GetRuntimeConfigFromCluster(ctx context.Context) (runtimeconfig.RuntimeConf
 	status, err := k0s.GetStatus(ctx)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return nil, fmt.Errorf("%s does not seem to be installed on this node", runtimeconfig.BinaryName())
+			return nil, fmt.Errorf("%s does not seem to be installed on this node", runtimeconfig.AppSlug())
 		}
 		return nil, fmt.Errorf("get k0s status: %w", err)
 	}
