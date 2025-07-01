@@ -1,54 +1,67 @@
 package store
 
 import (
-	"github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
-	"github.com/replicatedhq/embedded-cluster/api/internal/store/installation"
-	"github.com/replicatedhq/embedded-cluster/api/internal/store/preflight"
+	kubernetesinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/kubernetes/installation"
+	linuxinfra "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/infra"
+	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
+	linuxpreflight "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
 )
 
 var _ Store = &memoryStore{}
 
 // Store is the global interface that combines all substores
 type Store interface {
-	// PreflightStore provides access to host preflight operations
-	PreflightStore() preflight.Store
+	// LinuxPreflightStore provides access to host preflight operations
+	LinuxPreflightStore() linuxpreflight.Store
 
-	// InstallationStore provides access to installation operations
-	InstallationStore() installation.Store
+	// LinuxInstallationStore provides access to installation operations
+	LinuxInstallationStore() linuxinstallation.Store
 
-	// InfraStore provides access to infrastructure operations
-	InfraStore() infra.Store
+	// LinuxInfraStore provides access to infrastructure operations
+	LinuxInfraStore() linuxinfra.Store
+
+	// KubernetesInstallationStore provides access to kubernetes installation operations
+	KubernetesInstallationStore() kubernetesinstallation.Store
 }
 
 // StoreOption is a function that configures a store
 type StoreOption func(*memoryStore)
 
-// WithPreflightStore sets the preflight store
-func WithPreflightStore(store preflight.Store) StoreOption {
+// WithLinuxPreflightStore sets the preflight store
+func WithLinuxPreflightStore(store linuxpreflight.Store) StoreOption {
 	return func(s *memoryStore) {
-		s.preflightStore = store
+		s.linuxPreflightStore = store
 	}
 }
 
-// WithInstallationStore sets the installation store
-func WithInstallationStore(store installation.Store) StoreOption {
+// WithLinuxInstallationStore sets the installation store
+func WithLinuxInstallationStore(store linuxinstallation.Store) StoreOption {
 	return func(s *memoryStore) {
-		s.installationStore = store
+		s.linuxInstallationStore = store
 	}
 }
 
-// WithInfraStore sets the infra store
-func WithInfraStore(store infra.Store) StoreOption {
+// WithLinuxInfraStore sets the infra store
+func WithLinuxInfraStore(store linuxinfra.Store) StoreOption {
 	return func(s *memoryStore) {
-		s.infraStore = store
+		s.linuxInfraStore = store
+	}
+}
+
+// WithKubernetesInstallationStore sets the kubernetes installation store
+func WithKubernetesInstallationStore(store kubernetesinstallation.Store) StoreOption {
+	return func(s *memoryStore) {
+		s.kubernetesInstallationStore = store
 	}
 }
 
 // memoryStore is an in-memory implementation of the global Store interface
 type memoryStore struct {
-	preflightStore    preflight.Store
-	installationStore installation.Store
-	infraStore        infra.Store
+	linuxPreflightStore    linuxpreflight.Store
+	linuxInstallationStore linuxinstallation.Store
+	linuxInfraStore        linuxinfra.Store
+
+	kubernetesInstallationStore kubernetesinstallation.Store
 }
 
 // NewMemoryStore creates a new memory store with the given options
@@ -59,29 +72,37 @@ func NewMemoryStore(opts ...StoreOption) Store {
 		opt(s)
 	}
 
-	if s.preflightStore == nil {
-		s.preflightStore = preflight.NewMemoryStore()
+	if s.linuxPreflightStore == nil {
+		s.linuxPreflightStore = linuxpreflight.NewMemoryStore()
 	}
 
-	if s.installationStore == nil {
-		s.installationStore = installation.NewMemoryStore()
+	if s.linuxInstallationStore == nil {
+		s.linuxInstallationStore = linuxinstallation.NewMemoryStore()
 	}
 
-	if s.infraStore == nil {
-		s.infraStore = infra.NewMemoryStore()
+	if s.linuxInfraStore == nil {
+		s.linuxInfraStore = linuxinfra.NewMemoryStore()
+	}
+
+	if s.kubernetesInstallationStore == nil {
+		s.kubernetesInstallationStore = kubernetesinstallation.NewMemoryStore()
 	}
 
 	return s
 }
 
-func (s *memoryStore) PreflightStore() preflight.Store {
-	return s.preflightStore
+func (s *memoryStore) LinuxPreflightStore() linuxpreflight.Store {
+	return s.linuxPreflightStore
 }
 
-func (s *memoryStore) InstallationStore() installation.Store {
-	return s.installationStore
+func (s *memoryStore) LinuxInstallationStore() linuxinstallation.Store {
+	return s.linuxInstallationStore
 }
 
-func (s *memoryStore) InfraStore() infra.Store {
-	return s.infraStore
+func (s *memoryStore) LinuxInfraStore() linuxinfra.Store {
+	return s.linuxInfraStore
+}
+
+func (s *memoryStore) KubernetesInstallationStore() kubernetesinstallation.Store {
+	return s.kubernetesInstallationStore
 }

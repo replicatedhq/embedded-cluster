@@ -11,24 +11,24 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
-func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.InstallationConfig, error) {
+func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfig, error) {
 	config, err := c.installationManager.GetConfig()
 	if err != nil {
-		return types.InstallationConfig{}, err
+		return types.LinuxInstallationConfig{}, err
 	}
 
 	if err := c.installationManager.SetConfigDefaults(&config, c.rc); err != nil {
-		return types.InstallationConfig{}, fmt.Errorf("set defaults: %w", err)
+		return types.LinuxInstallationConfig{}, fmt.Errorf("set defaults: %w", err)
 	}
 
 	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
-		return types.InstallationConfig{}, fmt.Errorf("validate: %w", err)
+		return types.LinuxInstallationConfig{}, fmt.Errorf("validate: %w", err)
 	}
 
 	return config, nil
 }
 
-func (c *InstallController) ConfigureInstallation(ctx context.Context, config types.InstallationConfig) error {
+func (c *InstallController) ConfigureInstallation(ctx context.Context, config types.LinuxInstallationConfig) error {
 	err := c.configureInstallation(ctx, config)
 	if err != nil {
 		return err
@@ -64,7 +64,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 	return nil
 }
 
-func (c *InstallController) configureInstallation(ctx context.Context, config types.InstallationConfig) (finalErr error) {
+func (c *InstallController) configureInstallation(ctx context.Context, config types.LinuxInstallationConfig) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -83,7 +83,7 @@ func (c *InstallController) configureInstallation(ctx context.Context, config ty
 				LastUpdated: time.Now(),
 			}
 
-			if err = c.store.InstallationStore().SetStatus(failureStatus); err != nil {
+			if err = c.store.LinuxInstallationStore().SetStatus(failureStatus); err != nil {
 				c.logger.Errorf("failed to update status: %w", err)
 			}
 
@@ -139,7 +139,7 @@ func (c *InstallController) configureInstallation(ctx context.Context, config ty
 	return nil
 }
 
-func (c *InstallController) computeCIDRs(config *types.InstallationConfig) error {
+func (c *InstallController) computeCIDRs(config *types.LinuxInstallationConfig) error {
 	if config.GlobalCIDR != "" {
 		podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(config.GlobalCIDR)
 		if err != nil {

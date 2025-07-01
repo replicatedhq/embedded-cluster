@@ -1,5 +1,5 @@
 import React from 'react';
-import { useConfig } from '../../contexts/ConfigContext';
+import { useSettings } from '../../contexts/SettingsContext';
 
 interface ButtonProps {
   children: React.ReactNode;
@@ -22,8 +22,8 @@ const Button: React.FC<ButtonProps> = ({
   className = '',
   icon,
 }) => {
-  const { prototypeSettings } = useConfig();
-  const themeColor = prototypeSettings.themeColor;
+  const { settings } = useSettings();
+  const themeColor = settings.themeColor;
 
   const baseStyles = 'inline-flex items-center justify-center font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 rounded-md';
 

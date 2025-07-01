@@ -1,31 +1,38 @@
 package store
 
 import (
-	"github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
-	"github.com/replicatedhq/embedded-cluster/api/internal/store/installation"
-	"github.com/replicatedhq/embedded-cluster/api/internal/store/preflight"
+	kubernetesinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/kubernetes/installation"
+	linuxinfra "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/infra"
+	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
+	linuxpreflight "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
 )
 
 var _ Store = (*MockStore)(nil)
 
 // MockStore is a mock implementation of the Store interface
 type MockStore struct {
-	PreflightMockStore    preflight.MockStore
-	InfraMockStore        infra.MockStore
-	InstallationMockStore installation.MockStore
+	LinuxPreflightMockStore         linuxpreflight.MockStore
+	LinuxInstallationMockStore      linuxinstallation.MockStore
+	LinuxInfraMockStore             linuxinfra.MockStore
+	KubernetesInstallationMockStore kubernetesinstallation.MockStore
 }
 
-// PreflightStore returns the mock preflight store
-func (m *MockStore) PreflightStore() preflight.Store {
-	return &m.PreflightMockStore
+// LinuxPreflightStore returns the mock linux preflight store
+func (m *MockStore) LinuxPreflightStore() linuxpreflight.Store {
+	return &m.LinuxPreflightMockStore
 }
 
-// InstallationStore returns the mock installation store
-func (m *MockStore) InstallationStore() installation.Store {
-	return &m.InstallationMockStore
+// LinuxInstallationStore returns the mock linux installation store
+func (m *MockStore) LinuxInstallationStore() linuxinstallation.Store {
+	return &m.LinuxInstallationMockStore
 }
 
-// InfraStore returns the mock infra store
-func (m *MockStore) InfraStore() infra.Store {
-	return &m.InfraMockStore
+// LinuxInfraStore returns the mock linux infra store
+func (m *MockStore) LinuxInfraStore() linuxinfra.Store {
+	return &m.LinuxInfraMockStore
+}
+
+// KubernetesInstallationStore returns the mock kubernetes installation store
+func (m *MockStore) KubernetesInstallationStore() kubernetesinstallation.Store {
+	return &m.KubernetesInstallationMockStore
 }

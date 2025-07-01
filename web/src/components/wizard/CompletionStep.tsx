@@ -1,12 +1,12 @@
 import React from "react";
 import Card from "../common/Card";
 import Button from "../common/Button";
-import { useConfig } from "../../contexts/ConfigContext";
+import { useLinuxConfig } from "../../contexts/LinuxConfigContext";
 import { useBranding } from "../../contexts/BrandingContext";
 import { CheckCircle, ExternalLink } from "lucide-react";
 
 const CompletionStep: React.FC = () => {
-  const { config } = useConfig();
+  const { config } = useLinuxConfig();
   const { title } = useBranding();
 
   return (

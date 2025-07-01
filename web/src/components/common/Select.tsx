@@ -1,5 +1,5 @@
 import React from "react";
-import { useConfig } from "../../contexts/ConfigContext";
+import { useSettings } from "../../contexts/SettingsContext";
 
 interface SelectOption {
   value: string;
@@ -35,8 +35,8 @@ const Select: React.FC<SelectProps> = ({
   labelClassName = "",
   placeholder,
 }) => {
-  const { prototypeSettings } = useConfig();
-  const themeColor = prototypeSettings.themeColor;
+  const { settings } = useSettings();
+  const themeColor = settings.themeColor;
 
   return (
     <div className="mb-4">
