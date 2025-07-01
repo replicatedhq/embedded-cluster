@@ -32,10 +32,11 @@ jobs:
           # api types are used in v2 code
           filters: |
             v2:
-              - '!api/**'
-              - '!web/**'
-              - 'api/types/**'
-              - '!**/*.md'
+              - '**'              # include everything first
+              - '!**/*.md'        # exclude markdown
+              - '!api/**'         # exclude api
+              - '!web/**'         # exclude web
+              - 'api/types/**'    # re-include api/types
 
   git-sha:
     name: Git SHA
