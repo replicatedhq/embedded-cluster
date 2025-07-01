@@ -28,11 +28,11 @@ jobs:
         id: filter
         with:
           patterns: |
-            **              # include everything first
-            !**/*.md        # exclude markdown
-            !api/**         # exclude api
-            !web/**         # exclude web
-            api/types/**    # re-include api/types
+            **
+            !**/*.md
+            !api/**
+            !web/**
+            api/types/**
 
   git-sha:
     name: Git SHA
