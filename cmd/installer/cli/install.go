@@ -370,7 +370,7 @@ func addManagementConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) error
 }
 
 func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation) error {
-	if !slices.Contains([]string{"linux", "kubernetes"}, flags.target) {
+	if isV3Enabled() && !slices.Contains([]string{"linux", "kubernetes"}, flags.target) {
 		return fmt.Errorf(`invalid --target (must be one of: "linux", "kubernetes")`)
 	}
 
