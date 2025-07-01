@@ -33,6 +33,9 @@ jobs:
             !api/**
             !web/**
             api/types/**
+      - name: print
+        run: |
+          echo "${{ steps.filter.outputs.exists }}"
 
   git-sha:
     name: Git SHA
