@@ -28,12 +28,12 @@ const welcome = `
  ~~~~~~~~~~~
 `
 
-func ShellCmd(ctx context.Context, name string) *cobra.Command {
+func ShellCmd(ctx context.Context, appTitle string) *cobra.Command {
 	var rc runtimeconfig.RuntimeConfig
 
 	cmd := &cobra.Command{
 		Use:   "shell",
-		Short: fmt.Sprintf("Start a shell with access to the %s cluster", name),
+		Short: fmt.Sprintf("Start a shell with access to the %s cluster", appTitle),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Skip root check if dryrun mode is enabled
 			if !dryrun.Enabled() && os.Getuid() != 0 {
@@ -55,7 +55,7 @@ func ShellCmd(ctx context.Context, name string) *cobra.Command {
 				shpath = "/bin/bash"
 			}
 
-			fmt.Printf(welcome, runtimeconfig.BinaryName())
+			fmt.Printf(welcome, runtimeconfig.AppSlug())
 			shell := exec.Command(shpath)
 			shell.Env = os.Environ()
 

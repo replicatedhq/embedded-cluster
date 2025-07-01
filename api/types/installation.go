@@ -1,12 +1,12 @@
 package types
 
-type Installation struct {
-	Config InstallationConfig `json:"config"`
-	Status Status             `json:"status"`
+type LinuxInstallation struct {
+	Config LinuxInstallationConfig `json:"config"`
+	Status Status                  `json:"status"`
 }
 
-// InstallationConfig represents the configuration for an installation
-type InstallationConfig struct {
+// LinuxInstallationConfig represents the configuration for an installation
+type LinuxInstallationConfig struct {
 	AdminConsolePort        int    `json:"adminConsolePort"`
 	DataDirectory           string `json:"dataDirectory"`
 	LocalArtifactMirrorPort int    `json:"localArtifactMirrorPort"`
@@ -17,4 +17,16 @@ type InstallationConfig struct {
 	PodCIDR                 string `json:"podCidr"`
 	ServiceCIDR             string `json:"serviceCidr"`
 	GlobalCIDR              string `json:"globalCidr"`
+}
+
+type KubernetesInstallation struct {
+	Config KubernetesInstallationConfig `json:"config"`
+	Status Status                       `json:"status"`
+}
+
+type KubernetesInstallationConfig struct {
+	AdminConsolePort int    `json:"adminConsolePort"`
+	HTTPProxy        string `json:"httpProxy"`
+	HTTPSProxy       string `json:"httpsProxy"`
+	NoProxy          string `json:"noProxy"`
 }

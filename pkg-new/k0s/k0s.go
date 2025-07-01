@@ -264,7 +264,7 @@ func (k *K0s) WaitForK0s() error {
 		break
 	}
 	if !success {
-		return fmt.Errorf("timeout waiting for %s", runtimeconfig.BinaryName())
+		return fmt.Errorf("timeout waiting for %s", runtimeconfig.AppSlug())
 	}
 
 	for i := 1; ; i++ {

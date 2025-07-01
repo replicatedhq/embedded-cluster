@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func MaterializeCmd(ctx context.Context, name string) *cobra.Command {
+func MaterializeCmd(ctx context.Context) *cobra.Command {
 	var dataDir string
 	rc := runtimeconfig.New(nil)
 

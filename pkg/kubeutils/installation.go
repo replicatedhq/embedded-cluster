@@ -166,7 +166,7 @@ func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInst
 			Config:                    opts.ConfigSpec,
 			RuntimeConfig:             opts.RuntimeConfig,
 			EndUserK0sConfigOverrides: euOverrides,
-			BinaryName:                runtimeconfig.BinaryName(),
+			BinaryName:                runtimeconfig.AppSlug(),
 			LicenseInfo: &ecv1beta1.LicenseInfo{
 				IsDisasterRecoverySupported: opts.License.Spec.IsDisasterRecoverySupported,
 				IsMultiNodeEnabled:          opts.License.Spec.IsEmbeddedClusterMultiNodeEnabled,
