@@ -109,7 +109,7 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	ki := kubernetesinstallation.New(nil)
 
 	short := fmt.Sprintf("Install %s", appTitle)
-	if os.Getenv("ENABLE_V3") == "1" {
+	if isV3Enabled() {
 		short = fmt.Sprintf("Install %s onto Linux or Kubernetes", appTitle)
 	}
 
@@ -169,7 +169,7 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
-	if err := addManagerExperienceFlags(cmd, &flags); err != nil {
+	if err := addManagementConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
 
@@ -197,7 +197,7 @@ const (
 )
 
 func installCmdExample(appSlug string) string {
-	if os.Getenv("ENABLE_V3") != "1" {
+	if !isV3Enabled() {
 		return ""
 	}
 
@@ -205,7 +205,7 @@ func installCmdExample(appSlug string) string {
 }
 
 func mustAddInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) {
-	enableV3 := os.Getenv("ENABLE_V3") == "1"
+	enableV3 := isV3Enabled()
 
 	normalizeFuncs := []func(f *pflag.FlagSet, name string) pflag.NormalizedName{}
 
@@ -215,7 +215,7 @@ func mustAddInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) {
 		normalizeFuncs = append(normalizeFuncs, fn)
 	}
 
-	linuxFlagSet := newLinuxInstallFlags(flags)
+	linuxFlagSet := newLinuxInstallFlags(flags, enableV3)
 	cmd.Flags().AddFlagSet(linuxFlagSet)
 	if fn := linuxFlagSet.GetNormalizeFunc(); fn != nil {
 		normalizeFuncs = append(normalizeFuncs, fn)
@@ -241,8 +241,10 @@ func mustAddInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) {
 func newCommonInstallFlags(flags *InstallCmdFlags, enableV3 bool) *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("common", pflag.ContinueOnError)
 
-	flagSet.StringVar(&flags.target, "target", "linux", "The target platform to install to. Valid options are 'linux' or 'kubernetes'.")
-	if !enableV3 {
+	flagSet.StringVar(&flags.target, "target", "", "The target platform to install to. Valid options are 'linux' or 'kubernetes'.")
+	if enableV3 {
+		mustMarkFlagRequired(flagSet, "target")
+	} else {
 		mustMarkFlagHidden(flagSet, "target")
 	}
 
@@ -259,12 +261,12 @@ func newCommonInstallFlags(flags *InstallCmdFlags, enableV3 bool) *pflag.FlagSet
 	return flagSet
 }
 
-func newLinuxInstallFlags(flags *InstallCmdFlags) *pflag.FlagSet {
+func newLinuxInstallFlags(flags *InstallCmdFlags, enableV3 bool) *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("linux", pflag.ContinueOnError)
 
 	// Use the app slug as default data directory only when ENABLE_V3 is set
 	defaultDataDir := ecv1beta1.DefaultDataDir
-	if os.Getenv("ENABLE_V3") == "1" {
+	if enableV3 {
 		defaultDataDir = filepath.Join("/var/lib", runtimeconfig.AppSlug())
 	}
 
@@ -335,30 +337,21 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) err
 	cmd.Flags().StringVar(&flags.adminConsolePassword, "admin-console-password", "", "Password for the Admin Console")
 	cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
 	cmd.Flags().StringVarP(&flags.licenseFile, "license", "l", "", "Path to the license file")
-	if err := cmd.MarkFlagRequired("license"); err != nil {
-		panic(err)
-	}
+	mustMarkFlagRequired(cmd.Flags(), "license")
 	cmd.Flags().StringVar(&flags.configValues, "config-values", "", "Path to the config values to use when installing")
 
 	return nil
 }
 
-func addManagerExperienceFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
-	// If the ENABLE_V3 environment variable is set, default to the new manager experience and do
-	// not hide the new flags.
-	enableV3 := os.Getenv("ENABLE_V3") == "1"
-
-	cmd.Flags().BoolVar(&flags.enableManagerExperience, "manager-experience", enableV3, "Run the browser-based installation experience.")
-	if err := cmd.Flags().MarkHidden("manager-experience"); err != nil {
-		return err
-	}
-
+func addManagementConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
 	cmd.Flags().StringVar(&flags.tlsCertFile, "tls-cert", "", "Path to the TLS certificate file")
 	cmd.Flags().StringVar(&flags.tlsKeyFile, "tls-key", "", "Path to the TLS key file")
 	cmd.Flags().StringVar(&flags.hostname, "hostname", "", "Hostname to use for TLS configuration")
 
-	if !enableV3 {
+	// If the ENABLE_V3 environment variable is set, default to the new manager experience and do
+	// not hide the new flags.
+	if !isV3Enabled() {
 		if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
 			return err
 		}
@@ -377,8 +370,12 @@ func addManagerExperienceFlags(cmd *cobra.Command, flags *InstallCmdFlags) error
 }
 
 func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation) error {
+	if !isV3Enabled() {
+		flags.target = "linux"
+	}
+
 	if !slices.Contains([]string{"linux", "kubernetes"}, flags.target) {
-		return fmt.Errorf(`invalid target (must be one of: "linux", "kubernetes")`)
+		return fmt.Errorf(`invalid --target (must be one of: "linux", "kubernetes")`)
 	}
 
 	if err := preRunInstallCommon(cmd, flags, rc, ki); err != nil {
@@ -396,6 +393,8 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 }
 
 func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation) error {
+	flags.enableManagerExperience = isV3Enabled()
+
 	// license file can be empty for restore
 	if flags.licenseFile != "" {
 		b, err := os.ReadFile(flags.licenseFile)
