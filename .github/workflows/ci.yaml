@@ -29,10 +29,12 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          # api types are used in v2 code
           filters: |
             v2:
               - '!api/**'
               - '!web/**'
+              - 'api/types/**'
 
   git-sha:
     name: Git SHA
