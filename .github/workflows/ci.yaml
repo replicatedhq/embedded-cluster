@@ -35,6 +35,7 @@ jobs:
               - '!api/**'
               - '!web/**'
               - 'api/types/**'
+              - '!**/*.md'
 
   git-sha:
     name: Git SHA
