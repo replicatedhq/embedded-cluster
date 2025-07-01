@@ -45,7 +45,7 @@ func InstallRunPreflightsCmd(ctx context.Context, appSlug string) *cobra.Command
 
 			_ = rc.SetEnv()
 
-			if err := runInstallRunPreflights(cmd.Context(), appSlug, flags, rc); err != nil {
+			if err := runInstallRunPreflights(cmd.Context(), flags, rc); err != nil {
 				return err
 			}
 
@@ -62,7 +62,7 @@ func InstallRunPreflightsCmd(ctx context.Context, appSlug string) *cobra.Command
 	return cmd
 }
 
-func runInstallRunPreflights(ctx context.Context, appSlug string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
+func runInstallRunPreflights(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
 	licenseBytes, err := os.ReadFile(flags.licenseFile)
 	if err != nil {
 		return fmt.Errorf("unable to read license file: %w", err)
