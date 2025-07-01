@@ -32,19 +32,19 @@ func InstallRunPreflightsCmd(ctx context.Context, appSlug string) *cobra.Command
 		Use:    "run-preflights",
 		Short:  "Run install host preflights",
 		Hidden: true,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PostRun: func(cmd *cobra.Command, args []string) {
+			rc.Cleanup()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
+				return err
+			}
+			if err := verifyAndPrompt(ctx, cmd, appSlug, &flags, prompts.New()); err != nil {
 				return err
 			}
 
 			_ = rc.SetEnv()
 
-			return nil
-		},
-		PostRun: func(cmd *cobra.Command, args []string) {
-			rc.Cleanup()
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := runInstallRunPreflights(cmd.Context(), appSlug, flags, rc); err != nil {
 				return err
 			}
@@ -63,10 +63,6 @@ func InstallRunPreflightsCmd(ctx context.Context, appSlug string) *cobra.Command
 }
 
 func runInstallRunPreflights(ctx context.Context, appSlug string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
-	if err := verifyAndPrompt(ctx, appSlug, flags, prompts.New()); err != nil {
-		return err
-	}
-
 	licenseBytes, err := os.ReadFile(flags.licenseFile)
 	if err != nil {
 		return fmt.Errorf("unable to read license file: %w", err)

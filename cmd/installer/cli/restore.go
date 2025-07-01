@@ -98,19 +98,16 @@ func RestoreCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "restore",
 		Short: fmt.Sprintf("Restore %s from a backup", appTitle),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PostRun: func(cmd *cobra.Command, args []string) {
+			rc.Cleanup()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
 				return err
 			}
 
 			_ = rc.SetEnv()
 
-			return nil
-		},
-		PostRun: func(cmd *cobra.Command, args []string) {
-			rc.Cleanup()
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := runRestore(cmd.Context(), appSlug, appTitle, flags, rc, s3Store, skipStoreValidation); err != nil {
 				return err
 			}

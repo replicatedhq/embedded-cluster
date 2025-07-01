@@ -122,10 +122,10 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := verifyAndPrompt(ctx, appSlug, flags, prompts.New()); err != nil {
+			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
 				return err
 			}
-			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
+			if err := verifyAndPrompt(ctx, cmd, appSlug, &flags, prompts.New()); err != nil {
 				return err
 			}
 
@@ -434,13 +434,6 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 	proxy, err := proxyConfigFromCmd(cmd, flags.assumeYes)
 	if err != nil {
 		return err
-	}
-
-	// restore command doesn't have a password flag
-	if cmd.Flags().Lookup("admin-console-password") != nil {
-		if err := ensureAdminConsolePassword(flags); err != nil {
-			return err
-		}
 	}
 
 	rc.SetAdminConsolePort(flags.adminConsolePort)
@@ -813,7 +806,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 	return opts, nil
 }
 
-func verifyAndPrompt(ctx context.Context, appSlug string, flags InstallCmdFlags, prompt prompts.Prompt) error {
+func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, flags *InstallCmdFlags, prompt prompts.Prompt) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(appSlug, "reinstall")
 	if err != nil {
@@ -850,6 +843,13 @@ func verifyAndPrompt(ctx context.Context, appSlug string, flags InstallCmdFlags,
 
 	if err := release.ValidateECConfig(); err != nil {
 		return err
+	}
+
+	// restore command doesn't have a password flag
+	if cmd.Flags().Lookup("admin-console-password") != nil {
+		if err := ensureAdminConsolePassword(flags); err != nil {
+			return err
+		}
 	}
 
 	return nil
