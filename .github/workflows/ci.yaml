@@ -22,21 +22,16 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      v2: ${{ steps.changes.outputs.v2 }}
+      v2: ${{ steps.filter.outputs.exists }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: dorny/paths-filter@v3
-        id: changes
+      - uses: yumemi-inc/path-filter@v2
+        id: filter
         with:
-          predicate-quantifier: 'every'
-          # api types are used in v2 code
-          filters: |
-            v2:
-              - '**'              # include everything first
-              - '!**/*.md'        # exclude markdown
-              - '!api/**'         # exclude api
-              - '!web/**'         # exclude web
+          patterns: |
+            **              # include everything first
+            !**/*.md        # exclude markdown
+            !api/**         # exclude api
+            !web/**         # exclude web
 
   git-sha:
     name: Git SHA
