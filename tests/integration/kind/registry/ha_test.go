@@ -101,6 +101,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 	t.Logf("%s installing admin console", formattedTime())
 	adminConsoleAddon := &adminconsole.AdminConsole{
+		ClusterID:          "123",
 		IsAirgap:           true,
 		IsHA:               false,
 		Proxy:              rc.ProxySpec(),

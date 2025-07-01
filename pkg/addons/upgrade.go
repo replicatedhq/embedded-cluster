@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -106,6 +107,7 @@ func (a *AddOns) getAddOnsForUpgrade(meta *ectypes.ReleaseMetadata, opts Upgrade
 	}
 
 	addOns = append(addOns, &adminconsole.AdminConsole{
+		ClusterID:          metrics.ClusterID().String(),
 		IsAirgap:           opts.IsAirgap,
 		IsHA:               opts.IsHA,
 		Proxy:              opts.ProxySpec,

@@ -20,13 +20,16 @@ var _ types.AddOn = (*AdminConsole)(nil)
 type AdminConsole struct {
 	IsAirgap           bool
 	IsHA               bool
-	Proxy              *ecv1beta1.ProxySpec
-	ServiceCIDR        string
 	IsMultiNodeEnabled bool
-	HostCABundlePath   string
-	DataDir            string
-	K0sDataDir         string
+	Proxy              *ecv1beta1.ProxySpec
 	AdminConsolePort   int
+
+	// Linux specific options
+	ClusterID        string
+	ServiceCIDR      string
+	HostCABundlePath string
+	DataDir          string
+	K0sDataDir       string
 
 	// These options are only used during installation
 	Password      string
@@ -83,4 +86,8 @@ func (a *AdminConsole) ChartLocation(domains ecv1beta1.Domains) string {
 // DryRunManifests returns the manifests generated during a dry run.
 func (a *AdminConsole) DryRunManifests() [][]byte {
 	return a.dryRunManifests
+}
+
+func (a *AdminConsole) isEmbeddedCluster() bool {
+	return a.ClusterID != ""
 }

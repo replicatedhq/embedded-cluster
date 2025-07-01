@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
@@ -34,6 +35,21 @@ type InstallOptions struct {
 	K0sDataDir              string
 	OpenEBSDataDir          string
 	ServiceCIDR             string
+}
+
+type KubernetesInstallOptions struct {
+	AdminConsolePwd    string
+	AdminConsolePort   int
+	License            *kotsv1beta1.License
+	IsAirgap           bool
+	TLSCertBytes       []byte
+	TLSKeyBytes        []byte
+	Hostname           string
+	IsMultiNodeEnabled bool
+	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
+	EndUserConfigSpec  *ecv1beta1.ConfigSpec
+	KotsInstaller      adminconsole.KotsInstaller
+	ProxySpec          *ecv1beta1.ProxySpec
 }
 
 func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
@@ -112,6 +128,7 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	}
 
 	adminConsoleAddOn := &adminconsole.AdminConsole{
+		ClusterID:          metrics.ClusterID().String(),
 		IsAirgap:           opts.IsAirgap,
 		IsHA:               false,
 		Proxy:              opts.ProxySpec,
@@ -144,5 +161,26 @@ func GetAddOnsForRestore(opts RestoreOptions) []types.AddOn {
 			K0sDataDir:       opts.K0sDataDir,
 		},
 	}
+	return addOns
+}
+
+func GetAddOnsForKubernetesInstall(opts KubernetesInstallOptions) []types.AddOn {
+	addOns := []types.AddOn{}
+
+	adminConsoleAddOn := &adminconsole.AdminConsole{
+		IsAirgap:           opts.IsAirgap,
+		IsHA:               false,
+		IsMultiNodeEnabled: opts.IsMultiNodeEnabled,
+		Proxy:              opts.ProxySpec,
+		AdminConsolePort:   opts.AdminConsolePort,
+
+		Password:      opts.AdminConsolePwd,
+		TLSCertBytes:  opts.TLSCertBytes,
+		TLSKeyBytes:   opts.TLSKeyBytes,
+		Hostname:      opts.Hostname,
+		KotsInstaller: opts.KotsInstaller,
+	}
+	addOns = append(addOns, adminConsoleAddOn)
+
 	return addOns
 }

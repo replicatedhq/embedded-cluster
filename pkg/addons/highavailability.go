@@ -13,6 +13,7 @@ import (
 	registrymigrate "github.com/replicatedhq/embedded-cluster/pkg/addons/registry/migrate"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -240,6 +241,7 @@ func (a *AddOns) enableRegistryHA(ctx context.Context, opts EnableHAOptions) err
 func (a *AddOns) EnableAdminConsoleHA(ctx context.Context, opts EnableHAOptions) error {
 	// TODO (@salah): add support for end user overrides
 	ac := &adminconsole.AdminConsole{
+		ClusterID:          metrics.ClusterID().String(),
 		IsAirgap:           opts.IsAirgap,
 		IsHA:               true,
 		Proxy:              opts.ProxySpec,

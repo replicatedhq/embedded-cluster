@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -64,17 +63,16 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 		return nil, errors.Wrap(err, "unmarshal helm values")
 	}
 
-	copiedValues["embeddedClusterID"] = metrics.ClusterID().String()
-	copiedValues["embeddedClusterDataDir"] = a.DataDir
-	copiedValues["embeddedClusterK0sDir"] = a.K0sDataDir
+	if a.isEmbeddedCluster() {
+		// embeddedClusterID controls whether the admin console thinks it is running in an embedded cluster
+		copiedValues["embeddedClusterID"] = a.ClusterID
+		copiedValues["embeddedClusterDataDir"] = a.DataDir
+		copiedValues["embeddedClusterK0sDir"] = a.K0sDataDir
+	}
+
 	copiedValues["isHA"] = a.IsHA
 	copiedValues["isMultiNodeEnabled"] = a.IsMultiNodeEnabled
-
-	if a.IsAirgap {
-		copiedValues["isAirgap"] = "true"
-	} else {
-		copiedValues["isAirgap"] = "false"
-	}
+	copiedValues["isAirgap"] = a.IsAirgap
 
 	if domains.ReplicatedAppDomain != "" {
 		copiedValues["replicatedAppEndpoint"] = netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain)
@@ -88,13 +86,17 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 
 	extraEnv := []map[string]interface{}{
 		{
-			"name":  "ENABLE_IMPROVED_DR",
-			"value": "true",
-		},
-		{
 			"name":  "SSL_CERT_CONFIGMAP",
 			"value": "kotsadm-private-cas",
 		},
+	}
+
+	// currently, the admin console only supports improved disaster recovery in embedded clusters
+	if a.isEmbeddedCluster() {
+		extraEnv = append(extraEnv, map[string]interface{}{
+			"name":  "ENABLE_IMPROVED_DR",
+			"value": "true",
+		})
 	}
 
 	if a.Proxy != nil {
