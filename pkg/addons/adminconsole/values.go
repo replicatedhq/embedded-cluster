@@ -84,19 +84,20 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 		copiedValues["proxyRegistryDomain"] = domains.ProxyRegistryDomain
 	}
 
-	extraEnv := []map[string]interface{}{
-		{
-			"name":  "SSL_CERT_CONFIGMAP",
-			"value": "kotsadm-private-cas",
-		},
-	}
+	extraEnv := []map[string]interface{}{}
 
 	// currently, the admin console only supports improved disaster recovery in embedded clusters
 	if a.isEmbeddedCluster() {
-		extraEnv = append(extraEnv, map[string]interface{}{
-			"name":  "ENABLE_IMPROVED_DR",
-			"value": "true",
-		})
+		extraEnv = append(extraEnv,
+			map[string]interface{}{
+				"name":  "ENABLE_IMPROVED_DR",
+				"value": "true",
+			},
+			map[string]interface{}{
+				"name":  "SSL_CERT_CONFIGMAP",
+				"value": privateCASConfigMapName,
+			},
+		)
 	}
 
 	if a.Proxy != nil {

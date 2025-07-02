@@ -62,6 +62,8 @@ func TestKubernetes_Airgap(t *testing.T) {
 			assert.Fail(t, "EMBEDDED_CLUSTER_DATA_DIR environment variable should not be set")
 		case "EMBEDDED_CLUSTER_K0S_DIR":
 			assert.Fail(t, "EMBEDDED_CLUSTER_K0S_DIR environment variable should not be set")
+		case "SSL_CERT_CONFIGMAP":
+			assert.Fail(t, "SSL_CERT_CONFIGMAP environment variable should not be set")
 		case "ENABLE_IMPROVED_DR":
 			assert.Fail(t, "ENABLE_IMPROVED_DR environment variable should not be set")
 		}

@@ -112,6 +112,10 @@ func TestGenerateHelmValues_Target(t *testing.T) {
 		assert.Equal(t, filepath.Join(dataDir, "k0s"), values["embeddedClusterK0sDir"])
 
 		assert.Contains(t, values["extraEnv"], map[string]interface{}{
+			"name":  "SSL_CERT_CONFIGMAP",
+			"value": "kotsadm-private-cas",
+		})
+		assert.Contains(t, values["extraEnv"], map[string]interface{}{
 			"name":  "ENABLE_IMPROVED_DR",
 			"value": "true",
 		})
@@ -134,6 +138,7 @@ func TestGenerateHelmValues_Target(t *testing.T) {
 		assert.NotContains(t, values, "embeddedClusterK0sDir")
 
 		for _, env := range values["extraEnv"].([]map[string]interface{}) {
+			assert.NotEqual(t, "SSL_CERT_CONFIGMAP", env["name"], "SSL_CERT_CONFIGMAP environment variable should not be set")
 			assert.NotEqual(t, "ENABLE_IMPROVED_DR", env["name"], "ENABLE_IMPROVED_DR environment variable should not be set")
 		}
 	})

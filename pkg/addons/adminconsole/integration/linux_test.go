@@ -68,7 +68,7 @@ func TestLinux_Airgap(t *testing.T) {
 	require.NotNil(t, adminDeployment, "Admin Console deployment should not be nil")
 
 	// Check for environment variables
-	var embeddedClusterEnv, embeddedClusterDataDirEnv, embeddedClusterK0sDirEnv, enableImprovedDREnv *corev1.EnvVar
+	var embeddedClusterEnv, embeddedClusterDataDirEnv, embeddedClusterK0sDirEnv, sslCertConfigmapEnv, enableImprovedDREnv *corev1.EnvVar
 	for _, env := range adminDeployment.Spec.Template.Spec.Containers[0].Env {
 		switch env.Name {
 		case "EMBEDDED_CLUSTER_ID":
@@ -77,6 +77,8 @@ func TestLinux_Airgap(t *testing.T) {
 			embeddedClusterDataDirEnv = &env
 		case "EMBEDDED_CLUSTER_K0S_DIR":
 			embeddedClusterK0sDirEnv = &env
+		case "SSL_CERT_CONFIGMAP":
+			sslCertConfigmapEnv = &env
 		case "ENABLE_IMPROVED_DR":
 			enableImprovedDREnv = &env
 		}
@@ -89,6 +91,9 @@ func TestLinux_Airgap(t *testing.T) {
 	}
 	if assert.NotNil(t, embeddedClusterK0sDirEnv, "Admin Console EMBEDDED_CLUSTER_K0S_DIR environment variable should not be nil") {
 		assert.Equal(t, filepath.Join(dataDir, "k0s"), embeddedClusterK0sDirEnv.Value)
+	}
+	if assert.NotNil(t, sslCertConfigmapEnv, "Admin Console SSL_CERT_CONFIGMAP environment variable should not be nil") {
+		assert.Equal(t, "kotsadm-private-cas", sslCertConfigmapEnv.Value)
 	}
 	if assert.NotNil(t, enableImprovedDREnv, "Admin Console ENABLE_IMPROVED_DR environment variable should not be nil") {
 		assert.Equal(t, "true", enableImprovedDREnv.Value)
