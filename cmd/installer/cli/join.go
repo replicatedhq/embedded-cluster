@@ -657,6 +657,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 	defer loading.Close()
 
 	opts := addons.EnableHAOptions{
+		ClusterID:          jcmd.InstallationSpec.ClusterID,
 		AdminConsolePort:   rc.AdminConsolePort(),
 		IsAirgap:           jcmd.InstallationSpec.AirGap,
 		IsMultiNodeEnabled: jcmd.InstallationSpec.LicenseInfo != nil && jcmd.InstallationSpec.LicenseInfo.IsMultiNodeEnabled,

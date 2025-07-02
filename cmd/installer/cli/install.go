@@ -631,6 +631,7 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 			ConfigValues:  flags.configValues,
 			ReleaseData:   release.GetReleaseData(),
 			EndUserConfig: eucfg,
+			ClusterID:     metrics.ClusterID().String(),
 
 			LinuxConfig: apitypes.LinuxConfig{
 				RuntimeConfig:             rc,
@@ -771,6 +772,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 	}
 
 	opts := &addons.InstallOptions{
+		ClusterID:               metrics.ClusterID().String(),
 		AdminConsolePwd:         flags.adminConsolePassword,
 		AdminConsolePort:        rc.AdminConsolePort(),
 		License:                 flags.license,

@@ -162,6 +162,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	func() {
 		defer loading.Close()
 		opts := addons.EnableHAOptions{
+			ClusterID:   "123",
 			ServiceCIDR: rc.ServiceCIDR(),
 			ProxySpec:   rc.ProxySpec(),
 		}
@@ -226,6 +227,7 @@ func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSp
 
 	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
 	opts := addons.EnableHAOptions{
+		ClusterID:          "123",
 		AdminConsolePort:   rc.AdminConsolePort(),
 		IsAirgap:           true,
 		IsMultiNodeEnabled: false,

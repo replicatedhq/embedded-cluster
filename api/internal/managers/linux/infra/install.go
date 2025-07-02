@@ -290,6 +290,7 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 	ecDomains := utils.GetDomains(m.releaseData)
 
 	opts := addons.InstallOptions{
+		ClusterID:               m.clusterID,
 		AdminConsolePwd:         m.password,
 		AdminConsolePort:        rc.AdminConsolePort(),
 		License:                 license,

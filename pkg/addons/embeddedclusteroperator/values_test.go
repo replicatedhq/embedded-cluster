@@ -11,6 +11,7 @@ import (
 
 func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	e := &EmbeddedClusterOperator{
+		ClusterID:        "123",
 		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
 	}
 
@@ -49,4 +50,6 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	extraVolumeMount := values["extraVolumeMounts"].([]map[string]any)[0]
 	assert.Equal(t, "host-ca-bundle", extraVolumeMount["name"])
 	assert.Equal(t, "/certs/ca-certificates.crt", extraVolumeMount["mountPath"])
+
+	assert.Equal(t, "123", values["embeddedClusterID"])
 }

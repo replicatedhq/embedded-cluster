@@ -12,11 +12,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 type InstallOptions struct {
+	ClusterID               string
 	AdminConsolePwd         string
 	AdminConsolePort        int
 	License                 *kotsv1beta1.License
@@ -106,6 +106,7 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 			OpenEBSDataDir: opts.OpenEBSDataDir,
 		},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
+			ClusterID:        opts.ClusterID,
 			IsAirgap:         opts.IsAirgap,
 			Proxy:            opts.ProxySpec,
 			HostCABundlePath: opts.HostCABundlePath,
@@ -128,7 +129,7 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	}
 
 	adminConsoleAddOn := &adminconsole.AdminConsole{
-		ClusterID:          metrics.ClusterID().String(),
+		ClusterID:          opts.ClusterID,
 		IsAirgap:           opts.IsAirgap,
 		IsHA:               false,
 		Proxy:              opts.ProxySpec,

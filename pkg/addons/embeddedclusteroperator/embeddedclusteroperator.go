@@ -29,6 +29,7 @@ func init() {
 var _ types.AddOn = (*EmbeddedClusterOperator)(nil)
 
 type EmbeddedClusterOperator struct {
+	ClusterID        string
 	IsAirgap         bool
 	Proxy            *ecv1beta1.ProxySpec
 	HostCABundlePath string
