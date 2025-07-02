@@ -796,6 +796,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 				AppSlug:               flags.license.Spec.AppSlug,
 				License:               flags.licenseBytes,
 				Namespace:             constants.KotsadmNamespace,
+				ClusterID:             metrics.ClusterID().String(),
 				AirgapBundle:          flags.airgapBundle,
 				ConfigValuesFile:      flags.configValues,
 				ReplicatedAppEndpoint: replicatedAppURL(),
@@ -1313,6 +1314,7 @@ func recordInstallation(
 
 	// record the installation
 	installation, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
+		ClusterID:      metrics.ClusterID().String(),
 		IsAirgap:       flags.isAirgap,
 		License:        license,
 		ConfigSpec:     cfgspec,

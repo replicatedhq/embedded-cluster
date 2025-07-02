@@ -225,6 +225,7 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 	// record the installation
 	logFn("recording installation")
 	in, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
+		ClusterID:      m.clusterID,
 		IsAirgap:       m.airgapBundle != "",
 		License:        license,
 		ConfigSpec:     m.getECConfigSpec(),
@@ -319,6 +320,7 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 				AppSlug:               license.Spec.AppSlug,
 				License:               m.license,
 				Namespace:             constants.KotsadmNamespace,
+				ClusterID:             m.clusterID,
 				AirgapBundle:          m.airgapBundle,
 				ConfigValuesFile:      m.configValues,
 				ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
