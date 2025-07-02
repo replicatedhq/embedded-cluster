@@ -8,7 +8,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,14 +18,13 @@ import (
 func (v *Velero) Install(
 	ctx context.Context, logf types.LogFunc,
 	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
-	rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains,
-	overrides []string,
+	domains ecv1beta1.Domains, overrides []string,
 ) error {
 	if err := v.createPreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := v.GenerateHelmValues(ctx, kcli, rc, domains, overrides)
+	values, err := v.GenerateHelmValues(ctx, kcli, domains, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}

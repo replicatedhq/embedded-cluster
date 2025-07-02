@@ -10,9 +10,9 @@ import (
 	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -92,7 +92,7 @@ func ensureDataMigrationPod(ctx context.Context, cli client.Client, image string
 func maybeDeleteDataMigrationPod(ctx context.Context, cli client.Client) error {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: runtimeconfig.RegistryNamespace,
+			Namespace: constants.RegistryNamespace,
 			Name:      dataMigrationPodName,
 		},
 	}
@@ -105,7 +105,7 @@ func maybeDeleteDataMigrationPod(ctx context.Context, cli client.Client) error {
 		return nil
 	}
 
-	err = kubeutils.WaitForPodDeleted(ctx, cli, runtimeconfig.RegistryNamespace, dataMigrationPodName, &kubeutils.WaitOptions{
+	err = kubeutils.WaitForPodDeleted(ctx, cli, constants.RegistryNamespace, dataMigrationPodName, &kubeutils.WaitOptions{
 		Backoff: &wait.Backoff{
 			Steps:    30,
 			Duration: 2 * time.Second,
@@ -132,7 +132,7 @@ func monitorPodStatus(ctx context.Context, cli client.Client, errCh chan<- error
 			Jitter:   0.1,
 		},
 	}
-	pod, err := kubeutils.WaitForPodComplete(ctx, cli, runtimeconfig.RegistryNamespace, dataMigrationPodName, opts)
+	pod, err := kubeutils.WaitForPodComplete(ctx, cli, constants.RegistryNamespace, dataMigrationPodName, opts)
 	if err != nil {
 		errCh <- err
 	}
@@ -178,7 +178,7 @@ func streamPodLogs(ctx context.Context, kclient kubernetes.Interface) (io.ReadCl
 		Follow:    true,
 		TailLines: ptr.To(int64(100)),
 	}
-	podLogs, err := kclient.CoreV1().Pods(runtimeconfig.RegistryNamespace).GetLogs(dataMigrationPodName, &logOpts).Stream(ctx)
+	podLogs, err := kclient.CoreV1().Pods(constants.RegistryNamespace).GetLogs(dataMigrationPodName, &logOpts).Stream(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get logs: %w", err)
 	}
@@ -225,7 +225,7 @@ func newMigrationPod(image string) *corev1.Pod {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dataMigrationPodName,
-			Namespace: runtimeconfig.RegistryNamespace,
+			Namespace: constants.RegistryNamespace,
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
@@ -279,7 +279,7 @@ func ensureMigrationServiceAccount(ctx context.Context, cli client.Client) error
 	newRole := rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "registry-data-migration-role",
-			Namespace: runtimeconfig.RegistryNamespace,
+			Namespace: constants.RegistryNamespace,
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Role",
@@ -306,7 +306,7 @@ func ensureMigrationServiceAccount(ctx context.Context, cli client.Client) error
 	newServiceAccount := corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      serviceAccountName,
-			Namespace: runtimeconfig.RegistryNamespace,
+			Namespace: constants.RegistryNamespace,
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
@@ -321,7 +321,7 @@ func ensureMigrationServiceAccount(ctx context.Context, cli client.Client) error
 	newRoleBinding := rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "registry-data-migration-rolebinding",
-			Namespace: runtimeconfig.RegistryNamespace,
+			Namespace: constants.RegistryNamespace,
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "RoleBinding",
@@ -336,7 +336,7 @@ func ensureMigrationServiceAccount(ctx context.Context, cli client.Client) error
 			{
 				Kind:      "ServiceAccount",
 				Name:      serviceAccountName,
-				Namespace: runtimeconfig.RegistryNamespace,
+				Namespace: constants.RegistryNamespace,
 			},
 		},
 	}
@@ -357,7 +357,7 @@ func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 
 	var secret corev1.Secret
 	err = kcli.Get(ctx, client.ObjectKey{
-		Namespace: runtimeconfig.RegistryNamespace,
+		Namespace: constants.RegistryNamespace,
 		Name:      seaweedfsS3SecretName,
 	}, &secret)
 	if client.IgnoreNotFound(err) != nil {
@@ -377,7 +377,7 @@ func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 
 	secret = corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: runtimeconfig.RegistryNamespace,
+			Namespace: constants.RegistryNamespace,
 			Name:      seaweedfsS3SecretName,
 			Labels:    seaweedfs.ApplyLabels(secret.ObjectMeta.Labels, "s3"),
 		},

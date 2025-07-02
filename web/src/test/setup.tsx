@@ -5,8 +5,10 @@ import { createMemoryRouter, RouterProvider, RouteObject } from "react-router-do
 import { vi } from "vitest";
 
 import { createQueryClient } from "../query-client";
-import { ConfigContext, ClusterConfig } from "../contexts/ConfigContext";
-import { WizardModeContext, WizardMode } from "../contexts/WizardModeContext";
+import { LinuxConfigContext, LinuxConfig } from "../contexts/LinuxConfigContext";
+import { KubernetesConfigContext, KubernetesConfig } from "../contexts/KubernetesConfigContext";
+import { SettingsContext, Settings } from "../contexts/SettingsContext";
+import { WizardContext, WizardMode, WizardTarget } from "../contexts/WizardModeContext";
 import { BrandingContext } from "../contexts/BrandingContext";
 import { AuthContext } from "../contexts/AuthContext";
 
@@ -24,21 +26,6 @@ if (!window.HTMLElement.prototype.scrollIntoView) {
   window.HTMLElement.prototype.scrollIntoView = vi.fn();
 }
 
-interface PrototypeSettings {
-  skipValidation: boolean;
-  failPreflights: boolean;
-  failInstallation: boolean;
-  failHostPreflights: boolean;
-  clusterMode: "existing" | "embedded";
-  themeColor: string;
-  skipNodeValidation: boolean;
-  useSelfSignedCert: boolean;
-  enableMultiNode: boolean;
-  availableNetworkInterfaces: Array<{
-    name: string;
-  }>;
-}
-
 interface MockProviderProps {
   children: React.ReactNode;
   queryClient: ReturnType<typeof createQueryClient>;
@@ -47,22 +34,30 @@ interface MockProviderProps {
       title: string;
       icon?: string;
     };
-    configContext: {
-      config: ClusterConfig;
-      prototypeSettings: PrototypeSettings;
-      updateConfig: (newConfig: Partial<ClusterConfig>) => void;
-      updatePrototypeSettings: (newSettings: Partial<PrototypeSettings>) => void;
+    linuxConfigContext: {
+      config: LinuxConfig;
+      updateConfig: (newConfig: Partial<LinuxConfig>) => void;
       resetConfig: () => void;
     };
+    kubernetesConfigContext: {
+      config: KubernetesConfig;
+      updateConfig: (newConfig: Partial<KubernetesConfig>) => void;
+      resetConfig: () => void;
+    };
+    settingsContext: {
+      settings: Settings;
+      updateSettings: (newSettings: Partial<Settings>) => void;
+    };
     wizardModeContext: {
+      target: WizardTarget;
       mode: WizardMode;
       text: {
         title: string;
         subtitle: string;
         welcomeTitle: string;
         welcomeDescription: string;
-        setupTitle: string;
-        setupDescription: string;
+        linuxSetupTitle: string;
+        linuxSetupDescription: string;
         validationTitle: string;
         validationDescription: string;
         installationTitle: string;
@@ -91,12 +86,16 @@ const MockProvider = ({ children, queryClient, contexts }: MockProviderProps) =>
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={contexts.authContext}>
-        <ConfigContext.Provider value={contexts.configContext}>
-          <BrandingContext.Provider value={contexts.brandingContext}>
-            <WizardModeContext.Provider value={contexts.wizardModeContext}>{children}</WizardModeContext.Provider>
-          </BrandingContext.Provider>
-        </ConfigContext.Provider>
+      <AuthContext.Provider value={{ ...contexts.authContext, isLoading: false }}>
+        <LinuxConfigContext.Provider value={contexts.linuxConfigContext}>
+          <KubernetesConfigContext.Provider value={contexts.kubernetesConfigContext}>
+            <SettingsContext.Provider value={contexts.settingsContext}>
+              <BrandingContext.Provider value={contexts.brandingContext}>
+                <WizardContext.Provider value={contexts.wizardModeContext}>{children}</WizardContext.Provider>
+              </BrandingContext.Provider>
+            </SettingsContext.Provider>
+          </KubernetesConfigContext.Provider>
+        </LinuxConfigContext.Provider>
       </AuthContext.Provider>
     </QueryClientProvider>
   );
@@ -106,9 +105,11 @@ interface RenderWithProvidersOptions extends RenderOptions {
   wrapperProps?: {
     initialEntries?: string[];
     preloadedState?: Record<string, unknown>;
+    contextValues?: Partial<MockProviderProps["contexts"]>;
     routePath?: string;
     authenticated?: boolean;
     authToken?: string;
+    target?: WizardTarget;
   };
   wrapper?: React.ComponentType<{ children: React.ReactNode }>;
 }
@@ -116,39 +117,42 @@ interface RenderWithProvidersOptions extends RenderOptions {
 export const renderWithProviders = (
   ui: JSX.Element,
   options: RenderWithProvidersOptions = {},
-  contextValues: MockProviderProps["contexts"] = {
+) => {
+  const defaultContextValues: MockProviderProps["contexts"] = {
     brandingContext: { title: "My App" },
-    configContext: {
+    linuxConfigContext: {
       config: {
-        storageClass: "standard",
+        adminConsolePort: 8800,
         dataDirectory: "/var/lib/embedded-cluster",
         useProxy: false,
       },
-      prototypeSettings: {
-        skipValidation: false,
-        failPreflights: false,
-        failInstallation: false,
-        failHostPreflights: false,
-        clusterMode: "embedded",
-        themeColor: "#316DE6",
-        skipNodeValidation: false,
-        useSelfSignedCert: false,
-        enableMultiNode: true,
-        availableNetworkInterfaces: [],
+      updateConfig: vi.fn(),
+      resetConfig: vi.fn(),
+    },
+    kubernetesConfigContext: {
+      config: {
+        adminConsolePort: 8080,
+        useProxy: false,
       },
-      updateConfig: () => {},
-      updatePrototypeSettings: () => {},
-      resetConfig: () => {},
+      updateConfig: vi.fn(),
+      resetConfig: vi.fn(),
+    },
+    settingsContext: {
+      settings: {
+        themeColor: "#316DE6",
+      },
+      updateSettings: vi.fn(),
     },
     wizardModeContext: {
+      target: options.wrapperProps?.target || "linux",
       mode: "install",
       text: {
         title: "My App",
         subtitle: "Installation Wizard",
         welcomeTitle: "Welcome to My App",
-        welcomeDescription: "This wizard will guide you through installing My App on your Linux machine.",
-        setupTitle: "Setup",
-        setupDescription: "Set up the hosts to use for this installation.",
+        welcomeDescription: `This wizard will guide you through installing My App on your ${options.wrapperProps?.target === "kubernetes" ? "Kubernetes cluster" : "Linux machine"}.`,
+        linuxSetupTitle: "Setup",
+        linuxSetupDescription: "Set up the hosts to use for this installation.",
         validationTitle: "Validation",
         validationDescription: "Validate the host requirements before proceeding with installation.",
         installationTitle: "Installing My App",
@@ -162,8 +166,16 @@ export const renderWithProviders = (
       setToken: vi.fn(),
       isAuthenticated: !!options.wrapperProps?.authenticated || !!options.wrapperProps?.authToken,
     },
-  }
-) => {
+  };
+
+  const mergedContextValues: MockProviderProps["contexts"] = {
+    brandingContext: { ...defaultContextValues.brandingContext, ...options.wrapperProps?.contextValues?.brandingContext },
+    linuxConfigContext: { ...defaultContextValues.linuxConfigContext, ...options.wrapperProps?.contextValues?.linuxConfigContext },
+    kubernetesConfigContext: { ...defaultContextValues.kubernetesConfigContext, ...options.wrapperProps?.contextValues?.kubernetesConfigContext },
+    settingsContext: { ...defaultContextValues.settingsContext, ...options.wrapperProps?.contextValues?.settingsContext },
+    wizardModeContext: { ...defaultContextValues.wizardModeContext, ...options.wrapperProps?.contextValues?.wizardModeContext },
+    authContext: { ...defaultContextValues.authContext, ...options.wrapperProps?.contextValues?.authContext },
+  };
   const { wrapperProps = {}, wrapper: CustomWrapper } = options;
   const { routePath, initialEntries = ["/"] } = wrapperProps;
 
@@ -197,7 +209,7 @@ export const renderWithProviders = (
     {
       path: routePath || "/*",
       element: (
-        <MockProvider queryClient={queryClient} contexts={contextValues}>
+        <MockProvider queryClient={queryClient} contexts={mergedContextValues}>
           {CustomWrapper ? <CustomWrapper>{ui}</CustomWrapper> : ui}
         </MockProvider>
       ),

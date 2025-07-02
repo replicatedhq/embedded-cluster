@@ -17,20 +17,35 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (a *AddOns) Upgrade(ctx context.Context, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
-	domains := runtimeconfig.GetDomains(in.Spec.Config)
+type UpgradeOptions struct {
+	ClusterID               string
+	AdminConsolePort        int
+	IsAirgap                bool
+	IsHA                    bool
+	DisasterRecoveryEnabled bool
+	IsMultiNodeEnabled      bool
+	EmbeddedConfigSpec      *ecv1beta1.ConfigSpec
+	EndUserConfigSpec       *ecv1beta1.ConfigSpec
+	ProxySpec               *ecv1beta1.ProxySpec
+	HostCABundlePath        string
+	DataDir                 string
+	K0sDataDir              string
+	OpenEBSDataDir          string
+	SeaweedFSDataDir        string
+	ServiceCIDR             string
+}
 
-	addons, err := a.getAddOnsForUpgrade(domains, in, meta)
+func (a *AddOns) Upgrade(ctx context.Context, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata, opts UpgradeOptions) error {
+	addons, err := a.getAddOnsForUpgrade(meta, opts)
 	if err != nil {
 		return errors.Wrap(err, "get addons for upgrade")
 	}
 
 	for _, addon := range addons {
-		if err := a.upgradeAddOn(ctx, domains, in, addon); err != nil {
+		if err := a.upgradeAddOn(ctx, in, addon); err != nil {
 			return errors.Wrapf(err, "addon %s", addon.Name())
 		}
 	}
@@ -38,12 +53,12 @@ func (a *AddOns) Upgrade(ctx context.Context, in *ecv1beta1.Installation, meta *
 	return nil
 }
 
-func (a *AddOns) getAddOnsForUpgrade(domains ecv1beta1.Domains, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) ([]types.AddOn, error) {
+func (a *AddOns) getAddOnsForUpgrade(meta *ectypes.ReleaseMetadata, opts UpgradeOptions) ([]types.AddOn, error) {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
+		&openebs.OpenEBS{
+			OpenEBSDataDir: opts.OpenEBSDataDir,
+		},
 	}
-
-	serviceCIDR := a.rc.ServiceCIDR()
 
 	// ECO's embedded (wrong) metadata values do not match the published (correct) metadata values.
 	// This is because we re-generate the metadata.yaml file _after_ building the ECO binary / image.
@@ -53,13 +68,16 @@ func (a *AddOns) getAddOnsForUpgrade(domains ecv1beta1.Domains, in *ecv1beta1.In
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator chart location")
 	}
-	ecoImageRepo, ecoImageTag, ecoUtilsImage, err := a.operatorImages(meta.Images, domains.ProxyRegistryDomain)
+	ecoImageRepo, ecoImageTag, ecoUtilsImage, err := a.operatorImages(meta.Images)
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator images")
 	}
 	addOns = append(addOns, &embeddedclusteroperator.EmbeddedClusterOperator{
-		IsAirgap:              in.Spec.AirGap,
-		Proxy:                 a.rc.ProxySpec(),
+		ClusterID:        opts.ClusterID,
+		IsAirgap:         opts.IsAirgap,
+		Proxy:            opts.ProxySpec,
+		HostCABundlePath: opts.HostCABundlePath,
+
 		ChartLocationOverride: ecoChartLocation,
 		ChartVersionOverride:  ecoChartVersion,
 		ImageRepoOverride:     ecoImageRepo,
@@ -67,37 +85,45 @@ func (a *AddOns) getAddOnsForUpgrade(domains ecv1beta1.Domains, in *ecv1beta1.In
 		UtilsImageOverride:    ecoUtilsImage,
 	})
 
-	if in.Spec.AirGap {
+	if opts.IsAirgap {
 		addOns = append(addOns, &registry.Registry{
-			ServiceCIDR: serviceCIDR,
-			IsHA:        in.Spec.HighAvailability,
+			ServiceCIDR: opts.ServiceCIDR,
+			IsHA:        opts.IsHA,
 		})
 
-		if in.Spec.HighAvailability {
+		if opts.IsHA {
 			addOns = append(addOns, &seaweedfs.SeaweedFS{
-				ServiceCIDR: serviceCIDR,
+				ServiceCIDR:      opts.ServiceCIDR,
+				SeaweedFSDataDir: opts.SeaweedFSDataDir,
 			})
 		}
 	}
 
-	if in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
+	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			Proxy: a.rc.ProxySpec(),
+			Proxy:            opts.ProxySpec,
+			HostCABundlePath: opts.HostCABundlePath,
+			K0sDataDir:       opts.K0sDataDir,
 		})
 	}
 
 	addOns = append(addOns, &adminconsole.AdminConsole{
-		IsAirgap:           in.Spec.AirGap,
-		IsHA:               in.Spec.HighAvailability,
-		Proxy:              a.rc.ProxySpec(),
-		ServiceCIDR:        serviceCIDR,
-		IsMultiNodeEnabled: in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
+		ClusterID:          opts.ClusterID,
+		IsAirgap:           opts.IsAirgap,
+		IsHA:               opts.IsHA,
+		Proxy:              opts.ProxySpec,
+		ServiceCIDR:        opts.ServiceCIDR,
+		IsMultiNodeEnabled: opts.IsMultiNodeEnabled,
+		HostCABundlePath:   opts.HostCABundlePath,
+		DataDir:            opts.DataDir,
+		K0sDataDir:         opts.K0sDataDir,
+		AdminConsolePort:   opts.AdminConsolePort,
 	})
 
 	return addOns, nil
 }
 
-func (a *AddOns) upgradeAddOn(ctx context.Context, domains ecv1beta1.Domains, in *ecv1beta1.Installation, addon types.AddOn) error {
+func (a *AddOns) upgradeAddOn(ctx context.Context, in *ecv1beta1.Installation, addon types.AddOn) error {
 	// check if we already processed this addon
 	if kubeutils.CheckInstallationConditionStatus(in.Status, a.conditionName(addon)) == metav1.ConditionTrue {
 		slog.Info(addon.Name() + " is ready")
@@ -114,7 +140,7 @@ func (a *AddOns) upgradeAddOn(ctx context.Context, domains ecv1beta1.Domains, in
 	// TODO (@salah): add support for end user overrides
 	overrides := a.addOnOverrides(addon, in.Spec.Config, nil)
 
-	err := addon.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.rc, domains, overrides)
+	err := addon.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, overrides)
 	if err != nil {
 		message := helpers.CleanErrorMessage(err)
 		if err := a.setCondition(ctx, in, a.conditionName(addon), metav1.ConditionFalse, "UpgradeFailed", message); err != nil {

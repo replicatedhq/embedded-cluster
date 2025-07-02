@@ -343,19 +343,31 @@ create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
 create-node%: MANAGER_NODE_PORT = 30080
 create-node%: K0S_DATA_DIR = /var/lib/embedded-cluster/k0s
+create-node%: K0S_DATA_DIR_V3 = $(shell \
+	if [ -n "$(REPLICATED_APP)" ]; then \
+		echo "/var/lib/$(shell echo '$(REPLICATED_APP)' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')/k0s"; \
+	else \
+		echo "/var/lib/embedded-cluster-smoke-test-staging-app/k0s"; \
+	fi)
+create-node%: ENABLE_V3 = 0
 create-node%:
+	@echo "Mounting data directories:"
+	@echo "  v2: $(K0S_DATA_DIR)"
+	@echo "  v3: $(K0S_DATA_DIR_V3)"
 	@docker run -d \
 		--name node$* \
 		--hostname node$* \
 		--privileged \
 		--restart=unless-stopped \
 		-v $(K0S_DATA_DIR) \
+		-v $(K0S_DATA_DIR_V3) \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
 		$(if $(filter node0,node$*),-p $(MANAGER_NODE_PORT):$(MANAGER_NODE_PORT)) \
 		$(if $(filter node0,node$*),-p 30003:30003) \
 		-e EC_PUBLIC_ADDRESS=localhost \
+		-e ENABLE_V3=$(ENABLE_V3) \
 		replicated/ec-distro:$(DISTRO)
 
 	@$(MAKE) ssh-node$*

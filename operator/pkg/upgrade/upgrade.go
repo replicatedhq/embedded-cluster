@@ -13,6 +13,7 @@ import (
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
@@ -180,7 +181,10 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 		return fmt.Errorf("get cluster config: %w", err)
 	}
 
-	domains := runtimeconfig.GetDomains(in.Spec.Config)
+	// TODO: This will not work in a non-production environment.
+	// The domains in the release are used to supply alternative defaults for staging and the dev environment.
+	// The GetDomains function will always fall back to production defaults.
+	domains := domains.GetDomains(in.Spec.Config, nil)
 
 	didUpdate := false
 
@@ -267,14 +271,38 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc 
 		return fmt.Errorf("create metadata client: %w", err)
 	}
 
+	// TODO: This will not work in a non-production environment.
+	// The domains in the release are used to supply alternative defaults for staging and the dev environment.
+	// The GetDomains function will always fall back to production defaults.
+	domains := domains.GetDomains(in.Spec.Config, nil)
+
 	addOns := addons.New(
 		addons.WithLogFunc(slog.Info),
 		addons.WithKubernetesClient(cli),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(domains),
 	)
-	if err := addOns.Upgrade(ctx, in, meta); err != nil {
+
+	opts := addons.UpgradeOptions{
+		ClusterID:               in.Spec.ClusterID,
+		AdminConsolePort:        rc.AdminConsolePort(),
+		IsAirgap:                in.Spec.AirGap,
+		IsHA:                    in.Spec.HighAvailability,
+		DisasterRecoveryEnabled: in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported,
+		IsMultiNodeEnabled:      in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
+		EmbeddedConfigSpec:      in.Spec.Config,
+		EndUserConfigSpec:       nil, // TODO: add support for end user config spec
+		ProxySpec:               rc.ProxySpec(),
+		HostCABundlePath:        rc.HostCABundlePath(),
+		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		SeaweedFSDataDir:        rc.EmbeddedClusterSeaweedFSSubDir(),
+		ServiceCIDR:             rc.ServiceCIDR(),
+	}
+
+	if err := addOns.Upgrade(ctx, in, meta, opts); err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 

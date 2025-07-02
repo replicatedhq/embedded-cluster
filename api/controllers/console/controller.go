@@ -1,7 +1,7 @@
 package console
 
 import (
-	"github.com/replicatedhq/embedded-cluster/api/pkg/utils"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 )
 
 type Controller interface {
@@ -11,14 +11,14 @@ type Controller interface {
 var _ Controller = (*ConsoleController)(nil)
 
 type ConsoleController struct {
-	utils.NetUtils
+	netUtils utils.NetUtils
 }
 
 type ConsoleControllerOption func(*ConsoleController)
 
 func WithNetUtils(netUtils utils.NetUtils) ConsoleControllerOption {
 	return func(c *ConsoleController) {
-		c.NetUtils = netUtils
+		c.netUtils = netUtils
 	}
 }
 
@@ -29,13 +29,13 @@ func NewConsoleController(opts ...ConsoleControllerOption) (*ConsoleController, 
 		opt(controller)
 	}
 
-	if controller.NetUtils == nil {
-		controller.NetUtils = utils.NewNetUtils()
+	if controller.netUtils == nil {
+		controller.netUtils = utils.NewNetUtils()
 	}
 
 	return controller, nil
 }
 
 func (c *ConsoleController) ListAvailableNetworkInterfaces() ([]string, error) {
-	return c.NetUtils.ListValidNetworkInterfaces()
+	return c.netUtils.ListValidNetworkInterfaces()
 }

@@ -5,19 +5,17 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
-	rc := runtimeconfig.New(nil)
-	rc.SetDataDir(t.TempDir())
-	rc.SetHostCABundlePath("/etc/ssl/certs/ca-certificates.crt")
+	e := &EmbeddedClusterOperator{
+		ClusterID:        "123",
+		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
+	}
 
-	e := &EmbeddedClusterOperator{}
-
-	values, err := e.GenerateHelmValues(context.Background(), nil, rc, ecv1beta1.Domains{}, nil)
+	values, err := e.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
 	require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 	require.NotEmpty(t, values["extraVolumes"])
@@ -52,4 +50,6 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	extraVolumeMount := values["extraVolumeMounts"].([]map[string]any)[0]
 	assert.Equal(t, "host-ca-bundle", extraVolumeMount["name"])
 	assert.Equal(t, "/certs/ca-certificates.crt", extraVolumeMount["mountPath"])
+
+	assert.Equal(t, "123", values["embeddedClusterID"])
 }

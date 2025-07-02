@@ -2,23 +2,22 @@ package adminconsole
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	t.Run("with host CA bundle path", func(t *testing.T) {
-		rc := runtimeconfig.New(nil)
-		rc.SetDataDir(t.TempDir())
-		rc.SetHostCABundlePath("/etc/ssl/certs/ca-certificates.crt")
+		adminConsole := &AdminConsole{
+			DataDir:          t.TempDir(),
+			HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
+		}
 
-		adminConsole := &AdminConsole{}
-
-		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, rc, ecv1beta1.Domains{}, nil)
+		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
 		require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 		// Verify structure types
@@ -61,13 +60,12 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	})
 
 	t.Run("without host CA bundle path", func(t *testing.T) {
-		rc := runtimeconfig.New(nil)
-		rc.SetDataDir(t.TempDir())
 		// HostCABundlePath intentionally not set
+		adminConsole := &AdminConsole{
+			DataDir: t.TempDir(),
+		}
 
-		adminConsole := &AdminConsole{}
-
-		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, rc, ecv1beta1.Domains{}, nil)
+		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
 		require.NoError(t, err, "GenerateHelmValues should not return an error")
 
 		// Verify structure types
@@ -83,6 +81,65 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 		extraEnv := values["extraEnv"].([]map[string]interface{})
 		for _, env := range extraEnv {
 			assert.NotEqual(t, "SSL_CERT_DIR", env["name"], "SSL_CERT_DIR environment variable should not be set")
+		}
+	})
+}
+
+func TestGenerateHelmValues_Target(t *testing.T) {
+	t.Run("Linux (with cluster ID)", func(t *testing.T) {
+		dataDir := t.TempDir()
+
+		adminConsole := &AdminConsole{
+			IsAirgap:           false,
+			IsHA:               false,
+			IsMultiNodeEnabled: false,
+			Proxy:              nil,
+			AdminConsolePort:   8080,
+
+			ClusterID:        "123",
+			ServiceCIDR:      "10.0.0.0/24",
+			HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
+			DataDir:          dataDir,
+			K0sDataDir:       filepath.Join(dataDir, "k0s"),
+		}
+
+		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
+		require.NoError(t, err, "GenerateHelmValues should not return an error")
+
+		assert.Contains(t, values, "embeddedClusterID")
+		assert.Equal(t, "123", values["embeddedClusterID"])
+		assert.Equal(t, dataDir, values["embeddedClusterDataDir"])
+		assert.Equal(t, filepath.Join(dataDir, "k0s"), values["embeddedClusterK0sDir"])
+
+		assert.Contains(t, values["extraEnv"], map[string]interface{}{
+			"name":  "SSL_CERT_CONFIGMAP",
+			"value": "kotsadm-private-cas",
+		})
+		assert.Contains(t, values["extraEnv"], map[string]interface{}{
+			"name":  "ENABLE_IMPROVED_DR",
+			"value": "true",
+		})
+	})
+
+	t.Run("Kubernetes (without cluster ID)", func(t *testing.T) {
+		adminConsole := &AdminConsole{
+			IsAirgap:           false,
+			IsHA:               false,
+			IsMultiNodeEnabled: false,
+			Proxy:              nil,
+			AdminConsolePort:   8080,
+		}
+
+		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
+		require.NoError(t, err, "GenerateHelmValues should not return an error")
+
+		assert.NotContains(t, values, "embeddedClusterID")
+		assert.NotContains(t, values, "embeddedClusterDataDir")
+		assert.NotContains(t, values, "embeddedClusterK0sDir")
+
+		for _, env := range values["extraEnv"].([]map[string]interface{}) {
+			assert.NotEqual(t, "SSL_CERT_CONFIGMAP", env["name"], "SSL_CERT_CONFIGMAP environment variable should not be set")
+			assert.NotEqual(t, "ENABLE_IMPROVED_DR", env["name"], "ENABLE_IMPROVED_DR environment variable should not be set")
 		}
 	})
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func VersionEmbeddedDataCmd(ctx context.Context, name string) *cobra.Command {
+func VersionEmbeddedDataCmd(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "embedded-data",
 		Short: "Read the application data embedded in the cluster",

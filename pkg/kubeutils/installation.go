@@ -11,8 +11,8 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/crds"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -121,6 +121,7 @@ func writeInstallationStatusMessage(writer *spinner.MessageWriter, install *ecv1
 }
 
 type RecordInstallationOptions struct {
+	ClusterID      string
 	IsAirgap       bool
 	License        *kotsv1beta1.License
 	ConfigSpec     *ecv1beta1.ConfigSpec
@@ -133,7 +134,7 @@ func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInst
 	// ensure that the embedded-cluster namespace exists
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: runtimeconfig.EmbeddedClusterNamespace,
+			Name: constants.EmbeddedClusterNamespace,
 		},
 	}
 	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
@@ -159,13 +160,13 @@ func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInst
 			Name: time.Now().Format("20060102150405"),
 		},
 		Spec: ecv1beta1.InstallationSpec{
-			ClusterID:                 metrics.ClusterID().String(),
+			ClusterID:                 opts.ClusterID,
 			MetricsBaseURL:            opts.MetricsBaseURL,
 			AirGap:                    opts.IsAirgap,
 			Config:                    opts.ConfigSpec,
 			RuntimeConfig:             opts.RuntimeConfig,
 			EndUserK0sConfigOverrides: euOverrides,
-			BinaryName:                runtimeconfig.BinaryName(),
+			BinaryName:                runtimeconfig.AppSlug(),
 			LicenseInfo: &ecv1beta1.LicenseInfo{
 				IsDisasterRecoverySupported: opts.License.Spec.IsDisasterRecoverySupported,
 				IsMultiNodeEnabled:          opts.License.Spec.IsEmbeddedClusterMultiNodeEnabled,

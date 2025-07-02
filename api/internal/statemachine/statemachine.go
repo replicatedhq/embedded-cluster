@@ -1,39 +1,14 @@
 package statemachine
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"sync"
+
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	"github.com/sirupsen/logrus"
 )
-
-// State represents the possible states of the install process
-type State string
-
-var (
-	_ Interface = &stateMachine{}
-)
-
-// Interface is the interface for the state machine
-type Interface interface {
-	// CurrentState returns the current state
-	CurrentState() State
-	// IsFinalState checks if the current state is a final state
-	IsFinalState() bool
-	// ValidateTransition checks if a transition from the current state to a new state is valid
-	ValidateTransition(lock Lock, newState State) error
-	// Transition attempts to transition to a new state and returns an error if the transition is
-	// invalid.
-	Transition(lock Lock, nextState State) error
-	// AcquireLock acquires a lock on the state machine.
-	AcquireLock() (Lock, error)
-	// IsLockAcquired checks if a lock already exists on the state machine.
-	IsLockAcquired() bool
-}
-
-type Lock interface {
-	// Release releases the lock.
-	Release()
-}
 
 // stateMachine manages the state transitions for the install process
 type stateMachine struct {
@@ -41,14 +16,33 @@ type stateMachine struct {
 	validStateTransitions map[State][]State
 	lock                  *lock
 	mu                    sync.RWMutex
+	eventHandlers         map[State][]EventHandler
+	logger                logrus.FieldLogger
 }
 
+// StateMachineOption is a configurable state machine option.
+type StateMachineOption func(*stateMachine)
+
 // New creates a new state machine starting in the given state with the given valid state
-// transitions.
-func New(currentState State, validStateTransitions map[State][]State) *stateMachine {
-	return &stateMachine{
+// transitions and options.
+func New(currentState State, validStateTransitions map[State][]State, opts ...StateMachineOption) *stateMachine {
+	sm := &stateMachine{
 		currentState:          currentState,
 		validStateTransitions: validStateTransitions,
+		logger:                logger.NewDiscardLogger(),
+		eventHandlers:         make(map[State][]EventHandler),
+	}
+
+	for _, opt := range opts {
+		opt(sm)
+	}
+
+	return sm
+}
+
+func WithLogger(logger logrus.FieldLogger) StateMachineOption {
+	return func(sm *stateMachine) {
+		sm.logger = logger
 	}
 }
 
@@ -109,9 +103,13 @@ func (sm *stateMachine) ValidateTransition(lock Lock, nextState State) error {
 	return nil
 }
 
-func (sm *stateMachine) Transition(lock Lock, nextState State) error {
+func (sm *stateMachine) Transition(lock Lock, nextState State) (finalError error) {
 	sm.mu.Lock()
-	defer sm.mu.Unlock()
+	defer func() {
+		if finalError != nil {
+			sm.mu.Unlock()
+		}
+	}()
 
 	if sm.lock == nil {
 		return fmt.Errorf("lock not acquired")
@@ -123,9 +121,41 @@ func (sm *stateMachine) Transition(lock Lock, nextState State) error {
 		return fmt.Errorf("invalid transition from %s to %s", sm.currentState, nextState)
 	}
 
+	fromState := sm.currentState
 	sm.currentState = nextState
 
+	// Trigger event handlers after successful transition
+	handlers, exists := sm.eventHandlers[nextState]
+	safeHandlers := make([]EventHandler, len(handlers))
+	copy(safeHandlers, handlers) // Copy to avoid holding the lock while calling handlers
+
+	// We can release the lock here since the transition is successful and there will be no further operations to the state machine internal state
+	sm.mu.Unlock()
+
+	if !exists || len(safeHandlers) == 0 {
+		return nil
+	}
+
+	for _, handler := range safeHandlers {
+		err := handler.TriggerHandler(context.Background(), fromState, nextState)
+		if err != nil {
+			sm.logger.WithFields(logrus.Fields{"fromState": fromState, "toState": nextState}).Errorf("event handler error: %v", err)
+		}
+	}
+
 	return nil
+}
+
+func (sm *stateMachine) RegisterEventHandler(targetState State, handler EventHandlerFunc, options ...EventHandlerOption) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.eventHandlers[targetState] = append(sm.eventHandlers[targetState], NewEventHandler(handler, options...))
+}
+
+func (sm *stateMachine) UnregisterEventHandler(targetState State) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	delete(sm.eventHandlers, targetState)
 }
 
 func (sm *stateMachine) isValidTransition(currentState State, newState State) bool {

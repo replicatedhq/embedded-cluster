@@ -14,12 +14,14 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
@@ -48,7 +50,7 @@ type JoinCmdFlags struct {
 }
 
 // JoinCmd returns a cobra command for joining a node to the cluster.
-func JoinCmd(ctx context.Context, name string) *cobra.Command {
+func JoinCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	var flags JoinCmdFlags
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -56,7 +58,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "join <url> <token>",
-		Short: fmt.Sprintf("Join a node to the %s cluster", name),
+		Short: fmt.Sprintf("Join a node to the %s cluster", appTitle),
 		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunJoin(&flags); err != nil {
@@ -76,7 +78,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
 			joinReporter := newJoinReporter(
-				jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
+				jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID.String(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 			)
 			joinReporter.ReportJoinStarted(ctx)
 
@@ -85,7 +87,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				joinReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runJoin(cmd.Context(), name, flags, rc, jcmd, args[0], joinReporter); err != nil {
+			if err := runJoin(cmd.Context(), appSlug, flags, rc, jcmd, args[0], joinReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
 					joinReporter.ReportSignalAborted(ctx, syscall.SIGINT)
@@ -104,14 +106,15 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 		panic(err)
 	}
 
-	cmd.AddCommand(JoinRunPreflightsCmd(ctx, name))
-	cmd.AddCommand(JoinPrintCommandCmd(ctx, name))
+	cmd.AddCommand(JoinRunPreflightsCmd(ctx, appSlug, appTitle))
+	cmd.AddCommand(JoinPrintCommandCmd(ctx, appTitle))
 
 	return cmd
 }
 
 func preRunJoin(flags *JoinCmdFlags) error {
-	if os.Getuid() != 0 {
+	// Skip root check if dryrun mode is enabled
+	if !dryrun.Enabled() && os.Getuid() != 0 {
 		return fmt.Errorf("join command must be run as root")
 	}
 
@@ -150,18 +153,18 @@ func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
 	return nil
 }
 
-func runJoin(ctx context.Context, name string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string, joinReporter *JoinReporter) error {
+func runJoin(ctx context.Context, appSlug string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string, joinReporter *JoinReporter) error {
 	// both controller and worker nodes will have 'worker' in the join command
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if !isWorker {
 		logrus.Warn("\nDo not join another node until this node has joined successfully.")
 	}
 
-	if err := runJoinVerifyAndPrompt(name, flags, rc, jcmd); err != nil {
+	if err := runJoinVerifyAndPrompt(appSlug, flags, rc, jcmd); err != nil {
 		return err
 	}
 
-	cidrCfg, err := initializeJoin(ctx, name, rc, jcmd, kotsAPIAddress)
+	cidrCfg, err := initializeJoin(ctx, appSlug, rc, jcmd, kotsAPIAddress)
 	if err != nil {
 		return fmt.Errorf("unable to initialize join: %w", err)
 	}
@@ -177,7 +180,7 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, rc runtimecon
 	logrus.Debugf("installing and joining cluster")
 	loading := spinner.Start()
 	loading.Infof("Installing node")
-	if err := installAndJoinCluster(ctx, rc, jcmd, name, flags, isWorker); err != nil {
+	if err := installAndJoinCluster(ctx, rc, jcmd, appSlug, flags, isWorker); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return err
 	}
@@ -223,9 +226,9 @@ func runJoin(ctx context.Context, name string, flags JoinCmdFlags, rc runtimecon
 	return nil
 }
 
-func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
+func runJoinVerifyAndPrompt(appSlug string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
 	logrus.Debugf("checking if k0s is already installed")
-	err := verifyNoInstallation(name, "join a node")
+	err := verifyNoInstallation(appSlug, "join a node")
 	if err != nil {
 		return err
 	}
@@ -281,7 +284,7 @@ func runJoinVerifyAndPrompt(name string, flags JoinCmdFlags, rc runtimeconfig.Ru
 	return nil
 }
 
-func initializeJoin(ctx context.Context, name string, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string) (cidrCfg *newconfig.CIDRConfig, err error) {
+func initializeJoin(ctx context.Context, appSlug string, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string) (cidrCfg *newconfig.CIDRConfig, err error) {
 	logrus.Info("")
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
@@ -303,7 +306,7 @@ func initializeJoin(ctx context.Context, name string, rc runtimeconfig.RuntimeCo
 		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
 	}
 
-	logrus.Debugf("materializing %s binaries", name)
+	logrus.Debugf("materializing %s binaries", appSlug)
 	if err := materializeFilesForJoin(ctx, rc, jcmd, kotsAPIAddress); err != nil {
 		return nil, fmt.Errorf("failed to materialize files: %w", err)
 	}
@@ -341,7 +344,8 @@ func materializeFilesForJoin(ctx context.Context, rc runtimeconfig.RuntimeConfig
 	if err := materializer.Materialize(); err != nil {
 		return fmt.Errorf("materialize binaries: %w", err)
 	}
-	if err := support.MaterializeSupportBundleSpec(rc); err != nil {
+
+	if err := support.MaterializeSupportBundleSpec(rc, jcmd.InstallationSpec.AirGap); err != nil {
 		return fmt.Errorf("materialize support bundle spec: %w", err)
 	}
 
@@ -378,13 +382,13 @@ func getJoinCIDRConfig(rc runtimeconfig.RuntimeConfig) (*newconfig.CIDRConfig, e
 	}, nil
 }
 
-func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, name string, flags JoinCmdFlags, isWorker bool) error {
+func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, appSlug string, flags JoinCmdFlags, isWorker bool) error {
 	logrus.Debugf("saving token to disk")
 	if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 		return fmt.Errorf("unable to save token to disk: %w", err)
 	}
 
-	logrus.Debugf("installing %s binaries", name)
+	logrus.Debugf("installing %s binaries", appSlug)
 	if err := installK0sBinary(rc); err != nil {
 		return fmt.Errorf("unable to install k0s binary: %w", err)
 	}
@@ -420,7 +424,7 @@ func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, 
 		return fmt.Errorf("unable to join node to cluster: %w", err)
 	}
 
-	if err := startAndWaitForK0s(name); err != nil {
+	if err := startAndWaitForK0s(appSlug); err != nil {
 		return err
 	}
 
@@ -450,7 +454,7 @@ func installK0sBinary(rc runtimeconfig.RuntimeConfig) error {
 }
 
 func applyNetworkConfiguration(rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
-	domains := runtimeconfig.GetDomains(jcmd.InstallationSpec.Config)
+	domains := domains.GetDomains(jcmd.InstallationSpec.Config, release.GetChannelRelease())
 	clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 
 	address, err := netutils.FirstValidAddress(rc.NetworkInterface())
@@ -491,8 +495,8 @@ func applyNetworkConfiguration(rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCo
 }
 
 // startAndWaitForK0s starts the k0s service and waits for the node to be ready.
-func startAndWaitForK0s(name string) error {
-	logrus.Debugf("starting %s service", name)
+func startAndWaitForK0s(appSlug string) error {
+	logrus.Debugf("starting %s service", appSlug)
 	if _, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath, "start"); err != nil {
 		return fmt.Errorf("unable to start service: %w", err)
 	}
@@ -616,7 +620,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		addons.WithKubernetesClientSet(kclient),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(getDomains()),
 	)
 
 	canEnableHA, _, err := addOns.CanEnableHA(ctx)
@@ -652,5 +656,20 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 	loading := spinner.Start()
 	defer loading.Close()
 
-	return addOns.EnableHA(ctx, jcmd.InstallationSpec, loading)
+	opts := addons.EnableHAOptions{
+		ClusterID:          jcmd.InstallationSpec.ClusterID,
+		AdminConsolePort:   rc.AdminConsolePort(),
+		IsAirgap:           jcmd.InstallationSpec.AirGap,
+		IsMultiNodeEnabled: jcmd.InstallationSpec.LicenseInfo != nil && jcmd.InstallationSpec.LicenseInfo.IsMultiNodeEnabled,
+		EmbeddedConfigSpec: jcmd.InstallationSpec.Config,
+		EndUserConfigSpec:  nil, // TODO: add support for end user config spec
+		ProxySpec:          rc.ProxySpec(),
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
+		ServiceCIDR:        rc.ServiceCIDR(),
+	}
+
+	return addOns.EnableHA(ctx, opts, loading)
 }

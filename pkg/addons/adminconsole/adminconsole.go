@@ -5,13 +5,14 @@ import (
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 const (
 	_releaseName = "admin-console"
-	_namespace   = runtimeconfig.KotsadmNamespace
+
+	_namespace = constants.KotsadmNamespace
 )
 
 var _ types.AddOn = (*AdminConsole)(nil)
@@ -19,14 +20,23 @@ var _ types.AddOn = (*AdminConsole)(nil)
 type AdminConsole struct {
 	IsAirgap           bool
 	IsHA               bool
-	Proxy              *ecv1beta1.ProxySpec
-	ServiceCIDR        string
-	Password           string
-	TLSCertBytes       []byte
-	TLSKeyBytes        []byte
-	Hostname           string
-	KotsInstaller      KotsInstaller
 	IsMultiNodeEnabled bool
+	Proxy              *ecv1beta1.ProxySpec
+	AdminConsolePort   int
+
+	// Linux specific options
+	ClusterID        string
+	ServiceCIDR      string
+	HostCABundlePath string
+	DataDir          string
+	K0sDataDir       string
+
+	// These options are only used during installation
+	Password      string
+	TLSCertBytes  []byte
+	TLSKeyBytes   []byte
+	Hostname      string
+	KotsInstaller KotsInstaller
 
 	// DryRun is a flag to enable dry-run mode for Admin Console.
 	// If true, Admin Console will only render the helm template and additional manifests, but not install
@@ -76,4 +86,8 @@ func (a *AdminConsole) ChartLocation(domains ecv1beta1.Domains) string {
 // DryRunManifests returns the manifests generated during a dry run.
 func (a *AdminConsole) DryRunManifests() [][]byte {
 	return a.dryRunManifests
+}
+
+func (a *AdminConsole) isEmbeddedCluster() bool {
+	return a.ClusterID != ""
 }

@@ -12,39 +12,57 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 type InstallOptions struct {
-	AdminConsolePwd         string
-	License                 *kotsv1beta1.License
-	IsAirgap                bool
-	TLSCertBytes            []byte
-	TLSKeyBytes             []byte
-	Hostname                string
+	AdminConsolePwd    string
+	AdminConsolePort   int
+	License            *kotsv1beta1.License
+	IsAirgap           bool
+	TLSCertBytes       []byte
+	TLSKeyBytes        []byte
+	Hostname           string
+	IsMultiNodeEnabled bool
+	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
+	EndUserConfigSpec  *ecv1beta1.ConfigSpec
+	KotsInstaller      adminconsole.KotsInstaller
+	ProxySpec          *ecv1beta1.ProxySpec
+
+	// Linux only options
+	ClusterID               string
 	DisasterRecoveryEnabled bool
-	IsMultiNodeEnabled      bool
-	EmbeddedConfigSpec      *ecv1beta1.ConfigSpec
-	EndUserConfigSpec       *ecv1beta1.ConfigSpec
-	KotsInstaller           adminconsole.KotsInstaller
-	IsRestore               bool
+	HostCABundlePath        string
+	DataDir                 string
+	K0sDataDir              string
+	OpenEBSDataDir          string
+	ServiceCIDR             string
+}
+
+type KubernetesInstallOptions struct {
+	AdminConsolePwd    string
+	AdminConsolePort   int
+	License            *kotsv1beta1.License
+	IsAirgap           bool
+	TLSCertBytes       []byte
+	TLSKeyBytes        []byte
+	Hostname           string
+	IsMultiNodeEnabled bool
+	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
+	EndUserConfigSpec  *ecv1beta1.ConfigSpec
+	KotsInstaller      adminconsole.KotsInstaller
+	ProxySpec          *ecv1beta1.ProxySpec
 }
 
 func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
-	addons := GetAddOnsForInstall(a.rc, opts)
-	if opts.IsRestore {
-		addons = GetAddOnsForRestore(a.rc, opts)
-	}
-
-	domains := runtimeconfig.GetDomains(opts.EmbeddedConfigSpec)
+	addons := GetAddOnsForInstall(opts)
 
 	for _, addon := range addons {
 		a.sendProgress(addon.Name(), apitypes.StateRunning, "Installing")
 
 		overrides := a.addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
 
-		if err := addon.Install(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.rc, domains, overrides); err != nil {
+		if err := addon.Install(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, overrides); err != nil {
 			a.sendProgress(addon.Name(), apitypes.StateFailed, err.Error())
 			return errors.Wrapf(err, "install %s", addon.Name())
 		}
@@ -55,49 +73,117 @@ func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
 	return nil
 }
 
-func GetAddOnsForInstall(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
+type RestoreOptions struct {
+	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
+	EndUserConfigSpec  *ecv1beta1.ConfigSpec
+	ProxySpec          *ecv1beta1.ProxySpec
+	HostCABundlePath   string
+	DataDir            string
+	OpenEBSDataDir     string
+	K0sDataDir         string
+}
+
+func (a *AddOns) Restore(ctx context.Context, opts RestoreOptions) error {
+	addons := GetAddOnsForRestore(opts)
+
+	for _, addon := range addons {
+		a.sendProgress(addon.Name(), apitypes.StateRunning, "Installing")
+
+		overrides := a.addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
+
+		if err := addon.Install(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, overrides); err != nil {
+			a.sendProgress(addon.Name(), apitypes.StateFailed, err.Error())
+			return errors.Wrapf(err, "install %s", addon.Name())
+		}
+
+		a.sendProgress(addon.Name(), apitypes.StateSucceeded, "Installed")
+	}
+
+	return nil
+}
+
+func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
+		&openebs.OpenEBS{
+			OpenEBSDataDir: opts.OpenEBSDataDir,
+		},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
-			IsAirgap: opts.IsAirgap,
-			Proxy:    rc.ProxySpec(),
+			ClusterID:        opts.ClusterID,
+			IsAirgap:         opts.IsAirgap,
+			Proxy:            opts.ProxySpec,
+			HostCABundlePath: opts.HostCABundlePath,
 		},
 	}
 
 	if opts.IsAirgap {
 		addOns = append(addOns, &registry.Registry{
-			ServiceCIDR: rc.ServiceCIDR(),
+			ServiceCIDR: opts.ServiceCIDR,
+			IsHA:        false,
 		})
 	}
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			Proxy: rc.ProxySpec(),
+			Proxy:            opts.ProxySpec,
+			HostCABundlePath: opts.HostCABundlePath,
+			K0sDataDir:       opts.K0sDataDir,
 		})
 	}
 
 	adminConsoleAddOn := &adminconsole.AdminConsole{
+		ClusterID:          opts.ClusterID,
 		IsAirgap:           opts.IsAirgap,
-		Proxy:              rc.ProxySpec(),
-		ServiceCIDR:        rc.ServiceCIDR(),
-		Password:           opts.AdminConsolePwd,
-		TLSCertBytes:       opts.TLSCertBytes,
-		TLSKeyBytes:        opts.TLSKeyBytes,
-		Hostname:           opts.Hostname,
-		KotsInstaller:      opts.KotsInstaller,
+		IsHA:               false,
+		Proxy:              opts.ProxySpec,
+		ServiceCIDR:        opts.ServiceCIDR,
 		IsMultiNodeEnabled: opts.IsMultiNodeEnabled,
+		HostCABundlePath:   opts.HostCABundlePath,
+		DataDir:            opts.DataDir,
+		K0sDataDir:         opts.K0sDataDir,
+		AdminConsolePort:   opts.AdminConsolePort,
+
+		Password:      opts.AdminConsolePwd,
+		TLSCertBytes:  opts.TLSCertBytes,
+		TLSKeyBytes:   opts.TLSKeyBytes,
+		Hostname:      opts.Hostname,
+		KotsInstaller: opts.KotsInstaller,
 	}
 	addOns = append(addOns, adminConsoleAddOn)
 
 	return addOns
 }
 
-func GetAddOnsForRestore(rc runtimeconfig.RuntimeConfig, opts InstallOptions) []types.AddOn {
+func GetAddOnsForRestore(opts RestoreOptions) []types.AddOn {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
+		&openebs.OpenEBS{
+			OpenEBSDataDir: opts.OpenEBSDataDir,
+		},
 		&velero.Velero{
-			Proxy: rc.ProxySpec(),
+			Proxy:            opts.ProxySpec,
+			HostCABundlePath: opts.HostCABundlePath,
+			K0sDataDir:       opts.K0sDataDir,
 		},
 	}
+	return addOns
+}
+
+func GetAddOnsForKubernetesInstall(opts KubernetesInstallOptions) []types.AddOn {
+	addOns := []types.AddOn{}
+
+	adminConsoleAddOn := &adminconsole.AdminConsole{
+		IsAirgap:           opts.IsAirgap,
+		IsHA:               false,
+		IsMultiNodeEnabled: opts.IsMultiNodeEnabled,
+		Proxy:              opts.ProxySpec,
+		AdminConsolePort:   opts.AdminConsolePort,
+
+		Password:      opts.AdminConsolePwd,
+		TLSCertBytes:  opts.TLSCertBytes,
+		TLSKeyBytes:   opts.TLSKeyBytes,
+		Hostname:      opts.Hostname,
+		KotsInstaller: opts.KotsInstaller,
+	}
+	addOns = append(addOns, adminConsoleAddOn)
+
 	return addOns
 }

@@ -11,6 +11,7 @@ import (
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -100,7 +101,7 @@ func NewK0sConfig(networkInterface string, isAirgap bool, podCIDR string, servic
 		embCfgSpec = &embCfg.Spec
 	}
 
-	domains := runtimeconfig.GetDomains(embCfgSpec)
+	domains := domains.GetDomains(embCfgSpec, release.GetChannelRelease())
 	cfg := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 
 	address, err := netutils.FirstValidAddress(networkInterface)
@@ -263,7 +264,7 @@ func (k *K0s) WaitForK0s() error {
 		break
 	}
 	if !success {
-		return fmt.Errorf("timeout waiting for %s", runtimeconfig.BinaryName())
+		return fmt.Errorf("timeout waiting for %s", runtimeconfig.AppSlug())
 	}
 
 	for i := 1; ; i++ {

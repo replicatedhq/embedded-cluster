@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v12 "k8s.io/api/core/v1"

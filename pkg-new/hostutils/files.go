@@ -15,7 +15,9 @@ func (h *HostUtils) MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundl
 	if err := materializer.Materialize(); err != nil {
 		return fmt.Errorf("materialize binaries: %w", err)
 	}
-	if err := support.MaterializeSupportBundleSpec(rc); err != nil {
+
+	isAirgap := airgapBundle != ""
+	if err := support.MaterializeSupportBundleSpec(rc, isAirgap); err != nil {
 		return fmt.Errorf("materialize support bundle spec: %w", err)
 	}
 
