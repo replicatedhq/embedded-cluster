@@ -106,10 +106,6 @@ func helmValues() (map[string]interface{}, error) {
 }
 
 func helmValuesHA() (map[string]interface{}, error) {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		return nil, errors.Wrap(err, "unmarshal metadata")
-	}
-
 	hvHA, err := release.RenderHelmValues(rawvaluesha, Metadata)
 	if err != nil {
 		return nil, errors.Wrap(err, "render helm values")

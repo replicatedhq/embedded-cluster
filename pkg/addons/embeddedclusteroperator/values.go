@@ -10,7 +10,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
-	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -119,10 +118,6 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, kcli c
 }
 
 func helmValues() (map[string]interface{}, error) {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		return nil, errors.Wrap(err, "unmarshal metadata")
-	}
-
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		return nil, errors.Wrap(err, "render helm values")

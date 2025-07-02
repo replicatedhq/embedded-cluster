@@ -8,6 +8,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"gopkg.in/yaml.v3"
 	"k8s.io/utils/ptr"
 )
 
@@ -17,6 +18,12 @@ var (
 	// Metadata is the unmarshal version of rawmetadata.
 	Metadata release.AddonMetadata
 )
+
+func init() {
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(errors.Wrap(err, "unable to unmarshal metadata"))
+	}
+}
 
 func Version() map[string]string {
 	return map[string]string{"Velero": "v" + Metadata.Version}

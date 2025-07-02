@@ -10,7 +10,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -114,10 +113,6 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, dom
 }
 
 func helmValues() (map[string]interface{}, error) {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		return nil, errors.Wrap(err, "unmarshal metadata")
-	}
-
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		return nil, errors.Wrap(err, "render helm values")
