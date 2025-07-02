@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/google/uuid"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
@@ -51,14 +50,14 @@ type Reporter struct {
 	version      string
 	executionID  string
 	baseURL      string
-	clusterID    uuid.UUID
+	clusterID    string
 	hostname     string
 	command      string
 	commandFlags []string
 }
 
 // NewReporter creates a new Reporter with the given parameters.
-func NewReporter(executionID string, baseURL string, clusterID uuid.UUID, command string, commandFlags []string) *Reporter {
+func NewReporter(executionID string, baseURL string, clusterID string, command string, commandFlags []string) *Reporter {
 	return &Reporter{
 		version:      versions.Version,
 		executionID:  executionID,

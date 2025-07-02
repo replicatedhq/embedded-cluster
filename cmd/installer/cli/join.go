@@ -78,7 +78,7 @@ func JoinCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
 			joinReporter := newJoinReporter(
-				jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
+				jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID.String(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 			)
 			joinReporter.ReportJoinStarted(ctx)
 

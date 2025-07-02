@@ -87,6 +87,7 @@ type InstallCmdFlags struct {
 }
 
 type installConfig struct {
+	clusterID    string
 	license      *kotsv1beta1.License
 	licenseBytes []byte
 	tlsCert      tls.Certificate
@@ -129,15 +130,14 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				return err
 			}
 
-			clusterID := uuid.New()
 			installReporter := newInstallReporter(
-				replicatedAppURL(), clusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
-				flags.license.Spec.LicenseID, flags.license.Spec.AppSlug,
+				replicatedAppURL(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
+				flags.license.Spec.LicenseID, flags.clusterID, flags.license.Spec.AppSlug,
 			)
 			installReporter.ReportInstallationStarted(ctx)
 
 			if flags.enableManagerExperience {
-				return runManagerExperienceInstall(ctx, flags, rc, ki, installReporter, clusterID.String(), appTitle)
+				return runManagerExperienceInstall(ctx, flags, rc, ki, installReporter, appTitle)
 			}
 
 			_ = rc.SetEnv()
@@ -147,7 +147,7 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				installReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runInstall(cmd.Context(), flags, rc, installReporter, clusterID.String()); err != nil {
+			if err := runInstall(cmd.Context(), flags, rc, installReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
 					installReporter.ReportSignalAborted(ctx, syscall.SIGINT)
@@ -378,6 +378,8 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 		return fmt.Errorf(`invalid --target (must be one of: "linux", "kubernetes")`)
 	}
 
+	flags.clusterID = uuid.New().String()
+
 	if err := preRunInstallCommon(cmd, flags, rc, ki); err != nil {
 		return err
 	}
@@ -564,7 +566,7 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 
 func runManagerExperienceInstall(
 	ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation,
-	installReporter *InstallReporter, clusterID string, appTitle string,
+	installReporter *InstallReporter, appTitle string,
 ) (finalErr error) {
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
@@ -634,7 +636,7 @@ func runManagerExperienceInstall(
 			ConfigValues:  flags.configValues,
 			ReleaseData:   release.GetReleaseData(),
 			EndUserConfig: eucfg,
-			ClusterID:     clusterID,
+			ClusterID:     flags.clusterID,
 
 			LinuxConfig: apitypes.LinuxConfig{
 				RuntimeConfig:             rc,
@@ -666,7 +668,7 @@ func runManagerExperienceInstall(
 	return nil
 }
 
-func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter, clusterID string) (finalErr error) {
+func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) (finalErr error) {
 	if flags.enableManagerExperience {
 		return nil
 	}
@@ -701,7 +703,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	in, err := recordInstallation(ctx, kcli, flags, rc, flags.license, clusterID)
+	in, err := recordInstallation(ctx, kcli, flags, rc)
 	if err != nil {
 		return fmt.Errorf("unable to record installation: %w", err)
 	}
@@ -737,7 +739,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	defer hcli.Close()
 
 	logrus.Debugf("installing addons")
-	if err := installAddons(ctx, kcli, mcli, hcli, flags, rc, clusterID); err != nil {
+	if err := installAddons(ctx, kcli, mcli, hcli, flags, rc); err != nil {
 		return err
 	}
 
@@ -759,7 +761,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	return nil
 }
 
-func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, clusterID string, loading **spinner.MessageWriter) (*addons.InstallOptions, error) {
+func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, loading **spinner.MessageWriter) (*addons.InstallOptions, error) {
 	var embCfgSpec *ecv1beta1.ConfigSpec
 	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
 		embCfgSpec = &embCfg.Spec
@@ -775,7 +777,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 	}
 
 	opts := &addons.InstallOptions{
-		ClusterID:               clusterID,
+		ClusterID:               flags.clusterID,
 		AdminConsolePwd:         flags.adminConsolePassword,
 		AdminConsolePort:        rc.AdminConsolePort(),
 		License:                 flags.license,
@@ -799,7 +801,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 				AppSlug:               flags.license.Spec.AppSlug,
 				License:               flags.licenseBytes,
 				Namespace:             constants.KotsadmNamespace,
-				ClusterID:             clusterID,
+				ClusterID:             flags.clusterID,
 				AirgapBundle:          flags.airgapBundle,
 				ConfigValuesFile:      flags.configValues,
 				ReplicatedAppEndpoint: replicatedAppURL(),
@@ -1074,7 +1076,7 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 	return cfg, nil
 }
 
-func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, clusterID string) error {
+func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -1102,7 +1104,7 @@ func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		addons.WithProgressChannel(progressChan),
 	)
 
-	opts, err := getAddonInstallOpts(flags, rc, clusterID, &loading)
+	opts, err := getAddonInstallOpts(flags, rc, &loading)
 	if err != nil {
 		return fmt.Errorf("get addon install opts: %w", err)
 	}
@@ -1300,7 +1302,7 @@ func waitForNode(ctx context.Context) error {
 }
 
 func recordInstallation(
-	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, license *kotsv1beta1.License, clusterID string,
+	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig,
 ) (*ecv1beta1.Installation, error) {
 	// get the embedded cluster config
 	cfg := release.GetEmbeddedClusterConfig()
@@ -1317,9 +1319,9 @@ func recordInstallation(
 
 	// record the installation
 	installation, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
-		ClusterID:      clusterID,
+		ClusterID:      flags.clusterID,
 		IsAirgap:       flags.isAirgap,
-		License:        license,
+		License:        flags.license,
 		ConfigSpec:     cfgspec,
 		MetricsBaseURL: replicatedAppURL(),
 		RuntimeConfig:  rc.Get(),

@@ -9,7 +9,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
 	"github.com/stretchr/testify/require"
 )
@@ -52,7 +51,7 @@ func TestReportInstallationStarted(t *testing.T) {
 			defer func() { os.Args = originalArgs }()
 			os.Args = append([]string{os.Args[0]}, test.OSArgs...)
 
-			reporter := NewReporter("test-execution-id", server.URL, uuid.New(), "install", test.OSArgs[1:])
+			reporter := NewReporter("test-execution-id", server.URL, "123", "install", test.OSArgs[1:])
 			reporter.ReportInstallationStarted(context.Background(), "license-id", "app-slug")
 		})
 	}
