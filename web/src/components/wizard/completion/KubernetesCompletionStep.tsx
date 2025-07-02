@@ -1,12 +1,12 @@
 import React from "react";
-import Card from "../common/Card";
-import Button from "../common/Button";
-import { useLinuxConfig } from "../../contexts/LinuxConfigContext";
-import { useBranding } from "../../contexts/BrandingContext";
+import Card from "../../common/Card";
+import Button from "../../common/Button";
+import { useKubernetesConfig } from "../../../contexts/KubernetesConfigContext";
+import { useBranding } from "../../../contexts/BrandingContext";
 import { CheckCircle, ExternalLink } from "lucide-react";
 
-const CompletionStep: React.FC = () => {
-  const { config } = useLinuxConfig();
+const KubernetesCompletionStep: React.FC = () => {
+  const { config } = useKubernetesConfig();
   const { title } = useBranding();
 
   return (
@@ -17,11 +17,12 @@ const CompletionStep: React.FC = () => {
             <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4">
               <CheckCircle className="w-10 h-10" style={{ color: "blue" }} />
             </div>
-            <p className="text-gray-600 mt-2">
+            <p className="text-gray-600 mt-2" data-testid="completion-message">
               Visit the Admin Console to configure and install {title}
             </p>
             <Button
               className="mt-4"
+              dataTestId="admin-console-button"
               onClick={() => window.open(`http://${window.location.hostname}:${config.adminConsolePort}`, "_blank")}
               icon={<ExternalLink className="ml-2 mr-1 h-5 w-5" />}
             >
@@ -34,4 +35,4 @@ const CompletionStep: React.FC = () => {
   );
 };
 
-export default CompletionStep;
+export default KubernetesCompletionStep;

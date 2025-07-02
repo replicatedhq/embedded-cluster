@@ -10,6 +10,7 @@ interface ButtonProps {
   disabled?: boolean;
   className?: string;
   icon?: React.ReactNode;
+  dataTestId?: string;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -21,6 +22,7 @@ const Button: React.FC<ButtonProps> = ({
   disabled = false,
   className = '',
   icon,
+  dataTestId
 }) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -53,6 +55,7 @@ const Button: React.FC<ButtonProps> = ({
         backgroundColor: variant === 'primary' ? themeColor : undefined,
         borderColor: variant === 'outline' ? 'currentColor' : undefined,
       } as React.CSSProperties}
+      data-testid={dataTestId}
     >
       {icon && <span className="mr-2">{icon}</span>}
       {children}

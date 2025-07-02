@@ -23,6 +23,11 @@ const server = setupServer(
   // Mock config submission endpoint
   http.post("*/api/kubernetes/install/installation/configure", () => {
     return HttpResponse.json({ success: true });
+  }),
+
+  // Mock infrastructure setup endpoint
+  http.post("*/api/kubernetes/install/infra/setup", () => {
+    return HttpResponse.json({ success: true });
   })
 );
 

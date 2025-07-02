@@ -6,12 +6,12 @@ import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import LinuxSetupStep from "../setup/LinuxSetupStep.tsx";
 import { formatErrorMessage } from "../setup/LinuxSetupStep.tsx";
-import { MOCK_INSTALL_CONFIG, MOCK_NETWORK_INTERFACES } from "../../../test/testData.ts";
+import { MOCK_LINUX_INSTALL_CONFIG, MOCK_NETWORK_INTERFACES } from "../../../test/testData.ts";
 
 const server = setupServer(
   // Mock install config endpoint
   http.get("*/api/linux/install/installation/config", () => {
-    return HttpResponse.json({ config: MOCK_INSTALL_CONFIG });
+    return HttpResponse.json({ config: MOCK_LINUX_INSTALL_CONFIG });
   }),
 
   // Mock network interfaces endpoint
@@ -52,7 +52,6 @@ describe("LinuxSetupStep", () => {
         contextValues: {
           linuxConfigContext: {
             config: {
-              ...MOCK_INSTALL_CONFIG,
               dataDirectory: "/var/lib/embedded-cluster",
               adminConsolePort: 8080,
               localArtifactMirrorPort: 8081,
@@ -118,7 +117,6 @@ describe("LinuxSetupStep", () => {
         contextValues: {
           linuxConfigContext: {
             config: {
-              ...MOCK_INSTALL_CONFIG,
               dataDirectory: "/var/lib/embedded-cluster",
               adminConsolePort: 8080,
               localArtifactMirrorPort: 8081,
@@ -169,7 +167,6 @@ describe("LinuxSetupStep", () => {
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
         return HttpResponse.json({
           config: {
-            ...MOCK_INSTALL_CONFIG,
             dataDirectory: "/var/lib/embedded-cluster",
             adminConsolePort: 8080,
             localArtifactMirrorPort: 8081,
@@ -210,7 +207,6 @@ describe("LinuxSetupStep", () => {
         contextValues: {
           linuxConfigContext: {
             config: {
-              ...MOCK_INSTALL_CONFIG,
               dataDirectory: "/var/lib/embedded-cluster",
               adminConsolePort: 8080,
               localArtifactMirrorPort: 8081,

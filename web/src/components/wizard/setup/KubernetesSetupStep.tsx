@@ -89,11 +89,38 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext }) => 
       return response.json();
     },
     onSuccess: () => {
-      onNext();
+      setError(null); // Clear any previous errors
+      startInstallation();
     },
     onError: (err: ConfigError) => {
       setError(err.message || "Failed to submit config");
       return err;
+    },
+  });
+
+  // Mutation for starting the installation
+  const { mutate: startInstallation } = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/kubernetes/install/infra/setup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to start installation");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setError(null); // Clear any previous errors
+      onNext();
+    },
+    onError: (err: Error) => {
+      setError(err.message || "Failed to start installation");
     },
   });
 
@@ -174,7 +201,10 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext }) => 
 
             {error && (
               <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
-                Please fix the errors in the form above before proceeding. {error}
+                {submitError?.errors && submitError.errors.length > 0 
+                  ? "Please fix the errors in the form above before proceeding."
+                  : error
+                }
               </div>
             )}
           </>
