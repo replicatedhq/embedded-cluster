@@ -5,249 +5,37 @@ alwaysApply: false
 ---
 # Installation Config vs Runtime Config
 
-Quick reference and actionable rules for working with Installation Config and Runtime Config in Embedded Cluster.
+Simple actionable rules for working with configs in Embedded Cluster.
 
-> **📖 Comprehensive Documentation**: See `/design/installation-vs-runtime-config.md` for detailed architecture and understanding.
+> **📖 Architecture Details**: See `/design/installation-vs-runtime-config.md` for comprehensive design documentation.
 
-## Quick Reference
+## When to Use Each
 
-### When to Use Each Type
+- **Installation Config**: User input and preferences during installation
+- **Runtime Config**: System state and environment variables during cluster lifetime
 
-| Aspect | Installation Config | Runtime Config |
-|--------|-------------------|----------------|
-| **Purpose** | User input and preferences | System state and environment |
-| **Data Source** | User-provided values | Derived from installation config |
-| **Persistence** | In-memory during installation | Disk-based (`/etc/embedded-cluster/ec.yaml`) |
-| **Lifecycle** | Installation process only | Entire cluster lifetime |
-| **Validation** | User-facing error messages | System constraint checking |
-| **Responsibilities** | Input validation, user preferences | Environment variables, file paths |
-
-### Data Flow
+## Data Flow Rule
 ```
 User Input → Installation Config → Runtime Config → System Environment
 ```
 
-## Code Patterns
+## Actionable Rules
 
-### Adding User-Configurable Options
+### Adding New User Options
+1. Add field to `types.InstallationConfig` 
+2. Add validation in installation manager with user-friendly error messages
+3. Transform to runtime config in controller
+4. Apply to environment via `SetEnv()` and persist via `WriteToDisk()`
 
-#### 1. Add to Installation Config
-```go
-// Add field to types.InstallationConfig
-type InstallationConfig struct {
-    // ... existing fields ...
-    NewUserOption string `json:"newUserOption"`
-}
+### Configuration Updates
+Follow this order:
+1. Validate user input (Installation Config)
+2. Store installation config (in-memory)
+3. Transform to runtime config (system state)
+4. Apply environment changes
+5. Persist to disk
 
-// Add validation in installation manager
-func (m *InstallationManager) ValidateConfig(config types.InstallationConfig) error {
-    if config.NewUserOption == "" {
-        return types.NewAPIError(types.ErrValidation, "newUserOption is required")
-    }
-    // Validate user-facing constraints
-    if !isValidUserOption(config.NewUserOption) {
-        return types.NewAPIError(types.ErrValidation, "invalid user option format")
-    }
-    return nil
-}
-```
+### Validation Guidelines
+- **Installation Config**: User-friendly error messages using `types.NewAPIError()`
+- **Runtime Config**: System constraint checking with standard errors
 
-#### 2. Update Runtime Config from Installation Config
-```go
-// Add system-level handling in runtime config
-func (c *Controller) updateRuntimeFromInstallation(installConfig types.InstallationConfig) error {
-    // Transform user preference to system configuration
-    c.rc.SetNewSystemOption(installConfig.NewUserOption)
-    
-    // Apply to environment
-    if err := c.rc.SetEnv(); err != nil {
-        return fmt.Errorf("failed to set environment: %w", err)
-    }
-    
-    // Persist system state
-    if err := c.rc.WriteToDisk(); err != nil {
-        return fmt.Errorf("failed to persist runtime config: %w", err)
-    }
-    
-    return nil
-}
-```
-
-### Configuration Update Flow
-
-#### Complete Update Pattern
-```go
-func (c *Controller) UpdateInstallationConfig(config types.InstallationConfig) error {
-    // Step 1: Validate user input (Installation Config responsibility)
-    if err := c.installationManager.ValidateConfig(config); err != nil {
-        return fmt.Errorf("invalid configuration: %w", err)
-    }
-    
-    // Step 2: Store installation config (temporary, in-memory)
-    if err := c.installationManager.SetConfig(config); err != nil {
-        return fmt.Errorf("failed to save config: %w", err)
-    }
-    
-    // Step 3: Transform to runtime config (system state)
-    c.rc.SetDataDir(config.DataDirectory)
-    c.rc.SetAdminConsolePort(config.AdminConsolePort)
-    c.rc.SetLocalArtifactMirrorPort(config.LocalArtifactMirrorPort)
-    
-    // Step 4: Apply environment changes (Runtime Config responsibility)
-    if err := c.rc.SetEnv(); err != nil {
-        return fmt.Errorf("failed to set environment: %w", err)
-    }
-    
-    // Step 5: Persist runtime state (permanent, disk-based)
-    if err := c.rc.WriteToDisk(); err != nil {
-        return fmt.Errorf("failed to persist runtime config: %w", err)
-    }
-    
-    return nil
-}
-```
-
-### Validation Patterns
-
-#### Installation Config Validation (User-Facing)
-```go
-func (m *InstallationManager) ValidateConfig(config types.InstallationConfig) error {
-    // Port validation with user-friendly messages
-    if config.AdminConsolePort < 1024 {
-        return types.NewAPIError(types.ErrValidation, 
-            "admin console port must be 1024 or higher")
-    }
-    
-    if isPortInUse(config.AdminConsolePort) {
-        return types.NewAPIError(types.ErrValidation, 
-            fmt.Sprintf("port %d is already in use", config.AdminConsolePort))
-    }
-    
-    // Network validation
-    if !isValidCIDR(config.GlobalCIDR) {
-        return types.NewAPIError(types.ErrValidation, 
-            fmt.Sprintf("invalid network CIDR: %s", config.GlobalCIDR))
-    }
-    
-    // Path validation
-    if config.DataDirectory == "" {
-        return types.NewAPIError(types.ErrValidation, 
-            "data directory is required")
-    }
-    
-    return nil
-}
-```
-
-#### Runtime Config Validation (System Constraints)
-```go
-func (rc *RuntimeConfig) SetDataDir(dir string) error {
-    // System-level validation
-    if dir == "" {
-        return fmt.Errorf("data directory cannot be empty")
-    }
-    
-    // Ensure directory can be created
-    if err := os.MkdirAll(dir, 0755); err != nil {
-        return fmt.Errorf("failed to create directory %s: %w", dir, err)
-    }
-    
-    // Check write permissions
-    if !isWritableDir(dir) {
-        return fmt.Errorf("directory not writable: %s", dir)
-    }
-    
-    rc.spec.DataDirectory = dir
-    return nil
-}
-```
-
-## Testing Patterns
-
-### Installation Config Tests (User Input Focus)
-```go
-func TestInstallationConfigValidation(t *testing.T) {
-    tests := []struct {
-        name    string
-        config  types.InstallationConfig
-        wantErr bool
-        errMsg  string
-    }{
-        {
-            name: "valid config",
-            config: types.InstallationConfig{
-                AdminConsolePort: 30000,
-                DataDirectory:    "/tmp/test",
-                GlobalCIDR:       "10.244.0.0/16",
-            },
-            wantErr: false,
-        },
-        {
-            name: "invalid port - too low",
-            config: types.InstallationConfig{
-                AdminConsolePort: 80,
-            },
-            wantErr: true,
-            errMsg:  "port must be 1024 or higher",
-        },
-        {
-            name: "invalid CIDR",
-            config: types.InstallationConfig{
-                GlobalCIDR: "invalid-cidr",
-            },
-            wantErr: true,
-            errMsg:  "invalid network CIDR",
-        },
-    }
-    
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            err := manager.ValidateConfig(tt.config)
-            if tt.wantErr {
-                require.Error(t, err)
-                assert.Contains(t, err.Error(), tt.errMsg)
-            } else {
-                require.NoError(t, err)
-            }
-        })
-    }
-}
-```
-
-### Runtime Config Tests (System State Focus)
-```go
-func TestRuntimeConfigPersistence(t *testing.T) {
-    tempDir := t.TempDir()
-    
-    // Create runtime config with system state
-    rc := runtimeconfig.New(ecv1beta1.RuntimeConfigSpec{
-        DataDirectory: tempDir,
-        AdminConsolePort: 30000,
-    })
-    
-    // Test persistence
-    err := rc.WriteToDisk()
-    require.NoError(t, err)
-    
-    // Test loading
-    loaded, err := runtimeconfig.NewFromDisk()
-    require.NoError(t, err)
-    
-    // Verify system state preserved
-    assert.Equal(t, tempDir, loaded.DataDirectory())
-    assert.Equal(t, 30000, loaded.AdminConsolePort())
-}
-
-func TestRuntimeConfigEnvironment(t *testing.T) {
-    rc := runtimeconfig.New(ecv1beta1.RuntimeConfigSpec{
-        AdminConsolePort: 30000,
-    })
-    
-    // Test environment variable application
-    err := rc.SetEnv()
-    require.NoError(t, err)
-    
-    // Verify environment variables set
-    assert.Equal(t, "30000", os.Getenv("ADMIN_CONSOLE_PORT"))
-}
-```
