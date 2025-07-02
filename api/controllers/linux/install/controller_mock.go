@@ -78,10 +78,10 @@ func (m *MockController) SetupInfra(ctx context.Context, ignoreHostPreflights bo
 }
 
 // GetInfra mocks the GetInfra method
-func (m *MockController) GetInfra(ctx context.Context) (types.LinuxInfra, error) {
+func (m *MockController) GetInfra(ctx context.Context) (types.Infra, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
-		return types.LinuxInfra{}, args.Error(1)
+		return types.Infra{}, args.Error(1)
 	}
-	return args.Get(0).(types.LinuxInfra), args.Error(1)
+	return args.Get(0).(types.Infra), args.Error(1)
 }

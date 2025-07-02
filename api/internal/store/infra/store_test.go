@@ -12,11 +12,11 @@ import (
 )
 
 func newMemoryStore() Store {
-	infra := types.LinuxInfra{
+	infra := types.Infra{
 		Status: types.Status{
 			State: types.StatePending,
 		},
-		Components: []types.LinuxInfraComponent{},
+		Components: []types.InfraComponent{},
 		Logs:       "",
 	}
 	return NewMemoryStore(WithInfra(infra))
@@ -290,7 +290,7 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 
 func TestMemoryStore_StatusDescWithoutStatus(t *testing.T) {
 	store := &memoryStore{
-		infra: types.LinuxInfra{},
+		infra: types.Infra{},
 	}
 
 	// Test setting status description when status is nil

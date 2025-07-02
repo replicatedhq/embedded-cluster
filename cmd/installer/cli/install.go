@@ -50,8 +50,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	helmcli "helm.sh/helm/v3/pkg/cli"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/metadata"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -94,7 +94,7 @@ type installConfig struct {
 	tlsCertBytes []byte
 	tlsKeyBytes  []byte
 
-	kubernetesRestConfig *rest.Config
+	kubernetesRESTClientGetterFactory func(namespace string) genericclioptions.RESTClientGetter
 }
 
 // webAssetsFS is the filesystem to be used by the web component. Defaults to nil allowing the web server to use the default assets embedded in the binary. Useful for testing.
@@ -532,7 +532,11 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kuberne
 		return fmt.Errorf("a kubeconfig is required when using kubernetes")
 	}
 
-	flags.installConfig.kubernetesRestConfig = restConfig
+	flags.installConfig.kubernetesRESTClientGetterFactory = func(namespace string) genericclioptions.RESTClientGetter {
+		// TODO: this is not thread safe
+		flags.kubernetesEnvSettings.SetNamespace(namespace)
+		return flags.kubernetesEnvSettings.RESTClientGetter()
+	}
 
 	return nil
 }
@@ -643,8 +647,8 @@ func runManagerExperienceInstall(
 				AllowIgnoreHostPreflights: flags.ignoreHostPreflights,
 			},
 			KubernetesConfig: apitypes.KubernetesConfig{
-				RESTConfig:   flags.installConfig.kubernetesRestConfig,
-				Installation: ki,
+				RESTClientGetterFactory: flags.installConfig.kubernetesRESTClientGetterFactory,
+				Installation:            ki,
 			},
 		},
 

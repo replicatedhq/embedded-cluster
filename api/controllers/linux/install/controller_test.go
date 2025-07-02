@@ -1199,13 +1199,13 @@ func TestGetInfra(t *testing.T) {
 		name          string
 		setupMock     func(*infra.MockInfraManager)
 		expectedErr   bool
-		expectedValue types.LinuxInfra
+		expectedValue types.Infra
 	}{
 		{
 			name: "successful get infra",
 			setupMock: func(m *infra.MockInfraManager) {
-				infra := types.LinuxInfra{
-					Components: []types.LinuxInfraComponent{
+				infra := types.Infra{
+					Components: []types.InfraComponent{
 						{
 							Name: infra.K0sComponentName,
 							Status: types.Status{
@@ -1220,8 +1220,8 @@ func TestGetInfra(t *testing.T) {
 				m.On("Get").Return(infra, nil)
 			},
 			expectedErr: false,
-			expectedValue: types.LinuxInfra{
-				Components: []types.LinuxInfraComponent{
+			expectedValue: types.Infra{
+				Components: []types.InfraComponent{
 					{
 						Name: infra.K0sComponentName,
 						Status: types.Status{
@@ -1240,7 +1240,7 @@ func TestGetInfra(t *testing.T) {
 				m.On("Get").Return(nil, errors.New("get infra error"))
 			},
 			expectedErr:   true,
-			expectedValue: types.LinuxInfra{},
+			expectedValue: types.Infra{},
 		},
 	}
 
@@ -1256,7 +1256,7 @@ func TestGetInfra(t *testing.T) {
 
 			if tt.expectedErr {
 				assert.Error(t, err)
-				assert.Equal(t, types.LinuxInfra{}, result)
+				assert.Equal(t, types.Infra{}, result)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedValue, result)

@@ -12,12 +12,12 @@ type MockStore struct {
 	mock.Mock
 }
 
-func (m *MockStore) Get() (types.LinuxInfra, error) {
+func (m *MockStore) Get() (types.Infra, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
-		return types.LinuxInfra{}, args.Error(1)
+		return types.Infra{}, args.Error(1)
 	}
-	return args.Get(0).(types.LinuxInfra), args.Error(1)
+	return args.Get(0).(types.Infra), args.Error(1)
 }
 
 func (m *MockStore) GetStatus() (types.Status, error) {

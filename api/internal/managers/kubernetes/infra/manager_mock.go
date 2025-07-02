@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -15,8 +15,8 @@ type MockInfraManager struct {
 	mock.Mock
 }
 
-func (m *MockInfraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
-	args := m.Called(ctx, rc)
+func (m *MockInfraManager) Install(ctx context.Context, ki kubernetesinstallation.Installation) error {
+	args := m.Called(ctx, ki)
 	return args.Error(0)
 }
 

@@ -94,55 +94,62 @@ func (c *client) GetLinuxInstallationStatus() (types.Status, error) {
 	return status, nil
 }
 
-func (c *client) SetupLinuxInfra() (types.LinuxInfra, error) {
-	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/infra/setup", nil)
+func (c *client) SetupLinuxInfra(ignoreHostPreflights bool) (types.Infra, error) {
+	b, err := json.Marshal(types.LinuxInfraSetupRequest{
+		IgnoreHostPreflights: ignoreHostPreflights,
+	})
 	if err != nil {
-		return types.LinuxInfra{}, err
+		return types.Infra{}, err
+	}
+
+	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/infra/setup", bytes.NewBuffer(b))
+	if err != nil {
+		return types.Infra{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	setAuthorizationHeader(req, c.token)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return types.LinuxInfra{}, err
+		return types.Infra{}, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return types.LinuxInfra{}, errorFromResponse(resp)
+		return types.Infra{}, errorFromResponse(resp)
 	}
 
-	var infra types.LinuxInfra
+	var infra types.Infra
 	err = json.NewDecoder(resp.Body).Decode(&infra)
 	if err != nil {
-		return types.LinuxInfra{}, err
+		return types.Infra{}, err
 	}
 
 	return infra, nil
 }
 
-func (c *client) GetLinuxInfraStatus() (types.LinuxInfra, error) {
+func (c *client) GetLinuxInfraStatus() (types.Infra, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/infra/status", nil)
 	if err != nil {
-		return types.LinuxInfra{}, err
+		return types.Infra{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	setAuthorizationHeader(req, c.token)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return types.LinuxInfra{}, err
+		return types.Infra{}, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return types.LinuxInfra{}, errorFromResponse(resp)
+		return types.Infra{}, errorFromResponse(resp)
 	}
 
-	var infra types.LinuxInfra
+	var infra types.Infra
 	err = json.NewDecoder(resp.Body).Decode(&infra)
 	if err != nil {
-		return types.LinuxInfra{}, err
+		return types.Infra{}, err
 	}
 
 	return infra, nil
@@ -232,4 +239,58 @@ func (c *client) GetKubernetesInstallationStatus() (types.Status, error) {
 	}
 
 	return status, nil
+}
+
+func (c *client) SetupKubernetesInfra() (types.Infra, error) {
+	req, err := http.NewRequest("POST", c.apiURL+"/api/kubernetes/install/infra/setup", nil)
+	if err != nil {
+		return types.Infra{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.Infra{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.Infra{}, errorFromResponse(resp)
+	}
+
+	var infra types.Infra
+	err = json.NewDecoder(resp.Body).Decode(&infra)
+	if err != nil {
+		return types.Infra{}, err
+	}
+
+	return infra, nil
+}
+
+func (c *client) GetKubernetesInfraStatus() (types.Infra, error) {
+	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/infra/status", nil)
+	if err != nil {
+		return types.Infra{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.Infra{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.Infra{}, errorFromResponse(resp)
+	}
+
+	var infra types.Infra
+	err = json.NewDecoder(resp.Body).Decode(&infra)
+	if err != nil {
+		return types.Infra{}, err
+	}
+
+	return infra, nil
 }
