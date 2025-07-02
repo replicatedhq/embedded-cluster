@@ -158,6 +158,76 @@ describe("LinuxSetupStep", () => {
     expect(mockOnNext).not.toHaveBeenCalled();
   });
 
+  it("handles field-specific errors gracefully", async () => {
+    server.use(
+      http.get("*/api/console/available-network-interfaces", () => {
+        return HttpResponse.json({
+          networkInterfaces: MOCK_NETWORK_INTERFACES,
+        });
+      }),
+      // Mock config submission endpoint to return field-specific errors
+      http.post("*/api/linux/install/installation/configure", () => {
+        return new HttpResponse(JSON.stringify({ 
+          message: "Validation failed",
+          errors: [
+            { field: "dataDirectory", message: "Data Directory is required" },
+            { field: "adminConsolePort", message: "Admin Console Port must be between 1024 and 65535" }
+          ]
+        }), { status: 400 });
+      })
+    );
+
+    renderWithProviders(<LinuxSetupStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        contextValues: {
+          linuxConfigContext: {
+            config: {
+              dataDirectory: "",
+              adminConsolePort: 0,
+              localArtifactMirrorPort: 8081,
+              networkInterface: "eth0",
+              globalCidr: "10.244.0.0/16",
+              useProxy: false,
+            },
+            updateConfig: vi.fn(),
+            resetConfig: vi.fn(),
+          },
+        },
+      },
+    });
+
+    // Wait for loading to complete
+    await screen.findByText("Loading configuration...");
+    await screen.findByText("Configure the installation settings.");
+
+    // Fill in required form values
+    const dataDirectoryInput = screen.getByLabelText(/Data Directory/);
+    const adminPortInput = screen.getByLabelText(/Admin Console Port/);
+    const mirrorPortInput = screen.getByLabelText(/Local Artifact Mirror Port/);
+
+    // Use fireEvent to simulate user input
+    fireEvent.change(dataDirectoryInput, {
+      target: { value: "/var/lib/my-cluster" },
+    });
+    fireEvent.change(adminPortInput, { target: { value: "8080" } });
+    fireEvent.change(mirrorPortInput, { target: { value: "8081" } });
+
+    // Submit form
+    const nextButton = screen.getByText("Next: Validate Host");
+    fireEvent.click(nextButton);
+
+    // Verify generic error message is displayed for field errors
+    await screen.findByText("Please fix the errors in the form above before proceeding.");
+
+    // Verify field-specific error messages are displayed
+    await screen.findByText("Data Directory is required");
+    await screen.findByText("Admin Console Port must be between 1024 and 65535");
+
+    // Verify onNext was not called
+    expect(mockOnNext).not.toHaveBeenCalled();
+  });
+
   it("submits the form successfully", async () => {
     // Mock all required API endpoints
     server.use(
