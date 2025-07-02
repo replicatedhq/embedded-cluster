@@ -1,6 +1,6 @@
 ---
 description: 
-globs: 
+globs: *.go
 alwaysApply: false
 ---
 # Testing
@@ -102,3 +102,69 @@ Structure integration tests by:
 - Create fresh mocks for each test case
 - Set up mock expectations before running the test
 - Verify mock expectations after the test completes
+
+## Test Structure
+
+### Test Naming
+- Use descriptive test names that clearly indicate what is being tested
+- Follow the pattern: `TestFunctionName_Scenario_ExpectedResult`
+- Example: `TestValidateConfig_EmptyDataDirectory_ReturnsError`
+
+### Use Semantic Naming for Test Cases
+
+- **Name test cases descriptively**: Use meaningful names for test cases rather than generic names like "test case 1"
+  ```go
+  tests := []struct {
+      name           string
+      input          *Config
+      expectedError  string
+  }{
+      {
+          name:          "empty data directory should return error",
+          input:         &Config{DataDirectory: ""},
+          expectedError: "data directory cannot be empty",
+      },
+      {
+          name:          "test case 2",
+          input:         &Config{DataDirectory: "/opt/data"},
+          expectedError: "",
+      },
+  }
+  ```
+
+### Test Organization
+- Group related tests in the same file
+- Use subtests for variations of the same test case
+- Keep test files focused on testing a single component or feature
+
+### Test Coverage and Quality
+
+- **Remove tests that don't call any functions or validate actual behavior**: Tests should assert on real functionality, not just test data structures
+  ```go
+  func TestValidateConfig_EmptyDirectory_ReturnsError(t *testing.T) {
+      config := &Config{DataDirectory: ""}
+      err := ValidateConfig(config) // Actually calls the function
+      assert.Error(t, err)
+  }
+  
+  func TestConfigStruct_Fields_Exist(t *testing.T) {
+      config := &Config{}
+      assert.NotNil(t, config) // Just tests data structure
+  }
+  ```
+
+### Mock Management
+
+- **Extend existing mock interfaces instead of creating new ones**: Reduce maintenance burden by adding methods to existing mocks
+  ```go
+  // Good - extend existing mock
+  type mockInstallController struct {
+      GetStatusFunc func() Status
+  }
+  
+  // Bad - create separate mock
+  type mockStatusController struct {
+      GetStatusFunc func() Status
+  }
+  ```
+

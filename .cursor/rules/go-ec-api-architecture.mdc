@@ -1,6 +1,6 @@
 ---
 description: 
-globs: 
+globs: api/*.go
 alwaysApply: false
 ---
 # Go Embedded Cluster API Implementation Guidelines
@@ -23,30 +23,32 @@ type APIError struct {
     Errors     []*APIError `json:"errors,omitempty"`
     err        error       `json:"-"`
 }
-
-func (e *APIError) Error() string { /* implementation */ }
-func (e *APIError) Unwrap() error { return e.err }
 ```
 
 #### Error Constructor Functions
 
-Create constructor functions for common API error types:
-
-```go
-func NewBadRequestError(err error) *APIError {
-    return &APIError{
-        StatusCode: http.StatusBadRequest,
-        Message:    err.Error(),
-        err:        err,
-    }
-}
-```
+Create constructor functions for common API error types.
 
 #### API Error Handling Patterns
 
 - Always log errors with context: `a.logError(r, err, "descriptive message")`
 - Use structured errors: `types.NewBadRequestError(err)`, `types.NewInternalServerError(err)`
 - Wrap errors with context: `fmt.Errorf("operation failed: %w", err)`
+
+#### Specific API Error Types
+
+- **Use specific API error types**: Always use `NewBadRequestError`, `NewInternalServerError`, etc. instead of generic errors for proper HTTP status codes
+  ```go
+  return NewBadRequestError(errors.New("invalid input"))  // Good
+  return errors.New("invalid input")                      // Bad
+  ```
+
+- **Return consistent HTTP status codes**: Use appropriate APIError types for different error conditions
+  ```go
+  return NewBadRequestError(errors.New("invalid input"))        // 400
+  return NewForbiddenError(errors.New("access denied"))         // 403
+  return NewInternalServerError(errors.New("database failed"))  // 500
+  ```
 
 ### HTTP Handler Patterns
 
@@ -75,19 +77,7 @@ func NewBadRequestError(err error) *APIError {
 
 ### API Documentation
 
-Add Swagger annotations to all handlers:
-
-```go
-// @Summary     Brief description
-// @Description Detailed description
-// @Tags        category
-// @Security    bearerauth
-// @Accept      json
-// @Produce     json
-// @Param       request body types.RequestType true "Request description"
-// @Success     200 {object} types.ResponseType
-// @Router      /path [method]
-```
+Add Swagger annotations to all handlers for API documentation.
 
 #### Swagger/OpenAPI Requirements
 
@@ -118,3 +108,4 @@ Add Swagger annotations to all handlers:
 - Integration tests: `api/integration/*_test.go`
 - Use table-driven tests with `testify/assert`
 - Mock all external dependencies
+

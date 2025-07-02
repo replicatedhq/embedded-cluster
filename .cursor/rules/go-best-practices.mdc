@@ -1,6 +1,6 @@
 ---
 description: 
-globs: 
+globs: *.go
 alwaysApply: false
 ---
 # Go Best Practices
@@ -18,34 +18,7 @@ Follow these best practices when writing Go code in this repository.
 
 ### Functional Options Pattern
 
-Use the functional options pattern for component initialization. This is the standard across controllers and main components:
-
-```go
-type ComponentOption func(*Component)
-
-func WithDependency(dep Dependency) ComponentOption {
-    return func(c *Component) {
-        c.dependency = dep
-    }
-}
-
-func NewComponent(opts ...ComponentOption) (*Component, error) {
-    c := &Component{
-        // Set defaults
-    }
-    
-    for _, opt := range opts {
-        opt(c)
-    }
-    
-    // Initialize defaults for nil dependencies
-    if c.dependency == nil {
-        c.dependency = NewDefaultDependency()
-    }
-    
-    return c, nil
-}
-```
+Use the functional options pattern for component initialization. This is the standard across controllers and main components.
 
 ### Interface Design
 
@@ -54,21 +27,31 @@ func NewComponent(opts ...ComponentOption) (*Component, error) {
 - **Testability**: All external dependencies should be behind interfaces for mocking
 - **Naming**: Use descriptive names that indicate the behavior (e.g., `InstallationManager`, `NetUtils`)
 
-```go
-type NetUtils interface {
-    ListValidNetworkInterfaces() ([]string, error)
-    DetermineBestNetworkInterface() (string, error)
-    FirstValidIPNet(networkInterface string) (*net.IPNet, error)
-}
-```
-
 ## Error Handling
 
 ### Error Wrapping and Context
 
 - **Wrap Errors**: Always add context when propagating errors using `fmt.Errorf("operation failed: %w", err)`
+- **Use %w verb for error wrapping**: Use `%w` instead of `%v` when wrapping errors to maintain the error chain
+  ```go
+  return fmt.Errorf("failed to process: %w", err)  // Good
+  return fmt.Errorf("failed to process: %v", err)  // Bad
+  ```
 - **Preserve Original**: Store the original error for unwrapping when using custom error types
 - **Meaningful Messages**: Error messages should be actionable and include relevant context
+- **Use type-safe error handling**: Check error types instead of string matching to avoid brittle code
+  ```go
+  if errors.Is(err, context.DeadlineExceeded) { ... }  // Good
+  if strings.Contains(err.Error(), "deadline") { ... } // Bad
+  ```
+
+### Error Message Consistency
+
+- **Go error strings should start with lowercase letter and not end with punctuation**: Follow Go conventions
+  ```go
+  return errors.New("failed to connect")     // Good
+  return errors.New("Failed to connect.")   // Bad
+  ```
 
 ## Naming Conventions
 
@@ -87,6 +70,36 @@ type NetUtils interface {
 - **Behavior-Based**: Name interfaces after what they do (e.g., `Controller`, `Manager`, `NetUtils`)
 - **Avoid Generic Names**: Don't use generic suffixes like `Interface` unless necessary
 - **Single Method**: For single-method interfaces, consider the "-er" suffix pattern
+
+### Variable Naming Clarity
+
+- **Use distinct variable names for file paths vs configuration objects**: Distinguish between file locations, raw data, and parsed objects
+  ```go
+  configPath := "/etc/config.yaml"  // file location
+  configBytes := []byte{}           // raw data  
+  config := &Config{}               // parsed object
+  ```
+
+## Configuration Management
+
+### Input Validation and Defaults
+
+- **Check before setting defaults**: Always verify if user-provided fields are empty before setting defaults to avoid overriding user input
+  ```go
+  if config.DataDirectory == "" {
+      config.DataDirectory = "/opt/default"
+  }
+  ```
+
+## CLI Design
+
+### Flag Naming and Help
+
+- **Ensure all CLI flags appear in help menu with consistent naming patterns**: Use kebab-case for multi-word flags
+  ```go
+  installCmd.Flags().String("admin-console-namespace", "", "Namespace for admin console")  // Good
+  installCmd.Flags().String("adminconsolenamespace", "", "Namespace for admin console")   // Bad
+  ```
 
 ## Concurrency and Thread Safety
 
@@ -107,13 +120,6 @@ type NetUtils interface {
 - Use `logrus.FieldLogger` interface for dependency injection
 - Add contextual fields to log entries for better debugging
 - Use appropriate log levels: `Debug`, `Info`, `Warn`, `Error`
-
-```go
-logger.WithFields(logrus.Fields{
-    "request_id": requestID,
-    "user_id":    userID,
-}).Info("processing request")
-```
 
 ### Logging Patterns
 

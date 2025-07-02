@@ -1,6 +1,6 @@
 ---
 description: 
-globs: 
+globs: *.go
 alwaysApply: false
 ---
 # Clean Code
@@ -19,6 +19,20 @@ Essential clean code principles for Go development in Embedded Cluster.
 - **Comments should be brief and to the point**
 - Explain *why*, not *what* the code does
 - Avoid redundant comments that just repeat the code
+
+### Comment Quality
+
+- **Write self-explanatory comments that clearly explain the purpose and context**: Explain WHY, not just WHAT the code does
+  ```go
+  // Good - explains WHY and provides context
+  // Retry 3 times because API can be temporarily unavailable during deployment
+  for i := 0; i < 3; i++ {
+      if err := checkAPIHealth(); err == nil {
+          break
+      }
+      time.Sleep(time.Second * 2)
+  }
+  ```
 
 ### Function Comments
 - Use concise godoc format for exported functions
