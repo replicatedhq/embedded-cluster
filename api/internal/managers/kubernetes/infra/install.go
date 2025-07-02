@@ -10,7 +10,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
@@ -58,8 +57,6 @@ func (m *infraManager) initComponentsList(license *kotsv1beta1.License, ki kuber
 		components = append(components, types.InfraComponent{Name: addOn.Name()})
 	}
 
-	components = append(components, types.InfraComponent{Name: "Additional Components"})
-
 	for _, component := range components {
 		if err := m.infraStore.RegisterComponent(component.Name); err != nil {
 			return fmt.Errorf("register component: %w", err)
@@ -101,10 +98,6 @@ func (m *infraManager) install(ctx context.Context, ki kubernetesinstallation.In
 
 	if err := m.installAddOns(ctx, kcli, mcli, hcli, license, ki); err != nil {
 		return fmt.Errorf("install addons: %w", err)
-	}
-
-	if err := m.installExtensions(ctx, hcli); err != nil {
-		return fmt.Errorf("install extensions: %w", err)
 	}
 
 	// TODO: we may need this later
@@ -185,36 +178,4 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, ki kube
 	// TODO: no kots app install for now
 
 	return opts
-}
-
-func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) (finalErr error) {
-	componentName := "Additional Components"
-
-	if err := m.setComponentStatus(componentName, types.StateRunning, "Installing"); err != nil {
-		return fmt.Errorf("set extensions status: %w", err)
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			finalErr = fmt.Errorf("install extensions recovered from panic: %v: %s", r, string(debug.Stack()))
-		}
-		if finalErr != nil {
-			if err := m.setComponentStatus(componentName, types.StateFailed, finalErr.Error()); err != nil {
-				m.logger.WithField("error", err).Error("set failed status")
-			}
-		} else {
-			if err := m.setComponentStatus(componentName, types.StateSucceeded, ""); err != nil {
-				m.logger.WithField("error", err).Error("set succeeded status")
-			}
-		}
-	}()
-
-	m.setStatusDesc(fmt.Sprintf("Installing %s", componentName))
-
-	logFn := m.logFn("extensions")
-	logFn("installing extensions")
-	if err := extensions.Install(ctx, hcli, nil); err != nil {
-		return fmt.Errorf("install extensions: %w", err)
-	}
-	return nil
 }

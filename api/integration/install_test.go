@@ -2237,8 +2237,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		infra = getInfraStatus()
 		// assert.Contains(t, infra.Logs, "[metadata]") // record installation
 		assert.Contains(t, infra.Logs, "[addons]")
-		assert.Contains(t, infra.Logs, "[extensions]")
-		assert.Len(t, infra.Components, 2) // admin console and additional components
+		assert.Len(t, infra.Components, 1) // admin console addon
 	})
 
 	// Test authorization
