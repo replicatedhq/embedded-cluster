@@ -66,43 +66,6 @@ Provides a client library for interacting with the API. The client package imple
 
 ## Best Practices
 
-### Architecture Pattern: Handler → Controller → Manager
-
-Follow the three-layer architecture pattern consistently:
-
-#### Handler Layer (`api/*.go`)
-- **Purpose**: HTTP protocol handling only
-- **Do**: Parse requests, call controllers, format responses, handle HTTP errors
-- **Don't**: Business logic, external service calls, data persistence
-
-```go
-func (a *API) postExample(w http.ResponseWriter, r *http.Request) {
-    var req types.ExampleRequest
-    if err := a.bindJSON(w, r, &req); err != nil {
-        return // bindJSON handles error response
-    }
-
-    result, err := a.controller.DoSomething(r.Context(), req)
-    if err != nil {
-        a.logError(r, err, "failed to do something")
-        a.jsonError(w, r, err)
-        return
-    }
-
-    a.json(w, r, http.StatusOK, result)
-}
-```
-
-#### Controller Layer (`api/controllers/*/`)
-- **Purpose**: Business logic orchestration and workflow coordination
-- **Do**: Coordinate managers, handle business validation, manage state transitions
-- **Don't**: HTTP concerns, direct external service calls, low-level operations
-
-#### Manager Layer (`api/internal/managers/*/`)
-- **Purpose**: Domain-specific operations and external system integration
-- **Do**: External system calls, data persistence, domain validation
-- **Don't**: HTTP logic, cross-domain coordination
-
 1. **Error Handling**:
    - Use custom error types from `/types`
    - Include proper error wrapping and context
