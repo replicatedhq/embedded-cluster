@@ -152,7 +152,7 @@ describe("LinuxSetupStep", () => {
     fireEvent.click(nextButton);
 
     // Verify error message is displayed
-    await screen.findByText("Please fix the errors in the form above before proceeding.");
+    await screen.findByText("Invalid configuration");
 
     // Verify onNext was not called
     expect(mockOnNext).not.toHaveBeenCalled();
