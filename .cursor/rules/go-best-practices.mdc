@@ -5,14 +5,14 @@ alwaysApply: false
 ---
 # Go Best Practices
 
-Follow these best practices when writing Go code in this repository. This document is based on analysis of the existing codebase patterns.
+Follow these best practices when writing Go code in this repository.
 
 ## Core Principles
 
 - **Clarity and Simplicity**: Write code that is easy to read, understand, and maintain. Favor explicit over implicit.
 - **Dependency Injection**: Use dependency injection to decouple components and enable testing. The functional options pattern is the standard approach.
 - **Interface-Driven Design**: Define behavior through interfaces to enable mocking and loose coupling.
-- **Explicit Error Handling**: Handle all errors explicitly. Use structured error types for APIs.
+- **Explicit Error Handling**: Handle all errors explicitly. Use structured error types when appropriate.
 
 ## Architecture Patterns
 
@@ -64,42 +64,11 @@ type NetUtils interface {
 
 ## Error Handling
 
-### Structured API Errors
-
-Use structured error types for APIs that need to return detailed error information:
-
-```go
-type APIError struct {
-    StatusCode int         `json:"status_code,omitempty"`
-    Message    string      `json:"message"`
-    Field      string      `json:"field,omitempty"`
-    Errors     []*APIError `json:"errors,omitempty"`
-    err        error       `json:"-"`
-}
-
-func (e *APIError) Error() string { /* implementation */ }
-func (e *APIError) Unwrap() error { return e.err }
-```
-
 ### Error Wrapping and Context
 
 - **Wrap Errors**: Always add context when propagating errors using `fmt.Errorf("operation failed: %w", err)`
 - **Preserve Original**: Store the original error for unwrapping when using custom error types
 - **Meaningful Messages**: Error messages should be actionable and include relevant context
-
-### Error Constructor Functions
-
-Create constructor functions for common error types:
-
-```go
-func NewBadRequestError(err error) *APIError {
-    return &APIError{
-        StatusCode: http.StatusBadRequest,
-        Message:    err.Error(),
-        err:        err,
-    }
-}
-```
 
 ## Naming Conventions
 
@@ -109,9 +78,9 @@ func NewBadRequestError(err error) *APIError {
 - Examples: `types`, `utils`, `install`, `auth`
 
 ### Types and Functions
-- **Exported Types**: Use `PascalCase` (e.g., `InstallController`, `APIError`)
+- **Exported Types**: Use `PascalCase` (e.g., `InstallController`, `NetUtils`)
 - **Exported Functions**: Use `PascalCase` (e.g., `NewInstallController`, `ValidateConfig`)
-- **Internal Functions**: Use `camelCase` (e.g., `bindJSON`, `logError`)
+- **Internal Functions**: Use `camelCase` (e.g., `processRequest`, `validateInput`)
 - **Variables**: Use `camelCase` for all variables
 
 ### Interface Naming
@@ -149,75 +118,4 @@ logger.WithFields(logrus.Fields{
 ### Logging Patterns
 
 - **Error Logging**: Always log errors with context before returning them
-- **Request Logging**: Log HTTP requests with relevant fields (method, path, status)
 - **Discard Logger**: Use `logger.NewDiscardLogger()` for tests
-
-## JSON and HTTP Handling
-
-### JSON Tags and Serialization
-
-- Use appropriate JSON tags: `json:"field_name,omitempty"`
-- Use `json:"-"` for fields that shouldn't be serialized
-- Handle both marshaling and unmarshaling in your types
-
-### HTTP Handler Patterns
-
-- Use method receivers on the main API struct: `func (a *API) handlerName(...)`
-- Use helper methods for common operations: `bindJSON`, `json`, `jsonError`
-- Always validate input and handle errors appropriately
-
-## Testing Support
-
-### Testable Design
-
-- Use interfaces for all external dependencies
-- Provide constructor functions that accept test doubles
-- Create mock implementations alongside interfaces (e.g., `netutils_mock.go`)
-
-### Test Utilities
-
-- Provide `NewDiscardLogger()` for tests that need a logger
-- Use dependency injection to swap real implementations with test doubles
-- Create test-specific constructors when needed
-
-## Code Organization
-
-### Package Structure
-
-- **Controllers**: Business logic and orchestration (`controllers/`)
-- **Types**: Data structures and domain models (`types/`)
-- **Internal**: Implementation details not exposed to other packages (`internal/`)
-- **Pkg**: Reusable utilities and helpers (`pkg/`)
-
-### File Organization
-
-- Keep related functionality together in the same file
-- Use separate files for tests: `*_test.go`
-- Use separate files for mocks: `*_mock.go`
-- Keep files focused and reasonably sized (< 500 lines when possible)
-
-## Documentation
-
-### Code Comments
-
-- Document all exported types, functions, and methods
-- Use complete sentences in comments
-- Explain the "why" not just the "what"
-- Include examples for complex APIs
-
-### Swagger/OpenAPI
-
-- Use Swagger annotations for HTTP handlers
-- Document request/response structures
-- Include error response documentation
-
-## Best Practices Summary
-
-- **Explicit Dependencies**: Use dependency injection with functional options
-- **Interface Everything**: Put external dependencies behind interfaces
-- **Handle All Errors**: Never ignore errors; wrap them with context
-- **Structure for Testing**: Design code to be easily testable
-- **Use Standard Libraries**: Prefer standard library over third-party when possible
-- **Consistent Patterns**: Follow established patterns in the codebase
-- **Clear Separation**: Separate concerns into appropriate packages and layers
-

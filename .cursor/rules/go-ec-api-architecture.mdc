@@ -3,66 +3,80 @@ description:
 globs: 
 alwaysApply: false
 ---
-# Go Embedded Cluster API Architecture
+# Go Embedded Cluster API Implementation Guidelines
 
-For comprehensive package structure and organization details, see [api/README.md](mdc:../api/README.md).
+For comprehensive architecture and package structure details, see [api/README.md](mdc:../api/README.md).
 
-## Handler → Controller → Manager Pattern
+## Essential Implementation Patterns
 
-Follow the three-layer architecture pattern consistently:
+### Error Handling
 
-### Handler Layer (`api/*.go`)
-- **Purpose**: HTTP protocol handling only
-- **Do**: Parse requests, call controllers, format responses, handle HTTP errors
-- **Don't**: Business logic, external service calls, data persistence
+#### Structured API Errors
+
+Use structured error types for APIs that need to return detailed error information:
 
 ```go
-func (a *API) postExample(w http.ResponseWriter, r *http.Request) {
-    var req types.ExampleRequest
-    if err := a.bindJSON(w, r, &req); err != nil {
-        return // bindJSON handles error response
-    }
+type APIError struct {
+    StatusCode int         `json:"status_code,omitempty"`
+    Message    string      `json:"message"`
+    Field      string      `json:"field,omitempty"`
+    Errors     []*APIError `json:"errors,omitempty"`
+    err        error       `json:"-"`
+}
 
-    result, err := a.controller.DoSomething(r.Context(), req)
-    if err != nil {
-        a.logError(r, err, "failed to do something")
-        a.jsonError(w, r, err)
-        return
-    }
+func (e *APIError) Error() string { /* implementation */ }
+func (e *APIError) Unwrap() error { return e.err }
+```
 
-    a.json(w, r, http.StatusOK, result)
+#### Error Constructor Functions
+
+Create constructor functions for common API error types:
+
+```go
+func NewBadRequestError(err error) *APIError {
+    return &APIError{
+        StatusCode: http.StatusBadRequest,
+        Message:    err.Error(),
+        err:        err,
+    }
 }
 ```
 
-### Controller Layer (`api/controllers/*/`)
-- **Purpose**: Business logic orchestration and workflow coordination
-- **Do**: Coordinate managers, handle business validation, manage state transitions
-- **Don't**: HTTP concerns, direct external service calls, low-level operations
+#### API Error Handling Patterns
 
-### Manager Layer (`api/internal/managers/*/`)
-- **Purpose**: Domain-specific operations and external system integration
-- **Do**: External system calls, data persistence, domain validation
-- **Don't**: HTTP logic, cross-domain coordination
-
-## Essential Patterns
-
-### Error Handling
 - Always log errors with context: `a.logError(r, err, "descriptive message")`
 - Use structured errors: `types.NewBadRequestError(err)`, `types.NewInternalServerError(err)`
 - Wrap errors with context: `fmt.Errorf("operation failed: %w", err)`
 
+### HTTP Handler Patterns
+
+- Use method receivers on the main API struct: `func (a *API) handlerName(...)`
+- Use helper methods for common operations: `bindJSON`, `json`, `jsonError`
+- Always validate input and handle errors appropriately
+- Log HTTP requests with relevant fields (method, path, status)
+
 ### Request/Response
+
 - Use `a.bindJSON(w, r, &struct)` for parsing JSON requests
 - Use `a.json(w, r, statusCode, payload)` for success responses
 - Use `a.jsonError(w, r, err)` for error responses
 
+### JSON Tags and Serialization
+
+- Use appropriate JSON tags: `json:"field_name,omitempty"`
+- Use `json:"-"` for fields that shouldn't be serialized
+- Handle both marshaling and unmarshaling in your types
+
 ### Dependencies
+
 - Use functional options pattern for initialization
 - Define interfaces for all external dependencies
 - Inject dependencies via constructors
 
 ### API Documentation
-- Add Swagger annotations to all handlers:
+
+Add Swagger annotations to all handlers:
+
 ```go
 // @Summary     Brief description
 // @Description Detailed description
@@ -75,21 +89,31 @@ func (a *API) postExample(w http.ResponseWriter, r *http.Request) {
 // @Router      /path [method]
 ```
 
-## Quick Reference
+#### Swagger/OpenAPI Requirements
+
+- Use Swagger annotations for HTTP handlers
+- Document request/response structures
+- Include error response documentation
+- Document authentication requirements
+
+## Implementation Quick Reference
 
 ### Adding New Functionality
+
 - **New endpoint**: Add handler → create/update controller → define types
 - **New business logic**: Add to appropriate controller or create new manager
 - **New types**: Add to `api/types/` with proper JSON tags
 - **New utilities**: Add to `api/pkg/` or `api/internal/`
 
-### File Naming
+### File Naming Conventions
+
 - Handlers: `api/{domain}.go` (e.g., `install.go`, `auth.go`)
 - Controllers: `api/controllers/{domain}/controller.go`
 - Managers: `api/internal/managers/{domain}/manager.go`
 - Types: `api/types/{domain}.go`
 
-### Testing
+### Testing Requirements
+
 - Unit tests: `*_test.go` alongside source files
 - Integration tests: `api/integration/*_test.go`
 - Use table-driven tests with `testify/assert`
