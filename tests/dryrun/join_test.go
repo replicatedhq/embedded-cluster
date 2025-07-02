@@ -183,14 +183,16 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 			},
 		}, &ctrlclient.CreateOptions{})
 
-		hcli.On("ReleaseExists", mock.Anything, "seaweedfs", "seaweedfs").Once().Return(true, nil)
-		hcli.On("Upgrade", mock.Anything, mock.MatchedBy(func(opts helm.UpgradeOptions) bool {
-			return opts.ReleaseName == "seaweedfs"
-		})).Once().Return(nil, nil)
-		hcli.On("ReleaseExists", mock.Anything, "registry", "docker-registry").Once().Return(true, nil)
-		hcli.On("Upgrade", mock.Anything, mock.MatchedBy(func(opts helm.UpgradeOptions) bool {
-			return opts.ReleaseName == "docker-registry"
-		})).Once().Return(nil, nil)
+		if isAirgap {
+			hcli.On("ReleaseExists", mock.Anything, "seaweedfs", "seaweedfs").Once().Return(true, nil)
+			hcli.On("Upgrade", mock.Anything, mock.MatchedBy(func(opts helm.UpgradeOptions) bool {
+				return opts.ReleaseName == "seaweedfs"
+			})).Once().Return(nil, nil)
+			hcli.On("ReleaseExists", mock.Anything, "registry", "docker-registry").Once().Return(true, nil)
+			hcli.On("Upgrade", mock.Anything, mock.MatchedBy(func(opts helm.UpgradeOptions) bool {
+				return opts.ReleaseName == "docker-registry"
+			})).Once().Return(nil, nil)
+		}
 		hcli.On("ReleaseExists", mock.Anything, "kotsadm", "admin-console").Once().Return(true, nil)
 		hcli.On("Upgrade", mock.Anything, mock.MatchedBy(func(opts helm.UpgradeOptions) bool {
 			return opts.ReleaseName == "admin-console"
@@ -363,6 +365,23 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 		assert.True(t, in.Spec.HighAvailability, "HA should be true")
 	} else {
 		assert.False(t, in.Spec.HighAvailability, "HA should be false")
+	}
+
+	hcli.AssertExpectations(t)
+
+	// --- validate admin console values --- //
+	if hasHAMigration {
+		var adminConsoleValues map[string]interface{}
+		hcli.AssertCalled(t, "Upgrade", mock.Anything, mock.MatchedBy(func(opts helm.UpgradeOptions) bool {
+			if opts.ReleaseName == "admin-console" {
+				adminConsoleValues = opts.Values
+				return true
+			}
+			return false
+		}))
+		assertHelmValues(t, adminConsoleValues, map[string]interface{}{
+			"embeddedClusterID": clusterID.String(),
+		})
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
