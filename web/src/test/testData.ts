@@ -1,8 +1,7 @@
-export const MOCK_INSTALL_CONFIG = {
+export const MOCK_LINUX_INSTALL_CONFIG = {
   adminConsolePort: 8800,
   localArtifactMirrorPort: 8801,
   networkInterface: "eth0",
-  installTarget: "linux",
 };
 
 export const MOCK_NETWORK_INTERFACES = {

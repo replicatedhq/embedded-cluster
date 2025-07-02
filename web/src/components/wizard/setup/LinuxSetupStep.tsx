@@ -295,7 +295,10 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext }) => {
 
             {error && (
               <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
-                Please fix the errors in the form above before proceeding.
+                {submitError?.errors && submitError.errors.length > 0 
+                  ? "Please fix the errors in the form above before proceeding."
+                  : error
+                }
               </div>
             )}
           </>

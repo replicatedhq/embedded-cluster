@@ -5,10 +5,12 @@ import LinuxSetupStep from "./setup/LinuxSetupStep";
 import KubernetesSetupStep from "./setup/KubernetesSetupStep";
 import LinuxValidationStep from "./validation/LinuxValidationStep";
 import LinuxInstallationStep from "./installation/LinuxInstallationStep";
+import KubernetesInstallationStep from "./installation/KubernetesInstallationStep";
+import LinuxCompletionStep from "./completion/LinuxCompletionStep";
+import KubernetesCompletionStep from "./completion/KubernetesCompletionStep";
 import { WizardStep } from "../../types";
 import { AppIcon } from "../common/Logo";
 import { useWizard } from "../../contexts/WizardModeContext";
-import CompletionStep from "./CompletionStep";
 
 const InstallWizard: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<WizardStep>("welcome");
@@ -16,9 +18,9 @@ const InstallWizard: React.FC = () => {
 
   const getSteps = (): WizardStep[] => {
     if (target === "kubernetes") {
-      return ["welcome", "kubernetes-setup", "kubernetes-installation", "completion"];
+      return ["welcome", "kubernetes-setup", "kubernetes-installation", "kubernetes-completion"];
     } else {
-      return ["welcome", "linux-setup", "linux-validation", "linux-installation", "completion"];
+      return ["welcome", "linux-setup", "linux-validation", "linux-installation", "linux-completion"];
     }
   }
 
@@ -50,10 +52,12 @@ const InstallWizard: React.FC = () => {
         return <LinuxValidationStep onNext={goToNextStep} onBack={goToPreviousStep} />;
       case "linux-installation":
         return <LinuxInstallationStep onNext={goToNextStep} />;
-      // case "kubernetes-installation":
-        // return <KubernetesInstallationStep onNext={goToNextStep} />;
-      case "completion":
-        return <CompletionStep />;
+      case "kubernetes-installation":
+        return <KubernetesInstallationStep onNext={goToNextStep} />;
+      case "linux-completion":
+        return <LinuxCompletionStep />;
+      case "kubernetes-completion":
+        return <KubernetesCompletionStep />;
       default:
         return null;
     }

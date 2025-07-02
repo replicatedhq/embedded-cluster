@@ -122,6 +122,7 @@ export const renderWithProviders = (
     brandingContext: { title: "My App" },
     linuxConfigContext: {
       config: {
+        adminConsolePort: 8800,
         dataDirectory: "/var/lib/embedded-cluster",
         useProxy: false,
       },

@@ -27,7 +27,7 @@ const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep: currentSte
         { id: 'welcome', name: 'Welcome', icon: ClipboardList },
         { id: 'kubernetes-setup', name: 'Setup', icon: Settings },
         { id: 'kubernetes-installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
-        { id: 'completion', name: 'Completion', icon: CheckCircle },
+        { id: 'kubernetes-completion', name: 'Completion', icon: CheckCircle },
       ];
     } else {
       return [
@@ -35,7 +35,7 @@ const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep: currentSte
         { id: 'linux-setup', name: 'Setup', icon: Settings },
         { id: 'linux-validation', name: 'Validation', icon: Shield, hidden: true, parentId: 'linux-setup' },
         { id: 'linux-installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
-        { id: 'completion', name: 'Completion', icon: CheckCircle },
+        { id: 'linux-completion', name: 'Completion', icon: CheckCircle },
       ];
     }
   }

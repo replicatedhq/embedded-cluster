@@ -15,4 +15,4 @@ export interface InfraStatus {
   lastUpdated: string;
 }
 
-export type WizardStep = 'welcome' | 'linux-setup' | 'kubernetes-setup' | 'linux-validation' | 'linux-installation' | 'kubernetes-installation' | 'completion';
+export type WizardStep = 'welcome' | 'linux-setup' | 'kubernetes-setup' | 'linux-validation' | 'linux-installation' | 'kubernetes-installation' | 'linux-completion' | 'kubernetes-completion';
