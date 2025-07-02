@@ -6,7 +6,6 @@ import (
 	"errors"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/google/uuid"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
@@ -17,9 +16,6 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
-
-var _clusterIDMut sync.Mutex
-var _clusterID *uuid.UUID
 
 // ErrorNoFail is an error that is excluded from metrics failures.
 type ErrorNoFail struct {
@@ -48,24 +44,6 @@ func LicenseID(license *kotsv1beta1.License) string {
 func License(licenseFlag string) *kotsv1beta1.License {
 	license, _ := helpers.ParseLicense(licenseFlag)
 	return license
-}
-
-// ClusterID returns the cluster id. This is unique per 'install', but will be stored in the cluster and used by any future 'join' commands.
-func ClusterID() uuid.UUID {
-	_clusterIDMut.Lock()
-	defer _clusterIDMut.Unlock()
-	if _clusterID != nil {
-		return *_clusterID
-	}
-	id := uuid.New()
-	_clusterID = &id
-	return id
-}
-
-func SetClusterID(id uuid.UUID) {
-	_clusterIDMut.Lock()
-	defer _clusterIDMut.Unlock()
-	_clusterID = &id
 }
 
 // Reporter provides methods for reporting various events.
