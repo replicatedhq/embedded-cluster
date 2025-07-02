@@ -720,12 +720,12 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
 		"extraEnv": []map[string]any{
 			{
-				"name":  "ENABLE_IMPROVED_DR",
-				"value": "true",
-			},
-			{
 				"name":  "SSL_CERT_CONFIGMAP",
 				"value": "kotsadm-private-cas",
+			},
+			{
+				"name":  "ENABLE_IMPROVED_DR",
+				"value": "true",
 			},
 			{
 				"name":  "HTTP_PROXY",
