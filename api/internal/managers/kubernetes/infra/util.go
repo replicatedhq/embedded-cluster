@@ -57,7 +57,7 @@ func (m *infraManager) helmClient(_ kubernetesinstallation.Installation) (helm.C
 	airgapChartsPath := ""
 	if m.airgapBundle != "" {
 		// TODO: how can we support airgap?
-		// airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
+		airgapChartsPath = "" // rc.EmbeddedClusterChartsSubDir()
 	}
 	hcli, err := helm.NewClient(helm.HelmOptions{
 		RESTClientGetterFactory: m.restClientGetterFactory,
