@@ -18,37 +18,15 @@ import (
 var (
 	//go:embed static/values.tpl.yaml
 	rawvalues []byte
-	// helmValues is the unmarshal version of rawvalues.
-	helmValues map[string]interface{}
 )
 
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(errors.Wrap(err, "unmarshal metadata"))
-	}
-
-	hv, err := release.RenderHelmValues(rawvalues, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unmarshal values"))
-	}
-	helmValues = hv
-
-	helmValues["embeddedClusterVersion"] = versions.Version
-
-	if AdminConsoleImageOverride != "" {
-		helmValues["images"].(map[string]any)["kotsadm"] = AdminConsoleImageOverride
-	}
-	if AdminConsoleMigrationsImageOverride != "" {
-		helmValues["images"].(map[string]any)["migrations"] = AdminConsoleMigrationsImageOverride
-	}
-	if AdminConsoleKurlProxyImageOverride != "" {
-		helmValues["images"].(map[string]any)["kurlProxy"] = AdminConsoleKurlProxyImageOverride
-	}
-}
-
 func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Client, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error) {
-	// create a copy of the helm values so we don't modify the original
-	marshalled, err := helm.MarshalValues(helmValues)
+	hv, err := helmValues()
+	if err != nil {
+		return nil, errors.Wrap(err, "get helm values")
+	}
+
+	marshalled, err := helm.MarshalValues(hv)
 	if err != nil {
 		return nil, errors.Wrap(err, "marshal helm values")
 	}
@@ -157,4 +135,29 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	}
 
 	return copiedValues, nil
+}
+
+func helmValues() (map[string]interface{}, error) {
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		return nil, errors.Wrap(err, "unmarshal metadata")
+	}
+
+	hv, err := release.RenderHelmValues(rawvalues, Metadata)
+	if err != nil {
+		return nil, errors.Wrap(err, "render helm values")
+	}
+
+	hv["embeddedClusterVersion"] = versions.Version
+
+	if AdminConsoleImageOverride != "" {
+		hv["images"].(map[string]any)["kotsadm"] = AdminConsoleImageOverride
+	}
+	if AdminConsoleMigrationsImageOverride != "" {
+		hv["images"].(map[string]any)["migrations"] = AdminConsoleMigrationsImageOverride
+	}
+	if AdminConsoleKurlProxyImageOverride != "" {
+		hv["images"].(map[string]any)["kurlProxy"] = AdminConsoleKurlProxyImageOverride
+	}
+
+	return hv, nil
 }

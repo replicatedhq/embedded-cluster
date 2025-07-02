@@ -6,13 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"runtime"
 	"strings"
 
 	autopilotv1beta2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"go.uber.org/multierr"
@@ -408,7 +408,7 @@ func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, rc
 		AirgapUpdate: &autopilotv1beta2.PlanCommandAirgapUpdate{
 			Version: meta.Versions["Kubernetes"],
 			Platforms: map[string]autopilotv1beta2.PlanResourceURL{
-				fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH): {
+				fmt.Sprintf("%s-%s", helpers.ClusterOS(), helpers.ClusterArch()): {
 					URL: imageURL,
 				},
 			},

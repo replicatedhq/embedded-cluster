@@ -35,14 +35,22 @@ func GetAdditionalImages() []string {
 }
 
 func GenerateChartConfig(isHA bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
-	var v map[string]interface{}
+	var hv map[string]interface{}
 	if isHA {
-		v = helmValuesHA
+		v, err := helmValuesHA()
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "get helm values")
+		}
+		hv = v
 	} else {
-		v = helmValues
+		v, err := helmValues()
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "get helm values")
+		}
+		hv = v
 	}
 
-	values, err := helm.MarshalValues(v)
+	marshalled, err := helm.MarshalValues(hv)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "marshal helm values")
 	}
@@ -51,7 +59,7 @@ func GenerateChartConfig(isHA bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository,
 		Name:         _releaseName,
 		ChartName:    (&Registry{}).ChartLocation(ecv1beta1.Domains{}),
 		Version:      Metadata.Version,
-		Values:       string(values),
+		Values:       string(marshalled),
 		TargetNS:     _namespace,
 		ForceUpgrade: ptr.To(false),
 		Order:        3,

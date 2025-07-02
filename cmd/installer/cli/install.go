@@ -512,6 +512,9 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 }
 
 func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kubernetesinstallation.Installation) error {
+	// TODO: we only support amd64 clusters for target=kubernetes installs
+	helpers.SetClusterArch("amd64")
+
 	// If set, validate that the kubeconfig file exists and can be read
 	if flags.kubernetesEnvSettings.KubeConfig != "" {
 		if _, err := os.Stat(flags.kubernetesEnvSettings.KubeConfig); os.IsNotExist(err) {

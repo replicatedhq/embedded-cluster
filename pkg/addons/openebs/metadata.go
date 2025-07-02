@@ -39,7 +39,12 @@ func GetAdditionalImages() []string {
 }
 
 func GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
-	values, err := helm.MarshalValues(helmValues)
+	hv, err := helmValues()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "get helm values")
+	}
+
+	marshalled, err := helm.MarshalValues(hv)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "marshal helm values")
 	}
@@ -48,7 +53,7 @@ func GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 		Name:         _releaseName,
 		ChartName:    (&OpenEBS{}).ChartLocation(ecv1beta1.Domains{}),
 		Version:      Metadata.Version,
-		Values:       string(values),
+		Values:       string(marshalled),
 		TargetNS:     _namespace,
 		ForceUpgrade: ptr.To(false),
 		Order:        1,
