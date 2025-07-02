@@ -38,7 +38,7 @@ const (
 var validStateTransitions = map[statemachine.State][]statemachine.State{
 	StateNew:                             {StateInstallationConfigured, StateInstallationConfigurationFailed},
 	StateInstallationConfigurationFailed: {StateInstallationConfigured, StateInstallationConfigurationFailed},
-	StateInstallationConfigured:          {StateInstallationConfigured, StateHostConfigured, StateHostConfigurationFailed},
+	StateInstallationConfigured:          {StateHostConfigured, StateHostConfigurationFailed},
 	StateHostConfigurationFailed:         {StateInstallationConfigured, StateInstallationConfigurationFailed},
 	StateHostConfigured:                  {StatePreflightsRunning, StateInstallationConfigured, StateInstallationConfigurationFailed},
 	StatePreflightsRunning:               {StatePreflightsSucceeded, StatePreflightsFailed, StatePreflightsExecutionFailed},

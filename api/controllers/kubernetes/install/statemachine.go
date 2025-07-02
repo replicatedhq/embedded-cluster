@@ -23,7 +23,7 @@ const (
 var validStateTransitions = map[statemachine.State][]statemachine.State{
 	StateNew:                             {StateInstallationConfigured, StateInstallationConfigurationFailed},
 	StateInstallationConfigurationFailed: {StateInstallationConfigured, StateInstallationConfigurationFailed},
-	StateInstallationConfigured:          {StateInstallationConfigured, StateInfrastructureInstalling, StateInstallationConfigurationFailed},
+	StateInstallationConfigured:          {StateInfrastructureInstalling, StateInstallationConfigured, StateInstallationConfigurationFailed},
 	StateInfrastructureInstalling:        {StateSucceeded, StateInfrastructureInstallFailed},
 	StateInfrastructureInstallFailed:     {},
 	StateSucceeded:                       {},
