@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,7 +24,7 @@ func TestSend(t *testing.T) {
 			event: types.InstallationStarted{
 				GenericEvent: types.GenericEvent{
 					ExecutionID:  "test-id",
-					ClusterID:    uuid.New(),
+					ClusterID:    "123",
 					Version:      "1.2.3",
 					EntryCommand: "install",
 					Flags:        "--foo --bar --baz",
@@ -40,7 +39,7 @@ func TestSend(t *testing.T) {
 			event: types.InstallationSucceeded{
 				GenericEvent: types.GenericEvent{
 					ExecutionID:  "test-id",
-					ClusterID:    uuid.New(),
+					ClusterID:    "123",
 					Version:      "1.2.3",
 					EntryCommand: "install",
 					Flags:        "--foo --bar --baz",
@@ -52,7 +51,7 @@ func TestSend(t *testing.T) {
 			event: types.InstallationFailed{
 				GenericEvent: types.GenericEvent{
 					ExecutionID:  "test-id",
-					ClusterID:    uuid.New(),
+					ClusterID:    "123",
 					Version:      "1.2.3",
 					EntryCommand: "install",
 					Flags:        "--foo --bar --baz",
@@ -65,7 +64,7 @@ func TestSend(t *testing.T) {
 			event: types.JoinStarted{
 				GenericEvent: types.GenericEvent{
 					ExecutionID:  "test-id",
-					ClusterID:    uuid.New(),
+					ClusterID:    "123",
 					Version:      "1.2.3",
 					EntryCommand: "join",
 					Flags:        "--foo --bar --baz",
@@ -78,7 +77,7 @@ func TestSend(t *testing.T) {
 			event: types.JoinSucceeded{
 				GenericEvent: types.GenericEvent{
 					ExecutionID:  "test-id",
-					ClusterID:    uuid.New(),
+					ClusterID:    "123",
 					Version:      "1.2.3",
 					EntryCommand: "join",
 					Flags:        "--foo --bar --baz",
@@ -91,7 +90,7 @@ func TestSend(t *testing.T) {
 			event: types.JoinFailed{
 				GenericEvent: types.GenericEvent{
 					ExecutionID:  "test-id",
-					ClusterID:    uuid.New(),
+					ClusterID:    "123",
 					Version:      "1.2.3",
 					EntryCommand: "join",
 					Flags:        "--foo --bar --baz",

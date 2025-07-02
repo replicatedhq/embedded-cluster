@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"gopkg.in/yaml.v3"
@@ -64,7 +63,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, kcli c
 		copiedValues["utilsImage"] = e.UtilsImageOverride
 	}
 
-	copiedValues["embeddedClusterID"] = metrics.ClusterID().String()
+	copiedValues["embeddedClusterID"] = e.ClusterID
 
 	if e.IsAirgap {
 		copiedValues["isAirgap"] = "true"

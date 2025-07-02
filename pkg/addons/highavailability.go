@@ -22,6 +22,7 @@ import (
 )
 
 type EnableHAOptions struct {
+	ClusterID          string
 	AdminConsolePort   int
 	IsAirgap           bool
 	IsMultiNodeEnabled bool
@@ -240,6 +241,7 @@ func (a *AddOns) enableRegistryHA(ctx context.Context, opts EnableHAOptions) err
 func (a *AddOns) EnableAdminConsoleHA(ctx context.Context, opts EnableHAOptions) error {
 	// TODO (@salah): add support for end user overrides
 	ac := &adminconsole.AdminConsole{
+		ClusterID:          opts.ClusterID,
 		IsAirgap:           opts.IsAirgap,
 		IsHA:               true,
 		Proxy:              opts.ProxySpec,

@@ -285,6 +285,7 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc 
 	)
 
 	opts := addons.UpgradeOptions{
+		ClusterID:               in.Spec.ClusterID,
 		AdminConsolePort:        rc.AdminConsolePort(),
 		IsAirgap:                in.Spec.AirGap,
 		IsHA:                    in.Spec.HighAvailability,

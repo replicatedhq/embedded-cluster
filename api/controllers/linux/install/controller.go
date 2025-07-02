@@ -52,6 +52,7 @@ type InstallController struct {
 	airgapBundle              string
 	configValues              string
 	endUserConfig             *ecv1beta1.Config
+	clusterID                 string
 	store                     store.Store
 	rc                        runtimeconfig.RuntimeConfig
 	stateMachine              statemachine.Interface
@@ -131,6 +132,12 @@ func WithConfigValues(configValues string) InstallControllerOption {
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InstallControllerOption {
 	return func(c *InstallController) {
 		c.endUserConfig = endUserConfig
+	}
+}
+
+func WithClusterID(clusterID string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.clusterID = clusterID
 	}
 }
 
@@ -225,6 +232,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithConfigValues(controller.configValues),
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
+			infra.WithClusterID(controller.clusterID),
 		)
 	}
 

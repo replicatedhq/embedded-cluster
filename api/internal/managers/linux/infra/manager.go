@@ -36,6 +36,7 @@ type infraManager struct {
 	configValues  string
 	releaseData   *release.ReleaseData
 	endUserConfig *ecv1beta1.Config
+	clusterID     string
 	logger        logrus.FieldLogger
 	k0scli        k0s.K0sInterface
 	kcli          client.Client
@@ -99,6 +100,12 @@ func WithReleaseData(releaseData *release.ReleaseData) InfraManagerOption {
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InfraManagerOption {
 	return func(c *infraManager) {
 		c.endUserConfig = endUserConfig
+	}
+}
+
+func WithClusterID(clusterID string) InfraManagerOption {
+	return func(c *infraManager) {
+		c.clusterID = clusterID
 	}
 }
 

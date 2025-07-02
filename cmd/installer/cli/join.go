@@ -78,7 +78,7 @@ func JoinCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
 			joinReporter := newJoinReporter(
-				jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
+				jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID.String(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 			)
 			joinReporter.ReportJoinStarted(ctx)
 
@@ -657,6 +657,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 	defer loading.Close()
 
 	opts := addons.EnableHAOptions{
+		ClusterID:          jcmd.InstallationSpec.ClusterID,
 		AdminConsolePort:   rc.AdminConsolePort(),
 		IsAirgap:           jcmd.InstallationSpec.AirGap,
 		IsMultiNodeEnabled: jcmd.InstallationSpec.LicenseInfo != nil && jcmd.InstallationSpec.LicenseInfo.IsMultiNodeEnabled,

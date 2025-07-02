@@ -24,6 +24,7 @@ func TestHostCABundle(t *testing.T) {
 	addon := &embeddedclusteroperator.EmbeddedClusterOperator{
 		DryRun:                true,
 		ChartLocationOverride: chartLocation,
+		ClusterID:             "123",
 		HostCABundlePath:      "/etc/ssl/certs/ca-certificates.crt",
 	}
 

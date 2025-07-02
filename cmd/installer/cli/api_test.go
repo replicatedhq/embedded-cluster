@@ -63,6 +63,7 @@ func Test_serveAPI(t *testing.T) {
 					Spec: kotsv1beta1.ApplicationSpec{},
 				},
 			},
+			ClusterID: "123",
 		},
 		ManagerPort: portInt,
 		Logger:      apilogger.NewDiscardLogger(),

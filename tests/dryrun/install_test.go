@@ -39,6 +39,27 @@ func testDefaultInstallationImpl(t *testing.T) {
 
 	dr := dryrunInstall(t, &dryrun.Client{HelmClient: hcli})
 
+	kcli, err := dr.KubeClient()
+	if err != nil {
+		t.Fatalf("failed to create kube client: %v", err)
+	}
+
+	// --- validate installation object --- //
+	in, err := kubeutils.GetLatestInstallation(context.TODO(), kcli)
+	if err != nil {
+		t.Fatalf("failed to get latest installation: %v", err)
+	}
+
+	assert.NotEmpty(t, in.Spec.ClusterID)
+	assert.Equal(t, "80-32767", in.Spec.RuntimeConfig.Network.NodePortRange)
+	assert.Equal(t, "10.244.0.0/16", dr.Flags["cidr"])
+	assert.Equal(t, "10.244.0.0/17", in.Spec.RuntimeConfig.Network.PodCIDR)
+	assert.Equal(t, "10.244.128.0/17", in.Spec.RuntimeConfig.Network.ServiceCIDR)
+	assert.Equal(t, 30000, in.Spec.RuntimeConfig.AdminConsole.Port)
+	assert.Equal(t, "/var/lib/embedded-cluster", in.Spec.RuntimeConfig.DataDir)
+	assert.Equal(t, 50000, in.Spec.RuntimeConfig.LocalArtifactMirror.Port)
+	assert.Equal(t, "ec-install", in.ObjectMeta.Labels["replicated.com/disaster-recovery"])
+
 	// --- validate addons --- //
 
 	// openebs
@@ -57,7 +78,8 @@ func testDefaultInstallationImpl(t *testing.T) {
 	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
 	assertHelmValues(t, operatorOpts.Values, map[string]interface{}{
-		"image.repository": "fake-replicated-proxy.test.net/anonymous/replicated/embedded-cluster-operator-image",
+		"embeddedClusterID": in.Spec.ClusterID,
+		"image.repository":  "fake-replicated-proxy.test.net/anonymous/replicated/embedded-cluster-operator-image",
 	})
 
 	// velero
@@ -76,6 +98,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
 		"isMultiNodeEnabled":     true,
 		"kurlProxy.nodePort":     float64(30000),
+		"embeddedClusterID":      in.Spec.ClusterID,
 		"embeddedClusterDataDir": "/var/lib/embedded-cluster",
 		"embeddedClusterK0sDir":  "/var/lib/embedded-cluster/k0s",
 	})
@@ -155,29 +178,10 @@ func testDefaultInstallationImpl(t *testing.T) {
 	})
 
 	// --- validate cluster resources --- //
-	kcli, err := dr.KubeClient()
-	if err != nil {
-		t.Fatalf("failed to create kube client: %v", err)
-	}
 
 	assertConfigMapExists(t, kcli, "embedded-cluster-host-support-bundle", "kotsadm")
 	assertSecretExists(t, kcli, "kotsadm-password", "kotsadm")
 	assertSecretExists(t, kcli, "cloud-credentials", "velero")
-
-	// --- validate installation object --- //
-	in, err := kubeutils.GetLatestInstallation(context.TODO(), kcli)
-	if err != nil {
-		t.Fatalf("failed to get latest installation: %v", err)
-	}
-
-	assert.Equal(t, "80-32767", in.Spec.RuntimeConfig.Network.NodePortRange)
-	assert.Equal(t, "10.244.0.0/16", dr.Flags["cidr"])
-	assert.Equal(t, "10.244.0.0/17", in.Spec.RuntimeConfig.Network.PodCIDR)
-	assert.Equal(t, "10.244.128.0/17", in.Spec.RuntimeConfig.Network.ServiceCIDR)
-	assert.Equal(t, 30000, in.Spec.RuntimeConfig.AdminConsole.Port)
-	assert.Equal(t, "/var/lib/embedded-cluster", in.Spec.RuntimeConfig.DataDir)
-	assert.Equal(t, 50000, in.Spec.RuntimeConfig.LocalArtifactMirror.Port)
-	assert.Equal(t, "ec-install", in.ObjectMeta.Labels["replicated.com/disaster-recovery"])
 
 	// --- validate k0s cluster config --- //
 	k0sConfig := readK0sConfig(t)

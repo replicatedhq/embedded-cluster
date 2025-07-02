@@ -111,6 +111,7 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	defer loading.Close()
 
 	opts := addons.EnableHAOptions{
+		ClusterID:          in.Spec.ClusterID,
 		AdminConsolePort:   rc.AdminConsolePort(),
 		IsAirgap:           in.Spec.AirGap,
 		IsMultiNodeEnabled: in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,
