@@ -16,20 +16,22 @@ import (
 )
 
 type InstallOptions struct {
+	AdminConsolePwd    string
+	AdminConsolePort   int
+	License            *kotsv1beta1.License
+	IsAirgap           bool
+	TLSCertBytes       []byte
+	TLSKeyBytes        []byte
+	Hostname           string
+	IsMultiNodeEnabled bool
+	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
+	EndUserConfigSpec  *ecv1beta1.ConfigSpec
+	KotsInstaller      adminconsole.KotsInstaller
+	ProxySpec          *ecv1beta1.ProxySpec
+
+	// Linux only options
 	ClusterID               string
-	AdminConsolePwd         string
-	AdminConsolePort        int
-	License                 *kotsv1beta1.License
-	IsAirgap                bool
-	TLSCertBytes            []byte
-	TLSKeyBytes             []byte
-	Hostname                string
 	DisasterRecoveryEnabled bool
-	IsMultiNodeEnabled      bool
-	EmbeddedConfigSpec      *ecv1beta1.ConfigSpec
-	EndUserConfigSpec       *ecv1beta1.ConfigSpec
-	KotsInstaller           adminconsole.KotsInstaller
-	ProxySpec               *ecv1beta1.ProxySpec
 	HostCABundlePath        string
 	DataDir                 string
 	K0sDataDir              string
