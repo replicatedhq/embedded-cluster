@@ -11,9 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
@@ -29,6 +31,9 @@ func TestDefaultInstallation(t *testing.T) {
 }
 
 func testDefaultInstallationImpl(t *testing.T) {
+	clusterID := uuid.New()
+	metrics.SetClusterID(clusterID)
+
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
@@ -57,7 +62,8 @@ func testDefaultInstallationImpl(t *testing.T) {
 	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
 	assertHelmValues(t, operatorOpts.Values, map[string]interface{}{
-		"image.repository": "fake-replicated-proxy.test.net/anonymous/replicated/embedded-cluster-operator-image",
+		"embeddedClusterID": clusterID.String(),
+		"image.repository":  "fake-replicated-proxy.test.net/anonymous/replicated/embedded-cluster-operator-image",
 	})
 
 	// velero
@@ -76,6 +82,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
 		"isMultiNodeEnabled":     true,
 		"kurlProxy.nodePort":     float64(30000),
+		"embeddedClusterID":      clusterID.String(),
 		"embeddedClusterDataDir": "/var/lib/embedded-cluster",
 		"embeddedClusterK0sDir":  "/var/lib/embedded-cluster/k0s",
 	})
