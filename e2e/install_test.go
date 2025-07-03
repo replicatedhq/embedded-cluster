@@ -93,6 +93,12 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 		t.Fatalf("fail to configure firewalld: %v: %s: %s", err, stdout, stderr)
 	}
 
+	t.Logf("%s: setting selinux to Enforcing mode", time.Now().Format(time.RFC3339))
+	line = []string{"enable-selinux.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("failed to set selinux to Enforcing mode: %v: %s: %s", err, stdout, stderr)
+	}
+
 	installSingleNode(t, tc)
 
 	isMultiNodeEnabled := "false"
