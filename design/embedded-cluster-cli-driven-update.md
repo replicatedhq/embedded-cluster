@@ -4,7 +4,7 @@
 
 This document outlines the implementation of **CLI-driven updates** to support the new architecture where customers will download a new binary to get the new release of software, compared to before where customers could check for versions in the UI to download and apply new versions.
 
-The implementation will **modify the existing `./binary update` command** to perform CLI-driven binary updating when `ENABLE_V3=1` is set, instead of its current behavior of updating applications with airgap bundles.
+This implementation would **modify the existing `./binary update` command** to perform CLI-driven binary updates when `ENABLE_V3=1` is set.
 
 ## Architecture Overview
 
