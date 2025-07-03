@@ -1243,9 +1243,8 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: |
-              The selinux user context label for {{ .DataDir }} is incorrect.
-              try running: sudo restorecon -RvF {{ .DataDir }}
+              message: >-
+                  The selinux user context label for {{ .DataDir }} is incorrect. try running: sudo restorecon -RvF {{ .DataDir }}
           - pass:
               when: "false"
     - textAnalyze:
@@ -1255,9 +1254,8 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: |
-                The selinux user context label for {{ .DataDir }}/bin is incorrect.
-                Try running: sudo semanage fcontext -a -t bin_t "{{ .DataDir }}/bin(/.*)?" && sudo restorecon -RvF {{ .DataDir }}
+              message: >-
+                  The selinux user context label for {{ .DataDir }}/bin is incorrect. Try running: sudo restorecon -RvF {{ .DataDir }}
           - pass:
               when: "false"
     - textAnalyze:
@@ -1267,8 +1265,7 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: |
-              The selinux type context label for the embedded cluster binary directory are incorrect.
-              Try running: sudo restorecon -RvF {{ .DataDir }}
+              message: >-
+                  The selinux type context label for the embedded cluster binary directory are incorrect. Try running: sudo semanage fcontext -a -t bin_t "{{ .DataDir }}/bin(/.*)?" && sudo restorecon -RvF {{ .DataDir }}
           - pass:
               when: "false"
