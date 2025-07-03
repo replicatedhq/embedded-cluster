@@ -72,12 +72,11 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := docker.NewCluster(&docker.ClusterInput{
+	tc := cmx.NewCluster(&cmx.ClusterInput{
 		T:            t,
 		Nodes:        1,
-		Distro:       "almalinux-8",
-		LicensePath:  "licenses/multi-node-disabled-license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
+		Distribution: "almalinux",
+		Version:      "8",
 	})
 	defer tc.Cleanup()
 
@@ -91,6 +90,12 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	line = []string{"firewalld-configure.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to configure firewalld: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: setting selinux to Enforcing mode", time.Now().Format(time.RFC3339))
+	line = []string{"enable-selinux.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("failed to set selinux to Enforcing mode: %v: %s: %s", err, stdout, stderr)
 	}
 
 	installSingleNode(t, tc)
