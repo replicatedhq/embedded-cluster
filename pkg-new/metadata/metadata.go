@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"runtime"
 	"sort"
 	"strings"
 
@@ -95,9 +94,9 @@ func GatherVersionMetadata(channelRelease *release.ChannelRelease) (*types.Relea
 	}
 
 	artifacts := map[string]string{
-		"k0s":                         fmt.Sprintf("k0s-binaries/%s-%s", versions.K0sVersion, runtime.GOARCH),
-		"kots":                        fmt.Sprintf("kots-binaries/%s-%s.tar.gz", adminconsole.KotsVersion, runtime.GOARCH),
-		"operator":                    fmt.Sprintf("operator-binaries/%s-%s.tar.gz", embeddedclusteroperator.Metadata.Version, runtime.GOARCH),
+		"k0s":                         fmt.Sprintf("k0s-binaries/%s-%s", versions.K0sVersion, helpers.ClusterArch()),
+		"kots":                        fmt.Sprintf("kots-binaries/%s-%s.tar.gz", adminconsole.KotsVersion, helpers.ClusterArch()),
+		"operator":                    fmt.Sprintf("operator-binaries/%s-%s.tar.gz", embeddedclusteroperator.Metadata.Version, helpers.ClusterArch()),
 		"local-artifact-mirror-image": versions.LocalArtifactMirrorImage,
 	}
 	if versions.K0sBinaryURLOverride != "" {

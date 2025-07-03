@@ -9,10 +9,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
+	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 )
 
 func TestGetInstallationConfig(t *testing.T) {
@@ -239,6 +242,206 @@ func TestGetInstallationStatus(t *testing.T) {
 			if tt.expectedErr {
 				assert.Error(t, err)
 				assert.Equal(t, types.Status{}, result)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedValue, result)
+			}
+
+			mockManager.AssertExpectations(t)
+		})
+	}
+}
+
+func TestSetupInfra(t *testing.T) {
+	tests := []struct {
+		name          string
+		currentState  statemachine.State
+		expectedState statemachine.State
+		setupMocks    func(kubernetesinstallation.Installation, *installation.MockInstallationManager, *infra.MockInfraManager, *metrics.MockReporter, *store.MockStore)
+		expectedErr   error
+	}{
+		{
+			name:          "successful setup",
+			currentState:  StateInstallationConfigured,
+			expectedState: StateSucceeded,
+			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
+				mock.InOrder(
+					fm.On("Install", mock.Anything, ki).Return(nil),
+					// TODO: we are not yet reporting
+					// mr.On("ReportInstallationSucceeded", mock.Anything),
+				)
+			},
+			expectedErr: nil,
+		},
+		{
+			name:          "install infra error",
+			currentState:  StateInstallationConfigured,
+			expectedState: StateInfrastructureInstallFailed,
+			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
+				mock.InOrder(
+					fm.On("Install", mock.Anything, ki).Return(errors.New("install error")),
+					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "install error"}, nil),
+					// TODO: we are not yet reporting
+					// mr.On("ReportInstallationFailed", mock.Anything, errors.New("install error")),
+				)
+			},
+			expectedErr: nil,
+		},
+		{
+			name:          "install infra error without report if infra store fails",
+			currentState:  StateInstallationConfigured,
+			expectedState: StateInfrastructureInstallFailed,
+			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
+				mock.InOrder(
+					fm.On("Install", mock.Anything, ki).Return(errors.New("install error")),
+					st.LinuxInfraMockStore.On("GetStatus").Return(nil, assert.AnError),
+				)
+			},
+			expectedErr: nil,
+		},
+		{
+			name:          "install infra panic",
+			currentState:  StateInstallationConfigured,
+			expectedState: StateInfrastructureInstallFailed,
+			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
+				mock.InOrder(
+					fm.On("Install", mock.Anything, ki).Panic("this is a panic"),
+					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "this is a panic"}, nil),
+					// TODO: we are not yet reporting
+					// mr.On("ReportInstallationFailed", mock.Anything, errors.New("this is a panic")),
+				)
+			},
+			expectedErr: nil,
+		},
+		{
+			name:          "invalid state transition",
+			currentState:  StateNew,
+			expectedState: StateNew,
+			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
+			},
+			expectedErr: assert.AnError, // Just check that an error occurs, don't care about exact message
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sm := NewStateMachine(WithCurrentState(tt.currentState))
+
+			ki := kubernetesinstallation.New(nil)
+			ki.SetManagerPort(9001)
+
+			mockInstallationManager := &installation.MockInstallationManager{}
+			mockInfraManager := &infra.MockInfraManager{}
+			mockMetricsReporter := &metrics.MockReporter{}
+			mockStore := &store.MockStore{}
+			tt.setupMocks(ki, mockInstallationManager, mockInfraManager, mockMetricsReporter, mockStore)
+
+			controller, err := NewInstallController(
+				WithInstallation(ki),
+				WithStateMachine(sm),
+				WithInstallationManager(mockInstallationManager),
+				WithInfraManager(mockInfraManager),
+				WithMetricsReporter(mockMetricsReporter),
+				WithStore(mockStore),
+			)
+			require.NoError(t, err)
+
+			err = controller.SetupInfra(t.Context())
+
+			if tt.expectedErr != nil {
+				require.Error(t, err)
+
+				// Check for specific error types
+				var expectedAPIErr *types.APIError
+				if errors.As(tt.expectedErr, &expectedAPIErr) {
+					// For API errors, check the exact type and status code
+					var actualAPIErr *types.APIError
+					require.True(t, errors.As(err, &actualAPIErr), "expected error to be of type *types.APIError, got %T", err)
+					assert.Equal(t, expectedAPIErr.StatusCode, actualAPIErr.StatusCode, "status codes should match")
+					assert.Contains(t, actualAPIErr.Error(), expectedAPIErr.Unwrap().Error(), "error messages should contain expected content")
+				}
+			} else {
+				require.NoError(t, err)
+			}
+
+			assert.Eventually(t, func() bool {
+				t.Logf("Current state: %s, Expected state: %s", sm.CurrentState(), tt.expectedState)
+				return sm.CurrentState() == tt.expectedState
+			}, time.Second, 100*time.Millisecond, "state should be %s", tt.expectedState)
+			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after running infra setup")
+
+			mockInstallationManager.AssertExpectations(t)
+			mockInfraManager.AssertExpectations(t)
+			mockMetricsReporter.AssertExpectations(t)
+			mockStore.KubernetesInfraMockStore.AssertExpectations(t)
+			mockStore.KubernetesInstallationMockStore.AssertExpectations(t)
+		})
+	}
+}
+
+func TestGetInfra(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupMock     func(*infra.MockInfraManager)
+		expectedErr   bool
+		expectedValue types.Infra
+	}{
+		{
+			name: "successful get infra",
+			setupMock: func(m *infra.MockInfraManager) {
+				infra := types.Infra{
+					Components: []types.InfraComponent{
+						{
+							Name: "Admin Console",
+							Status: types.Status{
+								State: types.StateRunning,
+							},
+						},
+					},
+					Status: types.Status{
+						State: types.StateRunning,
+					},
+				}
+				m.On("Get").Return(infra, nil)
+			},
+			expectedErr: false,
+			expectedValue: types.Infra{
+				Components: []types.InfraComponent{
+					{
+						Name: "Admin Console",
+						Status: types.Status{
+							State: types.StateRunning,
+						},
+					},
+				},
+				Status: types.Status{
+					State: types.StateRunning,
+				},
+			},
+		},
+		{
+			name: "get infra error",
+			setupMock: func(m *infra.MockInfraManager) {
+				m.On("Get").Return(nil, errors.New("get infra error"))
+			},
+			expectedErr:   true,
+			expectedValue: types.Infra{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockManager := &infra.MockInfraManager{}
+			tt.setupMock(mockManager)
+
+			controller, err := NewInstallController(WithInfraManager(mockManager))
+			require.NoError(t, err)
+
+			result, err := controller.GetInfra(t.Context())
+
+			if tt.expectedErr {
+				assert.Error(t, err)
+				assert.Equal(t, types.Infra{}, result)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedValue, result)

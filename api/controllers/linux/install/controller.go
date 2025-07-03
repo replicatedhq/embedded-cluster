@@ -29,7 +29,7 @@ type Controller interface {
 	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
-	GetInfra(ctx context.Context) (types.LinuxInfra, error)
+	GetInfra(ctx context.Context) (types.Infra, error)
 }
 
 type RunHostPreflightsOptions struct {

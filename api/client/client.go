@@ -14,12 +14,14 @@ type Client interface {
 	GetLinuxInstallationConfig() (types.LinuxInstallationConfig, error)
 	GetLinuxInstallationStatus() (types.Status, error)
 	ConfigureLinuxInstallation(config types.LinuxInstallationConfig) (types.Status, error)
-	SetupLinuxInfra() (types.LinuxInfra, error)
-	GetLinuxInfraStatus() (types.LinuxInfra, error)
+	SetupLinuxInfra(ignoreHostPreflights bool) (types.Infra, error)
+	GetLinuxInfraStatus() (types.Infra, error)
 
 	GetKubernetesInstallationConfig() (types.KubernetesInstallationConfig, error)
 	ConfigureKubernetesInstallation(config types.KubernetesInstallationConfig) (types.Status, error)
 	GetKubernetesInstallationStatus() (types.Status, error)
+	SetupKubernetesInfra() (types.Infra, error)
+	GetKubernetesInfraStatus() (types.Infra, error)
 }
 
 type client struct {

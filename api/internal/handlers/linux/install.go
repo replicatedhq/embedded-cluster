@@ -159,7 +159,7 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		types.LinuxInfraSetupRequest	true	"Infra Setup Request"
-//	@Success		200		{object}	types.LinuxInfra
+//	@Success		200		{object}	types.Infra
 //	@Router			/linux/install/infra/setup [post]
 func (h *Handler) PostSetupInfra(w http.ResponseWriter, r *http.Request) {
 	var req types.LinuxInfraSetupRequest
@@ -185,7 +185,7 @@ func (h *Handler) PostSetupInfra(w http.ResponseWriter, r *http.Request) {
 //	@Tags			linux-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.LinuxInfra
+//	@Success		200	{object}	types.Infra
 //	@Router			/linux/install/infra/status [get]
 func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	infra, err := h.installController.GetInfra(r.Context())
