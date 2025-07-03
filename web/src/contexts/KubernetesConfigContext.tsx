@@ -6,6 +6,7 @@ export interface KubernetesConfig {
   httpProxy?: string;
   httpsProxy?: string;
   noProxy?: string;
+  installCommand?: string;
 }
 
 interface KubernetesConfigContextType {
@@ -16,6 +17,7 @@ interface KubernetesConfigContextType {
 
 const defaultKubernetesConfig: KubernetesConfig = {
   useProxy: false,
+  installCommand: 'todo: install command here'
 };
 
 export const KubernetesConfigContext = createContext<KubernetesConfigContextType | undefined>(undefined);
@@ -44,4 +46,4 @@ export const useKubernetesConfig = (): KubernetesConfigContextType => {
     throw new Error('useKubernetesConfig must be used within a KubernetesConfigProvider');
   }
   return context;
-}; 
+};
