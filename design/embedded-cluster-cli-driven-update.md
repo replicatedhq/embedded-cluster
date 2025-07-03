@@ -1,12 +1,14 @@
-# Embedded Cluster Self-Update Implementation Plan
+# Embedded Cluster CLI-Driven Update Design
 
 ## Overview
 
-This document outlines the high-level changes required to implement a self-updating mechanism for embedded cluster binaries, similar to the Replicated CLI's `version upgrade` command. The implementation will **modify the existing `./binary update` command** to perform binary self-updating when `ENABLE_V3=1` is set, instead of its current behavior of updating applications with airgap bundles.
+This document outlines the implementation of **CLI-driven updates** to support the new architecture where customers will download a new binary to get the new release of software, compared to before where customers could check for versions in the UI to download and apply new versions.
+
+The implementation will **modify the existing `./binary update` command** to perform CLI-driven binary updating when `ENABLE_V3=1` is set, instead of its current behavior of updating applications with airgap bundles.
 
 ## Architecture Overview
 
-The self-update mechanism will leverage the existing embedded cluster download infrastructure while adding new components for version management, update detection, and safe binary replacement.
+The CLI-driven update mechanism will leverage the existing embedded cluster download infrastructure while adding new components for version management, update detection, and safe binary replacement.
 
 ```
 Embedded Cluster Binary → Version Check → Download New Binary → Atomic Replacement
@@ -21,7 +23,7 @@ Embedded Cluster Binary → Version Check → Download New Binary → Atomic Rep
 #### Modified Update Command Behavior
 - **Conditional behavior**: Check `ENABLE_V3` environment variable to determine update mode
 - **V2 mode**: Current behavior (application airgap bundle updates)
-- **V3 mode**: Binary self-updating behavior
+- **V3 mode**: CLI-driven binary updating behavior
 - **Command signature (V3)**: `./binary update --license <license-file> [--version=<version>] [--force]`
 - **License requirement**: The `--license` flag is **required** when `ENABLE_V3=1` for authentication with replicated.app
 - **Validation**: Verify the binary can be updated (not installed via package manager)
@@ -123,7 +125,7 @@ Following the KOTS pattern, the embedded cluster should handle these channel typ
 
 ### 3. Update Discovery Mechanism
 
-The system needs to discover available updates by calling the replicated.app API.
+The binary needs to discover available updates by calling the replicated.app API.
 
 **New API Endpoint:** `GET /embedded/:appSlug/:channelSlug/versions`
 - **Architecture**: Follow same proxy pattern as download endpoint (replicated-app → market-api)
@@ -170,9 +172,9 @@ The system needs to discover available updates by calling the replicated.app API
 - **Error handling**: Consistent error responses and HTTP status codes with download endpoint
 - **Performance**: Reasonable response times with appropriate caching headers
 
-### 4. Binary Download and Replacement (TODO - Self-Update Logic)
+### 4. Binary Download and Replacement (CLI-Driven Update Logic)
 
-**Current State:** No existing self-update logic in embedded cluster binary.
+**Current State:** No existing binary update logic in embedded cluster binary.
 
 #### Download Process
 Leverage existing embedded cluster download infrastructure:
@@ -210,4 +212,4 @@ Comprehensive error recovery mechanisms:
 - Mirror Replicated CLI's proven patterns for reliability
 - Handle edge cases like running binary being updated
 - Support both interactive and automated (scripted) usage
-- Graceful degradation when self-update not possible
+- Graceful degradation when binary update not possible
