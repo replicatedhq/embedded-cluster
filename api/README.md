@@ -93,6 +93,12 @@ Provides a client library for interacting with the API. The client package imple
    - This design choice enables better testability and easier iteration in the development environment
    - API components should be independently configurable and testable
 
+2. **Kubernetes as a Subset of Linux**:
+   - The Kubernetes installation target should be a subset of the Linux installation target
+   - Linux installations include Kubernetes cluster setup (k0s, addons) plus application management
+   - Kubernetes installations focus on application management (deployment, upgrades, lifecycle) on an existing Kubernetes cluster
+   - Once Linux installation finishes setting up the Kubernetes cluster, subsequent operations should follow the same workflow as Kubernetes installations
+
 ## Integration
 
 The API package is designed to be used as part of the larger Embedded Cluster system. It provides both HTTP endpoints for external access and a client library for internal use.

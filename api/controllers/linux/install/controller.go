@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/replicatedhq/embedded-cluster/api/internal/managers/infra"
-	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
-	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
@@ -21,17 +21,15 @@ import (
 )
 
 type Controller interface {
-	GetInstallationConfig(ctx context.Context) (types.InstallationConfig, error)
-	ConfigureInstallation(ctx context.Context, config types.InstallationConfig) error
+	GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfig, error)
+	ConfigureInstallation(ctx context.Context, config types.LinuxInstallationConfig) error
 	GetInstallationStatus(ctx context.Context) (types.Status, error)
 	RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) error
 	GetHostPreflightStatus(ctx context.Context) (types.Status, error)
 	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
-	GetInfra(ctx context.Context) (types.Infra, error)
-	SetStatus(ctx context.Context, status types.Status) error
-	GetStatus(ctx context.Context) (types.Status, error)
+	GetInfra(ctx context.Context) (types.LinuxInfra, error)
 }
 
 type RunHostPreflightsOptions struct {
@@ -41,21 +39,20 @@ type RunHostPreflightsOptions struct {
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	installationManager  installation.InstallationManager
-	hostPreflightManager preflight.HostPreflightManager
-	infraManager         infra.InfraManager
-	hostUtils            hostutils.HostUtilsInterface
-	netUtils             utils.NetUtils
-	metricsReporter      metrics.ReporterInterface
-	releaseData          *release.ReleaseData
-	password             string
-	tlsConfig            types.TLSConfig
-	license              []byte
-	airgapBundle         string
-	configValues         string
-	endUserConfig        *ecv1beta1.Config
-
-	install                   types.Install
+	installationManager       installation.InstallationManager
+	hostPreflightManager      preflight.HostPreflightManager
+	infraManager              infra.InfraManager
+	hostUtils                 hostutils.HostUtilsInterface
+	netUtils                  utils.NetUtils
+	metricsReporter           metrics.ReporterInterface
+	releaseData               *release.ReleaseData
+	password                  string
+	tlsConfig                 types.TLSConfig
+	license                   []byte
+	airgapBundle              string
+	configValues              string
+	endUserConfig             *ecv1beta1.Config
+	clusterID                 string
 	store                     store.Store
 	rc                        runtimeconfig.RuntimeConfig
 	stateMachine              statemachine.Interface
@@ -138,6 +135,12 @@ func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InstallControllerOption 
 	}
 }
 
+func WithClusterID(clusterID string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.clusterID = clusterID
+	}
+}
+
 func WithAllowIgnoreHostPreflights(allowIgnoreHostPreflights bool) InstallControllerOption {
 	return func(c *InstallController) {
 		c.allowIgnoreHostPreflights = allowIgnoreHostPreflights
@@ -202,7 +205,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.installationManager == nil {
 		controller.installationManager = installation.NewInstallationManager(
 			installation.WithLogger(controller.logger),
-			installation.WithInstallationStore(controller.store.InstallationStore()),
+			installation.WithInstallationStore(controller.store.LinuxInstallationStore()),
 			installation.WithLicense(controller.license),
 			installation.WithAirgapBundle(controller.airgapBundle),
 			installation.WithHostUtils(controller.hostUtils),
@@ -213,7 +216,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.hostPreflightManager == nil {
 		controller.hostPreflightManager = preflight.NewHostPreflightManager(
 			preflight.WithLogger(controller.logger),
-			preflight.WithHostPreflightStore(controller.store.PreflightStore()),
+			preflight.WithHostPreflightStore(controller.store.LinuxPreflightStore()),
 			preflight.WithNetUtils(controller.netUtils),
 		)
 	}
@@ -221,7 +224,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.infraManager == nil {
 		controller.infraManager = infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
-			infra.WithInfraStore(controller.store.InfraStore()),
+			infra.WithInfraStore(controller.store.LinuxInfraStore()),
 			infra.WithPassword(controller.password),
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),
@@ -229,6 +232,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithConfigValues(controller.configValues),
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
+			infra.WithClusterID(controller.clusterID),
 		)
 	}
 

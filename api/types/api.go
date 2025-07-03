@@ -17,6 +17,7 @@ type APIConfig struct {
 	ConfigValues  string
 	ReleaseData   *release.ReleaseData
 	EndUserConfig *ecv1beta1.Config
+	ClusterID     string
 
 	LinuxConfig
 	KubernetesConfig

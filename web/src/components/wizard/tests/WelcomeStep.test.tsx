@@ -5,7 +5,6 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import WelcomeStep from "../WelcomeStep.tsx";
-import { MOCK_PROTOTYPE_SETTINGS } from "../../../test/testData.ts";
 
 const server = setupServer(
   // Mock login endpoint
@@ -55,13 +54,7 @@ describe("WelcomeStep", () => {
   });
 
   it("renders welcome content correctly", () => {
-    renderWithProviders(<WelcomeStep onNext={mockOnNext} />, {
-      wrapperProps: {
-        preloadedState: {
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
-      },
-    });
+    renderWithProviders(<WelcomeStep onNext={mockOnNext} />);
 
     // Check if welcome content is rendered
     expect(screen.getByText(/Welcome to/)).toBeInTheDocument();
@@ -79,13 +72,7 @@ describe("WelcomeStep", () => {
         });
       })
     );
-    renderWithProviders(<WelcomeStep onNext={mockOnNext} />, {
-      wrapperProps: {
-        preloadedState: {
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
-      },
-    });
+    renderWithProviders(<WelcomeStep onNext={mockOnNext} />);
 
     // Fill in password
     const passwordInput = screen.getByLabelText(/Enter Password/);
@@ -105,13 +92,7 @@ describe("WelcomeStep", () => {
   });
 
   it("shows error message for invalid password", async () => {
-    renderWithProviders(<WelcomeStep onNext={mockOnNext} />, {
-      wrapperProps: {
-        preloadedState: {
-          prototypeSettings: MOCK_PROTOTYPE_SETTINGS,
-        },
-      },
-    });
+    renderWithProviders(<WelcomeStep onNext={mockOnNext} />);
 
     // Fill in incorrect password
     const passwordInput = screen.getByLabelText(/Enter Password/);

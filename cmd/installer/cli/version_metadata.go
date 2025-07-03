@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func VersionMetadataCmd(ctx context.Context, name string) *cobra.Command {
+func VersionMetadataCmd(ctx context.Context) *cobra.Command {
 	var (
 		omitReleaseMetadata bool
 	)

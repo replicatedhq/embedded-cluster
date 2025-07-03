@@ -72,12 +72,13 @@ describe('ConnectionMonitor', () => {
       expect(screen.getByText('Cannot connect')).toBeInTheDocument();
     }, { timeout: 6000 });
 
-    // Should show countdown
+    // Should show countdown - wait for it to appear since it's async
     await waitFor(() => {
       expect(screen.getByText(/Retrying in \d+ second/)).toBeInTheDocument();
-    }, { timeout: 1000 });
+    }, { timeout: 2000 });
 
     // Modal should disappear when automatic retry succeeds
+    // This should happen after the RETRY_INTERVAL (10 seconds)
     await waitFor(() => {
       expect(screen.queryByText('Cannot connect')).not.toBeInTheDocument();
     }, { timeout: 12000 });
@@ -92,10 +93,25 @@ describe('ConnectionMonitor', () => {
 
     render(<ConnectionMonitor />);
 
+    // Wait for modal to appear
     await waitFor(() => {
       expect(screen.getByText('Cannot connect')).toBeInTheDocument();
     }, { timeout: 4000 });
 
-    expect(screen.getByText(/Retrying in \d+ second/)).toBeInTheDocument();
-  }, 6000);
+    await waitFor(() => {
+      expect(screen.getByText(/Retrying in \d+ second/)).toBeInTheDocument();
+    }, { timeout: 2000 });
+
+    // Verify the countdown is actually working by checking it's a reasonable value
+    const countdownElement = screen.getByText(/Retrying in \d+ second/);
+    const countdownText = countdownElement.textContent || '';
+    const secondsMatch = countdownText.match(/Retrying in (\d+) second/);
+    
+    if (secondsMatch) {
+      const seconds = parseInt(secondsMatch[1], 10);
+      // Should be between 1-10 seconds (since RETRY_INTERVAL is 10 seconds)
+      expect(seconds).toBeGreaterThan(0);
+      expect(seconds).toBeLessThanOrEqual(10);
+    }
+  }, 8000);
 });

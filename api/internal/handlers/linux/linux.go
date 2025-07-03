@@ -78,6 +78,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 			install.WithAirgapBundle(h.cfg.AirgapBundle),
 			install.WithConfigValues(h.cfg.ConfigValues),
 			install.WithEndUserConfig(h.cfg.EndUserConfig),
+			install.WithClusterID(h.cfg.ClusterID),
 			install.WithAllowIgnoreHostPreflights(h.cfg.AllowIgnoreHostPreflights),
 		)
 		if err != nil {

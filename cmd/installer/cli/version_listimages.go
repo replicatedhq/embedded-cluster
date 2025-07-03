@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func VersionListImagesCmd(ctx context.Context, name string) *cobra.Command {
+func VersionListImagesCmd(ctx context.Context) *cobra.Command {
 	var (
 		omitReleaseMetadata bool
 	)
