@@ -420,17 +420,12 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 
 	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 
-	withEnv := map[string]string{
-		"EMBEDDED_CLUSTER_BIN": "embedded-cluster",
-	}
-
 	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
 		version: initialVersion,
 	})
 
 	installSingleNodeWithOptions(t, tc, installOptions{
 		version: initialVersion,
-		withEnv: withEnv,
 	})
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
@@ -440,7 +435,6 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
 		version:    initialVersion,
 		k8sVersion: k8sVersionPreviousStable(),
-		withEnv:    withEnv,
 	})
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
@@ -459,7 +453,6 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
 		version: appUpgradeVersion,
-		withEnv: withEnv,
 	})
 
 	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
@@ -470,9 +463,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
-	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
-		withEnv: withEnv,
-	})
+	checkPostUpgradeState(t, tc)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -1159,7 +1150,6 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	// Use an alternate data directory
 	withEnv := map[string]string{
 		"EMBEDDED_CLUSTER_BASE_DIR": "/var/lib/ec",
-		"EMBEDDED_CLUSTER_BIN":      "embedded-cluster",
 	}
 
 	tc := cmx.NewCluster(&cmx.ClusterInput{
