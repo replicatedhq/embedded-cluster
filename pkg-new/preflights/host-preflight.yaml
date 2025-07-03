@@ -186,6 +186,40 @@ spec:
           else
             echo "Filesystem is not XFS (detected: $fstype). Skipping xfs_info."
           fi
+    - run:
+        collectorName: "selinux-labels"
+        command: "sh"
+        args:
+            - -c
+            - |
+              data_dir="{{ .DataDir }}"
+              bin_dir=$data_dir/bin
+              # only run our checks if getenforce is available
+              if ! $(command -v getenforce); then
+                echo "no selinux"
+                exit 0
+              fi
+              # check if selinux is in enforcing mode
+              selinux_status=$(getenforce | tr -d '\n')
+              if [ "$selinux_status" != "Enforcing" ]; then
+                echo "selinux not enforcing"
+                exit 0
+              fi
+              # check user label of data-dir
+              data_dir_user_label=$(secon --file $data_dir --user)
+              if [ ! "$data_dir_user_label" = "system_u" ]; then
+                echo "data_dir_user_label $data_dir_user_label"
+              fi
+              # check user label of bin dir
+              bin_dir_user_label=$(secon --file $bin_dir --user)
+              if [ ! "$bin_dir_user_label" = "system_u" ]; then
+                echo "bin_dir_user_label $bin_dir_user_label"
+              fi
+              # check type label of bin dir
+              bin_dir_type_label=$(secon --file $bin_dir --type)
+              if [ ! "$bin_dir_type_label" = "bin_t" ]; then
+                echo "bin_dir_type_label $bin_dir_type_label"
+              fi
   analyzers:
     - cpu:
         checkName: CPU
@@ -1202,3 +1236,39 @@ spec:
           - pass:
               when: "false"
               message: "The filesystem at {{ .DataDir }} is either not XFS or is XFS with ftype=1."
+    - textAnalyze:
+        checkName: "Selinux data-dir user label"
+        fileName: host-collectors/run-host/selinux-labels.txt
+        regex: "data_dir_user_label"
+        outcomes:
+          - fail:
+              when: "true"
+              message: |
+              The selinux user context label for {{ .DataDir }} is incorrect.
+              try running: sudo restorecon -RvF {{ .DataDir }}
+          - pass:
+              when: "false"
+    - textAnalyze:
+        checkName: "Selinux bin dir user label"
+        fileName: host-collectors/run-host/selinux-labels.txt
+        regex: "bin_dir_user_label"
+        outcomes:
+          - fail:
+              when: "true"
+              message: |
+                The selinux user context label for {{ .DataDir }}/bin is incorrect.
+                Try running: sudo semanage fcontext -a -t bin_t "{{ .DataDir }}/bin(/.*)?" && sudo restorecon -RvF {{ .DataDir }}
+          - pass:
+              when: "false"
+    - textAnalyze:
+        checkName: "Selinux bin dir type label"
+        fileName: host-collectors/run-host/selinux-labels.txt
+        regex: "bin_dir_type_label"
+        outcomes:
+          - fail:
+              when: "true"
+              message: |
+              The selinux type context label for the embedded cluster binary directory are incorrect.
+              Try running: sudo restorecon -RvF {{ .DataDir }}
+          - pass:
+              when: "false"
