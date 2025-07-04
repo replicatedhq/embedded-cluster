@@ -1,8 +1,7 @@
-export const MOCK_INSTALL_CONFIG = {
+export const MOCK_LINUX_INSTALL_CONFIG = {
   adminConsolePort: 8800,
   localArtifactMirrorPort: 8801,
   networkInterface: "eth0",
-  clusterMode: "embedded",
 };
 
 export const MOCK_NETWORK_INTERFACES = {
@@ -13,7 +12,7 @@ export const MOCK_NETWORK_INTERFACES = {
 };
 
 export const MOCK_PROTOTYPE_SETTINGS = {
-  clusterMode: "embedded",
+  installTarget: "linux",
   title: "Test Cluster",
   description: "Test cluster configuration",
 }; 

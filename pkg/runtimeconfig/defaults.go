@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/gosimple/slug"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 )
@@ -22,15 +20,6 @@ var DefaultNoProxy = []string{
 }
 
 const (
-	KotsadmNamespace         = "kotsadm"
-	KotsadmServiceAccount    = "kotsadm"
-	SeaweedFSNamespace       = "seaweedfs"
-	RegistryNamespace        = "registry"
-	VeleroNamespace          = "velero"
-	EmbeddedClusterNamespace = "embedded-cluster"
-)
-
-const (
 	K0sBinaryPath           = "/usr/local/bin/k0s"
 	K0sStatusSocketPath     = "/run/k0s/status.sock"
 	K0sConfigPath           = "/etc/k0s/k0s.yaml"
@@ -38,11 +27,11 @@ const (
 	ECConfigPath            = "/etc/embedded-cluster/ec.yaml"
 )
 
-// BinaryName returns the intended binary name. This is the app slug when a release is embedded,
+// AppSlug returns the intended binary name. This is the app slug when a release is embedded,
 // otherwise it is the basename of the executable. This is useful for places where we need to
 // present the name of the binary to the user. We make sure the name does not contain invalid
 // characters for a filename.
-func BinaryName() string {
+func AppSlug() string {
 	var name string
 	if release := release.GetChannelRelease(); release != nil {
 		name = release.AppSlug
@@ -70,10 +59,4 @@ func EmbeddedClusterLogsSubDir() string {
 // if the file exists.
 func PathToLog(name string) string {
 	return filepath.Join(EmbeddedClusterLogsSubDir(), name)
-}
-
-// GetDomains returns the domains for the embedded cluster. The first priority is the domains configured within the provided config spec.
-// The second priority is the domains configured within the channel release. If neither is configured, the default domains are returned.
-func GetDomains(cfgspec *ecv1beta1.ConfigSpec) ecv1beta1.Domains {
-	return domains.GetDomains(cfgspec, release.GetChannelRelease())
 }

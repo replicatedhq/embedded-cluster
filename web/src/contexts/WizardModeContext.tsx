@@ -1,16 +1,16 @@
 import React, { createContext, useContext } from "react";
-import { useConfig } from "./ConfigContext";
 import { useBranding } from "./BrandingContext";
 
 export type WizardMode = "install" | "upgrade";
+export type WizardTarget = "linux" | "kubernetes";
 
 interface WizardText {
   title: string;
   subtitle: string;
   welcomeTitle: string;
   welcomeDescription: string;
-  setupTitle: string;
-  setupDescription: string;
+  linuxSetupTitle: string;
+  linuxSetupDescription: string;
   validationTitle: string;
   validationDescription: string;
   installationTitle: string;
@@ -19,16 +19,15 @@ interface WizardText {
   nextButtonText: string;
 }
 
-const getTextVariations = (isEmbedded: boolean, title: string): Record<WizardMode, WizardText> => ({
+const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, WizardText> => ({
   install: {
     title: title || "",
     subtitle: "Installation Wizard",
     welcomeTitle: `Welcome to ${title}`,
-    welcomeDescription: `This wizard will guide you through installing ${title} on your ${
-      isEmbedded ? "Linux machine" : "Kubernetes cluster"
-    }.`,
-    setupTitle: "Setup",
-    setupDescription: "Configure the host settings for this installation.",
+    welcomeDescription: `This wizard will guide you through installing ${title} on your ${isLinux ? "Linux machine" : "Kubernetes cluster"
+      }.`,
+    linuxSetupTitle: "Setup",
+    linuxSetupDescription: "Configure the host settings for this installation.",
     validationTitle: "Validation",
     validationDescription: "Validate the host requirements before proceeding with installation.",
     installationTitle: `Installing ${title}`,
@@ -40,11 +39,10 @@ const getTextVariations = (isEmbedded: boolean, title: string): Record<WizardMod
     title: title || "",
     subtitle: "Upgrade Wizard",
     welcomeTitle: `Welcome to ${title}`,
-    welcomeDescription: `This wizard will guide you through upgrading ${title} on your ${
-      isEmbedded ? "Linux machine" : "Kubernetes cluster"
-    }.`,
-    setupTitle: "Setup",
-    setupDescription: "Set up the hosts to use for this upgrade.",
+    welcomeDescription: `This wizard will guide you through upgrading ${title} on your ${isLinux ? "Linux machine" : "Kubernetes cluster"
+      }.`,
+    linuxSetupTitle: "Setup",
+    linuxSetupDescription: "Set up the hosts to use for this upgrade.",
     validationTitle: "Validation",
     validationDescription: "Validate the host requirements before proceeding with the upgrade.",
     installationTitle: `Upgrading ${title}`,
@@ -55,28 +53,31 @@ const getTextVariations = (isEmbedded: boolean, title: string): Record<WizardMod
 });
 
 interface WizardModeContextType {
+  target: WizardTarget;
   mode: WizardMode;
   text: WizardText;
 }
 
-export const WizardModeContext = createContext<WizardModeContextType | undefined>(undefined);
+export const WizardContext = createContext<WizardModeContextType | undefined>(undefined);
 
-export const WizardModeProvider: React.FC<{
-  children: React.ReactNode;
-  mode: WizardMode;
-}> = ({ children, mode }) => {
-  const { prototypeSettings } = useConfig();
+export const WizardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // __INITIAL_STATE__ is a global variable that can be set by the server-side rendering process
+  // as a way to pass initial data to the client.
+  const initialState = window.__INITIAL_STATE__ || {};
+  const target: WizardTarget = initialState.installTarget as WizardTarget;
+  const mode = "install"; // TODO: get mode from initial state
+
   const { title } = useBranding();
-  const isEmbedded = prototypeSettings.clusterMode === "embedded";
-  const text = getTextVariations(isEmbedded, title)[mode];
+  const isLinux = target === "linux";
+  const text = getTextVariations(isLinux, title)[mode];
 
-  return <WizardModeContext.Provider value={{ mode, text }}>{children}</WizardModeContext.Provider>;
+  return <WizardContext.Provider value={{ mode, target, text }}>{children}</WizardContext.Provider>;
 };
 
-export const useWizardMode = (): WizardModeContextType => {
-  const context = useContext(WizardModeContext);
+export const useWizard = (): WizardModeContextType => {
+  const context = useContext(WizardContext);
   if (context === undefined) {
-    throw new Error("useWizardMode must be used within a WizardModeProvider");
+    throw new Error("useWizardMode must be used within a WizardProvider");
   }
   return context;
 };

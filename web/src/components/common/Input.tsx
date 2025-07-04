@@ -1,5 +1,5 @@
 import React from 'react';
-import { useConfig } from '../../contexts/ConfigContext';
+import { useSettings } from '../../contexts/SettingsContext';
 
 interface InputProps {
   id: string;
@@ -34,8 +34,8 @@ const Input: React.FC<InputProps> = ({
   labelClassName = '',
   icon,
 }) => {
-  const { prototypeSettings } = useConfig();
-  const themeColor = prototypeSettings.themeColor;
+  const { settings } = useSettings();
+  const themeColor = settings.themeColor;
 
   return (
     <div className="mb-4">

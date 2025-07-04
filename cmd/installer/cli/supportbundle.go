@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
+func SupportBundleCmd(ctx context.Context) *cobra.Command {
 	var rc runtimeconfig.RuntimeConfig
 
 	cmd := &cobra.Command{

@@ -3,7 +3,6 @@ package upgrade
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"strings"
 
 	"github.com/google/uuid"
@@ -11,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -89,7 +89,7 @@ func startAutopilotUpgrade(ctx context.Context, cli client.Client, rc runtimecon
 						Version: meta.Versions["Kubernetes"],
 						Targets: targets,
 						Platforms: apv1b2.PlanPlatformResourceURLMap{
-							fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH): {URL: k0surl, Sha256: meta.K0sSHA},
+							fmt.Sprintf("%s-%s", helpers.ClusterOS(), helpers.ClusterArch()): {URL: k0surl, Sha256: meta.K0sSHA},
 						},
 					},
 				},

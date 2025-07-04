@@ -25,6 +25,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 		{
 			name: "online installation",
 			opts: InstallOptions{
+				ClusterID:               "123",
 				IsAirgap:                false,
 				DisasterRecoveryEnabled: false,
 				AdminConsolePwd:         "password123",
@@ -47,6 +48,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 
 				adminConsole, ok := addons[2].(*adminconsole.AdminConsole)
 				require.True(t, ok, "third addon should be AdminConsole")
+				assert.Equal(t, "123", adminConsole.ClusterID)
 				assert.False(t, adminConsole.IsAirgap, "AdminConsole should not be in airgap mode")
 				assert.False(t, adminConsole.IsHA, "AdminConsole should not be in high availability mode")
 				assert.Nil(t, adminConsole.Proxy, "AdminConsole should not have a proxy")
@@ -57,10 +59,11 @@ func Test_getAddOnsForInstall(t *testing.T) {
 		{
 			name: "airgap installation",
 			opts: InstallOptions{
+				ClusterID:               "123",
 				IsAirgap:                true,
 				DisasterRecoveryEnabled: false,
-				ServiceCIDR:             "10.96.0.0/12",
 				AdminConsolePwd:         "password123",
+				ServiceCIDR:             "10.96.0.0/12",
 			},
 			verify: func(t *testing.T, addons []types.AddOn) {
 				assert.Len(t, addons, 4)
@@ -84,6 +87,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 
 				adminConsole, ok := addons[3].(*adminconsole.AdminConsole)
 				require.True(t, ok, "fourth addon should be AdminConsole")
+				assert.Equal(t, "123", adminConsole.ClusterID)
 				assert.True(t, adminConsole.IsAirgap, "AdminConsole should be in airgap mode")
 				assert.False(t, adminConsole.IsHA, "AdminConsole should not be in high availability mode")
 				assert.Nil(t, adminConsole.Proxy, "AdminConsole should not have a proxy")
@@ -94,6 +98,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 		{
 			name: "disaster recovery enabled",
 			opts: InstallOptions{
+				ClusterID:               "123",
 				IsAirgap:                false,
 				DisasterRecoveryEnabled: true,
 				AdminConsolePwd:         "password123",
@@ -121,6 +126,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 
 				adminConsole, ok := addons[3].(*adminconsole.AdminConsole)
 				require.True(t, ok, "fourth addon should be AdminConsole")
+				assert.Equal(t, "123", adminConsole.ClusterID)
 				assert.False(t, eco.IsAirgap, "AdminConsole should not be in airgap mode")
 				assert.False(t, adminConsole.IsHA, "AdminConsole should not be in high availability mode")
 				assert.Nil(t, adminConsole.Proxy, "AdminConsole should not have a proxy")
@@ -131,15 +137,16 @@ func Test_getAddOnsForInstall(t *testing.T) {
 		{
 			name: "airgap with disaster recovery and proxy",
 			opts: InstallOptions{
+				ClusterID:               "123",
 				IsAirgap:                true,
 				DisasterRecoveryEnabled: true,
+				AdminConsolePwd:         "password123",
 				ServiceCIDR:             "10.96.0.0/12",
-				Proxy: &ecv1beta1.ProxySpec{
+				ProxySpec: &ecv1beta1.ProxySpec{
 					HTTPProxy:  "http://proxy.example.com",
 					HTTPSProxy: "https://proxy.example.com",
 					NoProxy:    "localhost,127.0.0.1",
 				},
-				AdminConsolePwd: "password123",
 			},
 			verify: func(t *testing.T, addons []types.AddOn) {
 				assert.Len(t, addons, 5)
@@ -172,6 +179,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 
 				adminConsole, ok := addons[4].(*adminconsole.AdminConsole)
 				require.True(t, ok, "fifth addon should be AdminConsole")
+				assert.Equal(t, "123", adminConsole.ClusterID)
 				assert.True(t, adminConsole.IsAirgap, "AdminConsole should be in airgap mode")
 				assert.False(t, adminConsole.IsHA, "AdminConsole should not be in high availability mode")
 				assert.Equal(t, "http://proxy.example.com", adminConsole.Proxy.HTTPProxy)

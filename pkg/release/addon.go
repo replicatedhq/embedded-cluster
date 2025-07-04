@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"text/template"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"gopkg.in/yaml.v3"
 )
 
@@ -49,12 +49,12 @@ type AddonImage struct {
 }
 
 func (i AddonImage) String() string {
-	if strings.HasPrefix(i.Tag[runtime.GOARCH], "latest@") {
+	if strings.HasPrefix(i.Tag[helpers.ClusterArch()], "latest@") {
 		// The image appears in containerd images without the "latest" tag and causes an
 		// ImagePullBackOff error
-		return fmt.Sprintf("%s@%s", i.Repo, strings.TrimPrefix(i.Tag[runtime.GOARCH], "latest@"))
+		return fmt.Sprintf("%s@%s", i.Repo, strings.TrimPrefix(i.Tag[helpers.ClusterArch()], "latest@"))
 	}
-	return fmt.Sprintf("%s:%s", i.Repo, i.Tag[runtime.GOARCH])
+	return fmt.Sprintf("%s:%s", i.Repo, i.Tag[helpers.ClusterArch()])
 }
 
 var funcMap = template.FuncMap{
@@ -68,7 +68,7 @@ var funcMap = template.FuncMap{
 
 func RenderHelmValues(rawvalues []byte, meta AddonMetadata) (map[string]interface{}, error) {
 	meta.ReplaceImages = true
-	meta.GOARCH = runtime.GOARCH
+	meta.GOARCH = helpers.ClusterArch()
 	tmpl, err := template.New("helmvalues").Funcs(funcMap).Parse(string(rawvalues))
 	if err != nil {
 		return nil, fmt.Errorf("parse template: %w", err)

@@ -11,7 +11,6 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -25,8 +24,9 @@ var (
 type InstallOptions struct {
 	RuntimeConfig         runtimeconfig.RuntimeConfig
 	AppSlug               string
-	LicenseFile           string
+	License               []byte
 	Namespace             string
+	ClusterID             string
 	AirgapBundle          string
 	ConfigValuesFile      string
 	ReplicatedAppEndpoint string
@@ -53,12 +53,22 @@ func Install(opts InstallOptions) error {
 		upstreamURI = fmt.Sprintf("%s/%s", upstreamURI, channelSlug)
 	}
 
+	licenseFile, err := os.CreateTemp("", "license")
+	if err != nil {
+		return fmt.Errorf("unable to create temp file: %w", err)
+	}
+	defer os.Remove(licenseFile.Name())
+
+	if _, err := licenseFile.Write(opts.License); err != nil {
+		return fmt.Errorf("unable to write license to temp file: %w", err)
+	}
+
 	maskfn := MaskKotsOutputForOnline()
 	installArgs := []string{
 		"install",
 		upstreamURI,
 		"--license-file",
-		opts.LicenseFile,
+		licenseFile.Name(),
 		"--namespace",
 		opts.Namespace,
 		"--app-version-label",
@@ -73,17 +83,15 @@ func Install(opts InstallOptions) error {
 		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
 	}
 
-	if opts.Stdout != nil {
-		if msg, ok := opts.Stdout.(*spinner.MessageWriter); ok {
-			msg.SetMask(maskfn)
-			defer msg.SetMask(nil)
-		}
+	if msg, ok := opts.Stdout.(*spinner.MessageWriter); ok && msg != nil {
+		msg.SetMask(maskfn)
+		defer msg.SetMask(nil)
 	}
 
 	runCommandOptions := helpers.RunCommandOptions{
 		LogOnSuccess: true,
 		Env: map[string]string{
-			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
 		},
 	}
 	if opts.Stdout != nil {
@@ -126,6 +134,7 @@ type AirgapUpdateOptions struct {
 	AppSlug       string
 	Namespace     string
 	AirgapBundle  string
+	ClusterID     string
 }
 
 func AirgapUpdate(opts AirgapUpdateOptions) error {
@@ -152,7 +161,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 	runCommandOptions := helpers.RunCommandOptions{
 		Stdout: loading,
 		Env: map[string]string{
-			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
 		},
 	}
 	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, airgapUpdateArgs...); err != nil {

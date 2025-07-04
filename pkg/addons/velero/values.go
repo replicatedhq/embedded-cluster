@@ -10,33 +10,21 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
 	//go:embed static/values.tpl.yaml
 	rawvalues []byte
-	// helmValues is the unmarshal version of rawvalues.
-	helmValues map[string]interface{}
 )
 
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal metadata"))
-	}
-
-	hv, err := release.RenderHelmValues(rawvalues, Metadata)
+func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error) {
+	hv, err := helmValues()
 	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal values"))
+		return nil, errors.Wrap(err, "get helm values")
 	}
-	helmValues = hv
-}
 
-func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error) {
-	// create a copy of the helm values so we don't modify the original
-	marshalled, err := helm.MarshalValues(helmValues)
+	marshalled, err := helm.MarshalValues(hv)
 	if err != nil {
 		return nil, errors.Wrap(err, "marshal helm values")
 	}
@@ -72,11 +60,11 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, rc 
 		}...)
 	}
 
-	if rc.HostCABundlePath() != "" {
+	if v.HostCABundlePath != "" {
 		extraVolumes = append(extraVolumes, map[string]any{
 			"name": "host-ca-bundle",
 			"hostPath": map[string]any{
-				"path": rc.HostCABundlePath(),
+				"path": v.HostCABundlePath,
 				"type": "FileOrCreate",
 			},
 		})
@@ -103,12 +91,12 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, rc 
 		"extraVolumeMounts": extraVolumeMounts,
 	}
 
-	podVolumePath := filepath.Join(rc.EmbeddedClusterK0sSubDir(), "kubelet/pods")
+	podVolumePath := filepath.Join(v.K0sDataDir, "kubelet/pods")
 	err = helm.SetValue(copiedValues, "nodeAgent.podVolumePath", podVolumePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm value nodeAgent.podVolumePath")
 	}
-	pluginVolumePath := filepath.Join(rc.EmbeddedClusterK0sSubDir(), "kubelet/plugins")
+	pluginVolumePath := filepath.Join(v.K0sDataDir, "kubelet/plugins")
 	err = helm.SetValue(copiedValues, "nodeAgent.pluginVolumePath", pluginVolumePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "set helm value nodeAgent.pluginVolumePath")
@@ -122,4 +110,13 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, rc 
 	}
 
 	return copiedValues, nil
+}
+
+func helmValues() (map[string]interface{}, error) {
+	hv, err := release.RenderHelmValues(rawvalues, Metadata)
+	if err != nil {
+		return nil, errors.Wrap(err, "render helm values")
+	}
+
+	return hv, nil
 }

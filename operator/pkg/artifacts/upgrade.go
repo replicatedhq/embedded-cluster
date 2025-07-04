@@ -6,13 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"runtime"
 	"strings"
 
 	autopilotv1beta2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"go.uber.org/multierr"
@@ -300,12 +300,12 @@ func getArtifactJobForNode(
 	)
 
 	// Add proxy environment variables if proxy is configured
-	if in.Spec.Proxy != nil {
+	if proxy := rc.ProxySpec(); proxy != nil {
 		job.Spec.Template.Spec.Containers[0].Env = append(
 			job.Spec.Template.Spec.Containers[0].Env,
-			corev1.EnvVar{Name: "HTTP_PROXY", Value: in.Spec.Proxy.HTTPProxy},
-			corev1.EnvVar{Name: "HTTPS_PROXY", Value: in.Spec.Proxy.HTTPSProxy},
-			corev1.EnvVar{Name: "NO_PROXY", Value: in.Spec.Proxy.NoProxy},
+			corev1.EnvVar{Name: "HTTP_PROXY", Value: proxy.HTTPProxy},
+			corev1.EnvVar{Name: "HTTPS_PROXY", Value: proxy.HTTPSProxy},
+			corev1.EnvVar{Name: "NO_PROXY", Value: proxy.NoProxy},
 		)
 	}
 
@@ -408,7 +408,7 @@ func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, rc
 		AirgapUpdate: &autopilotv1beta2.PlanCommandAirgapUpdate{
 			Version: meta.Versions["Kubernetes"],
 			Platforms: map[string]autopilotv1beta2.PlanResourceURL{
-				fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH): {
+				fmt.Sprintf("%s-%s", helpers.ClusterOS(), helpers.ClusterArch()): {
 					URL: imageURL,
 				},
 			},

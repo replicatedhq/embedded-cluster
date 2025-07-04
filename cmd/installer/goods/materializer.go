@@ -207,7 +207,7 @@ func (m *Materializer) Ourselves() error {
 		return fmt.Errorf("unable to get our own executable path: %w", err)
 	}
 
-	dstpath := m.rc.PathToEmbeddedClusterBinary(runtimeconfig.BinaryName())
+	dstpath := m.rc.PathToEmbeddedClusterBinary(runtimeconfig.AppSlug())
 	if srcpath == dstpath {
 		return nil
 	}

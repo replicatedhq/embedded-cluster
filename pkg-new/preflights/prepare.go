@@ -3,10 +3,10 @@ package preflights
 import (
 	"context"
 	"fmt"
-	"runtime"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
@@ -33,6 +33,7 @@ type PrepareOptions struct {
 	IsAirgap                bool
 	TCPConnectionsRequired  []string
 	IsJoin                  bool
+	IsUI                    bool
 }
 
 // Prepare prepares the host preflights spec by merging provided spec with cluster preflights
@@ -51,12 +52,13 @@ func (p *PreflightsRunner) Prepare(ctx context.Context, opts PrepareOptions) (*v
 		DataDir:                 opts.DataDir,
 		K0sDataDir:              opts.K0sDataDir,
 		OpenEBSDataDir:          opts.OpenEBSDataDir,
-		SystemArchitecture:      runtime.GOARCH,
+		SystemArchitecture:      helpers.ClusterArch(),
 		FromCIDR:                opts.PodCIDR,
 		ToCIDR:                  opts.ServiceCIDR,
 		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
 		NodeIP:                  opts.NodeIP,
 		IsJoin:                  opts.IsJoin,
+		IsUI:                    opts.IsUI,
 	}.WithCIDRData(opts.PodCIDR, opts.ServiceCIDR, opts.GlobalCIDR)
 
 	if err != nil {

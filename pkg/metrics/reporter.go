@@ -6,9 +6,7 @@ import (
 	"errors"
 	"os"
 	"strings"
-	"sync"
 
-	"github.com/google/uuid"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
@@ -17,9 +15,6 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
-
-var _clusterIDMut sync.Mutex
-var _clusterID *uuid.UUID
 
 // ErrorNoFail is an error that is excluded from metrics failures.
 type ErrorNoFail struct {
@@ -50,37 +45,19 @@ func License(licenseFlag string) *kotsv1beta1.License {
 	return license
 }
 
-// ClusterID returns the cluster id. This is unique per 'install', but will be stored in the cluster and used by any future 'join' commands.
-func ClusterID() uuid.UUID {
-	_clusterIDMut.Lock()
-	defer _clusterIDMut.Unlock()
-	if _clusterID != nil {
-		return *_clusterID
-	}
-	id := uuid.New()
-	_clusterID = &id
-	return id
-}
-
-func SetClusterID(id uuid.UUID) {
-	_clusterIDMut.Lock()
-	defer _clusterIDMut.Unlock()
-	_clusterID = &id
-}
-
 // Reporter provides methods for reporting various events.
 type Reporter struct {
 	version      string
 	executionID  string
 	baseURL      string
-	clusterID    uuid.UUID
+	clusterID    string
 	hostname     string
 	command      string
 	commandFlags []string
 }
 
 // NewReporter creates a new Reporter with the given parameters.
-func NewReporter(executionID string, baseURL string, clusterID uuid.UUID, command string, commandFlags []string) *Reporter {
+func NewReporter(executionID string, baseURL string, clusterID string, command string, commandFlags []string) *Reporter {
 	return &Reporter{
 		version:      versions.Version,
 		executionID:  executionID,
