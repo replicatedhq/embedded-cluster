@@ -6,7 +6,7 @@ RUN ?=
 GO_BUILD_TAGS ?= containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay
 
 .PHONY: test
-test: test-openebs test-registry test-velero
+test: test-openebs test-registry test-velero test-adminconsole
 
 .PHONY: test-openebs
 test-openebs: openebs.test
@@ -31,6 +31,13 @@ test-velero: velero.test
 		-test.timeout=5m \
 		-test.run='$(value RUN)'
 
+.PHONY: test-adminconsole
+test-adminconsole: adminconsole.test
+	DEBUG=$(DEBUG) ./adminconsole.test \
+		-test.v \
+		-test.timeout=5m \
+		-test.run='$(value RUN)'
+
 .PHONY: clean
 clean:
 	rm -f *.test
@@ -46,3 +53,7 @@ registry.test:
 velero.test:
 	go test -c -tags $(GO_BUILD_TAGS) \
 		./velero
+
+adminconsole.test:
+	go test -c -tags $(GO_BUILD_TAGS) \
+		./adminconsole

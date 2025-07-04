@@ -1,7 +1,7 @@
 export interface InfraStatusResponse {
   components: InfraComponent[];
   status: InfraStatus;
-  logs: string[];
+  logs: string;
 }
 
 export interface InfraComponent {
@@ -15,4 +15,4 @@ export interface InfraStatus {
   lastUpdated: string;
 }
 
-export type WizardStep = 'welcome' | 'setup' | 'validation' | 'installation' | 'completion';
+export type WizardStep = 'welcome' | 'linux-setup' | 'kubernetes-setup' | 'linux-validation' | 'linux-installation' | 'kubernetes-installation' | 'linux-completion' | 'kubernetes-completion';

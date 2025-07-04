@@ -15,16 +15,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func VersionCmd(ctx context.Context, name string) *cobra.Command {
+func VersionCmd(ctx context.Context, appTitle string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
-		Short: fmt.Sprintf("Show the %s component versions", name),
+		Short: fmt.Sprintf("Show the %s component versions", appTitle),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			writer := table.NewWriter()
 			writer.AppendHeader(table.Row{"component", "version"})
 			channelRelease := release.GetChannelRelease()
 			if channelRelease != nil {
-				writer.AppendRow(table.Row{runtimeconfig.BinaryName(), channelRelease.VersionLabel})
+				writer.AppendRow(table.Row{runtimeconfig.AppSlug(), channelRelease.VersionLabel})
 			}
 			writer.AppendRow(table.Row{"Installer", versions.Version})
 			writer.AppendRow(table.Row{"Kubernetes", versions.K0sVersion})
@@ -56,9 +56,9 @@ func VersionCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(VersionMetadataCmd(ctx, name))
-	cmd.AddCommand(VersionEmbeddedDataCmd(ctx, name))
-	cmd.AddCommand(VersionListImagesCmd(ctx, name))
+	cmd.AddCommand(VersionMetadataCmd(ctx))
+	cmd.AddCommand(VersionEmbeddedDataCmd(ctx))
+	cmd.AddCommand(VersionListImagesCmd(ctx))
 
 	return cmd
 }

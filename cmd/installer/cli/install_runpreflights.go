@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -20,28 +22,30 @@ import (
 // they contain failures. We use this to differentiate the way we provide user feedback.
 var ErrPreflightsHaveFail = metrics.NewErrorNoFail(fmt.Errorf("host preflight failures detected"))
 
-func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
+func InstallRunPreflightsCmd(ctx context.Context, appSlug string) *cobra.Command {
 	var flags InstallCmdFlags
+
 	rc := runtimeconfig.New(nil)
+	ki := kubernetesinstallation.New(nil)
 
 	cmd := &cobra.Command{
 		Use:    "run-preflights",
 		Short:  "Run install host preflights",
 		Hidden: true,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &flags, rc); err != nil {
+		PostRun: func(cmd *cobra.Command, args []string) {
+			rc.Cleanup()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
+				return err
+			}
+			if err := verifyAndPrompt(ctx, cmd, appSlug, &flags, prompts.New()); err != nil {
 				return err
 			}
 
 			_ = rc.SetEnv()
 
-			return nil
-		},
-		PostRun: func(cmd *cobra.Command, args []string) {
-			rc.Cleanup()
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runInstallRunPreflights(cmd.Context(), name, flags, rc); err != nil {
+			if err := runInstallRunPreflights(cmd.Context(), flags, rc); err != nil {
 				return err
 			}
 
@@ -49,9 +53,8 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
-	if err := addInstallFlags(cmd, &flags); err != nil {
-		panic(err)
-	}
+	mustAddInstallFlags(cmd, &flags)
+
 	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
@@ -59,14 +62,15 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runInstallRunPreflights(ctx context.Context, name string, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
-	if err := verifyAndPrompt(ctx, name, flags, prompts.New()); err != nil {
-		return err
+func runInstallRunPreflights(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
+	licenseBytes, err := os.ReadFile(flags.licenseFile)
+	if err != nil {
+		return fmt.Errorf("unable to read license file: %w", err)
 	}
 
 	logrus.Debugf("configuring host")
 	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
-		LicenseFile:  flags.licenseFile,
+		License:      licenseBytes,
 		AirgapBundle: flags.airgapBundle,
 	}); err != nil {
 		return fmt.Errorf("configure host: %w", err)

@@ -16,7 +16,7 @@ type InstallReporter struct {
 	appSlug   string
 }
 
-func newInstallReporter(baseURL string, clusterID uuid.UUID, cmd string, args []string, licenseID string, appSlug string) *InstallReporter {
+func newInstallReporter(baseURL string, cmd string, args []string, licenseID string, clusterID string, appSlug string) *InstallReporter {
 	executionID := uuid.New().String()
 	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd, args)
 	return &InstallReporter{
@@ -54,7 +54,7 @@ type JoinReporter struct {
 	reporter metrics.ReporterInterface
 }
 
-func newJoinReporter(baseURL string, clusterID uuid.UUID, cmd string, flags []string) *JoinReporter {
+func newJoinReporter(baseURL string, clusterID string, cmd string, flags []string) *JoinReporter {
 	executionID := uuid.New().String()
 	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd, flags)
 	return &JoinReporter{

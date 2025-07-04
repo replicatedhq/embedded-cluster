@@ -12,22 +12,36 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestJoinControllerNode(t *testing.T) {
-	testJoinControllerNodeImpl(t, false)
+	testJoinControllerNodeImpl(t, false, false)
 }
 
 func TestJoinAirgapControllerNode(t *testing.T) {
-	testJoinControllerNodeImpl(t, true)
+	testJoinControllerNodeImpl(t, true, false)
 }
 
-func testJoinControllerNodeImpl(t *testing.T, isAirgap bool) {
+func TestJoinHAMigrationControllerNode(t *testing.T) {
+	testJoinControllerNodeImpl(t, false, true)
+}
+
+func TestJoinHAMigrationAirgapControllerNode(t *testing.T) {
+	testJoinControllerNodeImpl(t, true, true)
+}
+
+func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool) {
 	clusterID := uuid.New()
 	jcmd := &join.JoinCommandResponse{
 		K0sJoinCommand:         "/usr/local/bin/k0s install controller --enable-worker --no-taints --labels kots.io/embedded-cluster-role=total-1,kots.io/embedded-cluster-role-0=controller-test,controller-label=controller-label-value",
@@ -52,10 +66,14 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool) {
 	kotsadm := dryrun.NewKotsadm()
 	kubeUtils := &dryrun.KubeUtils{}
 
+	hcli := &helm.MockClient{}
+	hcli.On("Close").Once().Return(nil)
+
 	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
 	dryrun.Init(drFile, &dryrun.Client{
-		Kotsadm:   kotsadm,
-		KubeUtils: kubeUtils,
+		Kotsadm:    kotsadm,
+		KubeUtils:  kubeUtils,
+		HelmClient: hcli,
 	})
 
 	kotsadm.SetGetJoinTokenResponse("10.0.0.1", "some-token", jcmd, nil)
@@ -92,10 +110,10 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool) {
 		kotsadm.SetGetECChartsResponse("10.0.0.1", testChartsFile, nil)
 	}
 
-	kubeClient, err := kubeUtils.KubeClient()
+	kcli, err := kubeUtils.KubeClient()
 	require.NoError(t, err)
 
-	kubeClient.Create(context.Background(), &ecv1beta1.Installation{
+	kcli.Create(context.Background(), &ecv1beta1.Installation{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Installation",
 			APIVersion: "v1beta1",
@@ -104,12 +122,82 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool) {
 			Name: "20241002205018",
 		},
 		Spec: ecv1beta1.InstallationSpec{
+			ClusterID:        clusterID.String(),
+			HighAvailability: false,
 			Config: &ecv1beta1.ConfigSpec{
 				Version: "2.2.0+k8s-1.30",
 			},
 			RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{},
 		},
 	}, &ctrlclient.CreateOptions{})
+
+	kcli.Create(context.Background(), &corev1.Node{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Node",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node-1",
+			Labels: map[string]string{
+				"node-role.kubernetes.io/control-plane": "true",
+			},
+		},
+	}, &ctrlclient.CreateOptions{})
+	kcli.Create(context.Background(), &corev1.Node{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Node",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node-2",
+			Labels: map[string]string{
+				"node-role.kubernetes.io/control-plane": "true",
+			},
+		},
+	}, &ctrlclient.CreateOptions{})
+
+	if hasHAMigration {
+		kcli.Create(context.Background(), &corev1.Node{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Node",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node-3",
+				Labels: map[string]string{
+					"node-role.kubernetes.io/control-plane": "true",
+				},
+			},
+		}, &ctrlclient.CreateOptions{})
+		kcli.Create(context.Background(), &appsv1.Deployment{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Deployment",
+				APIVersion: "apps/v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "registry",
+				Namespace: "registry",
+			},
+			Spec: appsv1.DeploymentSpec{
+				Replicas: ptr.To(int32(1)),
+			},
+		}, &ctrlclient.CreateOptions{})
+
+		if isAirgap {
+			hcli.On("ReleaseExists", mock.Anything, "seaweedfs", "seaweedfs").Once().Return(true, nil)
+			hcli.On("Upgrade", mock.Anything, mock.MatchedBy(func(opts helm.UpgradeOptions) bool {
+				return opts.ReleaseName == "seaweedfs"
+			})).Once().Return(nil, nil)
+			hcli.On("ReleaseExists", mock.Anything, "registry", "docker-registry").Once().Return(true, nil)
+			hcli.On("Upgrade", mock.Anything, mock.MatchedBy(func(opts helm.UpgradeOptions) bool {
+				return opts.ReleaseName == "docker-registry"
+			})).Once().Return(nil, nil)
+		}
+		hcli.On("ReleaseExists", mock.Anything, "kotsadm", "admin-console").Once().Return(true, nil)
+		hcli.On("Upgrade", mock.Anything, mock.MatchedBy(func(opts helm.UpgradeOptions) bool {
+			return opts.ReleaseName == "admin-console"
+		})).Once().Return(nil, nil)
+	}
 
 	dr := dryrunJoin(t, "10.0.0.1", "some-token")
 
@@ -265,6 +353,36 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool) {
 			},
 		},
 	})
+
+	// --- validate installation object --- //
+	in, err := kubeutils.GetLatestInstallation(context.TODO(), kcli)
+	if err != nil {
+		t.Fatalf("failed to get latest installation: %v", err)
+	}
+
+	assert.Equal(t, clusterID.String(), in.Spec.ClusterID)
+	if hasHAMigration {
+		assert.True(t, in.Spec.HighAvailability, "HA should be true")
+	} else {
+		assert.False(t, in.Spec.HighAvailability, "HA should be false")
+	}
+
+	hcli.AssertExpectations(t)
+
+	// --- validate admin console values --- //
+	if hasHAMigration {
+		var adminConsoleValues map[string]interface{}
+		hcli.AssertCalled(t, "Upgrade", mock.Anything, mock.MatchedBy(func(opts helm.UpgradeOptions) bool {
+			if opts.ReleaseName == "admin-console" {
+				adminConsoleValues = opts.Values
+				return true
+			}
+			return false
+		}))
+		assertHelmValues(t, adminConsoleValues, map[string]interface{}{
+			"embeddedClusterID": clusterID.String(),
+		})
+	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

@@ -10,12 +10,12 @@ import (
 func TestValidateStatus(t *testing.T) {
 	tests := []struct {
 		name        string
-		status      *Status
+		status      Status
 		expectedErr bool
 	}{
 		{
 			name: "valid status - pending",
-			status: &Status{
+			status: Status{
 				State:       StatePending,
 				Description: "Installation pending",
 				LastUpdated: time.Now(),
@@ -24,7 +24,7 @@ func TestValidateStatus(t *testing.T) {
 		},
 		{
 			name: "valid status - running",
-			status: &Status{
+			status: Status{
 				State:       StateRunning,
 				Description: "Installation in progress",
 				LastUpdated: time.Now(),
@@ -33,7 +33,7 @@ func TestValidateStatus(t *testing.T) {
 		},
 		{
 			name: "valid status - succeeded",
-			status: &Status{
+			status: Status{
 				State:       StateSucceeded,
 				Description: "Installation completed successfully",
 				LastUpdated: time.Now(),
@@ -42,7 +42,7 @@ func TestValidateStatus(t *testing.T) {
 		},
 		{
 			name: "valid status - failed",
-			status: &Status{
+			status: Status{
 				State:       StateFailed,
 				Description: "Installation failed",
 				LastUpdated: time.Now(),
@@ -50,13 +50,13 @@ func TestValidateStatus(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name:        "nil status",
-			status:      nil,
+			name:        "empty status",
+			status:      Status{},
 			expectedErr: true,
 		},
 		{
 			name: "invalid state",
-			status: &Status{
+			status: Status{
 				State:       "Invalid",
 				Description: "Invalid state",
 				LastUpdated: time.Now(),
@@ -65,7 +65,7 @@ func TestValidateStatus(t *testing.T) {
 		},
 		{
 			name: "missing description",
-			status: &Status{
+			status: Status{
 				State:       StateRunning,
 				Description: "",
 				LastUpdated: time.Now(),

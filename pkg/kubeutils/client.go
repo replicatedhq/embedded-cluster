@@ -9,7 +9,6 @@ import (
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/metadata"
@@ -50,16 +49,6 @@ func (k *KubeUtils) MetadataClient() (metadata.Interface, error) {
 		return nil, fmt.Errorf("unable to process kubernetes config: %w", err)
 	}
 	return metadata.NewForConfig(cfg)
-}
-
-// RESTClientGetterFactory is a factory function that can be used to create namespaced
-// genericclioptions.RESTClientGetters.
-func (k *KubeUtils) RESTClientGetterFactory(namespace string) genericclioptions.RESTClientGetter {
-	cfgFlags := genericclioptions.NewConfigFlags(false)
-	if namespace != "" {
-		cfgFlags.Namespace = &namespace
-	}
-	return cfgFlags
 }
 
 func (k *KubeUtils) GetClientset() (kubernetes.Interface, error) {

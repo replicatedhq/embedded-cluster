@@ -14,6 +14,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
@@ -30,7 +32,7 @@ import (
 
 const (
 	upgradeJobName      = "embedded-cluster-upgrade-%s"
-	upgradeJobNamespace = runtimeconfig.KotsadmNamespace
+	upgradeJobNamespace = constants.KotsadmNamespace
 	upgradeJobConfigMap = "upgrade-job-configmap-%s"
 )
 
@@ -180,7 +182,7 @@ func CreateUpgradeJob(
 						},
 					},
 					RestartPolicy:      corev1.RestartPolicyNever,
-					ServiceAccountName: runtimeconfig.KotsadmServiceAccount,
+					ServiceAccountName: constants.KotsadmServiceAccount,
 					Volumes: []corev1.Volume{
 						{
 							Name: "config",
@@ -292,7 +294,10 @@ func operatorImageName(ctx context.Context, cli client.Client, in *ecv1beta1.Ins
 	}
 	for _, image := range meta.Images {
 		if strings.Contains(image, "embedded-cluster-operator-image") {
-			domains := runtimeconfig.GetDomains(in.Spec.Config)
+			// TODO: This will not work in a non-production environment.
+			// The domains in the release are used to supply alternative defaults for staging and the dev environment.
+			// The GetDomains function will always fall back to production defaults.
+			domains := domains.GetDomains(in.Spec.Config, nil)
 			image = strings.Replace(image, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
 			return image, nil
 		}

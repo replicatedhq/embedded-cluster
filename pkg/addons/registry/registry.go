@@ -7,9 +7,9 @@ import (
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -23,7 +23,7 @@ type Registry struct {
 
 const (
 	_releaseName = "docker-registry"
-	_namespace   = runtimeconfig.RegistryNamespace
+	_namespace   = constants.RegistryNamespace
 
 	_tlsSecretName    = "registry-tls"
 	_lowerBandIPIndex = 10

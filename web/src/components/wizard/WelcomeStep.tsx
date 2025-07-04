@@ -4,8 +4,7 @@ import Button from "../common/Button";
 import Input from "../common/Input";
 import { AppIcon } from "../common/Logo";
 import { ChevronRight, Lock, AlertTriangle } from "lucide-react";
-import { useWizardMode } from "../../contexts/WizardModeContext";
-import { useConfig } from "../../contexts/ConfigContext";
+import { useWizard } from "../../contexts/WizardModeContext";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -18,11 +17,10 @@ interface LoginResponse {
 }
 
 const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
-  const { text } = useWizardMode();
-  const { prototypeSettings } = useConfig();
+  const { text } = useWizard();
   const [password, setPassword] = useState("");
   const { setToken, isAuthenticated } = useAuth();
-  const [showPasswordInput, setShowPasswordInput] = useState(!prototypeSettings.useSelfSignedCert);
+  const [showPasswordInput, setShowPasswordInput] = useState(true);
 
   // Automatically redirect to SetupStep if already authenticated
   useEffect(() => {
@@ -91,7 +89,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
           <AppIcon className="h-20 w-20 mb-6" />
           <h2 className="text-3xl font-bold text-gray-900">{text.welcomeTitle}</h2>
           <p className="text-xl text-gray-600 max-w-2xl mb-8">{text.welcomeDescription}</p>
-          {prototypeSettings.useSelfSignedCert && !showPasswordInput && (
+          {!showPasswordInput && (
             <>
               <div className="w-full max-w-2xl mb-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                 <div className="flex items-start">
@@ -121,7 +119,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
               </Button>
             </>
           )}{" "}
-          {!prototypeSettings.useSelfSignedCert && showPasswordInput && (
+          {showPasswordInput && (
             <div className="w-full max-w-sm mb-8">
               <Input
                 id="password"

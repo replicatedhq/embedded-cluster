@@ -7,14 +7,12 @@ import (
 	"os"
 	"runtime/debug"
 
-	"github.com/google/uuid"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/spf13/cobra"
@@ -44,13 +42,6 @@ func UpgradeJobCmd() *cobra.Command {
 
 			// set the runtime config from the installation spec
 			rc.Set(in.Spec.RuntimeConfig)
-
-			// initialize the cluster ID
-			clusterUUID, err := uuid.Parse(in.Spec.ClusterID)
-			if err != nil {
-				return fmt.Errorf("failed to parse cluster ID: %w", err)
-			}
-			metrics.SetClusterID(clusterUUID)
 
 			return nil
 		},

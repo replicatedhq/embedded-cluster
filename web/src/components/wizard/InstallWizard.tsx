@@ -1,20 +1,31 @@
 import React, { useState } from "react";
 import StepNavigation from "./StepNavigation";
 import WelcomeStep from "./WelcomeStep";
-import SetupStep from "./SetupStep";
-import ValidationStep from "./ValidationStep";
-import InstallationStep from "./InstallationStep";
+import LinuxSetupStep from "./setup/LinuxSetupStep";
+import KubernetesSetupStep from "./setup/KubernetesSetupStep";
+import LinuxValidationStep from "./validation/LinuxValidationStep";
+import LinuxInstallationStep from "./installation/LinuxInstallationStep";
+import KubernetesInstallationStep from "./installation/KubernetesInstallationStep";
+import LinuxCompletionStep from "./completion/LinuxCompletionStep";
+import KubernetesCompletionStep from "./completion/KubernetesCompletionStep";
 import { WizardStep } from "../../types";
 import { AppIcon } from "../common/Logo";
-import { useWizardMode } from "../../contexts/WizardModeContext";
-import CompletionStep from "./CompletionStep";
+import { useWizard } from "../../contexts/WizardModeContext";
 
 const InstallWizard: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<WizardStep>("welcome");
-  const { text } = useWizardMode();
+  const { text, target } = useWizard();
+
+  const getSteps = (): WizardStep[] => {
+    if (target === "kubernetes") {
+      return ["welcome", "kubernetes-setup", "kubernetes-installation", "kubernetes-completion"];
+    } else {
+      return ["welcome", "linux-setup", "linux-validation", "linux-installation", "linux-completion"];
+    }
+  }
 
   const goToNextStep = () => {
-    const steps: WizardStep[] = ["welcome", "setup", "validation", "installation", "completion"];
+    const steps = getSteps();
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex < steps.length - 1) {
       setCurrentStep(steps[currentIndex + 1]);
@@ -22,7 +33,7 @@ const InstallWizard: React.FC = () => {
   };
 
   const goToPreviousStep = () => {
-    const steps: WizardStep[] = ["welcome", "setup", "validation", "installation", "completion"];
+    const steps = getSteps();
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex > 0) {
       setCurrentStep(steps[currentIndex - 1]);
@@ -33,14 +44,20 @@ const InstallWizard: React.FC = () => {
     switch (currentStep) {
       case "welcome":
         return <WelcomeStep onNext={goToNextStep} />;
-      case "setup":
-        return <SetupStep onNext={goToNextStep} onBack={goToPreviousStep} />;
-      case "validation":
-        return <ValidationStep onNext={goToNextStep} onBack={goToPreviousStep} />;
-      case "installation":
-        return <InstallationStep onNext={goToNextStep} />;
-      case "completion":
-        return <CompletionStep />;
+      case "linux-setup":
+        return <LinuxSetupStep onNext={goToNextStep} />;
+      case "kubernetes-setup":
+        return <KubernetesSetupStep onNext={goToNextStep} />;
+      case "linux-validation":
+        return <LinuxValidationStep onNext={goToNextStep} onBack={goToPreviousStep} />;
+      case "linux-installation":
+        return <LinuxInstallationStep onNext={goToNextStep} />;
+      case "kubernetes-installation":
+        return <KubernetesInstallationStep onNext={goToNextStep} />;
+      case "linux-completion":
+        return <LinuxCompletionStep />;
+      case "kubernetes-completion":
+        return <KubernetesCompletionStep />;
       default:
         return null;
     }

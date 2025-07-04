@@ -39,6 +39,15 @@ func GetReleaseData() *ReleaseData {
 	return _releaseData
 }
 
+// GetAppTitle returns the title from the kots application embedded as part of the
+// release. If no application is found, returns an empty string.
+func GetAppTitle() string {
+	if _releaseData.Application == nil {
+		return ""
+	}
+	return _releaseData.Application.Spec.Title
+}
+
 // GetHostPreflights returns a list of HostPreflight specs that are found in the
 // binary. These are part of the embedded Kots Application Release.
 func GetHostPreflights() *troubleshootv1beta2.HostPreflightSpec {

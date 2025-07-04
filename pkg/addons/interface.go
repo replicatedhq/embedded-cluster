@@ -7,7 +7,6 @@ import (
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
@@ -19,13 +18,13 @@ type AddOnsInterface interface {
 	// Install installs all addons
 	Install(ctx context.Context, opts InstallOptions) error
 	// Upgrade upgrades all addons
-	Upgrade(ctx context.Context, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error
+	Upgrade(ctx context.Context, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata, opts UpgradeOptions) error
 	// CanEnableHA checks if high availability can be enabled in the cluster
 	CanEnableHA(context.Context) (bool, string, error)
 	// EnableHA enables high availability for the cluster
-	EnableHA(ctx context.Context, inSpec ecv1beta1.InstallationSpec, spinner *spinner.MessageWriter) error
+	EnableHA(ctx context.Context, opts EnableHAOptions, spinner *spinner.MessageWriter) error
 	// EnableAdminConsoleHA enables high availability for the admin console
-	EnableAdminConsoleHA(ctx context.Context, isAirgap bool, cfgspec *ecv1beta1.ConfigSpec, licenseInfo *ecv1beta1.LicenseInfo) error
+	EnableAdminConsoleHA(ctx context.Context, opts EnableHAOptions) error
 }
 
 var _ AddOnsInterface = (*AddOns)(nil)
@@ -36,7 +35,7 @@ type AddOns struct {
 	kcli     client.Client
 	mcli     metadata.Interface
 	kclient  kubernetes.Interface
-	rc       runtimeconfig.RuntimeConfig
+	domains  ecv1beta1.Domains
 	progress chan<- types.AddOnProgress
 }
 
@@ -72,9 +71,9 @@ func WithKubernetesClientSet(kclient kubernetes.Interface) AddOnsOption {
 	}
 }
 
-func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) AddOnsOption {
+func WithDomains(domains ecv1beta1.Domains) AddOnsOption {
 	return func(a *AddOns) {
-		a.rc = rc
+		a.domains = domains
 	}
 }
 
@@ -92,10 +91,6 @@ func New(opts ...AddOnsOption) *AddOns {
 
 	if a.logf == nil {
 		a.logf = logrus.Debugf
-	}
-
-	if a.rc == nil {
-		a.rc = runtimeconfig.New(nil)
 	}
 
 	return a

@@ -7,11 +7,12 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
 )
 
-func MaterializeCmd(ctx context.Context, name string) *cobra.Command {
+func MaterializeCmd(ctx context.Context) *cobra.Command {
 	var dataDir string
 	rc := runtimeconfig.New(nil)
 
@@ -20,7 +21,8 @@ func MaterializeCmd(ctx context.Context, name string) *cobra.Command {
 		Short:  "Materialize embedded assets into the data directory",
 		Hidden: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if os.Getuid() != 0 {
+			// Skip root check if dryrun mode is enabled
+			if !dryrun.Enabled() && os.Getuid() != 0 {
 				return fmt.Errorf("materialize command must be run as root")
 			}
 

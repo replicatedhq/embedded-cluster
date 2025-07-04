@@ -11,12 +11,17 @@ import (
 
 type Client interface {
 	Authenticate(password string) error
-	GetInstallationConfig() (*types.InstallationConfig, error)
-	GetInstallationStatus() (*types.Status, error)
-	ConfigureInstallation(config *types.InstallationConfig) (*types.Status, error)
-	SetupInfra() (*types.Infra, error)
-	GetInfraStatus() (*types.Infra, error)
-	SetInstallStatus(status *types.Status) (*types.Status, error)
+	GetLinuxInstallationConfig() (types.LinuxInstallationConfig, error)
+	GetLinuxInstallationStatus() (types.Status, error)
+	ConfigureLinuxInstallation(config types.LinuxInstallationConfig) (types.Status, error)
+	SetupLinuxInfra(ignoreHostPreflights bool) (types.Infra, error)
+	GetLinuxInfraStatus() (types.Infra, error)
+
+	GetKubernetesInstallationConfig() (types.KubernetesInstallationConfig, error)
+	ConfigureKubernetesInstallation(config types.KubernetesInstallationConfig) (types.Status, error)
+	GetKubernetesInstallationStatus() (types.Status, error)
+	SetupKubernetesInfra() (types.Infra, error)
+	GetKubernetesInfraStatus() (types.Infra, error)
 }
 
 type client struct {

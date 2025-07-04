@@ -54,6 +54,7 @@ func TestUpdateAirgapCurrent(t *testing.T) {
 			RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
 				DataDir: "/var/lib/embedded-cluster",
 			},
+			ClusterID: "123",
 		},
 	}, &ctrlclient.CreateOptions{})
 

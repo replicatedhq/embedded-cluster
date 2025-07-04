@@ -8,6 +8,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"gopkg.in/yaml.v3"
 	"k8s.io/utils/ptr"
 )
 
@@ -17,6 +18,12 @@ var (
 	// Metadata is the unmarshal version of rawmetadata.
 	Metadata release.AddonMetadata
 )
+
+func init() {
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(errors.Wrap(err, "unable to unmarshal metadata"))
+	}
+}
 
 func Version() map[string]string {
 	return map[string]string{"Registry": "v" + Metadata.Version}
@@ -35,14 +42,22 @@ func GetAdditionalImages() []string {
 }
 
 func GenerateChartConfig(isHA bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
-	var v map[string]interface{}
+	var hv map[string]interface{}
 	if isHA {
-		v = helmValuesHA
+		v, err := helmValuesHA()
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "get helm values")
+		}
+		hv = v
 	} else {
-		v = helmValues
+		v, err := helmValues()
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "get helm values")
+		}
+		hv = v
 	}
 
-	values, err := helm.MarshalValues(v)
+	marshalled, err := helm.MarshalValues(hv)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "marshal helm values")
 	}
@@ -51,7 +66,7 @@ func GenerateChartConfig(isHA bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository,
 		Name:         _releaseName,
 		ChartName:    (&Registry{}).ChartLocation(ecv1beta1.Domains{}),
 		Version:      Metadata.Version,
-		Values:       string(values),
+		Values:       string(marshalled),
 		TargetNS:     _namespace,
 		ForceUpgrade: ptr.To(false),
 		Order:        3,

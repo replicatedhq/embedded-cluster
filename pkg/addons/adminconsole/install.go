@@ -13,7 +13,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,16 +37,15 @@ func init() {
 func (a *AdminConsole) Install(
 	ctx context.Context, logf types.LogFunc,
 	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
-	rc runtimeconfig.RuntimeConfig, domains ecv1beta1.Domains,
-	overrides []string,
+	domains ecv1beta1.Domains, overrides []string,
 ) error {
 	// some resources are not part of the helm chart and need to be created before the chart is installed
 	// TODO: move this to the helm chart
-	if err := a.createPreRequisites(ctx, logf, kcli, mcli, rc); err != nil {
+	if err := a.createPreRequisites(ctx, logf, kcli, mcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	values, err := a.GenerateHelmValues(ctx, kcli, rc, domains, overrides)
+	values, err := a.GenerateHelmValues(ctx, kcli, domains, overrides)
 	if err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
@@ -85,7 +83,7 @@ func (a *AdminConsole) Install(
 	return nil
 }
 
-func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, rc runtimeconfig.RuntimeConfig) error {
+func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface) error {
 	if err := a.createNamespace(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create namespace")
 	}
@@ -98,11 +96,11 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFu
 		return errors.Wrap(err, "create kots TLS secret")
 	}
 
-	if err := a.ensureCAConfigmap(ctx, logf, kcli, mcli, rc); err != nil {
+	if err := a.ensureCAConfigmap(ctx, logf, kcli, mcli); err != nil {
 		return errors.Wrap(err, "ensure CA configmap")
 	}
 
-	if a.IsAirgap {
+	if a.isEmbeddedCluster() && a.IsAirgap {
 		registryIP, err := registry.GetRegistryClusterIP(a.ServiceCIDR)
 		if err != nil {
 			return errors.Wrap(err, "get registry cluster IP")
@@ -265,17 +263,17 @@ func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client) 
 	return nil
 }
 
-func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, rc runtimeconfig.RuntimeConfig) error {
-	if rc.HostCABundlePath() == "" {
+func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface) error {
+	if a.HostCABundlePath == "" {
 		return nil
 	}
 
 	if a.DryRun {
-		checksum, err := calculateFileChecksum(rc.HostCABundlePath())
+		checksum, err := calculateFileChecksum(a.HostCABundlePath)
 		if err != nil {
 			return fmt.Errorf("calculate checksum: %w", err)
 		}
-		new, err := newCAConfigMap(rc.HostCABundlePath(), checksum)
+		new, err := newCAConfigMap(a.HostCABundlePath, checksum)
 		if err != nil {
 			return fmt.Errorf("create map: %w", err)
 		}
@@ -287,7 +285,7 @@ func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc
 		return nil
 	}
 
-	err := EnsureCAConfigmap(ctx, logf, kcli, mcli, rc.HostCABundlePath())
+	err := EnsureCAConfigmap(ctx, logf, kcli, mcli, a.HostCABundlePath)
 
 	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
 		// This can result in issues installing in environments with a MITM HTTP proxy.

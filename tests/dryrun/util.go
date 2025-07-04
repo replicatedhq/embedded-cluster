@@ -132,7 +132,7 @@ func runInstallerCmd(args ...string) error {
 	fullArgs := append([]string{"dryrun"}, args...)
 	os.Args = fullArgs // for reporting
 
-	installerCmd := cli.RootCmd(context.Background(), "dryrun")
+	installerCmd := cli.RootCmd(context.Background())
 	installerCmd.SetArgs(args)
 	return installerCmd.Execute()
 }

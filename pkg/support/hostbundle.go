@@ -6,13 +6,13 @@ import (
 	_ "embed"
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	sb "github.com/replicatedhq/troubleshoot/pkg/supportbundle"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/kubectl/pkg/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -24,7 +24,7 @@ func GetRemoteHostSupportBundleSpec() []byte {
 	return _hostSupportBundleRemote
 }
 
-func CreateHostSupportBundle() error {
+func CreateHostSupportBundle(ctx context.Context, kcli client.Client) error {
 	specFile := GetRemoteHostSupportBundleSpec()
 
 	var b bytes.Buffer
@@ -59,12 +59,6 @@ func CreateHostSupportBundle() error {
 		Data: map[string]string{
 			"support-bundle-spec": string(renderedSpec),
 		},
-	}
-
-	ctx := context.Background()
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
 	err = kcli.Create(ctx, configMap)
