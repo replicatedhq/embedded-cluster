@@ -1,6 +1,6 @@
 ---
 description: 
-globs: 
+globs: web/*.tsx,web/*.ts,web/*.js,web/*.jsx
 alwaysApply: false
 ---
 # manager experience (front end) rules and guidelines
@@ -43,3 +43,29 @@ alwaysApply: false
 
 
 Please validate and run unit tests with `npm run test:unit <path to file>` from the `web` directory.
+
+## React Architecture Patterns
+
+### Context Usage Guidelines
+
+- **Only use React Context when you have props drilling**: Prefer props for simple parent-child communication to avoid unnecessary complexity
+  ```jsx
+  // Good - simple props for parent-child
+  <ChildComponent isConnected={connected} />
+  
+  // Bad - unnecessary Context for simple cases
+  <ConnectionContext.Provider value={connected}>
+    <ChildComponent />
+  </ConnectionContext.Provider>
+  ```
+
+### Component Visibility Control
+
+- **Control component visibility at parent level, not within the component itself**: This creates cleaner conditional rendering patterns
+  ```jsx
+  // Good - parent controls visibility
+  {showModal && <Modal onClose={() => setShowModal(false)} />}
+  
+  // Bad - component controls its own visibility
+  <Modal visible={showModal} onClose={...} />
+  ```
