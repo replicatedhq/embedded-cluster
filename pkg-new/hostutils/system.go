@@ -237,7 +237,7 @@ func (h *HostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.Fi
 }
 
 func systemdUnitFileName() string {
-	return fmt.Sprintf("/etc/systemd/system/%s.service", runtimeconfig.BinaryName())
+	return fmt.Sprintf("/etc/systemd/system/%s.service", runtimeconfig.AppSlug())
 }
 
 // ensureProxyConfig creates a new http-proxy.conf configuration file. The file is saved in the

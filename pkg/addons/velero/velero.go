@@ -4,16 +4,17 @@ import (
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"k8s.io/apimachinery/pkg/runtime"
 	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
 
 const (
 	_releaseName = "velero"
-	_namespace   = runtimeconfig.VeleroNamespace
+
+	_namespace = constants.VeleroNamespace
 
 	_credentialsSecretName = "cloud-credentials"
 )
@@ -32,7 +33,9 @@ func init() {
 var _ types.AddOn = (*Velero)(nil)
 
 type Velero struct {
-	Proxy *ecv1beta1.ProxySpec
+	Proxy            *ecv1beta1.ProxySpec
+	HostCABundlePath string
+	K0sDataDir       string
 
 	// DryRun is a flag to enable dry-run mode for Velero.
 	// If true, Velero will only render the helm template and additional manifests, but not install

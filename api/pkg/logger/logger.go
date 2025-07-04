@@ -12,7 +12,7 @@ import (
 )
 
 func NewLogger() (*logrus.Logger, error) {
-	fname := fmt.Sprintf("%s-%s.api.log", runtimeconfig.BinaryName(), time.Now().Format("20060102150405.000"))
+	fname := fmt.Sprintf("%s-%s.api.log", runtimeconfig.AppSlug(), time.Now().Format("20060102150405.000"))
 	logpath := runtimeconfig.PathToLog(fname)
 	logfile, err := os.OpenFile(logpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0400)
 	if err != nil {

@@ -7,16 +7,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func AdminConsoleCmd(ctx context.Context, name string) *cobra.Command {
+func AdminConsoleCmd(ctx context.Context, appTitle string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "admin-console",
-		Short: fmt.Sprintf("Manage the %s Admin Console", name),
+		Short: fmt.Sprintf("Manage the %s Admin Console", appTitle),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return nil
 		},
 	}
 
-	cmd.AddCommand(AdminConsoleResetPasswordCmd(ctx, name))
+	cmd.AddCommand(AdminConsoleResetPasswordCmd(ctx, appTitle))
 
 	return cmd
 }

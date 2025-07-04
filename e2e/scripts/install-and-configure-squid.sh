@@ -92,6 +92,7 @@ create_squid_ssl() {
 
 
 main() {
+        apt-get update -y
         apt install -y squid-openssl
         /usr/lib/squid/security_file_certgen -c -s /opt/ssl.db -M 4MB
         mkdir -p /etc/squid/ssl_cert

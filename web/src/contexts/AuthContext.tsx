@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (token) {
       // Make a request to any authenticated endpoint to check token validity
-      fetch("/api/install/installation/config", {
+      fetch("/api/linux/install/installation/config", {
         headers: {
           Authorization: `Bearer ${token}`,
         },

@@ -3,7 +3,6 @@ package registry
 import (
 	"fmt"
 	"net"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/containers/image/v5/transports/alltransports"
 	imagetypes "github.com/containers/image/v5/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/kind/registry/static"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
 )
@@ -54,7 +54,7 @@ func copyImageToRegistry(t *testing.T, registryAddr string, image string) {
 
 	_, err = copy.Image(t.Context(), policyContext, dstRef, srcRef, &copy.Options{
 		SourceCtx: &imagetypes.SystemContext{
-			ArchitectureChoice: runtime.GOARCH,
+			ArchitectureChoice: helpers.ClusterArch(),
 			OSChoice:           "linux",
 		},
 		DestinationCtx: &imagetypes.SystemContext{

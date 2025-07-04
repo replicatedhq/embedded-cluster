@@ -73,12 +73,16 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	})
 
 	domains := ecv1beta1.Domains{
-		ProxyRegistryDomain: "proxy.replicated.com",
+		ReplicatedAppDomain:      "replicated.app",
+		ProxyRegistryDomain:      "proxy.replicated.com",
+		ReplicatedRegistryDomain: "registry.replicated.com",
 	}
 
 	t.Logf("%s installing openebs", formattedTime())
-	addon := &openebs.OpenEBS{}
-	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil); err != nil {
+	addon := &openebs.OpenEBS{
+		OpenEBSDataDir: rc.EmbeddedClusterOpenEBSLocalSubDir(),
+	}
+	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil); err != nil {
 		t.Fatalf("failed to install openebs: %v", err)
 	}
 
@@ -90,18 +94,25 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		ServiceCIDR: "10.96.0.0/12",
 		IsHA:        false,
 	}
-	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil))
+	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
 
 	t.Logf("%s creating hostport service", formattedTime())
 	registryAddr := createHostPortService(t, clusterName, kubeconfig)
 
 	t.Logf("%s installing admin console", formattedTime())
 	adminConsoleAddon := &adminconsole.AdminConsole{
-		IsAirgap:    true,
-		IsHA:        false,
-		ServiceCIDR: "10.96.0.0/12",
+		ClusterID:          "123",
+		IsAirgap:           true,
+		IsHA:               false,
+		Proxy:              rc.ProxySpec(),
+		ServiceCIDR:        "10.96.0.0/12",
+		IsMultiNodeEnabled: false,
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		AdminConsolePort:   rc.AdminConsolePort(),
 	}
-	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, rc, domains, nil))
+	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
 
 	t.Logf("%s pushing image to registry", formattedTime())
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")
@@ -117,9 +128,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	inSpec := ecv1beta1.InstallationSpec{
 		AirGap: true,
 		Config: &ecv1beta1.ConfigSpec{
-			Domains: ecv1beta1.Domains{
-				ProxyRegistryDomain: "proxy.replicated.com",
-			},
+			Domains: domains,
 		},
 		RuntimeConfig: rc.Get(),
 	}
@@ -129,7 +138,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		addons.WithKubernetesClientSet(kclient),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
-		addons.WithRuntimeConfig(rc),
+		addons.WithDomains(domains),
 	)
 
 	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
@@ -152,7 +161,12 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	loading := newTestingSpinner(t)
 	func() {
 		defer loading.Close()
-		err = addOns.EnableHA(t.Context(), inSpec, loading)
+		opts := addons.EnableHAOptions{
+			ClusterID:   "123",
+			ServiceCIDR: rc.ServiceCIDR(),
+			ProxySpec:   rc.ProxySpec(),
+		}
+		err = addOns.EnableHA(t.Context(), opts, loading)
 		require.NoError(t, err)
 	}()
 
@@ -209,8 +223,24 @@ func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSp
 	loading := newTestingSpinner(t)
 	defer loading.Close()
 
+	rc := runtimeconfig.New(inSpec.RuntimeConfig)
+
 	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
-	err = addOns.EnableHA(ctx, inSpec, loading)
+	opts := addons.EnableHAOptions{
+		ClusterID:          "123",
+		AdminConsolePort:   rc.AdminConsolePort(),
+		IsAirgap:           true,
+		IsMultiNodeEnabled: false,
+		EmbeddedConfigSpec: inSpec.Config,
+		EndUserConfigSpec:  inSpec.Config,
+		ProxySpec:          rc.ProxySpec(),
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
+		ServiceCIDR:        inSpec.RuntimeConfig.Network.ServiceCIDR,
+	}
+	err = addOns.EnableHA(ctx, opts, loading)
 	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
 	t.Logf("%s cancelled context and got error: %v", formattedTime(), err)
 }

@@ -18,7 +18,7 @@ type RuntimeConfig interface {
 	EmbeddedClusterChartsSubDirNoCreate() string
 	EmbeddedClusterImagesSubDir() string
 	EmbeddedClusterK0sSubDir() string
-	EmbeddedClusterSeaweedfsSubDir() string
+	EmbeddedClusterSeaweedFSSubDir() string
 	EmbeddedClusterOpenEBSLocalSubDir() string
 	PathToEmbeddedClusterBinary(name string) string
 	PathToKubeConfig() string
