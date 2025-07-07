@@ -1,5 +1,20 @@
 components:
   schemas:
+    github_com_replicatedhq_embedded-cluster_api_types.Health:
+      properties:
+        status:
+          type: string
+      type: object
+    github_com_replicatedhq_kotskinds_apis_kots_v1beta1.ConfigSpec:
+      properties:
+        groups:
+          items:
+            $ref: '#/components/schemas/v1beta1.ConfigGroup'
+          type: array
+          uniqueItems: false
+      type: object
+    github_com_replicatedhq_kotskinds_multitype.BoolOrString:
+      type: object
     types.APIError:
       properties:
         errors:
@@ -31,11 +46,6 @@ components:
             type: string
           type: array
           uniqueItems: false
-      type: object
-    types.Health:
-      properties:
-        status:
-          type: string
       type: object
     types.HostPreflightsOutput:
       properties:
@@ -155,6 +165,132 @@ components:
         state:
           $ref: '#/components/schemas/types.State'
       type: object
+    v1beta1.ConfigChildItem:
+      properties:
+        default:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_multitype.BoolOrString'
+        name:
+          type: string
+        recommended:
+          type: boolean
+        title:
+          type: string
+        value:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_multitype.BoolOrString'
+      type: object
+    v1beta1.ConfigGroup:
+      properties:
+        description:
+          type: string
+        items:
+          items:
+            $ref: '#/components/schemas/v1beta1.ConfigItem'
+          type: array
+          uniqueItems: false
+        name:
+          type: string
+        title:
+          type: string
+        when:
+          type: string
+      type: object
+    v1beta1.ConfigItem:
+      properties:
+        affix:
+          type: string
+        countByGroup:
+          additionalProperties:
+            type: integer
+          type: object
+        data:
+          type: string
+        default:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_multitype.BoolOrString'
+        error:
+          type: string
+        filename:
+          type: string
+        help_text:
+          type: string
+        hidden:
+          type: boolean
+        items:
+          items:
+            $ref: '#/components/schemas/v1beta1.ConfigChildItem'
+          type: array
+          uniqueItems: false
+        minimumCount:
+          type: integer
+        multi_value:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        multiple:
+          type: boolean
+        name:
+          type: string
+        readonly:
+          type: boolean
+        recommended:
+          type: boolean
+        repeatable:
+          type: boolean
+        required:
+          type: boolean
+        templates:
+          items:
+            $ref: '#/components/schemas/v1beta1.RepeatTemplate'
+          type: array
+          uniqueItems: false
+        title:
+          type: string
+        type:
+          type: string
+        validation:
+          $ref: '#/components/schemas/v1beta1.ConfigItemValidation'
+        value:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_multitype.BoolOrString'
+        valuesByGroup:
+          $ref: '#/components/schemas/v1beta1.ValuesByGroup'
+        when:
+          type: string
+        write_once:
+          type: boolean
+      type: object
+    v1beta1.ConfigItemValidation:
+      properties:
+        regex:
+          $ref: '#/components/schemas/v1beta1.RegexValidator'
+      type: object
+    v1beta1.GroupValues:
+      additionalProperties:
+        type: string
+      type: object
+    v1beta1.RegexValidator:
+      properties:
+        message:
+          type: string
+        pattern:
+          type: string
+      type: object
+    v1beta1.RepeatTemplate:
+      properties:
+        apiVersion:
+          type: string
+        kind:
+          type: string
+        name:
+          type: string
+        namespace:
+          type: string
+        yamlPath:
+          type: string
+      type: object
+    v1beta1.ValuesByGroup:
+      additionalProperties:
+        $ref: '#/components/schemas/v1beta1.GroupValues'
+      type: object
   securitySchemes:
     bearerauth:
       bearerFormat: JWT
@@ -227,11 +363,27 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.Health'
+                $ref: '#/components/schemas/github_com_replicatedhq_embedded-cluster_api_types.Health'
           description: OK
       summary: Get the health of the API
       tags:
       - health
+  /kubernetes/install/app/config:
+    get:
+      description: get the app config
+      operationId: getKubernetesInstallAppConfig
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_apis_kots_v1beta1.ConfigSpec'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the app config
+      tags:
+      - kubernetes-install
   /kubernetes/install/infra/setup:
     post:
       description: Setup infra components
@@ -324,6 +476,22 @@ paths:
       summary: Get installation configuration status for install
       tags:
       - kubernetes-install
+  /linux/install/app/config:
+    get:
+      description: get the app config
+      operationId: getLinuxInstallAppConfig
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_apis_kots_v1beta1.ConfigSpec'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the app config
+      tags:
+      - linux-install
   /linux/install/host-preflights/run:
     post:
       description: Run install host preflight checks using installation config and

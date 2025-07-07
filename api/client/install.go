@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 func (c *client) GetLinuxInstallationConfig() (types.LinuxInstallationConfig, error) {
@@ -293,4 +294,58 @@ func (c *client) GetKubernetesInfraStatus() (types.Infra, error) {
 	}
 
 	return infra, nil
+}
+
+func (c *client) GetLinuxAppConfig() (kotsv1beta1.Config, error) {
+	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/app/config", nil)
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return kotsv1beta1.Config{}, errorFromResponse(resp)
+	}
+
+	var config kotsv1beta1.Config
+	err = json.NewDecoder(resp.Body).Decode(&config)
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+
+	return config, nil
+}
+
+func (c *client) GetKubernetesAppConfig() (kotsv1beta1.Config, error) {
+	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app/config", nil)
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return kotsv1beta1.Config{}, errorFromResponse(resp)
+	}
+
+	var config kotsv1beta1.Config
+	err = json.NewDecoder(resp.Body).Decode(&config)
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+
+	return config, nil
 }

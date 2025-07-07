@@ -5,6 +5,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	_ "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 // GetInstallationConfig handler to get the Kubernetes installation config
@@ -127,7 +128,7 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 //	@Tags			kubernetes-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	kotsv1beta1.Config
+//	@Success		200	{object}	v1beta1.ConfigSpec
 //	@Router			/kubernetes/install/app/config [get]
 func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
 	config, err := h.installController.GetAppConfig(r.Context())
@@ -137,5 +138,5 @@ func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.JSON(w, r, http.StatusOK, config, h.logger)
+	utils.JSON(w, r, http.StatusOK, config.Spec, h.logger)
 }
