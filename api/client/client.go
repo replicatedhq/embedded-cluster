@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 type Client interface {
@@ -16,12 +17,14 @@ type Client interface {
 	ConfigureLinuxInstallation(config types.LinuxInstallationConfig) (types.Status, error)
 	SetupLinuxInfra(ignoreHostPreflights bool) (types.Infra, error)
 	GetLinuxInfraStatus() (types.Infra, error)
+	GetLinuxAppConfig() (kotsv1beta1.Config, error)
 
 	GetKubernetesInstallationConfig() (types.KubernetesInstallationConfig, error)
 	ConfigureKubernetesInstallation(config types.KubernetesInstallationConfig) (types.Status, error)
 	GetKubernetesInstallationStatus() (types.Status, error)
 	SetupKubernetesInfra() (types.Infra, error)
 	GetKubernetesInfraStatus() (types.Infra, error)
+	GetKubernetesAppConfig() (kotsv1beta1.Config, error)
 }
 
 type client struct {

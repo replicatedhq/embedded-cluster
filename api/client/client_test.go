@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -581,4 +583,130 @@ func TestErrorFromResponse(t *testing.T) {
 	err = errorFromResponse(resp)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected response")
+}
+
+func TestLinuxGetAppConfig(t *testing.T) {
+	// Define expected config once
+	expectedConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "test-group",
+					Title: "Test Group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "test-item",
+							Type:    "text",
+							Title:   "Test Item",
+							Default: multitype.BoolOrString{StrVal: "default"},
+							Value:   multitype.BoolOrString{StrVal: "value"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/linux/install/app/config", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(expectedConfig)
+	}))
+	defer server.Close()
+
+	// Test successful get
+	c := New(server.URL, WithToken("test-token"))
+	config, err := c.GetLinuxAppConfig()
+	assert.NoError(t, err)
+	assert.Equal(t, expectedConfig, config)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	config, err = c.GetLinuxAppConfig()
+	assert.Error(t, err)
+	assert.Equal(t, kotsv1beta1.Config{}, config)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}
+
+func TestKubernetesGetAppConfig(t *testing.T) {
+	// Define expected config once
+	expectedConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "test-group",
+					Title: "Test Group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "test-item",
+							Type:    "text",
+							Title:   "Test Item",
+							Default: multitype.BoolOrString{StrVal: "default"},
+							Value:   multitype.BoolOrString{StrVal: "value"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/kubernetes/install/app/config", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(expectedConfig)
+	}))
+	defer server.Close()
+
+	// Test successful get
+	c := New(server.URL, WithToken("test-token"))
+	config, err := c.GetKubernetesAppConfig()
+	assert.NoError(t, err)
+	assert.Equal(t, expectedConfig, config)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	config, err = c.GetKubernetesAppConfig()
+	assert.Error(t, err)
+	assert.Equal(t, kotsv1beta1.Config{}, config)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
 }
