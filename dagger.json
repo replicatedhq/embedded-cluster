@@ -1,6 +1,8 @@
 {
   "name": "embedded-cluster",
-  "engineVersion": "v0.15.3",
-  "sdk": "go",
+  "engineVersion": "v0.18.12",
+  "sdk": {
+    "source": "go"
+  },
   "source": "dagger"
 }
