@@ -123,5 +123,5 @@ Use the functional options pattern for component initialization. This is the sta
 
 ### Logging Patterns
 
-- **Error Logging**: Always log errors with context before returning them
+- **Error Logging**: Always log errors at the outermost caller (bottom of the stack). All the context from the trace should be included in the message wrapping.
 - **Discard Logger**: Use `logger.NewDiscardLogger()` for tests
