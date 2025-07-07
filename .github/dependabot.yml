@@ -45,6 +45,19 @@ updates:
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "type::chore"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+
+  - package-ecosystem: "github-actions"
+    directories:
+      - ".github/actions/*"
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "github-actions"
