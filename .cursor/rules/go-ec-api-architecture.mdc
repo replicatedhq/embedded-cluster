@@ -52,10 +52,10 @@ Create constructor functions for common API error types.
 
 ### HTTP Handler Patterns
 
-- Use method receivers on the main API struct: `func (a *API) handlerName(...)`
-- Use helper methods for common operations: `bindJSON`, `json`, `jsonError`
+- Use dedicated Handler structs with HTTP method prefixed names: `func (h *Handler) PostConfigureInstallation(w http.ResponseWriter, r *http.Request) {}`
+- Include HTTP method in handler names: `Get*`, `Post*`, `Put*`, `Delete*`
+- Use helper methods for common operations: `utils.BindJSON`, `utils.JSON`, `utils.JSONError`
 - Always validate input and handle errors appropriately
-- Log HTTP requests with relevant fields (method, path, status)
 
 ### Request/Response
 
@@ -93,7 +93,7 @@ Add Swagger annotations to all handlers for API documentation.
 - **New endpoint**: Add handler → create/update controller → define types
 - **New business logic**: Add to appropriate controller or create new manager
 - **New types**: Add to `api/types/` with proper JSON tags
-- **New utilities**: Add to `api/pkg/` or `api/internal/`
+- **New utilities**: Add to `api/internal/`
 
 ### File Naming Conventions
 

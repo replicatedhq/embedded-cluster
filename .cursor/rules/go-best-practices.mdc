@@ -34,11 +34,11 @@ Use the functional options pattern for component initialization. This is the sta
 - **Wrap Errors**: Always add context when propagating errors using `fmt.Errorf("operation failed: %w", err)`
 - **Use %w verb for error wrapping**: Use `%w` instead of `%v` when wrapping errors to maintain the error chain
   ```go
-  return fmt.Errorf("failed to process: %w", err)  // Good
-  return fmt.Errorf("failed to process: %v", err)  // Bad
+  return fmt.Errorf("processing config: %w", err)  // Good - contextual, no prefix
+  return fmt.Errorf("reading config file: %w", err)  // Good - specific context
   ```
 - **Preserve Original**: Store the original error for unwrapping when using custom error types
-- **Meaningful Messages**: Error messages should be actionable and include relevant context
+- **Meaningful Messages**: Error messages should be actionable and include relevant context without redundant prefixes
 - **Use type-safe error handling**: Check error types instead of string matching to avoid brittle code
   ```go
   if errors.Is(err, context.DeadlineExceeded) { ... }  // Good

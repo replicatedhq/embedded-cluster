@@ -34,7 +34,8 @@ Use table-driven tests for testing multiple scenarios. This is the standard patt
 ### Test Naming
 
 - Test functions: `TestFunctionName` or `TestTypeName_MethodName`
-- Subtest names: Descriptive of the specific scenario being tested
+- Use table-driven tests for multiple scenarios: `tests := []struct{name string, ...}{}`
+- Subtest names: Descriptive of the specific scenario being tested in table entries
 - Use underscores for method tests: `TestAPIError_Error`
 
 ## Tooling and Libraries
@@ -106,9 +107,36 @@ Structure integration tests by:
 ## Test Structure
 
 ### Test Naming
-- Use descriptive test names that clearly indicate what is being tested
-- Follow the pattern: `TestFunctionName_Scenario_ExpectedResult`
-- Example: `TestValidateConfig_EmptyDataDirectory_ReturnsError`
+- Use table-driven tests for multiple scenarios with descriptive test case names
+- Test functions follow pattern: `TestFunctionName` for simple cases, `TestTypeName_MethodName` for methods
+- Test case names in tables should be descriptive: `name: "empty data directory should return error"`
+- Example of proper table-driven test structure:
+  ```go
+  func TestValidateConfig(t *testing.T) {
+      tests := []struct {
+          name           string
+          input          *Config
+          expectedError  string
+      }{
+          {
+              name:          "empty data directory should return error",
+              input:         &Config{DataDirectory: ""},
+              expectedError: "data directory cannot be empty",
+          },
+          {
+              name:          "valid directory should succeed",
+              input:         &Config{DataDirectory: "/opt/data"},
+              expectedError: "",
+          },
+      }
+      for _, tt := range tests {
+          t.Run(tt.name, func(t *testing.T) {
+              err := ValidateConfig(tt.input)
+              // test logic here
+          })
+      }
+  }
+  ```
 
 ### Use Semantic Naming for Test Cases
 
@@ -133,9 +161,9 @@ Structure integration tests by:
   ```
 
 ### Test Organization
-- Group related tests in the same file
-- Use subtests for variations of the same test case
-- Keep test files focused on testing a single component or feature
+- Create one test file per source file (`file.go` → `file_test.go`)
+- Use subtests for variations within table-driven tests
+- Keep test files focused on testing their corresponding source file
 
 ### Test Coverage and Quality
 
@@ -155,16 +183,22 @@ Structure integration tests by:
 
 ### Mock Management
 
-- **Extend existing mock interfaces instead of creating new ones**: Reduce maintenance burden by adding methods to existing mocks
+- **Reuse existing mock interfaces across tests**: Use the same mock type for the same interface rather than creating multiple mock types
   ```go
-  // Good - extend existing mock
-  type mockInstallController struct {
-      GetStatusFunc func() Status
+  // Good - reuse the same mock across different tests
+  type MockInstallationManager struct {
+      mock.Mock
   }
+  func (m *MockInstallationManager) GetConfig() (Config, error) { ... }
+  func (m *MockInstallationManager) SetConfig(config Config) error { ... }
   
-  // Bad - create separate mock
-  type mockStatusController struct {
-      GetStatusFunc func() Status
-  }
+  // Use this mock in multiple test files for the same interface
+  
+  // Bad - creating separate mocks for the same interface
+  type MockInstallManager struct { ... }      // for installation tests
+  type MockConfigManager struct { ... }       // for config tests  
+  // Both implementing the same InstallationManager interface
   ```
+- **Follow consistent mock patterns**: All mocks use `testify/mock` with `type MockTypeName struct { mock.Mock }`
+- **Implement complete interfaces**: Mock all methods of the interface even if some tests don't use them
 
