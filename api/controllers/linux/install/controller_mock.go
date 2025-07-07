@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -84,4 +85,13 @@ func (m *MockController) GetInfra(ctx context.Context) (types.Infra, error) {
 		return types.Infra{}, args.Error(1)
 	}
 	return args.Get(0).(types.Infra), args.Error(1)
+}
+
+// GetConfigValues mocks the GetConfigValues method
+func (m *MockController) GetConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return kotsv1beta1.ConfigValues{}, args.Error(1)
+	}
+	return args.Get(0).(kotsv1beta1.ConfigValues), args.Error(1)
 }

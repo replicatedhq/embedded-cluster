@@ -15,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
@@ -25,6 +26,7 @@ type Controller interface {
 	GetInstallationStatus(ctx context.Context) (types.Status, error)
 	SetupInfra(ctx context.Context) error
 	GetInfra(ctx context.Context) (types.Infra, error)
+	GetConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error)
 }
 
 var _ Controller = (*InstallController)(nil)
