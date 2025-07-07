@@ -2457,7 +2457,7 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 	t.Run("successful get config values", func(t *testing.T) {
 		// Create authenticated request
 		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config/values", nil)
-		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -2493,7 +2493,7 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 	t.Run("unauthorized access", func(t *testing.T) {
 		// Create request with invalid token
 		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config/values", nil)
-		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -2590,7 +2590,7 @@ func TestKubernetesGetAppConfigValues(t *testing.T) {
 	t.Run("successful get config values", func(t *testing.T) {
 		// Create authenticated request
 		req := httptest.NewRequest(http.MethodGet, "/kubernetes/install/app/config/values", nil)
-		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -2627,7 +2627,7 @@ func TestKubernetesGetAppConfigValues(t *testing.T) {
 	t.Run("unauthorized access", func(t *testing.T) {
 		// Create request with invalid token
 		req := httptest.NewRequest(http.MethodGet, "/kubernetes/install/app/config/values", nil)
-		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -2694,7 +2694,7 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Create a request
 		req := httptest.NewRequest(http.MethodGet, "/kubernetes/install/app/config", nil)
-		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -2717,7 +2717,7 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create a request
 		req := httptest.NewRequest(http.MethodGet, "/kubernetes/install/app/config", nil)
-		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -2784,7 +2784,7 @@ func TestLinuxGetAppConfig(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Create a request
 		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config", nil)
-		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
@@ -2807,7 +2807,7 @@ func TestLinuxGetAppConfig(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create a request
 		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config", nil)
-		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
 		rec := httptest.NewRecorder()
 
 		// Serve the request
