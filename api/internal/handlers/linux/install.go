@@ -217,5 +217,5 @@ func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.JSON(w, r, http.StatusOK, config.Spec, h.logger)
+	utils.JSON(w, r, http.StatusOK, config, h.logger)
 }
