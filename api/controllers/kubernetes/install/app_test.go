@@ -2,26 +2,26 @@ package install
 
 import (
 	"context"
-	"errors"
 	"testing"
 
-	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInstallController_GetAppConfig(t *testing.T) {
 	tests := []struct {
 		name           string
-		setupMock      func(*appconfig.MockAppConfigManager)
+		releaseData    *release.ReleaseData
 		expectedConfig kotsv1beta1.Config
 		expectedError  bool
 	}{
 		{
 			name: "successful get app config",
-			setupMock: func(m *appconfig.MockAppConfigManager) {
-				expectedConfig := kotsv1beta1.Config{
+			releaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
 					Spec: kotsv1beta1.ConfigSpec{
 						Groups: []kotsv1beta1.ConfigGroup{
 							{
@@ -39,8 +39,7 @@ func TestInstallController_GetAppConfig(t *testing.T) {
 							},
 						},
 					},
-				}
-				m.On("Get").Return(expectedConfig, nil)
+				},
 			},
 			expectedConfig: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
@@ -64,17 +63,27 @@ func TestInstallController_GetAppConfig(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name: "manager error",
-			setupMock: func(m *appconfig.MockAppConfigManager) {
-				m.On("Get").Return(kotsv1beta1.Config{}, errors.New("manager error"))
+			name: "empty config",
+			releaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
 			},
-			expectedConfig: kotsv1beta1.Config{},
-			expectedError:  true,
+			expectedConfig: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{},
+			},
+			expectedError: false,
 		},
 		{
-			name: "empty config",
-			setupMock: func(m *appconfig.MockAppConfigManager) {
-				m.On("Get").Return(kotsv1beta1.Config{}, nil)
+			name:           "nil release data",
+			releaseData:    nil,
+			expectedConfig: kotsv1beta1.Config{},
+			expectedError:  false,
+		},
+		{
+			name: "nil app config",
+			releaseData: &release.ReleaseData{
+				AppConfig: nil,
 			},
 			expectedConfig: kotsv1beta1.Config{},
 			expectedError:  false,
@@ -83,12 +92,11 @@ func TestInstallController_GetAppConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockAppConfigManager := &appconfig.MockAppConfigManager{}
-			tt.setupMock(mockAppConfigManager)
-
-			controller := &InstallController{
-				appConfigManager: mockAppConfigManager,
-			}
+			// Create controller using NewInstallController with release data
+			controller, err := NewInstallController(
+				WithReleaseData(tt.releaseData),
+			)
+			require.NoError(t, err)
 
 			config, err := controller.GetAppConfig(context.Background())
 
@@ -99,8 +107,6 @@ func TestInstallController_GetAppConfig(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedConfig, config)
 			}
-
-			mockAppConfigManager.AssertExpectations(t)
 		})
 	}
 }
