@@ -6,7 +6,6 @@ updates:
       - "/"
       - "/kinds/"
       - "/utils/"
-      - "/dagger/"
     open-pull-requests-limit: 10
     schedule:
       interval: "weekly"
