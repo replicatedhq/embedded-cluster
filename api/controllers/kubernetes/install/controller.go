@@ -33,23 +33,23 @@ type Controller interface {
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	installationManager     installation.InstallationManager
-	infraManager            infra.InfraManager
-	appConfigManager        appconfig.AppConfigManager
-	metricsReporter         metrics.ReporterInterface
-	restClientGetterFactory func(namespace string) genericclioptions.RESTClientGetter
-	releaseData             *release.ReleaseData
-	password                string
-	tlsConfig               types.TLSConfig
-	license                 []byte
-	airgapBundle            string
-	configValues            string
-	endUserConfig           *ecv1beta1.Config
-	store                   store.Store
-	ki                      kubernetesinstallation.Installation
-	stateMachine            statemachine.Interface
-	logger                  logrus.FieldLogger
-	mu                      sync.RWMutex
+	installationManager installation.InstallationManager
+	infraManager        infra.InfraManager
+	appConfigManager    appconfig.AppConfigManager
+	metricsReporter     metrics.ReporterInterface
+	restClientGetter    genericclioptions.RESTClientGetter
+	releaseData         *release.ReleaseData
+	password            string
+	tlsConfig           types.TLSConfig
+	license             []byte
+	airgapBundle        string
+	configValues        string
+	endUserConfig       *ecv1beta1.Config
+	store               store.Store
+	ki                  kubernetesinstallation.Installation
+	stateMachine        statemachine.Interface
+	logger              logrus.FieldLogger
+	mu                  sync.RWMutex
 }
 
 type InstallControllerOption func(*InstallController)
@@ -72,9 +72,9 @@ func WithMetricsReporter(metricsReporter metrics.ReporterInterface) InstallContr
 	}
 }
 
-func WithRESTClientGetterFactory(restClientGetterFactory func(namespace string) genericclioptions.RESTClientGetter) InstallControllerOption {
+func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) InstallControllerOption {
 	return func(c *InstallController) {
-		c.restClientGetterFactory = restClientGetterFactory
+		c.restClientGetter = restClientGetter
 	}
 }
 
@@ -181,7 +181,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.infraManager = infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
 			infra.WithInfraStore(controller.store.LinuxInfraStore()),
-			infra.WithRESTClientGetterFactory(controller.restClientGetterFactory),
+			infra.WithRESTClientGetter(controller.restClientGetter),
 			infra.WithPassword(controller.password),
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),
