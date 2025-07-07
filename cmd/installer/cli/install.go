@@ -51,6 +51,7 @@ import (
 	"github.com/spf13/pflag"
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -529,10 +530,14 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kuberne
 		return fmt.Errorf("failed to discover kubeconfig: %w", err)
 	}
 
-	// If this is the default host, there was probably no kubeconfig discovered.
-	// HACK: This is fragile but it is the best thing I could come up with
-	if flags.kubernetesEnvSettings.KubeConfig == "" && restConfig.Host == "http://localhost:8080" {
-		return fmt.Errorf("a kubeconfig is required when using kubernetes")
+	// Check that we have a valid kubeconfig
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create discovery client: %w", err)
+	}
+	_, err = discoveryClient.ServerVersion()
+	if err != nil {
+		return fmt.Errorf("failed to connect to kubernetes api server: %w", err)
 	}
 
 	flags.installConfig.kubernetesRESTClientGetterFactory = func(namespace string) genericclioptions.RESTClientGetter {
