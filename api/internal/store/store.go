@@ -1,8 +1,8 @@
 package store
 
 import (
+	"github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	kubernetesinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/kubernetes/installation"
-	linuxinfra "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/infra"
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
 	linuxpreflight "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
 )
@@ -18,10 +18,13 @@ type Store interface {
 	LinuxInstallationStore() linuxinstallation.Store
 
 	// LinuxInfraStore provides access to infrastructure operations
-	LinuxInfraStore() linuxinfra.Store
+	LinuxInfraStore() infra.Store
 
 	// KubernetesInstallationStore provides access to kubernetes installation operations
 	KubernetesInstallationStore() kubernetesinstallation.Store
+
+	// KubernetesInfraStore provides access to kubernetes infrastructure operations
+	KubernetesInfraStore() infra.Store
 }
 
 // StoreOption is a function that configures a store
@@ -42,7 +45,7 @@ func WithLinuxInstallationStore(store linuxinstallation.Store) StoreOption {
 }
 
 // WithLinuxInfraStore sets the infra store
-func WithLinuxInfraStore(store linuxinfra.Store) StoreOption {
+func WithLinuxInfraStore(store infra.Store) StoreOption {
 	return func(s *memoryStore) {
 		s.linuxInfraStore = store
 	}
@@ -59,9 +62,10 @@ func WithKubernetesInstallationStore(store kubernetesinstallation.Store) StoreOp
 type memoryStore struct {
 	linuxPreflightStore    linuxpreflight.Store
 	linuxInstallationStore linuxinstallation.Store
-	linuxInfraStore        linuxinfra.Store
+	linuxInfraStore        infra.Store
 
 	kubernetesInstallationStore kubernetesinstallation.Store
+	kubernetesInfraStore        infra.Store
 }
 
 // NewMemoryStore creates a new memory store with the given options
@@ -81,11 +85,15 @@ func NewMemoryStore(opts ...StoreOption) Store {
 	}
 
 	if s.linuxInfraStore == nil {
-		s.linuxInfraStore = linuxinfra.NewMemoryStore()
+		s.linuxInfraStore = infra.NewMemoryStore()
 	}
 
 	if s.kubernetesInstallationStore == nil {
 		s.kubernetesInstallationStore = kubernetesinstallation.NewMemoryStore()
+	}
+
+	if s.kubernetesInfraStore == nil {
+		s.kubernetesInfraStore = infra.NewMemoryStore()
 	}
 
 	return s
@@ -99,10 +107,14 @@ func (s *memoryStore) LinuxInstallationStore() linuxinstallation.Store {
 	return s.linuxInstallationStore
 }
 
-func (s *memoryStore) LinuxInfraStore() linuxinfra.Store {
+func (s *memoryStore) LinuxInfraStore() infra.Store {
 	return s.linuxInfraStore
 }
 
 func (s *memoryStore) KubernetesInstallationStore() kubernetesinstallation.Store {
 	return s.kubernetesInstallationStore
+}
+
+func (s *memoryStore) KubernetesInfraStore() infra.Store {
+	return s.kubernetesInfraStore
 }

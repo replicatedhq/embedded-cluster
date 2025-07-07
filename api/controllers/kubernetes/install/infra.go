@@ -2,18 +2,13 @@ package install
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-var (
-	ErrPreflightChecksFailed = errors.New("preflight checks failed")
-)
-
-func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights bool) (finalErr error) {
+func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -27,17 +22,6 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 			lock.Release()
 		}
 	}()
-
-	// Check if preflights have failed and if we should ignore them
-	if c.stateMachine.CurrentState() == StatePreflightsFailed {
-		if !ignoreHostPreflights || !c.allowIgnoreHostPreflights {
-			return types.NewBadRequestError(ErrPreflightChecksFailed)
-		}
-		err = c.stateMachine.Transition(lock, StatePreflightsFailedBypassed)
-		if err != nil {
-			return fmt.Errorf("failed to transition states: %w", err)
-		}
-	}
 
 	err = c.stateMachine.Transition(lock, StateInfrastructureInstalling)
 	if err != nil {
@@ -67,7 +51,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 			}
 		}()
 
-		if err := c.infraManager.Install(ctx, c.rc); err != nil {
+		if err := c.infraManager.Install(ctx, c.ki); err != nil {
 			return fmt.Errorf("failed to install infrastructure: %w", err)
 		}
 

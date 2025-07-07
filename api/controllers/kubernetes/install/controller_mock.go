@@ -37,3 +37,18 @@ func (m *MockController) GetInstallationStatus(ctx context.Context) (types.Statu
 	}
 	return args.Get(0).(types.Status), args.Error(1)
 }
+
+// SetupInfra mocks the SetupInfra method
+func (m *MockController) SetupInfra(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+// GetInfra mocks the GetInfra method
+func (m *MockController) GetInfra(ctx context.Context) (types.Infra, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return types.Infra{}, args.Error(1)
+	}
+	return args.Get(0).(types.Infra), args.Error(1)
+}

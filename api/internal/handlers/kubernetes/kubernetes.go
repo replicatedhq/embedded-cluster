@@ -55,6 +55,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 		installController, err := install.NewInstallController(
 			install.WithLogger(h.logger),
 			install.WithMetricsReporter(h.metricsReporter),
+			install.WithRESTClientGetterFactory(h.cfg.RESTClientGetterFactory),
 			install.WithReleaseData(h.cfg.ReleaseData),
 			install.WithEndUserConfig(h.cfg.EndUserConfig),
 			install.WithPassword(h.cfg.Password),

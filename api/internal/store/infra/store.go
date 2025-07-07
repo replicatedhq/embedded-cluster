@@ -15,7 +15,7 @@ var _ Store = &memoryStore{}
 
 // Store provides methods for storing and retrieving infrastructure state
 type Store interface {
-	Get() (types.LinuxInfra, error)
+	Get() (types.Infra, error)
 	GetStatus() (types.Status, error)
 	SetStatus(status types.Status) error
 	SetStatusDesc(desc string) error
@@ -27,13 +27,13 @@ type Store interface {
 
 // memoryStore is an in-memory implementation of Store
 type memoryStore struct {
-	infra types.LinuxInfra
+	infra types.Infra
 	mu    sync.RWMutex
 }
 
 type StoreOption func(*memoryStore)
 
-func WithInfra(infra types.LinuxInfra) StoreOption {
+func WithInfra(infra types.Infra) StoreOption {
 	return func(s *memoryStore) {
 		s.infra = infra
 	}
@@ -50,13 +50,13 @@ func NewMemoryStore(opts ...StoreOption) Store {
 	return s
 }
 
-func (s *memoryStore) Get() (types.LinuxInfra, error) {
+func (s *memoryStore) Get() (types.Infra, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var infra types.LinuxInfra
+	var infra types.Infra
 	if err := deepcopy.Copy(&infra, &s.infra); err != nil {
-		return types.LinuxInfra{}, err
+		return types.Infra{}, err
 	}
 
 	return infra, nil
@@ -97,7 +97,7 @@ func (s *memoryStore) RegisterComponent(name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.infra.Components = append(s.infra.Components, types.LinuxInfraComponent{
+	s.infra.Components = append(s.infra.Components, types.InfraComponent{
 		Name: name,
 		Status: types.Status{
 			State:       types.StatePending,

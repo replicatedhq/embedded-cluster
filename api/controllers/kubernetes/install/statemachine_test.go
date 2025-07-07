@@ -31,10 +31,11 @@ func TestStateMachineTransitions(t *testing.T) {
 			},
 		},
 		{
-			name:       `State "InstallationConfigured" can transition to "InfrastructureInstalling" or "InstallationConfigurationFailed"`,
+			name:       `State "InstallationConfigured" can transition to "InfrastructureInstalling" or "InstallationConfigured" or "InstallationConfigurationFailed"`,
 			startState: StateInstallationConfigured,
 			validTransitions: []statemachine.State{
 				StateInfrastructureInstalling,
+				StateInstallationConfigured,
 				StateInstallationConfigurationFailed,
 			},
 		},

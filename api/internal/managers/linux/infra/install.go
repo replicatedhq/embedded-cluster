@@ -73,14 +73,14 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 }
 
 func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) error {
-	components := []types.LinuxInfraComponent{{Name: K0sComponentName}}
+	components := []types.InfraComponent{{Name: K0sComponentName}}
 
 	addOns := addons.GetAddOnsForInstall(m.getAddonInstallOpts(license, rc))
 	for _, addOn := range addOns {
-		components = append(components, types.LinuxInfraComponent{Name: addOn.Name()})
+		components = append(components, types.InfraComponent{Name: addOn.Name()})
 	}
 
-	components = append(components, types.LinuxInfraComponent{Name: "Additional Components"})
+	components = append(components, types.InfraComponent{Name: "Additional Components"})
 
 	for _, component := range components {
 		if err := m.infraStore.RegisterComponent(component.Name); err != nil {

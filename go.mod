@@ -1,6 +1,6 @@
 module github.com/replicatedhq/embedded-cluster
 
-go 1.24.2
+go 1.24.4
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
@@ -9,8 +9,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.36.5
 	github.com/aws/aws-sdk-go-v2/config v1.29.17
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.70
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.82
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.82.0
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.83
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.83.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/canonical/lxd v0.0.0-20241030172432-dee0d04b56ee
 	github.com/containers/image/v5 v5.34.3
@@ -27,13 +27,13 @@ require (
 	github.com/gosimple/slug v1.15.0
 	github.com/jedib0t/go-pretty/v6 v6.6.7
 	github.com/k0sproject/k0s v1.31.9-0.20250428141639-26a9908cf691
-	github.com/ohler55/ojg v1.26.7
+	github.com/ohler55/ojg v1.26.8
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
 	github.com/replicatedhq/embedded-cluster/kinds v0.0.0
 	github.com/replicatedhq/embedded-cluster/utils v0.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20250411153224-089dbeb7ba2a
-	github.com/replicatedhq/troubleshoot v0.119.1
+	github.com/replicatedhq/troubleshoot v0.120.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
@@ -57,7 +57,7 @@ require (
 	k8s.io/kubectl v0.33.2
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	oras.land/oras-go/v2 v2.6.0
-	sigs.k8s.io/controller-runtime v0.20.4
+	sigs.k8s.io/controller-runtime v0.21.0
 	sigs.k8s.io/yaml v1.5.0
 )
 
@@ -163,7 +163,7 @@ require (
 	github.com/go-redis/redis/v7 v7.4.1 // indirect
 	github.com/go-sql-driver/mysql v1.9.2 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
+	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
@@ -364,7 +364,7 @@ require (
 	github.com/spf13/pflag v1.0.6
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/net v0.40.0 // indirect
+	golang.org/x/net v0.41.0 // indirect
 	golang.org/x/oauth2 v0.28.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.26.0 // indirect

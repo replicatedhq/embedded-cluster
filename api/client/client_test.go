@@ -211,9 +211,16 @@ func TestLinuxSetupInfra(t *testing.T) {
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 
+		// Decode request body
+		var config types.LinuxInfraSetupRequest
+		err := json.NewDecoder(r.Body).Decode(&config)
+		require.NoError(t, err, "Failed to decode request body")
+
+		assert.True(t, config.IgnoreHostPreflights)
+
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(types.LinuxInfra{
+		json.NewEncoder(w).Encode(types.Infra{
 			Status: types.Status{
 				State:       types.StateRunning,
 				Description: "Installing infra",
@@ -224,7 +231,7 @@ func TestLinuxSetupInfra(t *testing.T) {
 
 	// Test successful setup
 	c := New(server.URL, WithToken("test-token"))
-	infra, err := c.SetupLinuxInfra()
+	infra, err := c.SetupLinuxInfra(true)
 	assert.NoError(t, err)
 	assert.Equal(t, types.StateRunning, infra.Status.State)
 	assert.Equal(t, "Installing infra", infra.Status.Description)
@@ -240,9 +247,9 @@ func TestLinuxSetupInfra(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	infra, err = c.SetupLinuxInfra()
+	infra, err = c.SetupLinuxInfra(true)
 	assert.Error(t, err)
-	assert.Equal(t, types.LinuxInfra{}, infra)
+	assert.Equal(t, types.Infra{}, infra)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -261,7 +268,7 @@ func TestLinuxGetInfraStatus(t *testing.T) {
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(types.LinuxInfra{
+		json.NewEncoder(w).Encode(types.Infra{
 			Status: types.Status{
 				State:       types.StateSucceeded,
 				Description: "Installation successful",
@@ -290,7 +297,7 @@ func TestLinuxGetInfraStatus(t *testing.T) {
 	c = New(errorServer.URL, WithToken("test-token"))
 	infra, err = c.GetLinuxInfraStatus()
 	assert.Error(t, err)
-	assert.Equal(t, types.LinuxInfra{}, infra)
+	assert.Equal(t, types.Infra{}, infra)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -446,6 +453,102 @@ func TestKubernetesGetInstallationStatus(t *testing.T) {
 	status, err = c.GetKubernetesInstallationStatus()
 	assert.Error(t, err)
 	assert.Equal(t, types.Status{}, status)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}
+
+func TestKubernetesSetupInfra(t *testing.T) {
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/api/kubernetes/install/infra/setup", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(types.Infra{
+			Status: types.Status{
+				State:       types.StateRunning,
+				Description: "Installing infra",
+			},
+		})
+	}))
+	defer server.Close()
+
+	// Test successful setup
+	c := New(server.URL, WithToken("test-token"))
+	infra, err := c.SetupKubernetesInfra()
+	assert.NoError(t, err)
+	assert.Equal(t, types.StateRunning, infra.Status.State)
+	assert.Equal(t, "Installing infra", infra.Status.Description)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	infra, err = c.SetupKubernetesInfra()
+	assert.Error(t, err)
+	assert.Equal(t, types.Infra{}, infra)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}
+
+func TestKubernetesGetInfraStatus(t *testing.T) {
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/kubernetes/install/infra/status", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(types.Infra{
+			Status: types.Status{
+				State:       types.StateSucceeded,
+				Description: "Installation successful",
+			},
+		})
+	}))
+	defer server.Close()
+
+	// Test successful get
+	c := New(server.URL, WithToken("test-token"))
+	infra, err := c.GetKubernetesInfraStatus()
+	assert.NoError(t, err)
+	assert.Equal(t, types.StateSucceeded, infra.Status.State)
+	assert.Equal(t, "Installation successful", infra.Status.Description)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	infra, err = c.GetKubernetesInfraStatus()
+	assert.Error(t, err)
+	assert.Equal(t, types.Infra{}, infra)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
