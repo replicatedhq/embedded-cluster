@@ -1,4 +1,4 @@
-# Embedded Cluster CLI-First Update Management Implementation Plan
+# Embedded Cluster CLI-Driven Update Design
 
 ## Overview
 
