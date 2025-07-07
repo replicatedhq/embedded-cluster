@@ -21,12 +21,14 @@ import (
 	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
 	kubernetesinstall "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
+	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	kubernetesinfra "github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
 	kubernetesinstallationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	linuxinfra "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	linuxinstallationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
+	configstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	linuxpreflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
@@ -40,6 +42,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -2385,5 +2389,258 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 
 		// Verify that the mock expectations were met
 		helmMock.AssertExpectations(t)
+	})
+}
+
+func TestLinuxGetAppConfigValues(t *testing.T) {
+	// Create sample config data
+	sampleConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name: "settings",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "enable_feature_x",
+							Type:    "bool",
+							Default: multitype.FromString("0"),
+							Value:   multitype.FromString("1"), // User set to "1"
+						},
+						{
+							Name:    "show_advanced_ui",
+							Type:    "bool",
+							Default: multitype.FromString("1"),
+						},
+						{
+							Name: "some_text_field",
+							Type: "text", // Should be ignored in boolean-only processing
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create config store with sample data
+	configStore := configstore.NewMemoryStore(configstore.WithConfig(sampleConfig))
+
+	// Create app config manager with the pre-populated store
+	appConfigManager := appconfig.NewAppConfigManager(
+		appconfig.WithAppConfigStore(configStore),
+		appconfig.WithLogger(logger.NewDiscardLogger()),
+	)
+
+	// Create runtime config
+	rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
+	rc.SetDataDir(t.TempDir())
+
+	// Create Linux install controller with the app config manager
+	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithRuntimeConfig(rc),
+		linuxinstall.WithAppConfigManager(appConfigManager),
+	)
+	require.NoError(t, err)
+
+	// Create the API with the install controller
+	apiInstance, err := api.New(
+		types.APIConfig{Password: "password"},
+		api.WithLinuxInstallController(installController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithLogger(logger.NewDiscardLogger()),
+	)
+	require.NoError(t, err)
+
+	// Create router and register routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router)
+
+	t.Run("successful get config values", func(t *testing.T) {
+		// Create authenticated request
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config/values", nil)
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Validate response
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		var configValues kotsv1beta1.ConfigValues
+		err = json.NewDecoder(rec.Body).Decode(&configValues)
+		require.NoError(t, err)
+
+		// Validate config values content
+		assert.NotEmpty(t, configValues.Spec.Values)
+		assert.Equal(t, "kots.io/v1beta1", configValues.TypeMeta.APIVersion)
+		assert.Equal(t, "ConfigValues", configValues.TypeMeta.Kind)
+		assert.Equal(t, "app-config", configValues.ObjectMeta.Name)
+
+		// Check boolean fields were processed correctly
+		assert.Contains(t, configValues.Spec.Values, "enable_feature_x")
+		assert.Equal(t, "1", configValues.Spec.Values["enable_feature_x"].Value)   // User value
+		assert.Equal(t, "0", configValues.Spec.Values["enable_feature_x"].Default) // Original default
+
+		assert.Contains(t, configValues.Spec.Values, "show_advanced_ui")
+		assert.Equal(t, "1", configValues.Spec.Values["show_advanced_ui"].Value) // Default value
+		assert.Equal(t, "1", configValues.Spec.Values["show_advanced_ui"].Default)
+
+		// Non-boolean fields should be filtered out
+		assert.NotContains(t, configValues.Spec.Values, "some_text_field")
+	})
+
+	t.Run("unauthorized access", func(t *testing.T) {
+		// Create request with invalid token
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config/values", nil)
+		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+
+	t.Run("missing authorization", func(t *testing.T) {
+		// Create request without authorization header
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config/values", nil)
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+	})
+}
+
+func TestKubernetesGetAppConfigValues(t *testing.T) {
+	// Create sample config data with different boolean values
+	sampleConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name: "advanced",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "debug_mode",
+							Type:    "bool",
+							Default: multitype.FromString("0"),
+							Value:   multitype.FromString("1"), // User enabled debug
+						},
+						{
+							Name:    "enable_monitoring",
+							Type:    "bool",
+							Default: multitype.FromString("1"),
+							Value:   multitype.FromString("0"), // User disabled monitoring
+						},
+						{
+							Name: "feature_flag_new_ui",
+							Type: "bool",
+							// No default or value - should result in empty strings
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create config store with sample data
+	configStore := configstore.NewMemoryStore(configstore.WithConfig(sampleConfig))
+
+	// Create app config manager with the pre-populated store
+	appConfigManager := appconfig.NewAppConfigManager(
+		appconfig.WithAppConfigStore(configStore),
+		appconfig.WithLogger(logger.NewDiscardLogger()),
+	)
+
+	// Create Kubernetes installation
+	ki := kubernetesinstallation.New(nil)
+
+	// Create Kubernetes install controller with the app config manager
+	installController, err := kubernetesinstall.NewInstallController(
+		kubernetesinstall.WithInstallation(ki),
+		kubernetesinstall.WithAppConfigManager(appConfigManager),
+	)
+	require.NoError(t, err)
+
+	// Create the API with the install controller
+	apiInstance, err := api.New(
+		types.APIConfig{Password: "password"},
+		api.WithKubernetesInstallController(installController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithLogger(logger.NewDiscardLogger()),
+	)
+	require.NoError(t, err)
+
+	// Create router and register routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router)
+
+	t.Run("successful get config values", func(t *testing.T) {
+		// Create authenticated request
+		req := httptest.NewRequest(http.MethodGet, "/kubernetes/install/app/config/values", nil)
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Validate response
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		var configValues kotsv1beta1.ConfigValues
+		err = json.NewDecoder(rec.Body).Decode(&configValues)
+		require.NoError(t, err)
+
+		// Validate config values content
+		assert.NotEmpty(t, configValues.Spec.Values)
+		assert.Equal(t, "kots.io/v1beta1", configValues.TypeMeta.APIVersion)
+		assert.Equal(t, "ConfigValues", configValues.TypeMeta.Kind)
+		assert.Equal(t, "app-config", configValues.ObjectMeta.Name)
+
+		// Check boolean fields were processed correctly
+		assert.Contains(t, configValues.Spec.Values, "debug_mode")
+		assert.Equal(t, "1", configValues.Spec.Values["debug_mode"].Value)   // User value
+		assert.Equal(t, "0", configValues.Spec.Values["debug_mode"].Default) // Original default
+
+		assert.Contains(t, configValues.Spec.Values, "enable_monitoring")
+		assert.Equal(t, "0", configValues.Spec.Values["enable_monitoring"].Value)   // User value
+		assert.Equal(t, "1", configValues.Spec.Values["enable_monitoring"].Default) // Original default
+
+		assert.Contains(t, configValues.Spec.Values, "feature_flag_new_ui")
+		assert.Equal(t, "", configValues.Spec.Values["feature_flag_new_ui"].Value)   // Empty when no value
+		assert.Equal(t, "", configValues.Spec.Values["feature_flag_new_ui"].Default) // Empty when no default
+	})
+
+	t.Run("unauthorized access", func(t *testing.T) {
+		// Create request with invalid token
+		req := httptest.NewRequest(http.MethodGet, "/kubernetes/install/app/config/values", nil)
+		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
 	})
 }

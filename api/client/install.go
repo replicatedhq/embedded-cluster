@@ -2,11 +2,16 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
+
+// Import is used in method return types
+var _ = kotsv1beta1.ConfigValues{}
 
 func (c *client) GetLinuxInstallationConfig() (types.LinuxInstallationConfig, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/installation/config", nil)
@@ -293,4 +298,58 @@ func (c *client) GetKubernetesInfraStatus() (types.Infra, error) {
 	}
 
 	return infra, nil
+}
+
+func (c *client) GetLinuxAppConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/install/app/config/values", nil)
+	if err != nil {
+		return kotsv1beta1.ConfigValues{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return kotsv1beta1.ConfigValues{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return kotsv1beta1.ConfigValues{}, errorFromResponse(resp)
+	}
+
+	var configValues kotsv1beta1.ConfigValues
+	err = json.NewDecoder(resp.Body).Decode(&configValues)
+	if err != nil {
+		return kotsv1beta1.ConfigValues{}, err
+	}
+
+	return configValues, nil
+}
+
+func (c *client) GetKubernetesAppConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/kubernetes/install/app/config/values", nil)
+	if err != nil {
+		return kotsv1beta1.ConfigValues{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return kotsv1beta1.ConfigValues{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return kotsv1beta1.ConfigValues{}, errorFromResponse(resp)
+	}
+
+	var configValues kotsv1beta1.ConfigValues
+	err = json.NewDecoder(resp.Body).Decode(&configValues)
+	if err != nil {
+		return kotsv1beta1.ConfigValues{}, err
+	}
+
+	return configValues, nil
 }

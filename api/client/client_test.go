@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -9,9 +10,14 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// Import is used in tests
+var _ = kotsv1beta1.ConfigValues{}
 
 func TestNew(t *testing.T) {
 	// Test default client creation
@@ -581,4 +587,130 @@ func TestErrorFromResponse(t *testing.T) {
 	err = errorFromResponse(resp)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected response")
+}
+
+func TestGetLinuxAppConfigValues(t *testing.T) {
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/linux/install/app/config/values", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(kotsv1beta1.ConfigValues{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "kots.io/v1beta1",
+				Kind:       "ConfigValues",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-config",
+			},
+			Spec: kotsv1beta1.ConfigValuesSpec{
+				Values: map[string]kotsv1beta1.ConfigValue{
+					"enable_feature_x": {
+						Value:   "1",
+						Default: "0",
+					},
+					"show_advanced_ui": {
+						Value:   "0",
+						Default: "1",
+					},
+				},
+			},
+		})
+	}))
+	defer server.Close()
+
+	// Test successful retrieval
+	c := New(server.URL, WithToken("test-token"))
+	configValues, err := c.GetLinuxAppConfigValues(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, configValues.Spec.Values)
+	assert.Equal(t, "1", configValues.Spec.Values["enable_feature_x"].Value)
+	assert.Equal(t, "0", configValues.Spec.Values["show_advanced_ui"].Value)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	configValues, err = c.GetLinuxAppConfigValues(context.Background())
+	assert.Error(t, err)
+	assert.Equal(t, kotsv1beta1.ConfigValues{}, configValues)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}
+
+func TestGetKubernetesAppConfigValues(t *testing.T) {
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/kubernetes/install/app/config/values", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(kotsv1beta1.ConfigValues{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "kots.io/v1beta1",
+				Kind:       "ConfigValues",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-config",
+			},
+			Spec: kotsv1beta1.ConfigValuesSpec{
+				Values: map[string]kotsv1beta1.ConfigValue{
+					"debug_mode": {
+						Value:   "1",
+						Default: "0",
+					},
+					"enable_monitoring": {
+						Value:   "0",
+						Default: "1",
+					},
+				},
+			},
+		})
+	}))
+	defer server.Close()
+
+	// Test successful retrieval
+	c := New(server.URL, WithToken("test-token"))
+	configValues, err := c.GetKubernetesAppConfigValues(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, configValues.Spec.Values)
+	assert.Equal(t, "1", configValues.Spec.Values["debug_mode"].Value)
+	assert.Equal(t, "0", configValues.Spec.Values["enable_monitoring"].Value)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	configValues, err = c.GetKubernetesAppConfigValues(context.Background())
+	assert.Error(t, err)
+	assert.Equal(t, kotsv1beta1.ConfigValues{}, configValues)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
 }

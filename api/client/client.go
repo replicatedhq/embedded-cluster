@@ -1,13 +1,18 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
+
+// Import is used in method signatures
+var _ = kotsv1beta1.ConfigValues{}
 
 type Client interface {
 	Authenticate(password string) error
@@ -16,12 +21,14 @@ type Client interface {
 	ConfigureLinuxInstallation(config types.LinuxInstallationConfig) (types.Status, error)
 	SetupLinuxInfra(ignoreHostPreflights bool) (types.Infra, error)
 	GetLinuxInfraStatus() (types.Infra, error)
+	GetLinuxAppConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error)
 
 	GetKubernetesInstallationConfig() (types.KubernetesInstallationConfig, error)
 	ConfigureKubernetesInstallation(config types.KubernetesInstallationConfig) (types.Status, error)
 	GetKubernetesInstallationStatus() (types.Status, error)
 	SetupKubernetesInfra() (types.Infra, error)
 	GetKubernetesInfraStatus() (types.Infra, error)
+	GetKubernetesAppConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error)
 }
 
 type client struct {
