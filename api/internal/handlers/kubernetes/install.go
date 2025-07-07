@@ -128,7 +128,7 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 //	@Tags			kubernetes-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	v1beta1.ConfigSpec
+//	@Success		200	{object}	v1beta1.Config
 //	@Router			/kubernetes/install/app/config [get]
 func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
 	config, err := h.installController.GetAppConfig(r.Context())
