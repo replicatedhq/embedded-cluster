@@ -11,9 +11,6 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
-// Import is used in method signatures
-var _ = kotsv1beta1.ConfigValues{}
-
 type Client interface {
 	Authenticate(password string) error
 	GetLinuxInstallationConfig() (types.LinuxInstallationConfig, error)

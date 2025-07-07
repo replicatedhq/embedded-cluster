@@ -17,9 +17,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Import is used in tests
-var _ = kotsv1beta1.ConfigValues{}
-
 func TestNew(t *testing.T) {
 	// Test default client creation
 	c := New("http://example.com")

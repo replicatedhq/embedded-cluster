@@ -10,9 +10,6 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
-// Import is used in method return types
-var _ = kotsv1beta1.ConfigValues{}
-
 func (c *client) GetLinuxInstallationConfig() (types.LinuxInstallationConfig, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/installation/config", nil)
 	if err != nil {
