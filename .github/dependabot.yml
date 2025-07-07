@@ -19,6 +19,7 @@ updates:
       security:
         update-types:
           - "patch"
+          - "minor"
       k8s.io:
         patterns:
           - "k8s.io/*"
