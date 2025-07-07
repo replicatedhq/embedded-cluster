@@ -43,7 +43,6 @@ updates:
       security:
         update-types:
           - "patch"
-          - "minor"
 
   - package-ecosystem: "github-actions"
     directory: "/"
