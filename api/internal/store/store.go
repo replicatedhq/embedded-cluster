@@ -1,6 +1,7 @@
 package store
 
 import (
+	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	kubernetesinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/kubernetes/installation"
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
@@ -25,6 +26,9 @@ type Store interface {
 
 	// KubernetesInfraStore provides access to kubernetes infrastructure operations
 	KubernetesInfraStore() infra.Store
+
+	// AppConfigStore provides access to app config operations
+	AppConfigStore() appconfig.Store
 }
 
 // StoreOption is a function that configures a store
@@ -58,6 +62,13 @@ func WithKubernetesInstallationStore(store kubernetesinstallation.Store) StoreOp
 	}
 }
 
+// WithAppConfigStore sets the app config store
+func WithAppConfigStore(store appconfig.Store) StoreOption {
+	return func(s *memoryStore) {
+		s.appConfigStore = store
+	}
+}
+
 // memoryStore is an in-memory implementation of the global Store interface
 type memoryStore struct {
 	linuxPreflightStore    linuxpreflight.Store
@@ -66,6 +77,8 @@ type memoryStore struct {
 
 	kubernetesInstallationStore kubernetesinstallation.Store
 	kubernetesInfraStore        infra.Store
+
+	appConfigStore appconfig.Store
 }
 
 // NewMemoryStore creates a new memory store with the given options
@@ -96,6 +109,10 @@ func NewMemoryStore(opts ...StoreOption) Store {
 		s.kubernetesInfraStore = infra.NewMemoryStore()
 	}
 
+	if s.appConfigStore == nil {
+		s.appConfigStore = appconfig.NewMemoryStore()
+	}
+
 	return s
 }
 
@@ -117,4 +134,8 @@ func (s *memoryStore) KubernetesInstallationStore() kubernetesinstallation.Store
 
 func (s *memoryStore) KubernetesInfraStore() infra.Store {
 	return s.kubernetesInfraStore
+}
+
+func (s *memoryStore) AppConfigStore() appconfig.Store {
+	return s.appConfigStore
 }

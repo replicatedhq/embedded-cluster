@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
@@ -42,6 +43,7 @@ type InstallController struct {
 	installationManager       installation.InstallationManager
 	hostPreflightManager      preflight.HostPreflightManager
 	infraManager              infra.InfraManager
+	appConfigManager          appconfig.AppConfigManager
 	hostUtils                 hostutils.HostUtilsInterface
 	netUtils                  utils.NetUtils
 	metricsReporter           metrics.ReporterInterface
@@ -165,6 +167,12 @@ func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
 	}
 }
 
+func WithAppConfigManager(appConfigManager appconfig.AppConfigManager) InstallControllerOption {
+	return func(c *InstallController) {
+		c.appConfigManager = appConfigManager
+	}
+}
+
 func WithStateMachine(stateMachine statemachine.Interface) InstallControllerOption {
 	return func(c *InstallController) {
 		c.stateMachine = stateMachine
@@ -233,6 +241,13 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
+		)
+	}
+
+	if controller.appConfigManager == nil {
+		controller.appConfigManager = appconfig.NewAppConfigManager(
+			appconfig.WithLogger(controller.logger),
+			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
 		)
 	}
 
