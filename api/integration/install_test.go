@@ -2644,3 +2644,183 @@ func TestKubernetesGetAppConfigValues(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
 	})
 }
+
+func TestKubernetesGetAppConfig(t *testing.T) {
+	// Create an app config
+	appConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "test-group",
+					Title: "Test Group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "test-item",
+							Type:    "text",
+							Title:   "Test Item",
+							Default: multitype.BoolOrString{StrVal: "default"},
+							Value:   multitype.BoolOrString{StrVal: "value"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create an install controller with the app config
+	installController, err := kubernetesinstall.NewInstallController(
+		kubernetesinstall.WithReleaseData(&release.ReleaseData{
+			AppConfig: &appConfig,
+		}),
+	)
+	require.NoError(t, err)
+
+	// Create the API with the install controller
+	apiInstance, err := api.New(
+		types.APIConfig{
+			Password: "password",
+		},
+		api.WithKubernetesInstallController(installController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithLogger(logger.NewDiscardLogger()),
+	)
+	require.NoError(t, err)
+
+	// Create a router and register the API routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router)
+
+	// Test successful get
+	t.Run("Success", func(t *testing.T) {
+		// Create a request
+		req := httptest.NewRequest(http.MethodGet, "/kubernetes/install/app/config", nil)
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var response kotsv1beta1.Config
+		err = json.NewDecoder(rec.Body).Decode(&response)
+		require.NoError(t, err)
+
+		// Verify the app config matches what we expect
+		assert.Equal(t, appConfig, response, "app config does not match")
+	})
+
+	// Test authorization
+	t.Run("Authorization error", func(t *testing.T) {
+		// Create a request
+		req := httptest.NewRequest(http.MethodGet, "/kubernetes/install/app/config", nil)
+		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+}
+
+func TestLinuxGetAppConfig(t *testing.T) {
+	// Create an app config
+	appConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "test-group",
+					Title: "Test Group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "test-item",
+							Type:    "text",
+							Title:   "Test Item",
+							Default: multitype.BoolOrString{StrVal: "default"},
+							Value:   multitype.BoolOrString{StrVal: "value"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create an install controller with the app config
+	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithReleaseData(&release.ReleaseData{
+			AppConfig: &appConfig,
+		}),
+	)
+	require.NoError(t, err)
+
+	// Create the API with the install controller
+	apiInstance, err := api.New(
+		types.APIConfig{
+			Password: "password",
+		},
+		api.WithLinuxInstallController(installController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithLogger(logger.NewDiscardLogger()),
+	)
+	require.NoError(t, err)
+
+	// Create a router and register the API routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router)
+
+	// Test successful get
+	t.Run("Success", func(t *testing.T) {
+		// Create a request
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config", nil)
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var response kotsv1beta1.Config
+		err = json.NewDecoder(rec.Body).Decode(&response)
+		require.NoError(t, err)
+
+		// Verify the app config matches what we expect
+		assert.Equal(t, appConfig, response, "app config does not match")
+	})
+
+	// Test authorization
+	t.Run("Authorization error", func(t *testing.T) {
+		// Create a request
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config", nil)
+		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+}

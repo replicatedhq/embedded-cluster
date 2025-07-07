@@ -5,6 +5,44 @@ components:
         status:
           type: string
       type: object
+    github_com_replicatedhq_kotskinds_apis_kots_v1beta1.Config:
+      properties:
+        apiVersion:
+          description: |-
+            APIVersion defines the versioned schema of this representation of an object.
+            Servers should convert recognized schemas to the latest internal value, and
+            may reject unrecognized values.
+            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            +optional
+          type: string
+        kind:
+          description: |-
+            Kind is a string value representing the REST resource this object represents.
+            Servers may infer this from the endpoint the client submits requests to.
+            Cannot be updated.
+            In CamelCase.
+            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            +optional
+          type: string
+        metadata:
+          $ref: '#/components/schemas/v1.ObjectMeta'
+        spec:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_apis_kots_v1beta1.ConfigSpec'
+        status:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_apis_kots_v1beta1.ConfigStatus'
+      type: object
+    github_com_replicatedhq_kotskinds_apis_kots_v1beta1.ConfigSpec:
+      properties:
+        groups:
+          items:
+            $ref: '#/components/schemas/v1beta1.ConfigGroup'
+          type: array
+          uniqueItems: false
+      type: object
+    github_com_replicatedhq_kotskinds_apis_kots_v1beta1.ConfigStatus:
+      type: object
+    github_com_replicatedhq_kotskinds_multitype.BoolOrString:
+      type: object
     types.APIError:
       properties:
         errors:
@@ -439,6 +477,104 @@ components:
             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids
           type: string
       type: object
+    v1beta1.ConfigChildItem:
+      properties:
+        default:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_multitype.BoolOrString'
+        name:
+          type: string
+        recommended:
+          type: boolean
+        title:
+          type: string
+        value:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_multitype.BoolOrString'
+      type: object
+    v1beta1.ConfigGroup:
+      properties:
+        description:
+          type: string
+        items:
+          items:
+            $ref: '#/components/schemas/v1beta1.ConfigItem'
+          type: array
+          uniqueItems: false
+        name:
+          type: string
+        title:
+          type: string
+        when:
+          type: string
+      type: object
+    v1beta1.ConfigItem:
+      properties:
+        affix:
+          type: string
+        countByGroup:
+          additionalProperties:
+            type: integer
+          type: object
+        data:
+          type: string
+        default:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_multitype.BoolOrString'
+        error:
+          type: string
+        filename:
+          type: string
+        help_text:
+          type: string
+        hidden:
+          type: boolean
+        items:
+          items:
+            $ref: '#/components/schemas/v1beta1.ConfigChildItem'
+          type: array
+          uniqueItems: false
+        minimumCount:
+          type: integer
+        multi_value:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        multiple:
+          type: boolean
+        name:
+          type: string
+        readonly:
+          type: boolean
+        recommended:
+          type: boolean
+        repeatable:
+          type: boolean
+        required:
+          type: boolean
+        templates:
+          items:
+            $ref: '#/components/schemas/v1beta1.RepeatTemplate'
+          type: array
+          uniqueItems: false
+        title:
+          type: string
+        type:
+          type: string
+        validation:
+          $ref: '#/components/schemas/v1beta1.ConfigItemValidation'
+        value:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_multitype.BoolOrString'
+        valuesByGroup:
+          $ref: '#/components/schemas/v1beta1.ValuesByGroup'
+        when:
+          type: string
+        write_once:
+          type: boolean
+      type: object
+    v1beta1.ConfigItemValidation:
+      properties:
+        regex:
+          $ref: '#/components/schemas/v1beta1.RegexValidator'
+      type: object
     v1beta1.ConfigValue:
       properties:
         data:
@@ -490,6 +626,34 @@ components:
           type: object
       type: object
     v1beta1.ConfigValuesStatus:
+      type: object
+    v1beta1.GroupValues:
+      additionalProperties:
+        type: string
+      type: object
+    v1beta1.RegexValidator:
+      properties:
+        message:
+          type: string
+        pattern:
+          type: string
+      type: object
+    v1beta1.RepeatTemplate:
+      properties:
+        apiVersion:
+          type: string
+        kind:
+          type: string
+        name:
+          type: string
+        namespace:
+          type: string
+        yamlPath:
+          type: string
+      type: object
+    v1beta1.ValuesByGroup:
+      additionalProperties:
+        $ref: '#/components/schemas/v1beta1.GroupValues'
       type: object
   securitySchemes:
     bearerauth:
@@ -568,6 +732,22 @@ paths:
       summary: Get the health of the API
       tags:
       - health
+  /kubernetes/install/app/config:
+    get:
+      description: get the app config
+      operationId: getKubernetesInstallAppConfig
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_apis_kots_v1beta1.Config'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the app config
+      tags:
+      - kubernetes-install
   /kubernetes/install/app/config/values:
     get:
       description: Get app config values converted from boolean config items for Kubernetes
@@ -689,6 +869,22 @@ paths:
       summary: Get installation configuration status for install
       tags:
       - kubernetes-install
+  /linux/install/app/config:
+    get:
+      description: get the app config
+      operationId: getLinuxInstallAppConfig
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_apis_kots_v1beta1.Config'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the app config
+      tags:
+      - linux-install
   /linux/install/app/config/values:
     get:
       description: Get app config values converted from boolean config items for Linux
