@@ -1,0 +1,111 @@
+---
+description: 
+globs: api/*.go
+alwaysApply: false
+---
+# Go Embedded Cluster API Implementation Guidelines
+
+For comprehensive architecture and package structure details, see [api/README.md](mdc:../api/README.md).
+
+## Essential Implementation Patterns
+
+### Error Handling
+
+#### Structured API Errors
+
+Use structured error types for APIs that need to return detailed error information:
+
+```go
+type APIError struct {
+    StatusCode int         `json:"status_code,omitempty"`
+    Message    string      `json:"message"`
+    Field      string      `json:"field,omitempty"`
+    Errors     []*APIError `json:"errors,omitempty"`
+    err        error       `json:"-"`
+}
+```
+
+#### Error Constructor Functions
+
+Create constructor functions for common API error types.
+
+#### API Error Handling Patterns
+
+- Always log errors with context: `a.logError(r, err, "descriptive message")`
+- Use structured errors: `types.NewBadRequestError(err)`, `types.NewInternalServerError(err)`
+- Wrap errors with context: `fmt.Errorf("operation failed: %w", err)`
+
+#### Specific API Error Types
+
+- **Use specific API error types**: Always use `NewBadRequestError`, `NewInternalServerError`, etc. instead of generic errors for proper HTTP status codes
+  ```go
+  return NewBadRequestError(errors.New("invalid input"))  // Good
+  return errors.New("invalid input")                      // Bad
+  ```
+
+- **Return consistent HTTP status codes**: Use appropriate APIError types for different error conditions
+  ```go
+  return NewBadRequestError(errors.New("invalid input"))        // 400
+  return NewForbiddenError(errors.New("access denied"))         // 403
+  return NewInternalServerError(errors.New("database failed"))  // 500
+  ```
+
+### HTTP Handler Patterns
+
+- Use dedicated Handler structs with HTTP method prefixed names: `func (h *Handler) PostConfigureInstallation(w http.ResponseWriter, r *http.Request) {}`
+- Include HTTP method in handler names: `Get*`, `Post*`, `Put*`, `Delete*`
+- Use helper methods for common operations: `utils.BindJSON`, `utils.JSON`, `utils.JSONError`
+- Always validate input and handle errors appropriately
+
+### Request/Response
+
+- Use `a.bindJSON(w, r, &struct)` for parsing JSON requests
+- Use `a.json(w, r, statusCode, payload)` for success responses
+- Use `a.jsonError(w, r, err)` for error responses
+
+### JSON Tags and Serialization
+
+- Use appropriate JSON tags: `json:"field_name,omitempty"`
+- Use `json:"-"` for fields that shouldn't be serialized
+- Handle both marshaling and unmarshaling in your types
+
+### Dependencies
+
+- Use functional options pattern for initialization
+- Define interfaces for all external dependencies
+- Inject dependencies via constructors
+
+### API Documentation
+
+Add Swagger annotations to all handlers for API documentation.
+
+#### Swagger/OpenAPI Requirements
+
+- Use Swagger annotations for HTTP handlers
+- Document request/response structures
+- Include error response documentation
+- Document authentication requirements
+
+## Implementation Quick Reference
+
+### Adding New Functionality
+
+- **New endpoint**: Add handler → create/update controller → define types
+- **New business logic**: Add to appropriate controller or create new manager
+- **New types**: Add to `api/types/` with proper JSON tags
+- **New utilities**: Add to `api/internal/`
+
+### File Naming Conventions
+
+- Handlers: `api/{domain}.go` (e.g., `install.go`, `auth.go`)
+- Controllers: `api/controllers/{domain}/controller.go`
+- Managers: `api/internal/managers/{domain}/manager.go`
+- Types: `api/types/{domain}.go`
+
+### Testing Requirements
+
+- Unit tests: `*_test.go` alongside source files
+- Integration tests: `api/integration/*_test.go`
+- Use table-driven tests with `testify/assert`
+- Mock all external dependencies
+
