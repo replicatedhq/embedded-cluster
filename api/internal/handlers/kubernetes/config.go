@@ -7,7 +7,7 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
-// GetConfigValues handler to get the config values for Kubernetes installation
+// GetAppConfigValues handler to get the config values for Kubernetes installation
 //
 //	@ID				getKubernetesConfigValues
 //	@Summary		Get Kubernetes config values
@@ -19,11 +19,11 @@ import (
 //	@Failure		401	{object}	types.APIError
 //	@Failure		500	{object}	types.APIError
 //	@Router			/kubernetes/install/app/config/values [get]
-func (h *Handler) GetConfigValues(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
 	// Import is used in Swagger annotation above
 	_ = kotsv1beta1.ConfigValues{}
 
-	configValues, err := h.installController.GetConfigValues(r.Context())
+	configValues, err := h.installController.GetAppConfigValues(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get config values")
 		utils.JSONError(w, r, err, h.logger)

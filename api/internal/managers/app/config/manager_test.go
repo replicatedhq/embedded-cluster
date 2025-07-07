@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestAppConfigManager_GetConfigValues(t *testing.T) {
+func TestAppConfigManager_GetAppConfigValues(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupMock      func(*configstore.MockStore)
@@ -196,7 +196,7 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 				WithLogger(logger.NewDiscardLogger()),
 			)
 
-			result, err := manager.GetConfigValues()
+			result, err := manager.GetAppConfigValues()
 
 			if tt.expectedError != "" {
 				require.Error(t, err)

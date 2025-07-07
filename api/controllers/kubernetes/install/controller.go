@@ -27,7 +27,7 @@ type Controller interface {
 	GetInstallationStatus(ctx context.Context) (types.Status, error)
 	SetupInfra(ctx context.Context) error
 	GetInfra(ctx context.Context) (types.Infra, error)
-	GetConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error)
+	GetAppConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error)
 	GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error)
 }
 

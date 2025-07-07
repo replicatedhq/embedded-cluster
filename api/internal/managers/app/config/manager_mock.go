@@ -28,3 +28,12 @@ func (m *MockAppConfigManager) Set(ctx context.Context) error {
 	args := m.Called(ctx)
 	return args.Error(0)
 }
+
+// GetAppConfigValues mocks the GetAppConfigValues method
+func (m *MockAppConfigManager) GetAppConfigValues() (kotsv1beta1.ConfigValues, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return kotsv1beta1.ConfigValues{}, args.Error(1)
+	}
+	return args.Get(0).(kotsv1beta1.ConfigValues), args.Error(1)
+}

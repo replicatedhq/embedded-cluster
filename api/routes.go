@@ -36,24 +36,22 @@ func (a *API) registerLinuxRoutes(router *mux.Router) {
 	linuxRouter := router.PathPrefix("/linux").Subrouter()
 
 	installRouter := linuxRouter.PathPrefix("/install").Subrouter()
+	installRouter.HandleFunc("/app/config/values", a.handlers.linux.GetAppConfigValues).Methods("GET")
+	installRouter.HandleFunc("/app/config", a.handlers.linux.GetAppConfig).Methods("GET")
 	installRouter.HandleFunc("/installation/config", a.handlers.linux.GetInstallationConfig).Methods("GET")
 	installRouter.HandleFunc("/installation/configure", a.handlers.linux.PostConfigureInstallation).Methods("POST")
 	installRouter.HandleFunc("/installation/status", a.handlers.linux.GetInstallationStatus).Methods("GET")
-
 	installRouter.HandleFunc("/host-preflights/run", a.handlers.linux.PostRunHostPreflights).Methods("POST")
 	installRouter.HandleFunc("/host-preflights/status", a.handlers.linux.GetHostPreflightsStatus).Methods("GET")
-
 	installRouter.HandleFunc("/infra/setup", a.handlers.linux.PostSetupInfra).Methods("POST")
 	installRouter.HandleFunc("/infra/status", a.handlers.linux.GetInfraStatus).Methods("GET")
-
-	installRouter.HandleFunc("/app/config/values", a.handlers.linux.GetConfigValues).Methods("GET")
-	installRouter.HandleFunc("/app/config", a.handlers.linux.GetAppConfig).Methods("GET")
 }
 
 func (a *API) registerKubernetesRoutes(router *mux.Router) {
 	kubernetesRouter := router.PathPrefix("/kubernetes").Subrouter()
 
 	installRouter := kubernetesRouter.PathPrefix("/install").Subrouter()
+	installRouter.HandleFunc("/app/config/values", a.handlers.kubernetes.GetAppConfigValues).Methods("GET")
 	installRouter.HandleFunc("/installation/config", a.handlers.kubernetes.GetInstallationConfig).Methods("GET")
 	installRouter.HandleFunc("/installation/configure", a.handlers.kubernetes.PostConfigureInstallation).Methods("POST")
 	installRouter.HandleFunc("/installation/status", a.handlers.kubernetes.GetInstallationStatus).Methods("GET")
@@ -61,7 +59,6 @@ func (a *API) registerKubernetesRoutes(router *mux.Router) {
 	installRouter.HandleFunc("/infra/setup", a.handlers.kubernetes.PostSetupInfra).Methods("POST")
 	installRouter.HandleFunc("/infra/status", a.handlers.kubernetes.GetInfraStatus).Methods("GET")
 
-	installRouter.HandleFunc("/app/config/values", a.handlers.kubernetes.GetConfigValues).Methods("GET")
 	installRouter.HandleFunc("/app/config", a.handlers.kubernetes.GetAppConfig).Methods("GET")
 }
 

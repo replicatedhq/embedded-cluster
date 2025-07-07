@@ -15,8 +15,8 @@ func (m *appConfigManager) Set(ctx context.Context) error {
 	return nil
 }
 
-// GetConfigValues converts boolean config items to ConfigValues
-func (m *appConfigManager) GetConfigValues() (kotsv1beta1.ConfigValues, error) {
+// GetAppConfigValues converts boolean config items to ConfigValues
+func (m *appConfigManager) GetAppConfigValues() (kotsv1beta1.ConfigValues, error) {
 	// 1. Get current Config from store
 	config, err := m.appConfigStore.Get()
 	if err != nil {
