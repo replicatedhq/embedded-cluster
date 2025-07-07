@@ -93,7 +93,7 @@ Add Swagger annotations to all handlers for API documentation.
 - **New endpoint**: Add handler → create/update controller → define types
 - **New business logic**: Add to appropriate controller or create new manager
 - **New types**: Add to `api/types/` with proper JSON tags
-- **New utilities**: Add to `api/pkg/` or `api/internal/`
+- **New utilities**: Add to `api/internal/`
 
 ### File Naming Conventions
 
