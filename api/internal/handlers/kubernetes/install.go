@@ -118,3 +118,24 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 
 	utils.JSON(w, r, http.StatusOK, infra, h.logger)
 }
+
+// GetAppConfig handler to get the app config
+//
+//	@ID				getKubernetesInstallAppConfig
+//	@Summary		Get the app config
+//	@Description	get the app config
+//	@Tags			kubernetes-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	kotsv1beta1.Config
+//	@Router			/kubernetes/install/app/config [get]
+func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
+	config, err := h.installController.GetAppConfig(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get app config")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	utils.JSON(w, r, http.StatusOK, config, h.logger)
+}
