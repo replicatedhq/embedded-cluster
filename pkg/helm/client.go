@@ -28,6 +28,9 @@ import (
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"helm.sh/helm/v3/pkg/uploader"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
@@ -510,7 +513,11 @@ func (h *HelmClient) getActionCfg(namespace string) (*action.Configuration, erro
 	} else {
 		logFn = _logFn
 	}
-	if err := cfg.Init(h.restClientGetter, namespace, "secret", logFn); err != nil {
+	restClientGetter := &namespacedRESTClientGetter{
+		RESTClientGetter: h.restClientGetter,
+		namespace:        namespace,
+	}
+	if err := cfg.Init(restClientGetter, namespace, "secret", logFn); err != nil {
 		return nil, fmt.Errorf("init helm configuration: %w", err)
 	}
 	return cfg, nil
@@ -565,4 +572,41 @@ func isOCIChart(chartPath string) bool {
 func _logFn(format string, args ...interface{}) {
 	log := logrus.WithField("component", "helm")
 	log.Debugf(format, args...)
+}
+
+type namespacedRESTClientGetter struct {
+	genericclioptions.RESTClientGetter
+	namespace string
+}
+
+func (n *namespacedRESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig {
+	cfg := n.RESTClientGetter.ToRawKubeConfigLoader()
+	return &namespacedClientConfig{
+		cfg:       cfg,
+		namespace: n.namespace,
+	}
+}
+
+type namespacedClientConfig struct {
+	cfg       clientcmd.ClientConfig
+	namespace string
+}
+
+func (n *namespacedClientConfig) RawConfig() (clientcmdapi.Config, error) {
+	return n.cfg.RawConfig()
+}
+
+func (n *namespacedClientConfig) ClientConfig() (*restclient.Config, error) {
+	return n.cfg.ClientConfig()
+}
+
+func (n *namespacedClientConfig) Namespace() (string, bool, error) {
+	if n.namespace == "" {
+		return n.cfg.Namespace()
+	}
+	return n.namespace, true, nil
+}
+
+func (n *namespacedClientConfig) ConfigAccess() clientcmd.ConfigAccess {
+	return n.cfg.ConfigAccess()
 }
