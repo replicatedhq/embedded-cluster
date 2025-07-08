@@ -3,10 +3,10 @@ package preflights
 import (
 	"context"
 	"fmt"
-	"runtime"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
@@ -52,7 +52,7 @@ func (p *PreflightsRunner) Prepare(ctx context.Context, opts PrepareOptions) (*v
 		DataDir:                 opts.DataDir,
 		K0sDataDir:              opts.K0sDataDir,
 		OpenEBSDataDir:          opts.OpenEBSDataDir,
-		SystemArchitecture:      runtime.GOARCH,
+		SystemArchitecture:      helpers.ClusterArch(),
 		FromCIDR:                opts.PodCIDR,
 		ToCIDR:                  opts.ServiceCIDR,
 		TCPConnectionsRequired:  opts.TCPConnectionsRequired,

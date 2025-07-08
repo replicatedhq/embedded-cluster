@@ -19,42 +19,27 @@ import (
 var (
 	//go:embed static/values.tpl.yaml
 	rawvalues []byte
-	// helmValues is the unmarshal version of rawvalues.
-	helmValues map[string]interface{}
 	//go:embed static/values-ha.tpl.yaml
 	rawvaluesha []byte
-	// helmValuesHA is the unmarshal version of rawvaluesha.
-	helmValuesHA map[string]interface{}
 )
 
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal metadata"))
-	}
-
-	hv, err := release.RenderHelmValues(rawvalues, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal values"))
-	}
-	helmValues = hv
-
-	hvHA, err := release.RenderHelmValues(rawvaluesha, Metadata)
-	if err != nil {
-		panic(errors.Wrap(err, "unable to unmarshal ha values"))
-	}
-	helmValuesHA = hvHA
-}
-
 func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error) {
-	var values map[string]interface{}
+	var hv map[string]interface{}
 	if r.IsHA {
-		values = helmValuesHA
+		v, err := helmValuesHA()
+		if err != nil {
+			return nil, errors.Wrap(err, "get helm values ha")
+		}
+		hv = v
 	} else {
-		values = helmValues
+		v, err := helmValues()
+		if err != nil {
+			return nil, errors.Wrap(err, "get helm values")
+		}
+		hv = v
 	}
 
-	// create a copy of the helm values so we don't modify the original
-	marshalled, err := helm.MarshalValues(values)
+	marshalled, err := helm.MarshalValues(hv)
 	if err != nil {
 		return nil, errors.Wrap(err, "marshal helm values")
 	}
@@ -105,4 +90,26 @@ func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, d
 	}
 
 	return copiedValues, nil
+}
+
+func helmValues() (map[string]interface{}, error) {
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		return nil, errors.Wrap(err, "unmarshal metadata")
+	}
+
+	hv, err := release.RenderHelmValues(rawvalues, Metadata)
+	if err != nil {
+		return nil, errors.Wrap(err, "render helm values")
+	}
+
+	return hv, nil
+}
+
+func helmValuesHA() (map[string]interface{}, error) {
+	hvHA, err := release.RenderHelmValues(rawvaluesha, Metadata)
+	if err != nil {
+		return nil, errors.Wrap(err, "render helm values")
+	}
+
+	return hvHA, nil
 }

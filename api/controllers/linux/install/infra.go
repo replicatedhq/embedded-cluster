@@ -77,6 +77,6 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 	return nil
 }
 
-func (c *InstallController) GetInfra(ctx context.Context) (types.LinuxInfra, error) {
+func (c *InstallController) GetInfra(ctx context.Context) (types.Infra, error) {
 	return c.infraManager.Get()
 }

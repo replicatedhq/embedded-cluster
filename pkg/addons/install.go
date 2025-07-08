@@ -73,6 +73,25 @@ func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
 	return nil
 }
 
+func (a *AddOns) InstallKubernetes(ctx context.Context, opts KubernetesInstallOptions) error {
+	addons := GetAddOnsForKubernetesInstall(opts)
+
+	for _, addon := range addons {
+		a.sendProgress(addon.Name(), apitypes.StateRunning, "Installing")
+
+		overrides := a.addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
+
+		if err := addon.Install(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, overrides); err != nil {
+			a.sendProgress(addon.Name(), apitypes.StateFailed, err.Error())
+			return errors.Wrapf(err, "install %s", addon.Name())
+		}
+
+		a.sendProgress(addon.Name(), apitypes.StateSucceeded, "Installed")
+	}
+
+	return nil
+}
+
 type RestoreOptions struct {
 	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
 	EndUserConfigSpec  *ecv1beta1.ConfigSpec

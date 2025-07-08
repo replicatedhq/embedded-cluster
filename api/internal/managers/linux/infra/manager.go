@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/replicatedhq/embedded-cluster/api/internal/store/linux/infra"
+	infrastore "github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -22,13 +22,13 @@ var _ InfraManager = &infraManager{}
 
 // InfraManager provides methods for managing infrastructure setup
 type InfraManager interface {
-	Get() (types.LinuxInfra, error)
+	Get() (types.Infra, error)
 	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
 }
 
 // infraManager is an implementation of the InfraManager interface
 type infraManager struct {
-	infraStore    infra.Store
+	infraStore    infrastore.Store
 	password      string
 	tlsConfig     types.TLSConfig
 	license       []byte
@@ -55,7 +55,7 @@ func WithLogger(logger logrus.FieldLogger) InfraManagerOption {
 	}
 }
 
-func WithInfraStore(store infra.Store) InfraManagerOption {
+func WithInfraStore(store infrastore.Store) InfraManagerOption {
 	return func(c *infraManager) {
 		c.infraStore = store
 	}
@@ -158,7 +158,7 @@ func NewInfraManager(opts ...InfraManagerOption) *infraManager {
 	}
 
 	if manager.infraStore == nil {
-		manager.infraStore = infra.NewMemoryStore()
+		manager.infraStore = infrastore.NewMemoryStore()
 	}
 
 	if manager.k0scli == nil {
@@ -172,6 +172,6 @@ func NewInfraManager(opts ...InfraManagerOption) *infraManager {
 	return manager
 }
 
-func (m *infraManager) Get() (types.LinuxInfra, error) {
+func (m *infraManager) Get() (types.Infra, error) {
 	return m.infraStore.Get()
 }

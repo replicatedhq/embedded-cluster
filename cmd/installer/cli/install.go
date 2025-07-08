@@ -50,8 +50,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	helmcli "helm.sh/helm/v3/pkg/cli"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/metadata"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -94,7 +95,7 @@ type installConfig struct {
 	tlsCertBytes []byte
 	tlsKeyBytes  []byte
 
-	kubernetesRestConfig *rest.Config
+	kubernetesRESTClientGetter genericclioptions.RESTClientGetter
 }
 
 // webAssetsFS is the filesystem to be used by the web component. Defaults to nil allowing the web server to use the default assets embedded in the binary. Useful for testing.
@@ -512,6 +513,9 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 }
 
 func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kubernetesinstallation.Installation) error {
+	// TODO: we only support amd64 clusters for target=kubernetes installs
+	helpers.SetClusterArch("amd64")
+
 	// If set, validate that the kubeconfig file exists and can be read
 	if flags.kubernetesEnvSettings.KubeConfig != "" {
 		if _, err := os.Stat(flags.kubernetesEnvSettings.KubeConfig); os.IsNotExist(err) {
@@ -526,13 +530,17 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kuberne
 		return fmt.Errorf("failed to discover kubeconfig: %w", err)
 	}
 
-	// If this is the default host, there was probably no kubeconfig discovered.
-	// HACK: This is fragile but it is the best thing I could come up with
-	if flags.kubernetesEnvSettings.KubeConfig == "" && restConfig.Host == "http://localhost:8080" {
-		return fmt.Errorf("a kubeconfig is required when using kubernetes")
+	// Check that we have a valid kubeconfig
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create discovery client: %w", err)
+	}
+	_, err = discoveryClient.ServerVersion()
+	if err != nil {
+		return fmt.Errorf("failed to connect to kubernetes api server: %w", err)
 	}
 
-	flags.installConfig.kubernetesRestConfig = restConfig
+	flags.installConfig.kubernetesRESTClientGetter = flags.kubernetesEnvSettings.RESTClientGetter()
 
 	return nil
 }
@@ -643,8 +651,8 @@ func runManagerExperienceInstall(
 				AllowIgnoreHostPreflights: flags.ignoreHostPreflights,
 			},
 			KubernetesConfig: apitypes.KubernetesConfig{
-				RESTConfig:   flags.installConfig.kubernetesRestConfig,
-				Installation: ki,
+				RESTClientGetter: flags.installConfig.kubernetesRESTClientGetter,
+				Installation:     ki,
 			},
 		},
 

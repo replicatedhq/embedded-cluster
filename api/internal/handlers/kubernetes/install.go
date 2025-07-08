@@ -5,6 +5,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	_ "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 // GetInstallationConfig handler to get the Kubernetes installation config
@@ -74,4 +75,68 @@ func (h *Handler) GetInstallationStatus(w http.ResponseWriter, r *http.Request) 
 	}
 
 	utils.JSON(w, r, http.StatusOK, status, h.logger)
+}
+
+// PostSetupInfra handler to setup infra components
+//
+//	@ID				postKubernetesInstallSetupInfra
+//	@Summary		Setup infra components
+//	@Description	Setup infra components
+//	@Tags			kubernetes-install
+//	@Security		bearerauth
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	types.Infra
+//	@Router			/kubernetes/install/infra/setup [post]
+func (h *Handler) PostSetupInfra(w http.ResponseWriter, r *http.Request) {
+	err := h.installController.SetupInfra(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to setup infra")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetInfraStatus(w, r)
+}
+
+// GetInfraStatus handler to get the status of the infra
+//
+//	@ID				getKubernetesInstallInfraStatus
+//	@Summary		Get the status of the infra
+//	@Description	Get the current status of the infra
+//	@Tags			kubernetes-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.Infra
+//	@Router			/kubernetes/install/infra/status [get]
+func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
+	infra, err := h.installController.GetInfra(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get install infra status")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	utils.JSON(w, r, http.StatusOK, infra, h.logger)
+}
+
+// GetAppConfig handler to get the app config
+//
+//	@ID				getKubernetesInstallAppConfig
+//	@Summary		Get the app config
+//	@Description	get the app config
+//	@Tags			kubernetes-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	v1beta1.Config
+//	@Router			/kubernetes/install/app/config [get]
+func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
+	config, err := h.installController.GetAppConfig(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get app config")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	utils.JSON(w, r, http.StatusOK, config, h.logger)
 }

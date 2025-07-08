@@ -6,6 +6,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	_ "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 // GetInstallationConfig handler to get the installation config
@@ -159,7 +160,7 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		types.LinuxInfraSetupRequest	true	"Infra Setup Request"
-//	@Success		200		{object}	types.LinuxInfra
+//	@Success		200		{object}	types.Infra
 //	@Router			/linux/install/infra/setup [post]
 func (h *Handler) PostSetupInfra(w http.ResponseWriter, r *http.Request) {
 	var req types.LinuxInfraSetupRequest
@@ -185,7 +186,7 @@ func (h *Handler) PostSetupInfra(w http.ResponseWriter, r *http.Request) {
 //	@Tags			linux-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.LinuxInfra
+//	@Success		200	{object}	types.Infra
 //	@Router			/linux/install/infra/status [get]
 func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	infra, err := h.installController.GetInfra(r.Context())
@@ -196,4 +197,25 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSON(w, r, http.StatusOK, infra, h.logger)
+}
+
+// GetAppConfig handler to get the app config
+//
+//	@ID				getLinuxInstallAppConfig
+//	@Summary		Get the app config
+//	@Description	get the app config
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	v1beta1.Config
+//	@Router			/linux/install/app/config [get]
+func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
+	config, err := h.installController.GetAppConfig(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get app config")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	utils.JSON(w, r, http.StatusOK, config, h.logger)
 }
