@@ -575,58 +575,6 @@ components:
         regex:
           $ref: '#/components/schemas/v1beta1.RegexValidator'
       type: object
-    v1beta1.ConfigValue:
-      properties:
-        data:
-          type: string
-        dataPlaintext:
-          type: string
-        default:
-          type: string
-        filename:
-          type: string
-        repeatableItem:
-          type: string
-        value:
-          type: string
-        valuePlaintext:
-          type: string
-      type: object
-    v1beta1.ConfigValues:
-      properties:
-        apiVersion:
-          description: |-
-            APIVersion defines the versioned schema of this representation of an object.
-            Servers should convert recognized schemas to the latest internal value, and
-            may reject unrecognized values.
-            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-            +optional
-          type: string
-        kind:
-          description: |-
-            Kind is a string value representing the REST resource this object represents.
-            Servers may infer this from the endpoint the client submits requests to.
-            Cannot be updated.
-            In CamelCase.
-            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-            +optional
-          type: string
-        metadata:
-          $ref: '#/components/schemas/v1.ObjectMeta'
-        spec:
-          $ref: '#/components/schemas/v1beta1.ConfigValuesSpec'
-        status:
-          $ref: '#/components/schemas/v1beta1.ConfigValuesStatus'
-      type: object
-    v1beta1.ConfigValuesSpec:
-      properties:
-        values:
-          additionalProperties:
-            $ref: '#/components/schemas/v1beta1.ConfigValue'
-          type: object
-      type: object
-    v1beta1.ConfigValuesStatus:
-      type: object
     v1beta1.GroupValues:
       additionalProperties:
         type: string
@@ -748,33 +696,27 @@ paths:
       summary: Get the app config
       tags:
       - kubernetes-install
-  /kubernetes/install/app/config/values:
-    get:
-      description: Get app config values converted from boolean config items for Kubernetes
-        installation
-      operationId: getKubernetesConfigValues
+  /kubernetes/install/app/configure:
+    post:
+      description: set the app config
+      operationId: postKubernetesInstallSetAppConfig
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_apis_kots_v1beta1.Config'
+        description: App config
+        required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/v1beta1.ConfigValues'
+                $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_apis_kots_v1beta1.Config'
           description: OK
-        "401":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.APIError'
-          description: Unauthorized
-        "500":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.APIError'
-          description: Internal Server Error
       security:
       - bearerauth: []
-      summary: Get Kubernetes config values
+      summary: Set the app config
       tags:
       - kubernetes-install
   /kubernetes/install/infra/setup:
@@ -885,33 +827,27 @@ paths:
       summary: Get the app config
       tags:
       - linux-install
-  /linux/install/app/config/values:
-    get:
-      description: Get app config values converted from boolean config items for Linux
-        installation
-      operationId: getLinuxConfigValues
+  /linux/install/app/configure:
+    post:
+      description: set the app config
+      operationId: postLinuxInstallSetAppConfig
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_apis_kots_v1beta1.Config'
+        description: App config
+        required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/v1beta1.ConfigValues'
+                $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_apis_kots_v1beta1.Config'
           description: OK
-        "401":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.APIError'
-          description: Unauthorized
-        "500":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.APIError'
-          description: Internal Server Error
       security:
       - bearerauth: []
-      summary: Get Linux config values
+      summary: Set the app config
       tags:
       - linux-install
   /linux/install/host-preflights/run:
