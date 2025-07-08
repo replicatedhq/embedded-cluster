@@ -179,7 +179,7 @@ func TestConfigureInstallation(t *testing.T) {
 				LocalArtifactMirrorPort: 9000,
 				DataDirectory:           t.TempDir(),
 			},
-			currentState:  StateNew,
+			currentState:  StateApplicationConfigured,
 			expectedState: StateHostConfigured,
 
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
@@ -194,7 +194,7 @@ func TestConfigureInstallation(t *testing.T) {
 		{
 			name:          "validatation error",
 			config:        types.LinuxInstallationConfig{},
-			currentState:  StateNew,
+			currentState:  StateApplicationConfigured,
 			expectedState: StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
@@ -248,7 +248,7 @@ func TestConfigureInstallation(t *testing.T) {
 		{
 			name:          "set config error",
 			config:        types.LinuxInstallationConfig{},
-			currentState:  StateNew,
+			currentState:  StateApplicationConfigured,
 			expectedState: StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
@@ -308,7 +308,7 @@ func TestConfigureInstallation(t *testing.T) {
 				LocalArtifactMirrorPort: 9000,
 				DataDirectory:           t.TempDir(),
 			},
-			currentState:  StateNew,
+			currentState:  StateApplicationConfigured,
 			expectedState: StateHostConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
@@ -365,7 +365,7 @@ func TestConfigureInstallation(t *testing.T) {
 				GlobalCIDR:    "10.0.0.0/16",
 				DataDirectory: t.TempDir(),
 			},
-			currentState:  StateNew,
+			currentState:  StateApplicationConfigured,
 			expectedState: StateHostConfigured,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				// Create a copy with expected CIDR values after computation

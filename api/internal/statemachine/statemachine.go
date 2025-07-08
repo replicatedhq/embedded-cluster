@@ -86,7 +86,7 @@ func (sm *stateMachine) IsLockAcquired() bool {
 	return sm.lock != nil
 }
 
-func (sm *stateMachine) ValidateTransition(lock Lock, nextState State) error {
+func (sm *stateMachine) ValidateTransition(lock Lock, nextStates ...State) error {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
@@ -96,14 +96,18 @@ func (sm *stateMachine) ValidateTransition(lock Lock, nextState State) error {
 		return fmt.Errorf("lock mismatch")
 	}
 
-	if !sm.isValidTransition(sm.currentState, nextState) {
-		return fmt.Errorf("invalid transition from %s to %s", sm.currentState, nextState)
+	currentState := sm.currentState
+	for _, nextState := range nextStates {
+		if !sm.isValidTransition(currentState, nextState) {
+			return fmt.Errorf("invalid transition from %s to %s", currentState, nextState)
+		}
+		currentState = nextState
 	}
 
 	return nil
 }
 
-func (sm *stateMachine) Transition(lock Lock, nextState State) (finalError error) {
+func (sm *stateMachine) Transition(lock Lock, nextStates ...State) (finalError error) {
 	sm.mu.Lock()
 	defer func() {
 		if finalError != nil {
@@ -111,36 +115,54 @@ func (sm *stateMachine) Transition(lock Lock, nextState State) (finalError error
 		}
 	}()
 
+	if len(nextStates) == 0 {
+		return fmt.Errorf("no states to transition to")
+	}
+
 	if sm.lock == nil {
 		return fmt.Errorf("lock not acquired")
 	} else if sm.lock != lock {
 		return fmt.Errorf("lock mismatch")
 	}
 
-	if !sm.isValidTransition(sm.currentState, nextState) {
-		return fmt.Errorf("invalid transition from %s to %s", sm.currentState, nextState)
+	currentState := sm.currentState
+	for _, nextState := range nextStates {
+		if !sm.isValidTransition(currentState, nextState) {
+			return fmt.Errorf("invalid transition from %s to %s", currentState, nextState)
+		}
+		currentState = nextState
+	}
+
+	safeHandlers := make(map[State][]EventHandler)
+	for _, nextState := range nextStates {
+		// Trigger event handlers after successful transition
+		handlers, exists := sm.eventHandlers[nextState]
+		if !exists || len(handlers) == 0 {
+			continue
+		}
+
+		sh := make([]EventHandler, len(handlers))
+		copy(sh, handlers) // Copy to avoid holding the lock while calling handlers
+		safeHandlers[nextState] = sh
 	}
 
 	fromState := sm.currentState
-	sm.currentState = nextState
-
-	// Trigger event handlers after successful transition
-	handlers, exists := sm.eventHandlers[nextState]
-	safeHandlers := make([]EventHandler, len(handlers))
-	copy(safeHandlers, handlers) // Copy to avoid holding the lock while calling handlers
+	sm.currentState = nextStates[len(nextStates)-1]
 
 	// We can release the lock here since the transition is successful and there will be no further operations to the state machine internal state
 	sm.mu.Unlock()
 
-	if !exists || len(safeHandlers) == 0 {
-		return nil
-	}
-
-	for _, handler := range safeHandlers {
-		err := handler.TriggerHandler(context.Background(), fromState, nextState)
-		if err != nil {
-			sm.logger.WithFields(logrus.Fields{"fromState": fromState, "toState": nextState}).Errorf("event handler error: %v", err)
+	for nextState, handlers := range safeHandlers {
+		for _, handler := range handlers {
+			err := handler.TriggerHandler(context.Background(), fromState, nextState)
+			if err != nil {
+				sm.logger.
+					WithError(err).
+					WithFields(logrus.Fields{"fromState": fromState, "toState": nextState}).
+					Error("event handler error")
+			}
 		}
+		fromState = nextState
 	}
 
 	return nil

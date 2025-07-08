@@ -45,6 +45,12 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 		}
 		defer lock.Release()
 
+		err = c.stateMachine.Transition(lock, StateHostConfiguring)
+		if err != nil {
+			c.logger.Error("failed to transition states", "error", err)
+			return
+		}
+
 		err = c.installationManager.ConfigureHost(ctx, c.rc)
 
 		if err != nil {
@@ -64,15 +70,20 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 	return nil
 }
 
-func (c *InstallController) configureInstallation(ctx context.Context, config types.LinuxInstallationConfig) (finalErr error) {
+func (c *InstallController) configureInstallation(_ context.Context, config types.LinuxInstallationConfig) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
 	}
 	defer lock.Release()
 
-	if err := c.stateMachine.ValidateTransition(lock, StateInstallationConfigured); err != nil {
+	if err := c.stateMachine.ValidateTransition(lock, StateInstallationConfiguring, StateInstallationConfigured); err != nil {
 		return types.NewConflictError(err)
+	}
+
+	err = c.stateMachine.Transition(lock, StateInstallationConfiguring)
+	if err != nil {
+		return fmt.Errorf("failed to transition states: %w", err)
 	}
 
 	defer func() {
