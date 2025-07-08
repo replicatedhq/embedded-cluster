@@ -17,7 +17,7 @@ interface KubernetesConfigContextType {
 
 const defaultKubernetesConfig: KubernetesConfig = {
   useProxy: false,
-  installCommand: 'todo: install command here'
+  installCommand: 'kubectl -n kotsadm port-forward svc/kotsadm 8800:3000'
 };
 
 export const KubernetesConfigContext = createContext<KubernetesConfigContextType | undefined>(undefined);
