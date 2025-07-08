@@ -2569,3 +2569,325 @@ func TestLinuxGetAppConfig(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
 	})
 }
+
+func TestLinuxSetAppConfig(t *testing.T) {
+	// Create an app config to set
+	testConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "test-group",
+					Title: "Test Group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "test-item",
+							Type:    "text",
+							Title:   "Test Item",
+							Default: multitype.BoolOrString{StrVal: "default"},
+							Value:   multitype.BoolOrString{StrVal: "updated-value"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create an install controller with initial app config
+	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithReleaseData(&release.ReleaseData{
+			AppConfig: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "test-group",
+							Title: "Test Group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "test-item",
+									Type:    "text",
+									Title:   "Test Item",
+									Default: multitype.BoolOrString{StrVal: "default"},
+									Value:   multitype.BoolOrString{StrVal: "original-value"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}),
+	)
+	require.NoError(t, err)
+
+	// Create the API with the install controller
+	apiInstance, err := api.New(
+		types.APIConfig{
+			Password: "password",
+		},
+		api.WithLinuxInstallController(installController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithLogger(logger.NewDiscardLogger()),
+	)
+	require.NoError(t, err)
+
+	// Create a router and register the API routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router)
+
+	// Test successful set
+	t.Run("Success", func(t *testing.T) {
+		// Serialize the config to JSON
+		configJSON, err := json.Marshal(testConfig)
+		require.NoError(t, err)
+
+		// Create a POST request to set the config
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/configure", bytes.NewReader(configJSON))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body to verify the stored config
+		var storedConfig kotsv1beta1.Config
+		err = json.NewDecoder(rec.Body).Decode(&storedConfig)
+		require.NoError(t, err)
+
+		// Verify the config was stored correctly
+		assert.Equal(t, testConfig, storedConfig, "stored config does not match")
+
+		// Now test the Set → Get flow by making a GET request
+		getReq := httptest.NewRequest(http.MethodGet, "/linux/install/app/config", nil)
+		getReq.Header.Set("Authorization", "Bearer TOKEN")
+		getRec := httptest.NewRecorder()
+
+		// Serve the GET request
+		router.ServeHTTP(getRec, getReq)
+
+		// Check the GET response
+		assert.Equal(t, http.StatusOK, getRec.Code)
+		assert.Equal(t, "application/json", getRec.Header().Get("Content-Type"))
+
+		// Parse the GET response body
+		var retrievedConfig kotsv1beta1.Config
+		err = json.NewDecoder(getRec.Body).Decode(&retrievedConfig)
+		require.NoError(t, err)
+
+		// Verify the retrieved config matches what we set
+		assert.Equal(t, testConfig, retrievedConfig, "retrieved config does not match set config")
+	})
+
+	// Test authorization error
+	t.Run("Authorization error", func(t *testing.T) {
+		// Serialize the config to JSON
+		configJSON, err := json.Marshal(testConfig)
+		require.NoError(t, err)
+
+		// Create a POST request with invalid token
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/configure", bytes.NewReader(configJSON))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+
+	// Test malformed JSON
+	t.Run("Malformed JSON", func(t *testing.T) {
+		// Create a POST request with malformed JSON
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/configure", bytes.NewReader([]byte("invalid json")))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var apiError types.APIError
+		err := json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+		assert.Contains(t, apiError.Message, "invalid character")
+	})
+}
+
+func TestKubernetesSetAppConfig(t *testing.T) {
+	// Create an app config to set
+	testConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "test-group",
+					Title: "Test Group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "test-item",
+							Type:    "text",
+							Title:   "Test Item",
+							Default: multitype.BoolOrString{StrVal: "default"},
+							Value:   multitype.BoolOrString{StrVal: "updated-value"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create an install controller with initial app config
+	installController, err := kubernetesinstall.NewInstallController(
+		kubernetesinstall.WithReleaseData(&release.ReleaseData{
+			AppConfig: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "test-group",
+							Title: "Test Group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "test-item",
+									Type:    "text",
+									Title:   "Test Item",
+									Default: multitype.BoolOrString{StrVal: "default"},
+									Value:   multitype.BoolOrString{StrVal: "original-value"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}),
+	)
+	require.NoError(t, err)
+
+	// Create the API with the install controller
+	apiInstance, err := api.New(
+		types.APIConfig{
+			Password: "password",
+		},
+		api.WithKubernetesInstallController(installController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithLogger(logger.NewDiscardLogger()),
+	)
+	require.NoError(t, err)
+
+	// Create a router and register the API routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router)
+
+	// Test successful set
+	t.Run("Success", func(t *testing.T) {
+		// Serialize the config to JSON
+		configJSON, err := json.Marshal(testConfig)
+		require.NoError(t, err)
+
+		// Create a POST request to set the config
+		req := httptest.NewRequest(http.MethodPost, "/kubernetes/install/app/configure", bytes.NewReader(configJSON))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body to verify the stored config
+		var storedConfig kotsv1beta1.Config
+		err = json.NewDecoder(rec.Body).Decode(&storedConfig)
+		require.NoError(t, err)
+
+		// Verify the config was stored correctly
+		assert.Equal(t, testConfig, storedConfig, "stored config does not match")
+
+		// Now test the Set → Get flow by making a GET request
+		getReq := httptest.NewRequest(http.MethodGet, "/kubernetes/install/app/config", nil)
+		getReq.Header.Set("Authorization", "Bearer TOKEN")
+		getRec := httptest.NewRecorder()
+
+		// Serve the GET request
+		router.ServeHTTP(getRec, getReq)
+
+		// Check the GET response
+		assert.Equal(t, http.StatusOK, getRec.Code)
+		assert.Equal(t, "application/json", getRec.Header().Get("Content-Type"))
+
+		// Parse the GET response body
+		var retrievedConfig kotsv1beta1.Config
+		err = json.NewDecoder(getRec.Body).Decode(&retrievedConfig)
+		require.NoError(t, err)
+
+		// Verify the retrieved config matches what we set
+		assert.Equal(t, testConfig, retrievedConfig, "retrieved config does not match set config")
+	})
+
+	// Test authorization error
+	t.Run("Authorization error", func(t *testing.T) {
+		// Serialize the config to JSON
+		configJSON, err := json.Marshal(testConfig)
+		require.NoError(t, err)
+
+		// Create a POST request with invalid token
+		req := httptest.NewRequest(http.MethodPost, "/kubernetes/install/app/configure", bytes.NewReader(configJSON))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer NOT_A_TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+
+	// Test malformed JSON
+	t.Run("Malformed JSON", func(t *testing.T) {
+		// Create a POST request with malformed JSON
+		req := httptest.NewRequest(http.MethodPost, "/kubernetes/install/app/configure", bytes.NewReader([]byte("invalid json")))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var apiError types.APIError
+		err := json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+		assert.Contains(t, apiError.Message, "invalid character")
+	})
+}

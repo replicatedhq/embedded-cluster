@@ -443,3 +443,31 @@ test-embed: static embedded-cluster
 
 	chmod +x ./build/$(app)
 	@echo "Test embed completed successfully."
+
+curl -k -X POST https://localhost:30080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"password": "dankmemes"}'
+
+  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiYWRtaW4ifQ.jbP03p4P5gLdAvr6WSrTTuIp4t0ViOLOYEfdxrh7g7k
+
+  # Replace "your-jwt-token-here" with the token from step 1
+curl -k -X POST https://localhost:30080/api/linux/install/app/configure \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiYWRtaW4ifQ.jbP03p4P5gLdAvr6WSrTTuIp4t0ViOLOYEfdxrh7g7k" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "spec": {
+      "groups": [
+        {
+          "name": "example_settings",
+          "items": [
+            {
+              "name": "enable_feature",
+              "type": "bool",
+              "default": "0",
+              "value": "1"
+            }
+          ]
+        }
+      ]
+    }
+  }'

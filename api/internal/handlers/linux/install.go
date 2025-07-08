@@ -6,7 +6,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	_ "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 // GetInstallationConfig handler to get the installation config
@@ -207,7 +207,7 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 //	@Tags			linux-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	v1beta1.Config
+//	@Success		200	{object}	kotsv1beta1.Config
 //	@Router			/linux/install/app/config [get]
 func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
 	config, err := h.installController.GetAppConfig(r.Context())
@@ -218,4 +218,39 @@ func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSON(w, r, http.StatusOK, config, h.logger)
+}
+
+// PostSetAppConfig handler to set the app config
+//
+//	@ID				postLinuxInstallSetAppConfig
+//	@Summary		Set the app config
+//	@Description	set the app config
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Accept			json
+//	@Produce		json
+//	@Param			appConfig	body		kotsv1beta1.Config	true	"App config"
+//	@Success		200			{object}	kotsv1beta1.Config
+//	@Router			/linux/install/app/configure [post]
+func (h *Handler) PostSetAppConfig(w http.ResponseWriter, r *http.Request) {
+	var config kotsv1beta1.Config
+	if err := utils.BindJSON(w, r, &config, h.logger); err != nil {
+		return
+	}
+
+	if err := h.installController.SetAppConfig(r.Context(), config); err != nil {
+		utils.LogError(r, err, h.logger, "failed to set app config")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	// Return the set config to confirm it was stored
+	storedConfig, err := h.installController.GetAppConfig(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get app config after setting")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	utils.JSON(w, r, http.StatusOK, storedConfig, h.logger)
 }

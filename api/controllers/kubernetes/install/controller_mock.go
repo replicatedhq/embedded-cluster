@@ -62,3 +62,9 @@ func (m *MockController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, 
 	}
 	return args.Get(0).(kotsv1beta1.Config), args.Error(1)
 }
+
+// SetAppConfig mocks the SetAppConfig method
+func (m *MockController) SetAppConfig(ctx context.Context, config kotsv1beta1.Config) error {
+	args := m.Called(ctx, config)
+	return args.Error(0)
+}

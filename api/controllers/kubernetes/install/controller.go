@@ -28,6 +28,7 @@ type Controller interface {
 	SetupInfra(ctx context.Context) error
 	GetInfra(ctx context.Context) (types.Infra, error)
 	GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error)
+	SetAppConfig(ctx context.Context, config kotsv1beta1.Config) error
 }
 
 var _ Controller = (*InstallController)(nil)

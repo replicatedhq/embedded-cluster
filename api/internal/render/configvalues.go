@@ -5,7 +5,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// GenerateConfigValues converts a Config to ConfigValues, processing only boolean fields
+// GenerateConfigValues converts a Config to ConfigValues, processing supported field types
 func GenerateConfigValues(config kotsv1beta1.Config) kotsv1beta1.ConfigValues {
 	configValues := kotsv1beta1.ConfigValues{
 		TypeMeta: metav1.TypeMeta{
@@ -20,27 +20,38 @@ func GenerateConfigValues(config kotsv1beta1.Config) kotsv1beta1.ConfigValues {
 		},
 	}
 
-	// Process only boolean config items
+	// Process all config items by type
 	for _, group := range config.Spec.Groups {
 		for _, item := range group.Items {
-			if item.Type == "bool" {
-				// Get the value and default from the config item
-				itemValue := item.Value.String()
-				defaultValue := item.Default.String()
-
-				// Use value if set, otherwise use default as value
-				finalValue := defaultValue
-				if itemValue != "" {
-					finalValue = itemValue
-				}
-
-				configValues.Spec.Values[item.Name] = kotsv1beta1.ConfigValue{
-					Value:   finalValue,
-					Default: defaultValue,
-				}
+			if configValue, processed := processBooleanConfigItem(item); processed {
+				configValues.Spec.Values[item.Name] = configValue
 			}
 		}
 	}
 
 	return configValues
+}
+
+// processBooleanConfigItem processes boolean config items and returns the ConfigValue and whether it was processed
+func processBooleanConfigItem(item kotsv1beta1.ConfigItem) (kotsv1beta1.ConfigValue, bool) {
+	if item.Type != "bool" {
+		return kotsv1beta1.ConfigValue{}, false
+	}
+
+	// Get the value and default from the config item
+	itemValue := item.Value.String()
+	defaultValue := item.Default.String()
+
+	// Use value if set, otherwise use default as value
+	finalValue := defaultValue
+	if itemValue != "" {
+		finalValue = itemValue
+	}
+
+	configValue := kotsv1beta1.ConfigValue{
+		Value:   finalValue,
+		Default: defaultValue,
+	}
+
+	return configValue, true
 }

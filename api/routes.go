@@ -44,6 +44,7 @@ func (a *API) registerLinuxRoutes(router *mux.Router) {
 	installRouter.HandleFunc("/infra/setup", a.handlers.linux.PostSetupInfra).Methods("POST")
 	installRouter.HandleFunc("/infra/status", a.handlers.linux.GetInfraStatus).Methods("GET")
 	installRouter.HandleFunc("/app/config", a.handlers.linux.GetAppConfig).Methods("GET")
+	installRouter.HandleFunc("/app/configure", a.handlers.linux.PostSetAppConfig).Methods("POST")
 }
 
 func (a *API) registerKubernetesRoutes(router *mux.Router) {
@@ -58,6 +59,7 @@ func (a *API) registerKubernetesRoutes(router *mux.Router) {
 	installRouter.HandleFunc("/infra/status", a.handlers.kubernetes.GetInfraStatus).Methods("GET")
 
 	installRouter.HandleFunc("/app/config", a.handlers.kubernetes.GetAppConfig).Methods("GET")
+	installRouter.HandleFunc("/app/configure", a.handlers.kubernetes.PostSetAppConfig).Methods("POST")
 }
 
 func (a *API) registerConsoleRoutes(router *mux.Router) {

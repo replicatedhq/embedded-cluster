@@ -18,6 +18,7 @@ type Client interface {
 	SetupLinuxInfra(ignoreHostPreflights bool) (types.Infra, error)
 	GetLinuxInfraStatus() (types.Infra, error)
 	GetLinuxAppConfig() (kotsv1beta1.Config, error)
+	SetLinuxAppConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error)
 
 	GetKubernetesInstallationConfig() (types.KubernetesInstallationConfig, error)
 	ConfigureKubernetesInstallation(config types.KubernetesInstallationConfig) (types.Status, error)
@@ -25,6 +26,7 @@ type Client interface {
 	SetupKubernetesInfra() (types.Infra, error)
 	GetKubernetesInfraStatus() (types.Infra, error)
 	GetKubernetesAppConfig() (kotsv1beta1.Config, error)
+	SetKubernetesAppConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error)
 }
 
 type client struct {

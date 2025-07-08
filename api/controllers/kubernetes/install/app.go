@@ -9,3 +9,7 @@ import (
 func (c *InstallController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error) {
 	return c.appConfigManager.Get()
 }
+
+func (c *InstallController) SetAppConfig(ctx context.Context, config kotsv1beta1.Config) error {
+	return c.appConfigManager.Set(ctx, config)
+}

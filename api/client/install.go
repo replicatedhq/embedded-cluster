@@ -323,6 +323,38 @@ func (c *client) GetLinuxAppConfig() (kotsv1beta1.Config, error) {
 	return config, nil
 }
 
+func (c *client) SetLinuxAppConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error) {
+	b, err := json.Marshal(config)
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+
+	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/app/configure", bytes.NewBuffer(b))
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return kotsv1beta1.Config{}, errorFromResponse(resp)
+	}
+
+	var storedConfig kotsv1beta1.Config
+	err = json.NewDecoder(resp.Body).Decode(&storedConfig)
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+
+	return storedConfig, nil
+}
+
 func (c *client) GetKubernetesAppConfig() (kotsv1beta1.Config, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app/config", nil)
 	if err != nil {
@@ -348,4 +380,36 @@ func (c *client) GetKubernetesAppConfig() (kotsv1beta1.Config, error) {
 	}
 
 	return config, nil
+}
+
+func (c *client) SetKubernetesAppConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error) {
+	b, err := json.Marshal(config)
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+
+	req, err := http.NewRequest("POST", c.apiURL+"/api/kubernetes/install/app/configure", bytes.NewBuffer(b))
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return kotsv1beta1.Config{}, errorFromResponse(resp)
+	}
+
+	var storedConfig kotsv1beta1.Config
+	err = json.NewDecoder(resp.Body).Decode(&storedConfig)
+	if err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+
+	return storedConfig, nil
 }

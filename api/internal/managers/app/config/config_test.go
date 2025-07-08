@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	configstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
@@ -78,12 +79,86 @@ func TestAppConfigManager_Get(t *testing.T) {
 }
 
 func TestAppConfigManager_Set(t *testing.T) {
-	manager := NewAppConfigManager()
-	ctx := context.Background()
+	tests := []struct {
+		name          string
+		config        kotsv1beta1.Config
+		setupMock     func(*configstore.MockStore)
+		expectedError string
+	}{
+		{
+			name: "successful set",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "settings",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "enable_feature",
+									Type:    "bool",
+									Default: multitype.FromString("0"),
+									Value:   multitype.FromString("1"),
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *configstore.MockStore) {
+				mockStore.On("Set", mock.MatchedBy(func(config kotsv1beta1.Config) bool {
+					return len(config.Spec.Groups) == 1 &&
+						config.Spec.Groups[0].Name == "settings"
+				})).Return(nil)
+			},
+			expectedError: "",
+		},
+		{
+			name: "store error",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{},
+				},
+			},
+			setupMock: func(mockStore *configstore.MockStore) {
+				mockStore.On("Set", mock.Anything).Return(errors.New("store error"))
+			},
+			expectedError: "setting config in store: store error",
+		},
+		{
+			name:   "empty config",
+			config: kotsv1beta1.Config{},
+			setupMock: func(mockStore *configstore.MockStore) {
+				mockStore.On("Set", mock.MatchedBy(func(config kotsv1beta1.Config) bool {
+					return len(config.Spec.Groups) == 0
+				})).Return(nil)
+			},
+			expectedError: "",
+		},
+	}
 
-	// Set currently returns nil - testing the current behavior
-	err := manager.Set(ctx)
-	assert.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStore := &configstore.MockStore{}
+			tt.setupMock(mockStore)
+
+			manager := NewAppConfigManager(
+				WithAppConfigStore(mockStore),
+				WithLogger(logger.NewDiscardLogger()),
+			)
+
+			ctx := context.Background()
+			err := manager.Set(ctx, tt.config)
+
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				require.NoError(t, err)
+			}
+
+			mockStore.AssertExpectations(t)
+		})
+	}
 }
 
 func TestRenderAppConfigValues(t *testing.T) {

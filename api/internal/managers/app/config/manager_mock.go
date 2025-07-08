@@ -24,8 +24,8 @@ func (m *MockAppConfigManager) Get() (kotsv1beta1.Config, error) {
 }
 
 // Set mocks the Set method
-func (m *MockAppConfigManager) Set(ctx context.Context) error {
-	args := m.Called(ctx)
+func (m *MockAppConfigManager) Set(ctx context.Context, config kotsv1beta1.Config) error {
+	args := m.Called(ctx, config)
 	return args.Error(0)
 }
 

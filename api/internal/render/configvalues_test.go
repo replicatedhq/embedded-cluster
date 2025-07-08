@@ -209,3 +209,83 @@ func TestGenerateConfigValues(t *testing.T) {
 		})
 	}
 }
+
+func TestProcessBooleanConfigItem(t *testing.T) {
+	tests := []struct {
+		name              string
+		item              kotsv1beta1.ConfigItem
+		expectedValue     kotsv1beta1.ConfigValue
+		expectedProcessed bool
+	}{
+		{
+			name: "processes boolean item with default value",
+			item: kotsv1beta1.ConfigItem{
+				Name:    "enable_feature",
+				Type:    "bool",
+				Default: multitype.FromString("0"),
+			},
+			expectedValue: kotsv1beta1.ConfigValue{
+				Value:   "0",
+				Default: "0",
+			},
+			expectedProcessed: true,
+		},
+		{
+			name: "processes boolean item with user value overriding default",
+			item: kotsv1beta1.ConfigItem{
+				Name:    "enable_feature",
+				Type:    "bool",
+				Default: multitype.FromString("0"),
+				Value:   multitype.FromString("1"),
+			},
+			expectedValue: kotsv1beta1.ConfigValue{
+				Value:   "1",
+				Default: "0",
+			},
+			expectedProcessed: true,
+		},
+		{
+			name: "processes boolean item with empty default",
+			item: kotsv1beta1.ConfigItem{
+				Name: "enable_feature",
+				Type: "bool",
+				// No default or value set
+			},
+			expectedValue: kotsv1beta1.ConfigValue{
+				Value:   "",
+				Default: "",
+			},
+			expectedProcessed: true,
+		},
+		{
+			name: "ignores non-boolean item",
+			item: kotsv1beta1.ConfigItem{
+				Name:    "some_text",
+				Type:    "text",
+				Default: multitype.FromString("default text"),
+			},
+			expectedValue:     kotsv1beta1.ConfigValue{},
+			expectedProcessed: false,
+		},
+		{
+			name: "ignores password item",
+			item: kotsv1beta1.ConfigItem{
+				Name:    "some_password",
+				Type:    "password",
+				Default: multitype.FromString("secret"),
+			},
+			expectedValue:     kotsv1beta1.ConfigValue{},
+			expectedProcessed: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			value, processed := processBooleanConfigItem(tt.item)
+			assert.Equal(t, tt.expectedProcessed, processed)
+			if processed {
+				assert.Equal(t, tt.expectedValue, value)
+			}
+		})
+	}
+}
