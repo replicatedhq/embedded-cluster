@@ -4,8 +4,9 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import ConfigurationStep from "../config/ConfigurationStep.tsx";
+import { AppConfig, AppConfigGroup, AppConfigItem } from "../../../types";
 
-const MOCK_APP_CONFIG = {
+const MOCK_APP_CONFIG: AppConfig = {
   spec: {
     groups: [
       {
@@ -47,10 +48,10 @@ const MOCK_APP_CONFIG = {
   }
 };
 
-const createMockConfigWithValues = (values: Record<string, string>) => {
-  const config = JSON.parse(JSON.stringify(MOCK_APP_CONFIG));
-  config.spec.groups.forEach((group: any) => {
-    group.items.forEach((item: any) => {
+const createMockConfigWithValues = (values: Record<string, string>): AppConfig => {
+  const config: AppConfig = JSON.parse(JSON.stringify(MOCK_APP_CONFIG));
+  config.spec.groups.forEach((group: AppConfigGroup) => {
+    group.items.forEach((item: AppConfigItem) => {
       if (values[item.name]) {
         item.value = values[item.name];
       }
@@ -67,7 +68,7 @@ const createServer = (target: string) => setupServer(
 
   // Mock config values submission endpoint
   http.post(`*/api/${target}/install/app/config/values`, async ({ request }) => {
-    const body = await request.json() as any;
+    const body = await request.json() as { values: Record<string, string> };
     const updatedConfig = createMockConfigWithValues(body.values);
     return HttpResponse.json(updatedConfig);
   })
@@ -78,7 +79,7 @@ describe.each([
   { target: "linux" as const, displayName: "Linux" }
 ])("ConfigurationStep - $displayName", ({ target }) => {
   const mockOnNext = vi.fn();
-  let server: any;
+  let server: ReturnType<typeof createServer>;
 
   beforeAll(() => {
     server = createServer(target);
@@ -295,13 +296,13 @@ describe.each([
   });
 
   it("submits the form successfully and returns updated config", async () => {
-    let submittedValues: any = null;
+    let submittedValues: { values: Record<string, string> } | null = null;
 
     server.use(
       http.post(`*/api/${target}/install/app/config/values`, async ({ request }) => {
         // Verify auth header
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        const body = await request.json() as any;
+        const body = await request.json() as { values: Record<string, string> };
         submittedValues = body;
         const updatedConfig = createMockConfigWithValues(body.values);
         return HttpResponse.json(updatedConfig);
@@ -340,7 +341,8 @@ describe.each([
     );
 
     // Verify the submitted values
-    expect(submittedValues).toMatchObject({
+    expect(submittedValues).not.toBeNull();
+    expect(submittedValues!).toMatchObject({
       values: {
         app_name: "Updated App Name",
         enable_feature: "1"
@@ -371,11 +373,11 @@ describe.each([
   });
 
   it("only submits changed values", async () => {
-    let submittedValues: any = null;
+    let submittedValues: { values: Record<string, string> } | null = null;
 
     server.use(
       http.post(`*/api/${target}/install/app/config/values`, async ({ request }) => {
-        const body = await request.json() as any;
+        const body = await request.json() as { values: Record<string, string> };
         submittedValues = body;
         const updatedConfig = createMockConfigWithValues(body.values);
         return HttpResponse.json(updatedConfig);
@@ -411,11 +413,12 @@ describe.each([
     );
 
     // Verify only the changed value was submitted
-    expect(submittedValues).toMatchObject({
+    expect(submittedValues).not.toBeNull();
+    expect(submittedValues!).toMatchObject({
       values: {
         app_name: "Only Changed Field"
       }
     });
-    expect(submittedValues.values).not.toHaveProperty("enable_feature");
+    expect(submittedValues!.values).not.toHaveProperty("enable_feature");
   });
 });

@@ -8,40 +8,12 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { handleUnauthorized } from '../../../utils/auth';
+import { AppConfig, AppConfigItem } from '../../../types';
 
 interface ConfigurationStepProps {
   onNext: () => void;
 }
 
-// Types for the app config structure
-interface AppConfig {
-  spec: {
-    groups: AppConfigGroup[];
-  };
-}
-
-interface AppConfigGroup {
-  name: string;
-  title: string;
-  description?: string;
-  items: AppConfigItem[];
-}
-
-interface AppConfigItem {
-  name: string;
-  title: string;
-  type: string;
-  value?: string;
-  default?: string;
-  items?: AppConfigChildItem[];
-}
-
-interface AppConfigChildItem {
-  name: string;
-  title: string;
-  value?: string;
-  default?: string;
-}
 
 const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { text, target } = useWizard();
@@ -103,7 +75,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       setSubmitError(null);
       onNext();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       setSubmitError(error?.message || 'Failed to save configuration');
     },
   });
