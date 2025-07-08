@@ -29,6 +29,6 @@ type LinuxConfig struct {
 }
 
 type KubernetesConfig struct {
-	RESTClientGetterFactory func(namespace string) genericclioptions.RESTClientGetter
-	Installation            kubernetesinstallation.Installation
+	RESTClientGetter genericclioptions.RESTClientGetter
+	Installation     kubernetesinstallation.Installation
 }

@@ -95,7 +95,7 @@ type installConfig struct {
 	tlsCertBytes []byte
 	tlsKeyBytes  []byte
 
-	kubernetesRESTClientGetterFactory func(namespace string) genericclioptions.RESTClientGetter
+	kubernetesRESTClientGetter genericclioptions.RESTClientGetter
 }
 
 // webAssetsFS is the filesystem to be used by the web component. Defaults to nil allowing the web server to use the default assets embedded in the binary. Useful for testing.
@@ -540,11 +540,7 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kuberne
 		return fmt.Errorf("failed to connect to kubernetes api server: %w", err)
 	}
 
-	flags.installConfig.kubernetesRESTClientGetterFactory = func(namespace string) genericclioptions.RESTClientGetter {
-		// TODO: this is not thread safe
-		flags.kubernetesEnvSettings.SetNamespace(namespace)
-		return flags.kubernetesEnvSettings.RESTClientGetter()
-	}
+	flags.installConfig.kubernetesRESTClientGetter = flags.kubernetesEnvSettings.RESTClientGetter()
 
 	return nil
 }
@@ -655,8 +651,8 @@ func runManagerExperienceInstall(
 				AllowIgnoreHostPreflights: flags.ignoreHostPreflights,
 			},
 			KubernetesConfig: apitypes.KubernetesConfig{
-				RESTClientGetterFactory: flags.installConfig.kubernetesRESTClientGetterFactory,
-				Installation:            ki,
+				RESTClientGetter: flags.installConfig.kubernetesRESTClientGetter,
+				Installation:     ki,
 			},
 		},
 

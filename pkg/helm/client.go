@@ -28,10 +28,11 @@ import (
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"helm.sh/helm/v3/pkg/uploader"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	k8syaml "sigs.k8s.io/yaml"
 )
-
-type RESTClientGetterFactory func(namespace string) genericclioptions.RESTClientGetter
 
 var (
 	// getters is a list of known getters for both http and
@@ -79,24 +80,30 @@ func newClient(opts HelmOptions) (*HelmClient, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create registry client: %w", err)
 	}
+	if opts.RESTClientGetter == nil {
+		cfgFlags := &genericclioptions.ConfigFlags{}
+		if opts.KubeConfig != "" {
+			cfgFlags.KubeConfig = &opts.KubeConfig
+		}
+		opts.RESTClientGetter = cfgFlags
+	}
 	return &HelmClient{
-		tmpdir:        tmpdir,
-		kubeconfig:    opts.KubeConfig,
-		kversion:      kversion,
-		regcli:        regcli,
-		logFn:         opts.LogFn,
-		getterFactory: opts.RESTClientGetterFactory,
-		airgapPath:    opts.AirgapPath,
+		tmpdir:           tmpdir,
+		kversion:         kversion,
+		restClientGetter: opts.RESTClientGetter,
+		regcli:           regcli,
+		logFn:            opts.LogFn,
+		airgapPath:       opts.AirgapPath,
 	}, nil
 }
 
 type HelmOptions struct {
-	KubeConfig              string
-	K0sVersion              string
-	AirgapPath              string
-	Writer                  io.Writer
-	LogFn                   action.DebugLog
-	RESTClientGetterFactory RESTClientGetterFactory
+	KubeConfig       string
+	RESTClientGetter genericclioptions.RESTClientGetter
+	K0sVersion       string
+	AirgapPath       string
+	Writer           io.Writer
+	LogFn            action.DebugLog
 }
 
 type InstallOptions struct {
@@ -128,16 +135,15 @@ type UninstallOptions struct {
 }
 
 type HelmClient struct {
-	tmpdir        string
-	kversion      *semver.Version
-	kubeconfig    string
-	regcli        *registry.Client
-	repocfg       string
-	repos         []*repo.Entry
-	reposChanged  bool
-	logFn         action.DebugLog
-	getterFactory RESTClientGetterFactory
-	airgapPath    string
+	tmpdir           string
+	kversion         *semver.Version
+	restClientGetter genericclioptions.RESTClientGetter
+	regcli           *registry.Client
+	repocfg          string
+	repos            []*repo.Entry
+	reposChanged     bool
+	logFn            action.DebugLog
+	airgapPath       string
 }
 
 func (h *HelmClient) prepare() error {
@@ -500,8 +506,6 @@ func (h *HelmClient) Render(ctx context.Context, opts InstallOptions) ([][]byte,
 }
 
 func (h *HelmClient) getActionCfg(namespace string) (*action.Configuration, error) {
-	getter := h.getRESTClientGetter(namespace)
-
 	cfg := &action.Configuration{}
 	var logFn action.DebugLog
 	if h.logFn != nil {
@@ -509,24 +513,14 @@ func (h *HelmClient) getActionCfg(namespace string) (*action.Configuration, erro
 	} else {
 		logFn = _logFn
 	}
-	if err := cfg.Init(getter, namespace, "secret", logFn); err != nil {
+	restClientGetter := &namespacedRESTClientGetter{
+		RESTClientGetter: h.restClientGetter,
+		namespace:        namespace,
+	}
+	if err := cfg.Init(restClientGetter, namespace, "secret", logFn); err != nil {
 		return nil, fmt.Errorf("init helm configuration: %w", err)
 	}
 	return cfg, nil
-}
-
-func (h *HelmClient) getRESTClientGetter(namespace string) genericclioptions.RESTClientGetter {
-	if h.getterFactory != nil {
-		return h.getterFactory(namespace)
-	}
-
-	cfgFlags := &genericclioptions.ConfigFlags{
-		Namespace: &namespace,
-	}
-	if h.kubeconfig != "" {
-		cfgFlags.KubeConfig = &h.kubeconfig
-	}
-	return cfgFlags
 }
 
 func (h *HelmClient) loadChart(ctx context.Context, releaseName, chartPath, chartVersion string) (*chart.Chart, error) {
@@ -578,4 +572,41 @@ func isOCIChart(chartPath string) bool {
 func _logFn(format string, args ...interface{}) {
 	log := logrus.WithField("component", "helm")
 	log.Debugf(format, args...)
+}
+
+type namespacedRESTClientGetter struct {
+	genericclioptions.RESTClientGetter
+	namespace string
+}
+
+func (n *namespacedRESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig {
+	cfg := n.RESTClientGetter.ToRawKubeConfigLoader()
+	return &namespacedClientConfig{
+		cfg:       cfg,
+		namespace: n.namespace,
+	}
+}
+
+type namespacedClientConfig struct {
+	cfg       clientcmd.ClientConfig
+	namespace string
+}
+
+func (n *namespacedClientConfig) RawConfig() (clientcmdapi.Config, error) {
+	return n.cfg.RawConfig()
+}
+
+func (n *namespacedClientConfig) ClientConfig() (*restclient.Config, error) {
+	return n.cfg.ClientConfig()
+}
+
+func (n *namespacedClientConfig) Namespace() (string, bool, error) {
+	if n.namespace == "" {
+		return n.cfg.Namespace()
+	}
+	return n.namespace, true, nil
+}
+
+func (n *namespacedClientConfig) ConfigAccess() clientcmd.ConfigAccess {
+	return n.cfg.ConfigAccess()
 }

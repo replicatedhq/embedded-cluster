@@ -60,10 +60,10 @@ func (m *infraManager) helmClient(_ kubernetesinstallation.Installation) (helm.C
 		airgapChartsPath = "" // rc.EmbeddedClusterChartsSubDir()
 	}
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		RESTClientGetterFactory: m.restClientGetterFactory,
-		K0sVersion:              versions.K0sVersion,
-		AirgapPath:              airgapChartsPath,
-		LogFn:                   m.logFn("helm"),
+		RESTClientGetter: m.restClientGetter,
+		K0sVersion:       versions.K0sVersion,
+		AirgapPath:       airgapChartsPath,
+		LogFn:            m.logFn("helm"),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create helm client: %w", err)

@@ -27,21 +27,21 @@ type InfraManager interface {
 
 // infraManager is an implementation of the InfraManager interface
 type infraManager struct {
-	infraStore              infrastore.Store
-	password                string
-	tlsConfig               types.TLSConfig
-	license                 []byte
-	airgapBundle            string
-	configValues            string
-	releaseData             *release.ReleaseData
-	endUserConfig           *ecv1beta1.Config
-	logger                  logrus.FieldLogger
-	kcli                    client.Client
-	mcli                    metadata.Interface
-	hcli                    helm.Client
-	restClientGetterFactory func(namespace string) genericclioptions.RESTClientGetter
-	kotsInstaller           func() error
-	mu                      sync.RWMutex
+	infraStore       infrastore.Store
+	password         string
+	tlsConfig        types.TLSConfig
+	license          []byte
+	airgapBundle     string
+	configValues     string
+	releaseData      *release.ReleaseData
+	endUserConfig    *ecv1beta1.Config
+	logger           logrus.FieldLogger
+	kcli             client.Client
+	mcli             metadata.Interface
+	hcli             helm.Client
+	restClientGetter genericclioptions.RESTClientGetter
+	kotsInstaller    func() error
+	mu               sync.RWMutex
 }
 
 type InfraManagerOption func(*infraManager)
@@ -118,9 +118,9 @@ func WithHelmClient(hcli helm.Client) InfraManagerOption {
 	}
 }
 
-func WithRESTClientGetterFactory(restClientGetterFactory func(namespace string) genericclioptions.RESTClientGetter) InfraManagerOption {
+func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) InfraManagerOption {
 	return func(c *infraManager) {
-		c.restClientGetterFactory = restClientGetterFactory
+		c.restClientGetter = restClientGetter
 	}
 }
 
