@@ -181,7 +181,7 @@ components:
       properties:
         values:
           additionalProperties:
-            $ref: '#/components/schemas/v1beta1.ConfigValue'
+            type: string
           type: object
       type: object
     types.State:
@@ -581,23 +581,6 @@ components:
       properties:
         regex:
           $ref: '#/components/schemas/v1beta1.RegexValidator'
-      type: object
-    v1beta1.ConfigValue:
-      properties:
-        data:
-          type: string
-        dataPlaintext:
-          type: string
-        default:
-          type: string
-        filename:
-          type: string
-        repeatableItem:
-          type: string
-        value:
-          type: string
-        valuePlaintext:
-          type: string
       type: object
     v1beta1.GroupValues:
       additionalProperties:
