@@ -133,6 +133,7 @@ export const renderWithProviders = (
       config: {
         adminConsolePort: 8080,
         useProxy: false,
+        installCommand: 'kubectl -n kotsadm port-forward svc/kotsadm 8800:3000',
       },
       updateConfig: vi.fn(),
       resetConfig: vi.fn(),
