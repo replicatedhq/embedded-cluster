@@ -16,9 +16,9 @@ type Interface interface {
 	// ValidateTransition checks if transitions from the current state to the new states, in order,
 	// are valid.
 	ValidateTransition(lock Lock, nextStates ...State) error
-	// Transition attempts to transition to new states, in order, and returns an error if any
-	// transition is invalid.
-	Transition(lock Lock, nextStates ...State) error
+	// Transition attempts to transition to a new state and returns an error if the transition is
+	// invalid.
+	Transition(lock Lock, nextState State) error
 	// AcquireLock acquires a lock on the state machine.
 	AcquireLock() (Lock, error)
 	// IsLockAcquired checks if a lock already exists on the state machine.
