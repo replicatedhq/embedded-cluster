@@ -212,7 +212,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           <p className="text-gray-600 mb-4">{group.description}</p>
         )}
         {group.items.map(item => (
-          <div key={item.name}>
+          <div key={item.name} data-testid={`config-item-${item.name}`}>
             {renderConfigItem(item)}
           </div>
         ))}
@@ -222,7 +222,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
   if (isConfigLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" data-testid="configuration-step-loading">
         <Card>
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-gray-400 mb-4" />
@@ -235,7 +235,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
   if (getConfigError) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" data-testid="configuration-step-error">
         <Card>
           <div className="flex flex-col items-center justify-center py-12">
             <p className="text-red-600 mb-4">Failed to load configuration</p>
@@ -248,7 +248,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
   if (!appConfig?.spec?.groups || appConfig.spec.groups.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" data-testid="configuration-step-empty">
         <Card>
           <div className="flex flex-col items-center justify-center py-12">
             <p className="text-gray-600">No configuration available</p>
@@ -259,7 +259,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="configuration-step">
       <Card>
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-gray-900">
@@ -276,6 +276,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
               {appConfig.spec.groups.map(group => (
                 <button
                   key={group.name}
+                  data-testid={`config-tab-${group.name}`}
                   className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
                   onClick={() => setActiveTab(group.name)}
                   style={{
@@ -293,14 +294,14 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         {renderActiveTab()}
 
         {submitError && (
-          <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
+          <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md" data-testid="config-submit-error">
             {submitError}
           </div>
         )}
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={submitConfigValues} icon={<ChevronRight className="w-5 h-5" />}>
+        <Button onClick={submitConfigValues} icon={<ChevronRight className="w-5 h-5" />} dataTestId="config-next-button">
           Next: Setup
         </Button>
       </div>

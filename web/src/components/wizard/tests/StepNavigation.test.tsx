@@ -102,7 +102,7 @@ describe("StepNavigation", () => {
 
       // Check that all step icons are rendered
       const stepElements = screen.getAllByRole("listitem");
-      expect(stepElements).toHaveLength(4); // welcome, setup, installation, completion
+      expect(stepElements).toHaveLength(5); // welcome, setup, configuration, installation, completion
 
       // Each step should have an icon (svg element)
       stepElements.forEach((step) => {
@@ -224,7 +224,7 @@ describe("StepNavigation", () => {
 
       // Check that all step icons are rendered
       const stepElements = screen.getAllByRole("listitem");
-      expect(stepElements).toHaveLength(4); // welcome, setup, installation, completion
+      expect(stepElements).toHaveLength(5); // welcome, setup, configuration, installation, completion
 
       // Each step should have an icon (svg element)
       stepElements.forEach((step) => {
