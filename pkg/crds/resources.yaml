@@ -64,7 +64,9 @@ spec:
                             chartname:
                               type: string
                             forceUpgrade:
-                              description: 'ForceUpgrade when set to false, disables the use of the "--force" flag when upgrading the the chart (default: true).'
+                              description: 'ForceUpgrade when set to false, disables
+                                the use of the "--force" flag when upgrading the the
+                                chart (default: true).'
                               type: boolean
                             name:
                               type: string
@@ -88,19 +90,24 @@ spec:
                         type: integer
                       repositories:
                         items:
-                          description: Repository describes single repository entry. Fields map to the CLI flags for the "helm add" command
+                          description: Repository describes single repository entry.
+                            Fields map to the CLI flags for the "helm add" command
                           properties:
                             caFile:
-                              description: CA bundle file to use when verifying HTTPS-enabled servers.
+                              description: CA bundle file to use when verifying HTTPS-enabled
+                                servers.
                               type: string
                             certFile:
-                              description: The TLS certificate file to use for HTTPS client authentication.
+                              description: The TLS certificate file to use for HTTPS
+                                client authentication.
                               type: string
                             insecure:
-                              description: Whether to skip TLS certificate checks when connecting to the repository.
+                              description: Whether to skip TLS certificate checks
+                                when connecting to the repository.
                               type: boolean
                             keyfile:
-                              description: The TLS key file to use for HTTPS client authentication.
+                              description: The TLS key file to use for HTTPS client
+                                authentication.
                               type: string
                             name:
                               description: The repository name.
@@ -140,7 +147,8 @@ spec:
                       name:
                         type: string
                       nodeCount:
-                        description: NodeCount holds a series of rules for a given node role.
+                        description: NodeCount holds a series of rules for a given
+                          node role.
                         properties:
                           range:
                             description: |-
@@ -174,7 +182,8 @@ spec:
                         name:
                           type: string
                         nodeCount:
-                          description: NodeCount holds a series of rules for a given node role.
+                          description: NodeCount holds a series of rules for a given
+                            node role.
                           properties:
                             range:
                               description: |-
@@ -207,10 +216,12 @@ spec:
                       BuiltInExtensions holds overrides for the default add-ons we ship
                       with Embedded Cluster.
                     items:
-                      description: BuiltInExtension holds the override for a built-in extension (add-on).
+                      description: BuiltInExtension holds the override for a built-in
+                        extension (add-on).
                       properties:
                         name:
-                          description: The name of the helm chart to override values of, for instance `openebs`.
+                          description: The name of the helm chart to override values
+                            of, for instance `openebs`.
                           type: string
                         values:
                           description: |-
@@ -307,7 +318,8 @@ spec:
                 description: AdminConsoleSpec holds the admin console configuration.
                 properties:
                   port:
-                    description: Port holds the port on which the admin console will be served.
+                    description: Port holds the port on which the admin console will
+                      be served.
                     type: integer
                 type: object
               airGap:
@@ -368,7 +380,9 @@ spec:
                                 chartname:
                                   type: string
                                 forceUpgrade:
-                                  description: 'ForceUpgrade when set to false, disables the use of the "--force" flag when upgrading the the chart (default: true).'
+                                  description: 'ForceUpgrade when set to false, disables
+                                    the use of the "--force" flag when upgrading the
+                                    the chart (default: true).'
                                   type: boolean
                                 name:
                                   type: string
@@ -392,19 +406,25 @@ spec:
                             type: integer
                           repositories:
                             items:
-                              description: Repository describes single repository entry. Fields map to the CLI flags for the "helm add" command
+                              description: Repository describes single repository
+                                entry. Fields map to the CLI flags for the "helm add"
+                                command
                               properties:
                                 caFile:
-                                  description: CA bundle file to use when verifying HTTPS-enabled servers.
+                                  description: CA bundle file to use when verifying
+                                    HTTPS-enabled servers.
                                   type: string
                                 certFile:
-                                  description: The TLS certificate file to use for HTTPS client authentication.
+                                  description: The TLS certificate file to use for
+                                    HTTPS client authentication.
                                   type: string
                                 insecure:
-                                  description: Whether to skip TLS certificate checks when connecting to the repository.
+                                  description: Whether to skip TLS certificate checks
+                                    when connecting to the repository.
                                   type: boolean
                                 keyfile:
-                                  description: The TLS key file to use for HTTPS client authentication.
+                                  description: The TLS key file to use for HTTPS client
+                                    authentication.
                                   type: string
                                 name:
                                   description: The repository name.
@@ -444,7 +464,8 @@ spec:
                           name:
                             type: string
                           nodeCount:
-                            description: NodeCount holds a series of rules for a given node role.
+                            description: NodeCount holds a series of rules for a given
+                              node role.
                             properties:
                               range:
                                 description: |-
@@ -478,7 +499,8 @@ spec:
                             name:
                               type: string
                             nodeCount:
-                              description: NodeCount holds a series of rules for a given node role.
+                              description: NodeCount holds a series of rules for a
+                                given node role.
                               properties:
                                 range:
                                   description: |-
@@ -493,7 +515,8 @@ spec:
                                       type: integer
                                   type: object
                                 values:
-                                  description: Values holds a list of allowed node counts.
+                                  description: Values holds a list of allowed node
+                                    counts.
                                   items:
                                     type: integer
                                   type: array
@@ -511,10 +534,12 @@ spec:
                           BuiltInExtensions holds overrides for the default add-ons we ship
                           with Embedded Cluster.
                         items:
-                          description: BuiltInExtension holds the override for a built-in extension (add-on).
+                          description: BuiltInExtension holds the override for a built-in
+                            extension (add-on).
                           properties:
                             name:
-                              description: The name of the helm chart to override values of, for instance `openebs`.
+                              description: The name of the helm chart to override
+                                values of, for instance `openebs`.
                               type: string
                             values:
                               description: |-
@@ -559,10 +584,12 @@ spec:
                   used at installation time.
                 type: string
               highAvailability:
-                description: HighAvailability indicates if the installation is high availability.
+                description: HighAvailability indicates if the installation is high
+                  availability.
                 type: boolean
               licenseInfo:
-                description: LicenseInfo holds information about the license used to install the cluster.
+                description: LicenseInfo holds information about the license used
+                  to install the cluster.
                 properties:
                   isDisasterRecoverySupported:
                     type: boolean
@@ -570,10 +597,12 @@ spec:
                     type: boolean
                 type: object
               localArtifactMirror:
-                description: LocalArtifactMirrorSpec holds the local artifact mirror configuration.
+                description: LocalArtifactMirrorSpec holds the local artifact mirror
+                  configuration.
                 properties:
                   port:
-                    description: Port holds the port on which the local artifact mirror will be served.
+                    description: Port holds the port on which the local artifact mirror
+                      will be served.
                     type: integer
                 type: object
               metricsBaseURL:
@@ -606,13 +635,15 @@ spec:
                     type: string
                 type: object
               runtimeConfig:
-                description: RuntimeConfig holds the runtime configuration used at installation time.
+                description: RuntimeConfig holds the runtime configuration used at
+                  installation time.
                 properties:
                   adminConsole:
                     description: AdminConsole holds the Admin Console configuration.
                     properties:
                       port:
-                        description: Port holds the port on which the admin console will be served.
+                        description: Port holds the port on which the admin console
+                          will be served.
                         type: integer
                     type: object
                   dataDir:
@@ -621,7 +652,8 @@ spec:
                       (default: /var/lib/embedded-cluster).
                     type: string
                   hostCABundlePath:
-                    description: HostCABundlePath holds the path to the CA bundle for the host.
+                    description: HostCABundlePath holds the path to the CA bundle
+                      for the host.
                     type: string
                   k0sDataDirOverride:
                     description: |-
@@ -629,17 +661,20 @@ spec:
                       will be stored in a subdirectory of DataDir.
                     type: string
                   localArtifactMirror:
-                    description: LocalArtifactMirrorPort holds the Local Artifact Mirror configuration.
+                    description: LocalArtifactMirrorPort holds the Local Artifact
+                      Mirror configuration.
                     properties:
                       port:
-                        description: Port holds the port on which the local artifact mirror will be served.
+                        description: Port holds the port on which the local artifact
+                          mirror will be served.
                         type: integer
                     type: object
                   manager:
                     description: Manager holds the Manager configuration.
                     properties:
                       port:
-                        description: Port holds the port on which the manager will be served.
+                        description: Port holds the port on which the manager will
+                          be served.
                         type: integer
                     type: object
                   network:
@@ -675,16 +710,19 @@ spec:
                     type: object
                 type: object
               sourceType:
-                description: SourceType indicates where this Installation object is stored (CRD, ConfigMap, etc...).
+                description: SourceType indicates where this Installation object is
+                  stored (CRD, ConfigMap, etc...).
                 type: string
             type: object
           status:
             description: InstallationStatus defines the observed state of Installation
             properties:
               conditions:
-                description: Conditions is an array of current observed installation conditions.
+                description: Conditions is an array of current observed installation
+                  conditions.
                 items:
-                  description: Condition contains details for one aspect of the current state of this API Resource.
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-
@@ -758,7 +796,8 @@ spec:
                   type: object
                 type: array
               pendingCharts:
-                description: PendingCharts holds the list of charts that are being created or updated.
+                description: PendingCharts holds the list of charts that are being
+                  created or updated.
                 items:
                   type: string
                 type: array
