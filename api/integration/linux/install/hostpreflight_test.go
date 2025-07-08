@@ -1,4 +1,4 @@
-package integration
+package install
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
+	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	linuxpreflight "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
 	linuxinstallationstore "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
@@ -75,7 +76,7 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 			Password: "password",
 		},
 		api.WithLinuxInstallController(installController),
-		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
@@ -144,7 +145,7 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 				Password: "password",
 			},
 			api.WithLinuxInstallController(mockController),
-			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
 		require.NoError(t, err)
@@ -230,7 +231,7 @@ func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
 					},
 				},
 				api.WithLinuxInstallController(installController),
-				api.WithAuthController(&staticAuthController{"TOKEN"}),
+				api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 				api.WithLogger(logger.NewDiscardLogger()),
 			)
 			require.NoError(t, err)
@@ -338,7 +339,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 				Password: "password",
 			},
 			api.WithLinuxInstallController(installController),
-			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
 		require.NoError(t, err)
@@ -411,7 +412,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 				Password: "password",
 			},
 			api.WithLinuxInstallController(installController),
-			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
 		require.NoError(t, err)
@@ -471,7 +472,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 				Password: "password",
 			},
 			api.WithLinuxInstallController(installController),
-			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
 		require.NoError(t, err)
@@ -532,7 +533,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 				Password: "password",
 			},
 			api.WithLinuxInstallController(installController),
-			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
 		require.NoError(t, err)
@@ -606,7 +607,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 				Password: "password",
 			},
 			api.WithLinuxInstallController(installController),
-			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
 		require.NoError(t, err)
