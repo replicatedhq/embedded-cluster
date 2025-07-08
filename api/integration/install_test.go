@@ -2425,7 +2425,7 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 		},
 	}
 
-	// Create an install controller with the app config and config values
+	// Create an install controller with the config values
 	installController, err := kubernetesinstall.NewInstallController(
 		kubernetesinstall.WithStore(
 			store.NewMemoryStore(store.WithAppConfigStore(appconfigstore.NewMemoryStore(appconfigstore.WithConfigValues(configValues)))),
@@ -2529,7 +2529,7 @@ func TestLinuxGetAppConfig(t *testing.T) {
 		},
 	}
 
-	// Create an install controller with the app config and config values
+	// Create an install controller with the config values
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithStore(
 			store.NewMemoryStore(store.WithAppConfigStore(appconfigstore.NewMemoryStore(appconfigstore.WithConfigValues(configValues)))),
