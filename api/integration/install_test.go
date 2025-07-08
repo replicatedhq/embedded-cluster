@@ -228,7 +228,7 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 			// Create an install controller with the config manager
 			installController, err := linuxinstall.NewInstallController(
 				linuxinstall.WithRuntimeConfig(rc),
-				linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
+				linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
 				linuxinstall.WithHostUtils(tc.mockHostUtils),
 				linuxinstall.WithNetUtils(tc.mockNetUtils),
 			)
@@ -331,7 +331,7 @@ func TestLinuxConfigureInstallationValidation(t *testing.T) {
 	// Create an install controller with the config manager
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
-		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
 	)
 	require.NoError(t, err)
 
@@ -668,8 +668,8 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	})
 }
 
-// TestLinuxInstallWithAPIClient tests the install endpoints using the API client
-func TestLinuxInstallWithAPIClient(t *testing.T) {
+// TestLinuxInstallationConfigWithAPIClient tests the installation configuration endpoints using the API client
+func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 	password := "test-password"
 
 	// Create a runtimeconfig to be used in the install process
@@ -689,6 +689,7 @@ func TestLinuxInstallWithAPIClient(t *testing.T) {
 	// Create an install controller with the config manager
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
 		linuxinstall.WithInstallationManager(installationManager),
 	)
 	require.NoError(t, err)
@@ -1666,7 +1667,7 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 			// Create an install controller with the mock installation
 			installController, err := kubernetesinstall.NewInstallController(
 				kubernetesinstall.WithInstallation(ki),
-				kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateNew))),
+				kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateApplicationConfigured))),
 			)
 			require.NoError(t, err)
 
@@ -1760,7 +1761,7 @@ func TestKubernetesConfigureInstallationValidation(t *testing.T) {
 	// Create an install controller with the mock installation
 	installController, err := kubernetesinstall.NewInstallController(
 		kubernetesinstall.WithInstallation(ki),
-		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateNew))),
+		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateApplicationConfigured))),
 	)
 	require.NoError(t, err)
 
@@ -1821,7 +1822,7 @@ func TestKubernetesConfigureInstallationBadRequest(t *testing.T) {
 	// Create an install controller with the mock installation
 	installController, err := kubernetesinstall.NewInstallController(
 		kubernetesinstall.WithInstallation(ki),
-		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateNew))),
+		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateApplicationConfigured))),
 	)
 	require.NoError(t, err)
 
@@ -2621,6 +2622,7 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 
 	// Create an install controller with the app config
 	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
 		linuxinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),
@@ -2741,6 +2743,7 @@ func TestKubernetesSetAppConfigValues(t *testing.T) {
 
 	// Create an install controller with the app config
 	installController, err := kubernetesinstall.NewInstallController(
+		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateApplicationConfigured))),
 		kubernetesinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),
