@@ -177,6 +177,13 @@ components:
         isUi:
           type: boolean
       type: object
+    types.SetAppConfigValuesRequest:
+      properties:
+        values:
+          additionalProperties:
+            $ref: '#/components/schemas/v1beta1.ConfigValue'
+          type: object
+      type: object
     types.State:
       type: string
       x-enum-varnames:
@@ -575,6 +582,23 @@ components:
         regex:
           $ref: '#/components/schemas/v1beta1.RegexValidator'
       type: object
+    v1beta1.ConfigValue:
+      properties:
+        data:
+          type: string
+        dataPlaintext:
+          type: string
+        default:
+          type: string
+        filename:
+          type: string
+        repeatableItem:
+          type: string
+        value:
+          type: string
+        valuePlaintext:
+          type: string
+      type: object
     v1beta1.GroupValues:
       additionalProperties:
         type: string
@@ -696,6 +720,29 @@ paths:
       summary: Get the app config
       tags:
       - kubernetes-install
+  /kubernetes/install/app/config/values:
+    post:
+      description: Set the app config values
+      operationId: postKubernetesInstallSetAppConfigValues
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.SetAppConfigValuesRequest'
+        description: Set App Config Values Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_apis_kots_v1beta1.Config'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Set the app config values
+      tags:
+      - kubernetes-install
   /kubernetes/install/infra/setup:
     post:
       description: Setup infra components
@@ -802,6 +849,29 @@ paths:
       security:
       - bearerauth: []
       summary: Get the app config
+      tags:
+      - linux-install
+  /linux/install/app/config/values:
+    post:
+      description: Set the app config values
+      operationId: postLinuxInstallSetAppConfigValues
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.SetAppConfigValuesRequest'
+        description: Set App Config Values Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_apis_kots_v1beta1.Config'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Set the app config values
       tags:
       - linux-install
   /linux/install/host-preflights/run:

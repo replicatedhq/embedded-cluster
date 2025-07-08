@@ -12,17 +12,17 @@ type MockStore struct {
 	mock.Mock
 }
 
-// Get mocks the Get method
-func (m *MockStore) Get() (kotsv1beta1.Config, error) {
+// GetConfigValues mocks the GetConfigValues method
+func (m *MockStore) GetConfigValues() (kotsv1beta1.ConfigValues, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
-		return kotsv1beta1.Config{}, args.Error(1)
+		return kotsv1beta1.ConfigValues{}, args.Error(1)
 	}
-	return args.Get(0).(kotsv1beta1.Config), args.Error(1)
+	return args.Get(0).(kotsv1beta1.ConfigValues), args.Error(1)
 }
 
-// Set mocks the Set method
-func (m *MockStore) Set(config kotsv1beta1.Config) error {
-	args := m.Called(config)
+// SetConfigValues mocks the SetConfigValues method
+func (m *MockStore) SetConfigValues(configValues kotsv1beta1.ConfigValues) error {
+	args := m.Called(configValues)
 	return args.Error(0)
 }

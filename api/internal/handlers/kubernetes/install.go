@@ -1,11 +1,12 @@
 package kubernetes
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	_ "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 // GetInstallationConfig handler to get the Kubernetes installation config
@@ -128,15 +129,65 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 //	@Tags			kubernetes-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	v1beta1.Config
+//	@Success		200	{object}	kotsv1beta1.Config
 //	@Router			/kubernetes/install/app/config [get]
 func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
-	config, err := h.installController.GetAppConfig(r.Context())
+	// import is used in swagger annotation above
+	_ = kotsv1beta1.Config{}
+
+	if h.cfg.ReleaseData == nil || h.cfg.ReleaseData.AppConfig == nil {
+		utils.LogError(r, errors.New("app config not found"), h.logger)
+		utils.JSONError(w, r, errors.New("app config not found"), h.logger)
+		return
+	}
+
+	configValues, err := h.installController.GetAppConfigValues(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get app config")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
-	utils.JSON(w, r, http.StatusOK, config, h.logger)
+	updatedConfig, err := h.installController.ApplyValuesToConfig(r.Context(), *h.cfg.ReleaseData.AppConfig, configValues)
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to apply values to config")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	utils.JSON(w, r, http.StatusOK, updatedConfig, h.logger)
+}
+
+// PostSetAppConfigValues handler to set the app config values
+//
+//	@ID				postKubernetesInstallSetAppConfigValues
+//	@Summary		Set the app config values
+//	@Description	Set the app config values
+//	@Tags			kubernetes-install
+//	@Security		bearerauth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		types.SetAppConfigValuesRequest	true	"Set App Config Values Request"
+//	@Success		200		{object}	kotsv1beta1.Config
+//	@Router			/kubernetes/install/app/config/values [post]
+func (h *Handler) PostSetAppConfigValues(w http.ResponseWriter, r *http.Request) {
+	var req types.SetAppConfigValuesRequest
+	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
+		return
+	}
+
+	values := kotsv1beta1.ConfigValues{
+		Spec: kotsv1beta1.ConfigValuesSpec{
+			Values: req.Values,
+		},
+	}
+
+	err := h.installController.SetAppConfigValues(r.Context(), values)
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to set app config values")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetAppConfig(w, r)
 }

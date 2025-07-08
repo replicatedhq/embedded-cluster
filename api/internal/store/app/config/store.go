@@ -10,20 +10,20 @@ import (
 var _ Store = &memoryStore{}
 
 type Store interface {
-	Get() (kotsv1beta1.Config, error)
-	Set(config kotsv1beta1.Config) error
+	GetConfigValues() (kotsv1beta1.ConfigValues, error)
+	SetConfigValues(configValues kotsv1beta1.ConfigValues) error
 }
 
 type memoryStore struct {
-	mu     sync.RWMutex
-	config kotsv1beta1.Config
+	mu           sync.RWMutex
+	configValues kotsv1beta1.ConfigValues
 }
 
 type StoreOption func(*memoryStore)
 
-func WithConfig(config kotsv1beta1.Config) StoreOption {
+func WithConfigValues(configValues kotsv1beta1.ConfigValues) StoreOption {
 	return func(s *memoryStore) {
-		s.config = config
+		s.configValues = configValues
 	}
 }
 
@@ -37,22 +37,22 @@ func NewMemoryStore(opts ...StoreOption) Store {
 	return s
 }
 
-func (s *memoryStore) Get() (kotsv1beta1.Config, error) {
+func (s *memoryStore) GetConfigValues() (kotsv1beta1.ConfigValues, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var config kotsv1beta1.Config
-	if err := deepcopy.Copy(&config, &s.config); err != nil {
-		return kotsv1beta1.Config{}, err
+	var configValues kotsv1beta1.ConfigValues
+	if err := deepcopy.Copy(&configValues, &s.configValues); err != nil {
+		return kotsv1beta1.ConfigValues{}, err
 	}
 
-	return config, nil
+	return configValues, nil
 }
 
-func (s *memoryStore) Set(config kotsv1beta1.Config) error {
+func (s *memoryStore) SetConfigValues(configValues kotsv1beta1.ConfigValues) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.config = config
+	s.configValues = configValues
 	return nil
 }

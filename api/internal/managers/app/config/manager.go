@@ -14,8 +14,9 @@ var _ AppConfigManager = &appConfigManager{}
 
 // AppConfigManager provides methods for managing appConfigstructure setup
 type AppConfigManager interface {
-	Get() (kotsv1beta1.Config, error)
-	Set(ctx context.Context) error
+	GetConfigValues() (kotsv1beta1.ConfigValues, error)
+	SetConfigValues(ctx context.Context, values kotsv1beta1.ConfigValues) error
+	ApplyValuesToConfig(config kotsv1beta1.Config, configValues kotsv1beta1.ConfigValues) (kotsv1beta1.Config, error)
 }
 
 // appConfigManager is an implementation of the AppConfigManager interface
