@@ -130,7 +130,7 @@ func TestConfigureInstallation(t *testing.T) {
 				HTTPSProxy:       "https://proxy.example.com:3128",
 				NoProxy:          "localhost,127.0.0.1",
 			},
-			currentState:  StateNew,
+			currentState:  StateApplicationConfigured,
 			expectedState: StateInstallationConfigured,
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig) {
 				mock.InOrder(
@@ -142,7 +142,7 @@ func TestConfigureInstallation(t *testing.T) {
 		{
 			name:          "configure installation error",
 			config:        types.KubernetesInstallationConfig{},
-			currentState:  StateNew,
+			currentState:  StateApplicationConfigured,
 			expectedState: StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig) {
 				m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("validation error"))
