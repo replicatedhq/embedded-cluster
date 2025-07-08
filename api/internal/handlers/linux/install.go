@@ -6,8 +6,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	_ "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
+
+// import is used in swagger annotation above
+var _ = kotsv1beta1.Config{}
 
 // GetInstallationConfig handler to get the installation config
 //
@@ -207,15 +210,43 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 //	@Tags			linux-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	v1beta1.Config
+//	@Success		200	{object}	kotsv1beta1.Config
 //	@Router			/linux/install/app/config [get]
 func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
-	config, err := h.installController.GetAppConfig(r.Context())
+	appConfig, err := h.installController.GetAppConfig(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get app config")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
-	utils.JSON(w, r, http.StatusOK, config, h.logger)
+	utils.JSON(w, r, http.StatusOK, appConfig, h.logger)
+}
+
+// PostSetAppConfigValues handler to set the app config values
+//
+//	@ID				postLinuxInstallSetAppConfigValues
+//	@Summary		Set the app config values
+//	@Description	Set the app config values
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		types.SetAppConfigValuesRequest	true	"Set App Config Values Request"
+//	@Success		200		{object}	kotsv1beta1.Config
+//	@Router			/linux/install/app/config/values [post]
+func (h *Handler) PostSetAppConfigValues(w http.ResponseWriter, r *http.Request) {
+	var req types.SetAppConfigValuesRequest
+	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
+		return
+	}
+
+	err := h.installController.SetAppConfigValues(r.Context(), req.Values)
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to set app config values")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetAppConfig(w, r)
 }

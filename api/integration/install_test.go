@@ -27,6 +27,8 @@ import (
 	linuxinfra "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	linuxinstallationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
+	"github.com/replicatedhq/embedded-cluster/api/internal/store"
+	appconfigstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	linuxpreflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
@@ -2412,8 +2414,16 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 		},
 	}
 
-	// Create an install controller with the app config
+	// Create config values that should be applied to the config
+	configValues := map[string]string{
+		"test-item": "applied-value",
+	}
+
+	// Create an install controller with the config values
 	installController, err := kubernetesinstall.NewInstallController(
+		kubernetesinstall.WithStore(
+			store.NewMemoryStore(store.WithAppConfigStore(appconfigstore.NewMemoryStore(appconfigstore.WithConfigValues(configValues)))),
+		),
 		kubernetesinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),
@@ -2449,13 +2459,15 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
+		fmt.Printf("response: %+v\n", rec.Body.String())
+
 		// Parse the response body
 		var response kotsv1beta1.Config
 		err = json.NewDecoder(rec.Body).Decode(&response)
 		require.NoError(t, err)
 
-		// Verify the app config matches what we expect
-		assert.Equal(t, appConfig, response, "app config does not match")
+		// Verify the app config has the values applied from the store
+		assert.Equal(t, response.Spec.Groups[0].Items[0].Value.String(), "applied-value", "app config should have values applied from store")
 	})
 
 	// Test authorization
@@ -2502,8 +2514,16 @@ func TestLinuxGetAppConfig(t *testing.T) {
 		},
 	}
 
-	// Create an install controller with the app config
+	// Create config values that should be applied to the config
+	configValues := map[string]string{
+		"test-item": "applied-value",
+	}
+
+	// Create an install controller with the config values
 	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithStore(
+			store.NewMemoryStore(store.WithAppConfigStore(appconfigstore.NewMemoryStore(appconfigstore.WithConfigValues(configValues)))),
+		),
 		linuxinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),
@@ -2544,14 +2564,255 @@ func TestLinuxGetAppConfig(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&response)
 		require.NoError(t, err)
 
-		// Verify the app config matches what we expect
-		assert.Equal(t, appConfig, response, "app config does not match")
+		// Verify the app config has the values applied from the store
+		assert.Equal(t, response.Spec.Groups[0].Items[0].Value.String(), "applied-value", "app config should have values applied from store")
 	})
 
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create a request
 		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config", nil)
+		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+}
+
+func TestLinuxSetAppConfigValues(t *testing.T) {
+	// Create an app config
+	appConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "test-group",
+					Title: "Test Group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "test-item",
+							Type:    "text",
+							Title:   "Test Item",
+							Default: multitype.BoolOrString{StrVal: "default"},
+							Value:   multitype.BoolOrString{StrVal: "value"},
+						},
+						{
+							Name:    "another-item",
+							Type:    "text",
+							Title:   "Another Item",
+							Default: multitype.BoolOrString{StrVal: "default2"},
+							Value:   multitype.BoolOrString{StrVal: "value2"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create an install controller with the app config
+	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithReleaseData(&release.ReleaseData{
+			AppConfig: &appConfig,
+		}),
+	)
+	require.NoError(t, err)
+
+	// Create the API with the install controller
+	apiInstance, err := api.New(
+		types.APIConfig{
+			Password: "password",
+		},
+		api.WithLinuxInstallController(installController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithLogger(logger.NewDiscardLogger()),
+	)
+	require.NoError(t, err)
+
+	// Create a router and register the API routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router)
+
+	// Test successful set and get
+	t.Run("Success", func(t *testing.T) {
+		// Create a request to set config values
+		setRequest := types.SetAppConfigValuesRequest{
+			Values: map[string]string{
+				"test-item": "new-value",
+			},
+		}
+
+		reqBodyBytes, err := json.Marshal(setRequest)
+		require.NoError(t, err)
+
+		// Create a request to set config values
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/config/values", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var response kotsv1beta1.Config
+		err = json.NewDecoder(rec.Body).Decode(&response)
+		require.NoError(t, err)
+
+		// Verify the app config has the updated values applied
+		assert.Equal(t, "new-value", response.Spec.Groups[0].Items[0].Value.String(), "first item should have updated value")
+		assert.Equal(t, "value2", response.Spec.Groups[0].Items[1].Value.String(), "second item should not have updated value")
+	})
+
+	// Test authorization
+	t.Run("Authorization error", func(t *testing.T) {
+		// Create a request to set config values
+		setRequest := types.SetAppConfigValuesRequest{
+			Values: map[string]string{
+				"test-item": "new-value",
+			},
+		}
+
+		reqBodyBytes, err := json.Marshal(setRequest)
+		require.NoError(t, err)
+
+		// Create a request with invalid token
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/config/values", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+}
+
+func TestKubernetesSetAppConfigValues(t *testing.T) {
+	// Create an app config
+	appConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "test-group",
+					Title: "Test Group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "test-item",
+							Type:    "text",
+							Title:   "Test Item",
+							Default: multitype.BoolOrString{StrVal: "default"},
+							Value:   multitype.BoolOrString{StrVal: "value"},
+						},
+						{
+							Name:    "another-item",
+							Type:    "text",
+							Title:   "Another Item",
+							Default: multitype.BoolOrString{StrVal: "default2"},
+							Value:   multitype.BoolOrString{StrVal: "value2"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create an install controller with the app config
+	installController, err := kubernetesinstall.NewInstallController(
+		kubernetesinstall.WithReleaseData(&release.ReleaseData{
+			AppConfig: &appConfig,
+		}),
+	)
+	require.NoError(t, err)
+
+	// Create the API with the install controller
+	apiInstance, err := api.New(
+		types.APIConfig{
+			Password: "password",
+		},
+		api.WithKubernetesInstallController(installController),
+		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithLogger(logger.NewDiscardLogger()),
+	)
+	require.NoError(t, err)
+
+	// Create a router and register the API routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router)
+
+	// Test successful set and get
+	t.Run("Success", func(t *testing.T) {
+		// Create a request to set config values
+		setRequest := types.SetAppConfigValuesRequest{
+			Values: map[string]string{
+				"test-item":    "new-value",
+				"another-item": "new-value2",
+			},
+		}
+
+		reqBodyBytes, err := json.Marshal(setRequest)
+		require.NoError(t, err)
+
+		// Create a request to set config values
+		req := httptest.NewRequest(http.MethodPost, "/kubernetes/install/app/config/values", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var response kotsv1beta1.Config
+		err = json.NewDecoder(rec.Body).Decode(&response)
+		require.NoError(t, err)
+
+		// Verify the app config has the updated values applied
+		assert.Equal(t, "new-value", response.Spec.Groups[0].Items[0].Value.String(), "first item should have updated value")
+		assert.Equal(t, "new-value2", response.Spec.Groups[0].Items[1].Value.String(), "second item should have updated value")
+	})
+
+	// Test authorization
+	t.Run("Authorization error", func(t *testing.T) {
+		// Create a request to set config values
+		setRequest := types.SetAppConfigValuesRequest{
+			Values: map[string]string{
+				"test-item": "new-value",
+			},
+		}
+
+		reqBodyBytes, err := json.Marshal(setRequest)
+		require.NoError(t, err)
+
+		// Create a request with invalid token
+		req := httptest.NewRequest(http.MethodPost, "/kubernetes/install/app/config/values", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
 		rec := httptest.NewRecorder()
 

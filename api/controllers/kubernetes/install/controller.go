@@ -9,7 +9,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
-	appconfigstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -28,6 +27,7 @@ type Controller interface {
 	SetupInfra(ctx context.Context) error
 	GetInfra(ctx context.Context) (types.Infra, error)
 	GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error)
+	SetAppConfigValues(ctx context.Context, values map[string]string) error
 }
 
 var _ Controller = (*InstallController)(nil)
@@ -152,22 +152,13 @@ func WithStore(store store.Store) InstallControllerOption {
 
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
+		store:        store.NewMemoryStore(),
 		logger:       logger.NewDiscardLogger(),
 		stateMachine: NewStateMachine(),
 	}
 
 	for _, opt := range opts {
 		opt(controller)
-	}
-
-	if controller.store == nil {
-		appConfig := kotsv1beta1.Config{}
-		if controller.releaseData != nil && controller.releaseData.AppConfig != nil {
-			appConfig = *controller.releaseData.AppConfig
-		}
-		controller.store = store.NewMemoryStore(
-			store.WithAppConfigStore(appconfigstore.NewMemoryStore(appconfigstore.WithConfig(appConfig))),
-		)
 	}
 
 	if controller.installationManager == nil {

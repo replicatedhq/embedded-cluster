@@ -3,32 +3,33 @@ package config
 import (
 	"sync"
 
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/tiendc/go-deepcopy"
 )
 
 var _ Store = &memoryStore{}
 
 type Store interface {
-	Get() (kotsv1beta1.Config, error)
-	Set(config kotsv1beta1.Config) error
+	GetConfigValues() (map[string]string, error)
+	SetConfigValues(configValues map[string]string) error
 }
 
 type memoryStore struct {
-	mu     sync.RWMutex
-	config kotsv1beta1.Config
+	mu           sync.RWMutex
+	configValues map[string]string
 }
 
 type StoreOption func(*memoryStore)
 
-func WithConfig(config kotsv1beta1.Config) StoreOption {
+func WithConfigValues(configValues map[string]string) StoreOption {
 	return func(s *memoryStore) {
-		s.config = config
+		s.configValues = configValues
 	}
 }
 
 func NewMemoryStore(opts ...StoreOption) Store {
-	s := &memoryStore{}
+	s := &memoryStore{
+		configValues: map[string]string{},
+	}
 
 	for _, opt := range opts {
 		opt(s)
@@ -37,22 +38,22 @@ func NewMemoryStore(opts ...StoreOption) Store {
 	return s
 }
 
-func (s *memoryStore) Get() (kotsv1beta1.Config, error) {
+func (s *memoryStore) GetConfigValues() (map[string]string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var config kotsv1beta1.Config
-	if err := deepcopy.Copy(&config, &s.config); err != nil {
-		return kotsv1beta1.Config{}, err
+	var configValues map[string]string
+	if err := deepcopy.Copy(&configValues, &s.configValues); err != nil {
+		return nil, err
 	}
 
-	return config, nil
+	return configValues, nil
 }
 
-func (s *memoryStore) Set(config kotsv1beta1.Config) error {
+func (s *memoryStore) SetConfigValues(configValues map[string]string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.config = config
+	s.configValues = configValues
 	return nil
 }
