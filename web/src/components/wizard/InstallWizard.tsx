@@ -46,7 +46,7 @@ const InstallWizard: React.FC = () => {
       case "welcome":
         return <WelcomeStep onNext={goToNextStep} />;
       case "configuration":
-        return <ConfigurationStep onNext={goToNextStep} onBack={goToPreviousStep} />;
+        return <ConfigurationStep onNext={goToNextStep} />;
       case "linux-setup":
         return <LinuxSetupStep onNext={goToNextStep} onBack={goToPreviousStep} />;
       case "kubernetes-setup":

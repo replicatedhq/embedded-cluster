@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronRight, Loader2 } from 'lucide-react';
 import { handleUnauthorized } from '../../../utils/auth';
 
 interface ConfigurationStepProps {
   onNext: () => void;
-  onBack: () => void;
 }
 
 // Types for the app config structure
@@ -44,17 +43,18 @@ interface AppConfigChildItem {
   default?: string;
 }
 
-const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext, onBack }) => {
+const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { text, target } = useWizard();
   const { token } = useAuth();
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState<string>('');
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [changedValues, setChangedValues] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const themeColor = settings.themeColor;
 
   // Fetch app config from API
-  const { isLoading, error } = useQuery<AppConfig>({
+  const { isLoading: isConfigLoading, error: getConfigError } = useQuery<AppConfig>({
     queryKey: ['appConfig', target],
     queryFn: async () => {
       const response = await fetch(`/api/${target}/install/app/config`, {
@@ -87,7 +87,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext, onBack })
         },
         body: JSON.stringify({ values: changedValues }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         if (response.status === 401) {
@@ -96,14 +96,15 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext, onBack })
         }
         throw new Error(errorData.message || 'Failed to save configuration');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
+      setSubmitError(null);
       onNext();
     },
-    onError: (error) => {
-      console.error('Failed to save configuration:', error);
+    onError: (error: any) => {
+      setSubmitError(error?.message || 'Failed to save configuration');
     },
   });
 
@@ -116,7 +117,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext, onBack })
 
   const updateConfigValue = (itemName: string, value: string) => {
     if (!appConfig) return;
-    
+
     // Update the app config for display
     setAppConfig({
       ...appConfig,
@@ -130,11 +131,11 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext, onBack })
         }))
       }
     });
-    
+
     // Update the changed values map
     setChangedValues(prev => {
       const newValues = { ...prev };
-      
+
       if (value === '') {
         // Remove the item if it's empty
         delete newValues[itemName];
@@ -142,7 +143,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext, onBack })
         // Add or update the item with the new value
         newValues[itemName] = value;
       }
-      
+
       return newValues;
     });
   };
@@ -183,7 +184,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext, onBack })
             <input
               id={key}
               type="checkbox"
-              checked={Boolean(value)}
+              checked={value === '1'}
               onChange={handleCheckboxChange}
               className="h-4 w-4 focus:ring-offset-2 border-gray-300 rounded"
               style={{
@@ -195,15 +196,6 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext, onBack })
               {item.title}
             </label>
           </div>
-        );
-
-      default:
-        return (
-          <Input
-            {...commonProps}
-            onChange={handleInputChange}
-            placeholder={item.default?.toString() || ''}
-          />
         );
     }
   };
@@ -228,7 +220,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext, onBack })
     );
   };
 
-  if (isLoading) {
+  if (isConfigLoading) {
     return (
       <div className="space-y-6">
         <Card>
@@ -241,13 +233,13 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext, onBack })
     );
   }
 
-  if (error) {
+  if (getConfigError) {
     return (
       <div className="space-y-6">
         <Card>
           <div className="flex flex-col items-center justify-center py-12">
             <p className="text-red-600 mb-4">Failed to load configuration</p>
-            <p className="text-gray-600 text-sm">{error.message}</p>
+            <p className="text-gray-600 text-sm">{getConfigError.message}</p>
           </div>
         </Card>
       </div>
@@ -299,13 +291,16 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext, onBack })
         </div>
 
         {renderActiveTab()}
+
+        {submitError && (
+          <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
+            {submitError}
+          </div>
+        )}
       </Card>
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
-          Back
-        </Button>
-        <Button  onClick={submitConfigValues}  icon={<ChevronRight className="w-5 h-5" />}>
+      <div className="flex justify-end">
+        <Button onClick={submitConfigValues} icon={<ChevronRight className="w-5 h-5" />}>
           Next: Setup
         </Button>
       </div>
