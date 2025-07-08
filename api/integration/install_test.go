@@ -2465,8 +2465,6 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
-		fmt.Printf("Response body: %s\n", rec.Body.String())
-
 		// Parse the response body
 		var response kotsv1beta1.Config
 		err = json.NewDecoder(rec.Body).Decode(&response)
