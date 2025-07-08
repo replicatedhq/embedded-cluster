@@ -87,26 +87,17 @@ func (m *MockController) GetInfra(ctx context.Context) (types.Infra, error) {
 	return args.Get(0).(types.Infra), args.Error(1)
 }
 
-// GetAppConfigValues mocks the GetAppConfigValues method
-func (m *MockController) GetAppConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error) {
+// GetAppConfig mocks the GetAppConfig method
+func (m *MockController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error) {
 	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return kotsv1beta1.ConfigValues{}, args.Error(1)
-	}
-	return args.Get(0).(kotsv1beta1.ConfigValues), args.Error(1)
-}
-
-// SetAppConfigValues mocks the SetAppConfigValues method
-func (m *MockController) SetAppConfigValues(ctx context.Context, values kotsv1beta1.ConfigValues) error {
-	args := m.Called(ctx, values)
-	return args.Error(0)
-}
-
-// ApplyValuesToConfig mocks the ApplyValuesToConfig method
-func (m *MockController) ApplyValuesToConfig(ctx context.Context, config kotsv1beta1.Config, values kotsv1beta1.ConfigValues) (kotsv1beta1.Config, error) {
-	args := m.Called(ctx, config, values)
 	if args.Get(0) == nil {
 		return kotsv1beta1.Config{}, args.Error(1)
 	}
 	return args.Get(0).(kotsv1beta1.Config), args.Error(1)
+}
+
+// SetAppConfigValues mocks the SetAppConfigValues method
+func (m *MockController) SetAppConfigValues(ctx context.Context, values map[string]string) error {
+	args := m.Called(ctx, values)
+	return args.Error(0)
 }

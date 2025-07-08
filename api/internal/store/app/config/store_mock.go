@@ -1,7 +1,6 @@
 package config
 
 import (
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -13,16 +12,16 @@ type MockStore struct {
 }
 
 // GetConfigValues mocks the GetConfigValues method
-func (m *MockStore) GetConfigValues() (kotsv1beta1.ConfigValues, error) {
+func (m *MockStore) GetConfigValues() (map[string]string, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
-		return kotsv1beta1.ConfigValues{}, args.Error(1)
+		return nil, args.Error(1)
 	}
-	return args.Get(0).(kotsv1beta1.ConfigValues), args.Error(1)
+	return args.Get(0).(map[string]string), args.Error(1)
 }
 
 // SetConfigValues mocks the SetConfigValues method
-func (m *MockStore) SetConfigValues(configValues kotsv1beta1.ConfigValues) error {
+func (m *MockStore) SetConfigValues(configValues map[string]string) error {
 	args := m.Called(configValues)
 	return args.Error(0)
 }

@@ -1,10 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +13,7 @@ func newMemoryStore() Store {
 	return NewMemoryStore()
 }
 
-func newMemoryStoreWithConfigValues(configValues kotsv1beta1.ConfigValues) Store {
+func newMemoryStoreWithConfigValues(configValues map[string]string) Store {
 	return NewMemoryStore(WithConfigValues(configValues))
 }
 
@@ -23,18 +23,12 @@ func TestNewMemoryStore(t *testing.T) {
 	assert.NotNil(t, store)
 	configValues, err := store.GetConfigValues()
 	require.NoError(t, err)
-	assert.Equal(t, kotsv1beta1.ConfigValues{}, configValues)
+	assert.Equal(t, map[string]string{}, configValues)
 }
 
 func TestNewMemoryStoreWithConfigValues(t *testing.T) {
-	initialConfigValues := kotsv1beta1.ConfigValues{
-		Spec: kotsv1beta1.ConfigValuesSpec{
-			Values: map[string]kotsv1beta1.ConfigValue{
-				"test-key": {
-					Value: "test-value",
-				},
-			},
-		},
+	initialConfigValues := map[string]string{
+		"test-key": "test-value",
 	}
 
 	store := newMemoryStoreWithConfigValues(initialConfigValues)
@@ -51,20 +45,12 @@ func TestMemoryStore_GetAndSetConfigValues(t *testing.T) {
 	// Test initial empty config values
 	configValues, err := store.GetConfigValues()
 	require.NoError(t, err)
-	assert.Equal(t, kotsv1beta1.ConfigValues{}, configValues)
+	assert.Equal(t, map[string]string{}, configValues)
 
 	// Test setting config values
-	newConfigValues := kotsv1beta1.ConfigValues{
-		Spec: kotsv1beta1.ConfigValuesSpec{
-			Values: map[string]kotsv1beta1.ConfigValue{
-				"db_host": {
-					Value: "db.example.com",
-				},
-				"db_port": {
-					Value: "5432",
-				},
-			},
-		},
+	newConfigValues := map[string]string{
+		"db_host": "db.example.com",
+		"db_port": "5432",
 	}
 
 	err = store.SetConfigValues(newConfigValues)
@@ -79,173 +65,138 @@ func TestMemoryStore_GetAndSetConfigValues(t *testing.T) {
 func TestMemoryStore_SetConfigValuesMultipleTimes(t *testing.T) {
 	store := newMemoryStore()
 
-	// Set initial config values
-	configValues1 := kotsv1beta1.ConfigValues{
-		Spec: kotsv1beta1.ConfigValuesSpec{
-			Values: map[string]kotsv1beta1.ConfigValue{
-				"group1_key": {
-					Value: "group1_value",
-				},
-			},
-		},
+	// Set initial values
+	initialValues := map[string]string{
+		"key1": "value1",
+		"key2": "value2",
 	}
-
-	err := store.SetConfigValues(configValues1)
+	err := store.SetConfigValues(initialValues)
 	require.NoError(t, err)
 
-	// Verify first config values
-	retrievedConfigValues, err := store.GetConfigValues()
+	// Verify initial values
+	retrievedValues, err := store.GetConfigValues()
 	require.NoError(t, err)
-	assert.Equal(t, configValues1, retrievedConfigValues)
+	assert.Equal(t, initialValues, retrievedValues)
 
-	// Set second config values
-	configValues2 := kotsv1beta1.ConfigValues{
-		Spec: kotsv1beta1.ConfigValuesSpec{
-			Values: map[string]kotsv1beta1.ConfigValue{
-				"group2_key": {
-					Value: "group2_value",
-				},
-			},
-		},
+	// Set new values
+	newValues := map[string]string{
+		"key3": "value3",
+		"key4": "value4",
 	}
-
-	err = store.SetConfigValues(configValues2)
+	err = store.SetConfigValues(newValues)
 	require.NoError(t, err)
 
-	// Verify second config values
-	retrievedConfigValues, err = store.GetConfigValues()
+	// Verify new values
+	retrievedValues, err = store.GetConfigValues()
 	require.NoError(t, err)
-	assert.Equal(t, configValues2, retrievedConfigValues)
+	assert.Equal(t, newValues, retrievedValues)
+
+	// Verify old values are not present
+	assert.NotContains(t, retrievedValues, "key1")
+	assert.NotContains(t, retrievedValues, "key2")
 }
 
-func TestMemoryStore_DeepCopyValues(t *testing.T) {
-	store := newMemoryStore()
-
-	// Set initial config values
-	initialConfigValues := kotsv1beta1.ConfigValues{
-		Spec: kotsv1beta1.ConfigValuesSpec{
-			Values: map[string]kotsv1beta1.ConfigValue{
-				"test-item": {
-					Value: "custom-value",
-				},
-			},
-		},
-	}
-
-	err := store.SetConfigValues(initialConfigValues)
-	require.NoError(t, err)
-
-	// Get config and modify it
-	retrievedConfigValues, err := store.GetConfigValues()
-	require.NoError(t, err)
-
-	// Modify the retrieved config
-	modifiedValue := retrievedConfigValues.Spec.Values["test-item"]
-	modifiedValue.Value = "modified-value"
-	retrievedConfigValues.Spec.Values["test-item"] = modifiedValue
-
-	// Get config again to verify it wasn't modified in store
-	originalConfigValues, err := store.GetConfigValues()
-	require.NoError(t, err)
-
-	// The store should still have the original value
-	assert.Equal(t, "custom-value", originalConfigValues.Spec.Values["test-item"].Value)
-	assert.Equal(t, "modified-value", retrievedConfigValues.Spec.Values["test-item"].Value)
-}
-
-func TestMemoryStore_ConcurrentValuesAccess(t *testing.T) {
+func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 	store := newMemoryStore()
 	var wg sync.WaitGroup
-	numGoroutines := 10
 
-	// Test concurrent reads
-	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			_, err := store.GetConfigValues()
-			assert.NoError(t, err)
-		}()
+	// Set initial config values first
+	initialValues := map[string]string{
+		"initial-key": "initial-value",
 	}
+	err := store.SetConfigValues(initialValues)
+	require.NoError(t, err)
 
-	wg.Wait()
+	numGoroutines := 10
+	numOperations := 50
 
-	// Test concurrent writes
+	// Concurrent config values operations
+	wg.Add(numGoroutines * 2)
 	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go func(index int) {
+		// Concurrent config values writes
+		go func(id int) {
 			defer wg.Done()
-			configValues := kotsv1beta1.ConfigValues{
-				Spec: kotsv1beta1.ConfigValuesSpec{
-					Values: map[string]kotsv1beta1.ConfigValue{
-						"group": {
-							Value: "value",
-						},
-					},
-				},
+			for j := 0; j < numOperations; j++ {
+				key := fmt.Sprintf("goroutine-%d-key-%d", id, j)
+				value := fmt.Sprintf("value-%d-%d", id, j)
+				err := store.SetConfigValues(map[string]string{key: value})
+				assert.NoError(t, err)
 			}
-			err := store.SetConfigValues(configValues)
-			assert.NoError(t, err)
+		}(i)
+
+		// Concurrent config values reads
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < numOperations; j++ {
+				_, err := store.GetConfigValues()
+				assert.NoError(t, err)
+			}
 		}(i)
 	}
 
 	wg.Wait()
+}
 
-	// Verify final state
-	configValues, err := store.GetConfigValues()
+func TestMemoryStore_DeepCopy(t *testing.T) {
+	store := newMemoryStore()
+
+	// Set initial values
+	initialValues := map[string]string{
+		"test-item": "original-value",
+	}
+	err := store.SetConfigValues(initialValues)
 	require.NoError(t, err)
-	assert.NotEqual(t, kotsv1beta1.ConfigValues{}, configValues)
+
+	// Get values and modify the returned map
+	retrievedConfigValues, err := store.GetConfigValues()
+	require.NoError(t, err)
+	assert.Equal(t, "original-value", retrievedConfigValues["test-item"])
+
+	// Modify the retrieved values
+	retrievedConfigValues["test-item"] = "modified-value"
+
+	// Get values again and verify they weren't affected by the modification
+	originalConfigValues, err := store.GetConfigValues()
+	require.NoError(t, err)
+	assert.Equal(t, "original-value", originalConfigValues["test-item"])
+	assert.Equal(t, "modified-value", retrievedConfigValues["test-item"])
 }
 
 func TestMemoryStore_EmptyConfigValues(t *testing.T) {
 	store := newMemoryStore()
 
-	// Test setting empty config values
-	emptyConfigValues := kotsv1beta1.ConfigValues{}
-	err := store.SetConfigValues(emptyConfigValues)
+	// Set empty values
+	err := store.SetConfigValues(map[string]string{})
 	require.NoError(t, err)
 
-	// Test getting empty config values
+	// Get values
 	configValues, err := store.GetConfigValues()
 	require.NoError(t, err)
-	assert.Equal(t, emptyConfigValues, configValues)
+	assert.Equal(t, map[string]string{}, configValues)
 }
 
 func TestMemoryStore_ComplexConfigValues(t *testing.T) {
 	store := newMemoryStore()
 
-	complexConfigValues := kotsv1beta1.ConfigValues{
-		Spec: kotsv1beta1.ConfigValuesSpec{
-			Values: map[string]kotsv1beta1.ConfigValue{
-				"db_host": {
-					Value: "db.example.com",
-				},
-				"db_port": {
-					Value: "5432",
-				},
-				"db_ssl": {
-					Value: "true",
-				},
-				"redis_host": {
-					Value: "redis.example.com",
-				},
-				"redis_port": {
-					Value: "6379",
-				},
-			},
-		},
+	// Set complex values with various string types
+	complexValues := map[string]string{
+		"empty":          "",
+		"simple":         "value",
+		"with_spaces":    "value with spaces",
+		"with_special":   "value!@#$%^&*()",
+		"with_unicode":   "value with unicode: 🚀",
+		"with_newlines":  "value\nwith\nnewlines",
+		"with_quotes":    `value with "quotes"`,
+		"very_long":      "very long value that might exceed some buffer sizes and cause issues with memory allocation or string handling",
+		"numeric_string": "12345",
+		"boolean_string": "true",
 	}
 
-	err := store.SetConfigValues(complexConfigValues)
+	err := store.SetConfigValues(complexValues)
 	require.NoError(t, err)
 
-	// Test getting complex config values
-	configValues, err := store.GetConfigValues()
+	// Get values
+	retrievedValues, err := store.GetConfigValues()
 	require.NoError(t, err)
-	assert.Equal(t, complexConfigValues, configValues)
-
-	// Verify specific values
-	assert.Len(t, configValues.Spec.Values, 5)
-	assert.Equal(t, "db.example.com", configValues.Spec.Values["db_host"].Value)
-	assert.Equal(t, "redis.example.com", configValues.Spec.Values["redis_host"].Value)
+	assert.Equal(t, complexValues, retrievedValues)
 }

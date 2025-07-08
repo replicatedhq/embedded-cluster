@@ -1,13 +1,15 @@
 package kubernetes
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
+
+// import is used in swagger annotation above
+var _ = kotsv1beta1.Config{}
 
 // GetInstallationConfig handler to get the Kubernetes installation config
 //
@@ -132,30 +134,14 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	kotsv1beta1.Config
 //	@Router			/kubernetes/install/app/config [get]
 func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
-	// import is used in swagger annotation above
-	_ = kotsv1beta1.Config{}
-
-	if h.cfg.ReleaseData == nil || h.cfg.ReleaseData.AppConfig == nil {
-		utils.LogError(r, errors.New("app config not found"), h.logger)
-		utils.JSONError(w, r, errors.New("app config not found"), h.logger)
-		return
-	}
-
-	configValues, err := h.installController.GetAppConfigValues(r.Context())
+	appConfig, err := h.installController.GetAppConfig(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get app config")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
-	updatedConfig, err := h.installController.ApplyValuesToConfig(r.Context(), *h.cfg.ReleaseData.AppConfig, configValues)
-	if err != nil {
-		utils.LogError(r, err, h.logger, "failed to apply values to config")
-		utils.JSONError(w, r, err, h.logger)
-		return
-	}
-
-	utils.JSON(w, r, http.StatusOK, updatedConfig, h.logger)
+	utils.JSON(w, r, http.StatusOK, appConfig, h.logger)
 }
 
 // PostSetAppConfigValues handler to set the app config values
@@ -176,13 +162,7 @@ func (h *Handler) PostSetAppConfigValues(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	values := kotsv1beta1.ConfigValues{
-		Spec: kotsv1beta1.ConfigValuesSpec{
-			Values: req.Values,
-		},
-	}
-
-	err := h.installController.SetAppConfigValues(r.Context(), values)
+	err := h.installController.SetAppConfigValues(r.Context(), req.Values)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to set app config values")
 		utils.JSONError(w, r, err, h.logger)

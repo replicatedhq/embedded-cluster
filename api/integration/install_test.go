@@ -2415,14 +2415,8 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 	}
 
 	// Create config values that should be applied to the config
-	configValues := kotsv1beta1.ConfigValues{
-		Spec: kotsv1beta1.ConfigValuesSpec{
-			Values: map[string]kotsv1beta1.ConfigValue{
-				"test-item": {
-					Value: "applied-value",
-				},
-			},
-		},
+	configValues := map[string]string{
+		"test-item": "applied-value",
 	}
 
 	// Create an install controller with the config values
@@ -2430,6 +2424,9 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 		kubernetesinstall.WithStore(
 			store.NewMemoryStore(store.WithAppConfigStore(appconfigstore.NewMemoryStore(appconfigstore.WithConfigValues(configValues)))),
 		),
+		kubernetesinstall.WithReleaseData(&release.ReleaseData{
+			AppConfig: &appConfig,
+		}),
 	)
 	require.NoError(t, err)
 
@@ -2437,9 +2434,6 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
-			ReleaseData: &release.ReleaseData{
-				AppConfig: &appConfig,
-			},
 		},
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
@@ -2464,6 +2458,8 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 		// Check the response
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		fmt.Printf("response: %+v\n", rec.Body.String())
 
 		// Parse the response body
 		var response kotsv1beta1.Config
@@ -2519,14 +2515,8 @@ func TestLinuxGetAppConfig(t *testing.T) {
 	}
 
 	// Create config values that should be applied to the config
-	configValues := kotsv1beta1.ConfigValues{
-		Spec: kotsv1beta1.ConfigValuesSpec{
-			Values: map[string]kotsv1beta1.ConfigValue{
-				"test-item": {
-					Value: "applied-value",
-				},
-			},
-		},
+	configValues := map[string]string{
+		"test-item": "applied-value",
 	}
 
 	// Create an install controller with the config values
@@ -2534,6 +2524,9 @@ func TestLinuxGetAppConfig(t *testing.T) {
 		linuxinstall.WithStore(
 			store.NewMemoryStore(store.WithAppConfigStore(appconfigstore.NewMemoryStore(appconfigstore.WithConfigValues(configValues)))),
 		),
+		linuxinstall.WithReleaseData(&release.ReleaseData{
+			AppConfig: &appConfig,
+		}),
 	)
 	require.NoError(t, err)
 
@@ -2541,9 +2534,6 @@ func TestLinuxGetAppConfig(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
-			ReleaseData: &release.ReleaseData{
-				AppConfig: &appConfig,
-			},
 		},
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
@@ -2630,16 +2620,17 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 	}
 
 	// Create an install controller with the app config
-	installController, err := linuxinstall.NewInstallController()
+	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithReleaseData(&release.ReleaseData{
+			AppConfig: &appConfig,
+		}),
+	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
-			ReleaseData: &release.ReleaseData{
-				AppConfig: &appConfig,
-			},
 		},
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
@@ -2655,10 +2646,8 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Create a request to set config values
 		setRequest := types.SetAppConfigValuesRequest{
-			Values: map[string]kotsv1beta1.ConfigValue{
-				"test-item": {
-					Value: "new-value",
-				},
+			Values: map[string]string{
+				"test-item": "new-value",
 			},
 		}
 
@@ -2692,10 +2681,8 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create a request to set config values
 		setRequest := types.SetAppConfigValuesRequest{
-			Values: map[string]kotsv1beta1.ConfigValue{
-				"test-item": {
-					Value: "new-value",
-				},
+			Values: map[string]string{
+				"test-item": "new-value",
 			},
 		}
 
@@ -2753,16 +2740,17 @@ func TestKubernetesSetAppConfigValues(t *testing.T) {
 	}
 
 	// Create an install controller with the app config
-	installController, err := kubernetesinstall.NewInstallController()
+	installController, err := kubernetesinstall.NewInstallController(
+		kubernetesinstall.WithReleaseData(&release.ReleaseData{
+			AppConfig: &appConfig,
+		}),
+	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
-			ReleaseData: &release.ReleaseData{
-				AppConfig: &appConfig,
-			},
 		},
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(&staticAuthController{"TOKEN"}),
@@ -2778,13 +2766,9 @@ func TestKubernetesSetAppConfigValues(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Create a request to set config values
 		setRequest := types.SetAppConfigValuesRequest{
-			Values: map[string]kotsv1beta1.ConfigValue{
-				"test-item": {
-					Value: "new-value",
-				},
-				"another-item": {
-					Value: "new-value2",
-				},
+			Values: map[string]string{
+				"test-item":    "new-value",
+				"another-item": "new-value2",
 			},
 		}
 
@@ -2818,10 +2802,8 @@ func TestKubernetesSetAppConfigValues(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create a request to set config values
 		setRequest := types.SetAppConfigValuesRequest{
-			Values: map[string]kotsv1beta1.ConfigValue{
-				"test-item": {
-					Value: "new-value",
-				},
+			Values: map[string]string{
+				"test-item": "new-value",
 			},
 		}
 
