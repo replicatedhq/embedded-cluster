@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,7 +17,6 @@ type Client interface {
 	ConfigureLinuxInstallation(config types.LinuxInstallationConfig) (types.Status, error)
 	SetupLinuxInfra(ignoreHostPreflights bool) (types.Infra, error)
 	GetLinuxInfraStatus() (types.Infra, error)
-	GetLinuxAppConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error)
 	GetLinuxAppConfig() (kotsv1beta1.Config, error)
 
 	GetKubernetesInstallationConfig() (types.KubernetesInstallationConfig, error)
@@ -26,7 +24,6 @@ type Client interface {
 	GetKubernetesInstallationStatus() (types.Status, error)
 	SetupKubernetesInfra() (types.Infra, error)
 	GetKubernetesInfraStatus() (types.Infra, error)
-	GetKubernetesAppConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error)
 	GetKubernetesAppConfig() (kotsv1beta1.Config, error)
 }
 

@@ -54,15 +54,6 @@ func (m *MockController) GetInfra(ctx context.Context) (types.Infra, error) {
 	return args.Get(0).(types.Infra), args.Error(1)
 }
 
-// GetAppConfigValues mocks the GetAppConfigValues method
-func (m *MockController) GetAppConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return kotsv1beta1.ConfigValues{}, args.Error(1)
-	}
-	return args.Get(0).(kotsv1beta1.ConfigValues), args.Error(1)
-}
-
 // GetAppConfig mocks the GetAppConfig method
 func (m *MockController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error) {
 	args := m.Called(ctx)

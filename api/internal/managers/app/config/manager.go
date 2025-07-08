@@ -16,7 +16,7 @@ var _ AppConfigManager = &appConfigManager{}
 type AppConfigManager interface {
 	Get() (kotsv1beta1.Config, error)
 	Set(ctx context.Context) error
-	GetAppConfigValues() (kotsv1beta1.ConfigValues, error)
+	RenderAppConfigValues() (kotsv1beta1.ConfigValues, error)
 }
 
 // appConfigManager is an implementation of the AppConfigManager interface

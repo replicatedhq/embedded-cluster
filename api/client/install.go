@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -324,33 +323,6 @@ func (c *client) GetLinuxAppConfig() (kotsv1beta1.Config, error) {
 	return config, nil
 }
 
-func (c *client) GetLinuxAppConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/install/app/config/values", nil)
-	if err != nil {
-		return kotsv1beta1.ConfigValues{}, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	setAuthorizationHeader(req, c.token)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return kotsv1beta1.ConfigValues{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return kotsv1beta1.ConfigValues{}, errorFromResponse(resp)
-	}
-
-	var configValues kotsv1beta1.ConfigValues
-	err = json.NewDecoder(resp.Body).Decode(&configValues)
-	if err != nil {
-		return kotsv1beta1.ConfigValues{}, err
-	}
-
-	return configValues, nil
-}
-
 func (c *client) GetKubernetesAppConfig() (kotsv1beta1.Config, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app/config", nil)
 	if err != nil {
@@ -376,31 +348,4 @@ func (c *client) GetKubernetesAppConfig() (kotsv1beta1.Config, error) {
 	}
 
 	return config, nil
-}
-
-func (c *client) GetKubernetesAppConfigValues(ctx context.Context) (kotsv1beta1.ConfigValues, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/kubernetes/install/app/config/values", nil)
-	if err != nil {
-		return kotsv1beta1.ConfigValues{}, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	setAuthorizationHeader(req, c.token)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return kotsv1beta1.ConfigValues{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return kotsv1beta1.ConfigValues{}, errorFromResponse(resp)
-	}
-
-	var configValues kotsv1beta1.ConfigValues
-	err = json.NewDecoder(resp.Body).Decode(&configValues)
-	if err != nil {
-		return kotsv1beta1.ConfigValues{}, err
-	}
-
-	return configValues, nil
 }
