@@ -270,7 +270,6 @@ func createConfigValuesFile(configValues map[string]string) (string, error) {
 		return "", fmt.Errorf("marshaling config values: %w", err)
 	}
 
-	// Create temporary file for config values - same pattern as license file but with .yaml extension
 	configValuesFile, err := os.CreateTemp("", "config-values*.yaml")
 	if err != nil {
 		return "", fmt.Errorf("unable to create temp file: %w", err)
