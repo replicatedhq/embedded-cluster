@@ -130,23 +130,23 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     updateConfigValue(id, checked ? '1' : '0');
   };
 
+  const handleRadioChange = (parentId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, checked } = e.target;
+    if (!checked) return;
+    updateConfigValue(parentId, id);
+  };
+
   const renderConfigItem = (item: AppConfigItem) => {
-    const key = item.name;
-    const value = item.value || item.default || '';
-
-    const commonProps = {
-      id: key,
-      label: item.title,
-      value: value.toString(),
-    };
-
     switch (item.type) {
       case 'text':
         return (
           <Input
-            {...commonProps}
+            id={item.name}
+            label={item.title}
+            value={item.value || ''}
+            placeholder={item.default}
             onChange={handleInputChange}
-            placeholder={item.default?.toString() || ''}
+            dataTestId={`text-input-${item.name}`}
           />
         );
 
@@ -154,21 +154,56 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         return (
           <div className="flex items-center space-x-3">
             <input
-              id={key}
+              id={item.name}
               type="checkbox"
-              checked={value === '1'}
+              checked={(item.value || item.default) === '1'}
               onChange={handleCheckboxChange}
               className="h-4 w-4 focus:ring-offset-2 border-gray-300 rounded"
+              data-testid={`bool-input-${item.name}`}
               style={{
                 color: themeColor,
                 '--tw-ring-color': themeColor,
               } as React.CSSProperties}
             />
-            <label htmlFor={key} className="text-sm text-gray-700">
+            <label htmlFor={item.name} className="text-sm text-gray-700">
               {item.title}
             </label>
           </div>
         );
+
+      case 'radio':
+        if (item.items) {
+          return (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                {item.title}
+              </label>
+              <div className="space-y-2">
+                {item.items.map(child => (
+                  <div key={child.name} className="flex items-center">
+                    <input
+                      type="radio"
+                      id={child.name}
+                      value={child.name}
+                      checked={(item.value || item.default) === child.name}
+                      onChange={e => handleRadioChange(item.name, e)}
+                      className="h-4 w-4 focus:ring-offset-2 border-gray-300"
+                      data-testid={`radio-input-${child.name}`}
+                      style={{
+                        color: themeColor,
+                        '--tw-ring-color': themeColor,
+                      } as React.CSSProperties}
+                    />
+                    <label htmlFor={child.name} className="ml-3 text-sm text-gray-700">
+                      {child.title}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        }
+        return null;
     }
   };
 
