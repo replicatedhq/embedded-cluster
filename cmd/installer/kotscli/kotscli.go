@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -14,7 +15,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -28,7 +31,8 @@ type InstallOptions struct {
 	Namespace             string
 	ClusterID             string
 	AirgapBundle          string
-	ConfigValuesFile      string
+	ConfigValuesFile      string                    // Keep for backward compatibility
+	ConfigValues          *kotsv1beta1.ConfigValues // NEW: Direct config values
 	ReplicatedAppEndpoint string
 	Stdout                io.Writer
 }
@@ -79,8 +83,17 @@ func Install(opts InstallOptions) error {
 		installArgs = append(installArgs, "--airgap-bundle", opts.AirgapBundle)
 		maskfn = MaskKotsOutputForAirgap()
 	}
+
+	// Prioritize CLI-provided file over memory store values to respect explicit user intent
 	if opts.ConfigValuesFile != "" {
 		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
+	} else if opts.ConfigValues != nil {
+		configValuesFile, err := createConfigValuesFile(opts.ConfigValues, opts.RuntimeConfig)
+		if err != nil {
+			return fmt.Errorf("creating config values file: %w", err)
+		}
+
+		installArgs = append(installArgs, "--config-values", configValuesFile)
 	}
 
 	if msg, ok := opts.Stdout.(*spinner.MessageWriter); ok && msg != nil {
@@ -229,6 +242,28 @@ func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
 
 	loading.Closef("Backup storage location configured")
 	return nil
+}
+
+func createConfigValuesFile(configValues *kotsv1beta1.ConfigValues, rc runtimeconfig.RuntimeConfig) (string, error) {
+	// Store config values in data directory so they persist for future KOTS operations like upgrades
+	configDir := filepath.Join(rc.EmbeddedClusterHomeDirectory(), "config")
+
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return "", fmt.Errorf("creating config directory: %w", err)
+	}
+
+	configValuesFile := filepath.Join(configDir, "config-values.yaml")
+
+	data, err := yaml.Marshal(configValues)
+	if err != nil {
+		return "", fmt.Errorf("marshaling config values: %w", err)
+	}
+
+	if err := os.WriteFile(configValuesFile, data, 0644); err != nil {
+		return "", fmt.Errorf("writing config values file: %w", err)
+	}
+
+	return configValuesFile, nil
 }
 
 // MaskKotsOutputForOnline masks the kots cli output during online installations. For

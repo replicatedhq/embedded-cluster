@@ -315,19 +315,32 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 		opts.KotsInstaller = m.kotsInstaller
 	} else {
 		opts.KotsInstaller = func() error {
-			opts := kotscli.InstallOptions{
+			installOpts := kotscli.InstallOptions{
 				RuntimeConfig:         rc,
 				AppSlug:               license.Spec.AppSlug,
 				License:               m.license,
 				Namespace:             constants.KotsadmNamespace,
 				ClusterID:             m.clusterID,
 				AirgapBundle:          m.airgapBundle,
-				ConfigValuesFile:      m.configValues,
 				ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
 				// TODO (@salah): capture kots install logs
 				// Stdout:                stdout,
 			}
-			return kotscli.Install(opts)
+
+			// Prioritize CLI-provided file over memory store values to respect explicit user intent
+			if m.configValues != "" {
+				installOpts.ConfigValuesFile = m.configValues
+			} else if m.appConfigManager != nil {
+				configValues, err := m.appConfigManager.GetConfigValues()
+				if err != nil {
+					return fmt.Errorf("retrieving config values from memory store: %w", err)
+				}
+				if len(configValues.Spec.Values) > 0 {
+					installOpts.ConfigValues = &configValues
+				}
+			}
+
+			return kotscli.Install(installOpts)
 		}
 	}
 

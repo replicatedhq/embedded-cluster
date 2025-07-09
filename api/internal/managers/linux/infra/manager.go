@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	infrastore "github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -28,23 +29,24 @@ type InfraManager interface {
 
 // infraManager is an implementation of the InfraManager interface
 type infraManager struct {
-	infraStore    infrastore.Store
-	password      string
-	tlsConfig     types.TLSConfig
-	license       []byte
-	airgapBundle  string
-	configValues  string
-	releaseData   *release.ReleaseData
-	endUserConfig *ecv1beta1.Config
-	clusterID     string
-	logger        logrus.FieldLogger
-	k0scli        k0s.K0sInterface
-	kcli          client.Client
-	mcli          metadata.Interface
-	hcli          helm.Client
-	hostUtils     hostutils.HostUtilsInterface
-	kotsInstaller func() error
-	mu            sync.RWMutex
+	infraStore       infrastore.Store
+	password         string
+	tlsConfig        types.TLSConfig
+	license          []byte
+	airgapBundle     string
+	configValues     string
+	appConfigManager appconfig.AppConfigManager
+	releaseData      *release.ReleaseData
+	endUserConfig    *ecv1beta1.Config
+	clusterID        string
+	logger           logrus.FieldLogger
+	k0scli           k0s.K0sInterface
+	kcli             client.Client
+	mcli             metadata.Interface
+	hcli             helm.Client
+	hostUtils        hostutils.HostUtilsInterface
+	kotsInstaller    func() error
+	mu               sync.RWMutex
 }
 
 type InfraManagerOption func(*infraManager)
@@ -142,6 +144,12 @@ func WithHostUtils(hostUtils hostutils.HostUtilsInterface) InfraManagerOption {
 func WithKotsInstaller(kotsInstaller func() error) InfraManagerOption {
 	return func(c *infraManager) {
 		c.kotsInstaller = kotsInstaller
+	}
+}
+
+func WithAppConfigManager(manager appconfig.AppConfigManager) InfraManagerOption {
+	return func(c *infraManager) {
+		c.appConfigManager = manager
 	}
 }
 

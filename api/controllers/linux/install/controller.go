@@ -245,6 +245,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
+			infra.WithAppConfigManager(controller.appConfigManager),
 		)
 	}
 
