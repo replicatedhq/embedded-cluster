@@ -19,6 +19,7 @@ func TestCreateConfigValuesFile(t *testing.T) {
 		setupFunc               func(string) // setup function to prepare test environment
 		expectError             bool
 		verifyDirectoryCreation bool
+		expectedYAMLContent     func(string) string // function to generate expected YAML content
 	}{
 		{
 			name: "valid config values should create file successfully",
@@ -33,6 +34,16 @@ func TestCreateConfigValuesFile(t *testing.T) {
 			},
 			setupFunc:   func(tempDir string) {}, // no special setup needed
 			expectError: false,
+			expectedYAMLContent: func(tempDir string) string {
+				return `apiVersion: kots.io/v1beta1
+kind: ConfigValues
+spec:
+  values:
+    test-key:
+      value: test-value
+status: {}
+`
+			},
 		},
 		{
 			name: "empty config values should create empty file successfully",
@@ -43,6 +54,14 @@ func TestCreateConfigValuesFile(t *testing.T) {
 			},
 			setupFunc:   func(tempDir string) {}, // no special setup needed
 			expectError: false,
+			expectedYAMLContent: func(tempDir string) string {
+				return `apiVersion: kots.io/v1beta1
+kind: ConfigValues
+spec:
+  values: {}
+status: {}
+`
+			},
 		},
 		{
 			name: "should create config directory when it doesn't exist",
@@ -60,6 +79,16 @@ func TestCreateConfigValuesFile(t *testing.T) {
 			},
 			expectError:             false,
 			verifyDirectoryCreation: true,
+			expectedYAMLContent: func(tempDir string) string {
+				return `apiVersion: kots.io/v1beta1
+kind: ConfigValues
+spec:
+  values:
+    test:
+      value: value
+status: {}
+`
+			},
 		},
 	}
 
@@ -106,11 +135,18 @@ func TestCreateConfigValuesFile(t *testing.T) {
 			content, err := os.ReadFile(filePath)
 			require.NoError(t, err)
 
+			// Check that the YAML has proper structure
 			var parsedConfig kotsv1beta1.ConfigValues
 			err = yaml.Unmarshal(content, &parsedConfig)
 			require.NoError(t, err)
 
+			// Verify the spec values match
 			assert.Equal(t, tt.configValues.Spec.Values, parsedConfig.Spec.Values)
+
+			// Verify the YAML content has proper apiVersion and kind at the top level
+			contentStr := string(content)
+			assert.Contains(t, contentStr, "apiVersion: kots.io/v1beta1")
+			assert.Contains(t, contentStr, "kind: ConfigValues")
 
 			// Verify file path structure
 			expectedFile := filepath.Join(configDir, "config-values.yaml")

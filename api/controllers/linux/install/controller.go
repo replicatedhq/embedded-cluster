@@ -232,6 +232,13 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
+	if controller.appConfigManager == nil {
+		controller.appConfigManager = appconfig.NewAppConfigManager(
+			appconfig.WithLogger(controller.logger),
+			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
+		)
+	}
+
 	if controller.infraManager == nil {
 		controller.infraManager = infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
@@ -245,13 +252,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
 			infra.WithAppConfigManager(controller.appConfigManager),
-		)
-	}
-
-	if controller.appConfigManager == nil {
-		controller.appConfigManager = appconfig.NewAppConfigManager(
-			appconfig.WithLogger(controller.logger),
-			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
 		)
 	}
 
