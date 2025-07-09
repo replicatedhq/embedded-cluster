@@ -9,7 +9,7 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
+	k8syaml "sigs.k8s.io/yaml"
 )
 
 func TestCreateConfigValuesFile(t *testing.T) {
@@ -137,7 +137,7 @@ status: {}
 
 			// Check that the YAML has proper structure
 			var parsedConfig kotsv1beta1.ConfigValues
-			err = yaml.Unmarshal(content, &parsedConfig)
+			err = k8syaml.Unmarshal(content, &parsedConfig)
 			require.NoError(t, err)
 
 			// Verify the spec values match
