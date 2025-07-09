@@ -2825,7 +2825,6 @@ func TestKubernetesSetAppConfigValues(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := kubernetesinstall.NewInstallController(
-			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateNew))),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),
@@ -2884,7 +2883,6 @@ func TestKubernetesSetAppConfigValues(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := kubernetesinstall.NewInstallController(
-			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateNew))),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),

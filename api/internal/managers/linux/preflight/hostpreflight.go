@@ -74,7 +74,7 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtime
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 
 			if err := m.setFailedStatus("Host preflights failed to run: panic"); err != nil {
-				m.logger.WithField("error", err).Error("set failed status")
+				m.logger.WithError(err).Error("set failed status")
 			}
 		}
 	}()
@@ -98,11 +98,11 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtime
 	}
 
 	if err := m.runner.SaveToDisk(output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")); err != nil {
-		m.logger.WithField("error", err).Warn("save preflights output")
+		m.logger.WithError(err).Warn("save preflights output")
 	}
 
 	if err := m.runner.CopyBundleTo(rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")); err != nil {
-		m.logger.WithField("error", err).Warn("copy preflight bundle to embedded-cluster support dir")
+		m.logger.WithError(err).Warn("copy preflight bundle to embedded-cluster support dir")
 	}
 
 	// Set final status based on results

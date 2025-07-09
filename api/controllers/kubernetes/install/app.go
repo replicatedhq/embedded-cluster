@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -45,6 +46,10 @@ func (c *InstallController) SetAppConfigValues(ctx context.Context, values map[s
 	}
 
 	defer func() {
+		if r := recover(); r != nil {
+			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+		}
+
 		if finalErr != nil {
 			if err := c.stateMachine.Transition(lock, StateApplicationConfigurationFailed); err != nil {
 				c.logger.Errorf("failed to transition states: %w", err)
