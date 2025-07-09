@@ -245,7 +245,6 @@ func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
 }
 
 func createConfigValuesFile(configValues map[string]string, dataDir string) (string, error) {
-	// Convert map to KOTS ConfigValues - keep KOTS logic isolated to this package
 	kotsConfigValues := &kotsv1beta1.ConfigValues{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "kots.io/v1beta1",
