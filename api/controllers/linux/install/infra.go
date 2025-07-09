@@ -67,7 +67,6 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 			}
 		}()
 
-		// Get config values directly from the store
 		configValues := make(map[string]string)
 		if c.store != nil && c.store.AppConfigStore() != nil {
 			if values, err := c.store.AppConfigStore().GetConfigValues(); err != nil {
@@ -77,7 +76,6 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 			}
 		}
 
-		// Pass config values directly to Install
 		if err := c.infraManager.Install(ctx, c.rc, configValues); err != nil {
 			return fmt.Errorf("failed to install infrastructure: %w", err)
 		}
