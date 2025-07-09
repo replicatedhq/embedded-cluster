@@ -139,6 +139,10 @@ func TestInstall(t *testing.T) {
 			// Verify the install options were created correctly
 			assert.Equal(t, tt.configFile, opts.ConfigValuesFile)
 			assert.Equal(t, tt.configValues, opts.ConfigValues)
+			assert.Equal(t, rc, opts.RuntimeConfig)
+			assert.Equal(t, "test-app", opts.AppSlug)
+			assert.Equal(t, license, opts.License)
+			assert.Equal(t, "kotsadm", opts.Namespace)
 		})
 	}
 }
