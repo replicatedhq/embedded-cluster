@@ -55,7 +55,7 @@ type InstallController struct {
 	tlsConfig                 types.TLSConfig
 	license                   []byte
 	airgapBundle              string
-	configValues              string
+	configValuesFile          string
 	endUserConfig             *ecv1beta1.Config
 	clusterID                 string
 	store                     store.Store
@@ -128,9 +128,9 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
-func WithConfigValues(configValues string) InstallControllerOption {
+func WithConfigValuesFile(configValuesFile string) InstallControllerOption {
 	return func(c *InstallController) {
-		c.configValues = configValues
+		c.configValuesFile = configValuesFile
 	}
 }
 
@@ -232,6 +232,13 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
+	if controller.appConfigManager == nil {
+		controller.appConfigManager = appconfig.NewAppConfigManager(
+			appconfig.WithLogger(controller.logger),
+			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
+		)
+	}
+
 	if controller.infraManager == nil {
 		controller.infraManager = infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
@@ -240,17 +247,10 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
-			infra.WithConfigValues(controller.configValues),
+			infra.WithConfigValuesFile(controller.configValuesFile), // CLI file path
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
-		)
-	}
-
-	if controller.appConfigManager == nil {
-		controller.appConfigManager = appconfig.NewAppConfigManager(
-			appconfig.WithLogger(controller.logger),
-			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
 		)
 	}
 

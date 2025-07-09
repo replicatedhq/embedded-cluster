@@ -96,7 +96,7 @@ func TestMemoryStore_SetConfigValuesMultipleTimes(t *testing.T) {
 	assert.NotContains(t, retrievedValues, "key2")
 }
 
-func TestMemoryStore_ConcurrentAccess(t *testing.T) {
+func TestMemoryStore_ConcurrentValuesAccess(t *testing.T) {
 	store := newMemoryStore()
 	var wg sync.WaitGroup
 

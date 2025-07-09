@@ -15,8 +15,8 @@ type MockInfraManager struct {
 	mock.Mock
 }
 
-func (m *MockInfraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
-	args := m.Called(ctx, rc)
+func (m *MockInfraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues map[string]string) error {
+	args := m.Called(ctx, rc, configValues)
 	return args.Error(0)
 }
 
