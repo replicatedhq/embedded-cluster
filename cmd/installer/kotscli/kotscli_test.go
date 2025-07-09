@@ -202,7 +202,7 @@ func TestCreateConfigValuesFile(t *testing.T) {
 
 			// Verify file exists and is a temp file
 			assert.FileExists(t, configFile)
-			assert.Contains(t, configFile, "config-values-")
+			assert.Contains(t, configFile, "config-values")
 			assert.Contains(t, configFile, ".yaml")
 
 			// Verify file permissions

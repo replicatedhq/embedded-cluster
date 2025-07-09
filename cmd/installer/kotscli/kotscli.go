@@ -270,20 +270,14 @@ func createConfigValuesFile(configValues map[string]string) (string, error) {
 		return "", fmt.Errorf("marshaling config values: %w", err)
 	}
 
-	// Create temporary file for config values
-	configValuesFile, err := os.CreateTemp("", "config-values-*.yaml")
+	// Create temporary file for config values - same pattern as license file but with .yaml extension
+	configValuesFile, err := os.CreateTemp("", "config-values*.yaml")
 	if err != nil {
-		return "", fmt.Errorf("creating temporary config values file: %w", err)
+		return "", fmt.Errorf("unable to create temp file: %w", err)
 	}
 
 	if _, err := configValuesFile.Write(data); err != nil {
-		os.Remove(configValuesFile.Name())
-		return "", fmt.Errorf("writing config values file: %w", err)
-	}
-
-	if err := configValuesFile.Close(); err != nil {
-		os.Remove(configValuesFile.Name())
-		return "", fmt.Errorf("closing config values file: %w", err)
+		return "", fmt.Errorf("unable to write config values to temp file: %w", err)
 	}
 
 	return configValuesFile.Name(), nil
