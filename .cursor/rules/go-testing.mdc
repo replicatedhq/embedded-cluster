@@ -14,14 +14,14 @@ alwaysApply: false
 
 ## Test Function Organization
 
-### ❌ DON'T - Function Sprawl
+### DON'T - Multiple Test Functions
 ```go
 func TestNewController_BasicScenario(t *testing.T) { ... }
 func TestNewController_ErrorHandling(t *testing.T) { ... }
 func TestNewController_ConfigValues(t *testing.T) { ... }
 ```
 
-### ✅ DO - Single Function with Table Tests
+### DO - Single Function with Table Tests
 ```go
 func TestNewController(t *testing.T) {
     tests := []struct {
@@ -41,11 +41,24 @@ func TestNewController(t *testing.T) {
 }
 ```
 
+## Test Types & Organization
+
+### Test Types
+1. **Unit Tests**: Test individual functions/methods in isolation using mocks for dependencies
+2. **Integration Tests**: Test interaction between multiple components, often with real HTTP requests
+3. **API Tests**: Test HTTP endpoints end-to-end with request/response validation
+
+### File Structure
+- Unit tests: `*_test.go` files alongside the code they test
+- Integration tests: `api/integration/*_test.go` files
+- Test assets: Store test data in `assets/` subdirectories within test packages
+
 ## Naming Conventions
 
 - **Test functions**: `TestFunctionName` or `TestType_MethodName`
 - **Test cases**: Descriptive scenario names: `"empty input should return error"`
 - **Mock types**: `MockTypeName struct { mock.Mock }`
+- **Use semantic naming**: Meaningful test case names, not "test case 1"
 
 ## Required Libraries
 
@@ -75,26 +88,60 @@ tests := []struct {
 }
 ```
 
-### Always Verify Mocks
-```go
-mockManager.AssertExpectations(t)
-```
+### Mock Lifecycle
+- Create fresh mocks for each test case
+- Use `mock.InOrder()` for sequential mock calls
+- Use `mock.MatchedBy()` for complex argument matching
+- **Always verify mocks**: `mockManager.AssertExpectations(t)`
 
-## File Organization
+### Mock Management
+- **Reuse existing mock interfaces** across tests - use same mock type for same interface
+- **Implement complete interfaces** - mock all methods even if some tests don't use them
+- **Follow consistent patterns** - all mocks use `testify/mock` with `type MockTypeName struct { mock.Mock }`
 
-- One test file per source file: `file.go` → `file_test.go`
-- Integration tests: `api/integration/*_test.go`
-- Test assets: `assets/` subdirectories
+## Testing Patterns by Component
+
+### API Handlers
+1. Create mock dependencies
+2. Set up HTTP requests with `httptest.NewRequest`
+3. Use `httptest.NewRecorder` to capture responses
+4. Validate status codes, headers, and response bodies
+
+### Controllers (Business Logic)
+1. Mock all dependencies (managers, utilities, etc.)
+2. Set up mock expectations with `mock.On()` and `mock.InOrder()`
+3. Test both success and error paths
+4. Verify mock expectations with `AssertExpectations(t)`
+
+### Integration Tests
+1. Create real API instances with test configurations
+2. Use `httptest.NewServer` for full HTTP testing
+3. Test authentication flows end-to-end
+4. Validate complete request/response cycles
+
+## HTTP Testing
+
+- **Unit-level**: Use `net/http/httptest` for testing individual handlers
+- **Integration**: Create full API instances with `httptest.NewServer`
+- **API Client**: Test both direct HTTP calls and API client wrapper methods
 
 ## What NOT to Test
 
 - Data structure existence: `assert.NotNil(t, &Config{})` 
 - Private implementation details
 - External library behavior
+- Tests that don't call any functions or validate actual behavior
 
 ## Required Assertions
 
 - Use `require.*` for fatal assertions (stop test on failure)
 - Use `assert.*` for non-fatal assertions (continue test)
 - Always call `AssertExpectations(t)` on mocks
+
+## Test Quality Rules
+
+- **Test for behavior, not implementation**: Verify public behavior, not internal details
+- **Readable and maintainable**: Tests should serve as documentation
+- **Fast and reliable**: Tests should run quickly and produce consistent results
+- **Remove meaningless tests**: Tests should assert on real functionality, not just data structures
 
