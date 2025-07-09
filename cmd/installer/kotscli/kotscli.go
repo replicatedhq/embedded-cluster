@@ -33,7 +33,7 @@ type InstallOptions struct {
 	ClusterID             string
 	AirgapBundle          string
 	ConfigValuesFile      string
-	ConfigValues          map[string]string // Updated: Generic config values map
+	ConfigValues          map[string]string
 	ReplicatedAppEndpoint string
 	Stdout                io.Writer
 }
