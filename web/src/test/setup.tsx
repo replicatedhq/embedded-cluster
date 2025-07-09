@@ -56,6 +56,8 @@ interface MockProviderProps {
         subtitle: string;
         welcomeTitle: string;
         welcomeDescription: string;
+        configurationTitle: string;
+        configurationDescription: string;
         linuxSetupTitle: string;
         linuxSetupDescription: string;
         validationTitle: string;
@@ -152,6 +154,8 @@ export const renderWithProviders = (
         subtitle: "Installation Wizard",
         welcomeTitle: "Welcome to My App",
         welcomeDescription: `This wizard will guide you through installing My App on your ${options.wrapperProps?.target === "kubernetes" ? "Kubernetes cluster" : "Linux machine"}.`,
+        configurationTitle: "Configuration",
+        configurationDescription: "Configure your My App installation by providing the information below.",
         linuxSetupTitle: "Setup",
         linuxSetupDescription: "Set up the hosts to use for this installation.",
         validationTitle: "Validation",

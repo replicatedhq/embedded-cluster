@@ -1,5 +1,5 @@
 import { expect, vi } from "vitest";
-import * as matchers from "@testing-library/jest-dom/matchers";
+import matchers from "@testing-library/jest-dom/matchers";
 import { act } from "react";
 import { faker } from "@faker-js/faker";
 
