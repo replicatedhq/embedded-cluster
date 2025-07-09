@@ -180,10 +180,9 @@ func TestInfraManager_GetAddonInstallOpts(t *testing.T) {
 				},
 			}
 
-			// Create infra manager with config values - use mock installer to test the priority logic
+			// Create infra manager with CLI config file - use mock installer to test the priority logic
 			manager := NewInfraManager(
 				WithConfigValuesFile(tt.configValuesFile),
-				WithConfigValues(tt.configValues),
 				WithClusterID("test-cluster"),
 				WithLicense([]byte("test-license")),
 				WithKotsInstaller(func() error {
@@ -207,8 +206,8 @@ func TestInfraManager_GetAddonInstallOpts(t *testing.T) {
 				}),
 			)
 
-			// Test the getAddonInstallOpts method
-			opts := manager.getAddonInstallOpts(license, rc)
+			// Test the getAddonInstallOpts method with configValues passed as parameter
+			opts := manager.getAddonInstallOpts(license, rc, tt.configValues)
 
 			// Verify basic options are set correctly
 			assert.Equal(t, "test-cluster", opts.ClusterID)

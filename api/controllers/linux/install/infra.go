@@ -67,35 +67,23 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 			}
 		}()
 
-		if err := c.updateInfraManagerWithLatestConfigValues(); err != nil {
-			return fmt.Errorf("updating infra manager with latest config values: %w", err)
+		// Get config values directly from the store
+		configValues := make(map[string]string)
+		if c.store != nil && c.store.AppConfigStore() != nil {
+			if values, err := c.store.AppConfigStore().GetConfigValues(); err != nil {
+				c.logger.WithError(err).Warn("reading config values from store")
+			} else {
+				configValues = values
+			}
 		}
 
-		if err := c.infraManager.Install(ctx, c.rc); err != nil {
+		// Pass config values directly to Install
+		if err := c.infraManager.Install(ctx, c.rc, configValues); err != nil {
 			return fmt.Errorf("failed to install infrastructure: %w", err)
 		}
 
 		return nil
 	}()
-
-	return nil
-}
-
-// updateInfraManagerWithLatestConfigValues updates the infraManager with the latest config values from the memory store.
-// This ensures that any config values set via SetAppConfigValues are properly passed to the infra manager.
-func (c *InstallController) updateInfraManagerWithLatestConfigValues() error {
-	// Get the latest config values directly from the store
-	memoryStoreConfigValues := make(map[string]string)
-	if c.store != nil && c.store.AppConfigStore() != nil {
-		if configValues, err := c.store.AppConfigStore().GetConfigValues(); err != nil {
-			c.logger.WithError(err).Warn("reading config values from store")
-		} else {
-			memoryStoreConfigValues = configValues
-		}
-	}
-
-	// Update the existing infraManager with the latest config values
-	c.infraManager.UpdateConfigValues(memoryStoreConfigValues)
 
 	return nil
 }

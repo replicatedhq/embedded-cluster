@@ -24,8 +24,7 @@ var _ InfraManager = &infraManager{}
 // InfraManager provides methods for managing infrastructure setup
 type InfraManager interface {
 	Get() (types.Infra, error)
-	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
-	UpdateConfigValues(configValues map[string]string)
+	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues map[string]string) error
 }
 
 // infraManager is an implementation of the InfraManager interface
@@ -35,8 +34,7 @@ type infraManager struct {
 	tlsConfig        types.TLSConfig
 	license          []byte
 	airgapBundle     string
-	configValuesFile string            // RENAMED: Keep for backward compatibility (CLI file path)
-	configValues     map[string]string // NEW: Generic config values map
+	configValuesFile string // Keep for CLI file path priority
 	appConfigManager appconfig.AppConfigManager
 	releaseData      *release.ReleaseData
 	endUserConfig    *ecv1beta1.Config
@@ -92,12 +90,6 @@ func WithAirgapBundle(airgapBundle string) InfraManagerOption {
 func WithConfigValuesFile(configValuesFile string) InfraManagerOption {
 	return func(c *infraManager) {
 		c.configValuesFile = configValuesFile
-	}
-}
-
-func WithConfigValues(configValues map[string]string) InfraManagerOption {
-	return func(c *infraManager) {
-		c.configValues = configValues
 	}
 }
 
@@ -190,10 +182,4 @@ func NewInfraManager(opts ...InfraManagerOption) *infraManager {
 
 func (m *infraManager) Get() (types.Infra, error) {
 	return m.infraStore.Get()
-}
-
-func (m *infraManager) UpdateConfigValues(configValues map[string]string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.configValues = configValues
 }

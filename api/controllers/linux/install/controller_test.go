@@ -1028,8 +1028,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateSucceeded,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					fm.On("UpdateConfigValues", map[string]string{}).Return(),
-					fm.On("Install", mock.Anything, rc).Return(nil),
+					fm.On("Install", mock.Anything, rc, map[string]string{}).Return(nil),
 					mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
 			},
@@ -1045,8 +1044,7 @@ func TestSetupInfra(t *testing.T) {
 				mock.InOrder(
 					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
 					mr.On("ReportPreflightsBypassed", mock.Anything, failedPreflightOutput),
-					fm.On("UpdateConfigValues", map[string]string{}).Return(),
-					fm.On("Install", mock.Anything, rc).Return(nil),
+					fm.On("Install", mock.Anything, rc, map[string]string{}).Return(nil),
 					mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
 			},
@@ -1070,8 +1068,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					fm.On("UpdateConfigValues", map[string]string{}).Return(),
-					fm.On("Install", mock.Anything, rc).Return(errors.New("install error")),
+					fm.On("Install", mock.Anything, rc, map[string]string{}).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "install error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("install error")),
 				)
@@ -1086,8 +1083,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					fm.On("UpdateConfigValues", map[string]string{}).Return(),
-					fm.On("Install", mock.Anything, rc).Return(errors.New("install error")),
+					fm.On("Install", mock.Anything, rc, map[string]string{}).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(nil, assert.AnError),
 				)
 			},
@@ -1101,8 +1097,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					fm.On("UpdateConfigValues", map[string]string{}).Return(),
-					fm.On("Install", mock.Anything, rc).Panic("this is a panic"),
+					fm.On("Install", mock.Anything, rc, map[string]string{}).Panic("this is a panic"),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "this is a panic"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("this is a panic")),
 				)
