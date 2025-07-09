@@ -1,4 +1,3 @@
-import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithProviders } from "../../../test/setup.tsx";
@@ -102,7 +101,7 @@ describe("StepNavigation", () => {
 
       // Check that all step icons are rendered
       const stepElements = screen.getAllByRole("listitem");
-      expect(stepElements).toHaveLength(4); // welcome, setup, installation, completion
+      expect(stepElements).toHaveLength(5); // welcome, setup, configuration, installation, completion
 
       // Each step should have an icon (svg element)
       stepElements.forEach((step) => {
@@ -224,7 +223,7 @@ describe("StepNavigation", () => {
 
       // Check that all step icons are rendered
       const stepElements = screen.getAllByRole("listitem");
-      expect(stepElements).toHaveLength(4); // welcome, setup, installation, completion
+      expect(stepElements).toHaveLength(5); // welcome, setup, configuration, installation, completion
 
       // Each step should have an icon (svg element)
       stepElements.forEach((step) => {

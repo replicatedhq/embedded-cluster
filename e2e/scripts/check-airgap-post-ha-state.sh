@@ -71,7 +71,13 @@ main() {
     # scale up the second deployment to ensure that images can still be pulled
     echo "scaling up the 'second' deployment to ensure that images can still be pulled"
     kubectl scale -n "$APP_NAMESPACE" deployment/second --replicas=4
-    sleep 5
+    echo "waiting for the second deployment to scale up"
+    for _ in {1..60}; do
+        if kubectl get pods -n "$APP_NAMESPACE" -o wide | grep -q "second-"; then
+            break
+        fi
+        sleep 1
+    done
     echo "after 5 seconds, pods in the '$APP_NAMESPACE' namespace:"
     kubectl get pods -n "$APP_NAMESPACE" -o wide
     if ! wait_for_pods_running 60; then

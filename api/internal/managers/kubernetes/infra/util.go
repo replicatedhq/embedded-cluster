@@ -98,6 +98,6 @@ func (m *infraManager) logFn(component string) func(format string, v ...interfac
 func (m *infraManager) addLogs(component string, format string, v ...interface{}) {
 	msg := fmt.Sprintf("[%s] %s", component, fmt.Sprintf(format, v...))
 	if err := m.infraStore.AddLogs(msg); err != nil {
-		m.logger.WithField("error", err).Error("add log")
+		m.logger.WithError(err).Error("add log")
 	}
 }

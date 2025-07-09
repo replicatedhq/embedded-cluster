@@ -56,11 +56,11 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 		}
 		if finalErr != nil {
 			if err := m.setStatus(types.StateFailed, finalErr.Error()); err != nil {
-				m.logger.WithField("error", err).Error("set failed status")
+				m.logger.WithError(err).Error("set failed status")
 			}
 		} else {
 			if err := m.setStatus(types.StateSucceeded, "Installation complete"); err != nil {
-				m.logger.WithField("error", err).Error("set succeeded status")
+				m.logger.WithError(err).Error("set succeeded status")
 			}
 		}
 	}()
@@ -158,11 +158,11 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 		}
 		if finalErr != nil {
 			if err := m.setComponentStatus(componentName, types.StateFailed, finalErr.Error()); err != nil {
-				m.logger.WithField("error", err).Error("set failed status")
+				m.logger.WithError(err).Error("set failed status")
 			}
 		} else {
 			if err := m.setComponentStatus(componentName, types.StateSucceeded, ""); err != nil {
-				m.logger.WithField("error", err).Error("set succeeded status")
+				m.logger.WithError(err).Error("set succeeded status")
 			}
 		}
 	}()
@@ -354,11 +354,11 @@ func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) 
 		}
 		if finalErr != nil {
 			if err := m.setComponentStatus(componentName, types.StateFailed, finalErr.Error()); err != nil {
-				m.logger.WithField("error", err).Error("set failed status")
+				m.logger.WithError(err).Error("set failed status")
 			}
 		} else {
 			if err := m.setComponentStatus(componentName, types.StateSucceeded, ""); err != nil {
-				m.logger.WithField("error", err).Error("set succeeded status")
+				m.logger.WithError(err).Error("set succeeded status")
 			}
 		}
 	}()

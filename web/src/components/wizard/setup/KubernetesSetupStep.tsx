@@ -7,7 +7,7 @@ import { useWizard } from "../../../contexts/WizardModeContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { handleUnauthorized } from "../../../utils/auth";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ChevronLeft } from "lucide-react";
 
 /**
  * Maps internal field names to user-friendly display names.
@@ -25,6 +25,7 @@ const fieldNames = {
 
 interface KubernetesSetupStepProps {
   onNext: () => void;
+  onBack: () => void;
 }
 
 interface Status {
@@ -37,7 +38,7 @@ interface ConfigError extends Error {
 }
 
 // TODO NOW: add tests for this component
-const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext }) => {
+const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBack }) => {
   const { config, updateConfig } = useKubernetesConfig();
   const { text } = useWizard();
   const [error, setError] = useState<string | null>(null);
@@ -211,7 +212,10 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext }) => 
         )}
       </Card>
 
-      <div className="flex justify-end">
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
+          Back
+        </Button>
         <Button onClick={() => submitConfig(config)} icon={<ChevronRight className="w-5 h-5" />}>
           Next: Start Installation
         </Button>

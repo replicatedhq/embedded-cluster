@@ -9,6 +9,8 @@ interface WizardText {
   subtitle: string;
   welcomeTitle: string;
   welcomeDescription: string;
+  configurationTitle: string;
+  configurationDescription: string;
   linuxSetupTitle: string;
   linuxSetupDescription: string;
   validationTitle: string;
@@ -26,6 +28,8 @@ const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, 
     welcomeTitle: `Welcome to ${title}`,
     welcomeDescription: `This wizard will guide you through installing ${title} on your ${isLinux ? "Linux machine" : "Kubernetes cluster"
       }.`,
+    configurationTitle: 'Configuration',
+    configurationDescription: `Configure your ${title} installation by providing the information below.`,
     linuxSetupTitle: "Setup",
     linuxSetupDescription: "Configure the host settings for this installation.",
     validationTitle: "Validation",
@@ -41,6 +45,8 @@ const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, 
     welcomeTitle: `Welcome to ${title}`,
     welcomeDescription: `This wizard will guide you through upgrading ${title} on your ${isLinux ? "Linux machine" : "Kubernetes cluster"
       }.`,
+    configurationTitle: 'Upgrade Configuration',
+    configurationDescription: `Configure your ${title} installation by providing the information below.`,
     linuxSetupTitle: "Setup",
     linuxSetupDescription: "Set up the hosts to use for this upgrade.",
     validationTitle: "Validation",

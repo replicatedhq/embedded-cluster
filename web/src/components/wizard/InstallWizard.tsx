@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import StepNavigation from "./StepNavigation";
 import WelcomeStep from "./WelcomeStep";
+import ConfigurationStep from "./config/ConfigurationStep";
 import LinuxSetupStep from "./setup/LinuxSetupStep";
 import KubernetesSetupStep from "./setup/KubernetesSetupStep";
 import LinuxValidationStep from "./validation/LinuxValidationStep";
@@ -18,9 +19,9 @@ const InstallWizard: React.FC = () => {
 
   const getSteps = (): WizardStep[] => {
     if (target === "kubernetes") {
-      return ["welcome", "kubernetes-setup", "kubernetes-installation", "kubernetes-completion"];
+      return ["welcome", "configuration", "kubernetes-setup", "kubernetes-installation", "kubernetes-completion"];
     } else {
-      return ["welcome", "linux-setup", "linux-validation", "linux-installation", "linux-completion"];
+      return ["welcome", "configuration", "linux-setup", "linux-validation", "linux-installation", "linux-completion"];
     }
   }
 
@@ -44,10 +45,12 @@ const InstallWizard: React.FC = () => {
     switch (currentStep) {
       case "welcome":
         return <WelcomeStep onNext={goToNextStep} />;
+      case "configuration":
+        return <ConfigurationStep onNext={goToNextStep} />;
       case "linux-setup":
-        return <LinuxSetupStep onNext={goToNextStep} />;
+        return <LinuxSetupStep onNext={goToNextStep} onBack={goToPreviousStep} />;
       case "kubernetes-setup":
-        return <KubernetesSetupStep onNext={goToNextStep} />;
+        return <KubernetesSetupStep onNext={goToNextStep} onBack={goToPreviousStep} />;
       case "linux-validation":
         return <LinuxValidationStep onNext={goToNextStep} onBack={goToPreviousStep} />;
       case "linux-installation":
