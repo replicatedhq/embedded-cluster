@@ -327,7 +327,6 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 				// Stdout:                stdout,
 			}
 
-			// Prioritize CLI-provided file over memory store values to respect explicit user intent
 			if m.configValues != "" {
 				installOpts.ConfigValuesFile = m.configValues
 			} else if m.appConfigManager != nil {

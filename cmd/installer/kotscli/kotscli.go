@@ -85,7 +85,6 @@ func Install(opts InstallOptions) error {
 		maskfn = MaskKotsOutputForAirgap()
 	}
 
-	// Prioritize CLI-provided file over memory store values to respect explicit user intent
 	if opts.ConfigValuesFile != "" {
 		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
 	} else if opts.ConfigValues != nil {
