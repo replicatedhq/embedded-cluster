@@ -327,26 +327,11 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 				// Stdout:                stdout,
 			}
 
-			if m.configValues != "" {
-				installOpts.ConfigValuesFile = m.configValues
-			} else if m.appConfigManager != nil {
-				configValuesMap, err := m.appConfigManager.GetConfigValues()
-				if err != nil {
-					return fmt.Errorf("retrieving config values from memory store: %w", err)
-				}
-				if len(configValuesMap) > 0 {
-					configValues := &kotsv1beta1.ConfigValues{
-						Spec: kotsv1beta1.ConfigValuesSpec{
-							Values: make(map[string]kotsv1beta1.ConfigValue),
-						},
-					}
-					for key, value := range configValuesMap {
-						configValues.Spec.Values[key] = kotsv1beta1.ConfigValue{
-							Value: value,
-						}
-					}
-					installOpts.ConfigValues = configValues
-				}
+			// Prioritize CLI-provided file over memory store values to respect explicit user intent
+			if m.configValuesFile != "" {
+				installOpts.ConfigValuesFile = m.configValuesFile
+			} else if len(m.configValues) > 0 {
+				installOpts.ConfigValues = m.configValues
 			}
 
 			return kotscli.Install(installOpts)

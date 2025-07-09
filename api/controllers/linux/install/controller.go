@@ -55,7 +55,7 @@ type InstallController struct {
 	tlsConfig                 types.TLSConfig
 	license                   []byte
 	airgapBundle              string
-	configValues              string
+	configValuesFile          string
 	endUserConfig             *ecv1beta1.Config
 	clusterID                 string
 	store                     store.Store
@@ -128,9 +128,9 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
-func WithConfigValues(configValues string) InstallControllerOption {
+func WithConfigValuesFile(configValuesFile string) InstallControllerOption {
 	return func(c *InstallController) {
-		c.configValues = configValues
+		c.configValuesFile = configValuesFile
 	}
 }
 
@@ -240,6 +240,17 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	}
 
 	if controller.infraManager == nil {
+		// Get config values from memory store to pass to infra manager
+		var memoryStoreConfigValues map[string]string
+		if controller.appConfigManager != nil {
+			configValues, err := controller.appConfigManager.GetConfigValues()
+			if err != nil {
+				controller.logger.WithError(err).Warn("reading config values from memory store")
+			} else if len(configValues) > 0 {
+				memoryStoreConfigValues = configValues
+			}
+		}
+
 		controller.infraManager = infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
 			infra.WithInfraStore(controller.store.LinuxInfraStore()),
@@ -247,11 +258,11 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
-			infra.WithConfigValues(controller.configValues),
+			infra.WithConfigValuesFile(controller.configValuesFile), // CLI file path
+			infra.WithConfigValues(memoryStoreConfigValues),         // Memory store config values
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
-			infra.WithAppConfigManager(controller.appConfigManager),
 		)
 	}
 

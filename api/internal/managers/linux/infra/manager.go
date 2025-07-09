@@ -34,7 +34,8 @@ type infraManager struct {
 	tlsConfig        types.TLSConfig
 	license          []byte
 	airgapBundle     string
-	configValues     string
+	configValuesFile string            // RENAMED: Keep for backward compatibility (CLI file path)
+	configValues     map[string]string // NEW: Generic config values map
 	appConfigManager appconfig.AppConfigManager
 	releaseData      *release.ReleaseData
 	endUserConfig    *ecv1beta1.Config
@@ -87,7 +88,13 @@ func WithAirgapBundle(airgapBundle string) InfraManagerOption {
 	}
 }
 
-func WithConfigValues(configValues string) InfraManagerOption {
+func WithConfigValuesFile(configValuesFile string) InfraManagerOption {
+	return func(c *infraManager) {
+		c.configValuesFile = configValuesFile
+	}
+}
+
+func WithConfigValues(configValues map[string]string) InfraManagerOption {
 	return func(c *infraManager) {
 		c.configValues = configValues
 	}

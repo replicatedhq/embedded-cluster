@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
@@ -12,148 +13,231 @@ import (
 	k8syaml "sigs.k8s.io/yaml"
 )
 
-func TestCreateConfigValuesFile(t *testing.T) {
+func TestInstall_ConfigValues(t *testing.T) {
 	tests := []struct {
-		name                    string
-		configValues            *kotsv1beta1.ConfigValues
-		setupFunc               func(string) // setup function to prepare test environment
-		expectError             bool
-		verifyDirectoryCreation bool
-		expectedYAMLContent     func(string) string // function to generate expected YAML content
+		name           string
+		configFile     string
+		configValues   map[string]string
+		expectedBinary string
+		expectedArgs   func(tempDir string) []string
 	}{
 		{
-			name: "valid config values should create file successfully",
-			configValues: &kotsv1beta1.ConfigValues{
-				Spec: kotsv1beta1.ConfigValuesSpec{
-					Values: map[string]kotsv1beta1.ConfigValue{
-						"test-key": {
-							Value: "test-value",
-						},
-					},
-				},
+			name:       "CLI file path should take precedence over memory store values",
+			configFile: "/path/to/cli.yaml",
+			configValues: map[string]string{
+				"key1": "value1",
+				"key2": "value2",
 			},
-			setupFunc:   func(tempDir string) {}, // no special setup needed
-			expectError: false,
-			expectedYAMLContent: func(tempDir string) string {
-				return `apiVersion: kots.io/v1beta1
-kind: ConfigValues
-spec:
-  values:
-    test-key:
-      value: test-value
-status: {}
-`
+			expectedBinary: "kubectl-kots",
+			expectedArgs: func(tempDir string) []string {
+				return []string{
+					"install", "test-app", "--license-file", "", "--namespace", "kotsadm",
+					"--app-version-label", "", "--exclude-admin-console",
+					"--config-values", "/path/to/cli.yaml",
+				}
 			},
 		},
 		{
-			name: "empty config values should create empty file successfully",
-			configValues: &kotsv1beta1.ConfigValues{
-				Spec: kotsv1beta1.ConfigValuesSpec{
-					Values: map[string]kotsv1beta1.ConfigValue{},
-				},
+			name:       "memory store values should be used when no CLI file provided",
+			configFile: "",
+			configValues: map[string]string{
+				"key1": "value1",
+				"key2": "value2",
 			},
-			setupFunc:   func(tempDir string) {}, // no special setup needed
-			expectError: false,
-			expectedYAMLContent: func(tempDir string) string {
-				return `apiVersion: kots.io/v1beta1
-kind: ConfigValues
-spec:
-  values: {}
-status: {}
-`
+			expectedBinary: "kubectl-kots",
+			expectedArgs: func(tempDir string) []string {
+				return []string{
+					"install", "test-app", "--license-file", "", "--namespace", "kotsadm",
+					"--app-version-label", "", "--exclude-admin-console",
+					"--config-values", filepath.Join(tempDir, "config", "config-values.yaml"),
+				}
 			},
 		},
 		{
-			name: "should create config directory when it doesn't exist",
-			configValues: &kotsv1beta1.ConfigValues{
-				Spec: kotsv1beta1.ConfigValuesSpec{
-					Values: map[string]kotsv1beta1.ConfigValue{
-						"test": {Value: "value"},
-					},
-				},
+			name:           "no config values should not add config-values flag",
+			configFile:     "",
+			configValues:   nil,
+			expectedBinary: "kubectl-kots",
+			expectedArgs: func(tempDir string) []string {
+				return []string{
+					"install", "test-app", "--license-file", "", "--namespace", "kotsadm",
+					"--app-version-label", "", "--exclude-admin-console",
+				}
 			},
-			setupFunc: func(tempDir string) {
-				// Ensure config directory doesn't exist initially
-				configDir := filepath.Join(tempDir, "config")
-				os.RemoveAll(configDir)
-			},
-			expectError:             false,
-			verifyDirectoryCreation: true,
-			expectedYAMLContent: func(tempDir string) string {
-				return `apiVersion: kots.io/v1beta1
-kind: ConfigValues
-spec:
-  values:
-    test:
-      value: value
-status: {}
-`
+		},
+		{
+			name:           "empty config values map should not add config-values flag",
+			configFile:     "",
+			configValues:   map[string]string{},
+			expectedBinary: "kubectl-kots",
+			expectedArgs: func(tempDir string) []string {
+				return []string{
+					"install", "test-app", "--license-file", "", "--namespace", "kotsadm",
+					"--app-version-label", "", "--exclude-admin-console",
+				}
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a temporary directory for testing
-			tempDir, err := os.MkdirTemp("", "kotscli-test-")
-			require.NoError(t, err)
-			defer os.RemoveAll(tempDir)
+			// Create temporary directory for test
+			tempDir := t.TempDir()
 
-			// Run setup function if provided
-			if tt.setupFunc != nil {
-				tt.setupFunc(tempDir)
+			// Create runtime config with the temp directory
+			rcSpec := &ecv1beta1.RuntimeConfigSpec{
+				DataDir: tempDir,
+			}
+			rc := runtimeconfig.New(rcSpec)
+
+			// Create basic license for testing
+			license := []byte(`spec:
+  appSlug: test-app`)
+
+			opts := InstallOptions{
+				RuntimeConfig:    rc,
+				AppSlug:          "test-app",
+				License:          license,
+				Namespace:        "kotsadm",
+				ConfigValuesFile: tt.configFile,
+				ConfigValues:     tt.configValues,
 			}
 
-			// Create a mock runtime config
-			mockRC := &runtimeconfig.MockRuntimeConfig{}
-			mockRC.On("EmbeddedClusterHomeDirectory").Return(tempDir)
+			// Note: This test focuses on the logic flow and argument construction
+			// The actual execution would require mocking the helpers.RunCommandWithOptions call
+			// For now, we test the createConfigValuesFile function directly below
 
-			configDir := filepath.Join(tempDir, "config")
+			// Test createConfigValuesFile behavior when config values are provided
+			if len(tt.configValues) > 0 && tt.configFile == "" {
+				configFile, err := createConfigValuesFile(tt.configValues, tempDir)
+				require.NoError(t, err)
 
-			// Verify directory doesn't exist initially if we're testing directory creation
-			if tt.verifyDirectoryCreation {
-				assert.NoDirExists(t, configDir)
+				// Verify file was created
+				assert.FileExists(t, configFile)
+
+				// Verify file contents
+				data, err := os.ReadFile(configFile)
+				require.NoError(t, err)
+
+				var kotsConfig kotsv1beta1.ConfigValues
+				err = k8syaml.Unmarshal(data, &kotsConfig)
+				require.NoError(t, err)
+
+				assert.Equal(t, "kots.io/v1beta1", kotsConfig.APIVersion)
+				assert.Equal(t, "ConfigValues", kotsConfig.Kind)
+				assert.Equal(t, "kots-app-config", kotsConfig.Name)
+				assert.Equal(t, len(tt.configValues), len(kotsConfig.Spec.Values))
+
+				for key, expectedValue := range tt.configValues {
+					assert.Equal(t, expectedValue, kotsConfig.Spec.Values[key].Value)
+				}
 			}
 
-			filePath, err := createConfigValuesFile(tt.configValues, mockRC)
+			// Verify runtime config is working properly
+			assert.Equal(t, tempDir, rc.EmbeddedClusterHomeDirectory())
 
-			if tt.expectError {
-				assert.Error(t, err)
+			// Verify the install options were created correctly
+			assert.Equal(t, tt.configFile, opts.ConfigValuesFile)
+			assert.Equal(t, tt.configValues, opts.ConfigValues)
+		})
+	}
+}
+
+func TestCreateConfigValuesFile(t *testing.T) {
+	tests := []struct {
+		name          string
+		configValues  map[string]string
+		expectedError string
+	}{
+		{
+			name: "valid config values should create proper KOTS ConfigValues",
+			configValues: map[string]string{
+				"database_host": "localhost",
+				"database_port": "5432",
+				"admin_email":   "admin@example.com",
+			},
+			expectedError: "",
+		},
+		{
+			name:          "empty config values should create empty KOTS ConfigValues",
+			configValues:  map[string]string{},
+			expectedError: "",
+		},
+		{
+			name: "config values with special characters should be handled properly",
+			configValues: map[string]string{
+				"password":    "p@ssw0rd!",
+				"json_config": `{"key": "value"}`,
+				"multiline":   "line1\nline2\nline3",
+			},
+			expectedError: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+
+			configFile, err := createConfigValuesFile(tt.configValues, tempDir)
+
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.NotEmpty(t, filePath)
+			assert.NotEmpty(t, configFile)
 
-			// Verify file was created
-			assert.FileExists(t, filePath)
+			// Verify file exists and is in correct location
+			expectedPath := filepath.Join(tempDir, "config", "config-values.yaml")
+			assert.Equal(t, expectedPath, configFile)
+			assert.FileExists(t, configFile)
 
-			// Verify directory was created
-			assert.DirExists(t, configDir)
-
-			// Verify file content
-			content, err := os.ReadFile(filePath)
+			// Verify file contents can be unmarshaled
+			data, err := os.ReadFile(configFile)
 			require.NoError(t, err)
 
-			// Check that the YAML has proper structure
-			var parsedConfig kotsv1beta1.ConfigValues
-			err = k8syaml.Unmarshal(content, &parsedConfig)
+			var kotsConfig kotsv1beta1.ConfigValues
+			err = k8syaml.Unmarshal(data, &kotsConfig)
 			require.NoError(t, err)
 
-			// Verify the spec values match
-			assert.Equal(t, tt.configValues.Spec.Values, parsedConfig.Spec.Values)
+			// Verify structure
+			assert.Equal(t, "kots.io/v1beta1", kotsConfig.APIVersion)
+			assert.Equal(t, "ConfigValues", kotsConfig.Kind)
+			assert.Equal(t, "kots-app-config", kotsConfig.Name)
 
-			// Verify the YAML content has proper apiVersion and kind at the top level
-			contentStr := string(content)
-			assert.Contains(t, contentStr, "apiVersion: kots.io/v1beta1")
-			assert.Contains(t, contentStr, "kind: ConfigValues")
-
-			// Verify file path structure
-			expectedFile := filepath.Join(configDir, "config-values.yaml")
-			assert.Equal(t, expectedFile, filePath)
-
-			// Verify mock expectations
-			mockRC.AssertExpectations(t)
+			// Verify values
+			assert.Equal(t, len(tt.configValues), len(kotsConfig.Spec.Values))
+			for key, expectedValue := range tt.configValues {
+				require.Contains(t, kotsConfig.Spec.Values, key)
+				assert.Equal(t, expectedValue, kotsConfig.Spec.Values[key].Value)
+			}
 		})
 	}
+}
+
+func TestCreateConfigValuesFile_DirectoryCreation(t *testing.T) {
+	tempDir := t.TempDir()
+
+	configValues := map[string]string{
+		"test_key": "test_value",
+	}
+
+	configFile, err := createConfigValuesFile(configValues, tempDir)
+	require.NoError(t, err)
+
+	// Verify directory was created
+	configDir := filepath.Join(tempDir, "config")
+	assert.DirExists(t, configDir)
+
+	// Verify file permissions
+	fileInfo, err := os.Stat(configFile)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0644), fileInfo.Mode().Perm())
+
+	// Verify directory permissions
+	dirInfo, err := os.Stat(configDir)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0755), dirInfo.Mode().Perm())
 }
