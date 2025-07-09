@@ -5,200 +5,96 @@ alwaysApply: false
 ---
 # Testing
 
-## Testing Philosophy
+## Core Rules
 
-- **Test for behavior, not implementation**: Tests should verify the public behavior of a unit, not its internal implementation details.
-- **Readable and maintainable**: Tests should be easy to read, understand, and maintain. A good test serves as documentation.
-- **Fast and reliable**: Tests should run quickly and produce consistent results.
+1. **One test function per code function** - Never create multiple test functions for the same code function
+2. **Use table-driven tests** for multiple scenarios within a single test function
+3. **Test behavior, not implementation** - Focus on public API behavior
+4. **Mock all external dependencies** using `testify/mock`
 
-## Test Organization
+## Test Function Organization
 
-### Test Types
+### ❌ DON'T - Function Sprawl
+```go
+func TestNewController_BasicScenario(t *testing.T) { ... }
+func TestNewController_ErrorHandling(t *testing.T) { ... }
+func TestNewController_ConfigValues(t *testing.T) { ... }
+```
 
-1. **Unit Tests**: Test individual functions/methods in isolation using mocks for dependencies
-2. **Integration Tests**: Test the interaction between multiple components, often with real HTTP requests
-3. **API Tests**: Test HTTP endpoints end-to-end with request/response validation
+### ✅ DO - Single Function with Table Tests
+```go
+func TestNewController(t *testing.T) {
+    tests := []struct {
+        name     string
+        setup    func()
+        wantErr  bool
+    }{
+        {name: "basic scenario", setup: ..., wantErr: false},
+        {name: "error handling", setup: ..., wantErr: true},
+        {name: "config values", setup: ..., wantErr: false},
+    }
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // test implementation
+        })
+    }
+}
+```
 
-### File Structure
+## Naming Conventions
 
-- Unit tests: `*_test.go` files alongside the code they test
-- Integration tests: `api/integration/*_test.go` files
-- Test assets: Store test data in `assets/` subdirectories within test packages
+- **Test functions**: `TestFunctionName` or `TestType_MethodName`
+- **Test cases**: Descriptive scenario names: `"empty input should return error"`
+- **Mock types**: `MockTypeName struct { mock.Mock }`
 
-## Test Structure Patterns
+## Required Libraries
 
-### Table-Driven Tests
+```go
+import (
+    "testing"
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require" 
+    "github.com/stretchr/testify/mock"
+)
+```
 
-Use table-driven tests for testing multiple scenarios. This is the standard pattern across the codebase:
+## Mock Patterns
 
-### Test Naming
+### Setup in Table Tests
+```go
+tests := []struct {
+    name      string
+    setupMock func(*MockType)
+}{
+    {
+        name: "successful operation",
+        setupMock: func(m *MockType) {
+            m.On("Method", mock.Anything).Return(nil)
+        },
+    },
+}
+```
 
-- Test functions: `TestFunctionName` or `TestTypeName_MethodName`
-- Use table-driven tests for multiple scenarios: `tests := []struct{name string, ...}{}`
-- Subtest names: Descriptive of the specific scenario being tested in table entries
-- Use underscores for method tests: `TestAPIError_Error`
+### Always Verify Mocks
+```go
+mockManager.AssertExpectations(t)
+```
 
-## Tooling and Libraries
+## File Organization
 
-### Core Libraries
+- One test file per source file: `file.go` → `file_test.go`
+- Integration tests: `api/integration/*_test.go`
+- Test assets: `assets/` subdirectories
 
-- **Standard testing**: Use the built-in `testing` package
-- **Assertions**: Use `github.com/stretchr/testify/assert` and `github.com/stretchr/testify/require`
-  - `assert.*`: For non-fatal assertions that continue test execution
-  - `require.*`: For fatal assertions that stop test execution on failure
-- **Mocks**: Use `github.com/stretchr/testify/mock` for creating mocks
+## What NOT to Test
 
-### HTTP Testing
+- Data structure existence: `assert.NotNil(t, &Config{})` 
+- Private implementation details
+- External library behavior
 
-- **Unit-level HTTP testing**: Use `net/http/httptest` for testing individual handlers
-- **Integration HTTP testing**: Create full API instances with `httptest.NewServer`
-- **API Client testing**: Test both direct HTTP calls and API client wrapper methods
+## Required Assertions
 
-## Testing Patterns by Component Type
-
-### API Handlers
-
-Test HTTP handlers by:
-1. Creating mock dependencies
-2. Setting up HTTP requests with `httptest.NewRequest`
-3. Using `httptest.NewRecorder` to capture responses
-4. Validating status codes, headers, and response bodies
-
-### Controllers (Business Logic)
-
-Test controllers by:
-1. Mocking all dependencies (managers, utilities, etc.)
-2. Setting up mock expectations with `mock.On()` and `mock.InOrder()`
-3. Testing both success and error paths
-4. Verifying mock expectations with `AssertExpectations(t)`
-
-### Types and Data Structures
-
-Test types by:
-1. Validating serialization/deserialization (JSON marshaling)
-2. Testing validation methods
-3. Testing error handling and edge cases
-4. Using table-driven tests for multiple validation scenarios
-
-### Integration Tests
-
-Structure integration tests by:
-1. Creating real API instances with test configurations
-2. Using `httptest.NewServer` for full HTTP testing
-3. Testing authentication flows end-to-end
-4. Validating complete request/response cycles
-5. Testing with both direct HTTP calls and API client libraries
-
-## Mock Usage
-
-### Mock Setup Patterns
-
-- Use setup functions in table tests: `setupMock func(*MockType)`
-- Use `mock.InOrder()` for sequential mock calls
-- Use `mock.MatchedBy()` for complex argument matching
-- Always call `AssertExpectations(t)` to verify all mocks were called
-
-### Mock Lifecycle
-
-- Create fresh mocks for each test case
-- Set up mock expectations before running the test
-- Verify mock expectations after the test completes
-
-## Test Structure
-
-### Test Naming
-- Use table-driven tests for multiple scenarios with descriptive test case names
-- Test functions follow pattern: `TestFunctionName` for simple cases, `TestTypeName_MethodName` for methods
-- Test case names in tables should be descriptive: `name: "empty data directory should return error"`
-- Example of proper table-driven test structure:
-  ```go
-  func TestValidateConfig(t *testing.T) {
-      tests := []struct {
-          name           string
-          input          *Config
-          expectedError  string
-      }{
-          {
-              name:          "empty data directory should return error",
-              input:         &Config{DataDirectory: ""},
-              expectedError: "data directory cannot be empty",
-          },
-          {
-              name:          "valid directory should succeed",
-              input:         &Config{DataDirectory: "/opt/data"},
-              expectedError: "",
-          },
-      }
-      for _, tt := range tests {
-          t.Run(tt.name, func(t *testing.T) {
-              err := ValidateConfig(tt.input)
-              // test logic here
-          })
-      }
-  }
-  ```
-
-### Use Semantic Naming for Test Cases
-
-- **Name test cases descriptively**: Use meaningful names for test cases rather than generic names like "test case 1"
-  ```go
-  tests := []struct {
-      name           string
-      input          *Config
-      expectedError  string
-  }{
-      {
-          name:          "empty data directory should return error",
-          input:         &Config{DataDirectory: ""},
-          expectedError: "data directory cannot be empty",
-      },
-      {
-          name:          "test case 2",
-          input:         &Config{DataDirectory: "/opt/data"},
-          expectedError: "",
-      },
-  }
-  ```
-
-### Test Organization
-- Create one test file per source file (`file.go` → `file_test.go`)
-- Use subtests for variations within table-driven tests
-- Keep test files focused on testing their corresponding source file
-
-### Test Coverage and Quality
-
-- **Remove tests that don't call any functions or validate actual behavior**: Tests should assert on real functionality, not just test data structures
-  ```go
-  func TestValidateConfig_EmptyDirectory_ReturnsError(t *testing.T) {
-      config := &Config{DataDirectory: ""}
-      err := ValidateConfig(config) // Actually calls the function
-      assert.Error(t, err)
-  }
-  
-  func TestConfigStruct_Fields_Exist(t *testing.T) {
-      config := &Config{}
-      assert.NotNil(t, config) // Just tests data structure
-  }
-  ```
-
-### Mock Management
-
-- **Reuse existing mock interfaces across tests**: Use the same mock type for the same interface rather than creating multiple mock types
-  ```go
-  // Good - reuse the same mock across different tests
-  type MockInstallationManager struct {
-      mock.Mock
-  }
-  func (m *MockInstallationManager) GetConfig() (Config, error) { ... }
-  func (m *MockInstallationManager) SetConfig(config Config) error { ... }
-  
-  // Use this mock in multiple test files for the same interface
-  
-  // Bad - creating separate mocks for the same interface
-  type MockInstallManager struct { ... }      // for installation tests
-  type MockConfigManager struct { ... }       // for config tests  
-  // Both implementing the same InstallationManager interface
-  ```
-- **Follow consistent mock patterns**: All mocks use `testify/mock` with `type MockTypeName struct { mock.Mock }`
-- **Implement complete interfaces**: Mock all methods of the interface even if some tests don't use them
+- Use `require.*` for fatal assertions (stop test on failure)
+- Use `assert.*` for non-fatal assertions (continue test)
+- Always call `AssertExpectations(t)` on mocks
 

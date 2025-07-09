@@ -25,6 +25,7 @@ var _ InfraManager = &infraManager{}
 type InfraManager interface {
 	Get() (types.Infra, error)
 	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
+	UpdateConfigValues(configValues map[string]string)
 }
 
 // infraManager is an implementation of the InfraManager interface
@@ -189,4 +190,10 @@ func NewInfraManager(opts ...InfraManagerOption) *infraManager {
 
 func (m *infraManager) Get() (types.Infra, error) {
 	return m.infraStore.Get()
+}
+
+func (m *infraManager) UpdateConfigValues(configValues map[string]string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.configValues = configValues
 }

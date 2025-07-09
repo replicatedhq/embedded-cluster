@@ -27,3 +27,7 @@ func (m *MockInfraManager) Get() (types.Infra, error) {
 	}
 	return args.Get(0).(types.Infra), args.Error(1)
 }
+
+func (m *MockInfraManager) UpdateConfigValues(configValues map[string]string) {
+	m.Called(configValues)
+}

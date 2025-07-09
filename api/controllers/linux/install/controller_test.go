@@ -1034,6 +1034,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateSucceeded,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
+					fm.On("UpdateConfigValues", map[string]string{}).Return(),
 					fm.On("Install", mock.Anything, rc).Return(nil),
 					mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
@@ -1050,6 +1051,7 @@ func TestSetupInfra(t *testing.T) {
 				mock.InOrder(
 					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
 					mr.On("ReportPreflightsBypassed", mock.Anything, failedPreflightOutput),
+					fm.On("UpdateConfigValues", map[string]string{}).Return(),
 					fm.On("Install", mock.Anything, rc).Return(nil),
 					mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
@@ -1074,6 +1076,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
+					fm.On("UpdateConfigValues", map[string]string{}).Return(),
 					fm.On("Install", mock.Anything, rc).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "install error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("install error")),
@@ -1089,6 +1092,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
+					fm.On("UpdateConfigValues", map[string]string{}).Return(),
 					fm.On("Install", mock.Anything, rc).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(nil, assert.AnError),
 				)
@@ -1103,6 +1107,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
+					fm.On("UpdateConfigValues", map[string]string{}).Return(),
 					fm.On("Install", mock.Anything, rc).Panic("this is a panic"),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "this is a panic"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("this is a panic")),
@@ -1155,9 +1160,12 @@ func TestSetupInfra(t *testing.T) {
 			mockInfraManager := &infra.MockInfraManager{}
 			mockMetricsReporter := &metrics.MockReporter{}
 			mockStore := &store.MockStore{}
+			mockAppConfigManager := &appconfig.MockAppConfigManager{}
 
-			// Note: No GetConfigValues mock expectation needed here because the test provides
-			// a mock InfraManager, so the controller won't call GetConfigValues internally
+			// Setup AppConfigManager mock to return empty config values without errors
+			// This is needed because updateInfraManagerWithLatestConfigValues calls GetConfigValues
+			// and it may also be called during controller construction
+			mockAppConfigManager.On("GetConfigValues").Return(map[string]string{}, nil)
 
 			tt.setupMocks(rc, mockPreflightManager, mockInstallationManager, mockInfraManager, mockMetricsReporter, mockStore)
 
@@ -1167,6 +1175,7 @@ func TestSetupInfra(t *testing.T) {
 				WithHostPreflightManager(mockPreflightManager),
 				WithInstallationManager(mockInstallationManager),
 				WithInfraManager(mockInfraManager),
+				WithAppConfigManager(mockAppConfigManager),
 				WithAllowIgnoreHostPreflights(tt.serverAllowIgnoreHostPreflights),
 				WithMetricsReporter(mockMetricsReporter),
 				WithStore(mockStore),
@@ -1204,8 +1213,6 @@ func TestSetupInfra(t *testing.T) {
 			mockStore.LinuxInfraMockStore.AssertExpectations(t)
 			mockStore.LinuxInstallationMockStore.AssertExpectations(t)
 			mockStore.LinuxPreflightMockStore.AssertExpectations(t)
-			// Note: No AppConfigMockStore expectations needed here because the test provides
-			// a mock InfraManager, so the controller won't call GetConfigValues internally
 		})
 	}
 }
@@ -1283,7 +1290,7 @@ func TestGetInfra(t *testing.T) {
 	}
 }
 
-func TestInstallController_NewInstallController_ConfigValues(t *testing.T) {
+func TestNewInstallController(t *testing.T) {
 	tests := []struct {
 		name                     string
 		configValuesFile         string
@@ -1292,7 +1299,10 @@ func TestInstallController_NewInstallController_ConfigValues(t *testing.T) {
 		expectedConfigValuesFile string
 		expectedConfigValues     map[string]string
 		expectedError            bool
+		expectedToReadFromStore  bool
+		expectedToLogWarning     bool
 	}{
+		// Basic controller orchestration tests
 		{
 			name:             "controller should pass memory store config values to infra manager",
 			configValuesFile: "",
@@ -1312,7 +1322,9 @@ func TestInstallController_NewInstallController_ConfigValues(t *testing.T) {
 				"db_password":   "secret123",
 				"replica_count": "3",
 			},
-			expectedError: false,
+			expectedError:           false,
+			expectedToReadFromStore: true,
+			expectedToLogWarning:    false,
 		},
 		{
 			name:             "controller should pass CLI file path to infra manager",
@@ -1329,7 +1341,9 @@ func TestInstallController_NewInstallController_ConfigValues(t *testing.T) {
 			expectedConfigValues: map[string]string{
 				"app_name": "memory-app",
 			},
-			expectedError: false,
+			expectedError:           false,
+			expectedToReadFromStore: true,
+			expectedToLogWarning:    false,
 		},
 		{
 			name:             "controller should handle app config manager errors gracefully",
@@ -1343,6 +1357,8 @@ func TestInstallController_NewInstallController_ConfigValues(t *testing.T) {
 			expectedConfigValuesFile: "",
 			expectedConfigValues:     nil,
 			expectedError:            false, // Controller should handle error gracefully
+			expectedToReadFromStore:  true,
+			expectedToLogWarning:     true,
 		},
 		{
 			name:             "controller should handle empty config values",
@@ -1356,6 +1372,87 @@ func TestInstallController_NewInstallController_ConfigValues(t *testing.T) {
 			expectedConfigValuesFile: "",
 			expectedConfigValues:     nil, // Empty map should be treated as nil
 			expectedError:            false,
+			expectedToReadFromStore:  true,
+			expectedToLogWarning:     false,
+		},
+
+		// Integration scenarios
+		{
+			name:             "CLI file path should take precedence over memory store values",
+			configValuesFile: "/cli/config.yaml",
+			setupAppConfigManager: func(m *appconfig.MockAppConfigManager) {
+				m.On("GetConfigValues").Return(map[string]string{"key": "memory-value"}, nil)
+			},
+			setupInfraManager: func(m *infra.MockInfraManager) {
+				// Mock will be satisfied by the constructor call
+			},
+			expectedConfigValuesFile: "/cli/config.yaml",
+			expectedConfigValues:     map[string]string{"key": "memory-value"},
+			expectedError:            false,
+			expectedToReadFromStore:  true, // Should still read from store to pass to infra manager
+			expectedToLogWarning:     false,
+		},
+		{
+			name:             "memory store values should be used when no CLI file provided",
+			configValuesFile: "",
+			setupAppConfigManager: func(m *appconfig.MockAppConfigManager) {
+				m.On("GetConfigValues").Return(map[string]string{"key": "memory-value"}, nil)
+			},
+			setupInfraManager: func(m *infra.MockInfraManager) {
+				// Mock will be satisfied by the constructor call
+			},
+			expectedConfigValuesFile: "",
+			expectedConfigValues:     map[string]string{"key": "memory-value"},
+			expectedError:            false,
+			expectedToReadFromStore:  true,
+			expectedToLogWarning:     false,
+		},
+		{
+			name:             "should log warning when memory store fails but continue",
+			configValuesFile: "",
+			setupAppConfigManager: func(m *appconfig.MockAppConfigManager) {
+				m.On("GetConfigValues").Return(nil, errors.New("storage failure"))
+			},
+			setupInfraManager: func(m *infra.MockInfraManager) {
+				// Mock will be satisfied by the constructor call
+			},
+			expectedConfigValuesFile: "",
+			expectedConfigValues:     nil,
+			expectedError:            false,
+			expectedToReadFromStore:  true,
+			expectedToLogWarning:     true,
+		},
+		{
+			name:             "should handle empty memory store gracefully",
+			configValuesFile: "",
+			setupAppConfigManager: func(m *appconfig.MockAppConfigManager) {
+				m.On("GetConfigValues").Return(map[string]string{}, nil)
+			},
+			setupInfraManager: func(m *infra.MockInfraManager) {
+				// Mock will be satisfied by the constructor call
+			},
+			expectedConfigValuesFile: "",
+			expectedConfigValues:     nil,
+			expectedError:            false,
+			expectedToReadFromStore:  true,
+			expectedToLogWarning:     false,
+		},
+
+		// Manager dependency tests
+		{
+			name:             "should create default app config manager when none provided",
+			configValuesFile: "",
+			setupAppConfigManager: func(m *appconfig.MockAppConfigManager) {
+				// This will be nil for default manager creation test
+			},
+			setupInfraManager: func(m *infra.MockInfraManager) {
+				// Mock will be satisfied by the constructor call
+			},
+			expectedConfigValuesFile: "",
+			expectedConfigValues:     nil,
+			expectedError:            false,
+			expectedToReadFromStore:  false, // Won't read from store when no manager provided
+			expectedToLogWarning:     false,
 		},
 	}
 
@@ -1369,8 +1466,11 @@ func TestInstallController_NewInstallController_ConfigValues(t *testing.T) {
 			tt.setupInfraManager(mockInfraManager)
 
 			// Create controller with test configuration
-			opts := []InstallControllerOption{
-				WithAppConfigManager(mockAppConfigManager),
+			opts := []InstallControllerOption{}
+
+			// Only add app config manager if we're not testing default creation
+			if tt.name != "should create default app config manager when none provided" {
+				opts = append(opts, WithAppConfigManager(mockAppConfigManager))
 			}
 
 			if tt.configValuesFile != "" {
@@ -1392,137 +1492,12 @@ func TestInstallController_NewInstallController_ConfigValues(t *testing.T) {
 			assert.NotNil(t, controller.infraManager)
 			assert.NotNil(t, controller.appConfigManager)
 
-			// Verify mock expectations
-			mockAppConfigManager.AssertExpectations(t)
-		})
-	}
-}
-
-func TestInstallController_NewInstallController_ConfigValuesIntegration(t *testing.T) {
-	tests := []struct {
-		name                    string
-		configValuesFile        string
-		memoryStoreConfigValues map[string]string
-		memoryStoreError        error
-		expectedToReadFromStore bool
-		expectedToLogWarning    bool
-	}{
-		{
-			name:                    "CLI file path should take precedence over memory store values",
-			configValuesFile:        "/cli/config.yaml",
-			memoryStoreConfigValues: map[string]string{"key": "memory-value"},
-			memoryStoreError:        nil,
-			expectedToReadFromStore: true, // Should still read from store to pass to infra manager
-			expectedToLogWarning:    false,
-		},
-		{
-			name:                    "memory store values should be used when no CLI file provided",
-			configValuesFile:        "",
-			memoryStoreConfigValues: map[string]string{"key": "memory-value"},
-			memoryStoreError:        nil,
-			expectedToReadFromStore: true,
-			expectedToLogWarning:    false,
-		},
-		{
-			name:                    "should log warning when memory store fails but continue",
-			configValuesFile:        "",
-			memoryStoreConfigValues: nil,
-			memoryStoreError:        errors.New("storage failure"),
-			expectedToReadFromStore: true,
-			expectedToLogWarning:    true,
-		},
-		{
-			name:                    "should handle empty memory store gracefully",
-			configValuesFile:        "",
-			memoryStoreConfigValues: map[string]string{},
-			memoryStoreError:        nil,
-			expectedToReadFromStore: true,
-			expectedToLogWarning:    false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create a mock app config manager
-			mockAppConfigManager := &appconfig.MockAppConfigManager{}
-
-			if tt.expectedToReadFromStore {
-				if tt.memoryStoreError != nil {
-					mockAppConfigManager.On("GetConfigValues").Return(nil, tt.memoryStoreError)
-				} else {
-					mockAppConfigManager.On("GetConfigValues").Return(tt.memoryStoreConfigValues, nil)
-				}
-			}
-
-			// Create controller options
-			opts := []InstallControllerOption{
-				WithAppConfigManager(mockAppConfigManager),
-			}
-
-			if tt.configValuesFile != "" {
-				opts = append(opts, WithConfigValuesFile(tt.configValuesFile))
-			}
-
-			// Create controller
-			controller, err := NewInstallController(opts...)
-
-			require.NoError(t, err)
-			assert.NotNil(t, controller)
-
-			// Verify that both managers were created
-			assert.NotNil(t, controller.appConfigManager)
-			assert.NotNil(t, controller.infraManager)
-
 			// Verify the controller set up the infra manager with the expected configuration
 			// The infra manager should have been initialized with both CLI file path and memory store values
 			assert.Equal(t, tt.configValuesFile, controller.configValuesFile)
 
-			// Verify mock expectations
-			mockAppConfigManager.AssertExpectations(t)
-		})
-	}
-}
-
-func TestInstallController_NewInstallController_ConfigValuesManagerDependencies(t *testing.T) {
-	tests := []struct {
-		name                    string
-		provideAppConfigManager bool
-		expectedManagerCreated  bool
-	}{
-		{
-			name:                    "should create default app config manager when none provided",
-			provideAppConfigManager: false,
-			expectedManagerCreated:  true,
-		},
-		{
-			name:                    "should use provided app config manager",
-			provideAppConfigManager: true,
-			expectedManagerCreated:  true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var opts []InstallControllerOption
-			var mockAppConfigManager *appconfig.MockAppConfigManager
-
-			if tt.provideAppConfigManager {
-				mockAppConfigManager = &appconfig.MockAppConfigManager{}
-				mockAppConfigManager.On("GetConfigValues").Return(map[string]string{}, nil)
-				opts = append(opts, WithAppConfigManager(mockAppConfigManager))
-			}
-
-			controller, err := NewInstallController(opts...)
-
-			require.NoError(t, err)
-			assert.NotNil(t, controller)
-
-			if tt.expectedManagerCreated {
-				assert.NotNil(t, controller.appConfigManager)
-				assert.NotNil(t, controller.infraManager)
-			}
-
-			if mockAppConfigManager != nil {
+			// Verify mock expectations only if we provided a mock
+			if tt.name != "should create default app config manager when none provided" {
 				mockAppConfigManager.AssertExpectations(t)
 			}
 		})

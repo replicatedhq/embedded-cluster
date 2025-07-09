@@ -240,17 +240,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	}
 
 	if controller.infraManager == nil {
-		// Get config values from memory store to pass to infra manager
-		var memoryStoreConfigValues map[string]string
-		if controller.appConfigManager != nil {
-			configValues, err := controller.appConfigManager.GetConfigValues()
-			if err != nil {
-				controller.logger.WithError(err).Warn("reading config values from memory store")
-			} else if len(configValues) > 0 {
-				memoryStoreConfigValues = configValues
-			}
-		}
-
 		controller.infraManager = infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
 			infra.WithInfraStore(controller.store.LinuxInfraStore()),
@@ -259,7 +248,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
 			infra.WithConfigValuesFile(controller.configValuesFile), // CLI file path
-			infra.WithConfigValues(memoryStoreConfigValues),         // Memory store config values
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),

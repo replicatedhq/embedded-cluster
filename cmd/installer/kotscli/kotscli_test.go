@@ -13,7 +13,7 @@ import (
 	k8syaml "sigs.k8s.io/yaml"
 )
 
-func TestInstall_ConfigValues(t *testing.T) {
+func TestInstall(t *testing.T) {
 	tests := []struct {
 		name           string
 		configFile     string
@@ -172,6 +172,13 @@ func TestCreateConfigValuesFile(t *testing.T) {
 			},
 			expectedError: "",
 		},
+		{
+			name: "should create directory with proper permissions",
+			configValues: map[string]string{
+				"test_key": "test_value",
+			},
+			expectedError: "",
+		},
 	}
 
 	for _, tt := range tests {
@@ -194,6 +201,18 @@ func TestCreateConfigValuesFile(t *testing.T) {
 			assert.Equal(t, expectedPath, configFile)
 			assert.FileExists(t, configFile)
 
+			// Verify directory was created with proper permissions
+			configDir := filepath.Join(tempDir, "config")
+			assert.DirExists(t, configDir)
+			dirInfo, err := os.Stat(configDir)
+			require.NoError(t, err)
+			assert.Equal(t, os.FileMode(0755), dirInfo.Mode().Perm())
+
+			// Verify file permissions
+			fileInfo, err := os.Stat(configFile)
+			require.NoError(t, err)
+			assert.Equal(t, os.FileMode(0644), fileInfo.Mode().Perm())
+
 			// Verify file contents can be unmarshaled
 			data, err := os.ReadFile(configFile)
 			require.NoError(t, err)
@@ -215,29 +234,4 @@ func TestCreateConfigValuesFile(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestCreateConfigValuesFile_DirectoryCreation(t *testing.T) {
-	tempDir := t.TempDir()
-
-	configValues := map[string]string{
-		"test_key": "test_value",
-	}
-
-	configFile, err := createConfigValuesFile(configValues, tempDir)
-	require.NoError(t, err)
-
-	// Verify directory was created
-	configDir := filepath.Join(tempDir, "config")
-	assert.DirExists(t, configDir)
-
-	// Verify file permissions
-	fileInfo, err := os.Stat(configFile)
-	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0644), fileInfo.Mode().Perm())
-
-	// Verify directory permissions
-	dirInfo, err := os.Stat(configDir)
-	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0755), dirInfo.Mode().Perm())
 }
