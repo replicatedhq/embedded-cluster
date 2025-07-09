@@ -109,8 +109,9 @@ func TestInstall(t *testing.T) {
 
 			// Test createConfigValuesFile behavior when config values are provided
 			if len(tt.configValues) > 0 && tt.configFile == "" {
-				configFile, err := createConfigValuesFile(tt.configValues, tempDir)
+				configFile, err := createConfigValuesFile(tt.configValues)
 				require.NoError(t, err)
+				defer os.Remove(configFile) // Clean up temp file
 
 				// Verify file was created
 				assert.FileExists(t, configFile)
@@ -187,9 +188,7 @@ func TestCreateConfigValuesFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tempDir := t.TempDir()
-
-			configFile, err := createConfigValuesFile(tt.configValues, tempDir)
+			configFile, err := createConfigValuesFile(tt.configValues)
 
 			if tt.expectedError != "" {
 				require.Error(t, err)
@@ -199,23 +198,17 @@ func TestCreateConfigValuesFile(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.NotEmpty(t, configFile)
+			defer os.Remove(configFile) // Clean up temp file
 
-			// Verify file exists and is in correct location
-			expectedPath := filepath.Join(tempDir, "config", "config-values.yaml")
-			assert.Equal(t, expectedPath, configFile)
+			// Verify file exists and is a temp file
 			assert.FileExists(t, configFile)
-
-			// Verify directory was created with proper permissions
-			configDir := filepath.Join(tempDir, "config")
-			assert.DirExists(t, configDir)
-			dirInfo, err := os.Stat(configDir)
-			require.NoError(t, err)
-			assert.Equal(t, os.FileMode(0755), dirInfo.Mode().Perm())
+			assert.Contains(t, configFile, "config-values-")
+			assert.Contains(t, configFile, ".yaml")
 
 			// Verify file permissions
 			fileInfo, err := os.Stat(configFile)
 			require.NoError(t, err)
-			assert.Equal(t, os.FileMode(0644), fileInfo.Mode().Perm())
+			assert.Equal(t, os.FileMode(0600), fileInfo.Mode().Perm()) // os.CreateTemp creates files with 0600 permissions
 
 			// Verify file contents can be unmarshaled
 			data, err := os.ReadFile(configFile)

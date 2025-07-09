@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -88,10 +87,11 @@ func Install(opts InstallOptions) error {
 	if opts.ConfigValuesFile != "" {
 		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
 	} else if len(opts.ConfigValues) > 0 {
-		configValuesFile, err := createConfigValuesFile(opts.ConfigValues, opts.RuntimeConfig.EmbeddedClusterHomeDirectory())
+		configValuesFile, err := createConfigValuesFile(opts.ConfigValues)
 		if err != nil {
 			return fmt.Errorf("creating config values file: %w", err)
 		}
+		defer os.Remove(configValuesFile)
 
 		installArgs = append(installArgs, "--config-values", configValuesFile)
 	}
@@ -244,7 +244,7 @@ func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
 	return nil
 }
 
-func createConfigValuesFile(configValues map[string]string, dataDir string) (string, error) {
+func createConfigValuesFile(configValues map[string]string) (string, error) {
 	kotsConfigValues := &kotsv1beta1.ConfigValues{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "kots.io/v1beta1",
@@ -264,26 +264,29 @@ func createConfigValuesFile(configValues map[string]string, dataDir string) (str
 		}
 	}
 
-	// Store config values in data directory so they persist for future KOTS operations like upgrades
-	configDir := filepath.Join(dataDir, "config")
-
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return "", fmt.Errorf("creating config directory: %w", err)
-	}
-
-	configValuesFile := filepath.Join(configDir, "config-values.yaml")
-
 	// Use Kubernetes-specific YAML serialization to properly handle TypeMeta and ObjectMeta
 	data, err := k8syaml.Marshal(kotsConfigValues)
 	if err != nil {
 		return "", fmt.Errorf("marshaling config values: %w", err)
 	}
 
-	if err := os.WriteFile(configValuesFile, data, 0644); err != nil {
+	// Create temporary file for config values
+	configValuesFile, err := os.CreateTemp("", "config-values-*.yaml")
+	if err != nil {
+		return "", fmt.Errorf("creating temporary config values file: %w", err)
+	}
+
+	if _, err := configValuesFile.Write(data); err != nil {
+		os.Remove(configValuesFile.Name())
 		return "", fmt.Errorf("writing config values file: %w", err)
 	}
 
-	return configValuesFile, nil
+	if err := configValuesFile.Close(); err != nil {
+		os.Remove(configValuesFile.Name())
+		return "", fmt.Errorf("closing config values file: %w", err)
+	}
+
+	return configValuesFile.Name(), nil
 }
 
 // MaskKotsOutputForOnline masks the kots cli output during online installations. For

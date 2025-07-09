@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 
-	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	infrastore "github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -35,7 +34,6 @@ type infraManager struct {
 	license          []byte
 	airgapBundle     string
 	configValuesFile string // Keep for CLI file path priority
-	appConfigManager appconfig.AppConfigManager
 	releaseData      *release.ReleaseData
 	endUserConfig    *ecv1beta1.Config
 	clusterID        string
@@ -144,12 +142,6 @@ func WithHostUtils(hostUtils hostutils.HostUtilsInterface) InfraManagerOption {
 func WithKotsInstaller(kotsInstaller func() error) InfraManagerOption {
 	return func(c *infraManager) {
 		c.kotsInstaller = kotsInstaller
-	}
-}
-
-func WithAppConfigManager(manager appconfig.AppConfigManager) InfraManagerOption {
-	return func(c *infraManager) {
-		c.appConfigManager = manager
 	}
 }
 
