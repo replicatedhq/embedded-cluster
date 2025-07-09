@@ -1028,6 +1028,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateSucceeded,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
+					st.AppConfigMockStore.On("GetConfigValues").Return(map[string]string{}, nil),
 					fm.On("Install", mock.Anything, rc, map[string]string{}).Return(nil),
 					mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
@@ -1044,6 +1045,7 @@ func TestSetupInfra(t *testing.T) {
 				mock.InOrder(
 					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
 					mr.On("ReportPreflightsBypassed", mock.Anything, failedPreflightOutput),
+					st.AppConfigMockStore.On("GetConfigValues").Return(map[string]string{}, nil),
 					fm.On("Install", mock.Anything, rc, map[string]string{}).Return(nil),
 					mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
@@ -1068,6 +1070,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
+					st.AppConfigMockStore.On("GetConfigValues").Return(map[string]string{}, nil),
 					fm.On("Install", mock.Anything, rc, map[string]string{}).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "install error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("install error")),
@@ -1083,6 +1086,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
+					st.AppConfigMockStore.On("GetConfigValues").Return(map[string]string{}, nil),
 					fm.On("Install", mock.Anything, rc, map[string]string{}).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(nil, assert.AnError),
 				)
@@ -1097,6 +1101,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
+					st.AppConfigMockStore.On("GetConfigValues").Return(map[string]string{}, nil),
 					fm.On("Install", mock.Anything, rc, map[string]string{}).Panic("this is a panic"),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "this is a panic"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("this is a panic")),
@@ -1134,6 +1139,21 @@ func TestSetupInfra(t *testing.T) {
 			},
 			expectedErr: types.NewBadRequestError(ErrPreflightChecksFailed),
 		},
+		{
+			name:                            "config values error",
+			clientIgnoreHostPreflights:      false,
+			serverAllowIgnoreHostPreflights: true,
+			currentState:                    StatePreflightsSucceeded,
+			expectedState:                   StateInfrastructureInstallFailed,
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore) {
+				mock.InOrder(
+					st.AppConfigMockStore.On("GetConfigValues").Return(nil, errors.New("config values error")),
+					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "getting config values from store: config values error"}, nil),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("getting config values from store: config values error")),
+				)
+			},
+			expectedErr: nil,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1150,10 +1170,6 @@ func TestSetupInfra(t *testing.T) {
 			mockMetricsReporter := &metrics.MockReporter{}
 			mockStore := &store.MockStore{}
 			mockAppConfigManager := &appconfig.MockAppConfigManager{}
-
-			// Setup store mock instead of appConfigManager mock since updateInfraManagerWithLatestConfigValues
-			// now calls c.store.AppConfigStore().GetConfigValues() instead of c.appConfigManager.GetConfigValues()
-			mockStore.AppConfigMockStore.On("GetConfigValues").Return(map[string]string{}, nil)
 
 			tt.setupMocks(rc, mockPreflightManager, mockInstallationManager, mockInfraManager, mockMetricsReporter, mockStore)
 
@@ -1201,6 +1217,7 @@ func TestSetupInfra(t *testing.T) {
 			mockStore.LinuxInfraMockStore.AssertExpectations(t)
 			mockStore.LinuxInstallationMockStore.AssertExpectations(t)
 			mockStore.LinuxPreflightMockStore.AssertExpectations(t)
+			mockStore.AppConfigMockStore.AssertExpectations(t)
 		})
 	}
 }
