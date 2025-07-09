@@ -67,7 +67,6 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 			}
 		}()
 
-		// Always recreate the infraManager with the latest config values
 		if err := c.updateInfraManagerWithLatestConfigValues(); err != nil {
 			return fmt.Errorf("updating infra manager with latest config values: %w", err)
 		}
@@ -85,13 +84,12 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 // updateInfraManagerWithLatestConfigValues updates the infraManager with the latest config values from the memory store.
 // This ensures that any config values set via SetAppConfigValues are properly passed to the infra manager.
 func (c *InstallController) updateInfraManagerWithLatestConfigValues() error {
-	// Get the latest config values from memory store
-	var memoryStoreConfigValues map[string]string
-	if c.appConfigManager != nil {
-		configValues, err := c.appConfigManager.GetConfigValues()
-		if err != nil {
-			c.logger.WithError(err).Warn("reading config values from memory store")
-		} else if len(configValues) > 0 {
+	// Get the latest config values directly from the store
+	memoryStoreConfigValues := make(map[string]string)
+	if c.store != nil && c.store.AppConfigStore() != nil {
+		if configValues, err := c.store.AppConfigStore().GetConfigValues(); err != nil {
+			c.logger.WithError(err).Warn("reading config values from store")
+		} else {
 			memoryStoreConfigValues = configValues
 		}
 	}
