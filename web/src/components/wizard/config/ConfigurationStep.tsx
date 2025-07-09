@@ -122,7 +122,6 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
-    console.log('handleInputChange', id, value);
     updateConfigValue(id, value);
   };
 
