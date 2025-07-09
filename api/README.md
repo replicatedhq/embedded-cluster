@@ -16,7 +16,7 @@ Contains the business logic for different API endpoints. Each controller package
 Contains shared utilities and helper packages that provide common functionality used across different parts of the API. This includes both general-purpose utilities and domain-specific helpers.
 
 #### `/internal/managers`
-Each manager is responsible for a specific subdomain of functionality and provides a clean interface for controllers to interact with. For example, the Preflight Manager manages system requirement checks and validation. Managers must remain independent with no cross-dependencies - data flows between managers through the controller, not directly between managers.
+Each manager is responsible for a specific subdomain of functionality and provides a clean interface for controllers to interact with. For example, the Preflight Manager manages system requirement checks and validation. Managers must remain independent with no cross-manager dependencies - data flows between managers through the controller, not directly between managers.
 
 #### `/internal/statemachine`
 The statemachine is used by controllers to capture workflow state and enforce valid transitions.
