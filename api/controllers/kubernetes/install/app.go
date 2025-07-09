@@ -46,8 +46,6 @@ func (c *InstallController) SetAppConfigValues(ctx context.Context, values map[s
 
 	defer func() {
 		if finalErr != nil {
-			// TODO: is there some reason we dont need to set a store status here?
-
 			if err := c.stateMachine.Transition(lock, StateApplicationConfigurationFailed); err != nil {
 				c.logger.Errorf("failed to transition states: %w", err)
 			}
