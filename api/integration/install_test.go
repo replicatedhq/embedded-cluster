@@ -228,7 +228,7 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 			// Create an install controller with the config manager
 			installController, err := linuxinstall.NewInstallController(
 				linuxinstall.WithRuntimeConfig(rc),
-				linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
+				linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
 				linuxinstall.WithHostUtils(tc.mockHostUtils),
 				linuxinstall.WithNetUtils(tc.mockNetUtils),
 			)
@@ -331,7 +331,7 @@ func TestLinuxConfigureInstallationValidation(t *testing.T) {
 	// Create an install controller with the config manager
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
-		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
 	)
 	require.NoError(t, err)
 
@@ -668,8 +668,8 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	})
 }
 
-// TestLinuxInstallWithAPIClient tests the install endpoints using the API client
-func TestLinuxInstallWithAPIClient(t *testing.T) {
+// TestLinuxInstallationConfigWithAPIClient tests the installation configuration endpoints using the API client
+func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 	password := "test-password"
 
 	// Create a runtimeconfig to be used in the install process
@@ -689,6 +689,7 @@ func TestLinuxInstallWithAPIClient(t *testing.T) {
 	// Create an install controller with the config manager
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
 		linuxinstall.WithInstallationManager(installationManager),
 	)
 	require.NoError(t, err)
@@ -1666,7 +1667,7 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 			// Create an install controller with the mock installation
 			installController, err := kubernetesinstall.NewInstallController(
 				kubernetesinstall.WithInstallation(ki),
-				kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateNew))),
+				kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateApplicationConfigured))),
 			)
 			require.NoError(t, err)
 
@@ -1760,7 +1761,7 @@ func TestKubernetesConfigureInstallationValidation(t *testing.T) {
 	// Create an install controller with the mock installation
 	installController, err := kubernetesinstall.NewInstallController(
 		kubernetesinstall.WithInstallation(ki),
-		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateNew))),
+		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateApplicationConfigured))),
 	)
 	require.NoError(t, err)
 
@@ -1821,7 +1822,7 @@ func TestKubernetesConfigureInstallationBadRequest(t *testing.T) {
 	// Create an install controller with the mock installation
 	installController, err := kubernetesinstall.NewInstallController(
 		kubernetesinstall.WithInstallation(ki),
-		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateNew))),
+		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateApplicationConfigured))),
 	)
 	require.NoError(t, err)
 
@@ -2391,7 +2392,6 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		helmMock.AssertExpectations(t)
 	})
 }
-
 func TestKubernetesGetAppConfig(t *testing.T) {
 	// Create an app config
 	appConfig := kotsv1beta1.Config{
@@ -2619,31 +2619,32 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 		},
 	}
 
-	// Create an install controller with the app config
-	installController, err := linuxinstall.NewInstallController(
-		linuxinstall.WithReleaseData(&release.ReleaseData{
-			AppConfig: &appConfig,
-		}),
-	)
-	require.NoError(t, err)
-
-	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-		},
-		api.WithLinuxInstallController(installController),
-		api.WithAuthController(&staticAuthController{"TOKEN"}),
-		api.WithLogger(logger.NewDiscardLogger()),
-	)
-	require.NoError(t, err)
-
-	// Create a router and register the API routes
-	router := mux.NewRouter()
-	apiInstance.RegisterRoutes(router)
-
 	// Test successful set and get
 	t.Run("Success", func(t *testing.T) {
+		// Create an install controller with the app config
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
+			linuxinstall.WithReleaseData(&release.ReleaseData{
+				AppConfig: &appConfig,
+			}),
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		apiInstance, err := api.New(
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
 		// Create a request to set config values
 		setRequest := types.SetAppConfigValuesRequest{
 			Values: map[string]string{
@@ -2679,6 +2680,30 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
+		// Create an install controller with the app config
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
+			linuxinstall.WithReleaseData(&release.ReleaseData{
+				AppConfig: &appConfig,
+			}),
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		apiInstance, err := api.New(
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
 		// Create a request to set config values
 		setRequest := types.SetAppConfigValuesRequest{
 			Values: map[string]string{
@@ -2707,6 +2732,63 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&apiError)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+
+	// Test invalid state transition
+	t.Run("Invalid state transition", func(t *testing.T) {
+		// Create an install controller with the app config
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateSucceeded))),
+			linuxinstall.WithReleaseData(&release.ReleaseData{
+				AppConfig: &appConfig,
+			}),
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		apiInstance, err := api.New(
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithLinuxInstallController(installController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request to set config values
+		setRequest := types.SetAppConfigValuesRequest{
+			Values: map[string]string{
+				"test-item": "new-value",
+			},
+		}
+
+		reqBodyBytes, err := json.Marshal(setRequest)
+		require.NoError(t, err)
+
+		// Create a request
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/config/values", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusConflict, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusConflict, apiError.StatusCode)
+		assert.Contains(t, apiError.Message, "invalid transition")
 	})
 }
 
@@ -2739,36 +2821,35 @@ func TestKubernetesSetAppConfigValues(t *testing.T) {
 		},
 	}
 
-	// Create an install controller with the app config
-	installController, err := kubernetesinstall.NewInstallController(
-		kubernetesinstall.WithReleaseData(&release.ReleaseData{
-			AppConfig: &appConfig,
-		}),
-	)
-	require.NoError(t, err)
-
-	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-		},
-		api.WithKubernetesInstallController(installController),
-		api.WithAuthController(&staticAuthController{"TOKEN"}),
-		api.WithLogger(logger.NewDiscardLogger()),
-	)
-	require.NoError(t, err)
-
-	// Create a router and register the API routes
-	router := mux.NewRouter()
-	apiInstance.RegisterRoutes(router)
-
 	// Test successful set and get
 	t.Run("Success", func(t *testing.T) {
+		// Create an install controller with the app config
+		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithReleaseData(&release.ReleaseData{
+				AppConfig: &appConfig,
+			}),
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		apiInstance, err := api.New(
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithKubernetesInstallController(installController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
 		// Create a request to set config values
 		setRequest := types.SetAppConfigValuesRequest{
 			Values: map[string]string{
-				"test-item":    "new-value",
-				"another-item": "new-value2",
+				"test-item": "new-value",
 			},
 		}
 
@@ -2795,11 +2876,34 @@ func TestKubernetesSetAppConfigValues(t *testing.T) {
 
 		// Verify the app config has the updated values applied
 		assert.Equal(t, "new-value", response.Spec.Groups[0].Items[0].Value.String(), "first item should have updated value")
-		assert.Equal(t, "new-value2", response.Spec.Groups[0].Items[1].Value.String(), "second item should have updated value")
+		assert.Equal(t, "value2", response.Spec.Groups[0].Items[1].Value.String(), "second item should not have updated value")
 	})
 
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
+		// Create an install controller with the app config
+		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithReleaseData(&release.ReleaseData{
+				AppConfig: &appConfig,
+			}),
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		apiInstance, err := api.New(
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithKubernetesInstallController(installController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
 		// Create a request to set config values
 		setRequest := types.SetAppConfigValuesRequest{
 			Values: map[string]string{
@@ -2828,5 +2932,62 @@ func TestKubernetesSetAppConfigValues(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&apiError)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+
+	// Test invalid state transition
+	t.Run("Invalid state transition", func(t *testing.T) {
+		// Create an install controller with the app config
+		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateSucceeded))),
+			kubernetesinstall.WithReleaseData(&release.ReleaseData{
+				AppConfig: &appConfig,
+			}),
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		apiInstance, err := api.New(
+			types.APIConfig{
+				Password: "password",
+			},
+			api.WithKubernetesInstallController(installController),
+			api.WithAuthController(&staticAuthController{"TOKEN"}),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request to set config values
+		setRequest := types.SetAppConfigValuesRequest{
+			Values: map[string]string{
+				"test-item": "new-value",
+			},
+		}
+
+		reqBodyBytes, err := json.Marshal(setRequest)
+		require.NoError(t, err)
+
+		// Create a request
+		req := httptest.NewRequest(http.MethodPost, "/kubernetes/install/app/config/values", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusConflict, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusConflict, apiError.StatusCode)
+		assert.Contains(t, apiError.Message, "invalid transition")
 	})
 }

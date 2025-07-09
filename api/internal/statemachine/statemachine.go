@@ -86,7 +86,7 @@ func (sm *stateMachine) IsLockAcquired() bool {
 	return sm.lock != nil
 }
 
-func (sm *stateMachine) ValidateTransition(lock Lock, nextState State) error {
+func (sm *stateMachine) ValidateTransition(lock Lock, nextStates ...State) error {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
@@ -96,8 +96,12 @@ func (sm *stateMachine) ValidateTransition(lock Lock, nextState State) error {
 		return fmt.Errorf("lock mismatch")
 	}
 
-	if !sm.isValidTransition(sm.currentState, nextState) {
-		return fmt.Errorf("invalid transition from %s to %s", sm.currentState, nextState)
+	currentState := sm.currentState
+	for _, nextState := range nextStates {
+		if !sm.isValidTransition(currentState, nextState) {
+			return fmt.Errorf("invalid transition from %s to %s", currentState, nextState)
+		}
+		currentState = nextState
 	}
 
 	return nil
