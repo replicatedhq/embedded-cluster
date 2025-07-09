@@ -67,11 +67,9 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 			}
 		}()
 
-		configValues := make(map[string]string)
-		if values, err := c.store.AppConfigStore().GetConfigValues(); err != nil {
+		configValues, err := c.store.AppConfigStore().GetConfigValues()
+		if err != nil {
 			return fmt.Errorf("getting config values from store: %w", err)
-		} else {
-			configValues = values
 		}
 
 		if err := c.infraManager.Install(ctx, c.rc, configValues); err != nil {
