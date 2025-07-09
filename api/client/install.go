@@ -323,6 +323,33 @@ func (c *client) GetLinuxAppConfig() (kotsv1beta1.Config, error) {
 	return config, nil
 }
 
+func (c *client) GetLinuxAppConfigValues() (map[string]string, error) {
+	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/app/config/values", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errorFromResponse(resp)
+	}
+
+	var response types.AppConfigValuesResponse
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Values, nil
+}
+
 func (c *client) GetKubernetesAppConfig() (kotsv1beta1.Config, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app/config", nil)
 	if err != nil {
@@ -348,4 +375,31 @@ func (c *client) GetKubernetesAppConfig() (kotsv1beta1.Config, error) {
 	}
 
 	return config, nil
+}
+
+func (c *client) GetKubernetesAppConfigValues() (map[string]string, error) {
+	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app/config/values", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errorFromResponse(resp)
+	}
+
+	var response types.AppConfigValuesResponse
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Values, nil
 }

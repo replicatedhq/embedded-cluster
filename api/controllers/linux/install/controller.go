@@ -34,6 +34,7 @@ type Controller interface {
 	GetInfra(ctx context.Context) (types.Infra, error)
 	GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error)
 	SetAppConfigValues(ctx context.Context, values map[string]string) error
+	GetAppConfigValues(ctx context.Context) (map[string]string, error)
 }
 
 type RunHostPreflightsOptions struct {

@@ -68,3 +68,12 @@ func (m *MockController) SetAppConfigValues(ctx context.Context, values map[stri
 	args := m.Called(ctx, values)
 	return args.Error(0)
 }
+
+// GetAppConfigValues mocks the GetAppConfigValues method
+func (m *MockController) GetAppConfigValues(ctx context.Context) (map[string]string, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[string]string), args.Error(1)
+}

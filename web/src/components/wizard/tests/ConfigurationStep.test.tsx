@@ -83,6 +83,11 @@ const createServer = (target: string) => setupServer(
     return HttpResponse.json(MOCK_APP_CONFIG);
   }),
 
+  // Mock config values fetch endpoint
+  http.get(`*/api/${target}/install/app/config/values`, () => {
+    return HttpResponse.json({ values: {} });
+  }),
+
   // Mock config values submission endpoint
   http.post(`*/api/${target}/install/app/config/values`, async ({ request }) => {
     const body = await request.json() as { values: Record<string, string> };
@@ -189,6 +194,29 @@ describe.each([
     expect(screen.getByText("Failed to load configuration")).toBeInTheDocument();
     expect(screen.getByText("Failed to fetch config")).toBeInTheDocument();
   });
+
+  it("handles config values fetch error gracefully", async () => {
+    server.use(
+      http.get(`*/api/${target}/install/app/config/values`, () => {
+        return new HttpResponse(JSON.stringify({ message: "Failed to fetch config values" }), { status: 500 });
+      })
+    );
+
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    // Wait for error to be displayed
+    await waitFor(() => {
+      expect(screen.getByTestId("configuration-step-error")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Failed to load configuration")).toBeInTheDocument();
+    expect(screen.getByText("Failed to fetch config values")).toBeInTheDocument();
+  });
+
 
   it("handles empty config gracefully", async () => {
     server.use(
@@ -688,5 +716,76 @@ describe.each([
       expect(anonymousRadio).not.toBeChecked();
       expect(passwordRadio).toBeChecked();
     });
+  });
+
+  it("initializes changed values from retrieved config values and only submits retrieved values plus changes", async () => {
+    // Mock the config values endpoint to return only a subset of values
+    const retrievedConfigValues = {
+      app_name: "Retrieved App Name",
+      auth_type: "auth_type_anonymous"
+      // Note: enable_feature and db_host are NOT in retrieved values
+    };
+
+    let submittedValues: { values: Record<string, string> } | null = null;
+
+    server.use(
+      http.get(`*/api/${target}/install/app/config/values`, () => {
+        return HttpResponse.json({ values: retrievedConfigValues });
+      }),
+      http.post(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+        const body = await request.json() as { values: Record<string, string> };
+        submittedValues = body;
+        return HttpResponse.json(MOCK_APP_CONFIG);
+      })
+    );
+
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+    });
+
+    // Make changes to form fields
+    const appNameInput = screen.getByTestId("text-input-app_name");
+    fireEvent.change(appNameInput, { target: { value: "Updated App Name" } });
+
+    // Switch to database tab and change a field that wasn't in retrieved values
+    fireEvent.click(screen.getByTestId("config-tab-database"));
+    const dbHostInput = screen.getByTestId("text-input-db_host");
+    fireEvent.change(dbHostInput, { target: { value: "new-db-host" } });
+
+    // Submit form
+    const nextButton = screen.getByTestId("config-next-button");
+    fireEvent.click(nextButton);
+
+    // Wait for the mutation to complete
+    await waitFor(
+      () => {
+        expect(mockOnNext).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
+
+    // Verify that only retrieved values + changes are submitted
+    expect(submittedValues).not.toBeNull();
+    expect(submittedValues!).toMatchObject({
+      values: {
+        // Retrieved values that were initialized
+        app_name: "Updated App Name", // changed from retrieved value
+        auth_type: "auth_type_anonymous", // unchanged retrieved value
+        // New changes to fields not in retrieved values
+        db_host: "new-db-host"
+        // enable_feature should NOT be submitted since it wasn't retrieved and wasn't changed
+      }
+    });
+    
+    // Explicitly verify enable_feature is not submitted
+    expect(submittedValues!.values).not.toHaveProperty("enable_feature");
   });
 });

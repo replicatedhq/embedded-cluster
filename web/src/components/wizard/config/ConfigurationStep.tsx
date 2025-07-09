@@ -48,6 +48,28 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     },
   });
 
+  // Fetch current config values
+  const { data: configValues, error: getConfigValuesError } = useQuery<Record<string, string>>({
+    queryKey: ['appConfigValues', target],
+    queryFn: async () => {
+      const response = await fetch(`/api/${target}/install/app/config/values`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          handleUnauthorized(errorData);
+          throw new Error('Session expired. Please log in again.');
+        }
+        throw new Error(errorData.message || 'Failed to fetch current config values');
+      }
+      const data = await response.json();
+      return data.values || {};
+    },
+  });
+
   // Mutation to save config values
   const { mutate: submitConfigValues } = useMutation({
     mutationFn: async () => {
@@ -86,6 +108,13 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       setActiveTab(appConfig.spec.groups[0].name);
     }
   }, [appConfig, activeTab]);
+
+  // Initialize changedValues with current values when they load
+  useEffect(() => {
+    if (configValues && Object.keys(changedValues).length === 0) {
+      setChangedValues(configValues);
+    }
+  }, [configValues]);
 
   const updateConfigValue = (itemName: string, value: string) => {
     if (!appConfig) return;
@@ -240,13 +269,14 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     );
   }
 
-  if (getConfigError) {
+  if (getConfigError || getConfigValuesError) {
+    const error = getConfigError || getConfigValuesError;
     return (
       <div className="space-y-6" data-testid="configuration-step-error">
         <Card>
           <div className="flex flex-col items-center justify-center py-12">
             <p className="text-red-600 mb-4">Failed to load configuration</p>
-            <p className="text-gray-600 text-sm">{getConfigError.message}</p>
+            <p className="text-gray-600 text-sm">{error?.message}</p>
           </div>
         </Card>
       </div>

@@ -69,3 +69,7 @@ func (c *InstallController) SetAppConfigValues(ctx context.Context, values map[s
 
 	return nil
 }
+
+func (c *InstallController) GetAppConfigValues(ctx context.Context) (map[string]string, error) {
+	return c.appConfigManager.GetConfigValues()
+}

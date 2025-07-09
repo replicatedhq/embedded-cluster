@@ -250,3 +250,27 @@ func (h *Handler) PostSetAppConfigValues(w http.ResponseWriter, r *http.Request)
 
 	h.GetAppConfig(w, r)
 }
+
+// GetAppConfigValues handler to get the app config values
+//
+//	@ID				getLinuxInstallAppConfigValues
+//	@Summary		Get the app config values
+//	@Description	Get the app config values
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.AppConfigValuesResponse
+//	@Router			/linux/install/app/config/values [get]
+func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
+	configValues, err := h.installController.GetAppConfigValues(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get app config values")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	response := types.AppConfigValuesResponse{
+		Values: configValues,
+	}
+	utils.JSON(w, r, http.StatusOK, response, h.logger)
+}
