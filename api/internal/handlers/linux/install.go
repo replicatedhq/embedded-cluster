@@ -6,11 +6,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
-
-// import is used in swagger annotation above
-var _ = kotsv1beta1.Config{}
 
 // GetInstallationConfig handler to get the installation config
 //
@@ -210,7 +206,7 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 //	@Tags			linux-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	kotsv1beta1.Config
+//	@Success		200	{object}	types.AppConfig
 //	@Router			/linux/install/app/config [get]
 func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
 	appConfig, err := h.installController.GetAppConfig(r.Context())
@@ -220,7 +216,7 @@ func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.JSON(w, r, http.StatusOK, appConfig, h.logger)
+	utils.JSON(w, r, http.StatusOK, types.AppConfig(appConfig.Spec), h.logger)
 }
 
 // PostSetAppConfigValues handler to set the app config values
@@ -233,7 +229,7 @@ func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		types.SetAppConfigValuesRequest	true	"Set App Config Values Request"
-//	@Success		200		{object}	kotsv1beta1.Config
+//	@Success		200		{object}	types.AppConfig
 //	@Router			/linux/install/app/config/values [post]
 func (h *Handler) PostSetAppConfigValues(w http.ResponseWriter, r *http.Request) {
 	var req types.SetAppConfigValuesRequest

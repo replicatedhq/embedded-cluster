@@ -19,9 +19,7 @@ export type WizardStep = 'welcome' | 'configuration' | 'linux-setup' | 'kubernet
 
 // App Configuration Types
 export interface AppConfig {
-  spec: {
-    groups: AppConfigGroup[];
-  };
+  groups: AppConfigGroup[];
 }
 
 export interface AppConfigGroup {

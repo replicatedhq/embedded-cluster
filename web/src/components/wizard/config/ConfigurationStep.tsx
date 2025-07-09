@@ -82,8 +82,8 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
   // Set active tab to first group when config loads
   useEffect(() => {
-    if (appConfig?.spec?.groups && appConfig.spec.groups.length > 0 && !activeTab) {
-      setActiveTab(appConfig.spec.groups[0].name);
+    if (appConfig?.groups && appConfig.groups.length > 0 && !activeTab) {
+      setActiveTab(appConfig.groups[0].name);
     }
   }, [appConfig, activeTab]);
 
@@ -93,15 +93,12 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     // Update the app config for display
     setAppConfig({
       ...appConfig,
-      spec: {
-        ...appConfig.spec,
-        groups: appConfig.spec.groups.map(group => ({
-          ...group,
-          items: group.items.map(item =>
-            item.name === itemName ? { ...item, value } : item
-          )
-        }))
-      }
+      groups: appConfig.groups.map(group => ({
+        ...group,
+        items: group.items.map(item =>
+          item.name === itemName ? { ...item, value } : item
+        )
+      }))
     });
 
     // Update the changed values map
@@ -208,9 +205,9 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   const renderActiveTab = () => {
-    if (!appConfig?.spec?.groups) return null;
+    if (!appConfig?.groups) return null;
 
-    const group = appConfig.spec.groups.find(g => g.name === activeTab);
+    const group = appConfig.groups.find(g => g.name === activeTab);
     if (!group) return null;
 
     return (
@@ -253,7 +250,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     );
   }
 
-  if (!appConfig?.spec?.groups || appConfig.spec.groups.length === 0) {
+  if (!appConfig?.groups || appConfig.groups.length === 0) {
     return (
       <div className="space-y-6" data-testid="configuration-step-empty">
         <Card>
@@ -280,7 +277,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         <div className="mb-6">
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-6">
-              {appConfig.spec.groups.map(group => (
+              {appConfig.groups.map(group => (
                 <button
                   key={group.name}
                   data-testid={`config-tab-${group.name}`}
