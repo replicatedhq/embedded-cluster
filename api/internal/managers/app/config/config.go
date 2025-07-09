@@ -8,15 +8,15 @@ import (
 	"github.com/tiendc/go-deepcopy"
 )
 
-func (m *appConfigManager) GetConfigValues() (kotsv1beta1.ConfigValues, error) {
+func (m *appConfigManager) GetConfigValues() (map[string]string, error) {
 	return m.appConfigStore.GetConfigValues()
 }
 
-func (m *appConfigManager) SetConfigValues(ctx context.Context, values kotsv1beta1.ConfigValues) error {
+func (m *appConfigManager) SetConfigValues(ctx context.Context, values map[string]string) error {
 	return m.appConfigStore.SetConfigValues(values)
 }
 
-func (m *appConfigManager) ApplyValuesToConfig(config kotsv1beta1.Config, configValues kotsv1beta1.ConfigValues) (kotsv1beta1.Config, error) {
+func (m *appConfigManager) ApplyValuesToConfig(config kotsv1beta1.Config, configValues map[string]string) (kotsv1beta1.Config, error) {
 	// deepcopy the config to avoid mutating the original config
 	var updatedConfig kotsv1beta1.Config
 	if err := deepcopy.Copy(&updatedConfig, &config); err != nil {
@@ -25,14 +25,14 @@ func (m *appConfigManager) ApplyValuesToConfig(config kotsv1beta1.Config, config
 
 	for idxG, g := range updatedConfig.Spec.Groups {
 		for idxI, i := range g.Items {
-			value, ok := configValues.Spec.Values[i.Name]
+			value, ok := configValues[i.Name]
 			if ok {
-				updatedConfig.Spec.Groups[idxG].Items[idxI].Value = multitype.FromString(value.Value)
+				updatedConfig.Spec.Groups[idxG].Items[idxI].Value = multitype.FromString(value)
 			}
 			for idxC, c := range i.Items {
-				value, ok := configValues.Spec.Values[c.Name]
+				value, ok := configValues[c.Name]
 				if ok {
-					updatedConfig.Spec.Groups[idxG].Items[idxI].Items[idxC].Value = multitype.FromString(value.Value)
+					updatedConfig.Spec.Groups[idxG].Items[idxI].Items[idxC].Value = multitype.FromString(value)
 				}
 			}
 		}

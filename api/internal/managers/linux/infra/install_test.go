@@ -34,14 +34,10 @@ func TestInfraManager_getAddonInstallOpts(t *testing.T) {
 			cliConfigValues: "",
 			appConfigManager: func() appconfig.AppConfigManager {
 				mock := &appconfig.MockAppConfigManager{}
-				configValues := kotsv1beta1.ConfigValues{
-					Spec: kotsv1beta1.ConfigValuesSpec{
-						Values: map[string]kotsv1beta1.ConfigValue{
-							"memory-key": {Value: "memory-value"},
-						},
-					},
+				configValuesMap := map[string]string{
+					"memory-key": "memory-value",
 				}
-				mock.On("GetConfigValues").Return(configValues, nil)
+				mock.On("GetConfigValues").Return(configValuesMap, nil)
 				return mock
 			}(),
 			expectErr: false,
@@ -51,7 +47,7 @@ func TestInfraManager_getAddonInstallOpts(t *testing.T) {
 			cliConfigValues: "",
 			appConfigManager: func() appconfig.AppConfigManager {
 				mock := &appconfig.MockAppConfigManager{}
-				mock.On("GetConfigValues").Return(kotsv1beta1.ConfigValues{}, assert.AnError)
+				mock.On("GetConfigValues").Return(map[string]string(nil), assert.AnError)
 				return mock
 			}(),
 			expectErr: true,
@@ -67,12 +63,8 @@ func TestInfraManager_getAddonInstallOpts(t *testing.T) {
 			cliConfigValues: "",
 			appConfigManager: func() appconfig.AppConfigManager {
 				mock := &appconfig.MockAppConfigManager{}
-				emptyConfigValues := kotsv1beta1.ConfigValues{
-					Spec: kotsv1beta1.ConfigValuesSpec{
-						Values: map[string]kotsv1beta1.ConfigValue{}, // Empty values
-					},
-				}
-				mock.On("GetConfigValues").Return(emptyConfigValues, nil)
+				emptyConfigValuesMap := map[string]string{} // Empty map
+				mock.On("GetConfigValues").Return(emptyConfigValuesMap, nil)
 				return mock
 			}(),
 			expectErr: false,

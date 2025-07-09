@@ -331,12 +331,22 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 			if m.configValues != "" {
 				installOpts.ConfigValuesFile = m.configValues
 			} else if m.appConfigManager != nil {
-				configValues, err := m.appConfigManager.GetConfigValues()
+				configValuesMap, err := m.appConfigManager.GetConfigValues()
 				if err != nil {
 					return fmt.Errorf("retrieving config values from memory store: %w", err)
 				}
-				if len(configValues.Spec.Values) > 0 {
-					installOpts.ConfigValues = &configValues
+				if len(configValuesMap) > 0 {
+					configValues := &kotsv1beta1.ConfigValues{
+						Spec: kotsv1beta1.ConfigValuesSpec{
+							Values: make(map[string]kotsv1beta1.ConfigValue),
+						},
+					}
+					for key, value := range configValuesMap {
+						configValues.Spec.Values[key] = kotsv1beta1.ConfigValue{
+							Value: value,
+						}
+					}
+					installOpts.ConfigValues = configValues
 				}
 			}
 
