@@ -7,67 +7,65 @@ import ConfigurationStep from "../config/ConfigurationStep.tsx";
 import { AppConfig, AppConfigGroup, AppConfigItem } from "../../../types";
 
 const MOCK_APP_CONFIG: AppConfig = {
-  spec: {
-    groups: [
-      {
-        name: "settings",
-        title: "Settings",
-        description: "Configure application settings",
-        items: [
-          {
-            name: "app_name",
-            title: "Application Name",
-            type: "text",
-            value: "My App",
-            default: "Default App"
-          },
-          {
-            name: "enable_feature",
-            title: "Enable Feature",
-            type: "bool",
-            value: "0",
-            default: "0"
-          },
-          {
-            name: "auth_type",
-            title: "Authentication Type",
-            type: "radio",
-            value: "auth_type_password",
-            default: "auth_type_anonymous",
-            items: [
-              {
-                name: "auth_type_anonymous",
-                title: "Anonymous"
-              },
-              {
-                name: "auth_type_password",
-                title: "Password"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        name: "database",
-        title: "Database",
-        description: "Configure database settings",
-        items: [
-          {
-            name: "db_host",
-            title: "Database Host",
-            type: "text",
-            value: "localhost",
-            default: "localhost"
-          }
-        ]
-      }
-    ]
-  }
+  groups: [
+    {
+      name: "settings",
+      title: "Settings",
+      description: "Configure application settings",
+      items: [
+        {
+          name: "app_name",
+          title: "Application Name",
+          type: "text",
+          value: "My App",
+          default: "Default App"
+        },
+        {
+          name: "enable_feature",
+          title: "Enable Feature",
+          type: "bool",
+          value: "0",
+          default: "0"
+        },
+        {
+          name: "auth_type",
+          title: "Authentication Type",
+          type: "radio",
+          value: "auth_type_password",
+          default: "auth_type_anonymous",
+          items: [
+            {
+              name: "auth_type_anonymous",
+              title: "Anonymous"
+            },
+            {
+              name: "auth_type_password",
+              title: "Password"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "database",
+      title: "Database",
+      description: "Configure database settings",
+      items: [
+        {
+          name: "db_host",
+          title: "Database Host",
+          type: "text",
+          value: "localhost",
+          default: "localhost"
+        }
+      ]
+    }
+  ]
 };
 
 const createMockConfigWithValues = (values: Record<string, string>): AppConfig => {
   const config: AppConfig = JSON.parse(JSON.stringify(MOCK_APP_CONFIG));
-  config.spec.groups.forEach((group: AppConfigGroup) => {
+  config.groups.forEach((group: AppConfigGroup) => {
     group.items.forEach((item: AppConfigItem) => {
       if (values[item.name]) {
         item.value = values[item.name];
@@ -472,85 +470,83 @@ describe.each([
     it("tests all radio button scenarios with different value/default combinations", async () => {
       // Override the mock config with multiple radio groups for different scenarios
       const comprehensiveConfig: AppConfig = {
-        spec: {
-          groups: [
-            {
-              name: "radio_test_scenarios",
-              title: "Radio Test Scenarios",
-              description: "Testing different radio button scenarios",
-              items: [
-                {
-                  name: "authentication_method",
-                  title: "Authentication Method",
-                  type: "radio",
-                  value: "authentication_method_ldap",
-                  items: [
-                    {
-                      name: "authentication_method_local",
-                      title: "Local Authentication"
-                    },
-                    {
-                      name: "authentication_method_ldap",
-                      title: "LDAP Authentication"
-                    }
-                  ]
-                },
-                {
-                  name: "database_type",
-                  title: "Database Type",
-                  type: "radio",
-                  default: "database_type_postgresql",
-                  items: [
-                    {
-                      name: "database_type_mysql",
-                      title: "MySQL"
-                    },
-                    {
-                      name: "database_type_postgresql",
-                      title: "PostgreSQL"
-                    }
-                  ]
-                },
-                {
-                  name: "logging_level",
-                  title: "Logging Level",
-                  type: "radio",
-                  value: "logging_level_debug",
-                  default: "logging_level_info",
-                  items: [
-                    {
-                      name: "logging_level_info",
-                      title: "Info"
-                    },
-                    {
-                      name: "logging_level_debug",
-                      title: "Debug"
-                    },
-                    {
-                      name: "logging_level_error",
-                      title: "Error Only"
-                    }
-                  ]
-                },
-                {
-                  name: "ssl_mode",
-                  title: "SSL Mode",
-                  type: "radio",
-                  items: [
-                    {
-                      name: "ssl_mode_disabled",
-                      title: "Disabled"
-                    },
-                    {
-                      name: "ssl_mode_required",
-                      title: "Required"
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
+        groups: [
+          {
+            name: "radio_test_scenarios",
+            title: "Radio Test Scenarios",
+            description: "Testing different radio button scenarios",
+            items: [
+              {
+                name: "authentication_method",
+                title: "Authentication Method",
+                type: "radio",
+                value: "authentication_method_ldap",
+                items: [
+                  {
+                    name: "authentication_method_local",
+                    title: "Local Authentication"
+                  },
+                  {
+                    name: "authentication_method_ldap",
+                    title: "LDAP Authentication"
+                  }
+                ]
+              },
+              {
+                name: "database_type",
+                title: "Database Type",
+                type: "radio",
+                default: "database_type_postgresql",
+                items: [
+                  {
+                    name: "database_type_mysql",
+                    title: "MySQL"
+                  },
+                  {
+                    name: "database_type_postgresql",
+                    title: "PostgreSQL"
+                  }
+                ]
+              },
+              {
+                name: "logging_level",
+                title: "Logging Level",
+                type: "radio",
+                value: "logging_level_debug",
+                default: "logging_level_info",
+                items: [
+                  {
+                    name: "logging_level_info",
+                    title: "Info"
+                  },
+                  {
+                    name: "logging_level_debug",
+                    title: "Debug"
+                  },
+                  {
+                    name: "logging_level_error",
+                    title: "Error Only"
+                  }
+                ]
+              },
+              {
+                name: "ssl_mode",
+                title: "SSL Mode",
+                type: "radio",
+                items: [
+                  {
+                    name: "ssl_mode_disabled",
+                    title: "Disabled"
+                  },
+                  {
+                    name: "ssl_mode_required",
+                    title: "Required"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       };
 
       // Override the server to return our comprehensive config

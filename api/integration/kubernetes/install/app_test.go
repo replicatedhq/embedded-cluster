@@ -94,12 +94,12 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 		fmt.Printf("response: %+v\n", rec.Body.String())
 
 		// Parse the response body
-		var response kotsv1beta1.Config
+		var response types.AppConfig
 		err = json.NewDecoder(rec.Body).Decode(&response)
 		require.NoError(t, err)
 
 		// Verify the app config has the values applied from the store
-		assert.Equal(t, response.Spec.Groups[0].Items[0].Value.String(), "applied-value", "app config should have values applied from store")
+		assert.Equal(t, response.Groups[0].Items[0].Value.String(), "applied-value", "app config should have values applied from store")
 	})
 
 	// Test authorization
@@ -202,13 +202,13 @@ func TestKubernetesSetAppConfigValues(t *testing.T) {
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
-		var response kotsv1beta1.Config
+		var response types.AppConfig
 		err = json.NewDecoder(rec.Body).Decode(&response)
 		require.NoError(t, err)
 
 		// Verify the app config has the updated values applied
-		assert.Equal(t, "new-value", response.Spec.Groups[0].Items[0].Value.String(), "first item should have updated value")
-		assert.Equal(t, "value2", response.Spec.Groups[0].Items[1].Value.String(), "second item should not have updated value")
+		assert.Equal(t, "new-value", response.Groups[0].Items[0].Value.String(), "first item should have updated value")
+		assert.Equal(t, "value2", response.Groups[0].Items[1].Value.String(), "second item should not have updated value")
 	})
 
 	// Test authorization
