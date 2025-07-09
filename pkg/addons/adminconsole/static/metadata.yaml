@@ -5,26 +5,26 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 1.124.18-ec.2
+version: 1.124.18-ec.3
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console
 images:
     kotsadm:
         repo: proxy.replicated.com/anonymous/kotsadm/kotsadm
         tag:
-            amd64: v1.124.18-ec.2-amd64@sha256:204626d8364b495460d46dc30d11c4ff29dc06e3b02ad2eba1cdd4c68aece32d
-            arm64: v1.124.18-ec.2-arm64@sha256:d2823e321b7ddc1888b9c370320554b181f04cdb67dadcdc40bb2cdd763c6d2f
+            amd64: v1.124.18-ec.3-amd64@sha256:a82462a2f13d0dd5008970670deed218dbee889b5798fefc268bcb1c1d4dfefd
+            arm64: v1.124.18-ec.3-arm64@sha256:700709df2c95c988fc162bef8734cc414bd1e58a170bf93c3f65722ef2298a3e
     kotsadm-migrations:
         repo: proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations
         tag:
-            amd64: v1.124.18-ec.2-amd64@sha256:bea489071fa6dc3554c0e15a282ec46111ec49d53b17a4d4fb7d52301c0afce0
-            arm64: v1.124.18-ec.2-arm64@sha256:c3e26f8a2831334eaed9c9f991c7ef1504e4fa52ae6abf2b0e80c56d169a6fd4
+            amd64: v1.124.18-ec.3-amd64@sha256:71aadf7b8b64c8d97c04b19cd93f70c169c79fee7f34b10e41c2b0fbb3ae13d4
+            arm64: v1.124.18-ec.3-arm64@sha256:97bddfe0cd072f62d7f7f59e3b8e9628865e45de83fdb2833406e2272e68155a
     kurl-proxy:
         repo: proxy.replicated.com/anonymous/kotsadm/kurl-proxy
         tag:
-            amd64: v1.124.18-ec.2-amd64@sha256:ffb7bc7f591d1e2a06e7b00f85ed3fd4445296921de4295b223d7d018d54d92a
-            arm64: v1.124.18-ec.2-arm64@sha256:9661b62f325a537007b1ec0b42fef66c9e07fa15884d2d14509ef174e4dc5c2e
+            amd64: v1.124.18-ec.3-amd64@sha256:f82a9bd6dbc6c4b3e54e8b12707e04c2beb6705cacda6769a54433af77d48afe
+            arm64: v1.124.18-ec.3-arm64@sha256:93d17841c5822fee98fedffd17f33fbeff87787f12dfcaf5dcbd550376cc3483
     rqlite:
         repo: proxy.replicated.com/anonymous/kotsadm/rqlite
         tag:
-            amd64: 8.37.3-r0-amd64@sha256:b1dffafe3d547c071126a5be38c9195057e2d15ecb6b1d11a6a8860eb866625e
-            arm64: 8.37.3-r0-arm64@sha256:781d4ce9cad04d0305d56aae20cbdc49f0a8924e4fa8aac17a2d20d726df7caf
+            amd64: 8.39.0-r0-amd64@sha256:5550c972eb8ddaca0c24536649c5a0d727bb574aa23f79d70fbd19810e76bf28
+            arm64: 8.39.0-r0-arm64@sha256:cb0abf04d59344db010b771ad1a989f6aa528c94427d5ffea76c573340848004
