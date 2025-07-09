@@ -31,8 +31,8 @@ type InstallOptions struct {
 	Namespace             string
 	ClusterID             string
 	AirgapBundle          string
-	ConfigValuesFile      string                    // Keep for backward compatibility
-	ConfigValues          *kotsv1beta1.ConfigValues // NEW: Direct config values
+	ConfigValuesFile      string
+	ConfigValues          *kotsv1beta1.ConfigValues
 	ReplicatedAppEndpoint string
 	Stdout                io.Writer
 }
