@@ -144,6 +144,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             value={item.value || ''}
             onChange={handleInputChange}
             dataTestId={`text-input-${item.name}`}
+            helpText={item.help_text}
           />
         );
 
