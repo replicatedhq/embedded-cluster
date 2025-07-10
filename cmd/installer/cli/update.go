@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/sirupsen/logrus"
@@ -49,11 +50,22 @@ func UpdateCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				}
 			}
 
+			kcli, err := kubeutils.KubeClient()
+			if err != nil {
+				return fmt.Errorf("failed to create kubernetes client: %w", err)
+			}
+
+			in, err := kubeutils.GetLatestInstallation(ctx, kcli)
+			if err != nil {
+				return fmt.Errorf("failed to get latest installation: %w", err)
+			}
+
 			if err := kotscli.AirgapUpdate(kotscli.AirgapUpdateOptions{
 				RuntimeConfig: rc,
 				AppSlug:       appSlug,
 				Namespace:     constants.KotsadmNamespace,
 				AirgapBundle:  airgapBundle,
+				ClusterID:     in.Spec.ClusterID,
 			}); err != nil {
 				return err
 			}

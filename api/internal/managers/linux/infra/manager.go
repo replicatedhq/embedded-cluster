@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/replicatedhq/embedded-cluster/api/internal/store/linux/infra"
+	infrastore "github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -22,28 +22,29 @@ var _ InfraManager = &infraManager{}
 
 // InfraManager provides methods for managing infrastructure setup
 type InfraManager interface {
-	Get() (types.LinuxInfra, error)
-	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
+	Get() (types.Infra, error)
+	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues map[string]string) error
 }
 
 // infraManager is an implementation of the InfraManager interface
 type infraManager struct {
-	infraStore    infra.Store
-	password      string
-	tlsConfig     types.TLSConfig
-	license       []byte
-	airgapBundle  string
-	configValues  string
-	releaseData   *release.ReleaseData
-	endUserConfig *ecv1beta1.Config
-	logger        logrus.FieldLogger
-	k0scli        k0s.K0sInterface
-	kcli          client.Client
-	mcli          metadata.Interface
-	hcli          helm.Client
-	hostUtils     hostutils.HostUtilsInterface
-	kotsInstaller func() error
-	mu            sync.RWMutex
+	infraStore       infrastore.Store
+	password         string
+	tlsConfig        types.TLSConfig
+	license          []byte
+	airgapBundle     string
+	configValuesFile string // Keep for CLI file path priority
+	releaseData      *release.ReleaseData
+	endUserConfig    *ecv1beta1.Config
+	clusterID        string
+	logger           logrus.FieldLogger
+	k0scli           k0s.K0sInterface
+	kcli             client.Client
+	mcli             metadata.Interface
+	hcli             helm.Client
+	hostUtils        hostutils.HostUtilsInterface
+	kotsInstaller    func() error
+	mu               sync.RWMutex
 }
 
 type InfraManagerOption func(*infraManager)
@@ -54,7 +55,7 @@ func WithLogger(logger logrus.FieldLogger) InfraManagerOption {
 	}
 }
 
-func WithInfraStore(store infra.Store) InfraManagerOption {
+func WithInfraStore(store infrastore.Store) InfraManagerOption {
 	return func(c *infraManager) {
 		c.infraStore = store
 	}
@@ -84,9 +85,9 @@ func WithAirgapBundle(airgapBundle string) InfraManagerOption {
 	}
 }
 
-func WithConfigValues(configValues string) InfraManagerOption {
+func WithConfigValuesFile(configValuesFile string) InfraManagerOption {
 	return func(c *infraManager) {
-		c.configValues = configValues
+		c.configValuesFile = configValuesFile
 	}
 }
 
@@ -99,6 +100,12 @@ func WithReleaseData(releaseData *release.ReleaseData) InfraManagerOption {
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InfraManagerOption {
 	return func(c *infraManager) {
 		c.endUserConfig = endUserConfig
+	}
+}
+
+func WithClusterID(clusterID string) InfraManagerOption {
+	return func(c *infraManager) {
+		c.clusterID = clusterID
 	}
 }
 
@@ -151,7 +158,7 @@ func NewInfraManager(opts ...InfraManagerOption) *infraManager {
 	}
 
 	if manager.infraStore == nil {
-		manager.infraStore = infra.NewMemoryStore()
+		manager.infraStore = infrastore.NewMemoryStore()
 	}
 
 	if manager.k0scli == nil {
@@ -165,6 +172,6 @@ func NewInfraManager(opts ...InfraManagerOption) *infraManager {
 	return manager
 }
 
-func (m *infraManager) Get() (types.LinuxInfra, error) {
+func (m *infraManager) Get() (types.Infra, error) {
 	return m.infraStore.Get()
 }

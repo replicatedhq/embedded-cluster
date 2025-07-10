@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2/terminal"
+	"github.com/google/uuid"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
@@ -37,7 +38,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -50,8 +50,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	helmcli "helm.sh/helm/v3/pkg/cli"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/metadata"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -87,13 +88,14 @@ type InstallCmdFlags struct {
 }
 
 type installConfig struct {
+	clusterID    string
 	license      *kotsv1beta1.License
 	licenseBytes []byte
 	tlsCert      tls.Certificate
 	tlsCertBytes []byte
 	tlsKeyBytes  []byte
 
-	kubernetesRestConfig *rest.Config
+	kubernetesRESTClientGetter genericclioptions.RESTClientGetter
 }
 
 // webAssetsFS is the filesystem to be used by the web component. Defaults to nil allowing the web server to use the default assets embedded in the binary. Useful for testing.
@@ -129,10 +131,9 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				return err
 			}
 
-			clusterID := metrics.ClusterID()
 			installReporter := newInstallReporter(
-				replicatedAppURL(), clusterID, cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
-				flags.license.Spec.LicenseID, flags.license.Spec.AppSlug,
+				replicatedAppURL(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
+				flags.license.Spec.LicenseID, flags.clusterID, flags.license.Spec.AppSlug,
 			)
 			installReporter.ReportInstallationStarted(ctx)
 
@@ -378,6 +379,8 @@ func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.
 		return fmt.Errorf(`invalid --target (must be one of: "linux", "kubernetes")`)
 	}
 
+	flags.clusterID = uuid.New().String()
+
 	if err := preRunInstallCommon(cmd, flags, rc, ki); err != nil {
 		return err
 	}
@@ -510,6 +513,9 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 }
 
 func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kubernetesinstallation.Installation) error {
+	// TODO: we only support amd64 clusters for target=kubernetes installs
+	helpers.SetClusterArch("amd64")
+
 	// If set, validate that the kubeconfig file exists and can be read
 	if flags.kubernetesEnvSettings.KubeConfig != "" {
 		if _, err := os.Stat(flags.kubernetesEnvSettings.KubeConfig); os.IsNotExist(err) {
@@ -524,13 +530,17 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kuberne
 		return fmt.Errorf("failed to discover kubeconfig: %w", err)
 	}
 
-	// If this is the default host, there was probably no kubeconfig discovered.
-	// HACK: This is fragile but it is the best thing I could come up with
-	if flags.kubernetesEnvSettings.KubeConfig == "" && restConfig.Host == "http://localhost:8080" {
-		return fmt.Errorf("a kubeconfig is required when using kubernetes")
+	// Check that we have a valid kubeconfig
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create discovery client: %w", err)
+	}
+	_, err = discoveryClient.ServerVersion()
+	if err != nil {
+		return fmt.Errorf("failed to connect to kubernetes api server: %w", err)
 	}
 
-	flags.installConfig.kubernetesRestConfig = restConfig
+	flags.installConfig.kubernetesRESTClientGetter = flags.kubernetesEnvSettings.RESTClientGetter()
 
 	return nil
 }
@@ -562,7 +572,10 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 	return cidrCfg, nil
 }
 
-func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation, installReporter *InstallReporter, appTitle string) (finalErr error) {
+func runManagerExperienceInstall(
+	ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation,
+	installReporter *InstallReporter, appTitle string,
+) (finalErr error) {
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
 	ipAddresses, err := netutils.ListAllValidIPAddresses()
@@ -631,14 +644,15 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 			ConfigValues:  flags.configValues,
 			ReleaseData:   release.GetReleaseData(),
 			EndUserConfig: eucfg,
+			ClusterID:     flags.clusterID,
 
 			LinuxConfig: apitypes.LinuxConfig{
 				RuntimeConfig:             rc,
 				AllowIgnoreHostPreflights: flags.ignoreHostPreflights,
 			},
 			KubernetesConfig: apitypes.KubernetesConfig{
-				RESTConfig:   flags.installConfig.kubernetesRestConfig,
-				Installation: ki,
+				RESTClientGetter: flags.installConfig.kubernetesRESTClientGetter,
+				Installation:     ki,
 			},
 		},
 
@@ -697,7 +711,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	in, err := recordInstallation(ctx, kcli, flags, rc, flags.license)
+	in, err := recordInstallation(ctx, kcli, flags, rc)
 	if err != nil {
 		return fmt.Errorf("unable to record installation: %w", err)
 	}
@@ -733,7 +747,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	defer hcli.Close()
 
 	logrus.Debugf("installing addons")
-	if err := installAddons(ctx, kcli, mcli, hcli, rc, flags); err != nil {
+	if err := installAddons(ctx, kcli, mcli, hcli, flags, rc); err != nil {
 		return err
 	}
 
@@ -771,6 +785,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 	}
 
 	opts := &addons.InstallOptions{
+		ClusterID:               flags.clusterID,
 		AdminConsolePwd:         flags.adminConsolePassword,
 		AdminConsolePort:        rc.AdminConsolePort(),
 		License:                 flags.license,
@@ -794,6 +809,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 				AppSlug:               flags.license.Spec.AppSlug,
 				License:               flags.licenseBytes,
 				Namespace:             constants.KotsadmNamespace,
+				ClusterID:             flags.clusterID,
 				AirgapBundle:          flags.airgapBundle,
 				ConfigValuesFile:      flags.configValues,
 				ReplicatedAppEndpoint: replicatedAppURL(),
@@ -1068,7 +1084,7 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 	return cfg, nil
 }
 
-func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig, flags InstallCmdFlags) error {
+func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -1294,7 +1310,7 @@ func waitForNode(ctx context.Context) error {
 }
 
 func recordInstallation(
-	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, license *kotsv1beta1.License,
+	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig,
 ) (*ecv1beta1.Installation, error) {
 	// get the embedded cluster config
 	cfg := release.GetEmbeddedClusterConfig()
@@ -1311,8 +1327,9 @@ func recordInstallation(
 
 	// record the installation
 	installation, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
+		ClusterID:      flags.clusterID,
 		IsAirgap:       flags.isAirgap,
-		License:        license,
+		License:        flags.license,
 		ConfigSpec:     cfgspec,
 		MetricsBaseURL: replicatedAppURL(),
 		RuntimeConfig:  rc.Get(),

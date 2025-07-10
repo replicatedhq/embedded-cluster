@@ -1,0 +1,44 @@
+---
+description: 
+globs: *.go
+alwaysApply: false
+---
+# Clean Code
+
+Essential clean code principles for Go development in Embedded Cluster.
+
+## File Formatting
+
+### End of File
+- **Always leave a single newline at the end of every file**
+- This ensures proper POSIX compliance and clean git diffs
+
+## Comments
+
+### Keep Comments Concise
+- **Comments should be brief and to the point**
+- Explain *why*, not *what* the code does
+- Avoid redundant comments that just repeat the code
+
+### Comment Quality
+
+- **Write self-explanatory comments that clearly explain the purpose and context**: Explain WHY, not just WHAT the code does
+  ```go
+  // Good - explains WHY and provides context
+  // Retry 3 times because API can be temporarily unavailable during deployment
+  for i := 0; i < 3; i++ {
+      if err := checkAPIHealth(); err == nil {
+          break
+      }
+      time.Sleep(time.Second * 2)
+  }
+  ```
+
+### Function Comments
+- Use concise godoc format for exported functions
+- Focus on purpose and important behavior
+- Single line comments for simple functions
+
+### Inline Comments
+- Use sparingly for complex logic
+- Keep on same line when possible for short explanations

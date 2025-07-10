@@ -6,7 +6,6 @@ images:
     rqlite: '{{ ImageString (index .Images "rqlite") }}'
 {{- end }}
 isHA: false
-isHelmManaged: false
 kurlProxy:
     enabled: true
     nodePort: 30000

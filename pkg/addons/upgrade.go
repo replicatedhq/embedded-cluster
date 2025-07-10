@@ -21,6 +21,7 @@ import (
 )
 
 type UpgradeOptions struct {
+	ClusterID               string
 	AdminConsolePort        int
 	IsAirgap                bool
 	IsHA                    bool
@@ -72,6 +73,7 @@ func (a *AddOns) getAddOnsForUpgrade(meta *ectypes.ReleaseMetadata, opts Upgrade
 		return nil, errors.Wrap(err, "get operator images")
 	}
 	addOns = append(addOns, &embeddedclusteroperator.EmbeddedClusterOperator{
+		ClusterID:        opts.ClusterID,
 		IsAirgap:         opts.IsAirgap,
 		Proxy:            opts.ProxySpec,
 		HostCABundlePath: opts.HostCABundlePath,
@@ -106,6 +108,7 @@ func (a *AddOns) getAddOnsForUpgrade(meta *ectypes.ReleaseMetadata, opts Upgrade
 	}
 
 	addOns = append(addOns, &adminconsole.AdminConsole{
+		ClusterID:          opts.ClusterID,
 		IsAirgap:           opts.IsAirgap,
 		IsHA:               opts.IsHA,
 		Proxy:              opts.ProxySpec,

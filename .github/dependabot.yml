@@ -6,7 +6,6 @@ updates:
       - "/"
       - "/kinds/"
       - "/utils/"
-      - "/dagger/"
     open-pull-requests-limit: 10
     schedule:
       interval: "weekly"
@@ -43,10 +42,22 @@ updates:
       security:
         update-types:
           - "patch"
-          - "minor"
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "type::chore"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+
+  - package-ecosystem: "github-actions"
+    directories:
+      - ".github/actions/*"
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "github-actions"

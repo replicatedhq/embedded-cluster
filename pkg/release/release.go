@@ -27,6 +27,7 @@ var (
 type ReleaseData struct {
 	data                  []byte
 	Application           *kotsv1beta1.Application
+	AppConfig             *kotsv1beta1.Config
 	HostPreflights        *troubleshootv1beta2.HostPreflightSpec
 	EmbeddedClusterConfig *ecv1beta1.Config
 	ChannelRelease        *ChannelRelease
@@ -59,6 +60,13 @@ func GetHostPreflights() *troubleshootv1beta2.HostPreflightSpec {
 // not unmarshal the application yaml.
 func GetApplication() *kotsv1beta1.Application {
 	return _releaseData.Application
+}
+
+// GetAppConfig reads and returns the kots app config embedded as part of the
+// release. If no app config is found, returns nil and no error. This function does
+// not unmarshal the app config yaml.
+func GetAppConfig() *kotsv1beta1.Config {
+	return _releaseData.AppConfig
 }
 
 // GetEmbeddedClusterConfig reads the embedded cluster config from the embedded Kots
@@ -133,6 +141,17 @@ func parseApplication(data []byte) (*kotsv1beta1.Application, error) {
 		return nil, fmt.Errorf("unable to unmarshal application: %w", err)
 	}
 	return &app, nil
+}
+
+func parseAppConfig(data []byte) (*kotsv1beta1.Config, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	var config kotsv1beta1.Config
+	if err := kyaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal app config: %w", err)
+	}
+	return &config, nil
 }
 
 func parseHostPreflights(data []byte) (*troubleshootv1beta2.HostPreflightSpec, error) {
@@ -255,6 +274,12 @@ func (r *ReleaseData) parse() error {
 					return fmt.Errorf("failed to parse application: %w", err)
 				}
 				r.Application = parsed
+			} else if bytes.Contains(content.Bytes(), []byte("kind: Config")) {
+				parsed, err := parseAppConfig(content.Bytes())
+				if err != nil {
+					return fmt.Errorf("failed to parse app config: %w", err)
+				}
+				r.AppConfig = parsed
 			}
 
 		case bytes.Contains(content.Bytes(), []byte("apiVersion: troubleshoot.sh/v1beta2")):

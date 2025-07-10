@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
+	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -32,7 +33,7 @@ func TestConsoleListAvailableNetworkInterfaces(t *testing.T) {
 			Password: "password",
 		},
 		api.WithConsoleController(consoleController),
-		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
@@ -80,7 +81,7 @@ func TestConsoleListAvailableNetworkInterfacesUnauthorized(t *testing.T) {
 			Password: "password",
 		},
 		api.WithConsoleController(consoleController),
-		api.WithAuthController(&staticAuthController{"VALID_TOKEN"}),
+		api.WithAuthController(auth.NewStaticAuthController("VALID_TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)
@@ -124,7 +125,7 @@ func TestConsoleListAvailableNetworkInterfacesError(t *testing.T) {
 			Password: "password",
 		},
 		api.WithConsoleController(consoleController),
-		api.WithAuthController(&staticAuthController{"TOKEN"}),
+		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
 	require.NoError(t, err)

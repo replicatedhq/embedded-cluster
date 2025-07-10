@@ -6,12 +6,12 @@ import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import LinuxSetupStep from "../setup/LinuxSetupStep.tsx";
 import { formatErrorMessage } from "../setup/LinuxSetupStep.tsx";
-import { MOCK_INSTALL_CONFIG, MOCK_NETWORK_INTERFACES } from "../../../test/testData.ts";
+import { MOCK_LINUX_INSTALL_CONFIG, MOCK_NETWORK_INTERFACES } from "../../../test/testData.ts";
 
 const server = setupServer(
   // Mock install config endpoint
   http.get("*/api/linux/install/installation/config", () => {
-    return HttpResponse.json({ config: MOCK_INSTALL_CONFIG });
+    return HttpResponse.json({ config: MOCK_LINUX_INSTALL_CONFIG });
   }),
 
   // Mock network interfaces endpoint
@@ -52,7 +52,6 @@ describe("LinuxSetupStep", () => {
         contextValues: {
           linuxConfigContext: {
             config: {
-              ...MOCK_INSTALL_CONFIG,
               dataDirectory: "/var/lib/embedded-cluster",
               adminConsolePort: 8080,
               localArtifactMirrorPort: 8081,
@@ -118,7 +117,6 @@ describe("LinuxSetupStep", () => {
         contextValues: {
           linuxConfigContext: {
             config: {
-              ...MOCK_INSTALL_CONFIG,
               dataDirectory: "/var/lib/embedded-cluster",
               adminConsolePort: 8080,
               localArtifactMirrorPort: 8081,
@@ -154,7 +152,77 @@ describe("LinuxSetupStep", () => {
     fireEvent.click(nextButton);
 
     // Verify error message is displayed
+    await screen.findByText("Invalid configuration");
+
+    // Verify onNext was not called
+    expect(mockOnNext).not.toHaveBeenCalled();
+  });
+
+  it("handles field-specific errors gracefully", async () => {
+    server.use(
+      http.get("*/api/console/available-network-interfaces", () => {
+        return HttpResponse.json({
+          networkInterfaces: MOCK_NETWORK_INTERFACES,
+        });
+      }),
+      // Mock config submission endpoint to return field-specific errors
+      http.post("*/api/linux/install/installation/configure", () => {
+        return new HttpResponse(JSON.stringify({ 
+          message: "Validation failed",
+          errors: [
+            { field: "dataDirectory", message: "Data Directory is required" },
+            { field: "adminConsolePort", message: "Admin Console Port must be between 1024 and 65535" }
+          ]
+        }), { status: 400 });
+      })
+    );
+
+    renderWithProviders(<LinuxSetupStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        contextValues: {
+          linuxConfigContext: {
+            config: {
+              dataDirectory: "",
+              adminConsolePort: 0,
+              localArtifactMirrorPort: 8081,
+              networkInterface: "eth0",
+              globalCidr: "10.244.0.0/16",
+              useProxy: false,
+            },
+            updateConfig: vi.fn(),
+            resetConfig: vi.fn(),
+          },
+        },
+      },
+    });
+
+    // Wait for loading to complete
+    await screen.findByText("Loading configuration...");
+    await screen.findByText("Configure the installation settings.");
+
+    // Fill in required form values
+    const dataDirectoryInput = screen.getByLabelText(/Data Directory/);
+    const adminPortInput = screen.getByLabelText(/Admin Console Port/);
+    const mirrorPortInput = screen.getByLabelText(/Local Artifact Mirror Port/);
+
+    // Use fireEvent to simulate user input
+    fireEvent.change(dataDirectoryInput, {
+      target: { value: "/var/lib/my-cluster" },
+    });
+    fireEvent.change(adminPortInput, { target: { value: "8080" } });
+    fireEvent.change(mirrorPortInput, { target: { value: "8081" } });
+
+    // Submit form
+    const nextButton = screen.getByText("Next: Validate Host");
+    fireEvent.click(nextButton);
+
+    // Verify generic error message is displayed for field errors
     await screen.findByText("Please fix the errors in the form above before proceeding.");
+
+    // Verify field-specific error messages are displayed
+    await screen.findByText("Data Directory is required");
+    await screen.findByText("Admin Console Port must be between 1024 and 65535");
 
     // Verify onNext was not called
     expect(mockOnNext).not.toHaveBeenCalled();
@@ -169,7 +237,6 @@ describe("LinuxSetupStep", () => {
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
         return HttpResponse.json({
           config: {
-            ...MOCK_INSTALL_CONFIG,
             dataDirectory: "/var/lib/embedded-cluster",
             adminConsolePort: 8080,
             localArtifactMirrorPort: 8081,
@@ -210,7 +277,6 @@ describe("LinuxSetupStep", () => {
         contextValues: {
           linuxConfigContext: {
             config: {
-              ...MOCK_INSTALL_CONFIG,
               dataDirectory: "/var/lib/embedded-cluster",
               adminConsolePort: 8080,
               localArtifactMirrorPort: 8081,

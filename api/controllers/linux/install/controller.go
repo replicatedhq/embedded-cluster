@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
@@ -17,6 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -29,7 +31,10 @@ type Controller interface {
 	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
-	GetInfra(ctx context.Context) (types.LinuxInfra, error)
+	GetInfra(ctx context.Context) (types.Infra, error)
+	GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error)
+	SetAppConfigValues(ctx context.Context, values map[string]string) error
+	GetAppConfigValues(ctx context.Context) (map[string]string, error)
 }
 
 type RunHostPreflightsOptions struct {
@@ -42,6 +47,7 @@ type InstallController struct {
 	installationManager       installation.InstallationManager
 	hostPreflightManager      preflight.HostPreflightManager
 	infraManager              infra.InfraManager
+	appConfigManager          appconfig.AppConfigManager
 	hostUtils                 hostutils.HostUtilsInterface
 	netUtils                  utils.NetUtils
 	metricsReporter           metrics.ReporterInterface
@@ -50,8 +56,9 @@ type InstallController struct {
 	tlsConfig                 types.TLSConfig
 	license                   []byte
 	airgapBundle              string
-	configValues              string
+	configValuesFile          string
 	endUserConfig             *ecv1beta1.Config
+	clusterID                 string
 	store                     store.Store
 	rc                        runtimeconfig.RuntimeConfig
 	stateMachine              statemachine.Interface
@@ -122,15 +129,21 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
-func WithConfigValues(configValues string) InstallControllerOption {
+func WithConfigValuesFile(configValuesFile string) InstallControllerOption {
 	return func(c *InstallController) {
-		c.configValues = configValues
+		c.configValuesFile = configValuesFile
 	}
 }
 
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InstallControllerOption {
 	return func(c *InstallController) {
 		c.endUserConfig = endUserConfig
+	}
+}
+
+func WithClusterID(clusterID string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.clusterID = clusterID
 	}
 }
 
@@ -155,6 +168,12 @@ func WithHostPreflightManager(hostPreflightManager preflight.HostPreflightManage
 func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
 	return func(c *InstallController) {
 		c.infraManager = infraManager
+	}
+}
+
+func WithAppConfigManager(appConfigManager appconfig.AppConfigManager) InstallControllerOption {
+	return func(c *InstallController) {
+		c.appConfigManager = appConfigManager
 	}
 }
 
@@ -214,6 +233,13 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
+	if controller.appConfigManager == nil {
+		controller.appConfigManager = appconfig.NewAppConfigManager(
+			appconfig.WithLogger(controller.logger),
+			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
+		)
+	}
+
 	if controller.infraManager == nil {
 		controller.infraManager = infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
@@ -222,9 +248,10 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
-			infra.WithConfigValues(controller.configValues),
+			infra.WithConfigValuesFile(controller.configValuesFile), // CLI file path
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
+			infra.WithClusterID(controller.clusterID),
 		)
 	}
 

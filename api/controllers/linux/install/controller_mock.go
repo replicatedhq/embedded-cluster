@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -78,10 +79,31 @@ func (m *MockController) SetupInfra(ctx context.Context, ignoreHostPreflights bo
 }
 
 // GetInfra mocks the GetInfra method
-func (m *MockController) GetInfra(ctx context.Context) (types.LinuxInfra, error) {
+func (m *MockController) GetInfra(ctx context.Context) (types.Infra, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
-		return types.LinuxInfra{}, args.Error(1)
+		return types.Infra{}, args.Error(1)
 	}
-	return args.Get(0).(types.LinuxInfra), args.Error(1)
+	return args.Get(0).(types.Infra), args.Error(1)
+}
+
+// GetAppConfig mocks the GetAppConfig method
+func (m *MockController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error) {
+	args := m.Called(ctx)
+	return args.Get(0).(kotsv1beta1.Config), args.Error(1)
+}
+
+// SetAppConfigValues mocks the SetAppConfigValues method
+func (m *MockController) SetAppConfigValues(ctx context.Context, values map[string]string) error {
+	args := m.Called(ctx, values)
+	return args.Error(0)
+}
+
+// GetAppConfigValues mocks the GetAppConfigValues method
+func (m *MockController) GetAppConfigValues(ctx context.Context) (map[string]string, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[string]string), args.Error(1)
 }

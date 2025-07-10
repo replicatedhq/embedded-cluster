@@ -67,7 +67,12 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 			}
 		}()
 
-		if err := c.infraManager.Install(ctx, c.rc); err != nil {
+		configValues, err := c.store.AppConfigStore().GetConfigValues()
+		if err != nil {
+			return fmt.Errorf("getting config values from store: %w", err)
+		}
+
+		if err := c.infraManager.Install(ctx, c.rc, configValues); err != nil {
 			return fmt.Errorf("failed to install infrastructure: %w", err)
 		}
 
@@ -77,6 +82,6 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 	return nil
 }
 
-func (c *InstallController) GetInfra(ctx context.Context) (types.LinuxInfra, error) {
+func (c *InstallController) GetInfra(ctx context.Context) (types.Infra, error) {
 	return c.infraManager.Get()
 }

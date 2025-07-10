@@ -15,27 +15,58 @@ func TestStateMachineTransitions(t *testing.T) {
 		validTransitions []statemachine.State
 	}{
 		{
-			name:       `State "New" can transition to "InstallationConfigured" or "InstallationConfigurationFailed"`,
+			name:       `State "New" can transition to "ApplicationConfiguring"`,
 			startState: StateNew,
 			validTransitions: []statemachine.State{
+				StateApplicationConfiguring,
+			},
+		},
+		{
+			name:       `State "ApplicationConfiguring" can transition to "ApplicationConfigured" or "ApplicationConfigurationFailed"`,
+			startState: StateApplicationConfiguring,
+			validTransitions: []statemachine.State{
+				StateApplicationConfigured,
+				StateApplicationConfigurationFailed,
+			},
+		},
+		{
+			name:       `State "ApplicationConfigurationFailed" can transition to "ApplicationConfiguring"`,
+			startState: StateApplicationConfigurationFailed,
+			validTransitions: []statemachine.State{
+				StateApplicationConfiguring,
+			},
+		},
+		{
+			name:       `State "ApplicationConfigured" can transition to "ApplicationConfiguring" or "InstallationConfiguring"`,
+			startState: StateApplicationConfigured,
+			validTransitions: []statemachine.State{
+				StateApplicationConfiguring,
+				StateInstallationConfiguring,
+			},
+		},
+		{
+			name:       `State "InstallationConfiguring" can transition to "InstallationConfigured" or "InstallationConfigurationFailed"`,
+			startState: StateInstallationConfiguring,
+			validTransitions: []statemachine.State{
 				StateInstallationConfigured,
 				StateInstallationConfigurationFailed,
 			},
 		},
 		{
-			name:       `State "InstallationConfigurationFailed" can transition to "InstallationConfigured" or "InstallationConfigurationFailed"`,
+			name:       `State "InstallationConfigurationFailed" can transition to "ApplicationConfiguring" or "InstallationConfiguring"`,
 			startState: StateInstallationConfigurationFailed,
 			validTransitions: []statemachine.State{
-				StateInstallationConfigured,
-				StateInstallationConfigurationFailed,
+				StateApplicationConfiguring,
+				StateInstallationConfiguring,
 			},
 		},
 		{
-			name:       `State "InstallationConfigured" can transition to "InfrastructureInstalling" or "InstallationConfigurationFailed"`,
+			name:       `State "InstallationConfigured" can transition to "ApplicationConfiguring" or "InstallationConfiguring" or "InfrastructureInstalling"`,
 			startState: StateInstallationConfigured,
 			validTransitions: []statemachine.State{
+				StateApplicationConfiguring,
+				StateInstallationConfiguring,
 				StateInfrastructureInstalling,
-				StateInstallationConfigurationFailed,
 			},
 		},
 		{

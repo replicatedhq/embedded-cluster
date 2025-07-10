@@ -11,11 +11,13 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8syaml "sigs.k8s.io/yaml"
 )
 
 var (
@@ -27,8 +29,10 @@ type InstallOptions struct {
 	AppSlug               string
 	License               []byte
 	Namespace             string
+	ClusterID             string
 	AirgapBundle          string
 	ConfigValuesFile      string
+	ConfigValues          map[string]string
 	ReplicatedAppEndpoint string
 	Stdout                io.Writer
 }
@@ -79,8 +83,17 @@ func Install(opts InstallOptions) error {
 		installArgs = append(installArgs, "--airgap-bundle", opts.AirgapBundle)
 		maskfn = MaskKotsOutputForAirgap()
 	}
+
 	if opts.ConfigValuesFile != "" {
 		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
+	} else if len(opts.ConfigValues) > 0 {
+		configValuesFile, err := createConfigValuesFile(opts.ConfigValues)
+		if err != nil {
+			return fmt.Errorf("creating config values file: %w", err)
+		}
+		defer os.Remove(configValuesFile)
+
+		installArgs = append(installArgs, "--config-values", configValuesFile)
 	}
 
 	if msg, ok := opts.Stdout.(*spinner.MessageWriter); ok && msg != nil {
@@ -91,7 +104,7 @@ func Install(opts InstallOptions) error {
 	runCommandOptions := helpers.RunCommandOptions{
 		LogOnSuccess: true,
 		Env: map[string]string{
-			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
 		},
 	}
 	if opts.Stdout != nil {
@@ -134,6 +147,7 @@ type AirgapUpdateOptions struct {
 	AppSlug       string
 	Namespace     string
 	AirgapBundle  string
+	ClusterID     string
 }
 
 func AirgapUpdate(opts AirgapUpdateOptions) error {
@@ -160,7 +174,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 	runCommandOptions := helpers.RunCommandOptions{
 		Stdout: loading,
 		Env: map[string]string{
-			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
 		},
 	}
 	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, airgapUpdateArgs...); err != nil {
@@ -228,6 +242,44 @@ func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
 
 	loading.Closef("Backup storage location configured")
 	return nil
+}
+
+func createConfigValuesFile(configValues map[string]string) (string, error) {
+	kotsConfigValues := &kotsv1beta1.ConfigValues{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "kots.io/v1beta1",
+			Kind:       "ConfigValues",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kots-app-config",
+		},
+		Spec: kotsv1beta1.ConfigValuesSpec{
+			Values: make(map[string]kotsv1beta1.ConfigValue),
+		},
+	}
+
+	for key, value := range configValues {
+		kotsConfigValues.Spec.Values[key] = kotsv1beta1.ConfigValue{
+			Value: value,
+		}
+	}
+
+	// Use Kubernetes-specific YAML serialization to properly handle TypeMeta and ObjectMeta
+	data, err := k8syaml.Marshal(kotsConfigValues)
+	if err != nil {
+		return "", fmt.Errorf("marshaling config values: %w", err)
+	}
+
+	configValuesFile, err := os.CreateTemp("", "config-values*.yaml")
+	if err != nil {
+		return "", fmt.Errorf("unable to create temp file: %w", err)
+	}
+
+	if _, err := configValuesFile.Write(data); err != nil {
+		return "", fmt.Errorf("unable to write config values to temp file: %w", err)
+	}
+
+	return configValuesFile.Name(), nil
 }
 
 // MaskKotsOutputForOnline masks the kots cli output during online installations. For
