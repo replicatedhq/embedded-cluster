@@ -27,4 +27,3 @@ func (m *MockAppConfigManager) SetConfigValues(ctx context.Context, values map[s
 	args := m.Called(ctx, values)
 	return args.Error(0)
 }
-

@@ -11,4 +11,3 @@ func (m *appConfigManager) GetConfigValues() (map[string]string, error) {
 func (m *appConfigManager) SetConfigValues(ctx context.Context, values map[string]string) error {
 	return m.appConfigStore.SetConfigValues(values)
 }
-
