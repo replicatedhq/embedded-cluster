@@ -101,44 +101,34 @@ func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConf
 	}
 
 	_, err := m.installK0s(ctx, rc)
+	// make sure we cleanup helm's tmp files if we have an helm client
+	defer func() {
+		if m.hcli != nil {
+			m.hcli.Close()
+		}
+	}()
 	if err != nil {
 		return fmt.Errorf("install k0s: %w", err)
 	}
 
-	kcli, err := m.kubeClient()
-	if err != nil {
-		return fmt.Errorf("create kube client: %w", err)
-	}
-
-	mcli, err := m.metadataClient()
-	if err != nil {
-		return fmt.Errorf("create metadata client: %w", err)
-	}
-
-	hcli, err := m.helmClient(rc)
-	if err != nil {
-		return fmt.Errorf("create helm client: %w", err)
-	}
-	defer hcli.Close()
-
-	in, err := m.recordInstallation(ctx, kcli, license, rc)
+	in, err := m.recordInstallation(ctx, m.kcli, license, rc)
 	if err != nil {
 		return fmt.Errorf("record installation: %w", err)
 	}
 
-	if err := m.installAddOns(ctx, kcli, mcli, hcli, license, rc, configValues); err != nil {
+	if err := m.installAddOns(ctx, m.kcli, m.mcli, m.hcli, license, rc, configValues); err != nil {
 		return fmt.Errorf("install addons: %w", err)
 	}
 
-	if err := m.installExtensions(ctx, hcli); err != nil {
+	if err := m.installExtensions(ctx, m.hcli); err != nil {
 		return fmt.Errorf("install extensions: %w", err)
 	}
 
-	if err := kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateInstalled, "Installed"); err != nil {
+	if err := kubeutils.SetInstallationState(ctx, m.kcli, in, ecv1beta1.InstallationStateInstalled, "Installed"); err != nil {
 		return fmt.Errorf("update installation: %w", err)
 	}
 
-	if err = support.CreateHostSupportBundle(ctx, kcli); err != nil {
+	if err = support.CreateHostSupportBundle(ctx, m.kcli); err != nil {
 		m.logger.Warnf("Unable to create host support bundle: %v", err)
 	}
 
@@ -192,15 +182,16 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 		return nil, fmt.Errorf("wait for k0s: %w", err)
 	}
 
-	kcli, err := m.kubeClient()
+	// initialize the manager's helm and kube clients
+	err = m.setupClients(rc.PathToKubeConfig(), rc.EmbeddedClusterChartsSubDir())
 	if err != nil {
-		return nil, fmt.Errorf("create kube client: %w", err)
+		return nil, fmt.Errorf("setup clients: %w", err)
 	}
 
 	m.setStatusDesc(fmt.Sprintf("Waiting for %s", componentName))
 
 	logFn("waiting for node to be ready")
-	if err := m.waitForNode(ctx, kcli); err != nil {
+	if err := m.waitForNode(ctx, m.kcli); err != nil {
 		return nil, fmt.Errorf("wait for node: %w", err)
 	}
 

@@ -4,10 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInfraWithLogs(t *testing.T) {
-	manager := NewInfraManager()
+	manager, err := NewInfraManager()
+	require.NoError(t, err)
 
 	// Add some logs through the internal logging mechanism
 	logFn := manager.logFn("test")
