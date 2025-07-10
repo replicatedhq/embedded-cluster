@@ -15,10 +15,14 @@ func (c *InstallController) GetAppConfig(ctx context.Context) (kotsv1beta1.Confi
 		return kotsv1beta1.Config{}, errors.New("app config not found")
 	}
 
-	return *c.releaseData.AppConfig, nil
+	return c.appConfigManager.GetConfig(*c.releaseData.AppConfig)
 }
 
 func (c *InstallController) SetAppConfigValues(ctx context.Context, values map[string]string) (finalErr error) {
+	if c.releaseData == nil || c.releaseData.AppConfig == nil {
+		return errors.New("app config not found")
+	}
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -47,7 +51,7 @@ func (c *InstallController) SetAppConfigValues(ctx context.Context, values map[s
 		}
 	}()
 
-	err = c.appConfigManager.SetConfigValues(ctx, values)
+	err = c.appConfigManager.SetConfigValues(*c.releaseData.AppConfig, values)
 	if err != nil {
 		return fmt.Errorf("set app config values: %w", err)
 	}

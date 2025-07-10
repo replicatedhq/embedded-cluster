@@ -1,10 +1,9 @@
 package config
 
 import (
-	"context"
-
 	configstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -12,8 +11,12 @@ var _ AppConfigManager = &appConfigManager{}
 
 // AppConfigManager provides methods for managing appConfigstructure setup
 type AppConfigManager interface {
+	// GetConfig returns the config with disabled groups and items filtered out
+	GetConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error)
+	// GetConfigValues returns the current config values
 	GetConfigValues() (map[string]string, error)
-	SetConfigValues(ctx context.Context, values map[string]string) error
+	// SetConfigValues sets the config values
+	SetConfigValues(config kotsv1beta1.Config, values map[string]string) error
 }
 
 // appConfigManager is an implementation of the AppConfigManager interface
