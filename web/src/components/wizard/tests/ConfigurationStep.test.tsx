@@ -575,6 +575,64 @@ describe.each([
     expect(submittedValues!.values).not.toHaveProperty("db_config");
   });
 
+  it("does not display default values for text and textarea", async () => {
+    // Create a config with empty values but with defaults
+    const configWithEmptyValues: AppConfig = {
+      groups: [
+        {
+          name: "empty_values_test",
+          title: "Empty Values Test",
+          description: "Testing display behavior with empty values",
+          items: [
+            {
+              name: "empty_text_field",
+              title: "Empty Text Field",
+              type: "text",
+              value: "", // Empty value
+              default: "Default Text Value" // Has default but should not show
+            },
+            {
+              name: "empty_textarea_field",
+              title: "Empty Textarea Field",
+              type: "textarea",
+              value: "", // Empty value
+              default: "Default Textarea Value" // Has default but should not show
+            }
+          ]
+        }
+      ]
+    };
+
+    server.use(
+      http.get(`*/api/${target}/install/app/config`, () => {
+        return HttpResponse.json(configWithEmptyValues);
+      }),
+      http.get(`*/api/${target}/install/app/config/values`, () => {
+        return HttpResponse.json({ values: {} }); // No changed values
+      })
+    );
+
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    // Wait for the content to be rendered
+    await waitFor(() => {
+      expect(screen.getByTestId("configuration-step")).toBeInTheDocument();
+    });
+
+    // Check that text input shows empty value (not default)
+    const emptyTextInput = screen.getByTestId("text-input-empty_text_field");
+    expect(emptyTextInput).toHaveValue("");
+
+    // Check that textarea shows empty value (not default)
+    const emptyTextareaInput = screen.getByTestId("textarea-input-empty_textarea_field");
+    expect(emptyTextareaInput).toHaveValue("");
+  });
+
   describe("Radio button behavior", () => {
     it("tests all radio button scenarios with different value/default combinations", async () => {
       // Override the mock config with multiple radio groups for different scenarios

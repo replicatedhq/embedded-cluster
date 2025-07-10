@@ -117,20 +117,19 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     }
   }, [configValues]);
 
+  // Helper function to get the display value for a config item (no defaults)
+  const getDisplayValue = (item: AppConfigItem): string => {
+    // First check user value, then config item value
+    return changedValues?.[item.name] || item.value || '';
+  };
+
+  // Helper function to get the effective value for a config item (includes defaults)
+  const getEffectiveValue = (item: AppConfigItem): string => {
+    // First check user value, then config item value, then default
+    return changedValues?.[item.name] || item.value || item.default || '';
+  };
+
   const updateConfigValue = (itemName: string, value: string) => {
-    if (!appConfig) return;
-
-    // Update the app config for display
-    setAppConfig({
-      ...appConfig,
-      groups: appConfig.groups.map(group => ({
-        ...group,
-        items: group.items.map(item =>
-          item.name === itemName ? { ...item, value } : item
-        )
-      }))
-    });
-
     // Update the changed values map
     setChangedValues(prev => {
       const newValues = { ...prev };
@@ -170,7 +169,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           <Input
             id={item.name}
             label={item.title}
-            value={item.value || ''}
+            value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`text-input-${item.name}`}
           />
@@ -181,7 +180,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           <Textarea
             id={item.name}
             label={item.title}
-            value={item.value || ''}
+            value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`textarea-input-${item.name}`}
           />
@@ -193,7 +192,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             <input
               id={item.name}
               type="checkbox"
-              checked={(item.value || item.default) === '1'}
+              checked={getEffectiveValue(item) === '1'}
               onChange={handleCheckboxChange}
               className="h-4 w-4 focus:ring-offset-2 border-gray-300 rounded"
               data-testid={`bool-input-${item.name}`}
@@ -222,7 +221,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
                       type="radio"
                       id={child.name}
                       value={child.name}
-                      checked={(item.value || item.default) === child.name}
+                      checked={getEffectiveValue(item) === child.name}
                       onChange={e => handleRadioChange(item.name, e)}
                       className="h-4 w-4 focus:ring-offset-2 border-gray-300"
                       data-testid={`radio-input-${child.name}`}

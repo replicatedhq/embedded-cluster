@@ -5,7 +5,6 @@ import (
 
 	configstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -15,7 +14,6 @@ var _ AppConfigManager = &appConfigManager{}
 type AppConfigManager interface {
 	GetConfigValues() (map[string]string, error)
 	SetConfigValues(ctx context.Context, values map[string]string) error
-	ApplyValuesToConfig(config kotsv1beta1.Config, configValues map[string]string) (kotsv1beta1.Config, error)
 }
 
 // appConfigManager is an implementation of the AppConfigManager interface

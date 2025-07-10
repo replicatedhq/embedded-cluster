@@ -95,8 +95,8 @@ func TestLinuxGetAppConfig(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&response)
 		require.NoError(t, err)
 
-		// Verify the app config has the values applied from the store
-		assert.Equal(t, response.Groups[0].Items[0].Value.String(), "applied-value", "app config should have values applied from store")
+		// Verify the raw app config is returned
+		assert.Equal(t, response.Groups[0].Items[0].Value.String(), "value", "app config should return raw config schema without values applied")
 	})
 
 	// Test authorization
@@ -204,9 +204,9 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&response)
 		require.NoError(t, err)
 
-		// Verify the app config has the updated values applied
-		assert.Equal(t, "new-value", response.Groups[0].Items[0].Value.String(), "first item should have updated value")
-		assert.Equal(t, "value2", response.Groups[0].Items[1].Value.String(), "second item should not have updated value")
+		// Verify the raw app config is returned
+		assert.Equal(t, "value", response.Groups[0].Items[0].Value.String(), "first item should return raw config schema value")
+		assert.Equal(t, "value2", response.Groups[0].Items[1].Value.String(), "second item should return raw config schema value")
 	})
 
 	// Test authorization
