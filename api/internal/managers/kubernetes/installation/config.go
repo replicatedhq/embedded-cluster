@@ -61,11 +61,11 @@ func (m *installationManager) ConfigureInstallation(ctx context.Context, ki kube
 		}
 		if finalErr != nil {
 			if err := m.setStatus(types.StateFailed, finalErr.Error()); err != nil {
-				m.logger.WithField("error", err).Error("set failed status")
+				m.logger.WithError(err).Error("set failed status")
 			}
 		} else {
 			if err := m.setStatus(types.StateSucceeded, "Installation configured"); err != nil {
-				m.logger.WithField("error", err).Error("set succeeded status")
+				m.logger.WithError(err).Error("set succeeded status")
 			}
 		}
 	}()

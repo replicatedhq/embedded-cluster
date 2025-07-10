@@ -10,7 +10,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
-	appconfigstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -34,6 +33,7 @@ type Controller interface {
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
 	GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error)
+	SetAppConfigValues(ctx context.Context, values map[string]string) error
 }
 
 type RunHostPreflightsOptions struct {
@@ -55,7 +55,7 @@ type InstallController struct {
 	tlsConfig                 types.TLSConfig
 	license                   []byte
 	airgapBundle              string
-	configValues              string
+	configValuesFile          string
 	endUserConfig             *ecv1beta1.Config
 	clusterID                 string
 	store                     store.Store
@@ -128,9 +128,9 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
-func WithConfigValues(configValues string) InstallControllerOption {
+func WithConfigValuesFile(configValuesFile string) InstallControllerOption {
 	return func(c *InstallController) {
-		c.configValues = configValues
+		c.configValuesFile = configValuesFile
 	}
 }
 
@@ -190,22 +190,13 @@ func WithStore(store store.Store) InstallControllerOption {
 
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
+		store:  store.NewMemoryStore(),
 		rc:     runtimeconfig.New(nil),
 		logger: logger.NewDiscardLogger(),
 	}
 
 	for _, opt := range opts {
 		opt(controller)
-	}
-
-	if controller.store == nil {
-		appConfig := kotsv1beta1.Config{}
-		if controller.releaseData != nil && controller.releaseData.AppConfig != nil {
-			appConfig = *controller.releaseData.AppConfig
-		}
-		controller.store = store.NewMemoryStore(
-			store.WithAppConfigStore(appconfigstore.NewMemoryStore(appconfigstore.WithConfig(appConfig))),
-		)
 	}
 
 	if controller.stateMachine == nil {
@@ -241,6 +232,13 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
+	if controller.appConfigManager == nil {
+		controller.appConfigManager = appconfig.NewAppConfigManager(
+			appconfig.WithLogger(controller.logger),
+			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
+		)
+	}
+
 	if controller.infraManager == nil {
 		controller.infraManager = infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
@@ -249,17 +247,10 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
-			infra.WithConfigValues(controller.configValues),
+			infra.WithConfigValuesFile(controller.configValuesFile), // CLI file path
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
-		)
-	}
-
-	if controller.appConfigManager == nil {
-		controller.appConfigManager = appconfig.NewAppConfigManager(
-			appconfig.WithLogger(controller.logger),
-			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
 		)
 	}
 

@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"sync"
 
 	configstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
@@ -14,15 +13,15 @@ var _ AppConfigManager = &appConfigManager{}
 
 // AppConfigManager provides methods for managing appConfigstructure setup
 type AppConfigManager interface {
-	Get() (kotsv1beta1.Config, error)
-	Set(ctx context.Context) error
+	GetConfigValues() (map[string]string, error)
+	SetConfigValues(ctx context.Context, values map[string]string) error
+	ApplyValuesToConfig(config kotsv1beta1.Config, configValues map[string]string) (kotsv1beta1.Config, error)
 }
 
 // appConfigManager is an implementation of the AppConfigManager interface
 type appConfigManager struct {
 	appConfigStore configstore.Store
 	logger         logrus.FieldLogger
-	mu             sync.RWMutex
 }
 
 type AppConfigManagerOption func(*appConfigManager)

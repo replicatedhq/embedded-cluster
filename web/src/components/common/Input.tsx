@@ -16,6 +16,7 @@ interface InputProps {
   className?: string;
   labelClassName?: string;
   icon?: React.ReactNode;
+  dataTestId?: string;
 }
 
 const Input: React.FC<InputProps> = ({
@@ -33,6 +34,7 @@ const Input: React.FC<InputProps> = ({
   className = '',
   labelClassName = '',
   icon,
+  dataTestId,
 }) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -67,6 +69,7 @@ const Input: React.FC<InputProps> = ({
             '--tw-ring-color': themeColor,
             '--tw-ring-offset-color': themeColor,
           } as React.CSSProperties}
+          data-testid={dataTestId}
         />
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}

@@ -214,11 +214,11 @@ func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfi
 		}
 		if finalErr != nil {
 			if err := m.setFailedStatus(finalErr.Error()); err != nil {
-				m.logger.WithField("error", err).Error("set failed status")
+				m.logger.WithError(err).Error("set failed status")
 			}
 		} else {
 			if err := m.setCompletedStatus(types.StateSucceeded, "Installation configured"); err != nil {
-				m.logger.WithField("error", err).Error("set succeeded status")
+				m.logger.WithError(err).Error("set succeeded status")
 			}
 		}
 	}()

@@ -11,18 +11,18 @@ images:
     kubectl:
         repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
         tag:
-            amd64: 1.33.2-r0-amd64@sha256:e413037eeaf3c9fce040e6eefe9219fe057e89a0385339f6a9b7fd3a6dbaa6d6
-            arm64: 1.33.2-r0-arm64@sha256:f62d083b84cba34849e6d3444be0d5e380c26d223a7ff3febc048c02788aad95
+            amd64: 1.33.2-r0-amd64@sha256:fb44eb7dc0418a2b4b4b62b39266a1b5d835a272176334eac8f0c3d0f8aca1b1
+            arm64: 1.33.2-r0-arm64@sha256:c71c845d9a654ae3ddeb24e935108c9e6c7b6ea289c02b90ab118f1dd3a924a0
     velero:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero
         tag:
-            amd64: 1.16.1-r1-amd64@sha256:01e37e81626861d6d290d92a80326d38f8b1a5325a978a509b159987d13c6c63
-            arm64: 1.16.1-r1-arm64@sha256:f655097a66670332dd2786c1e389ac99835c95c1b6027adf04ad466cad4e89e6
+            amd64: 1.16.1-r1-amd64@sha256:156f040025867a35ffefd5b6a855cf36335f44dd046f05f911bb7e3067439d68
+            arm64: 1.16.1-r1-arm64@sha256:c9bb6ac90d56f1ddf2364b7871a13eb774f002cd5288119d3908e020bab2aceb
     velero-plugin-for-aws:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws
         tag:
-            amd64: 1.12.1-r1-amd64@sha256:dec822ff1db3a4adf6f7258229857efcd759c18acdd2f65668ccdd6ff6ea48fa
-            arm64: 1.12.1-r1-arm64@sha256:11a4f4b587a6c430b3a227da7debc67e13aa10fed3538d395e862ea34bcc7d17
+            amd64: 1.12.1-r1-amd64@sha256:ebcb48980a238b5bdc3ab4c06e5e78cf7eabb99a7129ce3051d4ce45a0bd173e
+            arm64: 1.12.1-r1-arm64@sha256:d066323ceed7cdb4304fcb8ea7dfb01361e228a8eccef448b3cc156501300c62
     velero-restore-helper:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper
         tag:

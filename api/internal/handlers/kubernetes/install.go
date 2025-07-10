@@ -5,7 +5,6 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	_ "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 // GetInstallationConfig handler to get the Kubernetes installation config
@@ -128,15 +127,43 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 //	@Tags			kubernetes-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	v1beta1.Config
+//	@Success		200	{object}	types.AppConfig
 //	@Router			/kubernetes/install/app/config [get]
 func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
-	config, err := h.installController.GetAppConfig(r.Context())
+	appConfig, err := h.installController.GetAppConfig(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get app config")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
-	utils.JSON(w, r, http.StatusOK, config, h.logger)
+	utils.JSON(w, r, http.StatusOK, types.AppConfig(appConfig.Spec), h.logger)
+}
+
+// PostSetAppConfigValues handler to set the app config values
+//
+//	@ID				postKubernetesInstallSetAppConfigValues
+//	@Summary		Set the app config values
+//	@Description	Set the app config values
+//	@Tags			kubernetes-install
+//	@Security		bearerauth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		types.SetAppConfigValuesRequest	true	"Set App Config Values Request"
+//	@Success		200		{object}	types.AppConfig
+//	@Router			/kubernetes/install/app/config/values [post]
+func (h *Handler) PostSetAppConfigValues(w http.ResponseWriter, r *http.Request) {
+	var req types.SetAppConfigValuesRequest
+	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
+		return
+	}
+
+	err := h.installController.SetAppConfigValues(r.Context(), req.Values)
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to set app config values")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetAppConfig(w, r)
 }
