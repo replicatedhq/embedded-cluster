@@ -13,14 +13,14 @@ const MOCK_APP_CONFIG: AppConfig = {
       title: "Settings",
       description: "Configure application settings",
       items: [
-                  {
-            name: "app_name",
-            title: "Application Name",
-            type: "text",
-            value: "My App",
-            default: "Default App",
-            help_text: "Enter the name of your application"
-          },
+        {
+          name: "app_name",
+          title: "Application Name",
+          type: "text",
+          value: "My App",
+          default: "Default App",
+          help_text: "Enter the name of your application"
+        },
         {
           name: "description",
           title: "Application Description",
@@ -696,7 +696,7 @@ describe.each([
         expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
       });
 
-    // Wait for the content to be rendered
+      // Wait for the content to be rendered
       await waitFor(() => {
         // Check that all radio groups are rendered
         expect(screen.getByTestId("config-item-authentication_method")).toBeInTheDocument();
