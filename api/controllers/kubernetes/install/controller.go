@@ -44,7 +44,6 @@ type InstallController struct {
 	tlsConfig           types.TLSConfig
 	license             []byte
 	airgapBundle        string
-	configValues        string
 	endUserConfig       *ecv1beta1.Config
 	store               store.Store
 	ki                  kubernetesinstallation.Installation
@@ -106,12 +105,6 @@ func WithLicense(license []byte) InstallControllerOption {
 func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	return func(c *InstallController) {
 		c.airgapBundle = airgapBundle
-	}
-}
-
-func WithConfigValues(configValues string) InstallControllerOption {
-	return func(c *InstallController) {
-		c.configValues = configValues
 	}
 }
 
@@ -178,7 +171,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
-			infra.WithConfigValues(controller.configValues),
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 		)

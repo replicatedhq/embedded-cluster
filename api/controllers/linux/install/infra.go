@@ -67,7 +67,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 			}
 		}()
 
-		configValues, err := c.store.AppConfigStore().GetConfigValues()
+		configValues, err := c.appConfigManager.GetKotsadmConfigValues(*c.releaseData.AppConfig)
 		if err != nil {
 			return fmt.Errorf("getting config values from store: %w", err)
 		}

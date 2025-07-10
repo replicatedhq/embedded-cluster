@@ -5,6 +5,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
@@ -14,7 +15,7 @@ type APIConfig struct {
 	TLSConfig     TLSConfig
 	License       []byte
 	AirgapBundle  string
-	ConfigValues  string
+	ConfigValues  *kotsv1beta1.ConfigValues
 	ReleaseData   *release.ReleaseData
 	EndUserConfig *ecv1beta1.Config
 	ClusterID     string

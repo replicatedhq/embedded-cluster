@@ -32,3 +32,9 @@ func (m *MockAppConfigManager) SetConfigValues(config kotsv1beta1.Config, config
 	args := m.Called(config, configValues)
 	return args.Error(0)
 }
+
+// GetKotsadmConfigValues mocks the GetKotsadmConfigValues method
+func (m *MockAppConfigManager) GetKotsadmConfigValues(config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error) {
+	args := m.Called(config)
+	return args.Get(0).(kotsv1beta1.ConfigValues), args.Error(1)
+}

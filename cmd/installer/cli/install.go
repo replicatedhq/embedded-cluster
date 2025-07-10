@@ -631,6 +631,11 @@ func runManagerExperienceInstall(
 		return fmt.Errorf("process overrides file: %w", err)
 	}
 
+	configValues, err := helpers.ParseConfigValues(flags.configValues)
+	if err != nil {
+		return fmt.Errorf("parse config values file: %w", err)
+	}
+
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
 			Password: flags.adminConsolePassword,
@@ -641,7 +646,7 @@ func runManagerExperienceInstall(
 			},
 			License:       flags.licenseBytes,
 			AirgapBundle:  flags.airgapBundle,
-			ConfigValues:  flags.configValues,
+			ConfigValues:  configValues,
 			ReleaseData:   release.GetReleaseData(),
 			EndUserConfig: eucfg,
 			ClusterID:     flags.clusterID,
