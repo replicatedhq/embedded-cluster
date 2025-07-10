@@ -5,10 +5,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metadatafake "k8s.io/client-go/metadata/fake"
+	"k8s.io/kubectl/pkg/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestInfraWithLogs(t *testing.T) {
-	manager, err := NewInfraManager()
+	manager, err := NewInfraManager(WithKubeClient(fake.NewFakeClient()), WithMetadataClient(metadatafake.NewSimpleMetadataClient(scheme.Scheme)))
 	require.NoError(t, err)
 
 	// Add some logs through the internal logging mechanism
