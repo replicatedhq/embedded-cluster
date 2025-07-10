@@ -75,6 +75,22 @@ Create constructor functions for common API error types.
 - Define interfaces for all external dependencies
 - Inject dependencies via constructors
 
+### Manager Architecture (API-Specific)
+
+- **Never inject managers into other managers**: Pass data/config between managers via controller
+- **Controller orchestration**: Controllers read from one manager and pass data to another
+- **Semantic option naming**: Use `WithConfigFile()` for paths, `WithConfigData()` for actual data
+- **Independent testing**: Mock managers separately, test controller orchestration logic independently
+
+```go
+// ✅ CORRECT: Pass data through controller
+configData, err := controller.managerA.GetData()
+controller.managerB = NewManagerB(WithConfigData(configData))
+
+// ❌ INCORRECT: Manager-to-manager injection
+controller.managerB = NewManagerB(WithManagerA(controller.managerA))
+```
+
 ### API Documentation
 
 Add Swagger annotations to all handlers for API documentation.

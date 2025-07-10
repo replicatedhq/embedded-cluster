@@ -10,13 +10,13 @@ The root directory contains the main API setup files and request handlers.
 ### Subpackages
 
 #### `/controllers`
-Contains the business logic for different API endpoints. Each controller package focuses on a specific domain of functionality or workflow (e.g., authentication, console, install, upgrade, join, etc.) and implements the core business logic for that domain or workflow. Controllers can utilize multiple managers with each manager handling a specific subdomain of functionality.
+Contains the business logic for different API endpoints. Each controller package focuses on a specific domain of functionality or workflow (e.g., authentication, console, install, upgrade, join, etc.) and implements the core business logic for that domain or workflow. Controllers can utilize multiple managers with each manager handling a specific subdomain of functionality. Controllers act as orchestrators that read from one manager and pass data to another - never inject managers into other managers.
 
 #### `/internal`
 Contains shared utilities and helper packages that provide common functionality used across different parts of the API. This includes both general-purpose utilities and domain-specific helpers.
 
 #### `/internal/managers`
-Each manager is responsible for a specific subdomain of functionality and provides a clean interface for controllers to interact with. For example, the Preflight Manager manages system requirement checks and validation.
+Each manager is responsible for a specific subdomain of functionality and provides a clean interface for controllers to interact with. For example, the Preflight Manager manages system requirement checks and validation. Managers must remain independent with no cross-manager dependencies - data flows between managers through the controller, not directly between managers.
 
 #### `/internal/statemachine`
 The statemachine is used by controllers to capture workflow state and enforce valid transitions.

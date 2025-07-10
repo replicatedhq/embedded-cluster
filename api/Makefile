@@ -17,4 +17,4 @@ unit-tests:
 
 .PHONY: test-integration
 test-integration:
-	go test -race -tags $(GO_BUILD_TAGS) -v ./integration
+	go test -race -tags $(GO_BUILD_TAGS) -v ./integration/...

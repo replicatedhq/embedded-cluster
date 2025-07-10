@@ -29,6 +29,13 @@ components:
           type: array
           uniqueItems: false
       type: object
+    types.AppConfigValuesResponse:
+      properties:
+        values:
+          additionalProperties:
+            type: string
+          type: object
+      type: object
     types.AuthRequest:
       properties:
         password:
@@ -392,6 +399,21 @@ paths:
       tags:
       - kubernetes-install
   /kubernetes/install/app/config/values:
+    get:
+      description: Get the app config values
+      operationId: getKubernetesInstallAppConfigValues
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the app config values
+      tags:
+      - kubernetes-install
     post:
       description: Set the app config values
       operationId: postKubernetesInstallSetAppConfigValues
@@ -523,6 +545,21 @@ paths:
       tags:
       - linux-install
   /linux/install/app/config/values:
+    get:
+      description: Get the app config values
+      operationId: getLinuxInstallAppConfigValues
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the app config values
+      tags:
+      - linux-install
     post:
       description: Set the app config values
       operationId: postLinuxInstallSetAppConfigValues

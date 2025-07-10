@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
+import Textarea from '../../common/Textarea';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
@@ -22,13 +23,12 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState<string>('');
-  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [changedValues, setChangedValues] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const themeColor = settings.themeColor;
 
   // Fetch app config from API
-  const { isLoading: isConfigLoading, error: getConfigError } = useQuery<AppConfig>({
+  const { data: appConfig, isLoading: isConfigLoading, error: getConfigError } = useQuery<AppConfig>({
     queryKey: ['appConfig', target],
     queryFn: async () => {
       const response = await fetch(`/api/${target}/install/app/config`, {
@@ -45,8 +45,29 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         throw new Error(errorData.message || 'Failed to fetch app configuration');
       }
       const config = await response.json();
-      setAppConfig(config);
       return config;
+    },
+  });
+
+  // Fetch current config values
+  const { data: configValues, isLoading: isConfigValuesLoading, error: getConfigValuesError } = useQuery<Record<string, string>>({
+    queryKey: ['appConfigValues', target],
+    queryFn: async () => {
+      const response = await fetch(`/api/${target}/install/app/config/values`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          handleUnauthorized(errorData);
+          throw new Error('Session expired. Please log in again.');
+        }
+        throw new Error(errorData.message || 'Failed to fetch current config values');
+      }
+      const data = await response.json();
+      return data.values || {};
     },
   });
 
@@ -89,20 +110,26 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     }
   }, [appConfig, activeTab]);
 
+  // Initialize changedValues with current values when they load
+  useEffect(() => {
+    if (configValues && Object.keys(changedValues).length === 0) {
+      setChangedValues(configValues);
+    }
+  }, [configValues]);
+
+  // Helper function to get the display value for a config item (no defaults)
+  const getDisplayValue = (item: AppConfigItem): string => {
+    // First check user value, then config item value
+    return changedValues?.[item.name] || item.value || '';
+  };
+
+  // Helper function to get the effective value for a config item (includes defaults)
+  const getEffectiveValue = (item: AppConfigItem): string => {
+    // First check user value, then config item value, then default
+    return changedValues?.[item.name] || item.value || item.default || '';
+  };
+
   const updateConfigValue = (itemName: string, value: string) => {
-    if (!appConfig) return;
-
-    // Update the app config for display
-    setAppConfig({
-      ...appConfig,
-      groups: appConfig.groups.map(group => ({
-        ...group,
-        items: group.items.map(item =>
-          item.name === itemName ? { ...item, value } : item
-        )
-      }))
-    });
-
     // Update the changed values map
     setChangedValues(prev => {
       const newValues = { ...prev };
@@ -142,10 +169,20 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           <Input
             id={item.name}
             label={item.title}
-            value={item.value || ''}
-            placeholder={item.default}
+            value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`text-input-${item.name}`}
+          />
+        );
+
+      case 'textarea':
+        return (
+          <Textarea
+            id={item.name}
+            label={item.title}
+            value={getDisplayValue(item)}
+            onChange={handleInputChange}
+            dataTestId={`textarea-input-${item.name}`}
           />
         );
 
@@ -155,7 +192,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             <input
               id={item.name}
               type="checkbox"
-              checked={(item.value || item.default) === '1'}
+              checked={getEffectiveValue(item) === '1'}
               onChange={handleCheckboxChange}
               className="h-4 w-4 focus:ring-offset-2 border-gray-300 rounded"
               data-testid={`bool-input-${item.name}`}
@@ -184,7 +221,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
                       type="radio"
                       id={child.name}
                       value={child.name}
-                      checked={(item.value || item.default) === child.name}
+                      checked={getEffectiveValue(item) === child.name}
                       onChange={e => handleRadioChange(item.name, e)}
                       className="h-4 w-4 focus:ring-offset-2 border-gray-300"
                       data-testid={`radio-input-${child.name}`}
@@ -247,7 +284,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     );
   };
 
-  if (isConfigLoading) {
+  if (isConfigLoading || isConfigValuesLoading) {
     return (
       <div className="space-y-6" data-testid="configuration-step-loading">
         <Card>
@@ -260,13 +297,14 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     );
   }
 
-  if (getConfigError) {
+  if (getConfigError || getConfigValuesError) {
+    const error = getConfigError || getConfigValuesError;
     return (
       <div className="space-y-6" data-testid="configuration-step-error">
         <Card>
           <div className="flex flex-col items-center justify-center py-12">
             <p className="text-red-600 mb-4">Failed to load configuration</p>
-            <p className="text-gray-600 text-sm">{getConfigError.message}</p>
+            <p className="text-gray-600 text-sm">{error?.message}</p>
           </div>
         </Card>
       </div>

@@ -21,6 +21,13 @@ const MOCK_APP_CONFIG: AppConfig = {
           default: "Default App"
         },
         {
+          name: "description",
+          title: "Application Description",
+          type: "textarea",
+          value: "This is my application\nIt does amazing things",
+          default: "Enter description here..."
+        },
+        {
           name: "enable_feature",
           title: "Enable Feature",
           type: "bool",
@@ -69,10 +76,17 @@ const MOCK_APP_CONFIG: AppConfig = {
           default: "localhost"
         },
         {
+          name: "db_config",
+          title: "Database Configuration",
+          type: "textarea",
+          value: "",
+          default: "# Database configuration\nhost: localhost\nport: 5432"
+        },
+        {
           name: "db_warning",
           title: "**Important**: Changing database settings may require application restart. See our guide at https://help.example.com/database-config for details.",
           type: "label"
-        }
+        },
       ]
     }
   ]
@@ -94,6 +108,11 @@ const createServer = (target: string) => setupServer(
   // Mock app config endpoint
   http.get(`*/api/${target}/install/app/config`, () => {
     return HttpResponse.json(MOCK_APP_CONFIG);
+  }),
+
+  // Mock config values fetch endpoint
+  http.get(`*/api/${target}/install/app/config/values`, () => {
+    return HttpResponse.json({ values: {} });
   }),
 
   // Mock config values submission endpoint
@@ -158,11 +177,13 @@ describe.each([
 
     // Check that form fields are rendered for the active tab
     expect(screen.getByTestId("config-item-app_name")).toBeInTheDocument();
+    expect(screen.getByTestId("config-item-description")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-enable_feature")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-auth_type")).toBeInTheDocument();
 
     // Check that the database tab is not rendered
     expect(screen.queryByTestId("config-item-db_host")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("config-item-db_config")).not.toBeInTheDocument();
 
     // Check next button
     const nextButton = screen.getByTestId("config-next-button");
@@ -203,6 +224,29 @@ describe.each([
     expect(screen.getByText("Failed to fetch config")).toBeInTheDocument();
   });
 
+  it("handles config values fetch error gracefully", async () => {
+    server.use(
+      http.get(`*/api/${target}/install/app/config/values`, () => {
+        return new HttpResponse(JSON.stringify({ message: "Failed to fetch config values" }), { status: 500 });
+      })
+    );
+
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    // Wait for error to be displayed
+    await waitFor(() => {
+      expect(screen.getByTestId("configuration-step-error")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Failed to load configuration")).toBeInTheDocument();
+    expect(screen.getByText("Failed to fetch config values")).toBeInTheDocument();
+  });
+
+
   it("handles empty config gracefully", async () => {
     server.use(
       http.get(`*/api/${target}/install/app/config`, () => {
@@ -239,20 +283,24 @@ describe.each([
 
     // Initially, Settings tab should be active
     expect(screen.getByTestId("config-item-app_name")).toBeInTheDocument();
+    expect(screen.getByTestId("config-item-description")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-enable_feature")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-auth_type")).toBeInTheDocument();
 
     // Check that the database tab is not rendered
     expect(screen.queryByTestId("config-item-db_host")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("config-item-db_config")).not.toBeInTheDocument();
 
     // Click on Database tab
     fireEvent.click(screen.getByTestId("config-tab-database"));
 
     // Database tab content should be visible
     expect(screen.getByTestId("config-item-db_host")).toBeInTheDocument();
+    expect(screen.getByTestId("config-item-db_config")).toBeInTheDocument();
 
     // Settings tab content should not be visible
     expect(screen.queryByTestId("config-item-app_name")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("config-item-description")).not.toBeInTheDocument();
     expect(screen.queryByTestId("config-item-enable_feature")).not.toBeInTheDocument();
     expect(screen.queryByTestId("config-item-auth_type")).not.toBeInTheDocument();
   });
@@ -276,6 +324,52 @@ describe.each([
 
     // Verify the value was updated
     expect(appNameInput).toHaveValue("New App Name");
+  });
+
+  it("handles textarea input changes correctly", async () => {
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+    });
+
+    // Find and update textarea input
+    const descriptionTextarea = screen.getByTestId("textarea-input-description");
+    fireEvent.change(descriptionTextarea, { target: { value: "New multi-line\ndescription text" } });
+
+    // Verify the value was updated
+    expect(descriptionTextarea).toHaveValue("New multi-line\ndescription text");
+  });
+
+  it("renders textarea with correct initial values", async () => {
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+    });
+
+    // Check textarea with value
+    const descriptionTextarea = screen.getByTestId("textarea-input-description");
+    expect(descriptionTextarea).toHaveValue("This is my application\nIt does amazing things");
+
+    // Switch to database tab
+    fireEvent.click(screen.getByTestId("config-tab-database"));
+
+    // Check textarea with empty value
+    const dbConfigTextarea = screen.getByTestId("textarea-input-db_config");
+    expect(dbConfigTextarea).toHaveValue("");
   });
 
   it("handles checkbox changes correctly", async () => {
@@ -365,6 +459,9 @@ describe.each([
     const appNameInput = screen.getByTestId("text-input-app_name");
     fireEvent.change(appNameInput, { target: { value: "Updated App Name" } });
 
+    const descriptionTextarea = screen.getByTestId("textarea-input-description");
+    fireEvent.change(descriptionTextarea, { target: { value: "Updated multi-line\ndescription text" } });
+
     const enableFeatureCheckbox = screen.getByTestId("bool-input-enable_feature");
     fireEvent.click(enableFeatureCheckbox);
 
@@ -378,6 +475,10 @@ describe.each([
     // Change text input
     const dbHostInput = screen.getByTestId("text-input-db_host");
     fireEvent.change(dbHostInput, { target: { value: "Updated DB Host" } });
+
+    // Change textarea input
+    const dbConfigTextarea = screen.getByTestId("textarea-input-db_config");
+    fireEvent.change(dbConfigTextarea, { target: { value: "# Updated config\nhost: updated-host\nport: 5432" } });
 
     // Submit form
     const nextButton = screen.getByTestId("config-next-button");
@@ -396,9 +497,11 @@ describe.each([
     expect(submittedValues!).toMatchObject({
       values: {
         app_name: "Updated App Name",
+        description: "Updated multi-line\ndescription text",
         enable_feature: "1",
         auth_type: "auth_type_anonymous",
-        db_host: "Updated DB Host"
+        db_host: "Updated DB Host",
+        db_config: "# Updated config\nhost: updated-host\nport: 5432"
       }
     });
   });
@@ -453,6 +556,10 @@ describe.each([
     const appNameInput = screen.getByTestId("text-input-app_name");
     fireEvent.change(appNameInput, { target: { value: "Only Changed Field" } });
 
+    // Change the description textarea
+    const descriptionTextarea = screen.getByTestId("textarea-input-description");
+    fireEvent.change(descriptionTextarea, { target: { value: "Only changed description" } });
+
     // Change the auth type
     const anonymousRadio = screen.getByTestId("radio-input-auth_type_anonymous");
     fireEvent.click(anonymousRadio);
@@ -474,11 +581,71 @@ describe.each([
     expect(submittedValues!).toMatchObject({
       values: {
         app_name: "Only Changed Field",
+        description: "Only changed description",
         auth_type: "auth_type_anonymous"
       }
     });
     expect(submittedValues!.values).not.toHaveProperty("enable_feature");
-    expect(submittedValues!.values).not.toHaveProperty("database_type");
+    expect(submittedValues!.values).not.toHaveProperty("db_host");
+    expect(submittedValues!.values).not.toHaveProperty("db_config");
+  });
+
+  it("does not display default values for text and textarea", async () => {
+    // Create a config with empty values but with defaults
+    const configWithEmptyValues: AppConfig = {
+      groups: [
+        {
+          name: "empty_values_test",
+          title: "Empty Values Test",
+          description: "Testing display behavior with empty values",
+          items: [
+            {
+              name: "empty_text_field",
+              title: "Empty Text Field",
+              type: "text",
+              value: "", // Empty value
+              default: "Default Text Value" // Has default but should not show
+            },
+            {
+              name: "empty_textarea_field",
+              title: "Empty Textarea Field",
+              type: "textarea",
+              value: "", // Empty value
+              default: "Default Textarea Value" // Has default but should not show
+            }
+          ]
+        }
+      ]
+    };
+
+    server.use(
+      http.get(`*/api/${target}/install/app/config`, () => {
+        return HttpResponse.json(configWithEmptyValues);
+      }),
+      http.get(`*/api/${target}/install/app/config/values`, () => {
+        return HttpResponse.json({ values: {} }); // No changed values
+      })
+    );
+
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    // Wait for the content to be rendered
+    await waitFor(() => {
+      expect(screen.getByTestId("configuration-step")).toBeInTheDocument();
+    });
+
+    // Check that text input shows empty value (not default)
+    const emptyTextInput = screen.getByTestId("text-input-empty_text_field");
+    expect(emptyTextInput).toHaveValue("");
+
+    // Check that textarea shows empty value (not default)
+    const emptyTextareaInput = screen.getByTestId("textarea-input-empty_textarea_field");
+    expect(emptyTextareaInput).toHaveValue("");
   });
 
   describe("Radio button behavior", () => {
@@ -867,6 +1034,78 @@ describe.each([
       expect(submittedValues!.values).not.toHaveProperty("info_label");
       expect(submittedValues!.values).not.toHaveProperty("markdown_label");
       expect(submittedValues!.values).not.toHaveProperty("db_warning");
+    });
+  });
+describe("Initial values", () => {
+  it("initializes changed values from retrieved config values and only submits retrieved values plus changes", async () => {
+    // Mock the config values endpoint to return only a subset of values
+    const retrievedConfigValues = {
+      app_name: "Retrieved App Name",
+      auth_type: "auth_type_anonymous"
+      // Note: enable_feature and db_host are NOT in retrieved values
+    };
+
+    let submittedValues: { values: Record<string, string> } | null = null;
+
+    server.use(
+      http.get(`*/api/${target}/install/app/config/values`, () => {
+        return HttpResponse.json({ values: retrievedConfigValues });
+      }),
+      http.post(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+        const body = await request.json() as { values: Record<string, string> };
+        submittedValues = body;
+        return HttpResponse.json(MOCK_APP_CONFIG);
+      })
+    );
+
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+    });
+
+    // Make changes to form fields
+    const appNameInput = screen.getByTestId("text-input-app_name");
+    fireEvent.change(appNameInput, { target: { value: "Updated App Name" } });
+
+    // Switch to database tab and change a field that wasn't in retrieved values
+    fireEvent.click(screen.getByTestId("config-tab-database"));
+    const dbHostInput = screen.getByTestId("text-input-db_host");
+    fireEvent.change(dbHostInput, { target: { value: "new-db-host" } });
+
+    // Submit form
+    const nextButton = screen.getByTestId("config-next-button");
+    fireEvent.click(nextButton);
+
+    // Wait for the mutation to complete
+    await waitFor(
+      () => {
+        expect(mockOnNext).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
+
+    // Verify that only retrieved values + changes are submitted
+    expect(submittedValues).not.toBeNull();
+    expect(submittedValues!).toMatchObject({
+      values: {
+        // Retrieved values that were initialized
+        app_name: "Updated App Name", // changed from retrieved value
+        auth_type: "auth_type_anonymous", // unchanged retrieved value
+        // New changes to fields not in retrieved values
+        db_host: "new-db-host"
+        // enable_feature should NOT be submitted since it wasn't retrieved and wasn't changed
+      }
+    });
+    
+    // Explicitly verify enable_feature is not submitted
+    expect(submittedValues!.values).not.toHaveProperty("enable_feature");
     });
   });
 });

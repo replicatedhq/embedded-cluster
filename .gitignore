@@ -19,6 +19,7 @@ go.work.sum
 *.tmp
 .envrc
 .DS_Store
+CLAUDE.md
 
 # Ignore preflight bundles generated during local dev
 preflightbundle*
