@@ -19,21 +19,15 @@ func (m *appConfigManager) GetConfigValues() (map[string]string, error) {
 func (m *appConfigManager) SetConfigValues(config kotsv1beta1.Config, configValues map[string]string) error {
 	filteredValues := make(map[string]string)
 
-	// only include values for enabled groups and items, otherwise keep the original value
+	// only include values for enabled groups and items
 	for _, g := range config.Spec.Groups {
 		for _, i := range g.Items {
-			if !isItemEnabled(g.When) || !isItemEnabled(i.When) {
-				filteredValues[i.Name] = i.Value.String()
-			} else {
+			if isItemEnabled(g.When) && isItemEnabled(i.When) {
 				value, ok := configValues[i.Name]
 				if ok {
 					filteredValues[i.Name] = value
 				}
-			}
-			for _, c := range i.Items {
-				if !isItemEnabled(g.When) || !isItemEnabled(i.When) {
-					filteredValues[c.Name] = c.Value.String()
-				} else {
+				for _, c := range i.Items {
 					value, ok := configValues[c.Name]
 					if ok {
 						filteredValues[c.Name] = value

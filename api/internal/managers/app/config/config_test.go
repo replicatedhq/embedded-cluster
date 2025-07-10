@@ -427,11 +427,7 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 				"grandchild-in-disabled-group": "new-grandchild-value",
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				expectedValues := map[string]string{
-					"item-in-disabled-group":       "original-value",
-					"child-in-disabled-group":      "original-child-value",
-					"grandchild-in-disabled-group": "original-grandchild-value",
-				}
+				expectedValues := map[string]string{}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
 			wantErr: false,
@@ -479,9 +475,7 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 			},
 			setupMock: func(mockStore *config.MockStore) {
 				expectedValues := map[string]string{
-					"enabled-item":           "new-enabled-value",
-					"disabled-item":          "disabled-original-value",
-					"child-of-disabled-item": "child-of-disabled-original-value",
+					"enabled-item": "new-enabled-value",
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -540,7 +534,6 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 			setupMock: func(mockStore *config.MockStore) {
 				expectedValues := map[string]string{
 					"enabled-item":               "new-enabled-value",
-					"disabled-item":              "disabled-original",
 					"enabled-item-with-children": "new-parent-value",
 					"enabled-child":              "new-enabled-child-value",
 				}
@@ -684,10 +677,7 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 				"item-2": "new-value-2",
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				expectedValues := map[string]string{
-					"item-1": "original-1",
-					"item-2": "original-2",
-				}
+				expectedValues := map[string]string{}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
 			wantErr: false,
