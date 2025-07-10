@@ -35,6 +35,7 @@ export interface AppConfigItem {
   type: string;
   value?: string;
   default?: string;
+  help_text?: string;
   items?: AppConfigChildItem[];
 }
 

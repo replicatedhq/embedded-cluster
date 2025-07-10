@@ -18,7 +18,8 @@ const MOCK_APP_CONFIG: AppConfig = {
           title: "Application Name",
           type: "text",
           value: "My App",
-          default: "Default App"
+          default: "Default App",
+          help_text: "Enter the name of your application"
         },
         {
           name: "description",
@@ -266,8 +267,12 @@ describe.each([
       expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
     });
 
+    // Wait for the content to be rendered
+    await waitFor(() => {
+      expect(screen.getByTestId("config-item-app_name")).toBeInTheDocument();
+    });
+
     // Initially, Settings tab should be active
-    expect(screen.getByTestId("config-item-app_name")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-description")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-enable_feature")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-auth_type")).toBeInTheDocument();
@@ -301,6 +306,11 @@ describe.each([
     // Wait for loading to complete
     await waitFor(() => {
       expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+    });
+
+    // Wait for the content to be rendered
+    await waitFor(() => {
+      expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
     });
 
     // Find and update text input
@@ -368,6 +378,11 @@ describe.each([
     // Wait for loading to complete
     await waitFor(() => {
       expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+    });
+
+    // Wait for the content to be rendered
+    await waitFor(() => {
+      expect(screen.getByTestId("bool-input-enable_feature")).toBeInTheDocument();
     });
 
     // Find and toggle checkbox
@@ -440,6 +455,11 @@ describe.each([
       expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
     });
 
+    // Wait for the content to be rendered
+    await waitFor(() => {
+      expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
+    });
+
     // Make changes to form fields
     const appNameInput = screen.getByTestId("text-input-app_name");
     fireEvent.change(appNameInput, { target: { value: "Updated App Name" } });
@@ -491,6 +511,28 @@ describe.each([
     });
   });
 
+  it("displays help text for text inputs", async () => {
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+    });
+
+    // Wait for the content to be rendered
+    await waitFor(() => {
+      expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
+    });
+
+    // Verify help text is displayed for the app_name field
+    expect(screen.getByText("Enter the name of your application")).toBeInTheDocument();
+  });
+
   it("handles unauthorized error correctly", async () => {
     server.use(
       http.get(`*/api/${target}/install/app/config`, () => {
@@ -535,6 +577,11 @@ describe.each([
     // Wait for loading to complete
     await waitFor(() => {
       expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+    });
+
+    // Wait for the content to be rendered
+    await waitFor(() => {
+      expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
     });
 
     // Change the app name
@@ -735,8 +782,13 @@ describe.each([
         expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
       });
 
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        // Check that all radio groups are rendered
+        expect(screen.getByTestId("config-item-authentication_method")).toBeInTheDocument();
+      });
+
       // Check that all radio groups are rendered
-      expect(screen.getByTestId("config-item-authentication_method")).toBeInTheDocument();
       expect(screen.getByTestId("config-item-database_type")).toBeInTheDocument();
       expect(screen.getByTestId("config-item-logging_level")).toBeInTheDocument();
       expect(screen.getByTestId("config-item-ssl_mode")).toBeInTheDocument();
