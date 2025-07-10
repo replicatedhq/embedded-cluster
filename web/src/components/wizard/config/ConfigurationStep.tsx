@@ -244,12 +244,17 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       case 'label':
         return (
           <div className="mb-4" data-testid={`label-${item.name}`}>
-            <div className="text-sm font-medium text-gray-700 break-words">
+            <div className="prose prose-sm prose-gray max-w-none">
               <Markdown
                 remarkPlugins={[remarkGfm]}
                 components={{
                   a: ({ ...props }) => (
-                    <a {...props} target="_blank" rel="noopener noreferrer" />
+                    <a 
+                      {...props} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline"
+                    />
                   ),
                 }}
               >
