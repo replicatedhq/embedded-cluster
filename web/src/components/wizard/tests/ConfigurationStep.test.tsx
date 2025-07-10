@@ -304,7 +304,7 @@ describe.each([
     expect(descriptionTextarea).toHaveValue("New multi-line\ndescription text");
   });
 
-  it("renders textarea with correct initial values and placeholders", async () => {
+  it("renders textarea with correct initial values", async () => {
     renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
@@ -324,10 +324,9 @@ describe.each([
     // Switch to database tab
     fireEvent.click(screen.getByTestId("config-tab-database"));
 
-    // Check textarea with placeholder
+    // Check textarea with empty value
     const dbConfigTextarea = screen.getByTestId("textarea-input-db_config");
     expect(dbConfigTextarea).toHaveValue("");
-    expect(dbConfigTextarea).toHaveAttribute("placeholder", "# Database configuration\nhost: localhost\nport: 5432");
   });
 
   it("handles checkbox changes correctly", async () => {

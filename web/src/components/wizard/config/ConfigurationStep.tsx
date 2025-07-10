@@ -142,7 +142,6 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             id={item.name}
             label={item.title}
             value={item.value || ''}
-            placeholder={item.default}
             onChange={handleInputChange}
             dataTestId={`text-input-${item.name}`}
           />
@@ -154,7 +153,6 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             id={item.name}
             label={item.title}
             value={item.value || ''}
-            placeholder={item.default}
             onChange={handleInputChange}
             dataTestId={`textarea-input-${item.name}`}
           />
