@@ -21,13 +21,12 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState<string>('');
-  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [changedValues, setChangedValues] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const themeColor = settings.themeColor;
 
   // Fetch app config from API
-  const { isLoading: isConfigLoading, error: getConfigError } = useQuery<AppConfig>({
+  const { data: appConfig, isLoading: isConfigLoading, error: getConfigError } = useQuery<AppConfig>({
     queryKey: ['appConfig', target],
     queryFn: async () => {
       const response = await fetch(`/api/${target}/install/app/config`, {
@@ -44,13 +43,12 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         throw new Error(errorData.message || 'Failed to fetch app configuration');
       }
       const config = await response.json();
-      setAppConfig(config);
       return config;
     },
   });
 
   // Fetch current config values
-  const { data: configValues, error: getConfigValuesError } = useQuery<Record<string, string>>({
+  const { data: configValues, isLoading: isConfigValuesLoading, error: getConfigValuesError } = useQuery<Record<string, string>>({
     queryKey: ['appConfigValues', target],
     queryFn: async () => {
       const response = await fetch(`/api/${target}/install/app/config/values`, {
@@ -263,7 +261,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     );
   };
 
-  if (isConfigLoading) {
+  if (isConfigLoading || isConfigValuesLoading) {
     return (
       <div className="space-y-6" data-testid="configuration-step-loading">
         <Card>
