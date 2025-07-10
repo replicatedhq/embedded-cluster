@@ -37,7 +37,7 @@ func AlreadyInstalledError() error {
 	)
 }
 
-func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) (finalErr error) {
+func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues map[string]string) (finalErr error) {
 	installed, err := m.k0scli.IsInstalled()
 	if err != nil {
 		return fmt.Errorf("check if k0s is installed: %w", err)
@@ -65,17 +65,17 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 		}
 	}()
 
-	if err := m.install(ctx, rc); err != nil {
+	if err := m.install(ctx, rc, configValues); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) error {
+func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig, configValues map[string]string) error {
 	components := []types.InfraComponent{{Name: K0sComponentName}}
 
-	addOns := addons.GetAddOnsForInstall(m.getAddonInstallOpts(license, rc))
+	addOns := addons.GetAddOnsForInstall(m.getAddonInstallOpts(license, rc, configValues))
 	for _, addOn := range addOns {
 		components = append(components, types.InfraComponent{Name: addOn.Name()})
 	}
@@ -90,13 +90,13 @@ func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runti
 	return nil
 }
 
-func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
+func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues map[string]string) error {
 	license := &kotsv1beta1.License{}
 	if err := kyaml.Unmarshal(m.license, license); err != nil {
 		return fmt.Errorf("parse license: %w", err)
 	}
 
-	if err := m.initComponentsList(license, rc); err != nil {
+	if err := m.initComponentsList(license, rc, configValues); err != nil {
 		return fmt.Errorf("init components: %w", err)
 	}
 
@@ -126,7 +126,7 @@ func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConf
 		return fmt.Errorf("record installation: %w", err)
 	}
 
-	if err := m.installAddOns(ctx, kcli, mcli, hcli, license, rc); err != nil {
+	if err := m.installAddOns(ctx, kcli, mcli, hcli, license, rc, configValues); err != nil {
 		return fmt.Errorf("install addons: %w", err)
 	}
 
@@ -245,7 +245,7 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 	return in, nil
 }
 
-func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) error {
+func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig, configValues map[string]string) error {
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -277,7 +277,7 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 		addons.WithProgressChannel(progressChan),
 	)
 
-	opts := m.getAddonInstallOpts(license, rc)
+	opts := m.getAddonInstallOpts(license, rc, configValues)
 
 	logFn("installing addons")
 	if err := addOns.Install(ctx, opts); err != nil {
@@ -287,7 +287,7 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 	return nil
 }
 
-func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) addons.InstallOptions {
+func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig, configValues map[string]string) addons.InstallOptions {
 	ecDomains := utils.GetDomains(m.releaseData)
 
 	opts := addons.InstallOptions{
@@ -315,19 +315,26 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 		opts.KotsInstaller = m.kotsInstaller
 	} else {
 		opts.KotsInstaller = func() error {
-			opts := kotscli.InstallOptions{
+			installOpts := kotscli.InstallOptions{
 				RuntimeConfig:         rc,
 				AppSlug:               license.Spec.AppSlug,
 				License:               m.license,
 				Namespace:             constants.KotsadmNamespace,
 				ClusterID:             m.clusterID,
 				AirgapBundle:          m.airgapBundle,
-				ConfigValuesFile:      m.configValues,
 				ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
 				// TODO (@salah): capture kots install logs
 				// Stdout:                stdout,
 			}
-			return kotscli.Install(opts)
+
+			// Prioritize CLI-provided file over passed configValues to respect explicit user intent
+			if m.configValuesFile != "" {
+				installOpts.ConfigValuesFile = m.configValuesFile
+			} else if len(configValues) > 0 {
+				installOpts.ConfigValues = configValues
+			}
+
+			return kotscli.Install(installOpts)
 		}
 	}
 

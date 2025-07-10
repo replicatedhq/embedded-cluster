@@ -587,20 +587,18 @@ func TestErrorFromResponse(t *testing.T) {
 
 func TestLinuxGetAppConfig(t *testing.T) {
 	// Define expected config once
-	expectedConfig := kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{
-				{
-					Name:  "test-group",
-					Title: "Test Group",
-					Items: []kotsv1beta1.ConfigItem{
-						{
-							Name:    "test-item",
-							Type:    "text",
-							Title:   "Test Item",
-							Default: multitype.BoolOrString{StrVal: "default"},
-							Value:   multitype.BoolOrString{StrVal: "value"},
-						},
+	expectedConfig := types.AppConfig{
+		Groups: []kotsv1beta1.ConfigGroup{
+			{
+				Name:  "test-group",
+				Title: "Test Group",
+				Items: []kotsv1beta1.ConfigItem{
+					{
+						Name:    "test-item",
+						Type:    "text",
+						Title:   "Test Item",
+						Default: multitype.BoolOrString{StrVal: "default"},
+						Value:   multitype.BoolOrString{StrVal: "value"},
 					},
 				},
 			},
@@ -640,7 +638,7 @@ func TestLinuxGetAppConfig(t *testing.T) {
 	c = New(errorServer.URL, WithToken("test-token"))
 	config, err = c.GetLinuxAppConfig()
 	assert.Error(t, err)
-	assert.Equal(t, kotsv1beta1.Config{}, config)
+	assert.Equal(t, types.AppConfig{}, config)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -650,20 +648,18 @@ func TestLinuxGetAppConfig(t *testing.T) {
 
 func TestKubernetesGetAppConfig(t *testing.T) {
 	// Define expected config once
-	expectedConfig := kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{
-				{
-					Name:  "test-group",
-					Title: "Test Group",
-					Items: []kotsv1beta1.ConfigItem{
-						{
-							Name:    "test-item",
-							Type:    "text",
-							Title:   "Test Item",
-							Default: multitype.BoolOrString{StrVal: "default"},
-							Value:   multitype.BoolOrString{StrVal: "value"},
-						},
+	expectedConfig := types.AppConfig{
+		Groups: []kotsv1beta1.ConfigGroup{
+			{
+				Name:  "test-group",
+				Title: "Test Group",
+				Items: []kotsv1beta1.ConfigItem{
+					{
+						Name:    "test-item",
+						Type:    "text",
+						Title:   "Test Item",
+						Default: multitype.BoolOrString{StrVal: "default"},
+						Value:   multitype.BoolOrString{StrVal: "value"},
 					},
 				},
 			},
@@ -703,7 +699,7 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 	c = New(errorServer.URL, WithToken("test-token"))
 	config, err = c.GetKubernetesAppConfig()
 	assert.Error(t, err)
-	assert.Equal(t, kotsv1beta1.Config{}, config)
+	assert.Equal(t, types.AppConfig{}, config)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")

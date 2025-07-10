@@ -23,28 +23,28 @@ var _ InfraManager = &infraManager{}
 // InfraManager provides methods for managing infrastructure setup
 type InfraManager interface {
 	Get() (types.Infra, error)
-	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
+	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues map[string]string) error
 }
 
 // infraManager is an implementation of the InfraManager interface
 type infraManager struct {
-	infraStore    infrastore.Store
-	password      string
-	tlsConfig     types.TLSConfig
-	license       []byte
-	airgapBundle  string
-	configValues  string
-	releaseData   *release.ReleaseData
-	endUserConfig *ecv1beta1.Config
-	clusterID     string
-	logger        logrus.FieldLogger
-	k0scli        k0s.K0sInterface
-	kcli          client.Client
-	mcli          metadata.Interface
-	hcli          helm.Client
-	hostUtils     hostutils.HostUtilsInterface
-	kotsInstaller func() error
-	mu            sync.RWMutex
+	infraStore       infrastore.Store
+	password         string
+	tlsConfig        types.TLSConfig
+	license          []byte
+	airgapBundle     string
+	configValuesFile string // Keep for CLI file path priority
+	releaseData      *release.ReleaseData
+	endUserConfig    *ecv1beta1.Config
+	clusterID        string
+	logger           logrus.FieldLogger
+	k0scli           k0s.K0sInterface
+	kcli             client.Client
+	mcli             metadata.Interface
+	hcli             helm.Client
+	hostUtils        hostutils.HostUtilsInterface
+	kotsInstaller    func() error
+	mu               sync.RWMutex
 }
 
 type InfraManagerOption func(*infraManager)
@@ -85,9 +85,9 @@ func WithAirgapBundle(airgapBundle string) InfraManagerOption {
 	}
 }
 
-func WithConfigValues(configValues string) InfraManagerOption {
+func WithConfigValuesFile(configValuesFile string) InfraManagerOption {
 	return func(c *infraManager) {
-		c.configValues = configValues
+		c.configValuesFile = configValuesFile
 	}
 }
 

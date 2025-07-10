@@ -7,67 +7,79 @@ import ConfigurationStep from "../config/ConfigurationStep.tsx";
 import { AppConfig, AppConfigGroup, AppConfigItem } from "../../../types";
 
 const MOCK_APP_CONFIG: AppConfig = {
-  spec: {
-    groups: [
-      {
-        name: "settings",
-        title: "Settings",
-        description: "Configure application settings",
-        items: [
-          {
-            name: "app_name",
-            title: "Application Name",
-            type: "text",
-            value: "My App",
-            default: "Default App"
-          },
-          {
-            name: "enable_feature",
-            title: "Enable Feature",
-            type: "bool",
-            value: "0",
-            default: "0"
-          },
-          {
-            name: "auth_type",
-            title: "Authentication Type",
-            type: "radio",
-            value: "auth_type_password",
-            default: "auth_type_anonymous",
-            items: [
-              {
-                name: "auth_type_anonymous",
-                title: "Anonymous"
-              },
-              {
-                name: "auth_type_password",
-                title: "Password"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        name: "database",
-        title: "Database",
-        description: "Configure database settings",
-        items: [
-          {
-            name: "db_host",
-            title: "Database Host",
-            type: "text",
-            value: "localhost",
-            default: "localhost"
-          }
-        ]
-      }
-    ]
-  }
+  groups: [
+    {
+      name: "settings",
+      title: "Settings",
+      description: "Configure application settings",
+      items: [
+        {
+          name: "app_name",
+          title: "Application Name",
+          type: "text",
+          value: "My App",
+          default: "Default App"
+        },
+        {
+          name: "description",
+          title: "Application Description",
+          type: "textarea",
+          value: "This is my application\nIt does amazing things",
+          default: "Enter description here..."
+        },
+        {
+          name: "enable_feature",
+          title: "Enable Feature",
+          type: "bool",
+          value: "0",
+          default: "0"
+        },
+        {
+          name: "auth_type",
+          title: "Authentication Type",
+          type: "radio",
+          value: "auth_type_password",
+          default: "auth_type_anonymous",
+          items: [
+            {
+              name: "auth_type_anonymous",
+              title: "Anonymous"
+            },
+            {
+              name: "auth_type_password",
+              title: "Password"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "database",
+      title: "Database",
+      description: "Configure database settings",
+      items: [
+        {
+          name: "db_host",
+          title: "Database Host",
+          type: "text",
+          value: "localhost",
+          default: "localhost"
+        },
+        {
+          name: "db_config",
+          title: "Database Configuration",
+          type: "textarea",
+          value: "",
+          default: "# Database configuration\nhost: localhost\nport: 5432"
+        }
+      ]
+    }
+  ]
 };
 
 const createMockConfigWithValues = (values: Record<string, string>): AppConfig => {
   const config: AppConfig = JSON.parse(JSON.stringify(MOCK_APP_CONFIG));
-  config.spec.groups.forEach((group: AppConfigGroup) => {
+  config.groups.forEach((group: AppConfigGroup) => {
     group.items.forEach((item: AppConfigItem) => {
       if (values[item.name]) {
         item.value = values[item.name];
@@ -150,11 +162,13 @@ describe.each([
 
     // Check that form fields are rendered for the active tab
     expect(screen.getByTestId("config-item-app_name")).toBeInTheDocument();
+    expect(screen.getByTestId("config-item-description")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-enable_feature")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-auth_type")).toBeInTheDocument();
 
     // Check that the database tab is not rendered
     expect(screen.queryByTestId("config-item-db_host")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("config-item-db_config")).not.toBeInTheDocument();
 
     // Check next button
     const nextButton = screen.getByTestId("config-next-button");
@@ -254,20 +268,24 @@ describe.each([
 
     // Initially, Settings tab should be active
     expect(screen.getByTestId("config-item-app_name")).toBeInTheDocument();
+    expect(screen.getByTestId("config-item-description")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-enable_feature")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-auth_type")).toBeInTheDocument();
 
     // Check that the database tab is not rendered
     expect(screen.queryByTestId("config-item-db_host")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("config-item-db_config")).not.toBeInTheDocument();
 
     // Click on Database tab
     fireEvent.click(screen.getByTestId("config-tab-database"));
 
     // Database tab content should be visible
     expect(screen.getByTestId("config-item-db_host")).toBeInTheDocument();
+    expect(screen.getByTestId("config-item-db_config")).toBeInTheDocument();
 
     // Settings tab content should not be visible
     expect(screen.queryByTestId("config-item-app_name")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("config-item-description")).not.toBeInTheDocument();
     expect(screen.queryByTestId("config-item-enable_feature")).not.toBeInTheDocument();
     expect(screen.queryByTestId("config-item-auth_type")).not.toBeInTheDocument();
   });
@@ -291,6 +309,52 @@ describe.each([
 
     // Verify the value was updated
     expect(appNameInput).toHaveValue("New App Name");
+  });
+
+  it("handles textarea input changes correctly", async () => {
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+    });
+
+    // Find and update textarea input
+    const descriptionTextarea = screen.getByTestId("textarea-input-description");
+    fireEvent.change(descriptionTextarea, { target: { value: "New multi-line\ndescription text" } });
+
+    // Verify the value was updated
+    expect(descriptionTextarea).toHaveValue("New multi-line\ndescription text");
+  });
+
+  it("renders textarea with correct initial values", async () => {
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+    });
+
+    // Check textarea with value
+    const descriptionTextarea = screen.getByTestId("textarea-input-description");
+    expect(descriptionTextarea).toHaveValue("This is my application\nIt does amazing things");
+
+    // Switch to database tab
+    fireEvent.click(screen.getByTestId("config-tab-database"));
+
+    // Check textarea with empty value
+    const dbConfigTextarea = screen.getByTestId("textarea-input-db_config");
+    expect(dbConfigTextarea).toHaveValue("");
   });
 
   it("handles checkbox changes correctly", async () => {
@@ -380,6 +444,9 @@ describe.each([
     const appNameInput = screen.getByTestId("text-input-app_name");
     fireEvent.change(appNameInput, { target: { value: "Updated App Name" } });
 
+    const descriptionTextarea = screen.getByTestId("textarea-input-description");
+    fireEvent.change(descriptionTextarea, { target: { value: "Updated multi-line\ndescription text" } });
+
     const enableFeatureCheckbox = screen.getByTestId("bool-input-enable_feature");
     fireEvent.click(enableFeatureCheckbox);
 
@@ -393,6 +460,10 @@ describe.each([
     // Change text input
     const dbHostInput = screen.getByTestId("text-input-db_host");
     fireEvent.change(dbHostInput, { target: { value: "Updated DB Host" } });
+
+    // Change textarea input
+    const dbConfigTextarea = screen.getByTestId("textarea-input-db_config");
+    fireEvent.change(dbConfigTextarea, { target: { value: "# Updated config\nhost: updated-host\nport: 5432" } });
 
     // Submit form
     const nextButton = screen.getByTestId("config-next-button");
@@ -411,9 +482,11 @@ describe.each([
     expect(submittedValues!).toMatchObject({
       values: {
         app_name: "Updated App Name",
+        description: "Updated multi-line\ndescription text",
         enable_feature: "1",
         auth_type: "auth_type_anonymous",
-        db_host: "Updated DB Host"
+        db_host: "Updated DB Host",
+        db_config: "# Updated config\nhost: updated-host\nport: 5432"
       }
     });
   });
@@ -468,6 +541,10 @@ describe.each([
     const appNameInput = screen.getByTestId("text-input-app_name");
     fireEvent.change(appNameInput, { target: { value: "Only Changed Field" } });
 
+    // Change the description textarea
+    const descriptionTextarea = screen.getByTestId("textarea-input-description");
+    fireEvent.change(descriptionTextarea, { target: { value: "Only changed description" } });
+
     // Change the auth type
     const anonymousRadio = screen.getByTestId("radio-input-auth_type_anonymous");
     fireEvent.click(anonymousRadio);
@@ -489,96 +566,96 @@ describe.each([
     expect(submittedValues!).toMatchObject({
       values: {
         app_name: "Only Changed Field",
+        description: "Only changed description",
         auth_type: "auth_type_anonymous"
       }
     });
     expect(submittedValues!.values).not.toHaveProperty("enable_feature");
-    expect(submittedValues!.values).not.toHaveProperty("database_type");
+    expect(submittedValues!.values).not.toHaveProperty("db_host");
+    expect(submittedValues!.values).not.toHaveProperty("db_config");
   });
 
   describe("Radio button behavior", () => {
     it("tests all radio button scenarios with different value/default combinations", async () => {
       // Override the mock config with multiple radio groups for different scenarios
       const comprehensiveConfig: AppConfig = {
-        spec: {
-          groups: [
-            {
-              name: "radio_test_scenarios",
-              title: "Radio Test Scenarios",
-              description: "Testing different radio button scenarios",
-              items: [
-                {
-                  name: "authentication_method",
-                  title: "Authentication Method",
-                  type: "radio",
-                  value: "authentication_method_ldap",
-                  items: [
-                    {
-                      name: "authentication_method_local",
-                      title: "Local Authentication"
-                    },
-                    {
-                      name: "authentication_method_ldap",
-                      title: "LDAP Authentication"
-                    }
-                  ]
-                },
-                {
-                  name: "database_type",
-                  title: "Database Type",
-                  type: "radio",
-                  default: "database_type_postgresql",
-                  items: [
-                    {
-                      name: "database_type_mysql",
-                      title: "MySQL"
-                    },
-                    {
-                      name: "database_type_postgresql",
-                      title: "PostgreSQL"
-                    }
-                  ]
-                },
-                {
-                  name: "logging_level",
-                  title: "Logging Level",
-                  type: "radio",
-                  value: "logging_level_debug",
-                  default: "logging_level_info",
-                  items: [
-                    {
-                      name: "logging_level_info",
-                      title: "Info"
-                    },
-                    {
-                      name: "logging_level_debug",
-                      title: "Debug"
-                    },
-                    {
-                      name: "logging_level_error",
-                      title: "Error Only"
-                    }
-                  ]
-                },
-                {
-                  name: "ssl_mode",
-                  title: "SSL Mode",
-                  type: "radio",
-                  items: [
-                    {
-                      name: "ssl_mode_disabled",
-                      title: "Disabled"
-                    },
-                    {
-                      name: "ssl_mode_required",
-                      title: "Required"
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
+        groups: [
+          {
+            name: "radio_test_scenarios",
+            title: "Radio Test Scenarios",
+            description: "Testing different radio button scenarios",
+            items: [
+              {
+                name: "authentication_method",
+                title: "Authentication Method",
+                type: "radio",
+                value: "authentication_method_ldap",
+                items: [
+                  {
+                    name: "authentication_method_local",
+                    title: "Local Authentication"
+                  },
+                  {
+                    name: "authentication_method_ldap",
+                    title: "LDAP Authentication"
+                  }
+                ]
+              },
+              {
+                name: "database_type",
+                title: "Database Type",
+                type: "radio",
+                default: "database_type_postgresql",
+                items: [
+                  {
+                    name: "database_type_mysql",
+                    title: "MySQL"
+                  },
+                  {
+                    name: "database_type_postgresql",
+                    title: "PostgreSQL"
+                  }
+                ]
+              },
+              {
+                name: "logging_level",
+                title: "Logging Level",
+                type: "radio",
+                value: "logging_level_debug",
+                default: "logging_level_info",
+                items: [
+                  {
+                    name: "logging_level_info",
+                    title: "Info"
+                  },
+                  {
+                    name: "logging_level_debug",
+                    title: "Debug"
+                  },
+                  {
+                    name: "logging_level_error",
+                    title: "Error Only"
+                  }
+                ]
+              },
+              {
+                name: "ssl_mode",
+                title: "SSL Mode",
+                type: "radio",
+                items: [
+                  {
+                    name: "ssl_mode_disabled",
+                    title: "Disabled"
+                  },
+                  {
+                    name: "ssl_mode_required",
+                    title: "Required"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       };
 
       // Override the server to return our comprehensive config
