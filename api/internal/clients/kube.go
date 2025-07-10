@@ -8,17 +8,16 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	baseclientset "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var schemeBuilder = runtime.NewSchemeBuilder(
-	corev1.AddToScheme,
+var localSchemeBuilder = runtime.NewSchemeBuilder(
 	embeddedclusterv1beta1.AddToScheme,
 	//nolint:staticcheck // SA1019 we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
 	autopilotv1beta2.AddToScheme,
@@ -36,7 +35,8 @@ type KubeClientOptions struct {
 
 func getScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
-	schemeBuilder.AddToScheme(s)
+	baseclientset.AddToScheme(s)
+	localSchemeBuilder.AddToScheme(s)
 	return s
 }
 
