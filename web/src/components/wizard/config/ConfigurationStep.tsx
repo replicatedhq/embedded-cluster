@@ -6,6 +6,8 @@ import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Textarea from '../../common/Textarea';
+import Checkbox from '../../common/Checkbox';
+import Radio from '../../common/Radio';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
@@ -213,60 +215,34 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`textarea-input-${item.name}`}
+            helpText={item.help_text}
           />
         );
 
       case 'bool':
         return (
-          <div className="flex items-center space-x-3">
-            <input
-              id={item.name}
-              type="checkbox"
-              checked={getEffectiveValue(item) === '1'}
-              onChange={handleCheckboxChange}
-              className="h-4 w-4 focus:ring-offset-2 border-gray-300 rounded"
-              data-testid={`bool-input-${item.name}`}
-              style={{
-                color: themeColor,
-                '--tw-ring-color': themeColor,
-              } as React.CSSProperties}
-            />
-            <label htmlFor={item.name} className="text-sm text-gray-700">
-              {item.title}
-            </label>
-          </div>
+          <Checkbox
+            id={item.name}
+            label={item.title}
+            checked={getEffectiveValue(item) === '1'}
+            onChange={handleCheckboxChange}
+            dataTestId={`bool-input-${item.name}`}
+            helpText={item.help_text}
+          />
         );
 
       case 'radio':
         if (item.items) {
           return (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                {item.title}
-              </label>
-              <div className="space-y-2">
-                {item.items.map(child => (
-                  <div key={child.name} className="flex items-center">
-                    <input
-                      type="radio"
-                      id={child.name}
-                      value={child.name}
-                      checked={getEffectiveValue(item) === child.name}
-                      onChange={e => handleRadioChange(item.name, e)}
-                      className="h-4 w-4 focus:ring-offset-2 border-gray-300"
-                      data-testid={`radio-input-${child.name}`}
-                      style={{
-                        color: themeColor,
-                        '--tw-ring-color': themeColor,
-                      } as React.CSSProperties}
-                    />
-                    <label htmlFor={child.name} className="ml-3 text-sm text-gray-700">
-                      {child.title}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Radio
+              id={item.name}
+              label={item.title}
+              value={getEffectiveValue(item)}
+              onChange={e => handleRadioChange(item.name, e)}
+              options={item.items}
+              dataTestId={`radio-input-${item.name}`}
+              helpText={item.help_text}
+            />
           );
         }
         return null;
