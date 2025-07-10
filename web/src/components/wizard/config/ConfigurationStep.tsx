@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
+import Textarea from '../../common/Textarea';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
@@ -141,9 +142,19 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             id={item.name}
             label={item.title}
             value={item.value || ''}
-            placeholder={item.default}
             onChange={handleInputChange}
             dataTestId={`text-input-${item.name}`}
+          />
+        );
+
+      case 'textarea':
+        return (
+          <Textarea
+            id={item.name}
+            label={item.title}
+            value={item.value || ''}
+            onChange={handleInputChange}
+            dataTestId={`textarea-input-${item.name}`}
           />
         );
 
