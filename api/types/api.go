@@ -5,7 +5,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"k8s.io/client-go/rest"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 // APIConfig holds the configuration for the API server
@@ -17,6 +17,7 @@ type APIConfig struct {
 	ConfigValues  string
 	ReleaseData   *release.ReleaseData
 	EndUserConfig *ecv1beta1.Config
+	ClusterID     string
 
 	LinuxConfig
 	KubernetesConfig
@@ -28,6 +29,6 @@ type LinuxConfig struct {
 }
 
 type KubernetesConfig struct {
-	RESTConfig   *rest.Config
-	Installation kubernetesinstallation.Installation
+	RESTClientGetter genericclioptions.RESTClientGetter
+	Installation     kubernetesinstallation.Installation
 }

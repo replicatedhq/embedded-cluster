@@ -1,0 +1,136 @@
+---
+description: 
+globs: *.go
+alwaysApply: false
+---
+# Go Best Practices
+
+Follow these best practices when writing Go code in this repository.
+
+## Core Principles
+
+- **Clarity and Simplicity**: Write code that is easy to read, understand, and maintain. Favor explicit over implicit.
+- **Dependency Injection**: Use dependency injection to decouple components and enable testing. The functional options pattern is the standard approach.
+- **Interface-Driven Design**: Define behavior through interfaces to enable mocking and loose coupling.
+- **Explicit Error Handling**: Handle all errors explicitly. Use structured error types when appropriate.
+
+## Architecture Patterns
+
+### Functional Options Pattern
+
+Use the functional options pattern for component initialization. This is the standard across controllers and main components.
+
+### Interface Design
+
+- **Small, Focused Interfaces**: Keep interfaces small and focused on specific behavior
+- **Interface Segregation**: Prefer multiple small interfaces over large ones
+- **Testability**: All external dependencies should be behind interfaces for mocking
+- **Naming**: Use descriptive names that indicate the behavior (e.g., `InstallationManager`, `NetUtils`)
+
+## Error Handling
+
+### Error Wrapping and Context
+
+- **Wrap Errors**: Always add context when propagating errors using `fmt.Errorf("operation context: %w", err)`
+- **Use %w verb for error wrapping**: Use `%w` instead of `%v` when wrapping errors to maintain the error chain
+- **Avoid verbose prefixes**: Don't use "failed to" or "unable to" prefixes as they create repetitive error chains
+  ```go
+  return fmt.Errorf("processing config: %w", err)      // Good - concise context
+  return fmt.Errorf("reading config file: %w", err)    // Good - specific context
+  return fmt.Errorf("failed to process config: %w", err)   // Bad - verbose prefix
+  return fmt.Errorf("unable to read config file: %w", err) // Bad - verbose prefix
+  ```
+- **Use gerunds or nouns for context**: Describe the operation being performed
+  ```go
+  return fmt.Errorf("creating directory: %w", err)     // Good - gerund
+  return fmt.Errorf("config validation: %w", err)      // Good - noun
+  return fmt.Errorf("installing component: %w", err)   // Good - gerund
+  ```
+- **Preserve Original**: Store the original error for unwrapping when using custom error types
+- **Meaningful Messages**: Error messages should be actionable and include relevant context without redundant prefixes
+- **Use type-safe error handling**: Check error types instead of string matching to avoid brittle code
+  ```go
+  if errors.Is(err, context.DeadlineExceeded) { ... }  // Good
+  if strings.Contains(err.Error(), "deadline") { ... } // Bad
+  ```
+
+### Error Message Consistency
+
+- **Go error strings should start with lowercase letter and not end with punctuation**: Follow Go conventions
+  ```go
+  return errors.New("failed to connect")     // Good
+  return errors.New("Failed to connect.")   // Bad
+  ```
+
+## Naming Conventions
+
+### Package Names
+- Use short, concise, all-lowercase names
+- Avoid stuttering (don't repeat package name in exported types)
+- Examples: `types`, `utils`, `install`, `auth`
+
+### Types and Functions
+- **Exported Types**: Use `PascalCase` (e.g., `InstallController`, `NetUtils`)
+- **Exported Functions**: Use `PascalCase` (e.g., `NewInstallController`, `ValidateConfig`)
+- **Internal Functions**: Use `camelCase` (e.g., `processRequest`, `validateInput`)
+- **Variables**: Use `camelCase` for all variables
+
+### Interface Naming
+- **Behavior-Based**: Name interfaces after what they do (e.g., `Controller`, `Manager`, `NetUtils`)
+- **Avoid Generic Names**: Don't use generic suffixes like `Interface` unless necessary
+- **Single Method**: For single-method interfaces, consider the "-er" suffix pattern
+
+### Variable Naming Clarity
+
+- **Use distinct variable names for file paths vs configuration objects**: Distinguish between file locations, raw data, and parsed objects
+  ```go
+  configPath := "/etc/config.yaml"  // file location
+  configBytes := []byte{}           // raw data  
+  config := &Config{}               // parsed object
+  ```
+
+## Configuration Management
+
+### Input Validation and Defaults
+
+- **Check before setting defaults**: Always verify if user-provided fields are empty before setting defaults to avoid overriding user input
+  ```go
+  if config.DataDirectory == "" {
+      config.DataDirectory = "/opt/default"
+  }
+  ```
+
+## CLI Design
+
+### Flag Naming and Help
+
+- **Ensure all CLI flags appear in help menu with consistent naming patterns**: Use kebab-case for multi-word flags
+  ```go
+  installCmd.Flags().String("admin-console-namespace", "", "Namespace for admin console")  // Good
+  installCmd.Flags().String("adminconsolenamespace", "", "Namespace for admin console")   // Bad
+  ```
+
+## Concurrency and Thread Safety
+
+### Mutex Usage
+- Use `sync.RWMutex` for read-heavy workloads
+- Keep critical sections small
+- Always use defer for unlocking: `defer mu.Unlock()`
+
+### Context Usage
+- **Context parameter placement**: When added, use `ctx context.Context` as the first parameter
+- **Only add context when it's actually used**: Don't add `context.Context` parameters unless the function will actually use it for cancellation, deadlines, or passing values
+- **Don't store contexts in structs**: Pass them through function calls
+
+## Logging
+
+### Structured Logging with Logrus
+
+- Use `logrus.FieldLogger` interface for dependency injection
+- Add contextual fields to log entries for better debugging
+- Use appropriate log levels: `Debug`, `Info`, `Warn`, `Error`
+
+### Logging Patterns
+
+- **Error Logging**: Always log errors at the outermost caller (bottom of the stack). All the context from the trace should be included in the message wrapping.
+- **Discard Logger**: Use `logger.NewDiscardLogger()` for tests

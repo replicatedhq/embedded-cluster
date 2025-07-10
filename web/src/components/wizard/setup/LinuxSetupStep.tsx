@@ -9,7 +9,7 @@ import { useWizard } from "../../../contexts/WizardModeContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { handleUnauthorized } from "../../../utils/auth";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
  * Maps internal field names to user-friendly display names.
@@ -34,6 +34,7 @@ const fieldNames = {
 
 interface LinuxSetupStepProps {
   onNext: () => void;
+  onBack: () => void;
 }
 
 interface Status {
@@ -45,7 +46,7 @@ interface ConfigError extends Error {
   errors?: { field: string; message: string }[];
 }
 
-const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext }) => {
+const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
   const { config, updateConfig } = useLinuxConfig();
   const { text } = useWizard();
   const { title } = useBranding();
@@ -295,14 +296,20 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext }) => {
 
             {error && (
               <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
-                Please fix the errors in the form above before proceeding.
+                {submitError?.errors && submitError.errors.length > 0 
+                  ? "Please fix the errors in the form above before proceeding."
+                  : error
+                }
               </div>
             )}
           </>
         )}
       </Card>
 
-      <div className="flex justify-end">
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
+          Back
+        </Button>
         <Button onClick={() => submitConfig(config)} icon={<ChevronRight className="w-5 h-5" />}>
           Next: Validate Host
         </Button>

@@ -814,6 +814,96 @@ func TestEventHandlerConcurrentRegistration(t *testing.T) {
 	}
 }
 
+func TestValidateTransitionMultipleStates(t *testing.T) {
+	tests := []struct {
+		name          string
+		initialState  State
+		nextStates    []State
+		expectedError string
+		description   string
+	}{
+		{
+			name:          "valid multi-state transition",
+			initialState:  StateNew,
+			nextStates:    []State{StateInstallationConfigured, StatePreflightsRunning},
+			expectedError: "",
+			description:   "should validate a valid chain of transitions",
+		},
+		{
+			name:          "valid single state transition",
+			initialState:  StateNew,
+			nextStates:    []State{StateInstallationConfigured},
+			expectedError: "",
+			description:   "should validate a single valid transition",
+		},
+		{
+			name:          "invalid first transition",
+			initialState:  StateNew,
+			nextStates:    []State{StateSucceeded, StateInstallationConfigured},
+			expectedError: "invalid transition from New to Succeeded",
+			description:   "should fail on first invalid transition",
+		},
+		{
+			name:          "invalid middle transition",
+			initialState:  StateNew,
+			nextStates:    []State{StateInstallationConfigured, StateSucceeded},
+			expectedError: "invalid transition from InstallationConfigured to Succeeded",
+			description:   "should fail on middle invalid transition",
+		},
+		{
+			name:          "empty states list",
+			initialState:  StateNew,
+			nextStates:    []State{},
+			expectedError: "",
+			description:   "should succeed with empty states list",
+		},
+		{
+			name:          "complex valid chain",
+			initialState:  StateNew,
+			nextStates:    []State{StateInstallationConfigured, StatePreflightsRunning, StatePreflightsSucceeded, StateInfrastructureInstalling},
+			expectedError: "",
+			description:   "should validate a complex chain of valid transitions",
+		},
+		{
+			name:          "transition from final state",
+			initialState:  StateSucceeded,
+			nextStates:    []State{StateNew},
+			expectedError: "invalid transition from Succeeded to New",
+			description:   "should fail when trying to transition from final state",
+		},
+		{
+			name:          "non-existent state in chain",
+			initialState:  StateNew,
+			nextStates:    []State{StateInstallationConfigured, State("NonExistentState")},
+			expectedError: "invalid transition from InstallationConfigured to NonExistentState",
+			description:   "should fail when encountering non-existent state in chain",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sm := New(tt.initialState, validStateTransitions)
+			lock, err := sm.AcquireLock()
+			assert.NoError(t, err)
+
+			// Validate the transition chain
+			err = sm.ValidateTransition(lock, tt.nextStates...)
+
+			if tt.expectedError != "" {
+				assert.Error(t, err, tt.description)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err, tt.description)
+			}
+
+			// Verify that the state machine state remains unchanged after validation
+			assert.Equal(t, tt.initialState, sm.CurrentState(), "state should remain unchanged after validation")
+
+			lock.Release()
+		})
+	}
+}
+
 // MockEventHandler is a mock for event handler testing
 type MockEventHandler struct {
 	mock.Mock

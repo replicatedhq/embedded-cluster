@@ -1,6 +1,6 @@
 import React from 'react';
 import { WizardStep } from '../../types';
-import { ClipboardList, Settings, Shield, Download, CheckCircle } from 'lucide-react';
+import { ClipboardList, Settings, Shield, Download, CheckCircle, Server } from 'lucide-react';
 import { useWizard } from '../../contexts/WizardModeContext';
 import { useSettings } from '../../contexts/SettingsContext';
 
@@ -25,17 +25,19 @@ const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep: currentSte
     if (target === 'kubernetes') {
       return [
         { id: 'welcome', name: 'Welcome', icon: ClipboardList },
+        { id: 'configuration', name: 'Configuration', icon: Server },
         { id: 'kubernetes-setup', name: 'Setup', icon: Settings },
         { id: 'kubernetes-installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
-        { id: 'completion', name: 'Completion', icon: CheckCircle },
+        { id: 'kubernetes-completion', name: 'Completion', icon: CheckCircle },
       ];
     } else {
       return [
         { id: 'welcome', name: 'Welcome', icon: ClipboardList },
+        { id: 'configuration', name: 'Configuration', icon: Server },
         { id: 'linux-setup', name: 'Setup', icon: Settings },
         { id: 'linux-validation', name: 'Validation', icon: Shield, hidden: true, parentId: 'linux-setup' },
         { id: 'linux-installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
-        { id: 'completion', name: 'Completion', icon: CheckCircle },
+        { id: 'linux-completion', name: 'Completion', icon: CheckCircle },
       ];
     }
   }

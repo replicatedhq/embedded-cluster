@@ -298,10 +298,10 @@ ensure_version_metadata_present() {
 }
 
 # ensure_binary_copy verifies that the installer is copying itself to the default location of
-# banaries in the node.
+# binaries on the node.
 ensure_binary_copy() {
     if ! ls "${EMBEDDED_CLUSTER_BASE_DIR}/bin/${EMBEDDED_CLUSTER_BIN}" ; then
-        echo "embedded-cluster binary not found on default location"
+        echo "embedded-cluster binary not found at default location"
         ls -la "${EMBEDDED_CLUSTER_BASE_DIR}/bin"
         return 1
     fi

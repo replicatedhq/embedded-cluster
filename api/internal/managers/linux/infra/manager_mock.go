@@ -15,15 +15,15 @@ type MockInfraManager struct {
 	mock.Mock
 }
 
-func (m *MockInfraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
-	args := m.Called(ctx, rc)
+func (m *MockInfraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues map[string]string) error {
+	args := m.Called(ctx, rc, configValues)
 	return args.Error(0)
 }
 
-func (m *MockInfraManager) Get() (types.LinuxInfra, error) {
+func (m *MockInfraManager) Get() (types.Infra, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
-		return types.LinuxInfra{}, args.Error(1)
+		return types.Infra{}, args.Error(1)
 	}
-	return args.Get(0).(types.LinuxInfra), args.Error(1)
+	return args.Get(0).(types.Infra), args.Error(1)
 }

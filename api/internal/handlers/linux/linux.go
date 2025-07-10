@@ -76,8 +76,9 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 			install.WithTLSConfig(h.cfg.TLSConfig),
 			install.WithLicense(h.cfg.License),
 			install.WithAirgapBundle(h.cfg.AirgapBundle),
-			install.WithConfigValues(h.cfg.ConfigValues),
+			install.WithConfigValuesFile(h.cfg.ConfigValues),
 			install.WithEndUserConfig(h.cfg.EndUserConfig),
+			install.WithClusterID(h.cfg.ClusterID),
 			install.WithAllowIgnoreHostPreflights(h.cfg.AllowIgnoreHostPreflights),
 		)
 		if err != nil {

@@ -631,6 +631,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	)
 
 	opts := addons.EnableHAOptions{
+		ClusterID:          in.Spec.ClusterID,
 		AdminConsolePort:   rc.AdminConsolePort(),
 		IsAirgap:           in.Spec.AirGap,
 		IsMultiNodeEnabled: in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsMultiNodeEnabled,

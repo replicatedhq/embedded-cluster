@@ -7,7 +7,7 @@ import { useWizard } from "../../../contexts/WizardModeContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { handleUnauthorized } from "../../../utils/auth";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ChevronLeft } from "lucide-react";
 
 /**
  * Maps internal field names to user-friendly display names.
@@ -25,6 +25,7 @@ const fieldNames = {
 
 interface KubernetesSetupStepProps {
   onNext: () => void;
+  onBack: () => void;
 }
 
 interface Status {
@@ -37,7 +38,7 @@ interface ConfigError extends Error {
 }
 
 // TODO NOW: add tests for this component
-const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext }) => {
+const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBack }) => {
   const { config, updateConfig } = useKubernetesConfig();
   const { text } = useWizard();
   const [error, setError] = useState<string | null>(null);
@@ -89,11 +90,38 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext }) => 
       return response.json();
     },
     onSuccess: () => {
-      onNext();
+      setError(null); // Clear any previous errors
+      startInstallation();
     },
     onError: (err: ConfigError) => {
       setError(err.message || "Failed to submit config");
       return err;
+    },
+  });
+
+  // Mutation for starting the installation
+  const { mutate: startInstallation } = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/kubernetes/install/infra/setup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to start installation");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setError(null); // Clear any previous errors
+      onNext();
+    },
+    onError: (err: Error) => {
+      setError(err.message || "Failed to start installation");
     },
   });
 
@@ -174,14 +202,20 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext }) => 
 
             {error && (
               <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
-                Please fix the errors in the form above before proceeding. {error}
+                {submitError?.errors && submitError.errors.length > 0 
+                  ? "Please fix the errors in the form above before proceeding."
+                  : error
+                }
               </div>
             )}
           </>
         )}
       </Card>
 
-      <div className="flex justify-end">
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
+          Back
+        </Button>
         <Button onClick={() => submitConfig(config)} icon={<ChevronRight className="w-5 h-5" />}>
           Next: Start Installation
         </Button>

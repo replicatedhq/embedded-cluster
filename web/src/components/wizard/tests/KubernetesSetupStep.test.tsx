@@ -23,6 +23,11 @@ const server = setupServer(
   // Mock config submission endpoint
   http.post("*/api/kubernetes/install/installation/configure", () => {
     return HttpResponse.json({ success: true });
+  }),
+
+  // Mock infrastructure setup endpoint
+  http.post("*/api/kubernetes/install/infra/setup", () => {
+    return HttpResponse.json({ success: true });
   })
 );
 
@@ -118,7 +123,60 @@ describe("KubernetesSetupStep", () => {
     fireEvent.click(nextButton);
 
     // Verify error message is displayed (using partial match since component shows additional error details)
-    await screen.findByText(/Please fix the errors in the form above before proceeding/);
+    await screen.findByText("Invalid configuration");
+
+    // Verify onNext was not called
+    expect(mockOnNext).not.toHaveBeenCalled();
+  });
+
+  it("handles field-specific errors gracefully", async () => {
+    server.use(
+      // Mock config submission endpoint to return field-specific errors
+      http.post("*/api/kubernetes/install/installation/configure", () => {
+        return new HttpResponse(JSON.stringify({ 
+          message: "Validation failed",
+          errors: [
+            { field: "adminConsolePort", message: "Admin Console Port must be between 1024 and 65535" },
+            { field: "httpProxy", message: "HTTP Proxy must be a valid URL" }
+          ]
+        }), { status: 400 });
+      })
+    );
+
+    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: "kubernetes",
+        contextValues: {
+          kubernetesConfigContext: {
+            config: MOCK_KUBERNETES_CONFIG,
+            updateConfig: vi.fn(),
+            resetConfig: vi.fn(),
+          },
+        },
+      },
+    });
+
+    // Wait for loading to complete
+    await screen.findByText("Loading configuration...");
+    await screen.findByText("Configure the installation settings.");
+
+    // Fill in required form values
+    const adminPortInput = screen.getByLabelText(/Admin Console Port/);
+
+    // Use fireEvent to simulate user input
+    fireEvent.change(adminPortInput, { target: { value: "30000" } });
+
+    // Submit form
+    const nextButton = screen.getByText("Next: Start Installation");
+    fireEvent.click(nextButton);
+
+    // Verify generic error message is displayed for field errors
+    await screen.findByText("Please fix the errors in the form above before proceeding.");
+
+    // Verify field-specific error messages are displayed
+    await screen.findByText("Admin Console Port must be between 1024 and 65535");
+    await screen.findByText("HTTP Proxy must be a valid URL");
 
     // Verify onNext was not called
     expect(mockOnNext).not.toHaveBeenCalled();

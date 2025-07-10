@@ -159,7 +159,7 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		types.LinuxInfraSetupRequest	true	"Infra Setup Request"
-//	@Success		200		{object}	types.LinuxInfra
+//	@Success		200		{object}	types.Infra
 //	@Router			/linux/install/infra/setup [post]
 func (h *Handler) PostSetupInfra(w http.ResponseWriter, r *http.Request) {
 	var req types.LinuxInfraSetupRequest
@@ -185,7 +185,7 @@ func (h *Handler) PostSetupInfra(w http.ResponseWriter, r *http.Request) {
 //	@Tags			linux-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.LinuxInfra
+//	@Success		200	{object}	types.Infra
 //	@Router			/linux/install/infra/status [get]
 func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	infra, err := h.installController.GetInfra(r.Context())
@@ -196,4 +196,77 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSON(w, r, http.StatusOK, infra, h.logger)
+}
+
+// GetAppConfig handler to get the app config
+//
+//	@ID				getLinuxInstallAppConfig
+//	@Summary		Get the app config
+//	@Description	get the app config
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.AppConfig
+//	@Router			/linux/install/app/config [get]
+func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
+	appConfig, err := h.installController.GetAppConfig(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get app config")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	utils.JSON(w, r, http.StatusOK, types.AppConfig(appConfig.Spec), h.logger)
+}
+
+// PostSetAppConfigValues handler to set the app config values
+//
+//	@ID				postLinuxInstallSetAppConfigValues
+//	@Summary		Set the app config values
+//	@Description	Set the app config values
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		types.SetAppConfigValuesRequest	true	"Set App Config Values Request"
+//	@Success		200		{object}	types.AppConfig
+//	@Router			/linux/install/app/config/values [post]
+func (h *Handler) PostSetAppConfigValues(w http.ResponseWriter, r *http.Request) {
+	var req types.SetAppConfigValuesRequest
+	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
+		return
+	}
+
+	err := h.installController.SetAppConfigValues(r.Context(), req.Values)
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to set app config values")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetAppConfig(w, r)
+}
+
+// GetAppConfigValues handler to get the app config values
+//
+//	@ID				getLinuxInstallAppConfigValues
+//	@Summary		Get the app config values
+//	@Description	Get the app config values
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.AppConfigValuesResponse
+//	@Router			/linux/install/app/config/values [get]
+func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
+	configValues, err := h.installController.GetAppConfigValues(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get app config values")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	response := types.AppConfigValuesResponse{
+		Values: configValues,
+	}
+	utils.JSON(w, r, http.StatusOK, response, h.logger)
 }
