@@ -51,6 +51,16 @@ const MOCK_APP_CONFIG: AppConfig = {
               title: "Password"
             }
           ]
+        },
+        {
+          name: "info_label",
+          title: "Visit our documentation at https://docs.example.com for more information.",
+          type: "label"
+        },
+        {
+          name: "markdown_label",
+          title: "This is **bold** text and *italic* text with a [link](https://example.com).",
+          type: "label"
         }
       ]
     },
@@ -72,7 +82,12 @@ const MOCK_APP_CONFIG: AppConfig = {
           type: "textarea",
           value: "",
           default: "# Database configuration\nhost: localhost\nport: 5432"
-        }
+        },
+        {
+          name: "db_warning",
+          title: "**Important**: Changing database settings may require application restart. See our guide at https://help.example.com/database-config for details.",
+          type: "label"
+        },
       ]
     }
   ]
@@ -905,6 +920,175 @@ describe.each([
     });
   });
 
+  describe("Label functionality", () => {
+    it("renders label config items correctly", async () => {
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for loading to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+      });
+
+      // Check that label config items are rendered
+      expect(screen.getByTestId("label-info_label")).toBeInTheDocument();
+      expect(screen.getByTestId("label-markdown_label")).toBeInTheDocument();
+    });
+
+    it("renders label content with automatic link detection", async () => {
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for loading to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+      });
+
+      // Check that URL is converted to a clickable link
+      const infoLabel = screen.getByTestId("label-info_label");
+      expect(infoLabel).toBeInTheDocument();
+      
+      // Check that the link is present and has correct attributes
+      const docsLink = screen.getByRole("link", { name: /docs.example.com/ });
+      expect(docsLink).toBeInTheDocument();
+      expect(docsLink).toHaveAttribute("href", "https://docs.example.com");
+      expect(docsLink).toHaveAttribute("target", "_blank");
+    });
+
+    it("renders label content with markdown formatting", async () => {
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for loading to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+      });
+
+      // Wait for label items to be rendered in the active tab
+      await waitFor(() => {
+        expect(screen.getByTestId("label-info_label")).toBeInTheDocument();
+      });
+
+      // Check that markdown is rendered correctly
+      const markdownLabel = screen.getByTestId("label-markdown_label");
+      expect(markdownLabel).toBeInTheDocument();
+      
+      // Check for bold text
+      const boldText = markdownLabel.querySelector("strong");
+      expect(boldText).toBeInTheDocument();
+      expect(boldText).toHaveTextContent("bold");
+      
+      // Check for italic text
+      const italicText = markdownLabel.querySelector("em");
+      expect(italicText).toBeInTheDocument();
+      expect(italicText).toHaveTextContent("italic");
+      
+      // Check for markdown link
+      const markdownLink = screen.getByRole("link", { name: "link" });
+      expect(markdownLink).toBeInTheDocument();
+      expect(markdownLink).toHaveAttribute("href", "https://example.com");
+      expect(markdownLink).toHaveAttribute("target", "_blank");
+    });
+
+    it("renders label content in database tab with markdown and links", async () => {
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for loading to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+      });
+
+      // Switch to database tab
+      fireEvent.click(screen.getByTestId("config-tab-database"));
+
+      // Check that the database warning label is rendered
+      const dbWarningLabel = screen.getByTestId("label-db_warning");
+      expect(dbWarningLabel).toBeInTheDocument();
+      
+      // Check for bold text in the warning
+      const importantText = dbWarningLabel.querySelector("strong");
+      expect(importantText).toBeInTheDocument();
+      expect(importantText).toHaveTextContent("Important");
+      
+      // Check for automatic link detection
+      const helpLink = screen.getByRole("link", { name: /help.example.com/ });
+      expect(helpLink).toBeInTheDocument();
+      expect(helpLink).toHaveAttribute("href", "https://help.example.com/database-config");
+      expect(helpLink).toHaveAttribute("target", "_blank");
+    });
+
+    it("label items do not affect form submission", async () => {
+      let submittedValues: { values: Record<string, string> } | null = null;
+
+      server.use(
+        http.post(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+          const body = await request.json() as { values: Record<string, string> };
+          submittedValues = body;
+          const updatedConfig = createMockConfigWithValues(body.values);
+          return HttpResponse.json(updatedConfig);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for loading to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
+      });
+
+      // Make a change to a non-label field
+      const appNameInput = screen.getByTestId("text-input-app_name");
+      fireEvent.change(appNameInput, { target: { value: "Test App" } });
+
+      // Submit form
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for the mutation to complete
+      await waitFor(
+        () => {
+          expect(mockOnNext).toHaveBeenCalled();
+        },
+        { timeout: 3000 }
+      );
+
+      // Verify only the changed input field was submitted (not labels)
+      expect(submittedValues).not.toBeNull();
+      expect(submittedValues!).toMatchObject({
+        values: {
+          app_name: "Test App"
+        }
+      });
+      
+      // Verify label fields are not included in submission
+      expect(submittedValues!.values).not.toHaveProperty("info_label");
+      expect(submittedValues!.values).not.toHaveProperty("markdown_label");
+      expect(submittedValues!.values).not.toHaveProperty("db_warning");
+    });
+  });
+describe("Initial values", () => {
   it("initializes changed values from retrieved config values and only submits retrieved values plus changes", async () => {
     // Mock the config values endpoint to return only a subset of values
     const retrievedConfigValues = {
@@ -974,5 +1158,6 @@ describe.each([
     
     // Explicitly verify enable_feature is not submitted
     expect(submittedValues!.values).not.toHaveProperty("enable_feature");
+    });
   });
 });

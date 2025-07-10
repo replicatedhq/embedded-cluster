@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -238,6 +240,27 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             </div>
           );
         }
+        return null;
+
+      case 'label':
+        return (
+          <div className="mb-4" data-testid={`label-${item.name}`}>
+            <div className="text-sm font-medium text-gray-700 break-words">
+              <Markdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  a: ({ ...props }) => (
+                    <a {...props} target="_blank" rel="noopener noreferrer" />
+                  ),
+                }}
+              >
+                {item.title}
+              </Markdown>
+            </div>
+          </div>
+        );
+
+      default:
         return null;
     }
   };
