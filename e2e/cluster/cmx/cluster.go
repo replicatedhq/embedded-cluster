@@ -158,7 +158,7 @@ func discoverPrivateIP(node Node) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("find private ip starting with 10.")
+	return "", fmt.Errorf("failed to find private ip starting with 10 dot")
 }
 
 func ensureAssetsDir(node Node) error {

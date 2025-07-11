@@ -136,7 +136,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			name: "should not update configmap when content is the same",
 			initClients: func(t *testing.T) (client.Client, metadata.Interface) {
 				cm := newConfigMap("same-ca-content")
-				cm.ObjectMeta.Annotations["some-old-annotation"] = "some-old-value" // this should stay the same
+				cm.Annotations["some-old-annotation"] = "some-old-value" // this should stay the same
 				kcli := clientfake.NewClientBuilder().WithObjects(cm).Build()
 				mcli := metadatafake.NewSimpleMetadataClient(metascheme,
 					&metav1.PartialObjectMetadata{TypeMeta: cm.TypeMeta, ObjectMeta: cm.ObjectMeta})

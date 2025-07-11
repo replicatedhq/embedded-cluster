@@ -45,7 +45,7 @@ func TestInstallationReconciler_constructCreateCMCommand(t *testing.T) {
 
 	require.Len(t, job.Spec.Template.Spec.Volumes, 2)
 	require.Equal(t, "host", job.Spec.Template.Spec.Volumes[0].Name)
-	require.Equal(t, "/var/lib/embedded-cluster", job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path)
+	require.Equal(t, "/var/lib/embedded-cluster", job.Spec.Template.Spec.Volumes[0].HostPath.Path)
 	require.Len(t, job.Spec.Template.Spec.Containers, 1)
 	require.Len(t, job.Spec.Template.Spec.Containers[0].Command, 4)
 	kctlCmd := job.Spec.Template.Spec.Containers[0].Command[3]

@@ -540,7 +540,7 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kuberne
 		return fmt.Errorf("failed to connect to kubernetes api server: %w", err)
 	}
 
-	flags.installConfig.kubernetesRESTClientGetter = flags.kubernetesEnvSettings.RESTClientGetter()
+	flags.kubernetesRESTClientGetter = flags.kubernetesEnvSettings.RESTClientGetter()
 
 	return nil
 }
@@ -651,7 +651,7 @@ func runManagerExperienceInstall(
 				AllowIgnoreHostPreflights: flags.ignoreHostPreflights,
 			},
 			KubernetesConfig: apitypes.KubernetesConfig{
-				RESTClientGetter: flags.installConfig.kubernetesRESTClientGetter,
+				RESTClientGetter: flags.kubernetesRESTClientGetter,
 				Installation:     ki,
 			},
 		},

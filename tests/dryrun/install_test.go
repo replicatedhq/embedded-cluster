@@ -58,7 +58,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, 30000, in.Spec.RuntimeConfig.AdminConsole.Port)
 	assert.Equal(t, "/var/lib/embedded-cluster", in.Spec.RuntimeConfig.DataDir)
 	assert.Equal(t, 50000, in.Spec.RuntimeConfig.LocalArtifactMirror.Port)
-	assert.Equal(t, "ec-install", in.ObjectMeta.Labels["replicated.com/disaster-recovery"])
+	assert.Equal(t, "ec-install", in.Labels["replicated.com/disaster-recovery"])
 
 	// --- validate addons --- //
 
