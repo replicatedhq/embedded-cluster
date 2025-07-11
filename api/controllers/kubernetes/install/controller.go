@@ -18,6 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
@@ -170,6 +171,11 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		}
 	}
 
+	// If none is provided, use the default env settings from helm to create a RESTClientGetter
+	if controller.restClientGetter == nil {
+		controller.restClientGetter = helmcli.New().RESTClientGetter()
+	}
+
 	if controller.installationManager == nil {
 		controller.installationManager = installation.NewInstallationManager(
 			installation.WithLogger(controller.logger),
@@ -178,7 +184,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	}
 
 	if controller.infraManager == nil {
-		controller.infraManager = infra.NewInfraManager(
+		infraManager, err := infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
 			infra.WithInfraStore(controller.store.LinuxInfraStore()),
 			infra.WithRESTClientGetter(controller.restClientGetter),
@@ -189,6 +195,10 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 		)
+		if err != nil {
+			return nil, fmt.Errorf("create infra manager: %w", err)
+		}
+		controller.infraManager = infraManager
 	}
 
 	if controller.appConfigManager == nil {

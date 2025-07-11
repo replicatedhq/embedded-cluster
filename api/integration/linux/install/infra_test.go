@@ -155,7 +155,6 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			k0sMock.On("WaitForK0s").Return(nil),
 			hostutilsMock.On("AddInsecureRegistry", mock.Anything).Return(nil),
 			helmMock.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil), // 4 addons
-			helmMock.On("Close").Return(nil),
 		)
 
 		// Create an install controller with the mocked managers
