@@ -101,12 +101,6 @@ func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConf
 	}
 
 	_, err := m.installK0s(ctx, rc)
-	// make sure we cleanup helm's tmp files if we have an helm client
-	defer func() {
-		if m.hcli != nil {
-			m.hcli.Close()
-		}
-	}()
 	if err != nil {
 		return fmt.Errorf("install k0s: %w", err)
 	}

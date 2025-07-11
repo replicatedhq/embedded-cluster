@@ -75,8 +75,6 @@ func (m *infraManager) install(ctx context.Context, ki kubernetesinstallation.In
 		return fmt.Errorf("init components: %w", err)
 	}
 
-	defer m.hcli.Close()
-
 	_, err := m.recordInstallation(ctx, m.kcli, license, ki)
 	if err != nil {
 		return fmt.Errorf("record installation: %w", err)
