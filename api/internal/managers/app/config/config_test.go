@@ -1603,6 +1603,96 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "password fields use ValuePlaintext",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "auth-group",
+							Title: "Authentication Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "username",
+									Title:   "Username",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "admin"},
+									Default: multitype.BoolOrString{StrVal: "user"},
+									When:    "true",
+								},
+								{
+									Name:    "password",
+									Title:   "Password",
+									Type:    "password",
+									Value:   multitype.BoolOrString{StrVal: "schema-password"},
+									Default: multitype.BoolOrString{StrVal: "default-password"},
+									When:    "true",
+								},
+								{
+									Name:    "api-key",
+									Title:   "API Key",
+									Type:    "password",
+									Value:   multitype.BoolOrString{StrVal: "schema-api-key"},
+									Default: multitype.BoolOrString{StrVal: "default-api-key"},
+									When:    "true",
+								},
+								{
+									Name:    "secret-token",
+									Title:   "Secret Token",
+									Type:    "password",
+									Value:   multitype.BoolOrString{StrVal: "schema-token"},
+									Default: multitype.BoolOrString{StrVal: "default-token"},
+									When:    "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := map[string]string{
+					"username": "stored-username",
+					"password": "stored-password",
+					"api-key":  "stored-api-key",
+					// secret-token intentionally omitted to test fallback behavior
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"username": {
+							Value:   "stored-username", // text field uses stored value
+							Default: "user",
+						},
+						"password": {
+							Value:          "",
+							ValuePlaintext: "stored-password", // password with stored value: uses stored value
+							Default:        "default-password",
+						},
+						"api-key": {
+							Value:          "",
+							ValuePlaintext: "stored-api-key", // password with stored value: uses stored value
+							Default:        "default-api-key",
+						},
+						"secret-token": {
+							Value:          "",
+							ValuePlaintext: "schema-token", // password without stored value: uses value from schema
+							Default:        "default-token",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1617,7 +1707,7 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 			}
 
 			// Call GetKotsadmConfigValues
-			result, err := manager.GetKotsadmConfigValues(tt.config)
+			result, err := manager.GetKotsadmConfigValues(t.Context(), tt.config)
 
 			// Verify expectations
 			if tt.wantErr {

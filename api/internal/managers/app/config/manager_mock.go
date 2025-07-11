@@ -27,8 +27,8 @@ func (m *MockAppConfigManager) PatchConfigValues(ctx context.Context, config kot
 }
 
 // GetConfigValues mocks the GetConfigValues method
-func (m *MockAppConfigManager) GetConfigValues(ctx context.Context, appConfig kotsv1beta1.Config, maskPasswords bool) (map[string]string, error) {
-	args := m.Called(ctx, appConfig, maskPasswords)
+func (m *MockAppConfigManager) GetConfigValues(ctx context.Context, config kotsv1beta1.Config, maskPasswords bool) (map[string]string, error) {
+	args := m.Called(ctx, config, maskPasswords)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -36,7 +36,7 @@ func (m *MockAppConfigManager) GetConfigValues(ctx context.Context, appConfig ko
 }
 
 // GetKotsadmConfigValues mocks the GetKotsadmConfigValues method
-func (m *MockAppConfigManager) GetKotsadmConfigValues(config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error) {
-	args := m.Called(config)
+func (m *MockAppConfigManager) GetKotsadmConfigValues(ctx context.Context, config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error) {
+	args := m.Called(ctx, config)
 	return args.Get(0).(kotsv1beta1.ConfigValues), args.Error(1)
 }
