@@ -28,7 +28,6 @@ const Radio: React.FC<RadioProps> = ({
    labelClassName = '',
    id,
    label,
-   dataTestId,
    helpText,
 }) => {
   const { settings } = useSettings();
@@ -51,7 +50,7 @@ const Radio: React.FC<RadioProps> = ({
               onChange={onChange}
               disabled={disabled}
               className={`h-4 w-4 focus:ring-offset-2 border-gray-300 ${className}`}
-              data-testid={dataTestId ? `${dataTestId}-${option.name}` : undefined}
+              data-testid={`radio-input-${option.name}`}
               style={{
                 color: themeColor,
                 '--tw-ring-color': themeColor,

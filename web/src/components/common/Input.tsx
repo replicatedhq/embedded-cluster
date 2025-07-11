@@ -35,7 +35,6 @@ const Input: React.FC<InputProps> = ({
   labelClassName = '',
   id,
   label,
-  dataTestId,
   helpText,
 }) => {
   const { settings } = useSettings();
@@ -71,7 +70,7 @@ const Input: React.FC<InputProps> = ({
             '--tw-ring-color': themeColor,
             '--tw-ring-offset-color': themeColor,
           } as React.CSSProperties}
-          data-testid={dataTestId}
+          data-testid={`text-input-${id}`}
         />
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}

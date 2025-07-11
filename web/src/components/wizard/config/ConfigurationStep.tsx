@@ -167,41 +167,36 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     switch (item.type) {
       case 'text':
         return (
-            <Input
-              value={getDisplayValue(item)}
-              onChange={handleInputChange}
-              dataTestId={`text-input-${item.name}`}
-            />
+          <Input
+            value={getDisplayValue(item)}
+            onChange={handleInputChange}
+          />
         );
 
       case 'textarea':
         return (
-            <Textarea
-              value={getDisplayValue(item)}
-              onChange={handleInputChange}
-              dataTestId={`textarea-input-${item.name}`}
-            />
-
+          <Textarea
+            value={getDisplayValue(item)}
+            onChange={handleInputChange}
+          />
         );
 
       case 'bool':
         return (
-            <Checkbox
-              checked={getEffectiveValue(item) === '1'}
-              onChange={handleCheckboxChange}
-              dataTestId={`bool-input-${item.name}`}
-            />
+          <Checkbox
+            checked={getEffectiveValue(item) === '1'}
+            onChange={handleCheckboxChange}
+          />
         );
 
       case 'radio':
         if (item.items) {
           return (
-              <Radio
-                value={getEffectiveValue(item)}
-                options={item.items}
-                onChange={e => handleRadioChange(item.name, e)}
-                dataTestId={`radio-input-${item.name}`}
-              />
+            <Radio
+              value={getEffectiveValue(item)}
+              options={item.items}
+              onChange={e => handleRadioChange(item.name, e)}
+            />
           );
         }
         return null;
@@ -219,19 +214,19 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         {group.description && (
           <p className="text-gray-600 mb-4">{group.description}</p>
         )}
-          {group.items.map(item => {
-            const renderedItem = renderConfigItem(item);
-            if (!renderedItem) return null;
-            return (
-              <ConfigItem
-                id={item.name}
-                label={item.title}
-                helpText={item.help_text}
-              >
-                {renderedItem}
-              </ConfigItem>
-            );
-          })}
+        {group.items.map(item => {
+          const renderedItem = renderConfigItem(item);
+          if (!renderedItem) return null;
+          return (
+            <ConfigItem
+              id={item.name}
+              label={item.title}
+              helpText={item.help_text}
+            >
+              {renderedItem}
+            </ConfigItem>
+          );
+        })}
       </div>
     );
   };

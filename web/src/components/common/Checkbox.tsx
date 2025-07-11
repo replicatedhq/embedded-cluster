@@ -25,7 +25,6 @@ const Checkbox: React.FC<CheckboxProps> = ({
   labelClassName = '',
   id,
   label,
-  dataTestId,
   helpText,
 }) => {
   const { settings } = useSettings();
@@ -41,7 +40,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
           onChange={onChange}
           disabled={disabled}
           className={`h-4 w-4 focus:ring-offset-2 border-gray-300 rounded ${className}`}
-          data-testid={dataTestId}
+          data-testid={`bool-input-${id}`}
           style={{
             color: themeColor,
             '--tw-ring-color': themeColor,

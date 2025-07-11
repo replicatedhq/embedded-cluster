@@ -31,7 +31,6 @@ const Textarea = ({
   labelClassName = '',
   id,
   label,
-  dataTestId,
   helpText,
 }: TextareaProps) => {
   const { settings } = useSettings();
@@ -60,7 +59,7 @@ const Textarea = ({
           '--tw-ring-color': themeColor,
           '--tw-ring-offset-color': themeColor,
         } as CSSProperties}
-        data-testid={dataTestId}
+        data-testid={`textarea-input-${id}`}
       />
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
       {helpText && !error && <p className="mt-1 text-sm text-gray-500">{helpText}</p>}
