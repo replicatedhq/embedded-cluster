@@ -1,15 +1,15 @@
-import React, {useState} from "react";
+import React, { useState } from "react";
 import Card from "../../common/Card";
 import Button from "../../common/Button";
 import { useKubernetesConfig } from "../../../contexts/KubernetesConfigContext";
-import { useBranding } from "../../../contexts/BrandingContext";
+import { useInitialState } from "../../../contexts/InitialStateContext";
 import { useSettings } from "../../../contexts/SettingsContext";
 import { CheckCircle, ClipboardCheck, Copy, Terminal } from "lucide-react";
 
 const KubernetesCompletionStep: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const { config } = useKubernetesConfig();
-  const { title } = useBranding();
+  const { title } = useInitialState();
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
 

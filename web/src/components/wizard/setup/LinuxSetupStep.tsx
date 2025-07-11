@@ -3,7 +3,7 @@ import Input from "../../common/Input";
 import Select from "../../common/Select";
 import Button from "../../common/Button";
 import Card from "../../common/Card";
-import { useBranding } from "../../../contexts/BrandingContext";
+import { useInitialState } from "../../../contexts/InitialStateContext";
 import { useLinuxConfig } from "../../../contexts/LinuxConfigContext";
 import { useWizard } from "../../../contexts/WizardModeContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -19,17 +19,17 @@ import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
  * - Error formatting: formatErrorMessage("adminConsolePort invalid") -> "Admin Console Port invalid"
  */
 const fieldNames = {
-   adminConsolePort: "Admin Console Port",
-   dataDirectory: "Data Directory",
-   localArtifactMirrorPort: "Local Artifact Mirror Port",
-   httpProxy: "HTTP Proxy",
-   httpsProxy: "HTTPS Proxy",
-   noProxy: "Proxy Bypass List",
-   networkInterface: "Network Interface",
-   podCidr: "Pod CIDR",
-   serviceCidr: "Service CIDR",
-   globalCidr: "Reserved Network Range (CIDR)",
-   cidr: "CIDR",
+  adminConsolePort: "Admin Console Port",
+  dataDirectory: "Data Directory",
+  localArtifactMirrorPort: "Local Artifact Mirror Port",
+  httpProxy: "HTTP Proxy",
+  httpsProxy: "HTTPS Proxy",
+  noProxy: "Proxy Bypass List",
+  networkInterface: "Network Interface",
+  podCidr: "Pod CIDR",
+  serviceCidr: "Service CIDR",
+  globalCidr: "Reserved Network Range (CIDR)",
+  cidr: "CIDR",
 }
 
 interface LinuxSetupStepProps {
@@ -49,7 +49,7 @@ interface ConfigError extends Error {
 const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
   const { config, updateConfig } = useLinuxConfig();
   const { text } = useWizard();
-  const { title } = useBranding();
+  const { title } = useInitialState();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { token } = useAuth();
@@ -269,9 +269,9 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                     options={[
                       ...(availableNetworkInterfaces.length > 0
                         ? availableNetworkInterfaces.map((iface: string) => ({
-                            value: iface,
-                            label: iface,
-                          }))
+                          value: iface,
+                          label: iface,
+                        }))
                         : []),
                     ]}
                     helpText={`Network interface to use for ${title}`}
@@ -296,7 +296,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
 
             {error && (
               <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
-                {submitError?.errors && submitError.errors.length > 0 
+                {submitError?.errors && submitError.errors.length > 0
                   ? "Please fix the errors in the form above before proceeding."
                   : error
                 }
@@ -326,13 +326,13 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
  * @returns The formatted error message with replaced field names
  */
 export function formatErrorMessage(message: string) {
-   let finalMsg = message
-   for (const [field, fieldName] of Object.entries(fieldNames)) {
-      // Case-insensitive regex that matches whole words only
-      // Example: "podCidr", "PodCidr", "PODCIDR" all become "Pod CIDR"
-      finalMsg = finalMsg.replace(new RegExp(`\\b${field}\\b`, 'gi'), fieldName)
-   }
-   return finalMsg
+  let finalMsg = message
+  for (const [field, fieldName] of Object.entries(fieldNames)) {
+    // Case-insensitive regex that matches whole words only
+    // Example: "podCidr", "PodCidr", "PODCIDR" all become "Pod CIDR"
+    finalMsg = finalMsg.replace(new RegExp(`\\b${field}\\b`, 'gi'), fieldName)
+  }
+  return finalMsg
 }
 
 export default LinuxSetupStep;
