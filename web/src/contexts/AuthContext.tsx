@@ -36,8 +36,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Check token validity on mount and when token changes
   useEffect(() => {
     if (token) {
-      // Make a request to any authenticated endpoint to check token validity
-      fetch("/api/linux/install/installation/config", {
+      // Get the installation target from initial state
+      const initialState = window.__INITIAL_STATE__ || {};
+      const target = initialState.installTarget;
+      
+      // Make a request to the correct target-specific endpoint
+      fetch(`/api/${target}/install/installation/config`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
