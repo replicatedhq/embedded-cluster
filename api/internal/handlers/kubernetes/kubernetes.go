@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
@@ -58,6 +57,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 			install.WithMetricsReporter(h.metricsReporter),
 			install.WithRESTClientGetter(h.cfg.RESTClientGetter),
 			install.WithReleaseData(h.cfg.ReleaseData),
+			install.WithConfigValues(h.cfg.ConfigValues),
 			install.WithEndUserConfig(h.cfg.EndUserConfig),
 			install.WithPassword(h.cfg.Password),
 			install.WithInstallation(h.cfg.KubernetesConfig.Installation),
@@ -66,18 +66,6 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 			return nil, fmt.Errorf("new install controller: %w", err)
 		}
 		h.installController = installController
-	}
-
-	// set config values from the CLI flag if provided
-	if h.cfg.ConfigValues != nil {
-		values := make(map[string]string)
-		for key, value := range h.cfg.ConfigValues.Spec.Values {
-			values[key] = value.Value
-		}
-		err := h.installController.SetAppConfigValues(context.TODO(), values)
-		if err != nil {
-			return nil, fmt.Errorf("set app config values: %w", err)
-		}
 	}
 
 	return h, nil

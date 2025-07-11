@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
@@ -56,6 +57,7 @@ type InstallController struct {
 	tlsConfig                 types.TLSConfig
 	license                   []byte
 	airgapBundle              string
+	configValues              *kotsv1beta1.ConfigValues
 	endUserConfig             *ecv1beta1.Config
 	clusterID                 string
 	store                     store.Store
@@ -128,6 +130,12 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
+func WithConfigValues(configValues *kotsv1beta1.ConfigValues) InstallControllerOption {
+	return func(c *InstallController) {
+		c.configValues = configValues
+	}
+}
+
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InstallControllerOption {
 	return func(c *InstallController) {
 		c.endUserConfig = endUserConfig
@@ -191,6 +199,17 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 
 	for _, opt := range opts {
 		opt(controller)
+	}
+
+	if controller.configValues != nil {
+		values := make(map[string]string)
+		for key, value := range controller.configValues.Spec.Values {
+			values[key] = value.Value
+		}
+		err := controller.store.AppConfigStore().SetConfigValues(values)
+		if err != nil {
+			return nil, fmt.Errorf("set app config values: %w", err)
+		}
 	}
 
 	if controller.stateMachine == nil {
