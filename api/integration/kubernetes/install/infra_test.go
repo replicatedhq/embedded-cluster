@@ -88,7 +88,6 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 
 		mock.InOrder(
 			helmMock.On("Install", mock.Anything, mock.Anything).Times(1).Return(nil, nil), // 1 addon
-			helmMock.On("Close").Return(nil),
 		)
 
 		// Create an install controller with the mocked managers
@@ -277,7 +276,6 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 
 		mock.InOrder(
 			helmMock.On("Install", mock.Anything, mock.Anything).Times(1).Return(nil, assert.AnError), // 1 addon
-			helmMock.On("Close").Return(nil),
 		)
 
 		// Create an install controller with the mocked managers
