@@ -633,6 +633,7 @@ func runManagerExperienceInstall(
 
 	var configValues map[string]string
 	if flags.configValues != "" {
+		configValues = make(map[string]string)
 		kotsConfigValues, err := helpers.ParseConfigValues(flags.configValues)
 		if err != nil {
 			return fmt.Errorf("parse config values file: %w", err)
