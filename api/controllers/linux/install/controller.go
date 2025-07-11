@@ -57,7 +57,7 @@ type InstallController struct {
 	tlsConfig                 types.TLSConfig
 	license                   []byte
 	airgapBundle              string
-	configValues              *kotsv1beta1.ConfigValues
+	configValues              map[string]string
 	endUserConfig             *ecv1beta1.Config
 	clusterID                 string
 	store                     store.Store
@@ -130,7 +130,7 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
-func WithConfigValues(configValues *kotsv1beta1.ConfigValues) InstallControllerOption {
+func WithConfigValues(configValues map[string]string) InstallControllerOption {
 	return func(c *InstallController) {
 		c.configValues = configValues
 	}
@@ -202,11 +202,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	}
 
 	if controller.configValues != nil {
-		values := make(map[string]string)
-		for key, value := range controller.configValues.Spec.Values {
-			values[key] = value.Value
-		}
-		err := controller.store.AppConfigStore().SetConfigValues(values)
+		err := controller.store.AppConfigStore().SetConfigValues(controller.configValues)
 		if err != nil {
 			return nil, fmt.Errorf("set app config values: %w", err)
 		}

@@ -3,7 +3,6 @@ package infra
 import (
 	"context"
 	"fmt"
-	"os"
 	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
@@ -179,23 +178,4 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, ki kube
 	// TODO: no kots app install for now
 
 	return opts
-}
-
-func (m *infraManager) createConfigValuesFile(configValues kotsv1beta1.ConfigValues) (string, error) {
-	// Use Kubernetes-specific YAML serialization to properly handle TypeMeta and ObjectMeta
-	data, err := kyaml.Marshal(configValues)
-	if err != nil {
-		return "", fmt.Errorf("marshaling config values: %w", err)
-	}
-
-	configValuesFile, err := os.CreateTemp("", "config-values*.yaml")
-	if err != nil {
-		return "", fmt.Errorf("unable to create temp file: %w", err)
-	}
-
-	if _, err := configValuesFile.Write(data); err != nil {
-		return "", fmt.Errorf("unable to write config values to temp file: %w", err)
-	}
-
-	return configValuesFile.Name(), nil
 }

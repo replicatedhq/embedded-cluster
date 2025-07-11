@@ -312,6 +312,7 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 		ServiceCIDR:             rc.ServiceCIDR(),
 	}
 
+	// TODO: move creation of the KotsInstaller to the AppConfigManager, rename to AppInstallManager
 	opts.KotsInstaller = func() error {
 		installOpts := kotscli.InstallOptions{
 			RuntimeConfig:         rc,
