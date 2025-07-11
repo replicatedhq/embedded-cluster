@@ -33,10 +33,8 @@ func TestK0sClusterConfigTo129Compat(t *testing.T) {
 										Version:   "1.0.0",
 										Values:    "values",
 										TargetNS:  "targetns",
-										Timeout: k0sv1beta1.BackwardCompatibleDuration{
-											Duration: time.Minute,
-										},
-										Order: 1,
+										Timeout:   time.Minute, // NOTE: this is not needed for 1.29 compat
+										Order:     1,
 									},
 								},
 							},
