@@ -1287,6 +1287,67 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "empty config values are not overridden by config value",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "item-with-empty-store",
+									Title:   "Item with Empty Store",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "config-value"},
+									Default: multitype.BoolOrString{StrVal: "config-default"},
+									When:    "true",
+								},
+								{
+									Name:    "item-with-non-empty-store",
+									Title:   "Item with Non-Empty Store",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "config-value-2"},
+									Default: multitype.BoolOrString{StrVal: "config-default-2"},
+									When:    "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := map[string]string{
+					"item-with-empty-store":     "",
+					"item-with-non-empty-store": "store-value",
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"item-with-empty-store": {
+							Value:   "",
+							Default: "config-default",
+						},
+						"item-with-non-empty-store": {
+							Value:   "store-value",
+							Default: "config-default-2",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
