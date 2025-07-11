@@ -19,7 +19,7 @@ const LogViewer: React.FC<LogViewerProps> = ({
   const [isAtBottom, setIsAtBottom] = useState(true);
 
   // Check if user is at bottom of logs
-  const handleScroll = () => {
+  const handleLogContainerScroll = () => {
     if (!logContainerRef.current) return;
     
     const { scrollTop, scrollHeight, clientHeight } = logContainerRef.current;
@@ -51,7 +51,7 @@ const LogViewer: React.FC<LogViewerProps> = ({
       {isExpanded && (
         <div 
           ref={logContainerRef}
-          onScroll={handleScroll}
+          onScroll={handleLogContainerScroll}
           className="bg-gray-900 text-gray-200 rounded-md p-4 h-48 overflow-y-auto font-mono text-xs mt-2"
           data-testid="log-viewer-content"
         >
