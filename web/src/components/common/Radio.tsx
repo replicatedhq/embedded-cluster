@@ -5,29 +5,29 @@ import { AppConfigChildItem } from '../../types';
 interface RadioProps {
   id: string;
   label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  options: AppConfigChildItem[];
-  disabled?: boolean;
-  error?: string;
   helpText?: string;
+  error?: string;
+  required?: boolean;
+  value: string;
+  options: AppConfigChildItem[];
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
   className?: string;
   labelClassName?: string;
-  dataTestId?: string;
 }
 
 const Radio: React.FC<RadioProps> = ({
   id,
   label,
-  value,
-  onChange,
-  options,
-  disabled = false,
-  error,
   helpText,
+  error,
+  required,
+  value,
+  options,
+  onChange,
+  disabled = false,
   className = '',
   labelClassName = '',
-  dataTestId,
 }) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -36,6 +36,7 @@ const Radio: React.FC<RadioProps> = ({
     <div className="mb-4">
       <label className={`block text-sm font-medium text-gray-700 mb-2 ${labelClassName}`}>
         {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       <div className="space-y-2">
         {options.map(option => (
@@ -49,10 +50,11 @@ const Radio: React.FC<RadioProps> = ({
               onChange={onChange}
               disabled={disabled}
               className={`h-4 w-4 focus:ring-offset-2 border-gray-300 ${className}`}
-              data-testid={dataTestId ? `${dataTestId}-${option.name}` : undefined}
+              data-testid={`radio-input-${option.name}`}
               style={{
                 color: themeColor,
                 '--tw-ring-color': themeColor,
+                accentColor: themeColor,
               } as React.CSSProperties}
             />
             <label htmlFor={option.name} className="ml-3 text-sm text-gray-700">
