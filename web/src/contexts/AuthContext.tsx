@@ -40,7 +40,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const initialState = window.__INITIAL_STATE__ || {};
       const target = initialState.installTarget;
       
-      // Make a request to the correct target-specific endpoint
+      // Make a request to any authenticated endpoint to check token validity
+      // Use the correct target-specific endpoint based on installation target
       fetch(`/api/${target}/install/installation/config`, {
         headers: {
           Authorization: `Bearer ${token}`,
