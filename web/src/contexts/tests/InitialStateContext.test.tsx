@@ -3,6 +3,10 @@ import { render, screen } from "@testing-library/react";
 import { InitialStateContext, useInitialState, InitialStateProvider } from "../InitialStateContext";
 import { InstallationTarget } from "../../types/installation-target";
 
+type CustomWindow = typeof window & {
+  __INITIAL_STATE__?: unknown;
+}
+
 describe("InitialStateContext", () => {
   const originalWindow = global.window;
 
@@ -11,7 +15,7 @@ describe("InitialStateContext", () => {
     global.window = {
       ...originalWindow,
       __INITIAL_STATE__: undefined,
-    } as any;
+    } as CustomWindow;
   });
 
   afterEach(() => {

@@ -33,13 +33,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setTokenState(newToken);
   };
+  // Get the installation target from initial state
+  const { installTarget } = useInitialState()
 
   // Check token validity on mount and when token changes
   useEffect(() => {
     if (token) {
-      // Get the installation target from initial state
-      const { installTarget } = useInitialState()
-
       // Make a request to any authenticated endpoint to check token validity
       // Use the correct target-specific endpoint based on installation target
       fetch(`/api/${installTarget}/install/installation/config`, {
