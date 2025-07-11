@@ -312,30 +312,30 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 		ServiceCIDR:             rc.ServiceCIDR(),
 	}
 
-	if m.kotsInstaller != nil { // used for testing
-		opts.KotsInstaller = m.kotsInstaller
-	} else {
-		opts.KotsInstaller = func() error {
-			installOpts := kotscli.InstallOptions{
-				RuntimeConfig:         rc,
-				AppSlug:               license.Spec.AppSlug,
-				License:               m.license,
-				Namespace:             constants.KotsadmNamespace,
-				ClusterID:             m.clusterID,
-				AirgapBundle:          m.airgapBundle,
-				ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
-				// TODO (@salah): capture kots install logs
-				// Stdout:                stdout,
-			}
-
-			configValuesFile, err := m.createConfigValuesFile(configValues)
-			if err != nil {
-				return fmt.Errorf("creating config values file: %w", err)
-			}
-			installOpts.ConfigValuesFile = configValuesFile
-
-			return kotscli.Install(installOpts)
+	opts.KotsInstaller = func() error {
+		installOpts := kotscli.InstallOptions{
+			RuntimeConfig:         rc,
+			AppSlug:               license.Spec.AppSlug,
+			License:               m.license,
+			Namespace:             constants.KotsadmNamespace,
+			ClusterID:             m.clusterID,
+			AirgapBundle:          m.airgapBundle,
+			ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
+			// TODO (@salah): capture kots install logs
+			// Stdout:                stdout,
 		}
+
+		configValuesFile, err := m.createConfigValuesFile(configValues)
+		if err != nil {
+			return fmt.Errorf("creating config values file: %w", err)
+		}
+		installOpts.ConfigValuesFile = configValuesFile
+
+		if m.kotsCLI != nil {
+			return m.kotsCLI.Install(installOpts)
+		}
+
+		return kotscli.Install(installOpts)
 	}
 
 	return opts

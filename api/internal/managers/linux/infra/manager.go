@@ -7,6 +7,7 @@ import (
 	infrastore "github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
@@ -27,6 +28,11 @@ type InfraManager interface {
 	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues kotsv1beta1.ConfigValues) error
 }
 
+// KotsCLIInstaller is an interface that wraps the Install method from the kotscli package
+type KotsCLIInstaller interface {
+	Install(opts kotscli.InstallOptions) error
+}
+
 // infraManager is an implementation of the InfraManager interface
 type infraManager struct {
 	infraStore    infrastore.Store
@@ -43,7 +49,7 @@ type infraManager struct {
 	mcli          metadata.Interface
 	hcli          helm.Client
 	hostUtils     hostutils.HostUtilsInterface
-	kotsInstaller func() error
+	kotsCLI       KotsCLIInstaller
 	mu            sync.RWMutex
 }
 
@@ -133,9 +139,9 @@ func WithHostUtils(hostUtils hostutils.HostUtilsInterface) InfraManagerOption {
 	}
 }
 
-func WithKotsInstaller(kotsInstaller func() error) InfraManagerOption {
+func WithKotsCLIInstaller(kotsCLI KotsCLIInstaller) InfraManagerOption {
 	return func(c *infraManager) {
-		c.kotsInstaller = kotsInstaller
+		c.kotsCLI = kotsCLI
 	}
 }
 

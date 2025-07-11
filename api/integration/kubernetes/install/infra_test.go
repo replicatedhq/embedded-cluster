@@ -19,6 +19,7 @@ import (
 	kubernetesinfra "github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -71,9 +72,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinfra.WithMetadataClient(fakeMcli),
 			kubernetesinfra.WithHelmClient(helmMock),
 			kubernetesinfra.WithLicense(assets.LicenseData),
-			kubernetesinfra.WithKotsInstaller(func() error {
-				return nil
-			}),
+			kubernetesinfra.WithKotsCLIInstaller(&MockKotsCLIInstaller{}),
 			kubernetesinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -259,9 +258,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinfra.WithMetadataClient(fakeMcli),
 			kubernetesinfra.WithHelmClient(helmMock),
 			kubernetesinfra.WithLicense(assets.LicenseData),
-			kubernetesinfra.WithKotsInstaller(func() error {
-				return nil
-			}),
+			kubernetesinfra.WithKotsCLIInstaller(&MockKotsCLIInstaller{}),
 			kubernetesinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -349,4 +346,11 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		// Verify that the mock expectations were met
 		helmMock.AssertExpectations(t)
 	})
+}
+
+type MockKotsCLIInstaller struct {
+}
+
+func (m *MockKotsCLIInstaller) Install(opts kotscli.InstallOptions) error {
+	return nil
 }

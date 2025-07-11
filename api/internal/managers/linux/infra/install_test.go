@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"os"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
@@ -10,23 +11,23 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	kyaml "sigs.k8s.io/yaml"
 )
 
-// MockKotsInstaller is a mock implementation of the KotsInstaller function
-type MockKotsInstaller struct {
+// MockKotsCLIInstaller is a mock implementation of the KotsCLIInstaller interface
+type MockKotsCLIInstaller struct {
 	mock.Mock
 }
 
-func (m *MockKotsInstaller) Install(opts kotscli.InstallOptions) error {
-	args := m.Called(opts)
-	return args.Error(0)
+func (m *MockKotsCLIInstaller) Install(opts kotscli.InstallOptions) error {
+	return m.Called(opts).Error(0)
 }
 
-func TestInfraManager_GetAddonInstallOpts(t *testing.T) {
+func TestInfraManager_getAddonInstallOpts(t *testing.T) {
 	tests := []struct {
 		name              string
 		configValues      kotsv1beta1.ConfigValues
-		setupMock         func(*MockKotsInstaller)
+		setupMock         func(m *MockKotsCLIInstaller)
 		verifyInstallOpts func(t *testing.T, opts addons.InstallOptions)
 	}{
 		{
@@ -43,9 +44,23 @@ func TestInfraManager_GetAddonInstallOpts(t *testing.T) {
 					},
 				},
 			},
-			setupMock: func(m *MockKotsInstaller) {
+			setupMock: func(m *MockKotsCLIInstaller) {
 				m.On("Install", mock.MatchedBy(func(opts kotscli.InstallOptions) bool {
-					return opts.ConfigValuesFile != ""
+					if opts.ConfigValuesFile == "" {
+						return false
+					}
+					b, err := os.ReadFile(opts.ConfigValuesFile)
+					if err != nil {
+						return false
+					}
+					var cv kotsv1beta1.ConfigValues
+					if err := kyaml.Unmarshal(b, &cv); err != nil {
+						return false
+					}
+					if cv.Spec.Values["key1"].Value != "value1" || cv.Spec.Values["key2"].Value != "value2" {
+						return false
+					}
+					return true
 				})).Return(nil)
 			},
 			verifyInstallOpts: func(t *testing.T, opts addons.InstallOptions) {
@@ -55,95 +70,20 @@ func TestInfraManager_GetAddonInstallOpts(t *testing.T) {
 				assert.NoError(t, err)
 			},
 		},
-		// {
-		// 	name:             "CLI file path takes precedence even with empty string values",
-		// 	configValuesFile: "/path/to/config.yaml",
-		// 	configValues: map[string]string{
-		// 		"key1": "",
-		// 		"key2": "value2",
-		// 	},
-		// 	expectedFileUsed: true,
-		// 	setupMock: func(m *MockKotsInstaller) {
-		// 		m.On("Install", mock.MatchedBy(func(opts kotscli.InstallOptions) bool {
-		// 			return opts.ConfigValuesFile == "/path/to/config.yaml" && len(opts.ConfigValues) == 0
-		// 		})).Return(nil)
-		// 	},
-		// 	verifyInstallOpts: func(t *testing.T, opts addons.InstallOptions) {
-		// 		assert.NotNil(t, opts.KotsInstaller)
-		// 		// Test that the KotsInstaller function works correctly
-		// 		err := opts.KotsInstaller()
-		// 		assert.NoError(t, err)
-		// 	},
-		// },
-		// {
-		// 	name:             "memory store values should be used when no CLI file provided",
-		// 	configValuesFile: "",
-		// 	configValues: map[string]string{
-		// 		"database_host": "localhost",
-		// 		"database_port": "5432",
-		// 	},
-		// 	expectedDirectUsed: true,
-		// 	setupMock: func(m *MockKotsInstaller) {
-		// 		m.On("Install", mock.MatchedBy(func(opts kotscli.InstallOptions) bool {
-		// 			return opts.ConfigValuesFile == "" &&
-		// 				len(opts.ConfigValues) == 2 &&
-		// 				opts.ConfigValues["database_host"] == "localhost" &&
-		// 				opts.ConfigValues["database_port"] == "5432"
-		// 		})).Return(nil)
-		// 	},
-		// 	verifyInstallOpts: func(t *testing.T, opts addons.InstallOptions) {
-		// 		assert.NotNil(t, opts.KotsInstaller)
-		// 		// Test that the KotsInstaller function works correctly
-		// 		err := opts.KotsInstaller()
-		// 		assert.NoError(t, err)
-		// 	},
-		// },
-
-		// // Empty/nil handling tests
-		// {
-		// 	name:               "no config values should not set either option",
-		// 	configValuesFile:   "",
-		// 	configValues:       nil,
-		// 	expectedFileUsed:   false,
-		// 	expectedDirectUsed: false,
-		// 	setupMock: func(m *MockKotsInstaller) {
-		// 		m.On("Install", mock.MatchedBy(func(opts kotscli.InstallOptions) bool {
-		// 			return opts.ConfigValuesFile == "" && len(opts.ConfigValues) == 0
-		// 		})).Return(nil)
-		// 	},
-		// 	verifyInstallOpts: func(t *testing.T, opts addons.InstallOptions) {
-		// 		assert.NotNil(t, opts.KotsInstaller)
-		// 		// Test that the KotsInstaller function works correctly
-		// 		err := opts.KotsInstaller()
-		// 		assert.NoError(t, err)
-		// 	},
-		// },
-		// {
-		// 	name:               "empty config values map should not set config values",
-		// 	configValuesFile:   "",
-		// 	configValues:       map[string]string{},
-		// 	expectedFileUsed:   false,
-		// 	expectedDirectUsed: false,
-		// 	setupMock: func(m *MockKotsInstaller) {
-		// 		m.On("Install", mock.MatchedBy(func(opts kotscli.InstallOptions) bool {
-		// 			return opts.ConfigValuesFile == "" && len(opts.ConfigValues) == 0
-		// 		})).Return(nil)
-		// 	},
-		// 	verifyInstallOpts: func(t *testing.T, opts addons.InstallOptions) {
-		// 		assert.NotNil(t, opts.KotsInstaller)
-		// 		// Test that the KotsInstaller function works correctly
-		// 		err := opts.KotsInstaller()
-		// 		assert.NoError(t, err)
-		// 	},
-		// },
 
 		// Basic options tests
 		{
 			name:         "basic options should be set correctly",
 			configValues: kotsv1beta1.ConfigValues{},
-			setupMock: func(m *MockKotsInstaller) {
+			setupMock: func(m *MockKotsCLIInstaller) {
 				m.On("Install", mock.MatchedBy(func(opts kotscli.InstallOptions) bool {
-					return opts.ConfigValuesFile != ""
+					return opts.AppSlug == "test-app" &&
+						opts.License != nil &&
+						opts.Namespace == "kotsadm" &&
+						opts.ClusterID == "test-cluster" &&
+						opts.AirgapBundle == "" &&
+						opts.ConfigValuesFile != "" &&
+						opts.ReplicatedAppEndpoint == "https://replicated.app"
 				})).Return(nil)
 			},
 			verifyInstallOpts: func(t *testing.T, opts addons.InstallOptions) {
@@ -169,7 +109,7 @@ func TestInfraManager_GetAddonInstallOpts(t *testing.T) {
 			rc := runtimeconfig.New(rcSpec)
 
 			// Create mock installer
-			mockInstaller := &MockKotsInstaller{}
+			mockInstaller := &MockKotsCLIInstaller{}
 			tt.setupMock(mockInstaller)
 
 			// Create test license
@@ -183,17 +123,7 @@ func TestInfraManager_GetAddonInstallOpts(t *testing.T) {
 			manager := NewInfraManager(
 				WithClusterID("test-cluster"),
 				WithLicense([]byte("test-license")),
-				WithKotsInstaller(func() error {
-					// This should follow the same priority logic as the real implementation
-					installOpts := kotscli.InstallOptions{
-						RuntimeConfig: rc,
-						AppSlug:       license.Spec.AppSlug,
-						License:       []byte("test-license"),
-						Namespace:     "kotsadm",
-						ClusterID:     "test-cluster",
-					}
-					return mockInstaller.Install(installOpts)
-				}),
+				WithKotsCLIInstaller(mockInstaller),
 			)
 
 			// Test the getAddonInstallOpts method with configValues passed as parameter
