@@ -163,40 +163,40 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   const renderConfigItem = (item: AppConfigItem) => {
+    const sharedProps = {
+      id: item.name,
+      label: item.title,
+      helpText: item.help_text,
+    }
+
     switch (item.type) {
       case 'text':
         return (
           <Input
-            id={item.name}
-            label={item.title}
+            {...sharedProps}
             value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`text-input-${item.name}`}
-            helpText={item.help_text}
           />
         );
 
       case 'textarea':
         return (
           <Textarea
-            id={item.name}
-            label={item.title}
+            {...sharedProps}
             value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`textarea-input-${item.name}`}
-            helpText={item.help_text}
           />
         );
 
       case 'bool':
         return (
           <Checkbox
-            id={item.name}
-            label={item.title}
+            {...sharedProps}
             checked={getEffectiveValue(item) === '1'}
             onChange={handleCheckboxChange}
             dataTestId={`bool-input-${item.name}`}
-            helpText={item.help_text}
           />
         );
 
@@ -204,13 +204,11 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         if (item.items) {
           return (
             <Radio
-              id={item.name}
-              label={item.title}
+              {...sharedProps}
               value={getEffectiveValue(item)}
-              onChange={e => handleRadioChange(item.name, e)}
               options={item.items}
+              onChange={e => handleRadioChange(item.name, e)}
               dataTestId={`radio-input-${item.name}`}
-              helpText={item.help_text}
             />
           );
         }
