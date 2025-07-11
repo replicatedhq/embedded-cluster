@@ -8,6 +8,30 @@ interface ConfigItemProps {
   children: React.ReactElement;
 }
 
+/**
+ * A wrapper component that provides consistent styling and layout for configuration form elements
+ *
+ * Props:
+ * @param {string} id - Unique identifier for the form element
+ * @param {string} label - Label text to display above the input
+ * @param {string} [dataTestId] - Optional test ID for e2e testing
+ * @param {string} [helpText] - Optional help text displayed below the input
+ * @param {React.ReactElement} children - The form input component to wrap
+ *
+ * The component clones the child element and injects common props (id, label, helpText)
+ * to ensure consistent behavior across different input types.
+ *
+ * Example:
+ * ```tsx
+ * <ConfigItem
+ *   id="hostname"
+ *   label="Hostname"
+ *   helpText="Enter the server hostname"
+ * >
+ *   <Input />
+ * </ConfigItem>
+ * ```
+ */
 const ConfigItem: React.FC<ConfigItemProps> = ({
   id,
   label,
@@ -19,7 +43,7 @@ const ConfigItem: React.FC<ConfigItemProps> = ({
     id,
     label,
     helpText,
-  } as any);
+  } as React.HTMLAttributes<HTMLElement>);
 
   return (
     <div key={id} data-testid={`config-item-${id}`}>
@@ -30,22 +54,5 @@ const ConfigItem: React.FC<ConfigItemProps> = ({
   );
 };
 
-// Helper function to create a ConfigItem-wrapped component
-export const withConfigItem = <P extends object>(
-  WrappedComponent: React.ComponentType<P>
-) => {
-  return React.forwardRef<any, P & Omit<ConfigItemProps, 'children'>>((props, ref) => {
-    const { id, label, dataTestId, helpText, ...wrappedComponentProps } = props;
-    return (
-      <ConfigItem
-        id={id}
-        label={label}
-        helpText={helpText}
-      >
-        <WrappedComponent {...(wrappedComponentProps as P)} ref={ref} />
-      </ConfigItem>
-    );
-  });
-};
 
 export default ConfigItem;
