@@ -25,6 +25,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -48,6 +50,26 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 	metascheme := metadatafake.NewTestScheme()
 	require.NoError(t, metav1.AddMetaToScheme(metascheme))
 	require.NoError(t, corev1.AddToScheme(metascheme))
+
+	appConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "test-group",
+					Title: "Test Group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "test-item",
+							Type:    "text",
+							Title:   "Test Item",
+							Default: multitype.BoolOrString{StrVal: "default"},
+							Value:   multitype.BoolOrString{StrVal: "value"},
+						},
+					},
+				},
+			},
+		},
+	}
 
 	t.Run("Success", func(t *testing.T) {
 		hostname, err := os.Hostname()
@@ -81,6 +103,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
 
@@ -102,6 +125,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
 		require.NoError(t, err)
@@ -267,6 +291,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
 
@@ -288,6 +313,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
 		require.NoError(t, err)
