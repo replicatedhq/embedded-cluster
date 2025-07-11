@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tiendc/go-deepcopy"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestAppConfigManager_GetConfig(t *testing.T) {
@@ -745,6 +746,630 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
+			}
+
+			// Verify mock expectations
+			mockStore.AssertExpectations(t)
+		})
+	}
+}
+
+func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
+	tests := []struct {
+		name      string
+		config    kotsv1beta1.Config
+		setupMock func(*config.MockStore)
+		expected  kotsv1beta1.ConfigValues
+		wantErr   bool
+	}{
+		{
+			name: "successful merge of config defaults and store values",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "enabled-item-1",
+									Title:   "Enabled Item 1",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "default-value-1"},
+									Default: multitype.BoolOrString{StrVal: "default-value-1"},
+									When:    "true",
+								},
+								{
+									Name:    "enabled-item-2",
+									Title:   "Enabled Item 2",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "default-value-2"},
+									Default: multitype.BoolOrString{StrVal: "default-value-2"},
+									When:    "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := map[string]string{
+					"enabled-item-1": "store-value-1",
+					"enabled-item-2": "store-value-2",
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"enabled-item-1": {
+							Value:   "store-value-1",
+							Default: "default-value-1",
+						},
+						"enabled-item-2": {
+							Value:   "store-value-2",
+							Default: "default-value-2",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "disabled groups and items are filtered out",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "enabled-item",
+									Title:   "Enabled Item",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "enabled-default"},
+									Default: multitype.BoolOrString{StrVal: "enabled-default"},
+									When:    "true",
+								},
+							},
+						},
+						{
+							Name:  "disabled-group",
+							Title: "Disabled Group",
+							When:  "false",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "disabled-item",
+									Title:   "Disabled Item",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "disabled-default"},
+									Default: multitype.BoolOrString{StrVal: "disabled-default"},
+									When:    "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := map[string]string{
+					"enabled-item":  "enabled-store",
+					"disabled-item": "disabled-store",
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"enabled-item": {
+							Value:   "enabled-store",
+							Default: "enabled-default",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty when conditions treated as enabled",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "group-with-empty-when",
+							Title: "Group with Empty When",
+							When:  "",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "item-with-empty-when",
+									Title:   "Item with Empty When",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "empty-default"},
+									Default: multitype.BoolOrString{StrVal: "empty-default"},
+									When:    "",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := map[string]string{
+					"item-with-empty-when": "empty-store",
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"item-with-empty-when": {
+							Value:   "empty-store",
+							Default: "empty-default",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty config with no groups",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := map[string]string{
+					"some-store-value": "store-value",
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "all groups disabled",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "disabled-group-1",
+							Title: "Disabled Group 1",
+							When:  "false",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "item-1",
+									Title:   "Item 1",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "default-1"},
+									Default: multitype.BoolOrString{StrVal: "default-1"},
+									When:    "true",
+								},
+							},
+						},
+						{
+							Name:  "disabled-group-2",
+							Title: "Disabled Group 2",
+							When:  "false",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "item-2",
+									Title:   "Item 2",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "default-2"},
+									Default: multitype.BoolOrString{StrVal: "default-2"},
+									When:    "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := map[string]string{
+					"item-1": "store-1",
+					"item-2": "store-2",
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "store error",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "enabled-item",
+									Title:   "Enabled Item",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "default-value"},
+									Default: multitype.BoolOrString{StrVal: "default-value"},
+									When:    "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(nil, errors.New("store error"))
+			},
+			wantErr: true,
+		},
+		{
+			name: "mixed enabled and disabled items in enabled group",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "mixed-group",
+							Title: "Mixed Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "enabled-item",
+									Title:   "Enabled Item",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "enabled-default"},
+									Default: multitype.BoolOrString{StrVal: "enabled-default"},
+									When:    "true",
+								},
+								{
+									Name:    "disabled-item",
+									Title:   "Disabled Item",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "disabled-default"},
+									Default: multitype.BoolOrString{StrVal: "disabled-default"},
+									When:    "false",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := map[string]string{
+					"enabled-item":  "enabled-store",
+					"disabled-item": "disabled-store",
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"enabled-item": {
+							Value:   "enabled-store",
+							Default: "enabled-default",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "items with child items",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "parent-item",
+									Title:   "Parent Item",
+									Type:    "group",
+									Value:   multitype.BoolOrString{StrVal: "parent-default"},
+									Default: multitype.BoolOrString{StrVal: "parent-default"},
+									When:    "true",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:    "child-item-1",
+											Title:   "Child Item 1",
+											Value:   multitype.BoolOrString{StrVal: "child-default-1"},
+											Default: multitype.BoolOrString{StrVal: "child-default-1"},
+										},
+										{
+											Name:    "child-item-2",
+											Title:   "Child Item 2",
+											Value:   multitype.BoolOrString{StrVal: "child-default-2"},
+											Default: multitype.BoolOrString{StrVal: "child-default-2"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := map[string]string{
+					"parent-item":  "parent-store",
+					"child-item-1": "child-store-1",
+					"child-item-2": "child-store-2",
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"parent-item": {
+							Value:   "parent-store",
+							Default: "parent-default",
+						},
+						"child-item-1": {
+							Value:   "child-store-1",
+							Default: "child-default-1",
+						},
+						"child-item-2": {
+							Value:   "child-store-2",
+							Default: "child-default-2",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "store values not in config are ignored",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "enabled-item",
+									Title:   "Enabled Item",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "enabled-default"},
+									Default: multitype.BoolOrString{StrVal: "enabled-default"},
+									When:    "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := map[string]string{
+					"enabled-item":    "enabled-store",
+					"non-config-item": "non-config-value",
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"enabled-item": {
+							Value:   "enabled-store",
+							Default: "enabled-default",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "items without store values use defaults",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "item-with-store",
+									Title:   "Item with Store",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "default-with-store"},
+									Default: multitype.BoolOrString{StrVal: "default-with-store"},
+									When:    "true",
+								},
+								{
+									Name:    "item-without-store",
+									Title:   "Item without Store",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "default-without-store"},
+									Default: multitype.BoolOrString{StrVal: "default-without-store"},
+									When:    "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := map[string]string{
+					"item-with-store": "store-value",
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"item-with-store": {
+							Value:   "store-value",
+							Default: "default-with-store",
+						},
+						"item-without-store": {
+							Value:   "default-without-store",
+							Default: "default-without-store",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty config values are not overridden by config value",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "item-with-empty-store",
+									Title:   "Item with Empty Store",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "config-value"},
+									Default: multitype.BoolOrString{StrVal: "config-default"},
+									When:    "true",
+								},
+								{
+									Name:    "item-with-non-empty-store",
+									Title:   "Item with Non-Empty Store",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "config-value-2"},
+									Default: multitype.BoolOrString{StrVal: "config-default-2"},
+									When:    "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := map[string]string{
+					"item-with-empty-store":     "",
+					"item-with-non-empty-store": "store-value",
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"item-with-empty-store": {
+							Value:   "",
+							Default: "config-default",
+						},
+						"item-with-non-empty-store": {
+							Value:   "store-value",
+							Default: "config-default-2",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create mock store
+			mockStore := &config.MockStore{}
+			tt.setupMock(mockStore)
+
+			// Create manager with mock store
+			manager := &appConfigManager{
+				appConfigStore: mockStore,
+			}
+
+			// Call GetKotsadmConfigValues
+			result, err := manager.GetKotsadmConfigValues(tt.config)
+
+			// Verify expectations
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
 			}
 
 			// Verify mock expectations

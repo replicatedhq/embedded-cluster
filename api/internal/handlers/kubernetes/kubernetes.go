@@ -57,6 +57,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 			install.WithMetricsReporter(h.metricsReporter),
 			install.WithRESTClientGetter(h.cfg.RESTClientGetter),
 			install.WithReleaseData(h.cfg.ReleaseData),
+			install.WithConfigValues(h.cfg.ConfigValues),
 			install.WithEndUserConfig(h.cfg.EndUserConfig),
 			install.WithPassword(h.cfg.Password),
 			install.WithInstallation(h.cfg.KubernetesConfig.Installation),

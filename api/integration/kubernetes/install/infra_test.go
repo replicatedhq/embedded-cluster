@@ -19,11 +19,14 @@ import (
 	kubernetesinfra "github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -48,6 +51,26 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 	require.NoError(t, metav1.AddMetaToScheme(metascheme))
 	require.NoError(t, corev1.AddToScheme(metascheme))
 
+	appConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "test-group",
+					Title: "Test Group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "test-item",
+							Type:    "text",
+							Title:   "Test Item",
+							Default: multitype.BoolOrString{StrVal: "default"},
+							Value:   multitype.BoolOrString{StrVal: "value"},
+						},
+					},
+				},
+			},
+		},
+	}
+
 	t.Run("Success", func(t *testing.T) {
 		hostname, err := os.Hostname()
 		require.NoError(t, err)
@@ -71,9 +94,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinfra.WithMetadataClient(fakeMcli),
 			kubernetesinfra.WithHelmClient(helmMock),
 			kubernetesinfra.WithLicense(assets.LicenseData),
-			kubernetesinfra.WithKotsInstaller(func() error {
-				return nil
-			}),
+			kubernetesinfra.WithKotsCLIInstaller(&MockKotsCLIInstaller{}),
 			kubernetesinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -82,6 +103,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
 		require.NoError(t, err)
@@ -103,6 +125,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
 		require.NoError(t, err)
@@ -259,9 +282,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinfra.WithMetadataClient(fakeMcli),
 			kubernetesinfra.WithHelmClient(helmMock),
 			kubernetesinfra.WithLicense(assets.LicenseData),
-			kubernetesinfra.WithKotsInstaller(func() error {
-				return nil
-			}),
+			kubernetesinfra.WithKotsCLIInstaller(&MockKotsCLIInstaller{}),
 			kubernetesinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -270,6 +291,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
 		require.NoError(t, err)
@@ -291,6 +313,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
 		require.NoError(t, err)
@@ -349,4 +372,11 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		// Verify that the mock expectations were met
 		helmMock.AssertExpectations(t)
 	})
+}
+
+type MockKotsCLIInstaller struct {
+}
+
+func (m *MockKotsCLIInstaller) Install(opts kotscli.InstallOptions) error {
+	return nil
 }

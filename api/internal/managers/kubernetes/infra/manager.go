@@ -9,10 +9,12 @@ import (
 	infrastore "github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/metadata"
@@ -24,7 +26,12 @@ var _ InfraManager = &infraManager{}
 // InfraManager provides methods for managing infrastructure setup
 type InfraManager interface {
 	Get() (types.Infra, error)
-	Install(ctx context.Context, ki kubernetesinstallation.Installation) error
+	Install(ctx context.Context, ki kubernetesinstallation.Installation, configValues kotsv1beta1.ConfigValues) error
+}
+
+// KotsCLIInstaller is an interface that wraps the Install method from the kotscli package
+type KotsCLIInstaller interface {
+	Install(opts kotscli.InstallOptions) error
 }
 
 // infraManager is an implementation of the InfraManager interface
@@ -34,7 +41,6 @@ type infraManager struct {
 	tlsConfig        types.TLSConfig
 	license          []byte
 	airgapBundle     string
-	configValues     string
 	releaseData      *release.ReleaseData
 	endUserConfig    *ecv1beta1.Config
 	logger           logrus.FieldLogger
@@ -42,7 +48,7 @@ type infraManager struct {
 	mcli             metadata.Interface
 	hcli             helm.Client
 	restClientGetter genericclioptions.RESTClientGetter
-	kotsInstaller    func() error
+	kotsCLI          KotsCLIInstaller
 	mu               sync.RWMutex
 }
 
@@ -84,12 +90,6 @@ func WithAirgapBundle(airgapBundle string) InfraManagerOption {
 	}
 }
 
-func WithConfigValues(configValues string) InfraManagerOption {
-	return func(c *infraManager) {
-		c.configValues = configValues
-	}
-}
-
 func WithReleaseData(releaseData *release.ReleaseData) InfraManagerOption {
 	return func(c *infraManager) {
 		c.releaseData = releaseData
@@ -126,9 +126,9 @@ func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) I
 	}
 }
 
-func WithKotsInstaller(kotsInstaller func() error) InfraManagerOption {
+func WithKotsCLIInstaller(kotsCLI KotsCLIInstaller) InfraManagerOption {
 	return func(c *infraManager) {
-		c.kotsInstaller = kotsInstaller
+		c.kotsCLI = kotsCLI
 	}
 }
 

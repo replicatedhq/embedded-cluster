@@ -12,8 +12,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
-	"github.com/replicatedhq/embedded-cluster/api/internal/store"
-	appconfigstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -52,9 +50,7 @@ func TestLinuxGetAppConfig(t *testing.T) {
 
 	// Create an install controller with the config values
 	installController, err := linuxinstall.NewInstallController(
-		linuxinstall.WithStore(
-			store.NewMemoryStore(store.WithAppConfigStore(appconfigstore.NewMemoryStore(appconfigstore.WithConfigValues(configValues)))),
-		),
+		linuxinstall.WithConfigValues(configValues),
 		linuxinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),
@@ -352,9 +348,7 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 
 	// Create an install controller with the config values
 	installController, err := linuxinstall.NewInstallController(
-		linuxinstall.WithStore(
-			store.NewMemoryStore(store.WithAppConfigStore(appconfigstore.NewMemoryStore(appconfigstore.WithConfigValues(configValues)))),
-		),
+		linuxinstall.WithConfigValues(configValues),
 		linuxinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),

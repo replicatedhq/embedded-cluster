@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 
@@ -9,6 +10,10 @@ import (
 )
 
 func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
+	if c.releaseData == nil || c.releaseData.AppConfig == nil {
+		return errors.New("app config not found")
+	}
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -22,6 +27,11 @@ func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
 			lock.Release()
 		}
 	}()
+
+	configValues, err := c.appConfigManager.GetKotsadmConfigValues(*c.releaseData.AppConfig)
+	if err != nil {
+		return fmt.Errorf("failed to get kotsadm config values: %w", err)
+	}
 
 	err = c.stateMachine.Transition(lock, StateInfrastructureInstalling)
 	if err != nil {
@@ -51,7 +61,7 @@ func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
 			}
 		}()
 
-		if err := c.infraManager.Install(ctx, c.ki); err != nil {
+		if err := c.infraManager.Install(ctx, c.ki, configValues); err != nil {
 			return fmt.Errorf("failed to install infrastructure: %w", err)
 		}
 

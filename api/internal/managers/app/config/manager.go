@@ -17,6 +17,9 @@ type AppConfigManager interface {
 	GetConfigValues() (map[string]string, error)
 	// SetConfigValues sets the config values
 	SetConfigValues(config kotsv1beta1.Config, values map[string]string) error
+	// GetKotsadmConfigValues merges the config values with the app config defaults and returns a
+	// kotsv1beta1.ConfigValues struct.
+	GetKotsadmConfigValues(config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error)
 }
 
 // appConfigManager is an implementation of the AppConfigManager interface
