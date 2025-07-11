@@ -66,7 +66,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		ki := kubernetesinstallation.New(nil)
 
 		// Create infra manager with mocks
-		infraManager := kubernetesinfra.NewInfraManager(
+		infraManager, err := kubernetesinfra.NewInfraManager(
 			kubernetesinfra.WithKubeClient(fakeKcli),
 			kubernetesinfra.WithMetadataClient(fakeMcli),
 			kubernetesinfra.WithHelmClient(helmMock),
@@ -84,10 +84,10 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 				},
 			}),
 		)
+		require.NoError(t, err)
 
 		mock.InOrder(
 			helmMock.On("Install", mock.Anything, mock.Anything).Times(1).Return(nil, nil), // 1 addon
-			helmMock.On("Close").Return(nil),
 		)
 
 		// Create an install controller with the mocked managers
@@ -254,7 +254,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		ki := kubernetesinstallation.New(nil)
 
 		// Create infra manager with mocks
-		infraManager := kubernetesinfra.NewInfraManager(
+		infraManager, err := kubernetesinfra.NewInfraManager(
 			kubernetesinfra.WithKubeClient(fakeKcli),
 			kubernetesinfra.WithMetadataClient(fakeMcli),
 			kubernetesinfra.WithHelmClient(helmMock),
@@ -272,10 +272,10 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 				},
 			}),
 		)
+		require.NoError(t, err)
 
 		mock.InOrder(
 			helmMock.On("Install", mock.Anything, mock.Anything).Times(1).Return(nil, assert.AnError), // 1 addon
-			helmMock.On("Close").Return(nil),
 		)
 
 		// Create an install controller with the mocked managers

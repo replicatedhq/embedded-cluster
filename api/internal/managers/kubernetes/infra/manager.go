@@ -2,8 +2,10 @@ package infra
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	infrastore "github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -131,7 +133,7 @@ func WithKotsInstaller(kotsInstaller func() error) InfraManagerOption {
 }
 
 // NewInfraManager creates a new InfraManager with the provided options
-func NewInfraManager(opts ...InfraManagerOption) *infraManager {
+func NewInfraManager(opts ...InfraManagerOption) (*infraManager, error) {
 	manager := &infraManager{}
 
 	for _, opt := range opts {
@@ -146,7 +148,36 @@ func NewInfraManager(opts ...InfraManagerOption) *infraManager {
 		manager.infraStore = infrastore.NewMemoryStore()
 	}
 
-	return manager
+	if manager.kcli == nil {
+		kcli, err := clients.NewKubeClient(clients.KubeClientOptions{RESTClientGetter: manager.restClientGetter})
+		if err != nil {
+			return nil, fmt.Errorf("create kube client: %w", err)
+		}
+		manager.kcli = kcli
+	}
+
+	if manager.mcli == nil {
+		mcli, err := clients.NewMetadataClient(clients.KubeClientOptions{RESTClientGetter: manager.restClientGetter})
+		if err != nil {
+			return nil, fmt.Errorf("create metadata client: %w", err)
+		}
+		manager.mcli = mcli
+	}
+
+	if manager.hcli == nil {
+		hcli, err := helm.NewClient(helm.HelmOptions{
+			RESTClientGetter: manager.restClientGetter,
+			// TODO: how can we support airgap?
+			AirgapPath: "",
+			LogFn:      manager.logFn("helm"),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("create helm client: %w", err)
+		}
+		manager.hcli = hcli
+	}
+
+	return manager, nil
 }
 
 func (m *infraManager) Get() (types.Infra, error) {
