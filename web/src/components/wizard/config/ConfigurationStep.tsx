@@ -6,6 +6,7 @@ import Input from '../../common/Input';
 import Textarea from '../../common/Textarea';
 import Checkbox from '../../common/Checkbox';
 import Radio from '../../common/Radio';
+import ConfigItem from '../../common/ConfigItem';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
@@ -163,53 +164,44 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   const renderConfigItem = (item: AppConfigItem) => {
-    const sharedProps = {
-      id: item.name,
-      label: item.title,
-      helpText: item.help_text,
-    }
-
     switch (item.type) {
       case 'text':
         return (
-          <Input
-            {...sharedProps}
-            value={getDisplayValue(item)}
-            onChange={handleInputChange}
-            dataTestId={`text-input-${item.name}`}
-          />
+            <Input
+              value={getDisplayValue(item)}
+              onChange={handleInputChange}
+              dataTestId={`text-input-${item.name}`}
+            />
         );
 
       case 'textarea':
         return (
-          <Textarea
-            {...sharedProps}
-            value={getDisplayValue(item)}
-            onChange={handleInputChange}
-            dataTestId={`textarea-input-${item.name}`}
-          />
+            <Textarea
+              value={getDisplayValue(item)}
+              onChange={handleInputChange}
+              dataTestId={`textarea-input-${item.name}`}
+            />
+
         );
 
       case 'bool':
         return (
-          <Checkbox
-            {...sharedProps}
-            checked={getEffectiveValue(item) === '1'}
-            onChange={handleCheckboxChange}
-            dataTestId={`bool-input-${item.name}`}
-          />
+            <Checkbox
+              checked={getEffectiveValue(item) === '1'}
+              onChange={handleCheckboxChange}
+              dataTestId={`bool-input-${item.name}`}
+            />
         );
 
       case 'radio':
         if (item.items) {
           return (
-            <Radio
-              {...sharedProps}
-              value={getEffectiveValue(item)}
-              options={item.items}
-              onChange={e => handleRadioChange(item.name, e)}
-              dataTestId={`radio-input-${item.name}`}
-            />
+              <Radio
+                value={getEffectiveValue(item)}
+                options={item.items}
+                onChange={e => handleRadioChange(item.name, e)}
+                dataTestId={`radio-input-${item.name}`}
+              />
           );
         }
         return null;
@@ -227,11 +219,19 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         {group.description && (
           <p className="text-gray-600 mb-4">{group.description}</p>
         )}
-        {group.items.map(item => (
-          <div key={item.name} data-testid={`config-item-${item.name}`}>
-            {renderConfigItem(item)}
-          </div>
-        ))}
+          {group.items.map(item => {
+            const renderedItem = renderConfigItem(item);
+            if (!renderedItem) return null;
+            return (
+              <ConfigItem
+                id={item.name}
+                label={item.title}
+                helpText={item.help_text}
+              >
+                {renderedItem}
+              </ConfigItem>
+            );
+          })}
       </div>
     );
   };

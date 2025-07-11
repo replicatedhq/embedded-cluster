@@ -2,29 +2,31 @@ import React from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 
 interface CheckboxProps {
-  id: string;
-  label: string;
   checked: boolean;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
   error?: string;
-  helpText?: string;
   className?: string;
   labelClassName?: string;
+
+  // props shared through ConfigItem
+  id?: string;
+  label?: string;
   dataTestId?: string;
+  helpText?: string;
 }
 
 const Checkbox: React.FC<CheckboxProps> = ({
-  id,
-  label,
   checked,
   onChange,
   disabled = false,
   error,
-  helpText,
   className = '',
   labelClassName = '',
+  id,
+  label,
   dataTestId,
+  helpText,
 }) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -43,6 +45,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
           style={{
             color: themeColor,
             '--tw-ring-color': themeColor,
+            accentColor: themeColor,
           } as React.CSSProperties}
         />
         <label htmlFor={id} className={`text-sm text-gray-700 ${labelClassName}`}>

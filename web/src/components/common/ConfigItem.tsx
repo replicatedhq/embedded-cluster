@@ -11,7 +11,6 @@ interface ConfigItemProps {
 const ConfigItem: React.FC<ConfigItemProps> = ({
   id,
   label,
-  dataTestId,
   helpText,
   children,
 }) => {
@@ -19,13 +18,14 @@ const ConfigItem: React.FC<ConfigItemProps> = ({
   const enhancedChild = React.cloneElement(children, {
     id,
     label,
-    dataTestId,
     helpText,
   } as any);
 
   return (
-    <div className="mb-4">
-      {enhancedChild}
+    <div key={id} data-testid={`config-item-${id}`}>
+      <div className="mb-4">
+        {enhancedChild}
+      </div>
     </div>
   );
 };
@@ -40,7 +40,6 @@ export const withConfigItem = <P extends object>(
       <ConfigItem
         id={id}
         label={label}
-        dataTestId={dataTestId}
         helpText={helpText}
       >
         <WrappedComponent {...(wrappedComponentProps as P)} ref={ref} />

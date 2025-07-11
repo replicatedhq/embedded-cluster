@@ -3,31 +3,33 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { AppConfigChildItem } from '../../types';
 
 interface RadioProps {
-  id: string;
-  label: string;
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   options: AppConfigChildItem[];
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
   error?: string;
-  helpText?: string;
   className?: string;
   labelClassName?: string;
+
+  // props shared through ConfigItem
+  id?: string;
+  label?: string;
   dataTestId?: string;
+  helpText?: string;
 }
 
 const Radio: React.FC<RadioProps> = ({
-  id,
-  label,
-  value,
-  onChange,
-  options,
-  disabled = false,
-  error,
-  helpText,
-  className = '',
-  labelClassName = '',
-  dataTestId,
+   value,
+   options,
+   onChange,
+   disabled = false,
+   error,
+   className = '',
+   labelClassName = '',
+   id,
+   label,
+   dataTestId,
+   helpText,
 }) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -53,6 +55,7 @@ const Radio: React.FC<RadioProps> = ({
               style={{
                 color: themeColor,
                 '--tw-ring-color': themeColor,
+                accentColor: themeColor,
               } as React.CSSProperties}
             />
             <label htmlFor={option.name} className="ml-3 text-sm text-gray-700">
