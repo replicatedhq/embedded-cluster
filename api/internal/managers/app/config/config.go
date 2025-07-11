@@ -1,7 +1,9 @@
 package config
 
 import (
+	"context"
 	"fmt"
+	"maps"
 
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
@@ -9,27 +11,39 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// PasswordMask is the string used to mask password values in config responses
+	PasswordMask = "••••••••"
+)
+
 func (m *appConfigManager) GetConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error) {
 	return filterAppConfig(config)
 }
 
-func (m *appConfigManager) GetConfigValues() (map[string]string, error) {
-	return m.appConfigStore.GetConfigValues()
-}
+// PatchConfigValues performs a partial update by merging new values with existing ones
+func (m *appConfigManager) PatchConfigValues(ctx context.Context, appConfig kotsv1beta1.Config, newValues map[string]string) error {
+	// Get existing values
+	existingValues, err := m.appConfigStore.GetConfigValues()
+	if err != nil {
+		return fmt.Errorf("get config values: %w", err)
+	}
 
-func (m *appConfigManager) SetConfigValues(config kotsv1beta1.Config, configValues map[string]string) error {
+	// Merge new values with existing ones
+	mergedValues := make(map[string]string)
+	maps.Copy(mergedValues, existingValues)
+	maps.Copy(mergedValues, newValues)
+
+	// only keep values for enabled groups and items
 	filteredValues := make(map[string]string)
-
-	// only include values for enabled groups and items
-	for _, g := range config.Spec.Groups {
+	for _, g := range appConfig.Spec.Groups {
 		for _, i := range g.Items {
 			if isItemEnabled(g.When) && isItemEnabled(i.When) {
-				value, ok := configValues[i.Name]
+				value, ok := mergedValues[i.Name]
 				if ok {
 					filteredValues[i.Name] = value
 				}
 				for _, c := range i.Items {
-					value, ok := configValues[c.Name]
+					value, ok := mergedValues[c.Name]
 					if ok {
 						filteredValues[c.Name] = value
 					}
@@ -39,6 +53,38 @@ func (m *appConfigManager) SetConfigValues(config kotsv1beta1.Config, configValu
 	}
 
 	return m.appConfigStore.SetConfigValues(filteredValues)
+}
+
+// GetConfigValues returns config values with optional password field masking
+func (m *appConfigManager) GetConfigValues(ctx context.Context, appConfig kotsv1beta1.Config, maskPasswords bool) (map[string]string, error) {
+	configValues, err := m.appConfigStore.GetConfigValues()
+	if err != nil {
+		return nil, err
+	}
+
+	// If masking is not requested, return the original values
+	if !maskPasswords {
+		return configValues, nil
+	}
+
+	// Create a copy of the config values to mask password fields
+	maskedValues := make(map[string]string)
+	for key, value := range configValues {
+		maskedValues[key] = value
+	}
+
+	// Mask password fields
+	for _, group := range appConfig.Spec.Groups {
+		for _, item := range group.Items {
+			if item.Type == "password" {
+				if _, exists := maskedValues[item.Name]; exists {
+					maskedValues[item.Name] = PasswordMask
+				}
+			}
+		}
+	}
+
+	return maskedValues, nil
 }
 
 func (m *appConfigManager) GetKotsadmConfigValues(config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error) {

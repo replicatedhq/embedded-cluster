@@ -117,7 +117,7 @@ func TestLinuxGetAppConfig(t *testing.T) {
 	})
 }
 
-func TestLinuxSetAppConfigValues(t *testing.T) {
+func TestLinuxPatchAppConfigValues(t *testing.T) {
 	// Create an app config
 	appConfig := kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
@@ -173,7 +173,7 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request to set config values
-		setRequest := types.SetAppConfigValuesRequest{
+		setRequest := types.PatchAppConfigValuesRequest{
 			Values: map[string]string{
 				"test-item": "new-value",
 			},
@@ -183,7 +183,7 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a request to set config values
-		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/config/values", bytes.NewReader(reqBodyBytes))
+		req := httptest.NewRequest(http.MethodPatch, "/linux/install/app/config/values", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
@@ -232,7 +232,7 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request to set config values
-		setRequest := types.SetAppConfigValuesRequest{
+		setRequest := types.PatchAppConfigValuesRequest{
 			Values: map[string]string{
 				"test-item": "new-value",
 			},
@@ -242,7 +242,7 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a request with invalid token
-		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/config/values", bytes.NewReader(reqBodyBytes))
+		req := httptest.NewRequest(http.MethodPatch, "/linux/install/app/config/values", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
 		rec := httptest.NewRecorder()
@@ -288,7 +288,7 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request to set config values
-		setRequest := types.SetAppConfigValuesRequest{
+		setRequest := types.PatchAppConfigValuesRequest{
 			Values: map[string]string{
 				"test-item": "new-value",
 			},
@@ -298,7 +298,7 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/config/values", bytes.NewReader(reqBodyBytes))
+		req := httptest.NewRequest(http.MethodPatch, "/linux/install/app/config/values", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()

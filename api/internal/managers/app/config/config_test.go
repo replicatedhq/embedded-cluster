@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -327,13 +328,13 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 	}
 }
 
-func TestAppConfigManager_SetConfigValues(t *testing.T) {
+func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 	tests := []struct {
-		name         string
-		config       kotsv1beta1.Config
-		configValues map[string]string
-		setupMock    func(*config.MockStore)
-		wantErr      bool
+		name      string
+		config    kotsv1beta1.Config
+		newValues map[string]string
+		setupMock func(*config.MockStore)
+		wantErr   bool
 	}{
 		{
 			name: "enabled group and items with new values",
@@ -371,12 +372,13 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{
+			newValues: map[string]string{
 				"enabled-item-1":     "new-value-1",
 				"enabled-item-2":     "new-value-2",
 				"enabled-child-item": "new-child-value",
 			},
 			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
 				expectedValues := map[string]string{
 					"enabled-item-1":     "new-value-1",
 					"enabled-item-2":     "new-value-2",
@@ -422,12 +424,13 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{
+			newValues: map[string]string{
 				"item-in-disabled-group":       "new-value",
 				"child-in-disabled-group":      "new-child-value",
 				"grandchild-in-disabled-group": "new-grandchild-value",
 			},
 			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
 				expectedValues := map[string]string{}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -469,12 +472,13 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{
+			newValues: map[string]string{
 				"enabled-item":           "new-enabled-value",
 				"disabled-item":          "new-disabled-value",
 				"child-of-disabled-item": "new-child-value",
 			},
 			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
 				expectedValues := map[string]string{
 					"enabled-item": "new-enabled-value",
 				}
@@ -525,7 +529,7 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{
+			newValues: map[string]string{
 				"enabled-item":               "new-enabled-value",
 				"disabled-item":              "new-disabled-value",
 				"enabled-item-with-children": "new-parent-value",
@@ -533,6 +537,7 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 				"disabled-child":             "new-disabled-child-value",
 			},
 			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
 				expectedValues := map[string]string{
 					"enabled-item":               "new-enabled-value",
 					"enabled-item-with-children": "new-parent-value",
@@ -564,8 +569,9 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{},
+			newValues: map[string]string{},
 			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
 				expectedValues := map[string]string{}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -593,10 +599,11 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{
+			newValues: map[string]string{
 				"enabled-item": "new-value",
 			},
 			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
 				expectedValues := map[string]string{
 					"enabled-item": "new-value",
 				}
@@ -626,10 +633,11 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{
+			newValues: map[string]string{
 				"item-with-empty-when": "new-value",
 			},
 			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
 				expectedValues := map[string]string{
 					"item-with-empty-when": "new-value",
 				}
@@ -673,11 +681,12 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{
+			newValues: map[string]string{
 				"item-1": "new-value-1",
 				"item-2": "new-value-2",
 			},
 			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
 				expectedValues := map[string]string{}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -712,14 +721,260 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{
+			newValues: map[string]string{
 				"enabled-item-1": "new-value-1",
 				// enabled-item-2 intentionally omitted
 			},
 			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
 				expectedValues := map[string]string{
 					"enabled-item-1": "new-value-1",
 					// enabled-item-2 should not be included since no value provided
+				}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "patch with existing values - new values override existing",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "item-1",
+									Title: "Item 1",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-1"},
+									When:  "true",
+								},
+								{
+									Name:  "item-2",
+									Title: "Item 2",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-2"},
+									When:  "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			newValues: map[string]string{
+				"item-1": "new-value-1",
+				"item-2": "new-value-2",
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				existingValues := map[string]string{
+					"item-1": "existing-value-1",
+					"item-2": "existing-value-2",
+				}
+				mockStore.On("GetConfigValues").Return(existingValues, nil)
+				expectedValues := map[string]string{
+					"item-1": "new-value-1",
+					"item-2": "new-value-2",
+				}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "patch with existing values - partial update",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "item-1",
+									Title: "Item 1",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-1"},
+									When:  "true",
+								},
+								{
+									Name:  "item-2",
+									Title: "Item 2",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-2"},
+									When:  "true",
+								},
+								{
+									Name:  "item-3",
+									Title: "Item 3",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-3"},
+									When:  "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			newValues: map[string]string{
+				"item-1": "new-value-1",
+				// item-2 not provided, should keep existing value
+				"item-3": "new-value-3",
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				existingValues := map[string]string{
+					"item-1": "existing-value-1",
+					"item-2": "existing-value-2",
+					"item-3": "existing-value-3",
+				}
+				mockStore.On("GetConfigValues").Return(existingValues, nil)
+				expectedValues := map[string]string{
+					"item-1": "new-value-1",
+					"item-2": "existing-value-2",
+					"item-3": "new-value-3",
+				}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "patch with empty string values",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "item-1",
+									Title: "Item 1",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-1"},
+									When:  "true",
+								},
+								{
+									Name:  "item-2",
+									Title: "Item 2",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-2"},
+									When:  "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			newValues: map[string]string{
+				"item-1": "",
+				"item-2": "new-value-2",
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				existingValues := map[string]string{
+					"item-1": "existing-value-1",
+					"item-2": "existing-value-2",
+				}
+				mockStore.On("GetConfigValues").Return(existingValues, nil)
+				expectedValues := map[string]string{
+					"item-1": "",
+					"item-2": "new-value-2",
+				}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "patch with existing values and disabled items",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "enabled-item",
+									Title: "Enabled Item",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-enabled"},
+									When:  "true",
+								},
+								{
+									Name:  "disabled-item",
+									Title: "Disabled Item",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-disabled"},
+									When:  "false",
+								},
+							},
+						},
+					},
+				},
+			},
+			newValues: map[string]string{
+				"enabled-item":  "new-enabled-value",
+				"disabled-item": "new-disabled-value",
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				existingValues := map[string]string{
+					"enabled-item":  "existing-enabled-value",
+					"disabled-item": "existing-disabled-value",
+				}
+				mockStore.On("GetConfigValues").Return(existingValues, nil)
+				expectedValues := map[string]string{
+					"enabled-item": "new-enabled-value",
+					// disabled-item should not be included in filtered values
+				}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "patch with existing values - new item added",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "existing-item",
+									Title: "Existing Item",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-existing"},
+									When:  "true",
+								},
+								{
+									Name:  "new-item",
+									Title: "New Item",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-new"},
+									When:  "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			newValues: map[string]string{
+				"existing-item": "updated-existing-value",
+				"new-item":      "brand-new-value",
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				existingValues := map[string]string{
+					"existing-item": "existing-value",
+					// new-item not in existing values
+				}
+				mockStore.On("GetConfigValues").Return(existingValues, nil)
+				expectedValues := map[string]string{
+					"existing-item": "updated-existing-value",
+					"new-item":      "brand-new-value",
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -738,8 +993,8 @@ func TestAppConfigManager_SetConfigValues(t *testing.T) {
 				appConfigStore: mockStore,
 			}
 
-			// Call SetConfigValues
-			err := manager.SetConfigValues(tt.config, tt.configValues)
+			// Call PatchConfigValues
+			err := manager.PatchConfigValues(context.Background(), tt.config, tt.newValues)
 
 			// Verify expectations
 			if tt.wantErr {
