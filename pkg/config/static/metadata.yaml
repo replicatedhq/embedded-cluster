@@ -34,8 +34,8 @@ images:
     kube-proxy:
         repo: proxy.replicated.com/anonymous/registry.k8s.io/kube-proxy
         tag:
-            amd64: v1.31.9-amd64@sha256:a23b69e0843a51719cf652717bf3b2b1f29a635543e668cfec43d228f1e538f9
-            arm64: v1.31.9-arm64@sha256:40c69fe60d36ed579ad7363dcf095cdc57e041a4152ba96591243b11f74e7cd9
+            amd64: v1.30.14-amd64@sha256:d0fbd4d84c29923f8830fa556a9bb623e5e119efccca1198da72b2f3d42227e6
+            arm64: v1.30.14-arm64@sha256:6c9debf74f7ded6ba1641ce6ea0f891968c28a73fe8b955ceb269c44ad771722
     metrics-server:
         repo: proxy.replicated.com/anonymous/replicated/ec-metrics-server
         tag:
