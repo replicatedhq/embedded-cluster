@@ -73,7 +73,7 @@ main() {
     kubectl scale -n "$APP_NAMESPACE" deployment/second --replicas=4
     echo "waiting for the second deployment to scale up"
     for _ in {1..60}; do
-        if kubectl get pods -n "$APP_NAMESPACE" -o wide | grep -q "second-"; then
+        if kubectl get pods -n "$APP_NAMESPACE" | grep -q "second-"; then
             break
         fi
         sleep 1

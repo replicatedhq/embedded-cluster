@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -201,13 +202,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		opt(controller)
 	}
 
-	if controller.configValues != nil {
-		err := controller.store.AppConfigStore().SetConfigValues(controller.configValues)
-		if err != nil {
-			return nil, fmt.Errorf("set app config values: %w", err)
-		}
-	}
-
 	if controller.stateMachine == nil {
 		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
 	}
@@ -260,6 +254,20 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
 		)
+	}
+
+	if controller.configValues != nil {
+		if controller.releaseData == nil || controller.releaseData.AppConfig == nil {
+			return nil, errors.New("app config not found")
+		}
+		err := controller.appConfigManager.ValidateConfigValues(*controller.releaseData.AppConfig, controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("validate app config values: %w", err)
+		}
+		err = controller.appConfigManager.SetConfigValues(*controller.releaseData.AppConfig, controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("set app config values: %w", err)
+		}
 	}
 
 	controller.registerReportingHandlers()

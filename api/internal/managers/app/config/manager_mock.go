@@ -27,6 +27,12 @@ func (m *MockAppConfigManager) GetConfigValues() (map[string]string, error) {
 	return args.Get(0).(map[string]string), args.Error(1)
 }
 
+// ValidateConfigValues mocks the ValidateConfigValues method
+func (m *MockAppConfigManager) ValidateConfigValues(config kotsv1beta1.Config, configValues map[string]string) error {
+	args := m.Called(config, configValues)
+	return args.Error(0)
+}
+
 // SetConfigValues mocks the SetConfigValues method
 func (m *MockAppConfigManager) SetConfigValues(config kotsv1beta1.Config, configValues map[string]string) error {
 	args := m.Called(config, configValues)
