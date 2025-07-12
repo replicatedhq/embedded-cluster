@@ -890,8 +890,9 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		// Decode and verify request body
 		var req types.PatchAppConfigValuesRequest
 		err := json.NewDecoder(r.Body).Decode(&req)
-		require.NoError(t, err)
+		require.NoError(t, err, "Failed to decode request body")
 		assert.Equal(t, "new-value", req.Values["test-item"])
+		assert.Equal(t, "required-value", request.Values["required-item"])
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
@@ -901,35 +902,36 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 	// Test successful set
 	c := New(server.URL, WithToken("test-token"))
-	values := map[string]string{
-		"test-item": "new-value",
+	configValues := map[string]string{
+		"test-item":     "new-value",
+		"required-item": "required-value",
 	}
-	config, err := c.PatchLinuxAppConfigValues(values)
-	assert.NoError(t, err)
+	config, err := c.PatchLinuxAppConfigValues(configValues)
+	require.NoError(t, err)
 	assert.Equal(t, expectedConfig, config)
 
 	// Test error response
 	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(types.APIError{
-			StatusCode: http.StatusInternalServerError,
-			Message:    "Internal Server Error",
+			StatusCode: http.StatusBadRequest,
+			Message:    "Bad Request",
 		})
 	}))
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	config, err = c.PatchLinuxAppConfigValues(values)
+	config, err = c.PatchLinuxAppConfigValues(configValues)
 	assert.Error(t, err)
 	assert.Equal(t, types.AppConfig{}, config)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
-	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
-	assert.Equal(t, "Internal Server Error", apiErr.Message)
+	assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
+	assert.Equal(t, "Bad Request", apiErr.Message)
 }
 
-func TestKubernetesPatchAppConfigValues(t *testing.T) {
+func TestKubernetesSetAppConfigValues(t *testing.T) {
 	// Define expected config once
 	expectedConfig := types.AppConfig{
 		Groups: []kotsv1beta1.ConfigGroup{
@@ -951,17 +953,23 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check request method and path
 		assert.Equal(t, "PATCH", r.Method)
 		assert.Equal(t, "/api/kubernetes/install/app/config/values", r.URL.Path)
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 
+		// Check headers
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 
-		// Decode and verify request body
-		var req types.PatchAppConfigValuesRequest
-		err := json.NewDecoder(r.Body).Decode(&req)
-		require.NoError(t, err)
-		assert.Equal(t, "new-value", req.Values["test-item"])
+		// Decode request body
+		var request types.SetAppConfigValuesRequest
+		err := json.NewDecoder(r.Body).Decode(&request)
+		require.NoError(t, err, "Failed to decode request body")
+
+		// Verify the request contains expected values
+		assert.Equal(t, "new-value", request.Values["test-item"])
+		assert.Equal(t, "required-value", request.Values["required-item"])
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
@@ -971,30 +979,31 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 
 	// Test successful set
 	c := New(server.URL, WithToken("test-token"))
-	values := map[string]string{
-		"test-item": "new-value",
+	configValues := map[string]string{
+		"test-item":     "new-value",
+		"required-item": "required-value",
 	}
-	config, err := c.PatchKubernetesAppConfigValues(values)
+	config, err := c.PatchKubernetesAppConfigValues(configValues)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedConfig, config)
 
 	// Test error response
 	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(types.APIError{
-			StatusCode: http.StatusInternalServerError,
-			Message:    "Internal Server Error",
+			StatusCode: http.StatusBadRequest,
+			Message:    "Bad Request",
 		})
 	}))
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	config, err = c.PatchKubernetesAppConfigValues(values)
+	config, err = c.PatchKubernetesAppConfigValues(configValues)
 	assert.Error(t, err)
 	assert.Equal(t, types.AppConfig{}, config)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
-	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
-	assert.Equal(t, "Internal Server Error", apiErr.Message)
+	assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
+	assert.Equal(t, "Bad Request", apiErr.Message)
 }

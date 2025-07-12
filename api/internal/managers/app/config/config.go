@@ -2,9 +2,11 @@ package config
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/tiendc/go-deepcopy"
@@ -16,8 +18,34 @@ const (
 	PasswordMask = "••••••••"
 )
 
+var (
+	// ErrConfigItemRequired is returned when a required item is not set
+	ErrConfigItemRequired = errors.New("item is required")
+)
+
 func (m *appConfigManager) GetConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error) {
 	return filterAppConfig(config)
+}
+
+func (m *appConfigManager) ValidateConfigValues(config kotsv1beta1.Config, configValues map[string]string) error {
+	var ve *types.APIError
+
+	filteredConfig, err := filterAppConfig(config)
+	if err != nil {
+		return fmt.Errorf("filter app config: %w", err)
+	}
+
+	// check required items
+	for _, group := range filteredConfig.Spec.Groups {
+		for _, item := range group.Items {
+			configValue := getConfigValueFromItem(item, configValues)
+			if isRequiredItem(item) && isUnsetItem(configValue) {
+				ve = types.AppendFieldError(ve, item.Name, ErrConfigItemRequired)
+			}
+		}
+	}
+
+	return ve.ErrorOrNil()
 }
 
 // PatchConfigValues performs a partial update by merging new values with existing ones
@@ -119,47 +147,59 @@ func (m *appConfigManager) GetKotsadmConfigValues(ctx context.Context, config ko
 	// add values from the filtered config
 	for _, group := range filteredConfig.Spec.Groups {
 		for _, item := range group.Items {
-			configValue := kotsv1beta1.ConfigValue{
-				Default: item.Default.String(),
-			}
-			if item.Type == "password" {
-				configValue.ValuePlaintext = item.Value.String()
-			} else {
-				configValue.Value = item.Value.String()
-			}
-			// override values from the config values store
-			if value, ok := storedValues[item.Name]; ok {
-				if item.Type == "password" {
-					configValue.ValuePlaintext = value
-				} else {
-					configValue.Value = value
-				}
-			}
-			kotsadmConfigValues.Spec.Values[item.Name] = configValue
+			kotsadmConfigValues.Spec.Values[item.Name] = getConfigValueFromItem(item, storedValues)
 
-			for _, subItem := range item.Items {
-				subConfigValue := kotsv1beta1.ConfigValue{
-					Default: subItem.Default.String(),
-				}
-				if item.Type == "password" {
-					subConfigValue.ValuePlaintext = subItem.Value.String()
-				} else {
-					subConfigValue.Value = subItem.Value.String()
-				}
-				// override values from the config values store
-				if value, ok := storedValues[subItem.Name]; ok {
-					if item.Type == "password" {
-						subConfigValue.ValuePlaintext = value
-					} else {
-						subConfigValue.Value = value
-					}
-				}
-				kotsadmConfigValues.Spec.Values[subItem.Name] = subConfigValue
+			for _, childItem := range item.Items {
+				kotsadmConfigValues.Spec.Values[childItem.Name] = getConfigValueFromChildItem(item.Type, childItem, storedValues)
 			}
 		}
 	}
 
 	return kotsadmConfigValues, nil
+}
+
+func getConfigValueFromItem(item kotsv1beta1.ConfigItem, configValues map[string]string) kotsv1beta1.ConfigValue {
+	configValue := kotsv1beta1.ConfigValue{
+		Default: item.Default.String(),
+	}
+	if item.Type == "password" {
+		configValue.ValuePlaintext = item.Value.String()
+	} else {
+		configValue.Value = item.Value.String()
+	}
+
+	// override values from the config values store
+	if value, ok := configValues[item.Name]; ok {
+		if item.Type == "password" {
+			configValue.ValuePlaintext = value
+		} else {
+			configValue.Value = value
+		}
+	}
+
+	return configValue
+}
+
+func getConfigValueFromChildItem(itemType string, childItem kotsv1beta1.ConfigChildItem, configValues map[string]string) kotsv1beta1.ConfigValue {
+	configValue := kotsv1beta1.ConfigValue{
+		Default: childItem.Default.String(),
+	}
+	if itemType == "password" {
+		configValue.ValuePlaintext = childItem.Value.String()
+	} else {
+		configValue.Value = childItem.Value.String()
+	}
+
+	// override values from the config values store
+	if value, ok := configValues[childItem.Name]; ok {
+		if itemType == "password" {
+			configValue.ValuePlaintext = value
+		} else {
+			configValue.Value = value
+		}
+	}
+
+	return configValue
 }
 
 // filterAppConfig filters out disabled groups and items based on their 'when' condition
@@ -195,4 +235,24 @@ func filterAppConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error) {
 // isItemEnabled checks if an item is enabled based on its 'when' condition
 func isItemEnabled(when multitype.QuotedBool) bool {
 	return when != "false"
+}
+
+// isRequiredItem checks if an item is required based on whether Required is true and the item is
+// enabled and not hidden
+func isRequiredItem(item kotsv1beta1.ConfigItem) bool {
+	if !item.Required {
+		return false
+	}
+	if !isItemEnabled(item.When) {
+		return false
+	}
+	if item.Hidden {
+		return false
+	}
+	return true
+}
+
+func isUnsetItem(configValue kotsv1beta1.ConfigValue) bool {
+	// TODO: repeatable items
+	return configValue.Value == "" && configValue.Default == ""
 }
