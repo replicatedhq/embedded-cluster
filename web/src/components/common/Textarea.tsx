@@ -2,35 +2,36 @@ import { ChangeEvent, CSSProperties } from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 
 interface TextareaProps {
-  id: string;
-  label: string;
   value: string;
-  onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
   rows?: number;
   placeholder?: string;
   required?: boolean;
+  onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
   disabled?: boolean;
   error?: string;
-  helpText?: string;
   className?: string;
   labelClassName?: string;
+
+  // props shared through ConfigItem
+  id?: string;
+  label?: string;
   dataTestId?: string;
+  helpText?: string;
 }
 
 const Textarea = ({
-  id,
-  label,
   value,
-  onChange,
   rows = 4,
   placeholder = '',
   required = false,
+  onChange,
   disabled = false,
   error,
-  helpText,
   className = '',
   labelClassName = '',
-  dataTestId,
+  id,
+  label,
+  helpText,
 }: TextareaProps) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -58,7 +59,7 @@ const Textarea = ({
           '--tw-ring-color': themeColor,
           '--tw-ring-offset-color': themeColor,
         } as CSSProperties}
-        data-testid={dataTestId}
+        data-testid={`textarea-input-${id}`}
       />
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
       {helpText && !error && <p className="mt-1 text-sm text-gray-500">{helpText}</p>}

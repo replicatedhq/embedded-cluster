@@ -6,6 +6,9 @@ import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Textarea from '../../common/Textarea';
+import Checkbox from '../../common/Checkbox';
+import Radio from '../../common/Radio';
+import ConfigItem from '../../common/ConfigItem';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
@@ -167,77 +170,35 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       case 'text':
         return (
           <Input
-            id={item.name}
-            label={item.title}
             value={getDisplayValue(item)}
             onChange={handleInputChange}
-            dataTestId={`text-input-${item.name}`}
-            helpText={item.help_text}
           />
         );
 
       case 'textarea':
         return (
           <Textarea
-            id={item.name}
-            label={item.title}
             value={getDisplayValue(item)}
             onChange={handleInputChange}
-            dataTestId={`textarea-input-${item.name}`}
           />
         );
 
       case 'bool':
         return (
-          <div className="flex items-center space-x-3">
-            <input
-              id={item.name}
-              type="checkbox"
-              checked={getEffectiveValue(item) === '1'}
-              onChange={handleCheckboxChange}
-              className="h-4 w-4 focus:ring-offset-2 border-gray-300 rounded"
-              data-testid={`bool-input-${item.name}`}
-              style={{
-                color: themeColor,
-                '--tw-ring-color': themeColor,
-              } as React.CSSProperties}
-            />
-            <label htmlFor={item.name} className="text-sm text-gray-700">
-              {item.title}
-            </label>
-          </div>
+          <Checkbox
+            checked={getEffectiveValue(item) === '1'}
+            onChange={handleCheckboxChange}
+          />
         );
 
       case 'radio':
         if (item.items) {
           return (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                {item.title}
-              </label>
-              <div className="space-y-2">
-                {item.items.map(child => (
-                  <div key={child.name} className="flex items-center">
-                    <input
-                      type="radio"
-                      id={child.name}
-                      value={child.name}
-                      checked={getEffectiveValue(item) === child.name}
-                      onChange={e => handleRadioChange(item.name, e)}
-                      className="h-4 w-4 focus:ring-offset-2 border-gray-300"
-                      data-testid={`radio-input-${child.name}`}
-                      style={{
-                        color: themeColor,
-                        '--tw-ring-color': themeColor,
-                      } as React.CSSProperties}
-                    />
-                    <label htmlFor={child.name} className="ml-3 text-sm text-gray-700">
-                      {child.title}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Radio
+              value={getEffectiveValue(item)}
+              options={item.items}
+              onChange={e => handleRadioChange(item.name, e)}
+            />
           );
         }
         return null;
@@ -281,11 +242,19 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         {group.description && (
           <p className="text-gray-600 mb-4">{group.description}</p>
         )}
-        {group.items.map(item => (
-          <div key={item.name} data-testid={`config-item-${item.name}`}>
-            {renderConfigItem(item)}
-          </div>
-        ))}
+        {group.items.map(item => {
+          const renderedItem = renderConfigItem(item);
+          if (!renderedItem) return null;
+          return (
+            <ConfigItem
+              id={item.name}
+              label={item.title}
+              helpText={item.help_text}
+            >
+              {renderedItem}
+            </ConfigItem>
+          );
+        })}
       </div>
     );
   };

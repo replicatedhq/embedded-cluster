@@ -2,39 +2,40 @@ import React from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 
 interface InputProps {
-  id: string;
-  label: string;
   type?: string;
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onKeyDown?: (e: React.KeyboardEvent) => void;
+  icon?: React.ReactNode;
   placeholder?: string;
   required?: boolean;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
   error?: string;
-  helpText?: string;
   className?: string;
   labelClassName?: string;
-  icon?: React.ReactNode;
+
+  // props shared through ConfigItem
+  id?: string;
+  label?: string;
   dataTestId?: string;
+  helpText?: string;
 }
 
 const Input: React.FC<InputProps> = ({
-  id,
-  label,
   type = 'text',
   value,
-  onChange,
-  onKeyDown,
+  icon,
   placeholder = '',
   required = false,
+  onKeyDown,
+  onChange,
   disabled = false,
   error,
-  helpText,
   className = '',
   labelClassName = '',
-  icon,
-  dataTestId,
+  id,
+  label,
+  helpText,
 }) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -69,7 +70,7 @@ const Input: React.FC<InputProps> = ({
             '--tw-ring-color': themeColor,
             '--tw-ring-offset-color': themeColor,
           } as React.CSSProperties}
-          data-testid={dataTestId}
+          data-testid={`text-input-${id}`}
         />
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
