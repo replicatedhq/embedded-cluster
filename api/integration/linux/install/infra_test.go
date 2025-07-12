@@ -19,7 +19,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/assets"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
-	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	linuxinfra "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
 	linuxpreflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
@@ -686,10 +685,10 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		pfManager := preflight.NewHostPreflightManager(
 			preflight.WithHostPreflightStore(linuxpreflightstore.NewMemoryStore(linuxpreflightstore.WithHostPreflight(hpf))),
 		)
-		infraManager := infra.NewInfraManager(
-			infra.WithK0s(k0sMock),
-			infra.WithHostUtils(hostutilsMock),
-			infra.WithLicense(assets.LicenseData),
+		infraManager := linuxinfra.NewInfraManager(
+			linuxinfra.WithK0s(k0sMock),
+			linuxinfra.WithHostUtils(hostutilsMock),
+			linuxinfra.WithLicense(assets.LicenseData),
 		)
 
 		// Setup k0s mock expectations with failure

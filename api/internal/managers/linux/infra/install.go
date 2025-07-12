@@ -32,6 +32,7 @@ import (
 const K0sComponentName = "Runtime"
 
 func AlreadyInstalledError() error {
+	//nolint:staticcheck // ST1005 TODO: use a constant here and print a better error message
 	return fmt.Errorf(
 		"\nAn installation is detected on this machine.\nTo install, you must first remove the existing installation.\nYou can do this by running the following command:\n\n  sudo ./%s reset\n",
 		runtimeconfig.AppSlug(),

@@ -15,8 +15,8 @@ import (
 // This changes the chart timeout from a string to a duration. 1.30+ is backwards compatible
 // and time timeout can be set as either.
 func K0sClusterConfigTo129Compat(clusterConfig *k0sv1beta1.ClusterConfig) (*unstructured.Unstructured, error) {
-	clusterConfig.TypeMeta.APIVersion = k0sv1beta1.ClusterConfigAPIVersion
-	clusterConfig.TypeMeta.Kind = k0sv1beta1.ClusterConfigKind
+	clusterConfig.APIVersion = k0sv1beta1.ClusterConfigAPIVersion
+	clusterConfig.Kind = k0sv1beta1.ClusterConfigKind
 
 	obj, err := objectToUnstructured(clusterConfig)
 	if err != nil {

@@ -1396,7 +1396,8 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		return fmt.Errorf("unable to wait for velero restore to complete: %w", err)
 	}
 
-	if drComponent == disasterRecoveryComponentAdminConsole {
+	switch drComponent {
+	case disasterRecoveryComponentAdminConsole:
 		// wait for admin console to be ready
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
@@ -1406,7 +1407,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		if err := restoreWaitForAdminConsoleReady(ctx, kcli, constants.KotsadmNamespace, loading); err != nil {
 			return fmt.Errorf("unable to wait for admin console: %w", err)
 		}
-	} else if drComponent == disasterRecoveryComponentSeaweedFS {
+	case disasterRecoveryComponentSeaweedFS:
 		// wait for seaweedfs to be ready
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
@@ -1416,7 +1417,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		if err := restoreWaitForSeaweedfsReady(ctx, kcli, constants.SeaweedFSNamespace, nil); err != nil {
 			return fmt.Errorf("unable to wait for seaweedfs to be ready: %w", err)
 		}
-	} else if drComponent == disasterRecoveryComponentRegistry {
+	case disasterRecoveryComponentRegistry:
 		// wait for registry to be ready
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
@@ -1426,7 +1427,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		if err := kubeutils.WaitForDeployment(ctx, kcli, constants.RegistryNamespace, "registry", nil); err != nil {
 			return fmt.Errorf("unable to wait for registry to be ready: %w", err)
 		}
-	} else if drComponent == disasterRecoveryComponentECO {
+	case disasterRecoveryComponentECO:
 		// wait for embedded cluster operator to reconcile the installation
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {

@@ -65,7 +65,7 @@ func forceDeleteChartCRs(ctx context.Context, cli client.Client) error {
 	}
 
 	for _, chart := range chartList.Items {
-		chart.ObjectMeta.Finalizers = []string{}
+		chart.Finalizers = []string{}
 		err := cli.Update(ctx, &chart)
 		if err != nil {
 			return fmt.Errorf("update chart: %w", err)

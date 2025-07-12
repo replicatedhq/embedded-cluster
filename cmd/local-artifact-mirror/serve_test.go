@@ -135,7 +135,8 @@ func TestServeCmd(t *testing.T) {
 			url := "http://127.0.0.1:" + port + tc.filePath
 			resp, err := http.Get(url)
 
-			if tc.expectCode == http.StatusOK {
+			switch tc.expectCode {
+			case http.StatusOK:
 				require.NoError(t, err, "HTTP request should not fail")
 				defer resp.Body.Close()
 
@@ -144,7 +145,7 @@ func TestServeCmd(t *testing.T) {
 				body, err := io.ReadAll(resp.Body)
 				require.NoError(t, err)
 				assert.Equal(t, tc.expectBody, string(body))
-			} else if tc.expectCode == http.StatusNotFound {
+			case http.StatusNotFound:
 				if err == nil {
 					defer resp.Body.Close()
 					assert.Equal(t, tc.expectCode, resp.StatusCode)
