@@ -23,7 +23,8 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState<string>('');
-  const [changedValues, setChangedValues] = useState<Record<string, string>>({});
+  const [configValues, setConfigValues] = useState<Record<string, string>>({});
+  const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
   const [submitError, setSubmitError] = useState<string | null>(null);
   const themeColor = settings.themeColor;
 
@@ -50,7 +51,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   });
 
   // Fetch current config values
-  const { data: configValues, isLoading: isConfigValuesLoading, error: getConfigValuesError } = useQuery<Record<string, string>>({
+  const { data: apiConfigValues, isLoading: isConfigValuesLoading, error: getConfigValuesError } = useQuery<Record<string, string>>({
     queryKey: ['appConfigValues', target],
     queryFn: async () => {
       const response = await fetch(`/api/${target}/install/app/config/values`, {
@@ -74,13 +75,21 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   // Mutation to save config values
   const { mutate: submitConfigValues } = useMutation({
     mutationFn: async () => {
+      // Build payload with only dirty fields
+      const dirtyValues: Record<string, string> = {};
+      dirtyFields.forEach(fieldName => {
+        if (configValues[fieldName] !== undefined) {
+          dirtyValues[fieldName] = configValues[fieldName];
+        }
+      });
+
       const response = await fetch(`/api/${target}/install/app/config/values`, {
-        method: 'POST',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ values: changedValues }),
+        body: JSON.stringify({ values: dirtyValues }),
       });
 
       if (!response.ok) {
@@ -96,6 +105,8 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     },
     onSuccess: () => {
       setSubmitError(null);
+      // Clear dirty fields after successful submission
+      setDirtyFields(new Set());
       onNext();
     },
     onError: (error: Error) => {
@@ -110,45 +121,49 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     }
   }, [appConfig, activeTab]);
 
-  // Initialize changedValues with current values when they load
+  // Initialize configValues with initial values when they load
   useEffect(() => {
-    if (configValues && Object.keys(changedValues).length === 0) {
-      setChangedValues(configValues);
+    if (apiConfigValues && Object.keys(configValues).length === 0) {
+      setConfigValues(apiConfigValues);
     }
-  }, [configValues]);
+  }, [apiConfigValues]);
 
   // Helper function to get the display value for a config item (no defaults)
   const getDisplayValue = (item: AppConfigItem): string => {
-    // First check user value, then config item value
-    return changedValues?.[item.name] || item.value || '';
+    // First check user value, then config item value (use ?? to allow empty strings from the user)
+    return configValues?.[item.name] ?? (item.value || '');
   };
 
   // Helper function to get the effective value for a config item (includes defaults)
   const getEffectiveValue = (item: AppConfigItem): string => {
-    // First check user value, then config item value, then default
-    return changedValues?.[item.name] || item.value || item.default || '';
+    // First check user value, then config item value, then default (use ?? to allow empty strings from the user)
+    return configValues?.[item.name] ?? (item.value || item.default || '');
   };
 
   const updateConfigValue = (itemName: string, value: string) => {
-    // Update the changed values map
-    setChangedValues(prev => {
-      const newValues = { ...prev };
+    // Update the config values map
+    setConfigValues(prev => ({ ...prev, [itemName]: value }));
 
-      if (value === '') {
-        // Remove the item if it's empty
-        delete newValues[itemName];
-      } else {
-        // Add or update the item with the new value
-        newValues[itemName] = value;
-      }
-
-      return newValues;
-    });
+    // Mark field as dirty
+    setDirtyFields(prev => new Set(prev).add(itemName));
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     updateConfigValue(id, value);
+  };
+
+  const handlePasswordFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Auto-select entire text for password fields
+    e.target.select();
+  };
+
+  const handlePasswordKeyDown = (itemName: string, e: React.KeyboardEvent<Element>) => {
+    // If field is not dirty and user types a character, clear the field first
+    if (!dirtyFields.has(itemName) && e.key.length === 1) {
+      // Clear the field before the character is added
+      updateConfigValue(itemName, '');
+    }
   };
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -173,6 +188,20 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             onChange={handleInputChange}
             dataTestId={`text-input-${item.name}`}
             helpText={item.help_text}
+          />
+        );
+      
+      case 'password':
+        return (
+          <Input
+            id={item.name}
+            label={item.title}
+            type="password"
+            value={getDisplayValue(item)}
+            onChange={handleInputChange}
+            onKeyDown={(e) => handlePasswordKeyDown(item.name, e)}
+            onFocus={handlePasswordFocus}
+            dataTestId={`password-input-${item.name}`}
           />
         );
 

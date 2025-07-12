@@ -1,6 +1,8 @@
 package config
 
 import (
+	"context"
+
 	configstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -13,13 +15,13 @@ var _ AppConfigManager = &appConfigManager{}
 type AppConfigManager interface {
 	// GetConfig returns the config with disabled groups and items filtered out
 	GetConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error)
+	// PatchConfigValues patches the current config values
+	PatchConfigValues(ctx context.Context, config kotsv1beta1.Config, values map[string]string) error
 	// GetConfigValues returns the current config values
-	GetConfigValues() (map[string]string, error)
-	// SetConfigValues sets the config values
-	SetConfigValues(config kotsv1beta1.Config, values map[string]string) error
+	GetConfigValues(ctx context.Context, config kotsv1beta1.Config, maskPasswords bool) (map[string]string, error)
 	// GetKotsadmConfigValues merges the config values with the app config defaults and returns a
 	// kotsv1beta1.ConfigValues struct.
-	GetKotsadmConfigValues(config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error)
+	GetKotsadmConfigValues(ctx context.Context, config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error)
 }
 
 // appConfigManager is an implementation of the AppConfigManager interface

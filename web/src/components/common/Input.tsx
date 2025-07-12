@@ -8,6 +8,7 @@ interface InputProps {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyDown?: (e: React.KeyboardEvent) => void;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;
@@ -26,6 +27,7 @@ const Input: React.FC<InputProps> = ({
   value,
   onChange,
   onKeyDown,
+  onFocus,
   placeholder = '',
   required = false,
   disabled = false,
@@ -57,6 +59,7 @@ const Input: React.FC<InputProps> = ({
           value={value}
           onChange={onChange}
           onKeyDown={onKeyDown}
+          onFocus={onFocus}
           placeholder={placeholder}
           disabled={disabled}
           required={required}
