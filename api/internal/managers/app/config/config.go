@@ -85,18 +85,14 @@ func (m *appConfigManager) SetConfigValues(config kotsv1beta1.Config, configValu
 }
 
 func (m *appConfigManager) GetKotsadmConfigValues(config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error) {
-	storedValues, err := m.GetConfigValues()
-	if err != nil {
-		return kotsv1beta1.ConfigValues{}, fmt.Errorf("get config values: %w", err)
-	}
-
-	return m.getKotsadmConfigValues(config, storedValues)
-}
-
-func (m *appConfigManager) getKotsadmConfigValues(config kotsv1beta1.Config, configValues map[string]string) (kotsv1beta1.ConfigValues, error) {
 	filteredConfig, err := m.GetConfig(config)
 	if err != nil {
 		return kotsv1beta1.ConfigValues{}, fmt.Errorf("get config: %w", err)
+	}
+
+	storedValues, err := m.GetConfigValues()
+	if err != nil {
+		return kotsv1beta1.ConfigValues{}, fmt.Errorf("get config values: %w", err)
 	}
 
 	kotsadmConfigValues := kotsv1beta1.ConfigValues{
@@ -115,10 +111,10 @@ func (m *appConfigManager) getKotsadmConfigValues(config kotsv1beta1.Config, con
 	// add values from the filtered config
 	for _, group := range filteredConfig.Spec.Groups {
 		for _, item := range group.Items {
-			kotsadmConfigValues.Spec.Values[item.Name] = getConfigValueFromItem(item, configValues)
+			kotsadmConfigValues.Spec.Values[item.Name] = getConfigValueFromItem(item, storedValues)
 
 			for _, childItem := range item.Items {
-				kotsadmConfigValues.Spec.Values[childItem.Name] = getConfigValueFromChildItem(childItem, configValues)
+				kotsadmConfigValues.Spec.Values[childItem.Name] = getConfigValueFromChildItem(childItem, storedValues)
 			}
 		}
 	}
