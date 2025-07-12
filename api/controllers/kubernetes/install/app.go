@@ -51,6 +51,11 @@ func (c *InstallController) SetAppConfigValues(ctx context.Context, values map[s
 		}
 	}()
 
+	err = c.appConfigManager.ValidateConfigValues(*c.releaseData.AppConfig, values)
+	if err != nil {
+		return fmt.Errorf("validate app config values: %w", err)
+	}
+
 	err = c.appConfigManager.SetConfigValues(*c.releaseData.AppConfig, values)
 	if err != nil {
 		return fmt.Errorf("set app config values: %w", err)

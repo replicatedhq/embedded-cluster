@@ -15,6 +15,8 @@ type AppConfigManager interface {
 	GetConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error)
 	// GetConfigValues returns the current config values
 	GetConfigValues() (map[string]string, error)
+	// ValidateConfigValues validates the config values
+	ValidateConfigValues(config kotsv1beta1.Config, values map[string]string) error
 	// SetConfigValues sets the config values
 	SetConfigValues(config kotsv1beta1.Config, values map[string]string) error
 	// GetKotsadmConfigValues merges the config values with the app config defaults and returns a
