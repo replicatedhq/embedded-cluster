@@ -14,7 +14,7 @@ var (
 )
 
 func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights bool) (finalErr error) {
-	if c.releaseData == nil || c.releaseData.AppConfig == nil {
+	if c.appConfigManager == nil {
 		return errors.New("app config not found")
 	}
 
@@ -43,7 +43,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 		}
 	}
 
-	configValues, err := c.appConfigManager.GetKotsadmConfigValues(*c.releaseData.AppConfig)
+	configValues, err := c.appConfigManager.GetKotsadmConfigValues()
 	if err != nil {
 		return fmt.Errorf("failed to get kotsadm config values: %w", err)
 	}

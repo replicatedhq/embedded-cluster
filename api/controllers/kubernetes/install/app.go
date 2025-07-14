@@ -11,15 +11,15 @@ import (
 )
 
 func (c *InstallController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error) {
-	if c.releaseData == nil || c.releaseData.AppConfig == nil {
+	if c.appConfigManager == nil {
 		return kotsv1beta1.Config{}, errors.New("app config not found")
 	}
 
-	return c.appConfigManager.GetConfig(*c.releaseData.AppConfig)
+	return c.appConfigManager.GetConfig()
 }
 
 func (c *InstallController) PatchAppConfigValues(ctx context.Context, values map[string]string) (finalErr error) {
-	if c.releaseData == nil || c.releaseData.AppConfig == nil {
+	if c.appConfigManager == nil {
 		return errors.New("app config not found")
 	}
 
@@ -51,12 +51,12 @@ func (c *InstallController) PatchAppConfigValues(ctx context.Context, values map
 		}
 	}()
 
-	err = c.appConfigManager.ValidateConfigValues(*c.releaseData.AppConfig, values)
+	err = c.appConfigManager.ValidateConfigValues(values)
 	if err != nil {
 		return fmt.Errorf("validate app config values: %w", err)
 	}
 
-	err = c.appConfigManager.PatchConfigValues(*c.releaseData.AppConfig, values)
+	err = c.appConfigManager.PatchConfigValues(values)
 	if err != nil {
 		return fmt.Errorf("patch app config values: %w", err)
 	}
@@ -70,11 +70,8 @@ func (c *InstallController) PatchAppConfigValues(ctx context.Context, values map
 }
 
 func (c *InstallController) GetAppConfigValues(ctx context.Context, maskPasswords bool) (map[string]string, error) {
-	// Get the app config to determine which fields are password type
-	appConfig, err := c.GetAppConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get app config: %w", err)
+	if c.appConfigManager == nil {
+		return nil, errors.New("app config not found")
 	}
-
-	return c.appConfigManager.GetConfigValues(appConfig, maskPasswords)
+	return c.appConfigManager.GetConfigValues(maskPasswords)
 }
