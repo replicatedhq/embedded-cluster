@@ -1855,6 +1855,20 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 									Value:   multitype.BoolOrString{StrVal: "schema-password"},
 									Default: multitype.BoolOrString{StrVal: "default-password"},
 									When:    "true",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:    "confirm-password",
+											Title:   "Confirm Password",
+											Value:   multitype.BoolOrString{StrVal: "schema-confirm-password"},
+											Default: multitype.BoolOrString{StrVal: "default-confirm-password"},
+										},
+										{
+											Name:    "password-hint",
+											Title:   "Password Hint",
+											Value:   multitype.BoolOrString{StrVal: "schema-password-hint"},
+											Default: multitype.BoolOrString{StrVal: "default-password-hint"},
+										},
+									},
 								},
 								{
 									Name:    "api-key",
@@ -1863,6 +1877,14 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 									Value:   multitype.BoolOrString{StrVal: "schema-api-key"},
 									Default: multitype.BoolOrString{StrVal: "default-api-key"},
 									When:    "true",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:    "api-secret",
+											Title:   "API Secret",
+											Value:   multitype.BoolOrString{StrVal: "schema-api-secret"},
+											Default: multitype.BoolOrString{StrVal: "default-api-secret"},
+										},
+									},
 								},
 								{
 									Name:    "secret-token",
@@ -1883,6 +1905,9 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 					"password": "stored-password",
 					"api-key":  "stored-api-key",
 					// secret-token intentionally omitted to test fallback behavior
+					"confirm-password": "stored-confirm-password",
+					"password-hint":    "stored-password-hint",
+					// api-secret intentionally omitted to test fallback behavior
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
 			},
@@ -1905,10 +1930,25 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 							ValuePlaintext: "stored-password", // password with stored value: uses stored value
 							Default:        "default-password",
 						},
+						"confirm-password": {
+							Value:          "",
+							ValuePlaintext: "stored-confirm-password", // child password with stored value
+							Default:        "default-confirm-password",
+						},
+						"password-hint": {
+							Value:          "",
+							ValuePlaintext: "stored-password-hint", // child password with stored value
+							Default:        "default-password-hint",
+						},
 						"api-key": {
 							Value:          "",
 							ValuePlaintext: "stored-api-key", // password with stored value: uses stored value
 							Default:        "default-api-key",
+						},
+						"api-secret": {
+							Value:          "",
+							ValuePlaintext: "schema-api-secret", // child password without stored value: uses value from schema
+							Default:        "default-api-secret",
 						},
 						"secret-token": {
 							Value:          "",

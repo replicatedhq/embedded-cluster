@@ -134,12 +134,20 @@ func (m *appConfigManager) GetKotsadmConfigValues(ctx context.Context, config ko
 
 			for _, subItem := range item.Items {
 				subConfigValue := kotsv1beta1.ConfigValue{
-					Value:   subItem.Value.String(),
 					Default: subItem.Default.String(),
+				}
+				if item.Type == "password" {
+					subConfigValue.ValuePlaintext = subItem.Value.String()
+				} else {
+					subConfigValue.Value = subItem.Value.String()
 				}
 				// override values from the config values store
 				if value, ok := storedValues[subItem.Name]; ok {
-					subConfigValue.Value = value
+					if item.Type == "password" {
+						subConfigValue.ValuePlaintext = value
+					} else {
+						subConfigValue.Value = value
+					}
 				}
 				kotsadmConfigValues.Spec.Values[subItem.Name] = subConfigValue
 			}
