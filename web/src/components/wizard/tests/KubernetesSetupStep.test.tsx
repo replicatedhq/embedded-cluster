@@ -33,6 +33,7 @@ const server = setupServer(
 
 describe("KubernetesSetupStep", () => {
   const mockOnNext = vi.fn();
+  const mockOnBack = vi.fn();
 
   beforeAll(() => {
     server.listen();
@@ -52,7 +53,7 @@ describe("KubernetesSetupStep", () => {
   });
 
   it("renders the kubernetes setup form with card, title, and next button", async () => {
-    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
         authenticated: true,
         target: "kubernetes",
@@ -73,7 +74,7 @@ describe("KubernetesSetupStep", () => {
     await screen.findByText("Loading configuration...");
 
     // Check for title and description
-    await screen.findByText("Configure the installation settings.");
+    await screen.findByText("Set up the Kubernetes cluster for this installation.");
 
     // Check all input fields are present
     screen.getByLabelText(/Admin Console Port/, { selector: "input" });
@@ -94,7 +95,7 @@ describe("KubernetesSetupStep", () => {
       })
     );
 
-    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
         authenticated: true,
         target: "kubernetes",
@@ -110,7 +111,7 @@ describe("KubernetesSetupStep", () => {
 
     // Wait for loading to complete
     await screen.findByText("Loading configuration...");
-    await screen.findByText("Configure the installation settings.");
+    await screen.findByText("Set up the Kubernetes cluster for this installation.");
 
     // Fill in required form values
     const adminPortInput = screen.getByLabelText(/Admin Console Port/);
@@ -143,7 +144,7 @@ describe("KubernetesSetupStep", () => {
       })
     );
 
-    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
         authenticated: true,
         target: "kubernetes",
@@ -159,7 +160,7 @@ describe("KubernetesSetupStep", () => {
 
     // Wait for loading to complete
     await screen.findByText("Loading configuration...");
-    await screen.findByText("Configure the installation settings.");
+    await screen.findByText("Set up the Kubernetes cluster for this installation.");
 
     // Fill in required form values
     const adminPortInput = screen.getByLabelText(/Admin Console Port/);
@@ -211,7 +212,7 @@ describe("KubernetesSetupStep", () => {
       })
     );
 
-    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
         authenticated: true,
         target: "kubernetes",
