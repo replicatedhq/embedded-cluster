@@ -883,7 +883,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check request method and path
 		assert.Equal(t, "PATCH", r.Method)
-		assert.Equal(t, "/api/kubernetes/install/app/config/values", r.URL.Path)
+		assert.Equal(t, "/api/linux/install/app/config/values", r.URL.Path)
 
 		// Check headers
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
