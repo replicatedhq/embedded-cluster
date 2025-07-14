@@ -484,8 +484,8 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 	})
 }
 
-// TestInstallController_SetAppConfigValuesWithAPIClient tests the SetAppConfigValues endpoint using the API client
-func TestInstallController_SetAppConfigValuesWithAPIClient(t *testing.T) {
+// TestInstallController_PatchAppConfigValuesWithAPIClient tests the PatchAppConfigValues endpoint using the API client
+func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 	password := "test-password"
 
 	// Create an app config
