@@ -3,7 +3,7 @@ import { LinuxConfigProvider } from "./contexts/LinuxConfigContext";
 import { KubernetesConfigProvider } from "./contexts/KubernetesConfigContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { WizardProvider } from "./contexts/WizardModeContext";
-import { BrandingProvider } from "./contexts/BrandingContext";
+import { InitialStateProvider } from "./contexts/InitialStateContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import ConnectionMonitor from "./components/common/ConnectionMonitor";
 import InstallWizard from "./components/wizard/InstallWizard";
@@ -13,12 +13,12 @@ import { getQueryClient } from "./query-client";
 function App() {
   const queryClient = getQueryClient();
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <SettingsProvider>
-          <LinuxConfigProvider>
-            <KubernetesConfigProvider>
-              <BrandingProvider>
+    <InitialStateProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <SettingsProvider>
+            <LinuxConfigProvider>
+              <KubernetesConfigProvider>
                 <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
                   <BrowserRouter>
                     <Routes>
@@ -30,18 +30,17 @@ function App() {
                           </WizardProvider>
                         }
                       />
-
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </BrowserRouter>
                 </div>
-              </BrandingProvider>
-            </KubernetesConfigProvider>
-          </LinuxConfigProvider>
-        </SettingsProvider>
-      </AuthProvider>
-      <ConnectionMonitor />
-    </QueryClientProvider>
+              </KubernetesConfigProvider>
+            </LinuxConfigProvider>
+          </SettingsProvider>
+        </AuthProvider>
+        <ConnectionMonitor />
+      </QueryClientProvider>
+    </InitialStateProvider>
   );
 }
 

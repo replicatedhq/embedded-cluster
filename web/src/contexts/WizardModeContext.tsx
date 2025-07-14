@@ -1,8 +1,8 @@
 import React, { createContext, useContext } from "react";
-import { useBranding } from "./BrandingContext";
+import { useInitialState } from "./InitialStateContext";
+import { InstallationTarget } from "../types/installation-target";
 
 export type WizardMode = "install" | "upgrade";
-export type WizardTarget = "linux" | "kubernetes";
 
 interface WizardText {
   title: string;
@@ -59,7 +59,7 @@ const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, 
 });
 
 interface WizardModeContextType {
-  target: WizardTarget;
+  target: InstallationTarget;
   mode: WizardMode;
   text: WizardText;
 }
@@ -67,17 +67,12 @@ interface WizardModeContextType {
 export const WizardContext = createContext<WizardModeContextType | undefined>(undefined);
 
 export const WizardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // __INITIAL_STATE__ is a global variable that can be set by the server-side rendering process
-  // as a way to pass initial data to the client.
-  const initialState = window.__INITIAL_STATE__ || {};
-  const target: WizardTarget = initialState.installTarget as WizardTarget;
+  const { title, installTarget } = useInitialState();
   const mode = "install"; // TODO: get mode from initial state
-
-  const { title } = useBranding();
-  const isLinux = target === "linux";
+  const isLinux = installTarget === "linux";
   const text = getTextVariations(isLinux, title)[mode];
 
-  return <WizardContext.Provider value={{ mode, target, text }}>{children}</WizardContext.Provider>;
+  return <WizardContext.Provider value={{ mode, target: installTarget, text }}>{children}</WizardContext.Provider>;
 };
 
 export const useWizard = (): WizardModeContextType => {
