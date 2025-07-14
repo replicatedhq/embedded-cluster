@@ -29,8 +29,8 @@ type Controller interface {
 	SetupInfra(ctx context.Context) error
 	GetInfra(ctx context.Context) (types.Infra, error)
 	GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error)
-	SetAppConfigValues(ctx context.Context, values map[string]string) error
-	GetAppConfigValues(ctx context.Context) (map[string]string, error)
+	PatchAppConfigValues(ctx context.Context, values map[string]string) error
+	GetAppConfigValues(ctx context.Context, maskPasswords bool) (map[string]string, error)
 }
 
 var _ Controller = (*InstallController)(nil)

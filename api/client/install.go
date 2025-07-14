@@ -349,6 +349,41 @@ func (c *client) GetLinuxAppConfigValues() (map[string]string, error) {
 	return response.Values, nil
 }
 
+func (c *client) PatchLinuxAppConfigValues(values map[string]string) (types.AppConfig, error) {
+	req := types.PatchAppConfigValuesRequest{
+		Values: values,
+	}
+	b, err := json.Marshal(req)
+	if err != nil {
+		return types.AppConfig{}, err
+	}
+
+	httpReq, err := http.NewRequest("PATCH", c.apiURL+"/api/linux/install/app/config/values", bytes.NewBuffer(b))
+	if err != nil {
+		return types.AppConfig{}, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(httpReq, c.token)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return types.AppConfig{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.AppConfig{}, errorFromResponse(resp)
+	}
+
+	var config types.AppConfig
+	err = json.NewDecoder(resp.Body).Decode(&config)
+	if err != nil {
+		return types.AppConfig{}, err
+	}
+
+	return config, nil
+}
+
 func (c *client) GetKubernetesAppConfig() (types.AppConfig, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app/config", nil)
 	if err != nil {
@@ -401,4 +436,39 @@ func (c *client) GetKubernetesAppConfigValues() (map[string]string, error) {
 	}
 
 	return response.Values, nil
+}
+
+func (c *client) PatchKubernetesAppConfigValues(values map[string]string) (types.AppConfig, error) {
+	req := types.PatchAppConfigValuesRequest{
+		Values: values,
+	}
+	b, err := json.Marshal(req)
+	if err != nil {
+		return types.AppConfig{}, err
+	}
+
+	httpReq, err := http.NewRequest("PATCH", c.apiURL+"/api/kubernetes/install/app/config/values", bytes.NewBuffer(b))
+	if err != nil {
+		return types.AppConfig{}, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(httpReq, c.token)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return types.AppConfig{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.AppConfig{}, errorFromResponse(resp)
+	}
+
+	var config types.AppConfig
+	err = json.NewDecoder(resp.Body).Decode(&config)
+	if err != nil {
+		return types.AppConfig{}, err
+	}
+
+	return config, nil
 }
