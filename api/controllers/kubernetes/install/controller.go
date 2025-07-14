@@ -2,7 +2,6 @@ package install
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -195,41 +194,25 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.infraManager = infraManager
 	}
 
-	if controller.appConfigManager == nil {
-		if controller.releaseData != nil && controller.releaseData.AppConfig != nil {
+	if controller.releaseData != nil && controller.releaseData.AppConfig != nil {
+		// Initialize the app config manager if an app config is provided
+		if controller.appConfigManager == nil {
 			controller.appConfigManager = appconfig.NewAppConfigManager(
 				*controller.releaseData.AppConfig,
 				appconfig.WithLogger(controller.logger),
 				appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
 			)
 		}
-	}
 
-	if controller.configValues != nil {
-		if controller.releaseData == nil || controller.releaseData.AppConfig == nil {
-			return nil, errors.New("app config not found")
-		}
-		err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
-		if err != nil {
-			return nil, fmt.Errorf("validate app config values: %w", err)
-		}
-		err = controller.appConfigManager.PatchConfigValues(controller.configValues)
-		if err != nil {
-			return nil, fmt.Errorf("set app config values: %w", err)
-		}
-	}
-
-	if controller.configValues != nil {
-		if controller.releaseData == nil || controller.releaseData.AppConfig == nil {
-			return nil, errors.New("app config not found")
-		}
-		err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
-		if err != nil {
-			return nil, fmt.Errorf("validate app config values: %w", err)
-		}
-		err = controller.appConfigManager.PatchConfigValues(controller.configValues)
-		if err != nil {
-			return nil, fmt.Errorf("set app config values: %w", err)
+		if controller.configValues != nil {
+			err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
+			if err != nil {
+				return nil, fmt.Errorf("validate app config values: %w", err)
+			}
+			err = controller.appConfigManager.PatchConfigValues(controller.configValues)
+			if err != nil {
+				return nil, fmt.Errorf("patch app config values: %w", err)
+			}
 		}
 	}
 
