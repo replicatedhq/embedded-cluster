@@ -4,36 +4,38 @@ import { useSettings } from '../../contexts/SettingsContext';
 interface InputProps {
   id: string;
   label: string;
+  helpText?: string;
+  error?: string;
+  required?: boolean;
   type?: string;
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onKeyDown?: (e: React.KeyboardEvent) => void;
+  icon?: React.ReactNode;
   placeholder?: string;
-  required?: boolean;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
   disabled?: boolean;
-  error?: string;
-  helpText?: string;
   className?: string;
   labelClassName?: string;
-  icon?: React.ReactNode;
   dataTestId?: string;
 }
 
 const Input: React.FC<InputProps> = ({
   id,
   label,
+  helpText,
+  error,
+  required,
   type = 'text',
   value,
-  onChange,
-  onKeyDown,
+  icon,
   placeholder = '',
-  required = false,
+  onKeyDown,
+  onChange,
+  onFocus,
   disabled = false,
-  error,
-  helpText,
   className = '',
   labelClassName = '',
-  icon,
   dataTestId,
 }) => {
   const { settings } = useSettings();
@@ -57,6 +59,7 @@ const Input: React.FC<InputProps> = ({
           value={value}
           onChange={onChange}
           onKeyDown={onKeyDown}
+          onFocus={onFocus}
           placeholder={placeholder}
           disabled={disabled}
           required={required}

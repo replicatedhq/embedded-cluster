@@ -151,17 +151,17 @@ components:
         serviceCidr:
           type: string
       type: object
-    types.PostInstallRunHostPreflightsRequest:
-      properties:
-        isUi:
-          type: boolean
-      type: object
-    types.SetAppConfigValuesRequest:
+    types.PatchAppConfigValuesRequest:
       properties:
         values:
           additionalProperties:
             type: string
           type: object
+      type: object
+    types.PostInstallRunHostPreflightsRequest:
+      properties:
+        isUi:
+          type: boolean
       type: object
     types.State:
       type: string
@@ -414,15 +414,15 @@ paths:
       summary: Get the app config values
       tags:
       - kubernetes-install
-    post:
-      description: Set the app config values
-      operationId: postKubernetesInstallSetAppConfigValues
+    patch:
+      description: Set the app config values with partial updates
+      operationId: patchKubernetesInstallAppConfigValues
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.SetAppConfigValuesRequest'
-        description: Set App Config Values Request
+              $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+        description: Patch App Config Values Request
         required: true
       responses:
         "200":
@@ -431,6 +431,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.AppConfig'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Set the app config values
@@ -507,6 +513,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.Status'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Configure the Kubernetes installation for install
@@ -560,15 +572,15 @@ paths:
       summary: Get the app config values
       tags:
       - linux-install
-    post:
-      description: Set the app config values
-      operationId: postLinuxInstallSetAppConfigValues
+    patch:
+      description: Set the app config values with partial updates
+      operationId: patchLinuxInstallAppConfigValues
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.SetAppConfigValuesRequest'
-        description: Set App Config Values Request
+              $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+        description: Patch App Config Values Request
         required: true
       responses:
         "200":
@@ -577,6 +589,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.AppConfig'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Set the app config values
@@ -696,6 +714,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.Status'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Configure the installation for install

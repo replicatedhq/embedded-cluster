@@ -4,14 +4,14 @@ import { useSettings } from '../../contexts/SettingsContext';
 interface TextareaProps {
   id: string;
   label: string;
+  helpText?: string;
+  error?: string;
+  required?: boolean;
   value: string;
-  onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
   rows?: number;
   placeholder?: string;
-  required?: boolean;
+  onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
   disabled?: boolean;
-  error?: string;
-  helpText?: string;
   className?: string;
   labelClassName?: string;
   dataTestId?: string;
@@ -20,14 +20,14 @@ interface TextareaProps {
 const Textarea = ({
   id,
   label,
+  helpText,
+  error,
+  required = false,
   value,
-  onChange,
   rows = 4,
   placeholder = '',
-  required = false,
+  onChange,
   disabled = false,
-  error,
-  helpText,
   className = '',
   labelClassName = '',
   dataTestId,

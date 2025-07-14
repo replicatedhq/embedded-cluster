@@ -14,9 +14,11 @@ type AppConfigManager interface {
 	// GetConfig returns the config with disabled groups and items filtered out
 	GetConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error)
 	// GetConfigValues returns the current config values
-	GetConfigValues() (map[string]string, error)
-	// SetConfigValues sets the config values
-	SetConfigValues(config kotsv1beta1.Config, values map[string]string) error
+	GetConfigValues(config kotsv1beta1.Config, maskPasswords bool) (map[string]string, error)
+	// ValidateConfigValues validates the config values
+	ValidateConfigValues(config kotsv1beta1.Config, values map[string]string) error
+	// PatchConfigValues patches the current config values
+	PatchConfigValues(config kotsv1beta1.Config, values map[string]string) error
 	// GetKotsadmConfigValues merges the config values with the app config defaults and returns a
 	// kotsv1beta1.ConfigValues struct.
 	GetKotsadmConfigValues(config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error)
