@@ -77,7 +77,7 @@ func (m *appConfigManager) GetConfigValues(ctx context.Context, config kotsv1bet
 	for _, group := range config.Spec.Groups {
 		for _, item := range group.Items {
 			if item.Type == "password" {
-				if _, exists := maskedValues[item.Name]; exists {
+				if value, ok := maskedValues[item.Name]; ok && value != "" {
 					maskedValues[item.Name] = PasswordMask
 				}
 			}

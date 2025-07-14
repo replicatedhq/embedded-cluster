@@ -1009,6 +1009,233 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 	}
 }
 
+func TestAppConfigManager_GetConfigValues(t *testing.T) {
+	tests := []struct {
+		name           string
+		appConfig      kotsv1beta1.Config
+		maskPasswords  bool
+		storeValues    map[string]string
+		storeError     error
+		expectedValues map[string]string
+		wantErr        bool
+	}{
+		{
+			name: "get config values without masking",
+			appConfig: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "test-group",
+							Title: "Test Group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "username",
+									Title: "Username",
+									Type:  "text",
+								},
+								{
+									Name:  "password",
+									Title: "Password",
+									Type:  "password",
+								},
+							},
+						},
+					},
+				},
+			},
+			maskPasswords: false,
+			storeValues: map[string]string{
+				"username": "admin",
+				"password": "secret123",
+			},
+			expectedValues: map[string]string{
+				"username": "admin",
+				"password": "secret123",
+			},
+			wantErr: false,
+		},
+		{
+			name: "get config values with password masking",
+			appConfig: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "test-group",
+							Title: "Test Group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "username",
+									Title: "Username",
+									Type:  "text",
+								},
+								{
+									Name:  "password",
+									Title: "Password",
+									Type:  "password",
+								},
+								{
+									Name:  "api-key",
+									Title: "API Key",
+									Type:  "password",
+								},
+							},
+						},
+					},
+				},
+			},
+			maskPasswords: true,
+			storeValues: map[string]string{
+				"username": "admin",
+				"password": "secret123",
+				"api-key":  "key-abc123",
+			},
+			expectedValues: map[string]string{
+				"username": "admin",
+				"password": PasswordMask,
+				"api-key":  PasswordMask,
+			},
+			wantErr: false,
+		},
+		{
+			name: "password masking with empty password values",
+			appConfig: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "test-group",
+							Title: "Test Group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "username",
+									Title: "Username",
+									Type:  "text",
+								},
+								{
+									Name:  "password",
+									Title: "Password",
+									Type:  "password",
+								},
+								{
+									Name:  "api-key",
+									Title: "API Key",
+									Type:  "password",
+								},
+								{
+									Name:  "secret-token",
+									Title: "Secret Token",
+									Type:  "password",
+								},
+							},
+						},
+					},
+				},
+			},
+			maskPasswords: true,
+			storeValues: map[string]string{
+				"username":     "admin",
+				"password":     "", // empty password should not be masked
+				"api-key":      "key-abc123",
+				"secret-token": "", // another empty password should not be masked
+			},
+			expectedValues: map[string]string{
+				"username":     "admin",
+				"password":     "", // empty password values are not masked
+				"api-key":      PasswordMask,
+				"secret-token": "", // empty password values are not masked
+			},
+			wantErr: false,
+		},
+		{
+			name: "password masking with missing password fields",
+			appConfig: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "test-group",
+							Title: "Test Group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "username",
+									Title: "Username",
+									Type:  "text",
+								},
+								{
+									Name:  "password",
+									Title: "Password",
+									Type:  "password",
+								},
+							},
+						},
+					},
+				},
+			},
+			maskPasswords: true,
+			storeValues: map[string]string{
+				"username": "admin",
+				// password not in store values
+			},
+			expectedValues: map[string]string{
+				"username": "admin",
+				// password should not appear in result
+			},
+			wantErr: false,
+		},
+		{
+			name: "store error",
+			appConfig: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "test-group",
+							Title: "Test Group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "username",
+									Title: "Username",
+									Type:  "text",
+								},
+							},
+						},
+					},
+				},
+			},
+			maskPasswords:  false,
+			storeValues:    nil,
+			storeError:     errors.New("store connection error"),
+			expectedValues: nil,
+			wantErr:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create mock store
+			mockStore := &config.MockStore{}
+			mockStore.On("GetConfigValues").Return(tt.storeValues, tt.storeError)
+
+			// Create manager with mock store
+			manager := &appConfigManager{
+				appConfigStore: mockStore,
+			}
+
+			// Call GetConfigValues
+			result, err := manager.GetConfigValues(context.Background(), tt.appConfig, tt.maskPasswords)
+
+			// Verify expectations
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Nil(t, result)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedValues, result)
+			}
+
+			// Verify mock expectations
+			mockStore.AssertExpectations(t)
+		})
+	}
+}
+
 func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 	tests := []struct {
 		name      string
