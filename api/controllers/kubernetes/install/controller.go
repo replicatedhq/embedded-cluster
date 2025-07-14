@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -206,6 +207,13 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appconfig.WithLogger(controller.logger),
 			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
 		)
+	}
+
+	if controller.releaseData == nil {
+		return nil, errors.New("release not found")
+	}
+	if controller.releaseData.AppConfig == nil {
+		return nil, errors.New("application config not found")
 	}
 
 	return controller, nil

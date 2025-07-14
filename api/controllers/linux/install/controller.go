@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -260,6 +261,13 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
 		)
+	}
+
+	if controller.releaseData == nil {
+		return nil, errors.New("release not found")
+	}
+	if controller.releaseData.AppConfig == nil {
+		return nil, errors.New("application config not found")
 	}
 
 	controller.registerReportingHandlers()

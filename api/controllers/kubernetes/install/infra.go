@@ -2,7 +2,6 @@ package install
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime/debug"
 
@@ -10,10 +9,6 @@ import (
 )
 
 func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
-	if c.releaseData == nil || c.releaseData.AppConfig == nil {
-		return errors.New("app config not found")
-	}
-
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
