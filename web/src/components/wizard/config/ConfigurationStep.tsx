@@ -173,6 +173,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             onChange={handleInputChange}
             dataTestId={`text-input-${item.name}`}
             helpText={item.help_text}
+            className="w-96"
           />
         );
 
@@ -184,6 +185,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`textarea-input-${item.name}`}
+            className="w-full max-w-2xl"
           />
         );
 
