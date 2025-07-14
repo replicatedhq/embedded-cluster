@@ -14,6 +14,10 @@ var (
 )
 
 func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights bool) (finalErr error) {
+	if err := c.validateReleaseData(); err != nil {
+		return err
+	}
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)

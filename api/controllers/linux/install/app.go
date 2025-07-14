@@ -10,10 +10,18 @@ import (
 )
 
 func (c *InstallController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error) {
+	if err := c.validateReleaseData(); err != nil {
+		return kotsv1beta1.Config{}, err
+	}
+
 	return c.appConfigManager.GetConfig(*c.releaseData.AppConfig)
 }
 
 func (c *InstallController) PatchAppConfigValues(ctx context.Context, values map[string]string) (finalErr error) {
+	if err := c.validateReleaseData(); err != nil {
+		return err
+	}
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
