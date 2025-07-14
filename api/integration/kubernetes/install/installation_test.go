@@ -135,6 +135,7 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 			installController, err := kubernetesinstall.NewInstallController(
 				kubernetesinstall.WithInstallation(ki),
 				kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateApplicationConfigured))),
+				kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 			)
 			require.NoError(t, err)
 
@@ -225,6 +226,7 @@ func TestKubernetesConfigureInstallationValidation(t *testing.T) {
 	installController, err := kubernetesinstall.NewInstallController(
 		kubernetesinstall.WithInstallation(ki),
 		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateApplicationConfigured))),
+		kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
@@ -282,6 +284,7 @@ func TestKubernetesConfigureInstallationBadRequest(t *testing.T) {
 	installController, err := kubernetesinstall.NewInstallController(
 		kubernetesinstall.WithInstallation(ki),
 		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateApplicationConfigured))),
+		kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
@@ -365,6 +368,7 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 	installController, err := kubernetesinstall.NewInstallController(
 		kubernetesinstall.WithInstallation(ki),
 		kubernetesinstall.WithInstallationManager(installationManager),
+		kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
@@ -426,6 +430,7 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 		emptyInstallController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithInstallation(ki),
 			kubernetesinstall.WithInstallationManager(emptyInstallationManager),
+			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 

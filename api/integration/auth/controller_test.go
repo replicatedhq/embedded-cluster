@@ -31,6 +31,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 		linuxinstall.WithInstallationManager(installation.NewInstallationManager(
 			installation.WithNetUtils(&utils.MockNetUtils{}),
 		)),
+		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 

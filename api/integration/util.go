@@ -59,14 +59,16 @@ func NewTestInterceptorFuncs() interceptor.Funcs {
 
 func NewAPIWithReleaseData(t *testing.T, opts ...api.Option) *api.API {
 	cfg := types.APIConfig{
-		Password: "password",
-		ReleaseData: &release.ReleaseData{
-			AppConfig: &kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{},
-			},
-		},
+		Password:    "password",
+		ReleaseData: DefaultReleaseData(),
 	}
 	a, err := api.New(cfg, opts...)
 	require.NoError(t, err)
 	return a
+}
+
+func DefaultReleaseData() *release.ReleaseData {
+	return &release.ReleaseData{
+		AppConfig: &kotsv1beta1.Config{},
+	}
 }

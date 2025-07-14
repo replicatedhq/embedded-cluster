@@ -199,6 +199,7 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 				linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
 				linuxinstall.WithHostUtils(tc.mockHostUtils),
 				linuxinstall.WithNetUtils(tc.mockNetUtils),
+				linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 			)
 			require.NoError(t, err)
 
@@ -296,6 +297,7 @@ func TestLinuxConfigureInstallationValidation(t *testing.T) {
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
 		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
+		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
@@ -355,6 +357,7 @@ func TestLinuxConfigureInstallationBadRequest(t *testing.T) {
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
 		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured))),
+		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
@@ -438,6 +441,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
 		linuxinstall.WithInstallationManager(installationManager),
+		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
@@ -509,6 +513,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		emptyInstallController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithRuntimeConfig(rc),
 			linuxinstall.WithInstallationManager(emptyInstallationManager),
+			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
@@ -629,6 +634,7 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 		linuxinstall.WithRuntimeConfig(rc),
 		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
 		linuxinstall.WithInstallationManager(installationManager),
+		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
