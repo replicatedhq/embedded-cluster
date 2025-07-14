@@ -1,3 +1,11 @@
+import { InstallationTarget } from './installation-target';
+
+export interface InitialState {
+  title: string;
+  icon?: string;
+  installTarget: InstallationTarget;
+}
+
 export interface InfraStatusResponse {
   components: InfraComponent[];
   status: InfraStatus;

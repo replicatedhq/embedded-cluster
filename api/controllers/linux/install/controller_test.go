@@ -1058,7 +1058,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateSucceeded,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues", mock.Anything, appConfig).Return(configValues, nil),
 					fm.On("Install", mock.Anything, rc, configValues).Return(nil),
 					mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
@@ -1075,7 +1075,7 @@ func TestSetupInfra(t *testing.T) {
 				mock.InOrder(
 					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
 					mr.On("ReportPreflightsBypassed", mock.Anything, failedPreflightOutput),
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues", mock.Anything, appConfig).Return(configValues, nil),
 					fm.On("Install", mock.Anything, rc, configValues).Return(nil),
 					mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
@@ -1100,7 +1100,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues", mock.Anything, appConfig).Return(configValues, nil),
 					fm.On("Install", mock.Anything, rc, configValues).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "install error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("install error")),
@@ -1116,7 +1116,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues", mock.Anything, appConfig).Return(configValues, nil),
 					fm.On("Install", mock.Anything, rc, configValues).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(nil, assert.AnError),
 				)
@@ -1131,7 +1131,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues", mock.Anything, appConfig).Return(configValues, nil),
 					fm.On("Install", mock.Anything, rc, configValues).Panic("this is a panic"),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "this is a panic"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("this is a panic")),
@@ -1177,7 +1177,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StatePreflightsSucceeded,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(kotsv1beta1.ConfigValues{}, assert.AnError),
+					am.On("GetKotsadmConfigValues", mock.Anything, appConfig).Return(kotsv1beta1.ConfigValues{}, assert.AnError),
 				)
 			},
 			expectedErr: assert.AnError,

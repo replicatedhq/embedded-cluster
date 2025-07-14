@@ -238,10 +238,10 @@ func EnsureInstallationCRD(ctx context.Context, kcli client.Client) error {
 func CreateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
 	in.Spec.SourceType = ecv1beta1.InstallationSourceTypeCRD
 
-	if in.ObjectMeta.Labels == nil {
-		in.ObjectMeta.Labels = map[string]string{}
+	if in.Labels == nil {
+		in.Labels = map[string]string{}
 	}
-	in.ObjectMeta.Labels["replicated.com/disaster-recovery"] = "ec-install"
+	in.Labels["replicated.com/disaster-recovery"] = "ec-install"
 
 	return cli.Create(ctx, in)
 }

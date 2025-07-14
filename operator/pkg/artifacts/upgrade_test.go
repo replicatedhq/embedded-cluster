@@ -116,15 +116,15 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 				err = cli.Get(context.Background(), client.ObjectKey{Namespace: ecNamespace, Name: copyArtifactsJobPrefix + "node1"}, job)
 				require.NoError(t, err)
 
-				assert.Equal(t, "test-installation", job.ObjectMeta.Annotations[InstallationNameAnnotation])
-				assert.Equal(t, artifactsHash, job.ObjectMeta.Annotations[ArtifactsConfigHashAnnotation])
+				assert.Equal(t, "test-installation", job.Annotations[InstallationNameAnnotation])
+				assert.Equal(t, artifactsHash, job.Annotations[ArtifactsConfigHashAnnotation])
 				assert.Equal(t, "local-artifact-mirror", job.Spec.Template.Spec.Containers[0].Image)
 
 				err = cli.Get(context.Background(), client.ObjectKey{Namespace: ecNamespace, Name: copyArtifactsJobPrefix + "node2"}, job)
 				require.NoError(t, err)
 
-				assert.Equal(t, "test-installation", job.ObjectMeta.Annotations[InstallationNameAnnotation])
-				assert.Equal(t, artifactsHash, job.ObjectMeta.Annotations[ArtifactsConfigHashAnnotation])
+				assert.Equal(t, "test-installation", job.Annotations[InstallationNameAnnotation])
+				assert.Equal(t, artifactsHash, job.Annotations[ArtifactsConfigHashAnnotation])
 				assert.Equal(t, "local-artifact-mirror", job.Spec.Template.Spec.Containers[0].Image)
 			},
 		},
@@ -221,15 +221,15 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 				err = cli.Get(context.Background(), client.ObjectKey{Namespace: ecNamespace, Name: copyArtifactsJobPrefix + "node1"}, job)
 				require.NoError(t, err)
 
-				assert.Equal(t, "test-installation", job.ObjectMeta.Annotations[InstallationNameAnnotation])
-				assert.Equal(t, artifactsHash, job.ObjectMeta.Annotations[ArtifactsConfigHashAnnotation])
+				assert.Equal(t, "test-installation", job.Annotations[InstallationNameAnnotation])
+				assert.Equal(t, artifactsHash, job.Annotations[ArtifactsConfigHashAnnotation])
 				assert.Equal(t, "local-artifact-mirror", job.Spec.Template.Spec.Containers[0].Image)
 
 				err = cli.Get(context.Background(), client.ObjectKey{Namespace: ecNamespace, Name: copyArtifactsJobPrefix + "node2"}, job)
 				require.NoError(t, err)
 
-				assert.Equal(t, "test-installation", job.ObjectMeta.Annotations[InstallationNameAnnotation])
-				assert.Equal(t, artifactsHash, job.ObjectMeta.Annotations[ArtifactsConfigHashAnnotation])
+				assert.Equal(t, "test-installation", job.Annotations[InstallationNameAnnotation])
+				assert.Equal(t, artifactsHash, job.Annotations[ArtifactsConfigHashAnnotation])
 				assert.Equal(t, "local-artifact-mirror", job.Spec.Template.Spec.Containers[0].Image)
 			},
 		},
@@ -402,8 +402,8 @@ func TestListArtifactsJobForNodes(t *testing.T) {
 				assert.Len(t, want, 3)
 
 				job := want["node1"]
-				assert.Equal(t, "test-installation", job.ObjectMeta.Annotations[InstallationNameAnnotation])
-				assert.Equal(t, artifactsHash, job.ObjectMeta.Annotations[ArtifactsConfigHashAnnotation])
+				assert.Equal(t, "test-installation", job.Annotations[InstallationNameAnnotation])
+				assert.Equal(t, artifactsHash, job.Annotations[ArtifactsConfigHashAnnotation])
 
 				// old hash
 				job = want["node2"]

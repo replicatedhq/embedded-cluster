@@ -13,7 +13,7 @@ func (c *InstallController) GetAppConfig(ctx context.Context) (kotsv1beta1.Confi
 	return c.appConfigManager.GetConfig(*c.releaseData.AppConfig)
 }
 
-func (c *InstallController) SetAppConfigValues(ctx context.Context, values map[string]string) (finalErr error) {
+func (c *InstallController) PatchAppConfigValues(ctx context.Context, values map[string]string) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -42,9 +42,9 @@ func (c *InstallController) SetAppConfigValues(ctx context.Context, values map[s
 		}
 	}()
 
-	err = c.appConfigManager.SetConfigValues(*c.releaseData.AppConfig, values)
+	err = c.appConfigManager.PatchConfigValues(ctx, *c.releaseData.AppConfig, values)
 	if err != nil {
-		return fmt.Errorf("set app config values: %w", err)
+		return fmt.Errorf("patch app config values: %w", err)
 	}
 
 	err = c.stateMachine.Transition(lock, StateApplicationConfigured)
@@ -55,6 +55,12 @@ func (c *InstallController) SetAppConfigValues(ctx context.Context, values map[s
 	return nil
 }
 
-func (c *InstallController) GetAppConfigValues(ctx context.Context) (map[string]string, error) {
-	return c.appConfigManager.GetConfigValues()
+func (c *InstallController) GetAppConfigValues(ctx context.Context, maskPasswords bool) (map[string]string, error) {
+	// Get the app config to determine which fields are password type
+	appConfig, err := c.GetAppConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get app config: %w", err)
+	}
+
+	return c.appConfigManager.GetConfigValues(ctx, appConfig, maskPasswords)
 }

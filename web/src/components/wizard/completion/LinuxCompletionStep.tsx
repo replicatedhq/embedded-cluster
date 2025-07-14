@@ -2,13 +2,13 @@ import React from "react";
 import Card from "../../common/Card";
 import Button from "../../common/Button";
 import { useLinuxConfig } from "../../../contexts/LinuxConfigContext";
-import { useBranding } from "../../../contexts/BrandingContext";
+import { useInitialState } from "../../../contexts/InitialStateContext";
 import { useSettings } from "../../../contexts/SettingsContext";
 import { CheckCircle, ExternalLink } from "lucide-react";
 
 const LinuxCompletionStep: React.FC = () => {
   const { config } = useLinuxConfig();
-  const { title } = useBranding();
+  const { title } = useInitialState();
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
 

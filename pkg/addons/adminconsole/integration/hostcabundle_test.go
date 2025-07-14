@@ -57,8 +57,8 @@ func TestHostCABundle(t *testing.T) {
 		}
 	}
 	if assert.NotNil(t, volume, "Admin Console host-ca-bundle volume should not be nil") {
-		assert.Equal(t, addon.HostCABundlePath, volume.VolumeSource.HostPath.Path)
-		assert.Equal(t, ptr.To(corev1.HostPathFileOrCreate), volume.VolumeSource.HostPath.Type)
+		assert.Equal(t, addon.HostCABundlePath, volume.HostPath.Path)
+		assert.Equal(t, ptr.To(corev1.HostPathFileOrCreate), volume.HostPath.Type)
 	}
 
 	// Check for host-ca-bundle volume mount
