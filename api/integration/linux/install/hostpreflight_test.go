@@ -23,6 +23,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -74,6 +75,11 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -143,6 +149,11 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -228,6 +239,11 @@ func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
 					Password: "password",
 					LinuxConfig: types.LinuxConfig{
 						AllowIgnoreHostPreflights: tt.allowIgnoreHostPreflights,
+					},
+					ReleaseData: &release.ReleaseData{
+						AppConfig: &kotsv1beta1.Config{
+							Spec: kotsv1beta1.ConfigSpec{},
+						},
 					},
 				},
 				api.WithLinuxInstallController(installController),
@@ -337,6 +353,11 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -410,6 +431,11 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -470,6 +496,11 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -531,6 +562,11 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -605,6 +641,11 @@ func TestPostRunHostPreflights(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),

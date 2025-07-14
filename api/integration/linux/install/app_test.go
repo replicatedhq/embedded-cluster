@@ -61,6 +61,11 @@ func TestLinuxGetAppConfig(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -161,6 +166,11 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -220,6 +230,11 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -276,6 +291,11 @@ func TestLinuxSetAppConfigValues(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -359,6 +379,11 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),

@@ -134,6 +134,11 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -229,6 +234,11 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -322,6 +332,11 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),

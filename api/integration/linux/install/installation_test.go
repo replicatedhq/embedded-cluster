@@ -23,7 +23,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -205,6 +207,11 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 			apiInstance, err := api.New(
 				types.APIConfig{
 					Password: "password",
+					ReleaseData: &release.ReleaseData{
+						AppConfig: &kotsv1beta1.Config{
+							Spec: kotsv1beta1.ConfigSpec{},
+						},
+					},
 				},
 				api.WithLinuxInstallController(installController),
 				api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -306,6 +313,11 @@ func TestLinuxConfigureInstallationValidation(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -368,6 +380,11 @@ func TestLinuxConfigureInstallationBadRequest(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -404,6 +421,11 @@ func TestLinuxConfigureInstallationControllerError(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithLinuxInstallController(mockController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -471,6 +493,11 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -535,6 +562,11 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		emptyAPI, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithLinuxInstallController(emptyInstallController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -602,6 +634,11 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -684,6 +721,11 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: password,
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLinuxInstallController(installController),

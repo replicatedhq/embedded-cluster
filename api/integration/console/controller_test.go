@@ -13,6 +13,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,6 +33,11 @@ func TestConsoleListAvailableNetworkInterfaces(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -79,6 +86,11 @@ func TestConsoleListAvailableNetworkInterfacesUnauthorized(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(auth.NewStaticAuthController("VALID_TOKEN")),
@@ -123,6 +135,11 @@ func TestConsoleListAvailableNetworkInterfacesError(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),

@@ -16,6 +16,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,6 +25,11 @@ import (
 func TestAuthLoginAndTokenValidation(t *testing.T) {
 	cfg := types.APIConfig{
 		Password: "test-password",
+		ReleaseData: &release.ReleaseData{
+			AppConfig: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{},
+			},
+		},
 	}
 
 	// Create an auth controller
@@ -139,6 +146,11 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 func TestAPIClientLogin(t *testing.T) {
 	cfg := types.APIConfig{
 		Password: "test-password",
+		ReleaseData: &release.ReleaseData{
+			AppConfig: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{},
+			},
+		},
 	}
 
 	// Create the API with the auth controller

@@ -19,6 +19,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -141,6 +143,11 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 			apiInstance, err := api.New(
 				types.APIConfig{
 					Password: "password",
+					ReleaseData: &release.ReleaseData{
+						AppConfig: &kotsv1beta1.Config{
+							Spec: kotsv1beta1.ConfigSpec{},
+						},
+					},
 				},
 				api.WithKubernetesInstallController(installController),
 				api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -235,6 +242,11 @@ func TestKubernetesConfigureInstallationValidation(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -295,6 +307,11 @@ func TestKubernetesConfigureInstallationBadRequest(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -331,6 +348,11 @@ func TestKubernetesConfigureInstallationControllerError(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithKubernetesInstallController(mockController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -397,6 +419,11 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 	apiInstance, err := api.New(
 		types.APIConfig{
 			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
+			},
 		},
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -452,6 +479,11 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 		emptyAPI, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithKubernetesInstallController(emptyInstallController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -517,6 +549,11 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 		apiInstance, err := api.New(
 			types.APIConfig{
 				Password: "password",
+				ReleaseData: &release.ReleaseData{
+					AppConfig: &kotsv1beta1.Config{
+						Spec: kotsv1beta1.ConfigSpec{},
+					},
+				},
 			},
 			api.WithKubernetesInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
