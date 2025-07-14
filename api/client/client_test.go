@@ -881,18 +881,22 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check request method and path
 		assert.Equal(t, "PATCH", r.Method)
-		assert.Equal(t, "/api/linux/install/app/config/values", r.URL.Path)
+		assert.Equal(t, "/api/kubernetes/install/app/config/values", r.URL.Path)
 
+		// Check headers
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 
-		// Decode and verify request body
+		// Decode request body
 		var req types.PatchAppConfigValuesRequest
 		err := json.NewDecoder(r.Body).Decode(&req)
 		require.NoError(t, err, "Failed to decode request body")
+
+		// Verify the request contains expected values
 		assert.Equal(t, "new-value", req.Values["test-item"])
-		assert.Equal(t, "required-value", request.Values["required-item"])
+		assert.Equal(t, "required-value", req.Values["required-item"])
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
@@ -931,7 +935,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 	assert.Equal(t, "Bad Request", apiErr.Message)
 }
 
-func TestKubernetesSetAppConfigValues(t *testing.T) {
+func TestKubernetesPatchAppConfigValues(t *testing.T) {
 	// Define expected config once
 	expectedConfig := types.AppConfig{
 		Groups: []kotsv1beta1.ConfigGroup{
@@ -956,20 +960,19 @@ func TestKubernetesSetAppConfigValues(t *testing.T) {
 		// Check request method and path
 		assert.Equal(t, "PATCH", r.Method)
 		assert.Equal(t, "/api/kubernetes/install/app/config/values", r.URL.Path)
-		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 
 		// Check headers
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 
 		// Decode request body
-		var request types.SetAppConfigValuesRequest
-		err := json.NewDecoder(r.Body).Decode(&request)
+		var req types.PatchAppConfigValuesRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
 		require.NoError(t, err, "Failed to decode request body")
 
 		// Verify the request contains expected values
-		assert.Equal(t, "new-value", request.Values["test-item"])
-		assert.Equal(t, "required-value", request.Values["required-item"])
+		assert.Equal(t, "new-value", req.Values["test-item"])
+		assert.Equal(t, "required-value", req.Values["required-item"])
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
