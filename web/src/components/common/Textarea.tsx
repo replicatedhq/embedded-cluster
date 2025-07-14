@@ -14,6 +14,7 @@ interface TextareaProps {
   disabled?: boolean;
   className?: string;
   labelClassName?: string;
+  dataTestId?: string;
 }
 
 const Textarea = ({
@@ -29,6 +30,7 @@ const Textarea = ({
   disabled = false,
   className = '',
   labelClassName = '',
+  dataTestId,
 }: TextareaProps) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -56,7 +58,7 @@ const Textarea = ({
           '--tw-ring-color': themeColor,
           '--tw-ring-offset-color': themeColor,
         } as CSSProperties}
-        data-testid={`textarea-input-${id}`}
+        data-testid={dataTestId}
       />
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
       {helpText && !error && <p className="mt-1 text-sm text-gray-500">{helpText}</p>}

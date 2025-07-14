@@ -17,6 +17,7 @@ interface InputProps {
   disabled?: boolean;
   className?: string;
   labelClassName?: string;
+  dataTestId?: string;
 }
 
 const Input: React.FC<InputProps> = ({
@@ -35,6 +36,7 @@ const Input: React.FC<InputProps> = ({
   disabled = false,
   className = '',
   labelClassName = '',
+  dataTestId,
 }) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -70,7 +72,7 @@ const Input: React.FC<InputProps> = ({
             '--tw-ring-color': themeColor,
             '--tw-ring-offset-color': themeColor,
           } as React.CSSProperties}
-          data-testid={`text-input-${id}`}
+          data-testid={dataTestId}
         />
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}

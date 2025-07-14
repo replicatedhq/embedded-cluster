@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import Markdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Textarea from '../../common/Textarea';
 import Checkbox from '../../common/Checkbox';
 import Radio from '../../common/Radio';
+import Label from '../../common/Label';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
@@ -195,14 +194,14 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             {...sharedProps}
             value={getDisplayValue(item)}
             onChange={handleInputChange}
+            dataTestId={`text-input-${item.name}`}
           />
         );
-      
+
       case 'password':
         return (
           <Input
-            id={item.name}
-            label={item.title}
+            {...sharedProps}
             type="password"
             value={getDisplayValue(item)}
             onChange={handleInputChange}
@@ -218,6 +217,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             {...sharedProps}
             value={getDisplayValue(item)}
             onChange={handleInputChange}
+            dataTestId={`textarea-input-${item.name}`}
           />
         );
 
@@ -227,6 +227,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             {...sharedProps}
             checked={getEffectiveValue(item) === '1'}
             onChange={handleCheckboxChange}
+            dataTestId={`bool-input-${item.name}`}
           />
         );
 
@@ -245,25 +246,10 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
       case 'label':
         return (
-          <div className="mb-4" data-testid={`label-${item.name}`}>
-            <div className="prose prose-sm prose-gray max-w-none">
-              <Markdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  a: ({ ...props }) => (
-                    <a 
-                      {...props} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 underline"
-                    />
-                  ),
-                }}
-              >
-                {item.title}
-              </Markdown>
-            </div>
-          </div>
+          <Label
+            content={item.title}
+            dataTestId={`label-${item.name}`}
+          />
         );
 
       default:

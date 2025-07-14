@@ -12,6 +12,7 @@ interface CheckboxProps {
   disabled?: boolean;
   className?: string;
   labelClassName?: string;
+  dataTestId?: string;
 }
 
 const Checkbox: React.FC<CheckboxProps> = ({
@@ -25,6 +26,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
   disabled = false,
   className = '',
   labelClassName = '',
+  dataTestId,
 }) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -39,7 +41,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
           onChange={onChange}
           disabled={disabled}
           className={`h-4 w-4 focus:ring-offset-2 border-gray-300 rounded ${className}`}
-          data-testid={`bool-input-${id}`}
+          data-testid={dataTestId}
           style={{
             color: themeColor,
             '--tw-ring-color': themeColor,
