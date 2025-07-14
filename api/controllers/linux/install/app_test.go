@@ -8,7 +8,6 @@ import (
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
@@ -131,17 +130,6 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 			},
 			expectedErr: true,
 		},
-		{
-			name: "app config not found",
-			values: map[string]string{
-				"test-item": "new-value",
-			},
-			currentState:  StateNew,
-			expectedState: StateNew,
-			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
-			},
-			expectedErr: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -153,18 +141,10 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 
 			tt.setupMocks(mockAppConfigManager, mockStore)
 
-			// For the "app config not found" test case, pass nil as AppConfig
-			var releaseData *release.ReleaseData
-			if tt.name == "app config not found" {
-				releaseData = getTestReleaseData(nil)
-			} else {
-				releaseData = getTestReleaseData(&appConfig)
-			}
-
 			controller, err := NewInstallController(
 				WithStateMachine(sm),
 				WithAppConfigManager(mockAppConfigManager),
-				WithReleaseData(releaseData),
+				WithReleaseData(getTestReleaseData(&appConfig)),
 				WithStore(mockStore),
 			)
 			require.NoError(t, err)
