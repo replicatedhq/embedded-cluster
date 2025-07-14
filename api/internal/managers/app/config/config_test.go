@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -12,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tiendc/go-deepcopy"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 func TestAppConfigManager_GetConfig(t *testing.T) {
@@ -389,7 +390,7 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "disabled group keeps original values",
+			name: "disabled group with enabled items - items should be filtered out",
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -437,7 +438,47 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "disabled item keeps original value",
+			name: "disabled group with disabled items - items should be filtered out",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "disabled-group",
+							Title: "Disabled Group",
+							When:  "false",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "disabled-item-in-disabled-group",
+									Title: "Disabled Item in Disabled Group",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-value"},
+									When:  "false",
+								},
+								{
+									Name:  "enabled-item-in-disabled-group",
+									Title: "Enabled Item in Disabled Group",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-enabled-value"},
+									When:  "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			newValues: map[string]string{
+				"disabled-item-in-disabled-group": "new-disabled-value",
+				"enabled-item-in-disabled-group":  "new-enabled-value",
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
+				expectedValues := map[string]string{}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "enabled group with disabled item - disabled item should be filtered out",
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -487,7 +528,7 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "mixed enabled and disabled items",
+			name: "mixed enabled and disabled items in enabled group",
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -542,6 +583,79 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					"enabled-item":               "new-enabled-value",
 					"enabled-item-with-children": "new-parent-value",
 					"enabled-child":              "new-enabled-child-value",
+				}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "multiple groups with mixed enabled/disabled states",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group-1",
+							Title: "Enabled Group 1",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "enabled-item-1",
+									Title: "Enabled Item 1",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-1"},
+									When:  "true",
+								},
+								{
+									Name:  "disabled-item-1",
+									Title: "Disabled Item 1",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-disabled-1"},
+									When:  "false",
+								},
+							},
+						},
+						{
+							Name:  "disabled-group",
+							Title: "Disabled Group",
+							When:  "false",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "item-in-disabled-group",
+									Title: "Item in Disabled Group",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-disabled-group"},
+									When:  "true",
+								},
+							},
+						},
+						{
+							Name:  "enabled-group-2",
+							Title: "Enabled Group 2",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "enabled-item-2",
+									Title: "Enabled Item 2",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-2"},
+									When:  "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			newValues: map[string]string{
+				"enabled-item-1":         "new-value-1",
+				"disabled-item-1":        "new-disabled-value-1",
+				"item-in-disabled-group": "new-disabled-group-value",
+				"enabled-item-2":         "new-value-2",
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
+				expectedValues := map[string]string{
+					"enabled-item-1": "new-value-1",
+					"enabled-item-2": "new-value-2",
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -980,6 +1094,87 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "empty config with no groups",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{},
+				},
+			},
+			newValues: map[string]string{
+				"some-item": "some-value",
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
+				expectedValues := map[string]string{}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "enabled group with empty items",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "empty-group",
+							Title: "Empty Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{},
+						},
+					},
+				},
+			},
+			newValues: map[string]string{
+				"some-item": "some-value",
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
+				expectedValues := map[string]string{}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "enabled group with all disabled items",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "all-disabled-items-group",
+							Title: "All Disabled Items Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "disabled-item-1",
+									Title: "Disabled Item 1",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-1"},
+									When:  "false",
+								},
+								{
+									Name:  "disabled-item-2",
+									Title: "Disabled Item 2",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "original-2"},
+									When:  "false",
+								},
+							},
+						},
+					},
+				},
+			},
+			newValues: map[string]string{
+				"disabled-item-1": "new-value-1",
+				"disabled-item-2": "new-value-2",
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
+				expectedValues := map[string]string{}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -994,7 +1189,7 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 			}
 
 			// Call PatchConfigValues
-			err := manager.PatchConfigValues(context.Background(), tt.config, tt.newValues)
+			err := manager.PatchConfigValues(tt.config, tt.newValues)
 
 			// Verify expectations
 			if tt.wantErr {
@@ -1309,7 +1504,7 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 			}
 
 			// Call GetConfigValues
-			result, err := manager.GetConfigValues(context.Background(), tt.appConfig, tt.maskPasswords)
+			result, err := manager.GetConfigValues(tt.appConfig, tt.maskPasswords)
 
 			// Verify expectations
 			if tt.wantErr {
@@ -2064,7 +2259,7 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 			}
 
 			// Call GetKotsadmConfigValues
-			result, err := manager.GetKotsadmConfigValues(t.Context(), tt.config)
+			result, err := manager.GetKotsadmConfigValues(tt.config)
 
 			// Verify expectations
 			if tt.wantErr {
@@ -2076,6 +2271,301 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 
 			// Verify mock expectations
 			mockStore.AssertExpectations(t)
+		})
+	}
+}
+
+func TestValidateConfigValues(t *testing.T) {
+	tests := []struct {
+		name         string
+		config       kotsv1beta1.Config
+		configValues map[string]string
+		wantErr      bool
+		errorFields  []string
+	}{
+		{
+			name: "valid config with all required items set",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "required_item",
+									Required: true,
+									Value:    multitype.BoolOrString{},
+									Default:  multitype.BoolOrString{},
+								},
+								{
+									Name:     "optional_item",
+									Required: false,
+									Value:    multitype.BoolOrString{},
+									Default:  multitype.BoolOrString{},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: map[string]string{
+				"required_item": "value1",
+				"optional_item": "value2",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing required item",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "required_item",
+									Required: true,
+									Value:    multitype.BoolOrString{},
+									Default:  multitype.BoolOrString{},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: map[string]string{
+				"optional_item": "value1",
+			},
+			wantErr:     true,
+			errorFields: []string{"required_item"},
+		},
+		{
+			name: "required item with default value should not be required",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "required_with_default",
+									Required: true,
+									Value:    multitype.BoolOrString{},
+									Default:  multitype.BoolOrString{StrVal: "default_value"},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: map[string]string{},
+			wantErr:      false,
+		},
+		{
+			name: "required item with value and no config value should not be required",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "required_with_value",
+									Required: true,
+									Value:    multitype.BoolOrString{StrVal: "item_value"},
+									Default:  multitype.BoolOrString{},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: map[string]string{},
+			wantErr:      false,
+		},
+		{
+			name: "required item with value and empty config value should be required",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "required_with_value",
+									Required: true,
+									Value:    multitype.BoolOrString{StrVal: "item_value"},
+									Default:  multitype.BoolOrString{},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: map[string]string{
+				"required_with_value": "",
+			},
+			wantErr:     true,
+			errorFields: []string{"required_with_value"},
+		},
+		{
+			name: "hidden required item should not be required",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "hidden_required",
+									Required: true,
+									Hidden:   true,
+									Value:    multitype.BoolOrString{},
+									Default:  multitype.BoolOrString{},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: map[string]string{},
+			wantErr:      false,
+		},
+		{
+			name: "disabled required item should not be required",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "disabled_required",
+									Required: true,
+									When:     "false",
+									Value:    multitype.BoolOrString{},
+									Default:  multitype.BoolOrString{},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: map[string]string{},
+			wantErr:      false,
+		},
+		{
+			name: "child item validation",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "parent_item",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name: "child_item",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: map[string]string{
+				"child_item": "child_value",
+			},
+			wantErr: false,
+		},
+		{
+			name: "multiple validation errors",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "required_item1",
+									Required: true,
+									Value:    multitype.BoolOrString{},
+									Default:  multitype.BoolOrString{},
+								},
+								{
+									Name:     "required_item2",
+									Required: true,
+									Value:    multitype.BoolOrString{},
+									Default:  multitype.BoolOrString{},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: map[string]string{
+				"unknown_item1": "value1",
+				"unknown_item2": "value2",
+			},
+			wantErr:     true,
+			errorFields: []string{"required_item1", "required_item2"},
+		},
+		{
+			name: "empty config and values",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{},
+				},
+			},
+			configValues: map[string]string{},
+			wantErr:      false,
+		},
+		{
+			name: "empty config with unknown values",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{},
+				},
+			},
+			configValues: map[string]string{
+				"unknown_item": "value1",
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a real appConfigManager instance for testing
+			manager := &appConfigManager{}
+
+			// Run the validation
+			err := manager.ValidateConfigValues(tt.config, tt.configValues)
+
+			// Check if error is expected
+			if tt.wantErr {
+				require.Error(t, err, "Expected validation to fail")
+
+				// Check if it's an APIError with field errors
+				var apiErr *types.APIError
+				if assert.ErrorAs(t, err, &apiErr) {
+					// Verify that all expected error fields are present
+					for _, field := range tt.errorFields {
+						found := false
+						for _, fieldErr := range apiErr.Errors {
+							if fieldErr.Field == field {
+								found = true
+								break
+							}
+						}
+						assert.True(t, found, "Expected error for field %s", field)
+					}
+				}
+			} else {
+				assert.NoError(t, err, "Expected validation to succeed")
+			}
 		})
 	}
 }

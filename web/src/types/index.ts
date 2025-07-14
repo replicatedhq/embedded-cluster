@@ -40,10 +40,12 @@ export interface AppConfigGroup {
 export interface AppConfigItem {
   name: string;
   title: string;
+  help_text?: string;
+  error?: string;
+  required?: boolean;
   type: string;
   value?: string;
   default?: string;
-  help_text?: string;
   items?: AppConfigChildItem[];
 }
 

@@ -439,10 +439,11 @@ func (c *client) GetKubernetesAppConfigValues() (map[string]string, error) {
 }
 
 func (c *client) PatchKubernetesAppConfigValues(values map[string]string) (types.AppConfig, error) {
-	req := types.PatchAppConfigValuesRequest{
+	request := types.PatchAppConfigValuesRequest{
 		Values: values,
 	}
-	b, err := json.Marshal(req)
+
+	b, err := json.Marshal(request)
 	if err != nil {
 		return types.AppConfig{}, err
 	}
