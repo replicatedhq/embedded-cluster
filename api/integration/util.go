@@ -4,7 +4,13 @@ import (
 	"context"
 	_ "embed"
 	"strings"
+	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/api"
+	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,4 +55,18 @@ func NewTestInterceptorFuncs() interceptor.Funcs {
 			return cli.Create(ctx, obj, opts...)
 		},
 	}
+}
+
+func NewAPIWithReleaseData(t *testing.T, opts ...api.Option) *api.API {
+	cfg := types.APIConfig{
+		Password: "password",
+		ReleaseData: &release.ReleaseData{
+			AppConfig: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{},
+			},
+		},
+	}
+	a, err := api.New(cfg, opts...)
+	require.NoError(t, err)
+	return a
 }

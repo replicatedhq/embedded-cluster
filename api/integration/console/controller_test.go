@@ -9,12 +9,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
+	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,20 +29,11 @@ func TestConsoleListAvailableNetworkInterfaces(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-			ReleaseData: &release.ReleaseData{
-				AppConfig: &kotsv1beta1.Config{
-					Spec: kotsv1beta1.ConfigSpec{},
-				},
-			},
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	// Create a router and register the API routes
 	router := mux.NewRouter()
@@ -83,20 +73,11 @@ func TestConsoleListAvailableNetworkInterfacesUnauthorized(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-			ReleaseData: &release.ReleaseData{
-				AppConfig: &kotsv1beta1.Config{
-					Spec: kotsv1beta1.ConfigSpec{},
-				},
-			},
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(auth.NewStaticAuthController("VALID_TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	// Create a router and register the API routes
 	router := mux.NewRouter()
@@ -132,20 +113,11 @@ func TestConsoleListAvailableNetworkInterfacesError(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-			ReleaseData: &release.ReleaseData{
-				AppConfig: &kotsv1beta1.Config{
-					Spec: kotsv1beta1.ConfigSpec{},
-				},
-			},
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	// Create a router and register the API routes
 	router := mux.NewRouter()

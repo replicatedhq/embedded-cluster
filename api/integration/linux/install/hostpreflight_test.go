@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
+	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	linuxpreflight "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
@@ -23,7 +24,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -72,20 +72,11 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-			ReleaseData: &release.ReleaseData{
-				AppConfig: &kotsv1beta1.Config{
-					Spec: kotsv1beta1.ConfigSpec{},
-				},
-			},
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	// Create a router and register the API routes
 	router := mux.NewRouter()
@@ -146,20 +137,11 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 		mockController.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{}, assert.AnError)
 
 		// Create the API with the mock controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-				ReleaseData: &release.ReleaseData{
-					AppConfig: &kotsv1beta1.Config{
-						Spec: kotsv1beta1.ConfigSpec{},
-					},
-				},
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -234,23 +216,11 @@ func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create the API with allow ignore host preflights flag
-			apiInstance, err := api.New(
-				types.APIConfig{
-					Password: "password",
-					LinuxConfig: types.LinuxConfig{
-						AllowIgnoreHostPreflights: tt.allowIgnoreHostPreflights,
-					},
-					ReleaseData: &release.ReleaseData{
-						AppConfig: &kotsv1beta1.Config{
-							Spec: kotsv1beta1.ConfigSpec{},
-						},
-					},
-				},
+			apiInstance := integration.NewAPIWithReleaseData(t,
 				api.WithLinuxInstallController(installController),
 				api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 				api.WithLogger(logger.NewDiscardLogger()),
 			)
-			require.NoError(t, err)
 
 			// Create a router and register the API routes
 			router := mux.NewRouter()
@@ -350,20 +320,11 @@ func TestPostRunHostPreflights(t *testing.T) {
 		)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-				ReleaseData: &release.ReleaseData{
-					AppConfig: &kotsv1beta1.Config{
-						Spec: kotsv1beta1.ConfigSpec{},
-					},
-				},
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -428,20 +389,11 @@ func TestPostRunHostPreflights(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-				ReleaseData: &release.ReleaseData{
-					AppConfig: &kotsv1beta1.Config{
-						Spec: kotsv1beta1.ConfigSpec{},
-					},
-				},
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -493,20 +445,11 @@ func TestPostRunHostPreflights(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-				ReleaseData: &release.ReleaseData{
-					AppConfig: &kotsv1beta1.Config{
-						Spec: kotsv1beta1.ConfigSpec{},
-					},
-				},
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -559,20 +502,11 @@ func TestPostRunHostPreflights(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-				ReleaseData: &release.ReleaseData{
-					AppConfig: &kotsv1beta1.Config{
-						Spec: kotsv1beta1.ConfigSpec{},
-					},
-				},
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -638,20 +572,11 @@ func TestPostRunHostPreflights(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-				ReleaseData: &release.ReleaseData{
-					AppConfig: &kotsv1beta1.Config{
-						Spec: kotsv1beta1.ConfigSpec{},
-					},
-				},
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)

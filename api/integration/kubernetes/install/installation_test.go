@@ -13,14 +13,13 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
 	kubernetesinstall "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
+	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	kubernetesinstallationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/installation"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -140,20 +139,11 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create the API with the install controller
-			apiInstance, err := api.New(
-				types.APIConfig{
-					Password: "password",
-					ReleaseData: &release.ReleaseData{
-						AppConfig: &kotsv1beta1.Config{
-							Spec: kotsv1beta1.ConfigSpec{},
-						},
-					},
-				},
+			apiInstance := integration.NewAPIWithReleaseData(t,
 				api.WithKubernetesInstallController(installController),
 				api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 				api.WithLogger(logger.NewDiscardLogger()),
 			)
-			require.NoError(t, err)
 
 			// Create a router and register the API routes
 			router := mux.NewRouter()
@@ -239,20 +229,11 @@ func TestKubernetesConfigureInstallationValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-			ReleaseData: &release.ReleaseData{
-				AppConfig: &kotsv1beta1.Config{
-					Spec: kotsv1beta1.ConfigSpec{},
-				},
-			},
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	// Create a router and register the API routes
 	router := mux.NewRouter()
@@ -304,20 +285,11 @@ func TestKubernetesConfigureInstallationBadRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-			ReleaseData: &release.ReleaseData{
-				AppConfig: &kotsv1beta1.Config{
-					Spec: kotsv1beta1.ConfigSpec{},
-				},
-			},
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	router := mux.NewRouter()
 	apiInstance.RegisterRoutes(router)
@@ -345,20 +317,11 @@ func TestKubernetesConfigureInstallationControllerError(t *testing.T) {
 	mockController.On("ConfigureInstallation", mock.Anything, mock.Anything).Return(assert.AnError)
 
 	// Create the API with the mock controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-			ReleaseData: &release.ReleaseData{
-				AppConfig: &kotsv1beta1.Config{
-					Spec: kotsv1beta1.ConfigSpec{},
-				},
-			},
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithKubernetesInstallController(mockController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	router := mux.NewRouter()
 	apiInstance.RegisterRoutes(router)
@@ -416,20 +379,11 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-			ReleaseData: &release.ReleaseData{
-				AppConfig: &kotsv1beta1.Config{
-					Spec: kotsv1beta1.ConfigSpec{},
-				},
-			},
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	// Create a router and register the API routes
 	router := mux.NewRouter()
@@ -476,20 +430,11 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		emptyAPI, err := api.New(
-			types.APIConfig{
-				Password: "password",
-				ReleaseData: &release.ReleaseData{
-					AppConfig: &kotsv1beta1.Config{
-						Spec: kotsv1beta1.ConfigSpec{},
-					},
-				},
-			},
+		emptyAPI := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(emptyInstallController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		emptyRouter := mux.NewRouter()
@@ -546,20 +491,11 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 		mockController.On("GetInstallationConfig", mock.Anything).Return(types.KubernetesInstallationConfig{}, assert.AnError)
 
 		// Create the API with the mock controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-				ReleaseData: &release.ReleaseData{
-					AppConfig: &kotsv1beta1.Config{
-						Spec: kotsv1beta1.ConfigSpec{},
-					},
-				},
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)

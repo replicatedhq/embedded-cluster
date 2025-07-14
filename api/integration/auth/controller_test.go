@@ -12,28 +12,18 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/client"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
+	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAuthLoginAndTokenValidation(t *testing.T) {
-	cfg := types.APIConfig{
-		Password: "test-password",
-		ReleaseData: &release.ReleaseData{
-			AppConfig: &kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{},
-			},
-		},
-	}
-
 	// Create an auth controller
-	authController, err := auth.NewAuthController(cfg.Password)
+	authController, err := auth.NewAuthController("password")
 	require.NoError(t, err)
 
 	// Create an install controller
@@ -45,13 +35,11 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the auth controller
-	apiInstance, err := api.New(
-		cfg,
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithAuthController(authController),
 		api.WithLinuxInstallController(installController),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	// Create a router and register the API routes
 	router := mux.NewRouter()
@@ -61,7 +49,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 	t.Run("successful login", func(t *testing.T) {
 		// Create login request with correct password
 		loginReq := types.AuthRequest{
-			Password: cfg.Password,
+			Password: "password",
 		}
 		loginReqJSON, err := json.Marshal(loginReq)
 		require.NoError(t, err)
@@ -144,21 +132,10 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 }
 
 func TestAPIClientLogin(t *testing.T) {
-	cfg := types.APIConfig{
-		Password: "test-password",
-		ReleaseData: &release.ReleaseData{
-			AppConfig: &kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{},
-			},
-		},
-	}
-
 	// Create the API with the auth controller
-	apiInstance, err := api.New(
-		cfg,
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	// Create a router and register the API routes
 	router := mux.NewRouter()
@@ -174,7 +151,7 @@ func TestAPIClientLogin(t *testing.T) {
 		c := client.New(server.URL)
 
 		// Login with the client
-		err := c.Authenticate(cfg.Password)
+		err := c.Authenticate("password")
 		require.NoError(t, err, "API client login should succeed with correct password")
 
 		// Verify we can make authenticated requests after login

@@ -131,20 +131,11 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-				ReleaseData: &release.ReleaseData{
-					AppConfig: &kotsv1beta1.Config{
-						Spec: kotsv1beta1.ConfigSpec{},
-					},
-				},
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -231,19 +222,10 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create the API
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-				ReleaseData: &release.ReleaseData{
-					AppConfig: &kotsv1beta1.Config{
-						Spec: kotsv1beta1.ConfigSpec{},
-					},
-				},
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -263,7 +245,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 
 		// Parse the response body
 		var apiError types.APIError
-		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		err := json.NewDecoder(rec.Body).Decode(&apiError)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
 	})
@@ -329,20 +311,11 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-				ReleaseData: &release.ReleaseData{
-					AppConfig: &kotsv1beta1.Config{
-						Spec: kotsv1beta1.ConfigSpec{},
-					},
-				},
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
