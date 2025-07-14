@@ -39,6 +39,7 @@ func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) 
 //	@Produce		json
 //	@Param			installationConfig	body		types.KubernetesInstallationConfig	true	"Installation config"
 //	@Success		200					{object}	types.Status
+//	@Failure		400					{object}	types.APIError
 //	@Router			/kubernetes/install/installation/configure [post]
 func (h *Handler) PostConfigureInstallation(w http.ResponseWriter, r *http.Request) {
 	var config types.KubernetesInstallationConfig
@@ -151,6 +152,7 @@ func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
 //	@Produce		json
 //	@Param			request	body		types.PatchAppConfigValuesRequest	true	"Patch App Config Values Request"
 //	@Success		200		{object}	types.AppConfig
+//	@Failure		400		{object}	types.APIError
 //	@Router			/kubernetes/install/app/config/values [patch]
 func (h *Handler) PatchConfigValues(w http.ResponseWriter, r *http.Request) {
 	var req types.PatchAppConfigValuesRequest

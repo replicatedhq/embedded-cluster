@@ -431,6 +431,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.AppConfig'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Set the app config values
@@ -507,6 +513,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.Status'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Configure the Kubernetes installation for install
@@ -577,6 +589,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.AppConfig'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Set the app config values
@@ -696,6 +714,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.Status'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Configure the installation for install
