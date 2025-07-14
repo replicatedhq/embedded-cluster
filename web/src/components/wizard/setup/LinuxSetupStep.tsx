@@ -189,6 +189,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                 helpText={`Directory where ${title} will store its data`}
                 error={getFieldError("dataDirectory")}
                 required
+                className="w-96"
               />
 
               <Input
@@ -200,6 +201,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                 helpText="Port for the Admin Console"
                 error={getFieldError("adminConsolePort")}
                 required
+                className="w-96"
               />
 
               <Input
@@ -211,6 +213,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                 helpText="Port for the local artifact mirror"
                 error={getFieldError("localArtifactMirrorPort")}
                 required
+                className="w-96"
               />
             </div>
 
@@ -225,6 +228,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                   placeholder="http://proxy.example.com:3128"
                   helpText="HTTP proxy server URL"
                   error={getFieldError("httpProxy")}
+                  className="w-96"
                 />
 
                 <Input
@@ -235,6 +239,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                   placeholder="https://proxy.example.com:3128"
                   helpText="HTTPS proxy server URL"
                   error={getFieldError("httpsProxy")}
+                  className="w-96"
                 />
 
                 <Input
@@ -245,6 +250,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                   placeholder="localhost,127.0.0.1,.example.com"
                   helpText="Comma-separated list of hosts to bypass the proxy"
                   error={getFieldError("noProxy")}
+                  className="w-96"
                 />
               </div>
             </div>
@@ -278,6 +284,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                     error={getFieldError("networkInterface")}
                     required
                     placeholder="Select a network interface"
+                    className="w-96"
                   />
 
                   <Input
@@ -289,6 +296,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                     helpText="CIDR notation for the reserved network range (must be /16 or larger)"
                     error={getFieldError("globalCidr")}
                     required
+                    className="w-96"
                   />
                 </div>
               )}
