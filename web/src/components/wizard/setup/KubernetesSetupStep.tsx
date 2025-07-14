@@ -146,8 +146,8 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
     <div className="space-y-6" data-testid="kubernetes-setup">
       <Card>
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">{text.linuxSetupTitle}</h2>
-          <p className="text-gray-600 mt-1">Configure the installation settings.</p>
+          <h2 className="text-2xl font-bold text-gray-900">{text.kubernetesSetupTitle}</h2>
+          <p className="text-gray-600 mt-1">{text.kubernetesSetupDescription}</p>
         </div>
 
         {isConfigLoading ? (
@@ -157,51 +157,61 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
           </div>
         ) : (
           <>
-            <div className="space-y-4">
-              <Input
-                id="adminConsolePort"
-                label={fieldNames.adminConsolePort}
-                value={config.adminConsolePort?.toString() || ""}
-                onChange={handleInputChange}
-                placeholder="30000"
-                helpText="Port for the Admin Console"
-                error={getFieldError("adminConsolePort")}
-                required
-              />
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">System Configuration</h2>
+                <div className="space-y-4">
+                  <Input
+                    id="adminConsolePort"
+                    label={fieldNames.adminConsolePort}
+                    value={config.adminConsolePort?.toString() || ""}
+                    onChange={handleInputChange}
+                    placeholder="30000"
+                    helpText="Port for the Admin Console"
+                    error={getFieldError("adminConsolePort")}
+                    required
+                  />
+                </div>
+              </div>
 
-              <Input
-                id="httpProxy"
-                label={fieldNames.httpProxy}
-                value={config.httpProxy || ""}
-                onChange={handleInputChange}
-                placeholder="http://proxy.example.com:3128"
-                helpText="HTTP proxy server URL"
-                error={getFieldError("httpProxy")}
-              />
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Proxy Configuration</h2>
+                <div className="space-y-4">
+                  <Input
+                    id="httpProxy"
+                    label={fieldNames.httpProxy}
+                    value={config.httpProxy || ""}
+                    onChange={handleInputChange}
+                    placeholder="http://proxy.example.com:3128"
+                    helpText="HTTP proxy server URL"
+                    error={getFieldError("httpProxy")}
+                  />
 
-              <Input
-                id="httpsProxy"
-                label={fieldNames.httpsProxy}
-                value={config.httpsProxy || ""}
-                onChange={handleInputChange}
-                placeholder="https://proxy.example.com:3128"
-                helpText="HTTPS proxy server URL"
-                error={getFieldError("httpsProxy")}
-              />
+                  <Input
+                    id="httpsProxy"
+                    label={fieldNames.httpsProxy}
+                    value={config.httpsProxy || ""}
+                    onChange={handleInputChange}
+                    placeholder="https://proxy.example.com:3128"
+                    helpText="HTTPS proxy server URL"
+                    error={getFieldError("httpsProxy")}
+                  />
 
-              <Input
-                id="noProxy"
-                label={fieldNames.noProxy}
-                value={config.noProxy || ""}
-                onChange={handleInputChange}
-                placeholder="localhost,127.0.0.1,.example.com"
-                helpText="Comma-separated list of hosts to bypass the proxy"
-                error={getFieldError("noProxy")}
-              />
+                  <Input
+                    id="noProxy"
+                    label={fieldNames.noProxy}
+                    value={config.noProxy || ""}
+                    onChange={handleInputChange}
+                    placeholder="localhost,127.0.0.1,.example.com"
+                    helpText="Comma-separated list of hosts to bypass the proxy"
+                    error={getFieldError("noProxy")}
+                  />
+                </div>
+              </div>
             </div>
 
             {error && (
-              <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
+              <div className="mt-6 p-3 bg-red-50 text-red-500 rounded-md">
                 {submitError?.errors && submitError.errors.length > 0 
                   ? "Please fix the errors in the form above before proceeding."
                   : error
