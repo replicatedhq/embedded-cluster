@@ -1037,6 +1037,23 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 									Name:  "password",
 									Title: "Password",
 									Type:  "password",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:  "confirm-password",
+											Title: "Confirm Password",
+										},
+									},
+								},
+								{
+									Name:  "email",
+									Title: "Email Address",
+									Type:  "text",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:  "email-verification",
+											Title: "Email Verification",
+										},
+									},
 								},
 							},
 						},
@@ -1045,12 +1062,18 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 			},
 			maskPasswords: false,
 			storeValues: map[string]string{
-				"username": "admin",
-				"password": "secret123",
+				"username":           "admin",
+				"password":           "secret123",
+				"confirm-password":   "different-secret",
+				"email":              "admin@example.com",
+				"email-verification": "verified",
 			},
 			expectedValues: map[string]string{
-				"username": "admin",
-				"password": "secret123",
+				"username":           "admin",
+				"password":           "secret123",
+				"confirm-password":   "different-secret",
+				"email":              "admin@example.com",
+				"email-verification": "verified",
 			},
 			wantErr: false,
 		},
@@ -1072,11 +1095,28 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 									Name:  "password",
 									Title: "Password",
 									Type:  "password",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:  "confirm-password",
+											Title: "Confirm Password",
+										},
+									},
 								},
 								{
 									Name:  "api-key",
 									Title: "API Key",
 									Type:  "password",
+								},
+								{
+									Name:  "email",
+									Title: "Email Address",
+									Type:  "text",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:  "email-verification",
+											Title: "Email Verification",
+										},
+									},
 								},
 							},
 						},
@@ -1085,14 +1125,20 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 			},
 			maskPasswords: true,
 			storeValues: map[string]string{
-				"username": "admin",
-				"password": "secret123",
-				"api-key":  "key-abc123",
+				"username":           "admin",
+				"password":           "secret123",
+				"confirm-password":   "different-secret",
+				"api-key":            "key-abc123",
+				"email":              "admin@example.com",
+				"email-verification": "verified",
 			},
 			expectedValues: map[string]string{
-				"username": "admin",
-				"password": PasswordMask,
-				"api-key":  PasswordMask,
+				"username":           "admin",
+				"password":           PasswordMask,
+				"confirm-password":   PasswordMask,
+				"api-key":            PasswordMask,
+				"email":              "admin@example.com",
+				"email-verification": "verified",
 			},
 			wantErr: false,
 		},
@@ -1114,6 +1160,12 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 									Name:  "password",
 									Title: "Password",
 									Type:  "password",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:  "confirm-password",
+											Title: "Confirm Password",
+										},
+									},
 								},
 								{
 									Name:  "api-key",
@@ -1125,6 +1177,17 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 									Title: "Secret Token",
 									Type:  "password",
 								},
+								{
+									Name:  "email",
+									Title: "Email Address",
+									Type:  "text",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:  "email-verification",
+											Title: "Email Verification",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -1132,16 +1195,22 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 			},
 			maskPasswords: true,
 			storeValues: map[string]string{
-				"username":     "admin",
-				"password":     "", // empty password should not be masked
-				"api-key":      "key-abc123",
-				"secret-token": "", // another empty password should not be masked
+				"username":           "admin",
+				"password":           "", // empty password should not be masked
+				"confirm-password":   "", // empty child password should not be masked
+				"api-key":            "key-abc123",
+				"secret-token":       "", // another empty password should not be masked
+				"email":              "admin@example.com",
+				"email-verification": "verified",
 			},
 			expectedValues: map[string]string{
-				"username":     "admin",
-				"password":     "", // empty password values are not masked
-				"api-key":      PasswordMask,
-				"secret-token": "", // empty password values are not masked
+				"username":           "admin",
+				"password":           "", // empty password values are not masked
+				"confirm-password":   "", // empty child password values are not masked
+				"api-key":            PasswordMask,
+				"secret-token":       "", // empty password values are not masked
+				"email":              "admin@example.com",
+				"email-verification": "verified",
 			},
 			wantErr: false,
 		},
@@ -1163,6 +1232,23 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 									Name:  "password",
 									Title: "Password",
 									Type:  "password",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:  "confirm-password",
+											Title: "Confirm Password",
+										},
+									},
+								},
+								{
+									Name:  "email",
+									Title: "Email Address",
+									Type:  "text",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:  "email-verification",
+											Title: "Email Verification",
+										},
+									},
 								},
 							},
 						},
@@ -1171,12 +1257,16 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 			},
 			maskPasswords: true,
 			storeValues: map[string]string{
-				"username": "admin",
-				// password not in store values
+				"username":           "admin",
+				"email":              "admin@example.com",
+				"email-verification": "verified",
+				// password and confirm-password not in store values
 			},
 			expectedValues: map[string]string{
-				"username": "admin",
-				// password should not appear in result
+				"username":           "admin",
+				"email":              "admin@example.com",
+				"email-verification": "verified",
+				// password and confirm-password should not appear in result
 			},
 			wantErr: false,
 		},

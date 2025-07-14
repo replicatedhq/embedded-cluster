@@ -236,7 +236,7 @@ func waitForSSH(node Node, t *testing.T) error {
 
 func (c *Cluster) Airgap() error {
 	// Update network policy to airgap
-	output, err := exec.Command("replicated", "network", "update", "policy", "--id", c.network.ID, "--policy=airgap").CombinedOutput()
+	output, err := exec.Command("replicated", "network", "update", "policy", c.network.ID, "--policy=airgap").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("update network policy: %v: %s", err, string(output))
 	}

@@ -69,16 +69,21 @@ func (m *appConfigManager) GetConfigValues(ctx context.Context, config kotsv1bet
 
 	// Create a copy of the config values to mask password fields
 	maskedValues := make(map[string]string)
-	for key, value := range configValues {
-		maskedValues[key] = value
-	}
+	maps.Copy(maskedValues, configValues)
 
 	// Mask password fields
 	for _, group := range config.Spec.Groups {
 		for _, item := range group.Items {
 			if item.Type == "password" {
+				// Mask item
 				if value, ok := maskedValues[item.Name]; ok && value != "" {
 					maskedValues[item.Name] = PasswordMask
+				}
+				// Mask child items
+				for _, child := range item.Items {
+					if value, ok := maskedValues[child.Name]; ok && value != "" {
+						maskedValues[child.Name] = PasswordMask
+					}
 				}
 			}
 		}
