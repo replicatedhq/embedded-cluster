@@ -76,5 +76,5 @@ func (c *InstallController) GetAppConfigValues(ctx context.Context, maskPassword
 		return nil, fmt.Errorf("get app config: %w", err)
 	}
 
-	return c.appConfigManager.GetConfigValues(ctx, appConfig, maskPasswords)
+	return c.appConfigManager.GetConfigValues(appConfig, maskPasswords)
 }

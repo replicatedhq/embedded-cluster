@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestInstallController_SetAppConfigValues(t *testing.T) {
+func TestInstallController_PatchAppConfigValues(t *testing.T) {
 	// Create an app config for testing
 	appConfig := kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
@@ -169,7 +169,7 @@ func TestInstallController_SetAppConfigValues(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			err = controller.SetAppConfigValues(t.Context(), tt.values)
+			err = controller.PatchAppConfigValues(t.Context(), tt.values)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -244,7 +244,7 @@ func TestInstallController_GetAppConfigValues(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			values, err := controller.GetAppConfigValues(t.Context())
+			values, err := controller.GetAppConfigValues(t.Context(), false)
 
 			if tt.expectedErr {
 				assert.Error(t, err)

@@ -264,7 +264,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		if err != nil {
 			return nil, fmt.Errorf("validate app config values: %w", err)
 		}
-		err = controller.appConfigManager.SetConfigValues(*controller.releaseData.AppConfig, controller.configValues)
+		err = controller.appConfigManager.PatchConfigValues(*controller.releaseData.AppConfig, controller.configValues)
 		if err != nil {
 			return nil, fmt.Errorf("set app config values: %w", err)
 		}

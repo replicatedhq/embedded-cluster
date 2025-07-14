@@ -352,7 +352,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request to set config values without the required item
-		setRequest := types.SetAppConfigValuesRequest{
+		setRequest := types.PatchAppConfigValuesRequest{
 			Values: map[string]string{
 				"test-item": "new-value",
 				// required-item is intentionally omitted
@@ -363,7 +363,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/kubernetes/install/app/config/values", bytes.NewReader(reqBodyBytes))
+		req := httptest.NewRequest(http.MethodPatch, "/kubernetes/install/app/config/values", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
@@ -544,8 +544,8 @@ func TestInstallController_SetAppConfigValuesWithAPIClient(t *testing.T) {
 	// Create client with the predefined token
 	c := apiclient.New(server.URL, apiclient.WithToken("TOKEN"))
 
-	// Test SetKubernetesAppConfigValues
-	t.Run("SetKubernetesAppConfigValues", func(t *testing.T) {
+	// Test PatchKubernetesAppConfigValues
+	t.Run("PatchKubernetesAppConfigValues", func(t *testing.T) {
 		// Create config values to set
 		configValues := map[string]string{
 			"test-item":     "new-value",
@@ -553,16 +553,16 @@ func TestInstallController_SetAppConfigValuesWithAPIClient(t *testing.T) {
 		}
 
 		// Set the app config values using the client
-		config, err := c.SetKubernetesAppConfigValues(configValues)
-		require.NoError(t, err, "SetKubernetesAppConfigValues should succeed")
+		config, err := c.PatchKubernetesAppConfigValues(configValues)
+		require.NoError(t, err, "PatchKubernetesAppConfigValues should succeed")
 
 		// Verify the raw app config is returned (not the applied values)
 		assert.Equal(t, "value", config.Groups[0].Items[0].Value.String(), "first item should return raw config schema value")
 		assert.Equal(t, "", config.Groups[0].Items[1].Value.String(), "second item should return empty value since it has no default")
 	})
 
-	// Test SetKubernetesAppConfigValues with missing required item
-	t.Run("SetKubernetesAppConfigValues missing required", func(t *testing.T) {
+	// Test PatchKubernetesAppConfigValues with missing required item
+	t.Run("PatchKubernetesAppConfigValues missing required", func(t *testing.T) {
 		// Create config values without the required item
 		configValues := map[string]string{
 			"test-item": "new-value",
@@ -570,8 +570,8 @@ func TestInstallController_SetAppConfigValuesWithAPIClient(t *testing.T) {
 		}
 
 		// Set the app config values using the client
-		_, err := c.SetKubernetesAppConfigValues(configValues)
-		require.Error(t, err, "SetKubernetesAppConfigValues should fail with missing required item")
+		_, err := c.PatchKubernetesAppConfigValues(configValues)
+		require.Error(t, err, "PatchKubernetesAppConfigValues should fail with missing required item")
 
 		// Check that the error is of correct type
 		apiErr, ok := err.(*types.APIError)
@@ -582,8 +582,8 @@ func TestInstallController_SetAppConfigValuesWithAPIClient(t *testing.T) {
 		assert.Equal(t, "item is required", apiErr.Errors[0].Message, "Error should indicate item is required")
 	})
 
-	// Test SetKubernetesAppConfigValues with invalid state transition
-	t.Run("SetKubernetesAppConfigValues invalid state", func(t *testing.T) {
+	// Test PatchKubernetesAppConfigValues with invalid state transition
+	t.Run("PatchKubernetesAppConfigValues invalid state", func(t *testing.T) {
 		// Create an install controller in a completed state
 		completedInstallController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateSucceeded))),
@@ -622,8 +622,8 @@ func TestInstallController_SetAppConfigValuesWithAPIClient(t *testing.T) {
 		}
 
 		// Set the app config values using the client
-		_, err = completedClient.SetKubernetesAppConfigValues(configValues)
-		require.Error(t, err, "SetKubernetesAppConfigValues should fail with invalid state transition")
+		_, err = completedClient.PatchKubernetesAppConfigValues(configValues)
+		require.Error(t, err, "PatchKubernetesAppConfigValues should fail with invalid state transition")
 
 		// Check that the error is of correct type
 		apiErr, ok := err.(*types.APIError)

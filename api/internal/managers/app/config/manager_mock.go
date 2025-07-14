@@ -1,8 +1,6 @@
 package config
 
 import (
-	"context"
-
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/mock"
 )
@@ -21,8 +19,8 @@ func (m *MockAppConfigManager) GetConfig(config kotsv1beta1.Config) (kotsv1beta1
 }
 
 // GetConfigValues mocks the GetConfigValues method
-func (m *MockAppConfigManager) GetConfigValues(ctx context.Context, config kotsv1beta1.Config, maskPasswords bool) (map[string]string, error) {
-	args := m.Called(ctx, config, maskPasswords)
+func (m *MockAppConfigManager) GetConfigValues(config kotsv1beta1.Config, maskPasswords bool) (map[string]string, error) {
+	args := m.Called(config, maskPasswords)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -36,13 +34,13 @@ func (m *MockAppConfigManager) ValidateConfigValues(config kotsv1beta1.Config, c
 }
 
 // PatchConfigValues mocks the PatchConfigValues method
-func (m *MockAppConfigManager) PatchConfigValues(ctx context.Context, config kotsv1beta1.Config, values map[string]string) error {
-	args := m.Called(ctx, config, values)
+func (m *MockAppConfigManager) PatchConfigValues(config kotsv1beta1.Config, values map[string]string) error {
+	args := m.Called(config, values)
 	return args.Error(0)
 }
 
 // GetKotsadmConfigValues mocks the GetKotsadmConfigValues method
-func (m *MockAppConfigManager) GetKotsadmConfigValues(ctx context.Context, config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error) {
-	args := m.Called(ctx, config)
+func (m *MockAppConfigManager) GetKotsadmConfigValues(config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error) {
+	args := m.Called(config)
 	return args.Get(0).(kotsv1beta1.ConfigValues), args.Error(1)
 }

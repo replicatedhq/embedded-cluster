@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -49,7 +48,7 @@ func (m *appConfigManager) ValidateConfigValues(config kotsv1beta1.Config, confi
 }
 
 // PatchConfigValues performs a partial update by merging new values with existing ones
-func (m *appConfigManager) PatchConfigValues(ctx context.Context, config kotsv1beta1.Config, newValues map[string]string) error {
+func (m *appConfigManager) PatchConfigValues(config kotsv1beta1.Config, newValues map[string]string) error {
 	// Get existing values
 	existingValues, err := m.appConfigStore.GetConfigValues()
 	if err != nil {
@@ -84,7 +83,7 @@ func (m *appConfigManager) PatchConfigValues(ctx context.Context, config kotsv1b
 }
 
 // GetConfigValues returns config values with optional password field masking
-func (m *appConfigManager) GetConfigValues(ctx context.Context, config kotsv1beta1.Config, maskPasswords bool) (map[string]string, error) {
+func (m *appConfigManager) GetConfigValues(config kotsv1beta1.Config, maskPasswords bool) (map[string]string, error) {
 	configValues, err := m.appConfigStore.GetConfigValues()
 	if err != nil {
 		return nil, err
@@ -120,13 +119,13 @@ func (m *appConfigManager) GetConfigValues(ctx context.Context, config kotsv1bet
 	return maskedValues, nil
 }
 
-func (m *appConfigManager) GetKotsadmConfigValues(ctx context.Context, config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error) {
+func (m *appConfigManager) GetKotsadmConfigValues(config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error) {
 	filteredConfig, err := m.GetConfig(config)
 	if err != nil {
 		return kotsv1beta1.ConfigValues{}, fmt.Errorf("get config: %w", err)
 	}
 
-	storedValues, err := m.GetConfigValues(ctx, filteredConfig, false)
+	storedValues, err := m.GetConfigValues(filteredConfig, false)
 	if err != nil {
 		return kotsv1beta1.ConfigValues{}, fmt.Errorf("get config values: %w", err)
 	}

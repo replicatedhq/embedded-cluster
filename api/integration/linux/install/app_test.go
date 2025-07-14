@@ -354,7 +354,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request to set config values without the required item
-		setRequest := types.SetAppConfigValuesRequest{
+		setRequest := types.PatchAppConfigValuesRequest{
 			Values: map[string]string{
 				"test-item": "new-value",
 				// required-item is intentionally omitted
@@ -365,7 +365,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/config/values", bytes.NewReader(reqBodyBytes))
+		req := httptest.NewRequest(http.MethodPatch, "/linux/install/app/config/values", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
 		rec := httptest.NewRecorder()
@@ -546,8 +546,8 @@ func TestInstallController_SetAppConfigValuesWithAPIClient(t *testing.T) {
 	// Create client with the predefined token
 	c := apiclient.New(server.URL, apiclient.WithToken("TOKEN"))
 
-	// Test SetLinuxAppConfigValues
-	t.Run("SetLinuxAppConfigValues", func(t *testing.T) {
+	// Test PatchLinuxAppConfigValues
+	t.Run("PatchLinuxAppConfigValues", func(t *testing.T) {
 		// Create config values to set
 		configValues := map[string]string{
 			"test-item":     "new-value",
@@ -555,16 +555,16 @@ func TestInstallController_SetAppConfigValuesWithAPIClient(t *testing.T) {
 		}
 
 		// Set the app config values using the client
-		config, err := c.SetLinuxAppConfigValues(configValues)
-		require.NoError(t, err, "SetLinuxAppConfigValues should succeed")
+		config, err := c.PatchLinuxAppConfigValues(configValues)
+		require.NoError(t, err, "PatchLinuxAppConfigValues should succeed")
 
 		// Verify the raw app config is returned (not the applied values)
 		assert.Equal(t, "value", config.Groups[0].Items[0].Value.String(), "first item should return raw config schema value")
 		assert.Equal(t, "", config.Groups[0].Items[1].Value.String(), "second item should return empty value since it has no default")
 	})
 
-	// Test SetLinuxAppConfigValues with missing required item
-	t.Run("SetLinuxAppConfigValues missing required", func(t *testing.T) {
+	// Test PatchLinuxAppConfigValues with missing required item
+	t.Run("PatchLinuxAppConfigValues missing required", func(t *testing.T) {
 		// Create config values without the required item
 		configValues := map[string]string{
 			"test-item": "new-value",
@@ -572,8 +572,8 @@ func TestInstallController_SetAppConfigValuesWithAPIClient(t *testing.T) {
 		}
 
 		// Set the app config values using the client
-		_, err := c.SetLinuxAppConfigValues(configValues)
-		require.Error(t, err, "SetLinuxAppConfigValues should fail with missing required item")
+		_, err := c.PatchLinuxAppConfigValues(configValues)
+		require.Error(t, err, "PatchLinuxAppConfigValues should fail with missing required item")
 
 		// Check that the error is of correct type
 		apiErr, ok := err.(*types.APIError)
@@ -584,8 +584,8 @@ func TestInstallController_SetAppConfigValuesWithAPIClient(t *testing.T) {
 		assert.Equal(t, "item is required", apiErr.Errors[0].Message, "Error should indicate item is required")
 	})
 
-	// Test SetLinuxAppConfigValues with invalid state transition
-	t.Run("SetLinuxAppConfigValues invalid state", func(t *testing.T) {
+	// Test PatchLinuxAppConfigValues with invalid state transition
+	t.Run("PatchLinuxAppConfigValues invalid state", func(t *testing.T) {
 		// Create an install controller in a completed state
 		completedInstallController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateSucceeded))),
@@ -624,8 +624,8 @@ func TestInstallController_SetAppConfigValuesWithAPIClient(t *testing.T) {
 		}
 
 		// Set the app config values using the client
-		_, err = completedClient.SetLinuxAppConfigValues(configValues)
-		require.Error(t, err, "SetLinuxAppConfigValues should fail with invalid state transition")
+		_, err = completedClient.PatchLinuxAppConfigValues(configValues)
+		require.Error(t, err, "PatchLinuxAppConfigValues should fail with invalid state transition")
 
 		// Check that the error is of correct type
 		apiErr, ok := err.(*types.APIError)

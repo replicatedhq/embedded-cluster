@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -1190,7 +1189,7 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 			}
 
 			// Call PatchConfigValues
-			err := manager.PatchConfigValues(context.Background(), tt.config, tt.newValues)
+			err := manager.PatchConfigValues(tt.config, tt.newValues)
 
 			// Verify expectations
 			if tt.wantErr {
@@ -1505,7 +1504,7 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 			}
 
 			// Call GetConfigValues
-			result, err := manager.GetConfigValues(context.Background(), tt.appConfig, tt.maskPasswords)
+			result, err := manager.GetConfigValues(tt.appConfig, tt.maskPasswords)
 
 			// Verify expectations
 			if tt.wantErr {
@@ -2260,7 +2259,7 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 			}
 
 			// Call GetKotsadmConfigValues
-			result, err := manager.GetKotsadmConfigValues(t.Context(), tt.config)
+			result, err := manager.GetKotsadmConfigValues(tt.config)
 
 			// Verify expectations
 			if tt.wantErr {
