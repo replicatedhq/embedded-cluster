@@ -78,7 +78,7 @@ func TestConfigTemplateProcessing(t *testing.T) {
 							Name:    "undefined_field",
 							Title:   `{{ .NonExistentField }}`, // This will render as "<no value>" - Go template's default for undefined fields
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `{{ .AnotherUndefinedField }}`}, // This will also render as "<no value>"
+							Default: multitype.BoolOrString{StrVal: `{{ .AnotherUndefinedField }}`},    // This will also render as "<no value>"
 							Value:   multitype.BoolOrString{StrVal: `{{ .YetAnotherUndefinedField }}`}, // This will also render as "<no value>"
 						},
 						{
