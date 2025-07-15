@@ -67,8 +67,8 @@ func TestLinuxGetAppConfig(t *testing.T) {
 	}
 
 	// Create config values that should be applied to the config
-	configValues := map[string]string{
-		"test-item": "applied-value",
+	configValues := types.AppConfigValues{
+		"test-item": types.AppConfigValue{Value: "applied-value"},
 	}
 
 	// Create an install controller with the config values
@@ -240,14 +240,14 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request to set config values
-		setRequest := types.PatchAppConfigValuesRequest{
-			Values: map[string]string{
-				"test-item":     "new-value",
-				"required-item": "required-value",
+		patchRequest := types.PatchAppConfigValuesRequest{
+			Values: types.AppConfigValues{
+				"test-item":     types.AppConfigValue{Value: "new-value"},
+				"required-item": types.AppConfigValue{Value: "required-value"},
 			},
 		}
 
-		reqBodyBytes, err := json.Marshal(setRequest)
+		reqBodyBytes, err := json.Marshal(patchRequest)
 		require.NoError(t, err)
 
 		// Create a request to set config values
@@ -296,14 +296,14 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request to set config values
-		setRequest := types.PatchAppConfigValuesRequest{
-			Values: map[string]string{
-				"test-item":     "new-value",
-				"required-item": "required-value",
+		patchRequest := types.PatchAppConfigValuesRequest{
+			Values: types.AppConfigValues{
+				"test-item":     types.AppConfigValue{Value: "new-value"},
+				"required-item": types.AppConfigValue{Value: "required-value"},
 			},
 		}
 
-		reqBodyBytes, err := json.Marshal(setRequest)
+		reqBodyBytes, err := json.Marshal(patchRequest)
 		require.NoError(t, err)
 
 		// Create a request with invalid token
@@ -349,14 +349,14 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request to set config values
-		setRequest := types.PatchAppConfigValuesRequest{
-			Values: map[string]string{
-				"test-item":     "new-value",
-				"required-item": "required-value",
+		patchRequest := types.PatchAppConfigValuesRequest{
+			Values: types.AppConfigValues{
+				"test-item":     types.AppConfigValue{Value: "new-value"},
+				"required-item": types.AppConfigValue{Value: "required-value"},
 			},
 		}
 
-		reqBodyBytes, err := json.Marshal(setRequest)
+		reqBodyBytes, err := json.Marshal(patchRequest)
 		require.NoError(t, err)
 
 		// Create a request
@@ -404,8 +404,8 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 		// Create a request to set config values without the required item
 		setRequest := types.PatchAppConfigValuesRequest{
-			Values: map[string]string{
-				"test-item": "new-value",
+			Values: types.AppConfigValues{
+				"test-item": types.AppConfigValue{Value: "new-value"},
 				// required-item is intentionally omitted
 			},
 		}
@@ -460,8 +460,8 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 	}
 
 	// Create config values that should be applied to the config
-	configValues := map[string]string{
-		"test-item": "applied-value",
+	configValues := types.AppConfigValues{
+		"test-item": types.AppConfigValue{Value: "applied-value"},
 	}
 
 	// Create an install controller with the config values
@@ -589,9 +589,9 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 	// Test PatchLinuxAppConfigValues
 	t.Run("PatchLinuxAppConfigValues", func(t *testing.T) {
 		// Create config values to set
-		configValues := map[string]string{
-			"test-item":     "new-value",
-			"required-item": "required-value",
+		configValues := types.AppConfigValues{
+			"test-item":     types.AppConfigValue{Value: "new-value"},
+			"required-item": types.AppConfigValue{Value: "required-value"},
 		}
 
 		// Set the app config values using the client
@@ -606,8 +606,8 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 	// Test PatchLinuxAppConfigValues with missing required item
 	t.Run("PatchLinuxAppConfigValues missing required", func(t *testing.T) {
 		// Create config values without the required item
-		configValues := map[string]string{
-			"test-item": "new-value",
+		configValues := types.AppConfigValues{
+			"test-item": types.AppConfigValue{Value: "new-value"},
 			// required-item is intentionally omitted
 		}
 
@@ -655,9 +655,9 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		completedClient := apiclient.New(completedServer.URL, apiclient.WithToken("TOKEN"))
 
 		// Create config values to set
-		configValues := map[string]string{
-			"test-item":     "new-value",
-			"required-item": "required-value",
+		configValues := types.AppConfigValues{
+			"test-item":     types.AppConfigValue{Value: "new-value"},
+			"required-item": types.AppConfigValue{Value: "required-value"},
 		}
 
 		// Set the app config values using the client
@@ -696,8 +696,8 @@ func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
 	}
 
 	// Create config values that should be applied to the config
-	configValues := map[string]string{
-		"test-item": "applied-value",
+	configValues := types.AppConfigValues{
+		"test-item": types.AppConfigValue{Value: "applied-value"},
 	}
 
 	// Create an install controller with the config values

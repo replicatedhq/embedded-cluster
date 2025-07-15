@@ -13,7 +13,11 @@ func (c *InstallController) GetAppConfig(ctx context.Context) (kotsv1beta1.Confi
 	return c.appConfigManager.GetConfig()
 }
 
-func (c *InstallController) PatchAppConfigValues(ctx context.Context, values map[string]string) (finalErr error) {
+func (c *InstallController) PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) (finalErr error) {
+	if err := c.validateReleaseData(); err != nil {
+		return err
+	}
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -60,6 +64,6 @@ func (c *InstallController) PatchAppConfigValues(ctx context.Context, values map
 	return nil
 }
 
-func (c *InstallController) GetAppConfigValues(ctx context.Context, maskPasswords bool) (map[string]string, error) {
+func (c *InstallController) GetAppConfigValues(ctx context.Context, maskPasswords bool) (types.AppConfigValues, error) {
 	return c.appConfigManager.GetConfigValues(maskPasswords)
 }

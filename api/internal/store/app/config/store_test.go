@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +14,7 @@ func newMemoryStore() Store {
 	return NewMemoryStore()
 }
 
-func newMemoryStoreWithConfigValues(configValues map[string]string) Store {
+func newMemoryStoreWithConfigValues(configValues types.AppConfigValues) Store {
 	return NewMemoryStore(WithConfigValues(configValues))
 }
 
@@ -23,12 +24,12 @@ func TestNewMemoryStore(t *testing.T) {
 	assert.NotNil(t, store)
 	configValues, err := store.GetConfigValues()
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{}, configValues)
+	assert.Equal(t, types.AppConfigValues{}, configValues)
 }
 
 func TestNewMemoryStoreWithConfigValues(t *testing.T) {
-	initialConfigValues := map[string]string{
-		"test-key": "test-value",
+	initialConfigValues := types.AppConfigValues{
+		"test-key": types.AppConfigValue{Value: "test-value"},
 	}
 
 	store := newMemoryStoreWithConfigValues(initialConfigValues)
@@ -45,12 +46,12 @@ func TestMemoryStore_GetAndSetConfigValues(t *testing.T) {
 	// Test initial empty config values
 	configValues, err := store.GetConfigValues()
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{}, configValues)
+	assert.Equal(t, types.AppConfigValues{}, configValues)
 
 	// Test setting config values
-	newConfigValues := map[string]string{
-		"db_host": "db.example.com",
-		"db_port": "5432",
+	newConfigValues := types.AppConfigValues{
+		"db_host": types.AppConfigValue{Value: "db.example.com"},
+		"db_port": types.AppConfigValue{Value: "5432"},
 	}
 
 	err = store.SetConfigValues(newConfigValues)
@@ -66,9 +67,9 @@ func TestMemoryStore_SetConfigValuesMultipleTimes(t *testing.T) {
 	store := newMemoryStore()
 
 	// Set initial values
-	initialValues := map[string]string{
-		"key1": "value1",
-		"key2": "value2",
+	initialValues := types.AppConfigValues{
+		"key1": types.AppConfigValue{Value: "value1"},
+		"key2": types.AppConfigValue{Value: "value2"},
 	}
 	err := store.SetConfigValues(initialValues)
 	require.NoError(t, err)
@@ -79,9 +80,9 @@ func TestMemoryStore_SetConfigValuesMultipleTimes(t *testing.T) {
 	assert.Equal(t, initialValues, retrievedValues)
 
 	// Set new values
-	newValues := map[string]string{
-		"key3": "value3",
-		"key4": "value4",
+	newValues := types.AppConfigValues{
+		"key3": types.AppConfigValue{Value: "value3"},
+		"key4": types.AppConfigValue{Value: "value4"},
 	}
 	err = store.SetConfigValues(newValues)
 	require.NoError(t, err)
@@ -101,8 +102,8 @@ func TestMemoryStore_ConcurrentValuesAccess(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Set initial config values first
-	initialValues := map[string]string{
-		"initial-key": "initial-value",
+	initialValues := types.AppConfigValues{
+		"initial-key": types.AppConfigValue{Value: "initial-value"},
 	}
 	err := store.SetConfigValues(initialValues)
 	require.NoError(t, err)
@@ -118,8 +119,8 @@ func TestMemoryStore_ConcurrentValuesAccess(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < numOperations; j++ {
 				key := fmt.Sprintf("goroutine-%d-key-%d", id, j)
-				value := fmt.Sprintf("value-%d-%d", id, j)
-				err := store.SetConfigValues(map[string]string{key: value})
+				value := types.AppConfigValue{Value: fmt.Sprintf("value-%d-%d", id, j)}
+				err := store.SetConfigValues(types.AppConfigValues{key: value})
 				assert.NoError(t, err)
 			}
 		}(i)
@@ -141,8 +142,8 @@ func TestMemoryStore_DeepCopy(t *testing.T) {
 	store := newMemoryStore()
 
 	// Set initial values
-	initialValues := map[string]string{
-		"test-item": "original-value",
+	initialValues := types.AppConfigValues{
+		"test-item": types.AppConfigValue{Value: "original-value"},
 	}
 	err := store.SetConfigValues(initialValues)
 	require.NoError(t, err)
@@ -153,7 +154,7 @@ func TestMemoryStore_DeepCopy(t *testing.T) {
 	assert.Equal(t, "original-value", retrievedConfigValues["test-item"])
 
 	// Modify the retrieved values
-	retrievedConfigValues["test-item"] = "modified-value"
+	retrievedConfigValues["test-item"] = types.AppConfigValue{Value: "modified-value"}
 
 	// Get values again and verify they weren't affected by the modification
 	originalConfigValues, err := store.GetConfigValues()
@@ -166,30 +167,30 @@ func TestMemoryStore_EmptyConfigValues(t *testing.T) {
 	store := newMemoryStore()
 
 	// Set empty values
-	err := store.SetConfigValues(map[string]string{})
+	err := store.SetConfigValues(types.AppConfigValues{})
 	require.NoError(t, err)
 
 	// Get values
 	configValues, err := store.GetConfigValues()
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{}, configValues)
+	assert.Equal(t, types.AppConfigValues{}, configValues)
 }
 
 func TestMemoryStore_ComplexConfigValues(t *testing.T) {
 	store := newMemoryStore()
 
 	// Set complex values with various string types
-	complexValues := map[string]string{
-		"empty":          "",
-		"simple":         "value",
-		"with_spaces":    "value with spaces",
-		"with_special":   "value!@#$%^&*()",
-		"with_unicode":   "value with unicode: 🚀",
-		"with_newlines":  "value\nwith\nnewlines",
-		"with_quotes":    `value with "quotes"`,
-		"very_long":      "very long value that might exceed some buffer sizes and cause issues with memory allocation or string handling",
-		"numeric_string": "12345",
-		"boolean_string": "true",
+	complexValues := types.AppConfigValues{
+		"empty":          types.AppConfigValue{Value: ""},
+		"simple":         types.AppConfigValue{Value: "value"},
+		"with_spaces":    types.AppConfigValue{Value: "value with spaces"},
+		"with_special":   types.AppConfigValue{Value: "value!@#$%^&*()"},
+		"with_unicode":   types.AppConfigValue{Value: "value with unicode: 🚀"},
+		"with_newlines":  types.AppConfigValue{Value: "value\nwith\nnewlines"},
+		"with_quotes":    types.AppConfigValue{Value: `value with "quotes"`},
+		"very_long":      types.AppConfigValue{Value: "very long value that might exceed some buffer sizes and cause issues with memory allocation or string handling"},
+		"numeric_string": types.AppConfigValue{Value: "12345"},
+		"boolean_string": types.AppConfigValue{Value: "true"},
 	}
 
 	err := store.SetConfigValues(complexValues)

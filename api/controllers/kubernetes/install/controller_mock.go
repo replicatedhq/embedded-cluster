@@ -61,16 +61,16 @@ func (m *MockController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, 
 }
 
 // PatchAppConfigValues mocks the PatchAppConfigValues method
-func (m *MockController) PatchAppConfigValues(ctx context.Context, values map[string]string) error {
+func (m *MockController) PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) error {
 	args := m.Called(ctx, values)
 	return args.Error(0)
 }
 
 // GetAppConfigValues mocks the GetAppConfigValues method
-func (m *MockController) GetAppConfigValues(ctx context.Context, maskPasswords bool) (map[string]string, error) {
+func (m *MockController) GetAppConfigValues(ctx context.Context, maskPasswords bool) (types.AppConfigValues, error) {
 	args := m.Called(ctx, maskPasswords)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(map[string]string), args.Error(1)
+	return args.Get(0).(types.AppConfigValues), args.Error(1)
 }
