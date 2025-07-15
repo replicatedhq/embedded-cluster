@@ -231,9 +231,8 @@ jobs:
         uses: tj-actions/changed-files@v46.0.5
         with:
           files_yaml: |
-            e2e:
+            files:
               - e2e/**
-            gosrc:
               - 'api/*.go'
               - 'api/types/**'
               - 'api/pkg/**'
@@ -244,7 +243,6 @@ jobs:
               - 'pkg-new/**'
               - 'utils/**'
               - 'go.{mod,sum}'
-            build:
               - 'Makefile'
               - 'common.mk'
               - 'dagger/**'
