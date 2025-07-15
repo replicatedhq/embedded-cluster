@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface HelpTextProps {
   helpText?: string;
@@ -20,7 +21,16 @@ const HelpText: React.FC<HelpTextProps> = ({ helpText, defaultValue, error }) =>
   return (
     <div className="mt-1 text-sm text-gray-500">
       <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
         components={{
+          a: ({ ...props }) => (
+            <a
+              {...props}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline"
+            />
+          ),
           code: ({ children }) => (
             <code className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">
               {children}
