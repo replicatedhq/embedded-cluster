@@ -895,8 +895,8 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		require.NoError(t, err, "Failed to decode request body")
 
 		// Verify the request contains expected values
-		assert.Equal(t, "new-value", req.Values["test-item"])
-		assert.Equal(t, "required-value", req.Values["required-item"])
+		assert.Equal(t, "new-value", req.Values["test-item"].Value)
+		assert.Equal(t, "required-value", req.Values["required-item"].Value)
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
@@ -971,8 +971,8 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		require.NoError(t, err, "Failed to decode request body")
 
 		// Verify the request contains expected values
-		assert.Equal(t, "new-value", req.Values["test-item"])
-		assert.Equal(t, "required-value", req.Values["required-item"])
+		assert.Equal(t, "new-value", req.Values["test-item"].Value)
+		assert.Equal(t, "required-value", req.Values["required-item"].Value)
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)

@@ -151,7 +151,7 @@ func TestMemoryStore_DeepCopy(t *testing.T) {
 	// Get values and modify the returned map
 	retrievedConfigValues, err := store.GetConfigValues()
 	require.NoError(t, err)
-	assert.Equal(t, "original-value", retrievedConfigValues["test-item"])
+	assert.Equal(t, "original-value", retrievedConfigValues["test-item"].Value)
 
 	// Modify the retrieved values
 	retrievedConfigValues["test-item"] = types.AppConfigValue{Value: "modified-value"}
@@ -159,8 +159,8 @@ func TestMemoryStore_DeepCopy(t *testing.T) {
 	// Get values again and verify they weren't affected by the modification
 	originalConfigValues, err := store.GetConfigValues()
 	require.NoError(t, err)
-	assert.Equal(t, "original-value", originalConfigValues["test-item"])
-	assert.Equal(t, "modified-value", retrievedConfigValues["test-item"])
+	assert.Equal(t, "original-value", originalConfigValues["test-item"].Value)
+	assert.Equal(t, "modified-value", retrievedConfigValues["test-item"].Value)
 }
 
 func TestMemoryStore_EmptyConfigValues(t *testing.T) {
