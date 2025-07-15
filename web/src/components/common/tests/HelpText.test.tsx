@@ -77,4 +77,4 @@ describe('HelpText', () => {
     const paragraphs = container.querySelectorAll('p');
     expect(paragraphs.length).toBe(0);
   });
-}); 
+});

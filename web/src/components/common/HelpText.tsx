@@ -35,4 +35,4 @@ const HelpText: React.FC<HelpTextProps> = ({ helpText, defaultValue, error }) =>
   );
 };
 
-export default HelpText; 
+export default HelpText;
