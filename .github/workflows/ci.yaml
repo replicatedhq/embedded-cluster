@@ -234,7 +234,9 @@ jobs:
             e2e:
               - e2e/**
             gosrc:
+              - 'api/*.go'
               - 'api/types/**'
+              - 'api/pkg/**'
               - 'kinds/**'
               - 'operator/**'
               - 'pkg/**'
