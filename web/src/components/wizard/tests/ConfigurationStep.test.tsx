@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } 
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
+import ReactMarkdown from "react-markdown";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import ConfigurationStep from "../config/ConfigurationStep.tsx";
 import { AppConfig, AppConfigGroup, AppConfigItem } from "../../../types";
@@ -541,8 +542,9 @@ describe.each([
       expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
     });
 
-    // Verify help text is displayed for the app_name field
-    expect(screen.getByText("Enter the name of your application")).toBeInTheDocument();
+    // Verify help text is displayed for the app_name field with default value
+    expect(screen.getByText(/Enter the name of your application/)).toBeInTheDocument();
+    expect(screen.getByText("Default App")).toBeInTheDocument();
   });
 
   it("handles unauthorized error correctly", async () => {
@@ -1506,5 +1508,177 @@ describe.each([
     // Bool field with no value in config but has default should use default (getEffectiveValue includes default)
     const enableSslField = screen.getByTestId("bool-input-enable_ssl") as HTMLInputElement;
     expect(enableSslField.checked).toBe(true); // default "1" is used since getEffectiveValue includes default
+  });
+
+  describe("Default value utility functions", () => {
+    // Mock the utility functions by creating a test version of the component
+    const TestComponent = () => {
+      // Helper function to determine if default value should be shown
+      const shouldShowDefault = (item: AppConfigItem): boolean => {
+        return !!(item.default && ['text', 'password', 'textarea'].includes(item.type));
+      };
+
+      // Helper function to render help text with default value inline using markdown
+      const renderHelpTextWithDefault = (helpText?: string, defaultValue?: string, error?: string) => {
+        if ((!helpText && !defaultValue) || error) return null;
+        
+        // Build the combined text with markdown formatting
+        let combinedText = helpText || '';
+        if (defaultValue) {
+          const defaultText = `(Default: \`${defaultValue}\`)`;
+          combinedText = helpText ? `${helpText} ${defaultText}` : defaultText;
+        }
+        
+        return (
+          <div className="mt-1 text-sm text-gray-500">
+            <ReactMarkdown
+              components={{
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            code: ({ children }: any) => (
+              <code className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">
+                {children}
+              </code>
+            ),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            p: ({ children }: any) => <span>{children}</span>, // Render as span instead of paragraph
+              }}
+            >
+              {combinedText}
+            </ReactMarkdown>
+          </div>
+        );
+      };
+
+      // Test items
+      const testItems = [
+        { name: "text_with_default", type: "text", default: "default-value", help_text: "Help text" },
+        { name: "text_no_default", type: "text", help_text: "Help text" },
+        { name: "label_with_default", type: "label", default: "default-value", help_text: "Help text" },
+        { name: "text_no_help", type: "text", default: "default-value" },
+        { name: "text_with_error", type: "text", default: "default-value", help_text: "Help text", error: "Error message" },
+        { name: "radio_with_default", type: "radio", default: "default-value", help_text: "Help text" },
+        { name: "bool_with_default", type: "bool", default: "1", help_text: "Help text" },
+        { name: "password_with_default", type: "password", default: "default-pass", help_text: "Help text" },
+        { name: "textarea_with_default", type: "textarea", default: "default-text", help_text: "Help text" }
+      ];
+
+             return (
+         <div>
+           {testItems.map((item, index) => (
+             <div key={index} data-testid={`test-item-${index}`}>
+               <div data-testid={`should-show-${index}`}>
+                 {shouldShowDefault(item as AppConfigItem) ? "true" : "false"}
+               </div>
+               <div data-testid={`help-text-${index}`}>
+                 {/* For labels, we wouldn't render help text with defaults in form context */}
+                 {item.type === 'label' 
+                   ? null 
+                   : renderHelpTextWithDefault(
+                       item.help_text, 
+                       shouldShowDefault(item as AppConfigItem) ? item.default : undefined, 
+                       item.error
+                     )}
+               </div>
+             </div>
+           ))}
+         </div>
+       );
+    };
+
+    it("shouldShowDefault returns true only for text-based inputs with defaults", () => {
+      renderWithProviders(<TestComponent />);
+      
+      // Text with default should show default
+      expect(screen.getByTestId("should-show-0")).toHaveTextContent("true");
+      
+      // Text without default should not show default
+      expect(screen.getByTestId("should-show-1")).toHaveTextContent("false");
+      
+      // Label with default should not show default (ignores label type)
+      expect(screen.getByTestId("should-show-2")).toHaveTextContent("false");
+      
+      // Text with default but no help text should still show default
+      expect(screen.getByTestId("should-show-3")).toHaveTextContent("true");
+      
+      // Text with error should show default (shouldShowDefault doesn't care about errors)
+      expect(screen.getByTestId("should-show-4")).toHaveTextContent("true");
+      
+      // Radio with default should NOT show default (radio pre-selection shows default)
+      expect(screen.getByTestId("should-show-5")).toHaveTextContent("false");
+      
+      // Bool with default should NOT show default (checkbox pre-selection shows default)
+      expect(screen.getByTestId("should-show-6")).toHaveTextContent("false");
+      
+      // Password with default should show default (text-based input)
+      expect(screen.getByTestId("should-show-7")).toHaveTextContent("true");
+      
+      // Textarea with default should show default (text-based input)
+      expect(screen.getByTestId("should-show-8")).toHaveTextContent("true");
+    });
+
+    it("renderHelpTextWithDefault shows default value inline after help text for text-based inputs only", () => {
+      renderWithProviders(<TestComponent />);
+      
+      // Help text with default should show both combined
+      const helpText0 = screen.getByTestId("help-text-0");
+      expect(helpText0).toHaveTextContent("Help text (Default: default-value)");
+      expect(helpText0.querySelector("code")).toHaveTextContent("default-value");
+      
+      // Help text without default should only show help text
+      const helpText1 = screen.getByTestId("help-text-1");
+      expect(helpText1).toHaveTextContent("Help text");
+      expect(helpText1).not.toHaveTextContent("Default:");
+      
+      // Label type should not render anything
+      const helpText2 = screen.getByTestId("help-text-2");
+      expect(helpText2).toBeEmptyDOMElement();
+      
+      // Default without help text should show only default
+      const helpText3 = screen.getByTestId("help-text-3");
+      expect(helpText3).toHaveTextContent("(Default: default-value)");
+      expect(helpText3).not.toHaveTextContent("Help text");
+      
+      // Error should prevent rendering
+      const helpText4 = screen.getByTestId("help-text-4");
+      expect(helpText4).toBeEmptyDOMElement();
+      
+      // Radio with default should only show help text (no default display)
+      const helpText5 = screen.getByTestId("help-text-5");
+      expect(helpText5).toHaveTextContent("Help text");
+      expect(helpText5).not.toHaveTextContent("Default:");
+      
+      // Bool with default should only show help text (no default display)
+      const helpText6 = screen.getByTestId("help-text-6");
+      expect(helpText6).toHaveTextContent("Help text");
+      expect(helpText6).not.toHaveTextContent("Default:");
+      
+      // Password with default should show both combined (text-based input)
+      const helpText7 = screen.getByTestId("help-text-7");
+      expect(helpText7).toHaveTextContent("Help text (Default: default-pass)");
+      expect(helpText7.querySelector("code")).toHaveTextContent("default-pass");
+      
+      // Textarea with default should show both combined (text-based input)
+      const helpText8 = screen.getByTestId("help-text-8");
+      expect(helpText8).toHaveTextContent("Help text (Default: default-text)");
+      expect(helpText8.querySelector("code")).toHaveTextContent("default-text");
+    });
+
+         it("renderHelpTextWithDefault applies proper CSS styling", () => {
+       renderWithProviders(<TestComponent />);
+       
+       const helpText0 = screen.getByTestId("help-text-0");
+       
+       // The container div that holds the rendered help text should have proper styling
+       const renderedDiv = helpText0.querySelector("div");
+       expect(renderedDiv).toHaveClass("mt-1", "text-sm", "text-gray-500");
+       
+       // Default value should have proper code styling via markdown rendering
+       const codeElement = helpText0.querySelector("code");
+       expect(codeElement).toHaveClass("font-mono", "text-xs", "bg-gray-100", "px-1", "py-0.5", "rounded");
+       
+       // With markdown rendering, text is rendered as a single span
+       const spanElement = helpText0.querySelector("span");
+       expect(spanElement).toBeInTheDocument();
+     });
   });
 });

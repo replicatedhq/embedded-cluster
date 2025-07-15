@@ -4,7 +4,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 interface CheckboxProps {
   id: string;
   label: string;
-  helpText?: string;
+  renderedHelpText?: React.ReactNode;
   error?: string;
   required?: boolean;
   checked: boolean;
@@ -18,7 +18,7 @@ interface CheckboxProps {
 const Checkbox: React.FC<CheckboxProps> = ({
   id,
   label,
-  helpText,
+  renderedHelpText,
   error,
   required,
   checked,
@@ -54,7 +54,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
         </label>
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-      {helpText && !error && <p className="mt-1 text-sm text-gray-500">{helpText}</p>}
+      {renderedHelpText}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -141,6 +142,40 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     return configValues?.[item.name] ?? (item.value || item.default || '');
   };
 
+  // Helper function to determine if default value should be shown
+  const shouldShowDefault = (item: AppConfigItem): boolean => {
+    return !!(item.default && ['text', 'password', 'textarea'].includes(item.type));
+  };
+
+  // Helper function to render help text with default value inline
+  const renderHelpTextWithDefault = (helpText?: string, defaultValue?: string, error?: string) => {
+    if ((!helpText && !defaultValue) || error) return null;
+    
+    // Build the combined text with markdown formatting
+    let combinedText = helpText || '';
+    if (defaultValue) {
+      const defaultText = `(Default: \`${defaultValue}\`)`;
+      combinedText = helpText ? `${helpText} ${defaultText}` : defaultText;
+    }
+    
+    return (
+      <div className="mt-1 text-sm text-gray-500">
+        <ReactMarkdown
+          components={{
+            code: ({ children }) => (
+              <code className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">
+                {children}
+              </code>
+            ),
+            p: ({ children }) => <span>{children}</span>, // Render as span instead of paragraph
+          }}
+        >
+          {combinedText}
+        </ReactMarkdown>
+      </div>
+    );
+  };
+
   const updateConfigValue = (itemName: string, value: string) => {
     // Update the config values map
     setConfigValues(prev => ({ ...prev, [itemName]: value }));
@@ -179,10 +214,18 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   const renderConfigItem = (item: AppConfigItem) => {
+    const showDefaultInHelpText = shouldShowDefault(item);
+    
+    const renderedHelpText = renderHelpTextWithDefault(
+      item.help_text,
+      showDefaultInHelpText ? item.default : undefined,
+      item.error
+    );
+
     const sharedProps = {
       id: item.name,
       label: item.title,
-      helpText: item.help_text,
+      renderedHelpText: renderedHelpText,
       error: item.error,
       required: item.required,
     }

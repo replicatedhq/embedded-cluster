@@ -4,7 +4,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 interface InputProps {
   id: string;
   label: string;
-  helpText?: string;
+  renderedHelpText?: React.ReactNode;
   error?: string;
   required?: boolean;
   type?: string;
@@ -23,7 +23,7 @@ interface InputProps {
 const Input: React.FC<InputProps> = ({
   id,
   label,
-  helpText,
+  renderedHelpText,
   error,
   required,
   type = 'text',
@@ -76,7 +76,7 @@ const Input: React.FC<InputProps> = ({
         />
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-      {helpText && !error && <p className="mt-1 text-sm text-gray-500">{helpText}</p>}
+      {renderedHelpText}
     </div>
   );
 };

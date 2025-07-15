@@ -5,7 +5,7 @@ import { AppConfigChildItem } from '../../types';
 interface RadioProps {
   id: string;
   label: string;
-  helpText?: string;
+  renderedHelpText?: React.ReactNode;
   error?: string;
   required?: boolean;
   value: string;
@@ -19,7 +19,7 @@ interface RadioProps {
 const Radio: React.FC<RadioProps> = ({
   id,
   label,
-  helpText,
+  renderedHelpText,
   error,
   required,
   value,
@@ -64,7 +64,7 @@ const Radio: React.FC<RadioProps> = ({
         ))}
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-      {helpText && !error && <p className="mt-1 text-sm text-gray-500">{helpText}</p>}
+      {renderedHelpText}
     </div>
   );
 };

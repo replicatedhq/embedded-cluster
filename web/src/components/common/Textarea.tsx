@@ -4,7 +4,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 interface TextareaProps {
   id: string;
   label: string;
-  helpText?: string;
+  renderedHelpText?: React.ReactNode;
   error?: string;
   required?: boolean;
   value: string;
@@ -20,7 +20,7 @@ interface TextareaProps {
 const Textarea = ({
   id,
   label,
-  helpText,
+  renderedHelpText,
   error,
   required = false,
   value,
@@ -61,7 +61,7 @@ const Textarea = ({
         data-testid={dataTestId}
       />
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-      {helpText && !error && <p className="mt-1 text-sm text-gray-500">{helpText}</p>}
+      {renderedHelpText}
     </div>
   );
 };
