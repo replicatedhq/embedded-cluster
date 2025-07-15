@@ -202,10 +202,11 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
+	if err := controller.validateReleaseData(); err != nil {
+		return nil, err
+	}
+
 	if controller.configValues != nil {
-		if controller.releaseData == nil || controller.releaseData.AppConfig == nil {
-			return nil, errors.New("app config not found")
-		}
 		err := controller.appConfigManager.ValidateConfigValues(*controller.releaseData.AppConfig, controller.configValues)
 		if err != nil {
 			return nil, fmt.Errorf("validate app config values: %w", err)
@@ -217,4 +218,14 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	}
 
 	return controller, nil
+}
+
+func (c *InstallController) validateReleaseData() error {
+	if c.releaseData == nil {
+		return errors.New("release data not found")
+	}
+	if c.releaseData.AppConfig == nil {
+		return errors.New("app config not found")
+	}
+	return nil
 }

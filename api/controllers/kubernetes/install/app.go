@@ -2,7 +2,6 @@ package install
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime/debug"
 
@@ -11,16 +10,16 @@ import (
 )
 
 func (c *InstallController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error) {
-	if c.releaseData == nil || c.releaseData.AppConfig == nil {
-		return kotsv1beta1.Config{}, errors.New("app config not found")
+	if err := c.validateReleaseData(); err != nil {
+		return kotsv1beta1.Config{}, err
 	}
 
 	return c.appConfigManager.GetConfig(*c.releaseData.AppConfig)
 }
 
 func (c *InstallController) PatchAppConfigValues(ctx context.Context, values map[string]string) (finalErr error) {
-	if c.releaseData == nil || c.releaseData.AppConfig == nil {
-		return errors.New("app config not found")
+	if err := c.validateReleaseData(); err != nil {
+		return err
 	}
 
 	lock, err := c.stateMachine.AcquireLock()
