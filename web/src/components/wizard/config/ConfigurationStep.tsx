@@ -192,6 +192,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         return (
           <Input
             {...sharedProps}
+            defaultValue={item.default}
             value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`text-input-${item.name}`}
@@ -203,6 +204,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         return (
           <Input
             {...sharedProps}
+            defaultValue={item.default}
             type="password"
             value={getDisplayValue(item)}
             onChange={handleInputChange}
@@ -217,6 +219,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         return (
           <Textarea
             {...sharedProps}
+            defaultValue={item.default}
             value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`textarea-input-${item.name}`}

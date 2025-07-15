@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { AppConfigChildItem } from '../../types';
+import HelpText from './HelpText';
 
 interface RadioProps {
   id: string;
@@ -64,7 +65,7 @@ const Radio: React.FC<RadioProps> = ({
         ))}
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-      {helpText && !error && <p className="mt-1 text-sm text-gray-500">{helpText}</p>}
+      <HelpText helpText={helpText} error={error} />
     </div>
   );
 };

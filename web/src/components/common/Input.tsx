@@ -1,10 +1,12 @@
 import React from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
+import HelpText from './HelpText';
 
 interface InputProps {
   id: string;
   label: string;
   helpText?: string;
+  defaultValue?: string;
   error?: string;
   required?: boolean;
   type?: string;
@@ -24,6 +26,7 @@ const Input: React.FC<InputProps> = ({
   id,
   label,
   helpText,
+  defaultValue,
   error,
   required,
   type = 'text',
@@ -76,7 +79,7 @@ const Input: React.FC<InputProps> = ({
         />
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-      {helpText && !error && <p className="mt-1 text-sm text-gray-500">{helpText}</p>}
+      <HelpText helpText={helpText} defaultValue={defaultValue} error={error} />
     </div>
   );
 };

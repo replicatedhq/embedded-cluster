@@ -27,6 +27,12 @@ const Label: React.FC<LabelProps> = ({
                 className="text-blue-600 hover:text-blue-800 underline"
               />
             ),
+            code: ({ children }) => (
+              <code className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">
+                {children}
+              </code>
+            ),
+            p: ({ children }) => <span>{children}</span>,
           }}
         >
           {content}

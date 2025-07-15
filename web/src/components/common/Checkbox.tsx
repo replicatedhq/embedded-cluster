@@ -1,5 +1,6 @@
 import React from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
+import HelpText from './HelpText';
 
 interface CheckboxProps {
   id: string;
@@ -54,7 +55,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
         </label>
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-      {helpText && !error && <p className="mt-1 text-sm text-gray-500">{helpText}</p>}
+      <HelpText helpText={helpText} error={error} />
     </div>
   );
 };

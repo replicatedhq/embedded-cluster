@@ -541,8 +541,9 @@ describe.each([
       expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
     });
 
-    // Verify help text is displayed for the app_name field
-    expect(screen.getByText("Enter the name of your application")).toBeInTheDocument();
+    // Verify help text is displayed for the app_name field with default value
+    expect(screen.getByText(/Enter the name of your application/)).toBeInTheDocument();
+    expect(screen.getByText("Default App")).toBeInTheDocument();
   });
 
   it("handles unauthorized error correctly", async () => {
@@ -1507,4 +1508,5 @@ describe.each([
     const enableSslField = screen.getByTestId("bool-input-enable_ssl") as HTMLInputElement;
     expect(enableSslField.checked).toBe(true); // default "1" is used since getEffectiveValue includes default
   });
+
 });
