@@ -1,10 +1,12 @@
 import { ChangeEvent, CSSProperties } from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
+import HelpText from './HelpText';
 
 interface TextareaProps {
   id: string;
   label: string;
-  renderedHelpText?: React.ReactNode;
+  helpText?: string;
+  defaultValue?: string;
   error?: string;
   required?: boolean;
   value: string;
@@ -20,7 +22,8 @@ interface TextareaProps {
 const Textarea = ({
   id,
   label,
-  renderedHelpText,
+  helpText,
+  defaultValue,
   error,
   required = false,
   value,
@@ -61,7 +64,7 @@ const Textarea = ({
         data-testid={dataTestId}
       />
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-      {renderedHelpText}
+      <HelpText helpText={helpText} defaultValue={defaultValue} error={error} />
     </div>
   );
 };

@@ -1,11 +1,12 @@
 import React from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { AppConfigChildItem } from '../../types';
+import HelpText from './HelpText';
 
 interface RadioProps {
   id: string;
   label: string;
-  renderedHelpText?: React.ReactNode;
+  helpText?: string;
   error?: string;
   required?: boolean;
   value: string;
@@ -19,7 +20,7 @@ interface RadioProps {
 const Radio: React.FC<RadioProps> = ({
   id,
   label,
-  renderedHelpText,
+  helpText,
   error,
   required,
   value,
@@ -64,7 +65,7 @@ const Radio: React.FC<RadioProps> = ({
         ))}
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-      {renderedHelpText}
+      <HelpText helpText={helpText} error={error} />
     </div>
   );
 };

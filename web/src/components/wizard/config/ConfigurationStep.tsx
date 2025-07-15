@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import ReactMarkdown from 'react-markdown';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -147,34 +146,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     return !!(item.default && ['text', 'password', 'textarea'].includes(item.type));
   };
 
-  // Helper function to render help text with default value inline
-  const renderHelpTextWithDefault = (helpText?: string, defaultValue?: string, error?: string) => {
-    if ((!helpText && !defaultValue) || error) return null;
-    
-    // Build the combined text with markdown formatting
-    let combinedText = helpText || '';
-    if (defaultValue) {
-      const defaultText = `(Default: \`${defaultValue}\`)`;
-      combinedText = helpText ? `${helpText} ${defaultText}` : defaultText;
-    }
-    
-    return (
-      <div className="mt-1 text-sm text-gray-500">
-        <ReactMarkdown
-          components={{
-            code: ({ children }) => (
-              <code className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">
-                {children}
-              </code>
-            ),
-            p: ({ children }) => <span>{children}</span>, // Render as span instead of paragraph
-          }}
-        >
-          {combinedText}
-        </ReactMarkdown>
-      </div>
-    );
-  };
+
 
   const updateConfigValue = (itemName: string, value: string) => {
     // Update the config values map
@@ -214,18 +186,10 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   const renderConfigItem = (item: AppConfigItem) => {
-    const showDefaultInHelpText = shouldShowDefault(item);
-    
-    const renderedHelpText = renderHelpTextWithDefault(
-      item.help_text,
-      showDefaultInHelpText ? item.default : undefined,
-      item.error
-    );
-
     const sharedProps = {
       id: item.name,
       label: item.title,
-      renderedHelpText: renderedHelpText,
+      helpText: item.help_text,
       error: item.error,
       required: item.required,
     }
@@ -235,6 +199,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         return (
           <Input
             {...sharedProps}
+            defaultValue={shouldShowDefault(item) ? item.default : undefined}
             value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`text-input-${item.name}`}
@@ -245,6 +210,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         return (
           <Input
             {...sharedProps}
+            defaultValue={shouldShowDefault(item) ? item.default : undefined}
             type="password"
             value={getDisplayValue(item)}
             onChange={handleInputChange}
@@ -258,6 +224,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         return (
           <Textarea
             {...sharedProps}
+            defaultValue={shouldShowDefault(item) ? item.default : undefined}
             value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`textarea-input-${item.name}`}

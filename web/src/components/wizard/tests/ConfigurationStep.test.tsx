@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } 
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import ReactMarkdown from "react-markdown";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import ConfigurationStep from "../config/ConfigurationStep.tsx";
+import HelpText from "../../common/HelpText";
 import { AppConfig, AppConfigGroup, AppConfigItem } from "../../../types";
 
 const MOCK_APP_CONFIG: AppConfig = {
@@ -1511,42 +1511,11 @@ describe.each([
   });
 
   describe("Default value utility functions", () => {
-    // Mock the utility functions by creating a test version of the component
+    // Test version of the component using the new HelpText component
     const TestComponent = () => {
       // Helper function to determine if default value should be shown
       const shouldShowDefault = (item: AppConfigItem): boolean => {
         return !!(item.default && ['text', 'password', 'textarea'].includes(item.type));
-      };
-
-      // Helper function to render help text with default value inline using markdown
-      const renderHelpTextWithDefault = (helpText?: string, defaultValue?: string, error?: string) => {
-        if ((!helpText && !defaultValue) || error) return null;
-        
-        // Build the combined text with markdown formatting
-        let combinedText = helpText || '';
-        if (defaultValue) {
-          const defaultText = `(Default: \`${defaultValue}\`)`;
-          combinedText = helpText ? `${helpText} ${defaultText}` : defaultText;
-        }
-        
-        return (
-          <div className="mt-1 text-sm text-gray-500">
-            <ReactMarkdown
-              components={{
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            code: ({ children }: any) => (
-              <code className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">
-                {children}
-              </code>
-            ),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            p: ({ children }: any) => <span>{children}</span>, // Render as span instead of paragraph
-              }}
-            >
-              {combinedText}
-            </ReactMarkdown>
-          </div>
-        );
       };
 
       // Test items
@@ -1562,27 +1531,27 @@ describe.each([
         { name: "textarea_with_default", type: "textarea", default: "default-text", help_text: "Help text" }
       ];
 
-             return (
-         <div>
-           {testItems.map((item, index) => (
-             <div key={index} data-testid={`test-item-${index}`}>
-               <div data-testid={`should-show-${index}`}>
-                 {shouldShowDefault(item as AppConfigItem) ? "true" : "false"}
-               </div>
-               <div data-testid={`help-text-${index}`}>
-                 {/* For labels, we wouldn't render help text with defaults in form context */}
-                 {item.type === 'label' 
-                   ? null 
-                   : renderHelpTextWithDefault(
-                       item.help_text, 
-                       shouldShowDefault(item as AppConfigItem) ? item.default : undefined, 
-                       item.error
-                     )}
-               </div>
-             </div>
-           ))}
-         </div>
-       );
+      return (
+        <div>
+          {testItems.map((item, index) => (
+            <div key={index} data-testid={`test-item-${index}`}>
+              <div data-testid={`should-show-${index}`}>
+                {shouldShowDefault(item as AppConfigItem) ? "true" : "false"}
+              </div>
+              <div data-testid={`help-text-${index}`}>
+                {/* For labels, we wouldn't render help text with defaults in form context */}
+                {item.type === 'label' 
+                  ? null 
+                  : <HelpText
+                      helpText={item.help_text}
+                      defaultValue={shouldShowDefault(item as AppConfigItem) ? item.default : undefined}
+                      error={item.error}
+                    />}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
     };
 
     it("shouldShowDefault returns true only for text-based inputs with defaults", () => {
@@ -1616,7 +1585,7 @@ describe.each([
       expect(screen.getByTestId("should-show-8")).toHaveTextContent("true");
     });
 
-    it("renderHelpTextWithDefault shows default value inline after help text for text-based inputs only", () => {
+    it("HelpText shows default value inline after help text for text-based inputs only", () => {
       renderWithProviders(<TestComponent />);
       
       // Help text with default should show both combined

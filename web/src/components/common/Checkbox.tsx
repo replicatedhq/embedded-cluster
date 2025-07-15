@@ -1,10 +1,11 @@
 import React from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
+import HelpText from './HelpText';
 
 interface CheckboxProps {
   id: string;
   label: string;
-  renderedHelpText?: React.ReactNode;
+  helpText?: string;
   error?: string;
   required?: boolean;
   checked: boolean;
@@ -18,7 +19,7 @@ interface CheckboxProps {
 const Checkbox: React.FC<CheckboxProps> = ({
   id,
   label,
-  renderedHelpText,
+  helpText,
   error,
   required,
   checked,
@@ -54,7 +55,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
         </label>
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-      {renderedHelpText}
+      <HelpText helpText={helpText} error={error} />
     </div>
   );
 };
