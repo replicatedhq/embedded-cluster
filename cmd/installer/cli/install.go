@@ -508,7 +508,7 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 	if err != nil {
 		return fmt.Errorf("unable to construct path for directory: %w", err)
 	}
-	rc.SetDataDir(AbsoluteDataDir)
+	rc.SetDataDir(absoluteDataDir)
 	rc.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
 	rc.SetHostCABundlePath(hostCABundlePath)
 	rc.SetNetworkSpec(networkSpec)
