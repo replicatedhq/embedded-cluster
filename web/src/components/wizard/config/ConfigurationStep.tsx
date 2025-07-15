@@ -141,7 +141,6 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     return configValues?.[item.name] ?? (item.value || item.default || '');
   };
 
-
   const updateConfigValue = (itemName: string, value: string) => {
     // Update the config values map
     setConfigValues(prev => ({ ...prev, [itemName]: value }));
