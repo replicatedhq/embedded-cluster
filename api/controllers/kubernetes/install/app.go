@@ -14,10 +14,6 @@ func (c *InstallController) GetAppConfig(ctx context.Context) (kotsv1beta1.Confi
 }
 
 func (c *InstallController) PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) (finalErr error) {
-	if err := c.validateReleaseData(); err != nil {
-		return err
-	}
-
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
