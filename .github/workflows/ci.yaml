@@ -217,11 +217,34 @@ jobs:
           name: buildtools
           path: output/bin/buildtools
 
+  should-run-e2e:
+    name: Should run e2e
+    runs-on: ubuntu-latest
+    outputs:
+      run-e2e: ${{ steps.changed-files.outputs.e2e_any_changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v46.0.5
+        with:
+          files_yaml: |
+            e2e:
+              - e2e/**
+            src:
+              - '**'
+              - '!api/**'
+              - 'api/types/**'
+
   build-current:
     name: Build current
     runs-on: ubuntu-latest
     needs:
       - git-sha
+      - should-run-e2e
+    if: needs.should-run-e2e.outputs.run-e2e == 'true'
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
@@ -301,6 +324,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - git-sha
+      - should-run-e2e
+    if: needs.should-run-e2e.outputs.run-e2e == 'true'
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
@@ -381,6 +406,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - git-sha
+      - should-run-e2e
+    if: needs.should-run-e2e.outputs.run-e2e == 'true'
     outputs:
       ec_version: ${{ steps.export.outputs.ec_version }}
       k0s_version: ${{ steps.export.outputs.k0s_version }}
@@ -415,6 +442,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - git-sha
+      - should-run-e2e
+    if: needs.should-run-e2e.outputs.run-e2e == 'true'
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
@@ -786,7 +815,7 @@ jobs:
         run: |
           make e2e-test TEST_NAME=${{ matrix.test }}
       - name: Troubleshoot
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() }} && ${{ needs.should-run-e2e.outputs.run-e2e }}
         uses: ./.github/actions/e2e-troubleshoot
         with:
           test-name: "${{ matrix.test }}"
@@ -908,13 +937,13 @@ jobs:
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
       - name: fail if e2e job was not successful
-        if: needs.e2e.result != 'success'
+        if: needs.e2e.result != 'success' && needs.e2e.result != 'skipped'
         run: exit 1
       - name: fail if e2e-main job was not successful
         if: needs.e2e-main.result != 'success' && needs.e2e-main.result != 'skipped'
         run: exit 1
       - name: fail if e2e-docker job was not successful
-        if: needs.e2e-docker.result != 'success'
+        if: needs.e2e-docker.result != 'success' && needs.e2e-docker.result != 'skipped'
         run: exit 1
       - name: fail if sanitize job was not successful
         if: needs.sanitize.result != 'success'
