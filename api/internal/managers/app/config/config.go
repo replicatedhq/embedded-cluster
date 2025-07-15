@@ -9,8 +9,8 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/tiendc/go-deepcopy"
+	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -24,19 +24,13 @@ var (
 )
 
 func (m *appConfigManager) GetConfig() (kotsv1beta1.Config, error) {
-	// Convert config to YAML string
-	configYAML, err := yaml.Marshal(m.rawConfig)
+	// Execute the config template
+	processedYAML, err := m.executeConfigTemplate()
 	if err != nil {
-		return kotsv1beta1.Config{}, fmt.Errorf("marshal config to yaml: %w", err)
+		return kotsv1beta1.Config{}, fmt.Errorf("execute config template: %w", err)
 	}
 
-	// Process templates in the entire config string
-	processedYAML, err := m.processTemplate(string(configYAML))
-	if err != nil {
-		return kotsv1beta1.Config{}, fmt.Errorf("process config template: %w", err)
-	}
-
-	// Parse back to Config struct
+	// Parse to Config struct
 	var processedConfig kotsv1beta1.Config
 	if err := yaml.Unmarshal([]byte(processedYAML), &processedConfig); err != nil {
 		return kotsv1beta1.Config{}, fmt.Errorf("unmarshal processed config: %w", err)
@@ -48,13 +42,13 @@ func (m *appConfigManager) GetConfig() (kotsv1beta1.Config, error) {
 func (m *appConfigManager) ValidateConfigValues(configValues map[string]string) error {
 	var ve *types.APIError
 
-	filteredConfig, err := m.GetConfig()
+	processedConfig, err := m.GetConfig()
 	if err != nil {
 		return fmt.Errorf("get config: %w", err)
 	}
 
 	// check required items
-	for _, group := range filteredConfig.Spec.Groups {
+	for _, group := range processedConfig.Spec.Groups {
 		for _, item := range group.Items {
 			configValue := getConfigValueFromItem(item, configValues)
 			if isRequiredItem(item) && isUnsetItem(configValue) {

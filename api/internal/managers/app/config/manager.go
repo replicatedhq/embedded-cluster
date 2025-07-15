@@ -1,9 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"text/template"
 
-	"github.com/Masterminds/sprig/v3"
 	configstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -32,7 +32,7 @@ type appConfigManager struct {
 	rawConfig      kotsv1beta1.Config
 	appConfigStore configstore.Store
 	logger         logrus.FieldLogger
-	templateEngine *template.Template
+	configTemplate *template.Template
 }
 
 type AppConfigManagerOption func(*appConfigManager)
@@ -49,14 +49,14 @@ func WithAppConfigStore(store configstore.Store) AppConfigManagerOption {
 	}
 }
 
-func WithTemplateEngine(engine *template.Template) AppConfigManagerOption {
+func WithConfigTemplate(tmpl *template.Template) AppConfigManagerOption {
 	return func(c *appConfigManager) {
-		c.templateEngine = engine
+		c.configTemplate = tmpl
 	}
 }
 
 // NewAppConfigManager creates a new AppConfigManager with the provided options
-func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOption) *appConfigManager {
+func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOption) (*appConfigManager, error) {
 	manager := &appConfigManager{
 		rawConfig: config,
 	}
@@ -73,9 +73,11 @@ func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOpti
 		manager.appConfigStore = configstore.NewMemoryStore()
 	}
 
-	if manager.templateEngine == nil {
-		manager.templateEngine = template.New("config").Funcs(sprig.TxtFuncMap())
+	if manager.configTemplate == nil {
+		if err := manager.initConfigTemplate(); err != nil {
+			return nil, fmt.Errorf("initialize config template: %w", err)
+		}
 	}
 
-	return manager
+	return manager, nil
 }

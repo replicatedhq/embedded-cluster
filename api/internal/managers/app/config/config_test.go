@@ -419,7 +419,8 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create a new app config manager
-			manager := NewAppConfigManager(tt.config)
+			manager, err := NewAppConfigManager(tt.config)
+			assert.NoError(t, err)
 
 			// Apply values to config
 			result, err := manager.GetConfig()
@@ -1332,10 +1333,11 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 			tt.setupMock(mockStore)
 
 			// Create manager with mock store
-			manager := NewAppConfigManager(tt.config, WithAppConfigStore(mockStore))
+			manager, err := NewAppConfigManager(tt.config, WithAppConfigStore(mockStore))
+			assert.NoError(t, err)
 
 			// Call PatchConfigValues
-			err := manager.PatchConfigValues(tt.newValues)
+			err = manager.PatchConfigValues(tt.newValues)
 
 			// Verify expectations
 			if tt.wantErr {
@@ -1691,7 +1693,8 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 			mockStore.On("GetConfigValues").Return(tt.storeValues, tt.storeError)
 
 			// Create manager with mock store
-			manager := NewAppConfigManager(tt.appConfig, WithAppConfigStore(mockStore))
+			manager, err := NewAppConfigManager(tt.appConfig, WithAppConfigStore(mockStore))
+			assert.NoError(t, err)
 
 			// Call GetConfigValues
 			result, err := manager.GetConfigValues(tt.maskPasswords)
@@ -2515,7 +2518,8 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 			tt.setupMock(mockStore)
 
 			// Create manager with mock store
-			manager := NewAppConfigManager(tt.config, WithAppConfigStore(mockStore))
+			manager, err := NewAppConfigManager(tt.config, WithAppConfigStore(mockStore))
+			assert.NoError(t, err)
 
 			// Call GetKotsadmConfigValues
 			result, err := manager.GetKotsadmConfigValues()
@@ -2798,10 +2802,11 @@ func TestValidateConfigValues(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a real appConfigManager instance for testing
-			manager := NewAppConfigManager(tt.config)
+			manager, err := NewAppConfigManager(tt.config)
+			assert.NoError(t, err)
 
 			// Run the validation
-			err := manager.ValidateConfigValues(tt.configValues)
+			err = manager.ValidateConfigValues(tt.configValues)
 
 			// Check if error is expected
 			if tt.wantErr {
