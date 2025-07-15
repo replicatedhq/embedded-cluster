@@ -542,6 +542,8 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kuberne
 
 	flags.kubernetesRESTClientGetter = flags.kubernetesEnvSettings.RESTClientGetter()
 
+	// testing
+
 	return nil
 }
 
