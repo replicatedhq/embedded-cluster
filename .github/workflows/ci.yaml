@@ -237,18 +237,21 @@ jobs:
               - 'api/*.go'
               - 'api/types/**'
               - 'api/pkg/**'
+              - 'cmd/**'
               - 'kinds/**'
               - 'operator/**'
               - 'pkg/**'
               - 'pkg-new/**'
-              - 'scripts/**'
               - 'utils/**'
               - 'go.{mod,sum}'
             build:
               - 'Makefile'
               - 'common.mk'
-              - 'local-artifact-mirror/**'
               - 'dagger/**'
+              - 'deploy/**'
+              - 'fio/**'
+              - 'local-artifact-mirror/**'
+              - 'scripts/**'
 
   build-current:
     name: Build current
