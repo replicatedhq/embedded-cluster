@@ -67,7 +67,7 @@ jobs:
           cd web
           npm run test:unit
 
-  test:
+  unit-tests:
     name: Unit tests
     runs-on: ubuntu-latest
     steps:
@@ -935,7 +935,7 @@ jobs:
       - e2e-main
       - e2e-docker
       - sanitize
-      - test
+      - unit-tests
       - int-tests
       - web-tests
       - dryrun-tests
@@ -957,8 +957,17 @@ jobs:
       - name: fail if sanitize job was not successful
         if: needs.sanitize.result != 'success'
         run: exit 1
-      - name: fail if test job was not successful
-        if: needs.test.result != 'success'
+      - name: fail if unit-tests job was not successful
+        if: needs.unit-tests.result != 'success'
+        run: exit 1
+      - name: fail if int-tests job was not successful
+        if: needs.int-tests.result != 'success'
+        run: exit 1
+      - name: fail if web-tests job was not successful
+        if: needs.web-tests.result != 'success'
+        run: exit 1
+      - name: fail if dryrun-tests job was not successful
+        if: needs.dryrun-tests.result != 'success'
         run: exit 1
       - name: fail if check-images job was not successful
         if: needs.check-images.result != 'success'
