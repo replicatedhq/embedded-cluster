@@ -13,7 +13,7 @@ type GetListAvailableNetworkInterfacesResponse struct {
 	NetworkInterfaces []string `json:"networkInterfaces"`
 }
 
-// AppConfigValuesResponse represents the response when getting app config values
+// AppConfigValuesResponse represents a response containing app config values
 type AppConfigValuesResponse struct {
-	Values map[string]string `json:"values"`
+	Values AppConfigValues `json:"values"`
 }

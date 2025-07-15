@@ -322,7 +322,7 @@ func (c *client) GetLinuxAppConfig() (types.AppConfig, error) {
 	return config, nil
 }
 
-func (c *client) GetLinuxAppConfigValues() (map[string]string, error) {
+func (c *client) GetLinuxAppConfigValues() (types.AppConfigValues, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/app/config/values", nil)
 	if err != nil {
 		return nil, err
@@ -349,7 +349,7 @@ func (c *client) GetLinuxAppConfigValues() (map[string]string, error) {
 	return response.Values, nil
 }
 
-func (c *client) PatchLinuxAppConfigValues(values map[string]string) (types.AppConfig, error) {
+func (c *client) PatchLinuxAppConfigValues(values types.AppConfigValues) (types.AppConfig, error) {
 	req := types.PatchAppConfigValuesRequest{
 		Values: values,
 	}
@@ -411,7 +411,7 @@ func (c *client) GetKubernetesAppConfig() (types.AppConfig, error) {
 	return config, nil
 }
 
-func (c *client) GetKubernetesAppConfigValues() (map[string]string, error) {
+func (c *client) GetKubernetesAppConfigValues() (types.AppConfigValues, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app/config/values", nil)
 	if err != nil {
 		return nil, err
@@ -438,7 +438,7 @@ func (c *client) GetKubernetesAppConfigValues() (map[string]string, error) {
 	return response.Values, nil
 }
 
-func (c *client) PatchKubernetesAppConfigValues(values map[string]string) (types.AppConfig, error) {
+func (c *client) PatchKubernetesAppConfigValues(values types.AppConfigValues) (types.AppConfig, error) {
 	request := types.PatchAppConfigValuesRequest{
 		Values: values,
 	}

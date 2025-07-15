@@ -55,3 +55,10 @@ export interface AppConfigChildItem {
   value?: string;
   default?: string;
 }
+
+export interface AppConfigValue {
+  value: string;
+  filename?: string;
+}
+
+export type AppConfigValues = Record<string, AppConfigValue>;

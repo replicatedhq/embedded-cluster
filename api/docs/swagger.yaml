@@ -29,12 +29,21 @@ components:
           type: array
           uniqueItems: false
       type: object
+    types.AppConfigValue:
+      properties:
+        filename:
+          type: string
+        value:
+          type: string
+      type: object
+    types.AppConfigValues:
+      additionalProperties:
+        $ref: '#/components/schemas/types.AppConfigValue'
+      type: object
     types.AppConfigValuesResponse:
       properties:
         values:
-          additionalProperties:
-            type: string
-          type: object
+          $ref: '#/components/schemas/types.AppConfigValues'
       type: object
     types.AuthRequest:
       properties:
@@ -154,9 +163,7 @@ components:
     types.PatchAppConfigValuesRequest:
       properties:
         values:
-          additionalProperties:
-            type: string
-          type: object
+          $ref: '#/components/schemas/types.AppConfigValues'
       type: object
     types.PostInstallRunHostPreflightsRequest:
       properties:

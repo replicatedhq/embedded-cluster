@@ -79,6 +79,8 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Unit tests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           make unit-tests
 

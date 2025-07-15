@@ -631,16 +631,16 @@ func runManagerExperienceInstall(
 		return fmt.Errorf("process overrides file: %w", err)
 	}
 
-	var configValues map[string]string
+	var configValues apitypes.AppConfigValues
 	if flags.configValues != "" {
-		configValues = make(map[string]string)
+		configValues = make(apitypes.AppConfigValues)
 		kotsConfigValues, err := helpers.ParseConfigValues(flags.configValues)
 		if err != nil {
 			return fmt.Errorf("parse config values file: %w", err)
 		}
 		if kotsConfigValues != nil {
 			for key, value := range kotsConfigValues.Spec.Values {
-				configValues[key] = value.Value
+				configValues[key] = apitypes.AppConfigValue{Value: value.Value}
 			}
 		}
 	}

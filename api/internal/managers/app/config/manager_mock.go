@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/mock"
 )
@@ -19,22 +20,22 @@ func (m *MockAppConfigManager) GetConfig() (kotsv1beta1.Config, error) {
 }
 
 // GetConfigValues mocks the GetConfigValues method
-func (m *MockAppConfigManager) GetConfigValues(maskPasswords bool) (map[string]string, error) {
+func (m *MockAppConfigManager) GetConfigValues(maskPasswords bool) (types.AppConfigValues, error) {
 	args := m.Called(maskPasswords)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(map[string]string), args.Error(1)
+	return args.Get(0).(types.AppConfigValues), args.Error(1)
 }
 
 // ValidateConfigValues mocks the ValidateConfigValues method
-func (m *MockAppConfigManager) ValidateConfigValues(configValues map[string]string) error {
+func (m *MockAppConfigManager) ValidateConfigValues(configValues types.AppConfigValues) error {
 	args := m.Called(configValues)
 	return args.Error(0)
 }
 
 // PatchConfigValues mocks the PatchConfigValues method
-func (m *MockAppConfigManager) PatchConfigValues(values map[string]string) error {
+func (m *MockAppConfigManager) PatchConfigValues(values types.AppConfigValues) error {
 	args := m.Called(values)
 	return args.Error(0)
 }

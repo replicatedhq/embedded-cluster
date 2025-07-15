@@ -12,7 +12,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { handleUnauthorized } from '../../../utils/auth';
-import { AppConfig, AppConfigItem } from '../../../types';
+import { AppConfig, AppConfigItem, AppConfigValues } from '../../../types';
 
 interface ConfigurationStepProps {
   onNext: () => void;
@@ -24,7 +24,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState<string>('');
-  const [configValues, setConfigValues] = useState<Record<string, string>>({});
+  const [configValues, setConfigValues] = useState<AppConfigValues>({});
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
   const [submitError, setSubmitError] = useState<string | null>(null);
   const themeColor = settings.themeColor;
@@ -52,7 +52,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   });
 
   // Fetch current config values
-  const { data: apiConfigValues, isLoading: isConfigValuesLoading, error: getConfigValuesError } = useQuery<Record<string, string>>({
+  const { data: apiConfigValues, isLoading: isConfigValuesLoading, error: getConfigValuesError } = useQuery<AppConfigValues>({
     queryKey: ['appConfigValues', target],
     queryFn: async () => {
       const response = await fetch(`/api/${target}/install/app/config/values`, {
@@ -77,7 +77,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { mutate: submitConfigValues } = useMutation({
     mutationFn: async () => {
       // Build payload with only dirty fields
-      const dirtyValues: Record<string, string> = {};
+      const dirtyValues: AppConfigValues = {};
       dirtyFields.forEach(fieldName => {
         if (configValues[fieldName] !== undefined) {
           dirtyValues[fieldName] = configValues[fieldName];
@@ -132,18 +132,18 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   // Helper function to get the display value for a config item (no defaults)
   const getDisplayValue = (item: AppConfigItem): string => {
     // First check user value, then config item value (use ?? to allow empty strings from the user)
-    return configValues?.[item.name] ?? (item.value || '');
+    return configValues?.[item.name]?.value ?? (item.value || '');
   };
 
   // Helper function to get the effective value for a config item (includes defaults)
   const getEffectiveValue = (item: AppConfigItem): string => {
     // First check user value, then config item value, then default (use ?? to allow empty strings from the user)
-    return configValues?.[item.name] ?? (item.value || item.default || '');
+    return configValues?.[item.name]?.value ?? (item.value || item.default || '');
   };
 
   const updateConfigValue = (itemName: string, value: string) => {
     // Update the config values map
-    setConfigValues(prev => ({ ...prev, [itemName]: value }));
+    setConfigValues(prev => ({ ...prev, [itemName]: { value } }));
 
     // Mark field as dirty
     setDirtyFields(prev => new Set(prev).add(itemName));

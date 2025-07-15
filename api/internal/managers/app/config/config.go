@@ -39,7 +39,7 @@ func (m *appConfigManager) GetConfig() (kotsv1beta1.Config, error) {
 	return filterAppConfig(processedConfig)
 }
 
-func (m *appConfigManager) ValidateConfigValues(configValues map[string]string) error {
+func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValues) error {
 	var ve *types.APIError
 
 	processedConfig, err := m.GetConfig()
@@ -61,7 +61,7 @@ func (m *appConfigManager) ValidateConfigValues(configValues map[string]string) 
 }
 
 // PatchConfigValues performs a partial update by merging new values with existing ones
-func (m *appConfigManager) PatchConfigValues(newValues map[string]string) error {
+func (m *appConfigManager) PatchConfigValues(newValues types.AppConfigValues) error {
 	// Get existing values
 	existingValues, err := m.appConfigStore.GetConfigValues()
 	if err != nil {
@@ -69,7 +69,7 @@ func (m *appConfigManager) PatchConfigValues(newValues map[string]string) error 
 	}
 
 	// Merge new values with existing ones
-	mergedValues := make(map[string]string)
+	mergedValues := make(types.AppConfigValues)
 	maps.Copy(mergedValues, existingValues)
 	maps.Copy(mergedValues, newValues)
 
@@ -80,19 +80,25 @@ func (m *appConfigManager) PatchConfigValues(newValues map[string]string) error 
 	}
 
 	// only keep values for enabled groups and items
-	filteredValues := make(map[string]string)
+	filteredValues := make(types.AppConfigValues)
 	for _, g := range processedConfig.Spec.Groups {
+		// skip the group if it is not enabled
+		if !isItemEnabled(g.When) {
+			continue
+		}
 		for _, i := range g.Items {
-			if isItemEnabled(g.When) && isItemEnabled(i.When) {
-				value, ok := mergedValues[i.Name]
+			// skip the item if it is not enabled
+			if !isItemEnabled(i.When) {
+				continue
+			}
+			value, ok := mergedValues[i.Name]
+			if ok {
+				filteredValues[i.Name] = value
+			}
+			for _, c := range i.Items {
+				value, ok := mergedValues[c.Name]
 				if ok {
-					filteredValues[i.Name] = value
-				}
-				for _, c := range i.Items {
-					value, ok := mergedValues[c.Name]
-					if ok {
-						filteredValues[c.Name] = value
-					}
+					filteredValues[c.Name] = value
 				}
 			}
 		}
@@ -102,7 +108,7 @@ func (m *appConfigManager) PatchConfigValues(newValues map[string]string) error 
 }
 
 // GetConfigValues returns config values with optional password field masking
-func (m *appConfigManager) GetConfigValues(maskPasswords bool) (map[string]string, error) {
+func (m *appConfigManager) GetConfigValues(maskPasswords bool) (types.AppConfigValues, error) {
 	configValues, err := m.appConfigStore.GetConfigValues()
 	if err != nil {
 		return nil, err
@@ -120,7 +126,7 @@ func (m *appConfigManager) GetConfigValues(maskPasswords bool) (map[string]strin
 	}
 
 	// Create a copy of the config values to mask password fields
-	maskedValues := make(map[string]string)
+	maskedValues := make(types.AppConfigValues)
 	maps.Copy(maskedValues, configValues)
 
 	// Mask password fields
@@ -128,13 +134,15 @@ func (m *appConfigManager) GetConfigValues(maskPasswords bool) (map[string]strin
 		for _, item := range group.Items {
 			if item.Type == "password" {
 				// Mask item
-				if value, ok := maskedValues[item.Name]; ok && value != "" {
-					maskedValues[item.Name] = PasswordMask
+				if v, ok := maskedValues[item.Name]; ok && v.Value != "" {
+					v.Value = PasswordMask
+					maskedValues[item.Name] = v
 				}
 				// Mask child items
 				for _, child := range item.Items {
-					if value, ok := maskedValues[child.Name]; ok && value != "" {
-						maskedValues[child.Name] = PasswordMask
+					if v, ok := maskedValues[child.Name]; ok && v.Value != "" {
+						v.Value = PasswordMask
+						maskedValues[child.Name] = v
 					}
 				}
 			}
@@ -182,7 +190,7 @@ func (m *appConfigManager) GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, e
 	return kotsadmConfigValues, nil
 }
 
-func getConfigValueFromItem(item kotsv1beta1.ConfigItem, configValues map[string]string) kotsv1beta1.ConfigValue {
+func getConfigValueFromItem(item kotsv1beta1.ConfigItem, configValues types.AppConfigValues) kotsv1beta1.ConfigValue {
 	configValue := kotsv1beta1.ConfigValue{
 		Default: item.Default.String(),
 	}
@@ -193,18 +201,18 @@ func getConfigValueFromItem(item kotsv1beta1.ConfigItem, configValues map[string
 	}
 
 	// override values from the config values store
-	if value, ok := configValues[item.Name]; ok {
+	if v, ok := configValues[item.Name]; ok {
 		if item.Type == "password" {
-			configValue.ValuePlaintext = value
+			configValue.ValuePlaintext = v.Value
 		} else {
-			configValue.Value = value
+			configValue.Value = v.Value
 		}
 	}
 
 	return configValue
 }
 
-func getConfigValueFromChildItem(itemType string, childItem kotsv1beta1.ConfigChildItem, configValues map[string]string) kotsv1beta1.ConfigValue {
+func getConfigValueFromChildItem(itemType string, childItem kotsv1beta1.ConfigChildItem, configValues types.AppConfigValues) kotsv1beta1.ConfigValue {
 	configValue := kotsv1beta1.ConfigValue{
 		Default: childItem.Default.String(),
 	}
@@ -215,11 +223,11 @@ func getConfigValueFromChildItem(itemType string, childItem kotsv1beta1.ConfigCh
 	}
 
 	// override values from the config values store
-	if value, ok := configValues[childItem.Name]; ok {
+	if v, ok := configValues[childItem.Name]; ok {
 		if itemType == "password" {
-			configValue.ValuePlaintext = value
+			configValue.ValuePlaintext = v.Value
 		} else {
-			configValue.Value = value
+			configValue.Value = v.Value
 		}
 	}
 

@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import ConfigurationStep from "../config/ConfigurationStep.tsx";
-import { AppConfig, AppConfigGroup, AppConfigItem } from "../../../types";
+import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from "../../../types";
 
 const MOCK_APP_CONFIG: AppConfig = {
   groups: [
@@ -93,12 +93,12 @@ const MOCK_APP_CONFIG: AppConfig = {
   ]
 };
 
-const createMockConfigWithValues = (values: Record<string, string>): AppConfig => {
+const createMockConfigWithValues = (values: AppConfigValues): AppConfig => {
   const config: AppConfig = JSON.parse(JSON.stringify(MOCK_APP_CONFIG));
   config.groups.forEach((group: AppConfigGroup) => {
     group.items.forEach((item: AppConfigItem) => {
       if (values[item.name]) {
-        item.value = values[item.name];
+        item.value = values[item.name].value;
       }
     });
   });
@@ -118,7 +118,7 @@ const createServer = (target: string) => setupServer(
 
   // Mock config values submission endpoint
   http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
-    const body = await request.json() as { values: Record<string, string> };
+    const body = await request.json() as { values: AppConfigValues };
     const updatedConfig = createMockConfigWithValues(body.values);
     return HttpResponse.json(updatedConfig);
   })
@@ -442,13 +442,13 @@ describe.each([
   });
 
   it("submits the form successfully and returns updated config", async () => {
-    let submittedValues: { values: Record<string, string> } | null = null;
+    let submittedValues: { values: AppConfigValues } | null = null;
 
     server.use(
       http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
         // Verify auth header
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        const body = await request.json() as { values: Record<string, string> };
+        const body = await request.json() as { values: AppConfigValues };
         submittedValues = body;
         const updatedConfig = createMockConfigWithValues(body.values);
         return HttpResponse.json(updatedConfig);
@@ -513,12 +513,12 @@ describe.each([
     expect(submittedValues).not.toBeNull();
     expect(submittedValues!).toMatchObject({
       values: {
-        app_name: "Updated App Name",
-        description: "Updated multi-line\ndescription text",
-        enable_feature: "1",
-        auth_type: "auth_type_anonymous",
-        db_host: "Updated DB Host",
-        db_config: "# Updated config\nhost: updated-host\nport: 5432"
+        app_name: { value: "Updated App Name" },
+        description: { value: "Updated multi-line\ndescription text" },
+        enable_feature: { value: "1" },
+        auth_type: { value: "auth_type_anonymous" },
+        db_host: { value: "Updated DB Host" },
+        db_config: { value: "# Updated config\nhost: updated-host\nport: 5432" }
       }
     });
   });
@@ -569,11 +569,11 @@ describe.each([
   });
 
   it("only submits changed values", async () => {
-    let submittedValues: { values: Record<string, string> } | null = null;
+    let submittedValues: { values: AppConfigValues } | null = null;
 
     server.use(
       http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
-        const body = await request.json() as { values: Record<string, string> };
+        const body = await request.json() as { values: AppConfigValues };
         submittedValues = body;
         const updatedConfig = createMockConfigWithValues(body.values);
         return HttpResponse.json(updatedConfig);
@@ -625,9 +625,9 @@ describe.each([
     expect(submittedValues).not.toBeNull();
     expect(submittedValues!).toMatchObject({
       values: {
-        app_name: "Only Changed Field",
-        description: "Only changed description",
-        auth_type: "auth_type_anonymous"
+        app_name: { value: "Only Changed Field" },
+        description: { value: "Only changed description" },
+        auth_type: { value: "auth_type_anonymous" }
       }
     });
     expect(submittedValues!.values).not.toHaveProperty("enable_feature");
@@ -817,8 +817,8 @@ describe.each([
           // Provide config values to test priority: configValues > item.value > item.default
           return HttpResponse.json({
             values: {
-              notification_method: "notification_method_slack", // configValues overrides schema default "notification_method_email"
-              backup_schedule: "backup_schedule_weekly" // configValues overrides schema value "backup_schedule_daily"
+              notification_method: { value: "notification_method_slack" }, // configValues overrides schema default "notification_method_email"
+              backup_schedule: { value: "backup_schedule_weekly" } // configValues overrides schema value "backup_schedule_daily"
             }
           });
         })
@@ -898,10 +898,10 @@ describe.each([
       expect(ldapAuthRadio).toBeChecked();
 
       // Test form submission with radio button changes
-      let submittedValues: { values: Record<string, string> } | null = null;
+      let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
         http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
-          const body = await request.json() as { values: Record<string, string> };
+          const body = await request.json() as { values: AppConfigValues };
           submittedValues = body;
           return HttpResponse.json(comprehensiveConfig);
         })
@@ -926,7 +926,7 @@ describe.each([
       expect(submittedValues).not.toBeNull();
       expect(submittedValues!).toMatchObject({
         values: {
-          database_type: "database_type_mysql"
+          database_type: { value: "database_type_mysql" }
         }
       });
     });
@@ -1088,11 +1088,11 @@ describe.each([
     });
 
     it("label items do not affect form submission", async () => {
-      let submittedValues: { values: Record<string, string> } | null = null;
+      let submittedValues: { values: AppConfigValues } | null = null;
 
       server.use(
         http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
-          const body = await request.json() as { values: Record<string, string> };
+          const body = await request.json() as { values: AppConfigValues };
           submittedValues = body;
           const updatedConfig = createMockConfigWithValues(body.values);
           return HttpResponse.json(updatedConfig);
@@ -1131,7 +1131,7 @@ describe.each([
       expect(submittedValues).not.toBeNull();
       expect(submittedValues!).toMatchObject({
         values: {
-          app_name: "Test App"
+          app_name: { value: "Test App" }
         }
       });
 
@@ -1202,8 +1202,8 @@ describe.each([
           // Provide config values to test priority: configValues > item.value > item.default
           return HttpResponse.json({
             values: {
-              notification_method: "1", // configValues overrides schema default "0"
-              backup_schedule: "1" // configValues overrides schema value "0"
+              notification_method: { value: "1" }, // configValues overrides schema default "0"
+              backup_schedule: { value: "1" } // configValues overrides schema value "0"
             }
           });
         })
@@ -1261,10 +1261,10 @@ describe.each([
       expect(authenticationMethodCheckbox).toBeChecked();
 
       // Test form submission with checkbox changes
-      let submittedValues: { values: Record<string, string> } | null = null;
+      let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
         http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
-          const body = await request.json() as { values: Record<string, string> };
+          const body = await request.json() as { values: AppConfigValues };
           submittedValues = body;
           return HttpResponse.json(comprehensiveConfig);
         })
@@ -1289,7 +1289,7 @@ describe.each([
       expect(submittedValues).not.toBeNull();
       expect(submittedValues!).toMatchObject({
         values: {
-          database_type: "0" // changed from checked to unchecked
+          database_type: { value: "0" } // changed from checked to unchecked
         }
       });
     });
@@ -1298,19 +1298,19 @@ describe.each([
   it("initializes changed values from retrieved config values and only submits changed values (PATCH behavior)", async () => {
     // Mock the config values endpoint to return only a subset of values
     const retrievedConfigValues = {
-      app_name: "Retrieved App Name",
-      auth_type: "auth_type_anonymous"
+      app_name: { value: "Retrieved App Name" },
+      auth_type: { value: "auth_type_anonymous" }
       // Note: enable_feature and db_host are NOT in retrieved values
     };
 
-    let submittedValues: { values: Record<string, string> } | null = null;
+    let submittedValues: { values: AppConfigValues } | null = null;
 
     server.use(
       http.get(`*/api/${target}/install/app/config/values`, () => {
         return HttpResponse.json({ values: retrievedConfigValues });
       }),
       http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
-        const body = await request.json() as { values: Record<string, string> };
+        const body = await request.json() as { values: AppConfigValues };
         submittedValues = body;
         return HttpResponse.json(MOCK_APP_CONFIG);
       })
@@ -1354,9 +1354,9 @@ describe.each([
     expect(submittedValues!).toMatchObject({
       values: {
         // Retrieved values that were changed
-        app_name: "", // cleared to empty string (should be submitted for deletion)
+        app_name: { value: "" }, // cleared to empty string (should be submitted for deletion)
         // New changes to fields not in retrieved values
-        db_host: "new-db-host"
+        db_host: { value: "new-db-host" }
         // auth_type should NOT be submitted since it wasn't changed
         // enable_feature should NOT be submitted since it wasn't retrieved and wasn't changed
       }
@@ -1392,7 +1392,7 @@ describe.each([
         return HttpResponse.json(configWithPassword);
       }),
       http.get(`*/api/${target}/install/app/config/values`, () => {
-        return HttpResponse.json({ values: { user_password: "••••••••" } });
+        return HttpResponse.json({ values: { user_password: { value: "••••••••" } } });
       })
     );
 
@@ -1476,7 +1476,7 @@ describe.each([
       }),
       http.get(`*/api/${target}/install/app/config/values`, () => {
         // API returns empty string for db_name, nothing for db_password or db_port
-        return HttpResponse.json({ values: { db_name: "" } });
+        return HttpResponse.json({ values: { db_name: { value: "" } } });
       })
     );
 

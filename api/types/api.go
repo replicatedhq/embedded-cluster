@@ -14,7 +14,7 @@ type APIConfig struct {
 	TLSConfig     TLSConfig
 	License       []byte
 	AirgapBundle  string
-	ConfigValues  map[string]string
+	ConfigValues  AppConfigValues
 	ReleaseData   *release.ReleaseData
 	EndUserConfig *ecv1beta1.Config
 	ClusterID     string

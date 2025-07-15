@@ -709,10 +709,10 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 
 func TestLinuxGetAppConfigValues(t *testing.T) {
 	// Define expected values once
-	expectedValues := map[string]string{
-		"test-key1": "test-value1",
-		"test-key2": "test-value2",
-		"test-key3": "test-value3",
+	expectedValues := types.AppConfigValues{
+		"test-key1": types.AppConfigValue{Value: "test-value1"},
+		"test-key2": types.AppConfigValue{Value: "test-value2"},
+		"test-key3": types.AppConfigValue{Value: "test-value3"},
 	}
 
 	// Create a test server
@@ -785,10 +785,10 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 
 func TestKubernetesGetAppConfigValues(t *testing.T) {
 	// Define expected values once
-	expectedValues := map[string]string{
-		"test-key1": "test-value1",
-		"test-key2": "test-value2",
-		"test-key3": "test-value3",
+	expectedValues := types.AppConfigValues{
+		"test-key1": types.AppConfigValue{Value: "test-value1"},
+		"test-key2": types.AppConfigValue{Value: "test-value2"},
+		"test-key3": types.AppConfigValue{Value: "test-value3"},
 	}
 
 	// Create a test server
@@ -895,8 +895,8 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		require.NoError(t, err, "Failed to decode request body")
 
 		// Verify the request contains expected values
-		assert.Equal(t, "new-value", req.Values["test-item"])
-		assert.Equal(t, "required-value", req.Values["required-item"])
+		assert.Equal(t, "new-value", req.Values["test-item"].Value)
+		assert.Equal(t, "required-value", req.Values["required-item"].Value)
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
@@ -906,9 +906,9 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 	// Test successful set
 	c := New(server.URL, WithToken("test-token"))
-	configValues := map[string]string{
-		"test-item":     "new-value",
-		"required-item": "required-value",
+	configValues := types.AppConfigValues{
+		"test-item":     types.AppConfigValue{Value: "new-value"},
+		"required-item": types.AppConfigValue{Value: "required-value"},
 	}
 	config, err := c.PatchLinuxAppConfigValues(configValues)
 	require.NoError(t, err)
@@ -971,8 +971,8 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		require.NoError(t, err, "Failed to decode request body")
 
 		// Verify the request contains expected values
-		assert.Equal(t, "new-value", req.Values["test-item"])
-		assert.Equal(t, "required-value", req.Values["required-item"])
+		assert.Equal(t, "new-value", req.Values["test-item"].Value)
+		assert.Equal(t, "required-value", req.Values["required-item"].Value)
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
@@ -982,9 +982,9 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 
 	// Test successful set
 	c := New(server.URL, WithToken("test-token"))
-	configValues := map[string]string{
-		"test-item":     "new-value",
-		"required-item": "required-value",
+	configValues := types.AppConfigValues{
+		"test-item":     types.AppConfigValue{Value: "new-value"},
+		"required-item": types.AppConfigValue{Value: "required-value"},
 	}
 	config, err := c.PatchKubernetesAppConfigValues(configValues)
 	assert.NoError(t, err)

@@ -35,8 +35,8 @@ type Controller interface {
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
 	GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error)
-	PatchAppConfigValues(ctx context.Context, values map[string]string) error
-	GetAppConfigValues(ctx context.Context, maskPasswords bool) (map[string]string, error)
+	PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) error
+	GetAppConfigValues(ctx context.Context, maskPasswords bool) (types.AppConfigValues, error)
 }
 
 type RunHostPreflightsOptions struct {
@@ -58,7 +58,7 @@ type InstallController struct {
 	tlsConfig                 types.TLSConfig
 	license                   []byte
 	airgapBundle              string
-	configValues              map[string]string
+	configValues              types.AppConfigValues
 	endUserConfig             *ecv1beta1.Config
 	clusterID                 string
 	store                     store.Store
@@ -131,7 +131,7 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
-func WithConfigValues(configValues map[string]string) InstallControllerOption {
+func WithConfigValues(configValues types.AppConfigValues) InstallControllerOption {
 	return func(c *InstallController) {
 		c.configValues = configValues
 	}

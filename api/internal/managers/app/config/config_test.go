@@ -5,14 +5,13 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tiendc/go-deepcopy"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 func TestAppConfigManager_GetConfig(t *testing.T) {
@@ -441,7 +440,7 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 	tests := []struct {
 		name      string
 		config    kotsv1beta1.Config
-		newValues map[string]string
+		newValues types.AppConfigValues
 		setupMock func(*config.MockStore)
 		wantErr   bool
 	}{
@@ -481,17 +480,17 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"enabled-item-1":     "new-value-1",
-				"enabled-item-2":     "new-value-2",
-				"enabled-child-item": "new-child-value",
+			newValues: types.AppConfigValues{
+				"enabled-item-1":     types.AppConfigValue{Value: "new-value-1"},
+				"enabled-item-2":     types.AppConfigValue{Value: "new-value-2"},
+				"enabled-child-item": types.AppConfigValue{Value: "new-child-value"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{
-					"enabled-item-1":     "new-value-1",
-					"enabled-item-2":     "new-value-2",
-					"enabled-child-item": "new-child-value",
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{
+					"enabled-item-1":     types.AppConfigValue{Value: "new-value-1"},
+					"enabled-item-2":     types.AppConfigValue{Value: "new-value-2"},
+					"enabled-child-item": types.AppConfigValue{Value: "new-child-value"},
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -533,14 +532,14 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"item-in-disabled-group":       "new-value",
-				"child-in-disabled-group":      "new-child-value",
-				"grandchild-in-disabled-group": "new-grandchild-value",
+			newValues: types.AppConfigValues{
+				"item-in-disabled-group":       types.AppConfigValue{Value: "new-value"},
+				"child-in-disabled-group":      types.AppConfigValue{Value: "new-child-value"},
+				"grandchild-in-disabled-group": types.AppConfigValue{Value: "new-grandchild-value"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{}
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
 			wantErr: false,
@@ -574,13 +573,13 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"disabled-item-in-disabled-group": "new-disabled-value",
-				"enabled-item-in-disabled-group":  "new-enabled-value",
+			newValues: types.AppConfigValues{
+				"disabled-item-in-disabled-group": types.AppConfigValue{Value: "new-disabled-value"},
+				"enabled-item-in-disabled-group":  types.AppConfigValue{Value: "new-enabled-value"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{}
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
 			wantErr: false,
@@ -621,15 +620,15 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"enabled-item":           "new-enabled-value",
-				"disabled-item":          "new-disabled-value",
-				"child-of-disabled-item": "new-child-value",
+			newValues: types.AppConfigValues{
+				"enabled-item":           types.AppConfigValue{Value: "new-enabled-value"},
+				"disabled-item":          types.AppConfigValue{Value: "new-disabled-value"},
+				"child-of-disabled-item": types.AppConfigValue{Value: "new-child-value"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{
-					"enabled-item": "new-enabled-value",
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{
+					"enabled-item": types.AppConfigValue{Value: "new-enabled-value"},
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -678,19 +677,19 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"enabled-item":               "new-enabled-value",
-				"disabled-item":              "new-disabled-value",
-				"enabled-item-with-children": "new-parent-value",
-				"enabled-child":              "new-enabled-child-value",
-				"disabled-child":             "new-disabled-child-value",
+			newValues: types.AppConfigValues{
+				"enabled-item":               types.AppConfigValue{Value: "new-enabled-value"},
+				"disabled-item":              types.AppConfigValue{Value: "new-disabled-value"},
+				"enabled-item-with-children": types.AppConfigValue{Value: "new-parent-value"},
+				"enabled-child":              types.AppConfigValue{Value: "new-enabled-child-value"},
+				"disabled-child":             types.AppConfigValue{Value: "new-disabled-child-value"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{
-					"enabled-item":               "new-enabled-value",
-					"enabled-item-with-children": "new-parent-value",
-					"enabled-child":              "new-enabled-child-value",
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{
+					"enabled-item":               types.AppConfigValue{Value: "new-enabled-value"},
+					"enabled-item-with-children": types.AppConfigValue{Value: "new-parent-value"},
+					"enabled-child":              types.AppConfigValue{Value: "new-enabled-child-value"},
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -753,17 +752,17 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"enabled-item-1":         "new-value-1",
-				"disabled-item-1":        "new-disabled-value-1",
-				"item-in-disabled-group": "new-disabled-group-value",
-				"enabled-item-2":         "new-value-2",
+			newValues: types.AppConfigValues{
+				"enabled-item-1":         types.AppConfigValue{Value: "new-value-1"},
+				"disabled-item-1":        types.AppConfigValue{Value: "new-disabled-value-1"},
+				"item-in-disabled-group": types.AppConfigValue{Value: "new-disabled-group-value"},
+				"enabled-item-2":         types.AppConfigValue{Value: "new-value-2"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{
-					"enabled-item-1": "new-value-1",
-					"enabled-item-2": "new-value-2",
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{
+					"enabled-item-1": types.AppConfigValue{Value: "new-value-1"},
+					"enabled-item-2": types.AppConfigValue{Value: "new-value-2"},
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -791,10 +790,10 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{},
+			newValues: types.AppConfigValues{},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{}
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
 			wantErr: false,
@@ -821,13 +820,13 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"enabled-item": "new-value",
+			newValues: types.AppConfigValues{
+				"enabled-item": types.AppConfigValue{Value: "new-value"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{
-					"enabled-item": "new-value",
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{
+					"enabled-item": types.AppConfigValue{Value: "new-value"},
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(errors.New("store error"))
 			},
@@ -855,13 +854,13 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"item-with-empty-when": "new-value",
+			newValues: types.AppConfigValues{
+				"item-with-empty-when": types.AppConfigValue{Value: "new-value"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{
-					"item-with-empty-when": "new-value",
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{
+					"item-with-empty-when": types.AppConfigValue{Value: "new-value"},
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -903,13 +902,13 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"item-1": "new-value-1",
-				"item-2": "new-value-2",
+			newValues: types.AppConfigValues{
+				"item-1": types.AppConfigValue{Value: "new-value-1"},
+				"item-2": types.AppConfigValue{Value: "new-value-2"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{}
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
 			wantErr: false,
@@ -943,14 +942,14 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"enabled-item-1": "new-value-1",
+			newValues: types.AppConfigValues{
+				"enabled-item-1": types.AppConfigValue{Value: "new-value-1"},
 				// enabled-item-2 intentionally omitted
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{
-					"enabled-item-1": "new-value-1",
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{
+					"enabled-item-1": types.AppConfigValue{Value: "new-value-1"},
 					// enabled-item-2 should not be included since no value provided
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
@@ -986,19 +985,19 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"item-1": "new-value-1",
-				"item-2": "new-value-2",
+			newValues: types.AppConfigValues{
+				"item-1": types.AppConfigValue{Value: "new-value-1"},
+				"item-2": types.AppConfigValue{Value: "new-value-2"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				existingValues := map[string]string{
-					"item-1": "existing-value-1",
-					"item-2": "existing-value-2",
+				existingValues := types.AppConfigValues{
+					"item-1": types.AppConfigValue{Value: "existing-value-1"},
+					"item-2": types.AppConfigValue{Value: "existing-value-2"},
 				}
 				mockStore.On("GetConfigValues").Return(existingValues, nil)
-				expectedValues := map[string]string{
-					"item-1": "new-value-1",
-					"item-2": "new-value-2",
+				expectedValues := types.AppConfigValues{
+					"item-1": types.AppConfigValue{Value: "new-value-1"},
+					"item-2": types.AppConfigValue{Value: "new-value-2"},
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -1040,22 +1039,22 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"item-1": "new-value-1",
+			newValues: types.AppConfigValues{
+				"item-1": types.AppConfigValue{Value: "new-value-1"},
 				// item-2 not provided, should keep existing value
-				"item-3": "new-value-3",
+				"item-3": types.AppConfigValue{Value: "new-value-3"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				existingValues := map[string]string{
-					"item-1": "existing-value-1",
-					"item-2": "existing-value-2",
-					"item-3": "existing-value-3",
+				existingValues := types.AppConfigValues{
+					"item-1": types.AppConfigValue{Value: "existing-value-1"},
+					"item-2": types.AppConfigValue{Value: "existing-value-2"},
+					"item-3": types.AppConfigValue{Value: "existing-value-3"},
 				}
 				mockStore.On("GetConfigValues").Return(existingValues, nil)
-				expectedValues := map[string]string{
-					"item-1": "new-value-1",
-					"item-2": "existing-value-2",
-					"item-3": "new-value-3",
+				expectedValues := types.AppConfigValues{
+					"item-1": types.AppConfigValue{Value: "new-value-1"},
+					"item-2": types.AppConfigValue{Value: "existing-value-2"},
+					"item-3": types.AppConfigValue{Value: "new-value-3"},
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -1090,19 +1089,19 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"item-1": "",
-				"item-2": "new-value-2",
+			newValues: types.AppConfigValues{
+				"item-1": types.AppConfigValue{Value: ""},
+				"item-2": types.AppConfigValue{Value: "new-value-2"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				existingValues := map[string]string{
-					"item-1": "existing-value-1",
-					"item-2": "existing-value-2",
+				existingValues := types.AppConfigValues{
+					"item-1": types.AppConfigValue{Value: "existing-value-1"},
+					"item-2": types.AppConfigValue{Value: "existing-value-2"},
 				}
 				mockStore.On("GetConfigValues").Return(existingValues, nil)
-				expectedValues := map[string]string{
-					"item-1": "",
-					"item-2": "new-value-2",
+				expectedValues := types.AppConfigValues{
+					"item-1": types.AppConfigValue{Value: ""},
+					"item-2": types.AppConfigValue{Value: "new-value-2"},
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -1137,18 +1136,18 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"enabled-item":  "new-enabled-value",
-				"disabled-item": "new-disabled-value",
+			newValues: types.AppConfigValues{
+				"enabled-item":  types.AppConfigValue{Value: "new-enabled-value"},
+				"disabled-item": types.AppConfigValue{Value: "new-disabled-value"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				existingValues := map[string]string{
-					"enabled-item":  "existing-enabled-value",
-					"disabled-item": "existing-disabled-value",
+				existingValues := types.AppConfigValues{
+					"enabled-item":  types.AppConfigValue{Value: "existing-enabled-value"},
+					"disabled-item": types.AppConfigValue{Value: "existing-disabled-value"},
 				}
 				mockStore.On("GetConfigValues").Return(existingValues, nil)
-				expectedValues := map[string]string{
-					"enabled-item": "new-enabled-value",
+				expectedValues := types.AppConfigValues{
+					"enabled-item": types.AppConfigValue{Value: "new-enabled-value"},
 					// disabled-item should not be included in filtered values
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
@@ -1184,19 +1183,19 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"existing-item": "updated-existing-value",
-				"new-item":      "brand-new-value",
+			newValues: types.AppConfigValues{
+				"existing-item": types.AppConfigValue{Value: "updated-existing-value"},
+				"new-item":      types.AppConfigValue{Value: "brand-new-value"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				existingValues := map[string]string{
-					"existing-item": "existing-value",
+				existingValues := types.AppConfigValues{
+					"existing-item": types.AppConfigValue{Value: "existing-value"},
 					// new-item not in existing values
 				}
 				mockStore.On("GetConfigValues").Return(existingValues, nil)
-				expectedValues := map[string]string{
-					"existing-item": "updated-existing-value",
-					"new-item":      "brand-new-value",
+				expectedValues := types.AppConfigValues{
+					"existing-item": types.AppConfigValue{Value: "updated-existing-value"},
+					"new-item":      types.AppConfigValue{Value: "brand-new-value"},
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
@@ -1209,12 +1208,12 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					Groups: []kotsv1beta1.ConfigGroup{},
 				},
 			},
-			newValues: map[string]string{
-				"some-item": "some-value",
+			newValues: types.AppConfigValues{
+				"some-item": types.AppConfigValue{Value: "some-value"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{}
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
 			wantErr: false,
@@ -1233,12 +1232,12 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"some-item": "some-value",
+			newValues: types.AppConfigValues{
+				"some-item": types.AppConfigValue{Value: "some-value"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{}
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
 			wantErr: false,
@@ -1272,13 +1271,13 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"disabled-item-1": "new-value-1",
-				"disabled-item-2": "new-value-2",
+			newValues: types.AppConfigValues{
+				"disabled-item-1": types.AppConfigValue{Value: "new-value-1"},
+				"disabled-item-2": types.AppConfigValue{Value: "new-value-2"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{}
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
 			},
 			wantErr: false,
@@ -1310,14 +1309,14 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					},
 				},
 			},
-			newValues: map[string]string{
-				"templated-enabled-item":  "enabled-value",
-				"templated-disabled-item": "disabled-value",
+			newValues: types.AppConfigValues{
+				"templated-enabled-item":  types.AppConfigValue{Value: "enabled-value"},
+				"templated-disabled-item": types.AppConfigValue{Value: "disabled-value"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
-				expectedValues := map[string]string{
-					"templated-enabled-item": "enabled-value",
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{
+					"templated-enabled-item": types.AppConfigValue{Value: "enabled-value"},
 					// templated-disabled-item should be filtered out due to when: "false"
 				}
 				mockStore.On("SetConfigValues", expectedValues).Return(nil)
@@ -1357,9 +1356,9 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 		name           string
 		appConfig      kotsv1beta1.Config
 		maskPasswords  bool
-		storeValues    map[string]string
+		storeValues    types.AppConfigValues
 		storeError     error
-		expectedValues map[string]string
+		expectedValues types.AppConfigValues
 		wantErr        bool
 	}{
 		{
@@ -1404,19 +1403,19 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 				},
 			},
 			maskPasswords: false,
-			storeValues: map[string]string{
-				"username":           "admin",
-				"password":           "secret123",
-				"confirm-password":   "different-secret",
-				"email":              "admin@example.com",
-				"email-verification": "verified",
+			storeValues: types.AppConfigValues{
+				"username":           types.AppConfigValue{Value: "admin"},
+				"password":           types.AppConfigValue{Value: "secret123"},
+				"confirm-password":   types.AppConfigValue{Value: "different-secret"},
+				"email":              types.AppConfigValue{Value: "admin@example.com"},
+				"email-verification": types.AppConfigValue{Value: "verified"},
 			},
-			expectedValues: map[string]string{
-				"username":           "admin",
-				"password":           "secret123",
-				"confirm-password":   "different-secret",
-				"email":              "admin@example.com",
-				"email-verification": "verified",
+			expectedValues: types.AppConfigValues{
+				"username":           types.AppConfigValue{Value: "admin"},
+				"password":           types.AppConfigValue{Value: "secret123"},
+				"confirm-password":   types.AppConfigValue{Value: "different-secret"},
+				"email":              types.AppConfigValue{Value: "admin@example.com"},
+				"email-verification": types.AppConfigValue{Value: "verified"},
 			},
 			wantErr: false,
 		},
@@ -1467,21 +1466,21 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 				},
 			},
 			maskPasswords: true,
-			storeValues: map[string]string{
-				"username":           "admin",
-				"password":           "secret123",
-				"confirm-password":   "different-secret",
-				"api-key":            "key-abc123",
-				"email":              "admin@example.com",
-				"email-verification": "verified",
+			storeValues: types.AppConfigValues{
+				"username":           types.AppConfigValue{Value: "admin"},
+				"password":           types.AppConfigValue{Value: "secret123"},
+				"confirm-password":   types.AppConfigValue{Value: "different-secret"},
+				"api-key":            types.AppConfigValue{Value: "key-abc123"},
+				"email":              types.AppConfigValue{Value: "admin@example.com"},
+				"email-verification": types.AppConfigValue{Value: "verified"},
 			},
-			expectedValues: map[string]string{
-				"username":           "admin",
-				"password":           PasswordMask,
-				"confirm-password":   PasswordMask,
-				"api-key":            PasswordMask,
-				"email":              "admin@example.com",
-				"email-verification": "verified",
+			expectedValues: types.AppConfigValues{
+				"username":           types.AppConfigValue{Value: "admin"},
+				"password":           types.AppConfigValue{Value: PasswordMask},
+				"confirm-password":   types.AppConfigValue{Value: PasswordMask},
+				"api-key":            types.AppConfigValue{Value: PasswordMask},
+				"email":              types.AppConfigValue{Value: "admin@example.com"},
+				"email-verification": types.AppConfigValue{Value: "verified"},
 			},
 			wantErr: false,
 		},
@@ -1537,23 +1536,23 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 				},
 			},
 			maskPasswords: true,
-			storeValues: map[string]string{
-				"username":           "admin",
-				"password":           "", // empty password should not be masked
-				"confirm-password":   "", // empty child password should not be masked
-				"api-key":            "key-abc123",
-				"secret-token":       "", // another empty password should not be masked
-				"email":              "admin@example.com",
-				"email-verification": "verified",
+			storeValues: types.AppConfigValues{
+				"username":           types.AppConfigValue{Value: "admin"},
+				"password":           types.AppConfigValue{Value: ""}, // empty password should not be masked
+				"confirm-password":   types.AppConfigValue{Value: ""}, // empty child password should not be masked
+				"api-key":            types.AppConfigValue{Value: "key-abc123"},
+				"secret-token":       types.AppConfigValue{Value: ""}, // another empty password should not be masked
+				"email":              types.AppConfigValue{Value: "admin@example.com"},
+				"email-verification": types.AppConfigValue{Value: "verified"},
 			},
-			expectedValues: map[string]string{
-				"username":           "admin",
-				"password":           "", // empty password values are not masked
-				"confirm-password":   "", // empty child password values are not masked
-				"api-key":            PasswordMask,
-				"secret-token":       "", // empty password values are not masked
-				"email":              "admin@example.com",
-				"email-verification": "verified",
+			expectedValues: types.AppConfigValues{
+				"username":           types.AppConfigValue{Value: "admin"},
+				"password":           types.AppConfigValue{Value: ""}, // empty password values are not masked
+				"confirm-password":   types.AppConfigValue{Value: ""}, // empty child password values are not masked
+				"api-key":            types.AppConfigValue{Value: PasswordMask},
+				"secret-token":       types.AppConfigValue{Value: ""}, // empty password values are not masked
+				"email":              types.AppConfigValue{Value: "admin@example.com"},
+				"email-verification": types.AppConfigValue{Value: "verified"},
 			},
 			wantErr: false,
 		},
@@ -1599,16 +1598,16 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 				},
 			},
 			maskPasswords: true,
-			storeValues: map[string]string{
-				"username":           "admin",
-				"email":              "admin@example.com",
-				"email-verification": "verified",
+			storeValues: types.AppConfigValues{
+				"username":           types.AppConfigValue{Value: "admin"},
+				"email":              types.AppConfigValue{Value: "admin@example.com"},
+				"email-verification": types.AppConfigValue{Value: "verified"},
 				// password and confirm-password not in store values
 			},
-			expectedValues: map[string]string{
-				"username":           "admin",
-				"email":              "admin@example.com",
-				"email-verification": "verified",
+			expectedValues: types.AppConfigValues{
+				"username":           types.AppConfigValue{Value: "admin"},
+				"email":              types.AppConfigValue{Value: "admin@example.com"},
+				"email-verification": types.AppConfigValue{Value: "verified"},
 				// password and confirm-password should not appear in result
 			},
 			wantErr: false,
@@ -1672,15 +1671,15 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 				},
 			},
 			maskPasswords: true,
-			storeValues: map[string]string{
-				"templated-text":          "text-value",
-				"templated-password":      "secret-password",
-				"disabled-templated-item": "disabled-value",
+			storeValues: types.AppConfigValues{
+				"templated-text":          types.AppConfigValue{Value: "text-value"},
+				"templated-password":      types.AppConfigValue{Value: "secret-password"},
+				"disabled-templated-item": types.AppConfigValue{Value: "disabled-value"},
 			},
-			expectedValues: map[string]string{
-				"templated-text":          "text-value",
-				"templated-password":      PasswordMask,
-				"disabled-templated-item": "disabled-value", // store value is returned even if item is disabled
+			expectedValues: types.AppConfigValues{
+				"templated-text":          types.AppConfigValue{Value: "text-value"},
+				"templated-password":      types.AppConfigValue{Value: PasswordMask},
+				"disabled-templated-item": types.AppConfigValue{Value: "disabled-value"}, // store value is returned even if item is disabled
 			},
 			wantErr: false,
 		},
@@ -1754,9 +1753,9 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 				},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				storeValues := map[string]string{
-					"enabled-item-1": "store-value-1",
-					"enabled-item-2": "store-value-2",
+				storeValues := types.AppConfigValues{
+					"enabled-item-1": types.AppConfigValue{Value: "store-value-1"},
+					"enabled-item-2": types.AppConfigValue{Value: "store-value-2"},
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
 			},
@@ -1822,9 +1821,9 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 				},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				storeValues := map[string]string{
-					"enabled-item":  "enabled-store",
-					"disabled-item": "disabled-store",
+				storeValues := types.AppConfigValues{
+					"enabled-item":  types.AppConfigValue{Value: "enabled-store"},
+					"disabled-item": types.AppConfigValue{Value: "disabled-store"},
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
 			},
@@ -1871,8 +1870,8 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 				},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				storeValues := map[string]string{
-					"item-with-empty-when": "empty-store",
+				storeValues := types.AppConfigValues{
+					"item-with-empty-when": types.AppConfigValue{Value: "empty-store"},
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
 			},
@@ -1903,8 +1902,8 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 				},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				storeValues := map[string]string{
-					"some-store-value": "store-value",
+				storeValues := types.AppConfigValues{
+					"some-store-value": types.AppConfigValue{Value: "store-value"},
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
 			},
@@ -1961,9 +1960,9 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 				},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				storeValues := map[string]string{
-					"item-1": "store-1",
-					"item-2": "store-2",
+				storeValues := types.AppConfigValues{
+					"item-1": types.AppConfigValue{Value: "store-1"},
+					"item-2": types.AppConfigValue{Value: "store-2"},
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
 			},
@@ -2041,9 +2040,9 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 				},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				storeValues := map[string]string{
-					"enabled-item":  "enabled-store",
-					"disabled-item": "disabled-store",
+				storeValues := types.AppConfigValues{
+					"enabled-item":  types.AppConfigValue{Value: "enabled-store"},
+					"disabled-item": types.AppConfigValue{Value: "disabled-store"},
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
 			},
@@ -2104,10 +2103,10 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 				},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				storeValues := map[string]string{
-					"parent-item":  "parent-store",
-					"child-item-1": "child-store-1",
-					"child-item-2": "child-store-2",
+				storeValues := types.AppConfigValues{
+					"parent-item":  types.AppConfigValue{Value: "parent-store"},
+					"child-item-1": types.AppConfigValue{Value: "child-store-1"},
+					"child-item-2": types.AppConfigValue{Value: "child-store-2"},
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
 			},
@@ -2162,9 +2161,9 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 				},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				storeValues := map[string]string{
-					"enabled-item":    "enabled-store",
-					"non-config-item": "non-config-value",
+				storeValues := types.AppConfigValues{
+					"enabled-item":    types.AppConfigValue{Value: "enabled-store"},
+					"non-config-item": types.AppConfigValue{Value: "non-config-value"},
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
 			},
@@ -2219,8 +2218,8 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 				},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				storeValues := map[string]string{
-					"item-with-store": "store-value",
+				storeValues := types.AppConfigValues{
+					"item-with-store": types.AppConfigValue{Value: "store-value"},
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
 			},
@@ -2279,9 +2278,9 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 				},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				storeValues := map[string]string{
-					"item-with-empty-store":     "",
-					"item-with-non-empty-store": "store-value",
+				storeValues := types.AppConfigValues{
+					"item-with-empty-store":     types.AppConfigValue{Value: ""},
+					"item-with-non-empty-store": types.AppConfigValue{Value: "store-value"},
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
 			},
@@ -2378,13 +2377,13 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 				},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				storeValues := map[string]string{
-					"username": "stored-username",
-					"password": "stored-password",
-					"api-key":  "stored-api-key",
+				storeValues := types.AppConfigValues{
+					"username": types.AppConfigValue{Value: "stored-username"},
+					"password": types.AppConfigValue{Value: "stored-password"},
+					"api-key":  types.AppConfigValue{Value: "stored-api-key"},
 					// secret-token intentionally omitted to test fallback behavior
-					"confirm-password": "stored-confirm-password",
-					"password-hint":    "stored-password-hint",
+					"confirm-password": types.AppConfigValue{Value: "stored-confirm-password"},
+					"password-hint":    types.AppConfigValue{Value: "stored-password-hint"},
 					// api-secret intentionally omitted to test fallback behavior
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
@@ -2478,10 +2477,10 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 				},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				storeValues := map[string]string{
-					"templated-item":          "store-overridden-value",
-					"sprig-functions-item":    "store-sprig-value",
-					"disabled-templated-item": "disabled-store-value",
+				storeValues := types.AppConfigValues{
+					"templated-item":          types.AppConfigValue{Value: "store-overridden-value"},
+					"sprig-functions-item":    types.AppConfigValue{Value: "store-sprig-value"},
+					"disabled-templated-item": types.AppConfigValue{Value: "disabled-store-value"},
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
 			},
@@ -2542,7 +2541,7 @@ func TestValidateConfigValues(t *testing.T) {
 	tests := []struct {
 		name         string
 		config       kotsv1beta1.Config
-		configValues map[string]string
+		configValues types.AppConfigValues
 		wantErr      bool
 		errorFields  []string
 	}{
@@ -2571,9 +2570,9 @@ func TestValidateConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{
-				"required_item": "value1",
-				"optional_item": "value2",
+			configValues: types.AppConfigValues{
+				"required_item": types.AppConfigValue{Value: "value1"},
+				"optional_item": types.AppConfigValue{Value: "value2"},
 			},
 			wantErr: false,
 		},
@@ -2596,8 +2595,8 @@ func TestValidateConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{
-				"optional_item": "value1",
+			configValues: types.AppConfigValues{
+				"optional_item": types.AppConfigValue{Value: "value1"},
 			},
 			wantErr:     true,
 			errorFields: []string{"required_item"},
@@ -2621,7 +2620,7 @@ func TestValidateConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{},
+			configValues: types.AppConfigValues{},
 			wantErr:      false,
 		},
 		{
@@ -2643,7 +2642,7 @@ func TestValidateConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{},
+			configValues: types.AppConfigValues{},
 			wantErr:      false,
 		},
 		{
@@ -2665,8 +2664,8 @@ func TestValidateConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{
-				"required_with_value": "",
+			configValues: types.AppConfigValues{
+				"required_with_value": types.AppConfigValue{Value: ""},
 			},
 			wantErr:     true,
 			errorFields: []string{"required_with_value"},
@@ -2691,7 +2690,7 @@ func TestValidateConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{},
+			configValues: types.AppConfigValues{},
 			wantErr:      false,
 		},
 		{
@@ -2714,7 +2713,7 @@ func TestValidateConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{},
+			configValues: types.AppConfigValues{},
 			wantErr:      false,
 		},
 		{
@@ -2738,8 +2737,8 @@ func TestValidateConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{
-				"child_item": "child_value",
+			configValues: types.AppConfigValues{
+				"child_item": types.AppConfigValue{Value: "child_value"},
 			},
 			wantErr: false,
 		},
@@ -2768,9 +2767,9 @@ func TestValidateConfigValues(t *testing.T) {
 					},
 				},
 			},
-			configValues: map[string]string{
-				"unknown_item1": "value1",
-				"unknown_item2": "value2",
+			configValues: types.AppConfigValues{
+				"unknown_item1": types.AppConfigValue{Value: "value1"},
+				"unknown_item2": types.AppConfigValue{Value: "value2"},
 			},
 			wantErr:     true,
 			errorFields: []string{"required_item1", "required_item2"},
@@ -2782,7 +2781,7 @@ func TestValidateConfigValues(t *testing.T) {
 					Groups: []kotsv1beta1.ConfigGroup{},
 				},
 			},
-			configValues: map[string]string{},
+			configValues: types.AppConfigValues{},
 			wantErr:      false,
 		},
 		{
@@ -2792,8 +2791,8 @@ func TestValidateConfigValues(t *testing.T) {
 					Groups: []kotsv1beta1.ConfigGroup{},
 				},
 			},
-			configValues: map[string]string{
-				"unknown_item": "value1",
+			configValues: types.AppConfigValues{
+				"unknown_item": types.AppConfigValue{Value: "value1"},
 			},
 			wantErr: false,
 		},
