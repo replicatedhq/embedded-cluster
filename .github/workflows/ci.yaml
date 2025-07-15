@@ -232,23 +232,23 @@ jobs:
         with:
           files: |
             e2e/**
-            'api/*.go'
-            'api/types/**'
-            'api/pkg/**'
-            'cmd/**'
-            'kinds/**'
-            'operator/**'
-            'pkg/**'
-            'pkg-new/**'
-            'utils/**'
-            'go.{mod,sum}'
-            'Makefile'
-            'common.mk'
-            'dagger/**'
-            'deploy/**'
-            'fio/**'
-            'local-artifact-mirror/**'
-            'scripts/**'
+            api/*.go
+            api/types/**
+            api/pkg/**
+            cmd/**
+            kinds/**
+            operator/**
+            pkg/**
+            pkg-new/**
+            utils/**
+            go.{mod,sum}
+            Makefile
+            common.mk
+            dagger/**
+            deploy/**
+            fio/**
+            local-artifact-mirror/**
+            scripts/**
 
   build-current:
     name: Build current
