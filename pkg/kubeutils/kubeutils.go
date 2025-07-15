@@ -502,12 +502,12 @@ func (k *KubeUtils) WaitForCRDToBeReady(ctx context.Context, cli client.Client, 
 				Kind:    newCrd.Spec.Names.Kind,
 			}
 
-			// Create an unstructured object to list the CRD type
-			obj := &unstructured.Unstructured{}
-			obj.SetGroupVersionKind(gvk)
+			// Create an unstructured list object to list the CRD type
+			objList := &unstructured.UnstructuredList{}
+			objList.SetGroupVersionKind(gvk)
 
 			// Try to list the CRD type
-			err := cli.List(ctx, obj)
+			err := cli.List(ctx, objList)
 			if err != nil {
 				// Ignore "no matches for kind" errors as they indicate the CRD
 				// is not fully ready yet
