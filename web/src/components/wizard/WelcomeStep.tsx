@@ -83,7 +83,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
           <AppIcon className="h-20 w-20 mb-6" />
           <h2 className="text-3xl font-bold text-gray-900">{text.welcomeTitle}</h2>
           <p className="text-xl text-gray-600 max-w-2xl mb-8">{text.welcomeDescription}</p>
-          <div className="w-full max-w-sm mb-8">
+          <div className="w-full max-w-md mb-8">
             <Input
               id="password"
               label="Enter Password"
@@ -94,6 +94,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
               error={loginError?.message}
               required
               icon={<Lock className="w-5 h-5" />}
+              className="w-full"
             />
 
             <Button

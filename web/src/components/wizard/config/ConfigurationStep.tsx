@@ -195,6 +195,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`text-input-${item.name}`}
+            className="w-96"
           />
         );
 
@@ -208,6 +209,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             onKeyDown={(e) => handlePasswordKeyDown(item.name, e)}
             onFocus={handlePasswordFocus}
             dataTestId={`password-input-${item.name}`}
+            className="w-96"
           />
         );
 
@@ -218,6 +220,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`textarea-input-${item.name}`}
+            className="w-full max-w-2xl"
           />
         );
 

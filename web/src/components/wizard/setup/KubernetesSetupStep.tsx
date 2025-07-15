@@ -170,6 +170,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                     helpText="Port for the Admin Console"
                     error={getFieldError("adminConsolePort")}
                     required
+                    className="w-96"
                   />
                 </div>
               </div>
@@ -185,6 +186,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                     placeholder="http://proxy.example.com:3128"
                     helpText="HTTP proxy server URL"
                     error={getFieldError("httpProxy")}
+                    className="w-96"
                   />
 
                   <Input
@@ -195,6 +197,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                     placeholder="https://proxy.example.com:3128"
                     helpText="HTTPS proxy server URL"
                     error={getFieldError("httpsProxy")}
+                    className="w-96"
                   />
 
                   <Input
@@ -205,6 +208,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                     placeholder="localhost,127.0.0.1,.example.com"
                     helpText="Comma-separated list of hosts to bypass the proxy"
                     error={getFieldError("noProxy")}
+                    className="w-96"
                   />
                 </div>
               </div>

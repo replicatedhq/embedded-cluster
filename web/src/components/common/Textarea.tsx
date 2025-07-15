@@ -36,7 +36,7 @@ const Textarea = ({
   const themeColor = settings.themeColor;
 
   return (
-    <div className="mb-4">
+    <div className={`mb-4 ${className}`}>
       <label htmlFor={id} className={`block text-sm font-medium text-gray-700 mb-1 ${labelClassName}`}>
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
@@ -53,7 +53,7 @@ const Textarea = ({
           error ? 'border-red-500' : 'border-gray-300'
         } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${
           disabled ? 'bg-gray-100 text-gray-500' : 'bg-white'
-        } ${className}`}
+        }`}
         style={{
           '--tw-ring-color': themeColor,
           '--tw-ring-offset-color': themeColor,
