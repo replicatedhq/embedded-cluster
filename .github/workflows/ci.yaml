@@ -826,7 +826,7 @@ jobs:
         run: |
           make e2e-test TEST_NAME=${{ matrix.test }}
       - name: Troubleshoot
-        if: ${{ !cancelled() }} && ${{ needs.should-run-e2e.outputs.run-e2e }}
+        if: ${{ !cancelled() }}
         uses: ./.github/actions/e2e-troubleshoot
         with:
           test-name: "${{ matrix.test }}"
