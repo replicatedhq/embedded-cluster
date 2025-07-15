@@ -233,10 +233,17 @@ jobs:
           files_yaml: |
             e2e:
               - e2e/**
-            src:
-              - '**'
-              - '!api/**'
+            gosrc:
               - 'api/types/**'
+              - 'kinds/**'
+              - 'operator/**'
+              - 'pkg/**'
+              - 'pkg-new/**'
+              - 'scripts/**'
+              - 'utils/**'
+              - 'go.{mod,sum}'
+            build:
+              - 'Makefile'
 
   build-current:
     name: Build current
