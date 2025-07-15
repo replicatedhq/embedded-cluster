@@ -135,12 +135,14 @@ func (m *appConfigManager) GetConfigValues(maskPasswords bool) (types.AppConfigV
 			if item.Type == "password" {
 				// Mask item
 				if v, ok := maskedValues[item.Name]; ok && v.Value != "" {
-					maskedValues[item.Name] = types.AppConfigValue{Value: PasswordMask}
+					v.Value = PasswordMask
+					maskedValues[item.Name] = v
 				}
 				// Mask child items
 				for _, child := range item.Items {
 					if v, ok := maskedValues[child.Name]; ok && v.Value != "" {
-						maskedValues[child.Name] = types.AppConfigValue{Value: PasswordMask}
+						v.Value = PasswordMask
+						maskedValues[child.Name] = v
 					}
 				}
 			}
