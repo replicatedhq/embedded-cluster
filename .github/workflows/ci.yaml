@@ -221,7 +221,7 @@ jobs:
     name: Should run e2e
     runs-on: ubuntu-latest
     outputs:
-      run-e2e: ${{ steps.changed-files.outputs.e2e_any_changed }}
+      run-e2e: ${{ steps.changed-files.outputs.any_changed }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
