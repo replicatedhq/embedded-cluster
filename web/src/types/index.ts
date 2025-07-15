@@ -47,6 +47,7 @@ export interface AppConfigItem {
   value?: string;
   default?: string;
   items?: AppConfigChildItem[];
+  filename?: string;
 }
 
 export interface AppConfigChildItem {
@@ -54,4 +55,9 @@ export interface AppConfigChildItem {
   title: string;
   value?: string;
   default?: string;
+}
+
+export interface ConfigValue {
+  value: string;
+  filename?: string;
 }

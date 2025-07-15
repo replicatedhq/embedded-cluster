@@ -7,12 +7,13 @@ import Textarea from '../../common/Textarea';
 import Checkbox from '../../common/Checkbox';
 import Radio from '../../common/Radio';
 import Label from '../../common/Label';
+import File from '../../common/File';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { handleUnauthorized } from '../../../utils/auth';
-import { AppConfig, AppConfigItem } from '../../../types';
+import { AppConfig, AppConfigItem, ConfigValue } from '../../../types';
 
 interface ConfigurationStepProps {
   onNext: () => void;
@@ -24,7 +25,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState<string>('');
-  const [configValues, setConfigValues] = useState<Record<string, string>>({});
+  const [configValues, setConfigValues] = useState<Record<string, ConfigValue | string>>({});
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
   const [submitError, setSubmitError] = useState<string | null>(null);
   const themeColor = settings.themeColor;
@@ -77,7 +78,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { mutate: submitConfigValues } = useMutation({
     mutationFn: async () => {
       // Build payload with only dirty fields
-      const dirtyValues: Record<string, string> = {};
+      const dirtyValues: Record<string, ConfigValue | string> = {};
       dirtyFields.forEach(fieldName => {
         if (configValues[fieldName] !== undefined) {
           dirtyValues[fieldName] = configValues[fieldName];
@@ -131,19 +132,43 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
   // Helper function to get the display value for a config item (no defaults)
   const getDisplayValue = (item: AppConfigItem): string => {
-    // First check user value, then config item value (use ?? to allow empty strings from the user)
-    return configValues?.[item.name] ?? (item.value || '');
+    const userValue = configValues?.[item.name];
+    if (typeof userValue === 'object' && userValue !== null) {
+      return userValue.value || '';
+    }
+    return userValue ?? (item.value || '');
   };
 
   // Helper function to get the effective value for a config item (includes defaults)
   const getEffectiveValue = (item: AppConfigItem): string => {
-    // First check user value, then config item value, then default (use ?? to allow empty strings from the user)
-    return configValues?.[item.name] ?? (item.value || item.default || '');
+    const userValue = configValues?.[item.name];
+    if (typeof userValue === 'object' && userValue !== null) {
+      return userValue.value || item.default || '';
+    }
+    return userValue ?? (item.value || item.default || '');
   };
 
-  const updateConfigValue = (itemName: string, value: string) => {
+  // Helper function to get filename for file config items
+  const getFileName = (item: AppConfigItem): string => {
+    const userValue = configValues?.[item.name];
+    if (typeof userValue === 'object' && userValue !== null) {
+      return userValue.filename || '';
+    }
+    return item.filename || '';
+  };
+
+  const updateConfigValue = (itemName: string, value: string, filename?: string) => {
     // Update the config values map
-    setConfigValues(prev => ({ ...prev, [itemName]: value }));
+    if (filename !== undefined) {
+      // File config item
+      setConfigValues(prev => ({ 
+        ...prev, 
+        [itemName]: { value, filename } 
+      }));
+    } else {
+      // Regular config item
+      setConfigValues(prev => ({ ...prev, [itemName]: value }));
+    }
 
     // Mark field as dirty
     setDirtyFields(prev => new Set(prev).add(itemName));
@@ -176,6 +201,10 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     const { id, checked } = e.target;
     if (!checked) return;
     updateConfigValue(parentId, id);
+  };
+
+  const handleFileChange = (itemName: string, content: string, filename: string) => {
+    updateConfigValue(itemName, content, filename);
   };
 
   const renderConfigItem = (item: AppConfigItem) => {
@@ -255,6 +284,18 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           <Label
             content={item.title}
             dataTestId={`label-${item.name}`}
+          />
+        );
+
+      case 'file':
+        return (
+          <File
+            {...sharedProps}
+            fileName={getFileName(item)}
+            value={getDisplayValue(item)}
+            onFileChange={(content, filename) => handleFileChange(item.name, content, filename)}
+            dataTestId={`file-input-${item.name}`}
+            defaultValue={item.default}
           />
         );
 

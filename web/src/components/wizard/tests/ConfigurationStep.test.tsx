@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import ConfigurationStep from "../config/ConfigurationStep.tsx";
-import { AppConfig, AppConfigGroup, AppConfigItem } from "../../../types";
+import { AppConfig, AppConfigGroup, AppConfigItem, ConfigValue } from "../../../types";
 
 const MOCK_APP_CONFIG: AppConfig = {
   groups: [
@@ -61,6 +61,13 @@ const MOCK_APP_CONFIG: AppConfig = {
           name: "markdown_label",
           title: "This is **bold** text and *italic* text with a [link](https://example.com).",
           type: "label"
+        },
+        {
+          name: "ssl_certificate",
+          title: "SSL Certificate",
+          type: "file",
+          help_text: "Upload your SSL certificate file",
+          required: true
         }
       ]
     },
@@ -1507,6 +1514,411 @@ describe.each([
     // Bool field with no value in config but has default should use default (getEffectiveValue includes default)
     const enableSslField = screen.getByTestId("bool-input-enable_ssl") as HTMLInputElement;
     expect(enableSslField.checked).toBe(true); // default "1" is used since getEffectiveValue includes default
+  });
+
+  describe("File input functionality", () => {
+    it("renders file input component and handles file upload", async () => {
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Check that file input is rendered
+      expect(screen.getByTestId("config-item-ssl_certificate")).toBeInTheDocument();
+      expect(screen.getByTestId("file-input-ssl_certificate")).toBeInTheDocument();
+      
+      // Check initial state - should show upload button
+      const uploadButton = screen.getByText("Upload File");
+      expect(uploadButton).toBeInTheDocument();
+      
+      // Check help text is displayed
+      expect(screen.getByText("Upload your SSL certificate file")).toBeInTheDocument();
+      
+      // Check required indicator
+      expect(screen.getByText("*")).toBeInTheDocument();
+    });
+
+    it("handles file upload with base64 conversion", async () => {
+      const fileContent = "test certificate content";
+      const fileName = "certificate.pem";
+      const base64Content = btoa(fileContent);
+      
+      // Mock FileReader
+      const mockFileReader = {
+        readAsDataURL: vi.fn(),
+        result: `data:text/plain;base64,${base64Content}`,
+        onload: null as (() => void) | null,
+        onerror: null as ((error: Error) => void) | null,
+      };
+      
+      // Mock FileReader constructor
+      global.FileReader = vi.fn(() => mockFileReader) as unknown as typeof FileReader;
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Get the file input
+      const fileInput = screen.getByTestId("file-input-ssl_certificate");
+      
+      // Create a mock file
+      const mockFile = new File([fileContent], fileName, { type: "text/plain" });
+      
+      // Simulate file upload
+      fireEvent.change(fileInput, { target: { files: [mockFile] } });
+
+      // Trigger the FileReader onload
+      if (mockFileReader.onload) {
+        mockFileReader.onload();
+      }
+
+      // Wait for the file to be processed
+      await waitFor(() => {
+        expect(screen.getByText(fileName)).toBeInTheDocument();
+      });
+
+      // Check that success message is displayed
+      expect(screen.getByText("File uploaded successfully")).toBeInTheDocument();
+      
+      // Check that the file name is displayed
+      expect(screen.getByText(fileName)).toBeInTheDocument();
+    });
+
+    it("handles file removal", async () => {
+      // Set up initial state with a file
+      const configWithFile = {
+        ...MOCK_APP_CONFIG,
+        groups: [
+          {
+            ...MOCK_APP_CONFIG.groups[0],
+            items: [
+              ...MOCK_APP_CONFIG.groups[0].items.filter(item => item.name !== "ssl_certificate"),
+              {
+                name: "ssl_certificate",
+                title: "SSL Certificate",
+                type: "file",
+                help_text: "Upload your SSL certificate file",
+                required: true,
+                filename: "existing-cert.pem"
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        http.get(`*/api/${target}/install/app/config`, () => {
+          return HttpResponse.json(configWithFile);
+        }),
+        http.get(`*/api/${target}/install/app/config/values`, () => {
+          return HttpResponse.json({ 
+            values: { 
+              ssl_certificate: { 
+                value: "dGVzdCBjZXJ0aWZpY2F0ZSBjb250ZW50", // base64 encoded content
+                filename: "existing-cert.pem" 
+              } 
+            } 
+          });
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Check that file is displayed
+      expect(screen.getByText("existing-cert.pem")).toBeInTheDocument();
+      
+      // Find and click the remove button
+      const removeButton = screen.getByTitle("Remove file");
+      fireEvent.click(removeButton);
+
+      // Check that file is removed
+      await waitFor(() => {
+        expect(screen.queryByText("existing-cert.pem")).not.toBeInTheDocument();
+      });
+      
+      // Check that upload button is shown again
+      expect(screen.getByText("Upload File")).toBeInTheDocument();
+    });
+
+    it("handles file download functionality", async () => {
+      // Mock URL.createObjectURL and revokeObjectURL
+      const mockUrl = "blob:test-url";
+      global.URL.createObjectURL = vi.fn(() => mockUrl);
+      global.URL.revokeObjectURL = vi.fn();
+
+      // Mock document.createElement('a')
+      const mockAnchor = document.createElement('a');
+      mockAnchor.href = "";
+      mockAnchor.download = "";
+      mockAnchor.click = vi.fn();
+      
+      const originalCreateElement = document.createElement;
+      document.createElement = vi.fn((tagName: string) => {
+        if (tagName === 'a') {
+          return mockAnchor;
+        }
+        return originalCreateElement.call(document, tagName);
+      });
+
+      const configWithFile = {
+        ...MOCK_APP_CONFIG,
+        groups: [
+          {
+            ...MOCK_APP_CONFIG.groups[0],
+            items: [
+              ...MOCK_APP_CONFIG.groups[0].items.filter(item => item.name !== "ssl_certificate"),
+              {
+                name: "ssl_certificate",
+                title: "SSL Certificate",
+                type: "file",
+                help_text: "Upload your SSL certificate file",
+                required: true,
+                filename: "test-cert.pem"
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        http.get(`*/api/${target}/install/app/config`, () => {
+          return HttpResponse.json(configWithFile);
+        }),
+        http.get(`*/api/${target}/install/app/config/values`, () => {
+          return HttpResponse.json({ 
+            values: { 
+              ssl_certificate: { 
+                value: "dGVzdCBjZXJ0aWZpY2F0ZSBjb250ZW50", // base64 encoded "test certificate content"
+                filename: "test-cert.pem" 
+              } 
+            } 
+          });
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Check that file is displayed
+      expect(screen.getByText("test-cert.pem")).toBeInTheDocument();
+      
+      // Find and click the download button
+      const downloadButton = screen.getByTitle("Download file");
+      fireEvent.click(downloadButton);
+
+      // Verify download was triggered
+      expect(global.URL.createObjectURL).toHaveBeenCalled();
+      expect(mockAnchor.download).toBe("test-cert.pem");
+      expect(mockAnchor.click).toHaveBeenCalled();
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith(mockUrl);
+
+      // Restore original createElement
+      document.createElement = originalCreateElement;
+    });
+
+    it("handles file input with default value", async () => {
+      const configWithDefaultFile = {
+        ...MOCK_APP_CONFIG,
+        groups: [
+          {
+            ...MOCK_APP_CONFIG.groups[0],
+            items: [
+              ...MOCK_APP_CONFIG.groups[0].items.filter(item => item.name !== "ssl_certificate"),
+              {
+                name: "ssl_certificate",
+                title: "SSL Certificate",
+                type: "file",
+                help_text: "Upload your SSL certificate file",
+                required: true,
+                default: "ZGVmYXVsdCBjZXJ0aWZpY2F0ZSBjb250ZW50" // base64 encoded default content
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        http.get(`*/api/${target}/install/app/config`, () => {
+          return HttpResponse.json(configWithDefaultFile);
+        }),
+        http.get(`*/api/${target}/install/app/config/values`, () => {
+          return HttpResponse.json({ values: {} });
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Check that default file indication is shown
+      expect(screen.getByText("Upload your SSL certificate file (Default: File provided)")).toBeInTheDocument();
+    });
+
+    it("submits file data correctly with form", async () => {
+      let submittedValues: { values: Record<string, ConfigValue | string> } | null = null;
+
+      server.use(
+        http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+          const body = await request.json() as { values: Record<string, ConfigValue | string> };
+          submittedValues = body;
+          return HttpResponse.json(MOCK_APP_CONFIG);
+        })
+      );
+
+      const fileContent = "test certificate content";
+      const fileName = "certificate.pem";
+      const base64Content = btoa(fileContent);
+      
+      // Mock FileReader
+      const mockFileReader = {
+        readAsDataURL: vi.fn(),
+        result: `data:text/plain;base64,${base64Content}`,
+        onload: null as (() => void) | null,
+        onerror: null as ((error: Error) => void) | null,
+      };
+      
+      global.FileReader = vi.fn(() => mockFileReader) as unknown as typeof FileReader;
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Get the file input and upload a file
+      const fileInput = screen.getByTestId("file-input-ssl_certificate");
+      const mockFile = new File([fileContent], fileName, { type: "text/plain" });
+      
+      fireEvent.change(fileInput, { target: { files: [mockFile] } });
+
+      // Trigger the FileReader onload
+      if (mockFileReader.onload) {
+        mockFileReader.onload();
+      }
+
+      // Wait for the file to be processed
+      await waitFor(() => {
+        expect(screen.getByText(fileName)).toBeInTheDocument();
+      });
+
+      // Submit the form
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for the mutation to complete
+      await waitFor(
+        () => {
+          expect(mockOnNext).toHaveBeenCalled();
+        },
+        { timeout: 3000 }
+      );
+
+      // Verify the file data was submitted correctly
+      expect(submittedValues).not.toBeNull();
+      expect(submittedValues!.values.ssl_certificate).toEqual({
+        value: base64Content,
+        filename: fileName
+      });
+    });
+
+    it("handles file input errors gracefully", async () => {
+      // Mock console.error to verify error handling
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      // Mock FileReader to simulate an error
+      const mockFileReader = {
+        readAsDataURL: vi.fn(),
+        result: null,
+        onload: null as (() => void) | null,
+        onerror: null as ((error: Error) => void) | null,
+      };
+      
+      global.FileReader = vi.fn(() => mockFileReader) as unknown as typeof FileReader;
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Get the file input
+      const fileInput = screen.getByTestId("file-input-ssl_certificate");
+      const mockFile = new File(["content"], "test.pem", { type: "text/plain" });
+      
+      fireEvent.change(fileInput, { target: { files: [mockFile] } });
+
+      // Trigger the FileReader onerror by calling readAsDataURL and then onerror
+      await waitFor(() => {
+        expect(mockFileReader.readAsDataURL).toHaveBeenCalledWith(mockFile);
+      });
+
+      // Simulate error by calling onerror callback
+      if (mockFileReader.onerror) {
+        mockFileReader.onerror(new Error("File read error"));
+      }
+
+      // Wait a bit for the error to be processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify error was logged
+      expect(consoleErrorSpy).toHaveBeenCalledWith("Error converting file to base64:", expect.any(Error));
+
+      consoleErrorSpy.mockRestore();
+    });
   });
 
 });
