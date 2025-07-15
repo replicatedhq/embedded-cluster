@@ -176,15 +176,11 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -292,14 +288,10 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create the API
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -359,15 +351,11 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -421,15 +409,11 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -490,15 +474,11 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -558,15 +538,11 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -626,15 +602,11 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -715,15 +687,11 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)

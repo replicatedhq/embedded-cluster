@@ -60,6 +60,8 @@ interface MockProviderProps {
         configurationDescription: string;
         linuxSetupTitle: string;
         linuxSetupDescription: string;
+        kubernetesSetupTitle: string;
+        kubernetesSetupDescription: string;
         validationTitle: string;
         validationDescription: string;
         installationTitle: string;
@@ -158,6 +160,8 @@ export const renderWithProviders = (
         configurationDescription: "Configure your My App installation by providing the information below.",
         linuxSetupTitle: "Setup",
         linuxSetupDescription: "Set up the hosts to use for this installation.",
+        kubernetesSetupTitle: "Kubernetes Setup",
+        kubernetesSetupDescription: "Set up the Kubernetes cluster for this installation.",
         validationTitle: "Validation",
         validationDescription: "Validate the host requirements before proceeding with installation.",
         installationTitle: "Installing My App",
