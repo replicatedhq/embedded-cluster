@@ -246,6 +246,9 @@ jobs:
               - 'go.{mod,sum}'
             build:
               - 'Makefile'
+              - 'common.mk'
+              - 'local-artifact-mirror/**'
+              - 'dagger/**'
 
   build-current:
     name: Build current
