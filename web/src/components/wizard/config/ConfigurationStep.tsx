@@ -12,7 +12,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { handleUnauthorized } from '../../../utils/auth';
-import { AppConfig, AppConfigItem } from '../../../types';
+import { AppConfig, AppConfigItem, AppConfigValues } from '../../../types';
 
 interface ConfigurationStepProps {
   onNext: () => void;
@@ -52,7 +52,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   });
 
   // Fetch current config values
-  const { data: apiConfigValues, isLoading: isConfigValuesLoading, error: getConfigValuesError } = useQuery<Record<string, string>>({
+  const { data: apiConfigValues, isLoading: isConfigValuesLoading, error: getConfigValuesError } = useQuery<AppConfigValues>({
     queryKey: ['appConfigValues', target],
     queryFn: async () => {
       const response = await fetch(`/api/${target}/install/app/config/values`, {
@@ -76,11 +76,13 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   // Mutation to save config values
   const { mutate: submitConfigValues } = useMutation({
     mutationFn: async () => {
-      // Build payload with only dirty fields
-      const dirtyValues: Record<string, string> = {};
+      // Build payload with only dirty fields, converting to AppConfigValues format
+      const dirtyValues: AppConfigValues = {};
       dirtyFields.forEach(fieldName => {
         if (configValues[fieldName] !== undefined) {
-          dirtyValues[fieldName] = configValues[fieldName];
+          dirtyValues[fieldName] = {
+            value: configValues[fieldName]
+          };
         }
       });
 
@@ -125,7 +127,12 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   // Initialize configValues with initial values when they load
   useEffect(() => {
     if (apiConfigValues && Object.keys(configValues).length === 0) {
-      setConfigValues(apiConfigValues);
+      // Convert AppConfigValues to Record<string, string> for local state
+      const stringValues: Record<string, string> = {};
+      Object.entries(apiConfigValues).forEach(([key, configValue]) => {
+        stringValues[key] = configValue.value;
+      });
+      setConfigValues(stringValues);
     }
   }, [apiConfigValues]);
 
