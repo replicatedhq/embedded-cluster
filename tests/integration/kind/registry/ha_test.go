@@ -29,6 +29,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// If this function name is changed, the .github/workflows/ci.yaml file needs to be updated
+// to match the new function name.
 func TestRegistry_EnableHAAirgap(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
