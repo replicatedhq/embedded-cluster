@@ -504,7 +504,7 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 
 	// TODO: validate that a single port isn't used for multiple services
 	// resolve datadir to absolute path
-	AbsoluteDataDir, err := filepath.Abs(flags.dataDir)
+	absoluteDataDir, err := filepath.Abs(flags.dataDir)
 	if err != nil {
 		return fmt.Errorf("unable to construct path for directory: %w", err)
 	}
