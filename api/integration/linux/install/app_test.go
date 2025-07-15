@@ -45,6 +45,27 @@ func TestLinuxGetAppConfig(t *testing.T) {
 		},
 	}
 
+	// Create an app config with templates
+	appConfigWithTemplates := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "templated-group",
+					Title: "{{ print \"HTTP Configuration\" }}",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "templated-item",
+							Type:    "text",
+							Title:   "{{ upper \"http port\" }}",
+							Default: multitype.BoolOrString{StrVal: "{{ print \"8080\" }}"},
+							Value:   multitype.BoolOrString{StrVal: "{{ print \"8080\" }}"},
+						},
+					},
+				},
+			},
+		},
+	}
+
 	// Create config values that should be applied to the config
 	configValues := map[string]string{
 		"test-item": "applied-value",
@@ -112,6 +133,52 @@ func TestLinuxGetAppConfig(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&apiError)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+
+	// Test template processing
+	t.Run("Template processing", func(t *testing.T) {
+		// Create an install controller with the templated config
+		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithReleaseData(&release.ReleaseData{
+				AppConfig: &appConfigWithTemplates,
+			}),
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		apiInstance := integration.NewAPIWithReleaseData(t,
+			api.WithLinuxInstallController(installController),
+			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request
+		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config", nil)
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var response types.AppConfig
+		err = json.NewDecoder(rec.Body).Decode(&response)
+		require.NoError(t, err)
+
+		// Verify the templates were processed
+		assert.Equal(t, "HTTP Configuration", response.Groups[0].Title, "group title should be processed from template")
+		assert.Equal(t, "HTTP PORT", response.Groups[0].Items[0].Title, "item title should be processed from template")
+		assert.Equal(t, "8080", response.Groups[0].Items[0].Value.String(), "item value should be processed from template")
+		assert.Equal(t, "8080", response.Groups[0].Items[0].Default.String(), "item default should be processed from template")
 	})
 }
 

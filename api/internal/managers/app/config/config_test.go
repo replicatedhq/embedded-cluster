@@ -22,6 +22,113 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 		expected kotsv1beta1.Config
 	}{
 		{
+			name: "config with template processing",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "templated_group",
+							Title: "{{ print \"HTTP Configuration\" }}",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "templated_item",
+									Title: "{{ upper \"http enabled\" }}",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "{{ print \"8080\" }}"},
+									When:  "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "templated_group",
+							Title: "HTTP Configuration",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "templated_item",
+									Title: "HTTP ENABLED",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "8080"},
+									When:  "true",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "config with template processing and filtering",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "templated_enabled_group",
+							Title: "{{ print \"Enabled Group\" }}",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "templated_enabled_item",
+									Title: "{{ printf \"Port: %d\" 8080 }}",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "{{ print \"true\" }}"},
+									When:  "true",
+								},
+								{
+									Name:  "templated_disabled_item",
+									Title: "{{ print \"Disabled Item\" }}",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "{{ print \"false\" }}"},
+									When:  "false",
+								},
+							},
+						},
+						{
+							Name:  "templated_disabled_group",
+							Title: "{{ print \"Disabled Group\" }}",
+							When:  "false",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "item_in_disabled_group",
+									Title: "{{ print \"Item in Disabled Group\" }}",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "{{ print \"disabled\" }}"},
+									When:  "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "templated_enabled_group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "templated_enabled_item",
+									Title: "Port: 8080",
+									Type:  "text",
+									Value: multitype.BoolOrString{StrVal: "true"},
+									When:  "true",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "conditional filtering with when conditions",
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
@@ -312,10 +419,11 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create a new app config manager
-			manager := NewAppConfigManager()
+			manager, err := NewAppConfigManager(tt.config)
+			assert.NoError(t, err)
 
 			// Apply values to config
-			result, err := manager.GetConfig(tt.config)
+			result, err := manager.GetConfig()
 
 			// Verify no error occurred
 			require.NoError(t, err)
@@ -1175,6 +1283,47 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "config with template processing and filtering",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "templated-group",
+							Title: "{{ upper \"http configuration\" }}",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "templated-enabled-item",
+									Title: "{{ printf \"Port: %d\" 8080 }}",
+									Type:  "text",
+									When:  "true",
+								},
+								{
+									Name:  "templated-disabled-item",
+									Title: "{{ lower \"DISABLED ITEM\" }}",
+									Type:  "text",
+									When:  "false",
+								},
+							},
+						},
+					},
+				},
+			},
+			newValues: map[string]string{
+				"templated-enabled-item":  "enabled-value",
+				"templated-disabled-item": "disabled-value",
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
+				expectedValues := map[string]string{
+					"templated-enabled-item": "enabled-value",
+					// templated-disabled-item should be filtered out due to when: "false"
+				}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1184,12 +1333,11 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 			tt.setupMock(mockStore)
 
 			// Create manager with mock store
-			manager := &appConfigManager{
-				appConfigStore: mockStore,
-			}
+			manager, err := NewAppConfigManager(tt.config, WithAppConfigStore(mockStore))
+			assert.NoError(t, err)
 
 			// Call PatchConfigValues
-			err := manager.PatchConfigValues(tt.config, tt.newValues)
+			err = manager.PatchConfigValues(tt.newValues)
 
 			// Verify expectations
 			if tt.wantErr {
@@ -1490,6 +1638,52 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 			expectedValues: nil,
 			wantErr:        true,
 		},
+		{
+			name: "config with template processing and password masking",
+			appConfig: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "templated-group",
+							Title: "{{ title \"user configuration\" }}",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "templated-text",
+									Title: "{{ upper \"text field\" }}",
+									Type:  "text",
+									When:  "true",
+								},
+								{
+									Name:  "templated-password",
+									Title: "{{ printf \"Password for %s\" \"admin\" }}",
+									Type:  "password",
+									When:  "true",
+								},
+								{
+									Name:  "disabled-templated-item",
+									Title: "{{ lower \"DISABLED ITEM\" }}",
+									Type:  "text",
+									When:  "false",
+								},
+							},
+						},
+					},
+				},
+			},
+			maskPasswords: true,
+			storeValues: map[string]string{
+				"templated-text":          "text-value",
+				"templated-password":      "secret-password",
+				"disabled-templated-item": "disabled-value",
+			},
+			expectedValues: map[string]string{
+				"templated-text":          "text-value",
+				"templated-password":      PasswordMask,
+				"disabled-templated-item": "disabled-value", // store value is returned even if item is disabled
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1499,12 +1693,11 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 			mockStore.On("GetConfigValues").Return(tt.storeValues, tt.storeError)
 
 			// Create manager with mock store
-			manager := &appConfigManager{
-				appConfigStore: mockStore,
-			}
+			manager, err := NewAppConfigManager(tt.appConfig, WithAppConfigStore(mockStore))
+			assert.NoError(t, err)
 
 			// Call GetConfigValues
-			result, err := manager.GetConfigValues(tt.appConfig, tt.maskPasswords)
+			result, err := manager.GetConfigValues(tt.maskPasswords)
 
 			// Verify expectations
 			if tt.wantErr {
@@ -2245,6 +2438,77 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "config with template processing",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "templated-group",
+							Title: "{{ title \"server configuration\" }}",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "templated-item",
+									Title:   "{{ upper \"http port\" }}",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "{{ toString 8080 }}"},
+									Default: multitype.BoolOrString{StrVal: "{{ toString 8080 }}"},
+									When:    "true",
+								},
+								{
+									Name:    "sprig-functions-item",
+									Title:   "{{ printf \"Port: %d\" 9090 }}",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "{{ add 9000 90 }}"},
+									Default: multitype.BoolOrString{StrVal: "{{ add 9000 90 }}"},
+									When:    "true",
+								},
+								{
+									Name:    "disabled-templated-item",
+									Title:   "{{ lower \"DISABLED ITEM\" }}",
+									Type:    "text",
+									Value:   multitype.BoolOrString{StrVal: "{{ trim \"  disabled  \" }}"},
+									Default: multitype.BoolOrString{StrVal: "{{ trim \"  disabled  \" }}"},
+									When:    "false",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := map[string]string{
+					"templated-item":          "store-overridden-value",
+					"sprig-functions-item":    "store-sprig-value",
+					"disabled-templated-item": "disabled-store-value",
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"templated-item": {
+							Value:   "store-overridden-value",
+							Default: "8080",
+						},
+						"sprig-functions-item": {
+							Value:   "store-sprig-value",
+							Default: "9090",
+						},
+						// disabled-templated-item should not be present due to when: "false"
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2254,12 +2518,11 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 			tt.setupMock(mockStore)
 
 			// Create manager with mock store
-			manager := &appConfigManager{
-				appConfigStore: mockStore,
-			}
+			manager, err := NewAppConfigManager(tt.config, WithAppConfigStore(mockStore))
+			assert.NoError(t, err)
 
 			// Call GetKotsadmConfigValues
-			result, err := manager.GetKotsadmConfigValues(tt.config)
+			result, err := manager.GetKotsadmConfigValues()
 
 			// Verify expectations
 			if tt.wantErr {
@@ -2539,10 +2802,11 @@ func TestValidateConfigValues(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a real appConfigManager instance for testing
-			manager := &appConfigManager{}
+			manager, err := NewAppConfigManager(tt.config)
+			assert.NoError(t, err)
 
 			// Run the validation
-			err := manager.ValidateConfigValues(tt.config, tt.configValues)
+			err = manager.ValidateConfigValues(tt.configValues)
 
 			// Check if error is expected
 			if tt.wantErr {

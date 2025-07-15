@@ -202,6 +202,10 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		opt(controller)
 	}
 
+	if err := controller.validateReleaseData(); err != nil {
+		return nil, err
+	}
+
 	if controller.stateMachine == nil {
 		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
 	}
@@ -235,13 +239,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
-	if controller.appConfigManager == nil {
-		controller.appConfigManager = appconfig.NewAppConfigManager(
-			appconfig.WithLogger(controller.logger),
-			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
-		)
-	}
-
 	if controller.infraManager == nil {
 		controller.infraManager = infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
@@ -256,18 +253,26 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
-	if err := controller.validateReleaseData(); err != nil {
-		return nil, err
+	if controller.appConfigManager == nil {
+		appConfigManager, err := appconfig.NewAppConfigManager(
+			*controller.releaseData.AppConfig,
+			appconfig.WithLogger(controller.logger),
+			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create app config manager: %w", err)
+		}
+		controller.appConfigManager = appConfigManager
 	}
 
 	if controller.configValues != nil {
-		err := controller.appConfigManager.ValidateConfigValues(*controller.releaseData.AppConfig, controller.configValues)
+		err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
 		if err != nil {
 			return nil, fmt.Errorf("validate app config values: %w", err)
 		}
-		err = controller.appConfigManager.PatchConfigValues(*controller.releaseData.AppConfig, controller.configValues)
+		err = controller.appConfigManager.PatchConfigValues(controller.configValues)
 		if err != nil {
-			return nil, fmt.Errorf("set app config values: %w", err)
+			return nil, fmt.Errorf("patch app config values: %w", err)
 		}
 	}
 

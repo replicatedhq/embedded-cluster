@@ -14,10 +14,6 @@ var (
 )
 
 func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights bool) (finalErr error) {
-	if err := c.validateReleaseData(); err != nil {
-		return err
-	}
-
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -43,7 +39,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 		}
 	}
 
-	configValues, err := c.appConfigManager.GetKotsadmConfigValues(*c.releaseData.AppConfig)
+	configValues, err := c.appConfigManager.GetKotsadmConfigValues()
 	if err != nil {
 		return fmt.Errorf("failed to get kotsadm config values: %w", err)
 	}

@@ -156,13 +156,20 @@ func WithStore(store store.Store) InstallControllerOption {
 
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
-		store:        store.NewMemoryStore(),
-		logger:       logger.NewDiscardLogger(),
-		stateMachine: NewStateMachine(),
+		store:  store.NewMemoryStore(),
+		logger: logger.NewDiscardLogger(),
 	}
 
 	for _, opt := range opts {
 		opt(controller)
+	}
+
+	if err := controller.validateReleaseData(); err != nil {
+		return nil, err
+	}
+
+	if controller.stateMachine == nil {
+		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
 	}
 
 	// If none is provided, use the default env settings from helm to create a RESTClientGetter
@@ -196,24 +203,25 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	}
 
 	if controller.appConfigManager == nil {
-		controller.appConfigManager = appconfig.NewAppConfigManager(
+		appConfigManager, err := appconfig.NewAppConfigManager(
+			*controller.releaseData.AppConfig,
 			appconfig.WithLogger(controller.logger),
 			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
 		)
-	}
-
-	if err := controller.validateReleaseData(); err != nil {
-		return nil, err
+		if err != nil {
+			return nil, fmt.Errorf("create app config manager: %w", err)
+		}
+		controller.appConfigManager = appConfigManager
 	}
 
 	if controller.configValues != nil {
-		err := controller.appConfigManager.ValidateConfigValues(*controller.releaseData.AppConfig, controller.configValues)
+		err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
 		if err != nil {
 			return nil, fmt.Errorf("validate app config values: %w", err)
 		}
-		err = controller.appConfigManager.PatchConfigValues(*controller.releaseData.AppConfig, controller.configValues)
+		err = controller.appConfigManager.PatchConfigValues(controller.configValues)
 		if err != nil {
-			return nil, fmt.Errorf("set app config values: %w", err)
+			return nil, fmt.Errorf("patch app config values: %w", err)
 		}
 	}
 

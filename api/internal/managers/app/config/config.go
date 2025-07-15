@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/tiendc/go-deepcopy"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 const (
@@ -22,20 +23,32 @@ var (
 	ErrConfigItemRequired = errors.New("item is required")
 )
 
-func (m *appConfigManager) GetConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error) {
-	return filterAppConfig(config)
+func (m *appConfigManager) GetConfig() (kotsv1beta1.Config, error) {
+	// Execute the config template
+	processedYAML, err := m.executeConfigTemplate()
+	if err != nil {
+		return kotsv1beta1.Config{}, fmt.Errorf("execute config template: %w", err)
+	}
+
+	// Parse to Config struct
+	var processedConfig kotsv1beta1.Config
+	if err := kyaml.Unmarshal([]byte(processedYAML), &processedConfig); err != nil {
+		return kotsv1beta1.Config{}, fmt.Errorf("unmarshal processed config: %w", err)
+	}
+
+	return filterAppConfig(processedConfig)
 }
 
-func (m *appConfigManager) ValidateConfigValues(config kotsv1beta1.Config, configValues map[string]string) error {
+func (m *appConfigManager) ValidateConfigValues(configValues map[string]string) error {
 	var ve *types.APIError
 
-	filteredConfig, err := filterAppConfig(config)
+	processedConfig, err := m.GetConfig()
 	if err != nil {
-		return fmt.Errorf("filter app config: %w", err)
+		return fmt.Errorf("get config: %w", err)
 	}
 
 	// check required items
-	for _, group := range filteredConfig.Spec.Groups {
+	for _, group := range processedConfig.Spec.Groups {
 		for _, item := range group.Items {
 			configValue := getConfigValueFromItem(item, configValues)
 			if isRequiredItem(item) && isUnsetItem(configValue) {
@@ -48,7 +61,7 @@ func (m *appConfigManager) ValidateConfigValues(config kotsv1beta1.Config, confi
 }
 
 // PatchConfigValues performs a partial update by merging new values with existing ones
-func (m *appConfigManager) PatchConfigValues(config kotsv1beta1.Config, newValues map[string]string) error {
+func (m *appConfigManager) PatchConfigValues(newValues map[string]string) error {
 	// Get existing values
 	existingValues, err := m.appConfigStore.GetConfigValues()
 	if err != nil {
@@ -60,9 +73,15 @@ func (m *appConfigManager) PatchConfigValues(config kotsv1beta1.Config, newValue
 	maps.Copy(mergedValues, existingValues)
 	maps.Copy(mergedValues, newValues)
 
+	// Get processed config to determine enabled groups and items
+	processedConfig, err := m.GetConfig()
+	if err != nil {
+		return fmt.Errorf("get config: %w", err)
+	}
+
 	// only keep values for enabled groups and items
 	filteredValues := make(map[string]string)
-	for _, g := range config.Spec.Groups {
+	for _, g := range processedConfig.Spec.Groups {
 		for _, i := range g.Items {
 			if isItemEnabled(g.When) && isItemEnabled(i.When) {
 				value, ok := mergedValues[i.Name]
@@ -83,7 +102,7 @@ func (m *appConfigManager) PatchConfigValues(config kotsv1beta1.Config, newValue
 }
 
 // GetConfigValues returns config values with optional password field masking
-func (m *appConfigManager) GetConfigValues(config kotsv1beta1.Config, maskPasswords bool) (map[string]string, error) {
+func (m *appConfigManager) GetConfigValues(maskPasswords bool) (map[string]string, error) {
 	configValues, err := m.appConfigStore.GetConfigValues()
 	if err != nil {
 		return nil, err
@@ -94,12 +113,18 @@ func (m *appConfigManager) GetConfigValues(config kotsv1beta1.Config, maskPasswo
 		return configValues, nil
 	}
 
+	// Get processed config to determine password fields
+	processedConfig, err := m.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("get config: %w", err)
+	}
+
 	// Create a copy of the config values to mask password fields
 	maskedValues := make(map[string]string)
 	maps.Copy(maskedValues, configValues)
 
 	// Mask password fields
-	for _, group := range config.Spec.Groups {
+	for _, group := range processedConfig.Spec.Groups {
 		for _, item := range group.Items {
 			if item.Type == "password" {
 				// Mask item
@@ -119,13 +144,13 @@ func (m *appConfigManager) GetConfigValues(config kotsv1beta1.Config, maskPasswo
 	return maskedValues, nil
 }
 
-func (m *appConfigManager) GetKotsadmConfigValues(config kotsv1beta1.Config) (kotsv1beta1.ConfigValues, error) {
-	filteredConfig, err := m.GetConfig(config)
+func (m *appConfigManager) GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, error) {
+	processedConfig, err := m.GetConfig()
 	if err != nil {
 		return kotsv1beta1.ConfigValues{}, fmt.Errorf("get config: %w", err)
 	}
 
-	storedValues, err := m.GetConfigValues(filteredConfig, false)
+	storedValues, err := m.appConfigStore.GetConfigValues()
 	if err != nil {
 		return kotsv1beta1.ConfigValues{}, fmt.Errorf("get config values: %w", err)
 	}
@@ -143,8 +168,8 @@ func (m *appConfigManager) GetKotsadmConfigValues(config kotsv1beta1.Config) (ko
 		},
 	}
 
-	// add values from the filtered config
-	for _, group := range filteredConfig.Spec.Groups {
+	// add values from the processed config
+	for _, group := range processedConfig.Spec.Groups {
 		for _, item := range group.Items {
 			kotsadmConfigValues.Spec.Values[item.Name] = getConfigValueFromItem(item, storedValues)
 

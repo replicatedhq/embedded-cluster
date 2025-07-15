@@ -304,7 +304,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState: StateSucceeded,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues").Return(configValues, nil),
 					fm.On("Install", mock.Anything, ki, configValues).Return(nil),
 					// TODO: we are not yet reporting
 					// mr.On("ReportInstallationSucceeded", mock.Anything),
@@ -318,7 +318,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState: StateInfrastructureInstallFailed,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues").Return(configValues, nil),
 					fm.On("Install", mock.Anything, ki, configValues).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "install error"}, nil),
 					// TODO: we are not yet reporting
@@ -333,7 +333,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState: StateInfrastructureInstallFailed,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues").Return(configValues, nil),
 					fm.On("Install", mock.Anything, ki, configValues).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(nil, assert.AnError),
 				)
@@ -346,7 +346,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState: StateInfrastructureInstallFailed,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues").Return(configValues, nil),
 					fm.On("Install", mock.Anything, ki, configValues).Panic("this is a panic"),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "this is a panic"}, nil),
 					// TODO: we are not yet reporting
@@ -369,7 +369,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState: StateInstallationConfigured,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(kotsv1beta1.ConfigValues{}, assert.AnError),
+					am.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, assert.AnError),
 				)
 			},
 			expectedErr: assert.AnError,
