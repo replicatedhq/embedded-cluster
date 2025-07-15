@@ -63,15 +63,22 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{
 				{
-					Name:  "test-group",
-					Title: "Test Group",
+					Name:  "network-config",
+					Title: "{{ print \"Network Configuration\" }}",
 					Items: []kotsv1beta1.ConfigItem{
 						{
-							Name:    "test-item",
+							Name:    "service-cidr",
 							Type:    "text",
-							Title:   "Test Item",
-							Default: multitype.BoolOrString{StrVal: "default"},
-							Value:   multitype.BoolOrString{StrVal: "value"},
+							Title:   "{{ upper \"service cidr\" }}",
+							Default: multitype.BoolOrString{StrVal: "{{ print \"10.96.0.0/12\" }}"},
+							Value:   multitype.BoolOrString{StrVal: "{{ print \"10.96.0.0/12\" }}"},
+						},
+						{
+							Name:    "pod-cidr",
+							Type:    "text",
+							Title:   "{{ upper \"pod cidr\" }}",
+							Default: multitype.BoolOrString{StrVal: "{{ print \"10.244.0.0/16\" }}"},
+							Value:   multitype.BoolOrString{StrVal: "{{ print \"10.244.0.0/16\" }}"},
 						},
 					},
 				},
