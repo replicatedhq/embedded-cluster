@@ -12,6 +12,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -471,11 +474,54 @@ func (k *KubeUtils) WaitForCRDToBeReady(ctx context.Context, cli client.Client, 
 		if err != nil {
 			return false, nil // not ready yet
 		}
+
+		// Check if CRD is established
+		established := false
 		for _, cond := range newCrd.Status.Conditions {
 			if cond.Type == apiextensionsv1.Established && cond.Status == apiextensionsv1.ConditionTrue {
-				return true, nil
+				established = true
+				break
 			}
 		}
+
+		if !established {
+			return false, nil
+		}
+
+		// Try to list the CRD type to ensure it's fully ready
+		// This helps catch cases where the CRD is established but the API server
+		// hasn't fully registered the type yet
+		for _, version := range newCrd.Spec.Versions {
+			if !version.Served {
+				continue
+			}
+
+			gvk := schema.GroupVersionKind{
+				Group:   newCrd.Spec.Group,
+				Version: version.Name,
+				Kind:    newCrd.Spec.Names.Kind,
+			}
+
+			// Create an unstructured object to list the CRD type
+			obj := &unstructured.Unstructured{}
+			obj.SetGroupVersionKind(gvk)
+
+			// Try to list the CRD type
+			err := cli.List(ctx, obj)
+			if err != nil {
+				// Ignore "no matches for kind" errors as they indicate the CRD
+				// is not fully ready yet
+				if meta.IsNoMatchError(err) {
+					return false, nil
+				}
+				// For other errors, fail the wait
+				return false, err
+			}
+
+			// If we can successfully list the CRD type, it's ready
+			return true, nil
+		}
+
 		return false, nil
 	}); err != nil {
 		return err
