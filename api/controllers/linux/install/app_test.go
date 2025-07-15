@@ -55,8 +55,8 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 			expectedState: StateApplicationConfigured,
 			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", appConfig, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
-					am.On("PatchConfigValues", appConfig, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
+					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
+					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -70,8 +70,8 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 			expectedState: StateApplicationConfigured,
 			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", appConfig, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
-					am.On("PatchConfigValues", appConfig, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
+					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
+					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -85,8 +85,8 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 			expectedState: StateApplicationConfigured,
 			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", appConfig, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
-					am.On("PatchConfigValues", appConfig, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
+					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
+					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -100,7 +100,7 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 			expectedState: StateApplicationConfigurationFailed,
 			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", appConfig, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "invalid-value"}}).Return(errors.New("validation error")),
+					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "invalid-value"}}).Return(errors.New("validation error")),
 				)
 			},
 			expectedErr: true,
@@ -114,8 +114,8 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 			expectedState: StateApplicationConfigurationFailed,
 			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", appConfig, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
-					am.On("PatchConfigValues", appConfig, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(errors.New("set config error")),
+					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(nil),
+					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-value"}}).Return(errors.New("set config error")),
 				)
 			},
 			expectedErr: true,
@@ -206,8 +206,7 @@ func TestInstallController_GetAppConfigValues(t *testing.T) {
 					"test-item":    types.AppConfigValue{Value: "value"},
 					"another-item": types.AppConfigValue{Value: "another-value"},
 				}
-				am.On("GetConfig").Return(appConfig, nil)
-				am.On("GetConfigValues", appConfig, false).Return(expectedValues, nil)
+				am.On("GetConfigValues", false).Return(expectedValues, nil)
 			},
 			expectedValues: types.AppConfigValues{
 				"test-item":    types.AppConfigValue{Value: "value"},
@@ -218,8 +217,7 @@ func TestInstallController_GetAppConfigValues(t *testing.T) {
 		{
 			name: "get config values error",
 			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
-				am.On("GetConfig").Return(appConfig, nil)
-				am.On("GetConfigValues", appConfig, false).Return(nil, errors.New("get config values error"))
+				am.On("GetConfigValues", false).Return(nil, errors.New("get config values error"))
 			},
 			expectedValues: nil,
 			expectedErr:    true,
@@ -227,8 +225,7 @@ func TestInstallController_GetAppConfigValues(t *testing.T) {
 		{
 			name: "empty config values",
 			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
-				am.On("GetConfig").Return(appConfig, nil)
-				am.On("GetConfigValues", appConfig, false).Return(types.AppConfigValues{}, nil)
+				am.On("GetConfigValues", false).Return(types.AppConfigValues{}, nil)
 			},
 			expectedValues: types.AppConfigValues{},
 			expectedErr:    false,

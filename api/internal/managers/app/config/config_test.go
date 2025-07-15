@@ -1314,7 +1314,7 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 				"templated-disabled-item": types.AppConfigValue{Value: "disabled-value"},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				mockStore.On("GetConfigValues").Return(map[string]string{}, nil)
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 				expectedValues := types.AppConfigValues{
 					"templated-enabled-item": types.AppConfigValue{Value: "enabled-value"},
 					// templated-disabled-item should be filtered out due to when: "false"
@@ -2477,10 +2477,10 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 				},
 			},
 			setupMock: func(mockStore *config.MockStore) {
-				storeValues := map[string]string{
-					"templated-item":          "store-overridden-value",
-					"sprig-functions-item":    "store-sprig-value",
-					"disabled-templated-item": "disabled-store-value",
+				storeValues := types.AppConfigValues{
+					"templated-item":          types.AppConfigValue{Value: "store-overridden-value"},
+					"sprig-functions-item":    types.AppConfigValue{Value: "store-sprig-value"},
+					"disabled-templated-item": types.AppConfigValue{Value: "disabled-store-value"},
 				}
 				mockStore.On("GetConfigValues").Return(storeValues, nil)
 			},
