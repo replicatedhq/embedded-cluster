@@ -93,12 +93,12 @@ const MOCK_APP_CONFIG: AppConfig = {
   ]
 };
 
-const createMockConfigWithValues = (values: Record<string, string>): AppConfig => {
+const createMockConfigWithValues = (values: AppConfigValues): AppConfig => {
   const config: AppConfig = JSON.parse(JSON.stringify(MOCK_APP_CONFIG));
   config.groups.forEach((group: AppConfigGroup) => {
     group.items.forEach((item: AppConfigItem) => {
       if (values[item.name]) {
-        item.value = values[item.name];
+        item.value = values[item.name].value;
       }
     });
   });
@@ -119,12 +119,7 @@ const createServer = (target: string) => setupServer(
   // Mock config values submission endpoint
   http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
     const body = await request.json() as { values: AppConfigValues };
-    // Extract string values from AppConfigValue objects
-    const stringValues: Record<string, string> = {};
-    Object.entries(body.values).forEach(([key, configValue]) => {
-      stringValues[key] = configValue.value;
-    });
-    const updatedConfig = createMockConfigWithValues(stringValues);
+    const updatedConfig = createMockConfigWithValues(body.values);
     return HttpResponse.json(updatedConfig);
   })
 );
@@ -455,12 +450,7 @@ describe.each([
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
         const body = await request.json() as { values: AppConfigValues };
         submittedValues = body;
-        // Extract string values from AppConfigValue objects
-        const stringValues: Record<string, string> = {};
-        Object.entries(body.values).forEach(([key, configValue]) => {
-          stringValues[key] = configValue.value;
-        });
-        const updatedConfig = createMockConfigWithValues(stringValues);
+        const updatedConfig = createMockConfigWithValues(body.values);
         return HttpResponse.json(updatedConfig);
       })
     );
@@ -585,12 +575,7 @@ describe.each([
       http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
         const body = await request.json() as { values: AppConfigValues };
         submittedValues = body;
-        // Extract string values from AppConfigValue objects
-        const stringValues: Record<string, string> = {};
-        Object.entries(body.values).forEach(([key, configValue]) => {
-          stringValues[key] = configValue.value;
-        });
-        const updatedConfig = createMockConfigWithValues(stringValues);
+        const updatedConfig = createMockConfigWithValues(body.values);
         return HttpResponse.json(updatedConfig);
       })
     );
@@ -1109,12 +1094,7 @@ describe.each([
         http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
           const body = await request.json() as { values: AppConfigValues };
           submittedValues = body;
-          // Extract string values from AppConfigValue objects
-          const stringValues: Record<string, string> = {};
-          Object.entries(body.values).forEach(([key, configValue]) => {
-            stringValues[key] = configValue.value;
-          });
-          const updatedConfig = createMockConfigWithValues(stringValues);
+          const updatedConfig = createMockConfigWithValues(body.values);
           return HttpResponse.json(updatedConfig);
         })
       );

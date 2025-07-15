@@ -24,7 +24,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState<string>('');
-  const [configValues, setConfigValues] = useState<Record<string, string>>({});
+  const [configValues, setConfigValues] = useState<AppConfigValues>({});
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
   const [submitError, setSubmitError] = useState<string | null>(null);
   const themeColor = settings.themeColor;
@@ -76,13 +76,11 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   // Mutation to save config values
   const { mutate: submitConfigValues } = useMutation({
     mutationFn: async () => {
-      // Build payload with only dirty fields, converting to AppConfigValues format
+      // Build payload with only dirty fields
       const dirtyValues: AppConfigValues = {};
       dirtyFields.forEach(fieldName => {
         if (configValues[fieldName] !== undefined) {
-          dirtyValues[fieldName] = {
-            value: configValues[fieldName]
-          };
+          dirtyValues[fieldName] = configValues[fieldName];
         }
       });
 
@@ -127,30 +125,25 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   // Initialize configValues with initial values when they load
   useEffect(() => {
     if (apiConfigValues && Object.keys(configValues).length === 0) {
-      // Convert AppConfigValues to Record<string, string> for local state
-      const stringValues: Record<string, string> = {};
-      Object.entries(apiConfigValues).forEach(([key, configValue]) => {
-        stringValues[key] = configValue.value;
-      });
-      setConfigValues(stringValues);
+      setConfigValues(apiConfigValues);
     }
   }, [apiConfigValues]);
 
   // Helper function to get the display value for a config item (no defaults)
   const getDisplayValue = (item: AppConfigItem): string => {
     // First check user value, then config item value (use ?? to allow empty strings from the user)
-    return configValues?.[item.name] ?? (item.value || '');
+    return configValues?.[item.name]?.value ?? (item.value || '');
   };
 
   // Helper function to get the effective value for a config item (includes defaults)
   const getEffectiveValue = (item: AppConfigItem): string => {
     // First check user value, then config item value, then default (use ?? to allow empty strings from the user)
-    return configValues?.[item.name] ?? (item.value || item.default || '');
+    return configValues?.[item.name]?.value ?? (item.value || item.default || '');
   };
 
   const updateConfigValue = (itemName: string, value: string) => {
     // Update the config values map
-    setConfigValues(prev => ({ ...prev, [itemName]: value }));
+    setConfigValues(prev => ({ ...prev, [itemName]: { value } }));
 
     // Mark field as dirty
     setDirtyFields(prev => new Set(prev).add(itemName));
