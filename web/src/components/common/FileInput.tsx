@@ -1,0 +1,241 @@
+import React, { useState, useRef, useCallback, useMemo } from 'react';
+import Button from './Button';
+import { Upload, FileText, CheckCircle, X } from 'lucide-react';
+import HelpText from './HelpText';
+
+interface FileInputProps {
+  id: string;
+  label: string;
+  value?: string;           // Base64 encoded file content
+  filename?: string;        // Original filename
+  onChange: (value: string, filename: string) => void;
+  disabled?: boolean;
+  error?: string;
+  helpText?: string;
+  accept?: string;         // File type restrictions
+  required?: boolean;
+  className?: string;
+  labelClassName?: string;
+  dataTestId?: string;
+}
+
+interface FileInputState {
+  isDragOver: boolean;
+  isProcessing: boolean;
+  internalError: string | null;
+}
+
+const FileInput: React.FC<FileInputProps> = ({
+  id,
+  label,
+  value,
+  filename,
+  onChange,
+  disabled = false,
+  error,
+  helpText,
+  accept,
+  required = false,
+  className = '',
+  labelClassName = '',
+  dataTestId,
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [state, setState] = useState<FileInputState>({
+    isDragOver: false,
+    isProcessing: false,
+    internalError: null,
+  });
+
+  const hasFile = useMemo(() => value && filename, [value, filename]);
+  const displayError = useMemo(() => error || state.internalError, [error, state.internalError]);
+
+  const encodeFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          const base64 = btoa(reader.result);
+          resolve(base64);
+        } else {
+          reject(new Error('Failed to read file content'));
+        }
+      };
+
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+
+      reader.readAsText(file);
+    });
+  };
+
+  const handleFileSelect = useCallback(async (file: File) => {
+    if (disabled) return;
+
+    setState(prev => ({ ...prev, internalError: null, isProcessing: true }));
+
+    try {
+      const base64Content = await encodeFileToBase64(file);
+      onChange(base64Content, file.name);
+      setState(prev => ({ ...prev, isProcessing: false }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process file';
+      setState(prev => ({
+        ...prev,
+        internalError: errorMessage,
+        isProcessing: false
+      }));
+    }
+  }, [disabled, onChange]);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  }, [handleFileSelect]);
+
+  const handleClick = useCallback(() => {
+    if (!disabled && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  }, [disabled]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!disabled) {
+      setState(prev => ({ ...prev, isDragOver: true }));
+    }
+  }, [disabled]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setState(prev => ({ ...prev, isDragOver: false }));
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setState(prev => ({ ...prev, isDragOver: false }));
+
+    if (disabled) return;
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  }, [disabled, handleFileSelect]);
+
+  const handleRemove = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the file dialog
+    if (disabled) return;
+
+    onChange('', '');
+    setState(prev => ({ ...prev, internalError: null }));
+
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [disabled, onChange]);
+
+  const handleDownload = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (disabled || !value || !filename) return;
+
+    try {
+      // Convert base64 to blob
+      const bytes = Uint8Array.from(atob(value), c => c.charCodeAt(0));
+      const blob = new Blob([bytes]);
+      
+      // Create URL and trigger download
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+    }
+  }, [disabled, value, filename]);
+
+  return (
+    <div className={`mb-4 ${className}`}>
+      <label htmlFor={id} className={`block text-sm font-medium text-gray-700 mb-1 ${labelClassName}`}>
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </label>
+
+      <div
+        className="mt-1"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          id={id}
+          type="file"
+          accept={accept}
+          disabled={disabled}
+          onChange={handleInputChange}
+          className="hidden"
+          data-testid={dataTestId || id}
+        />
+
+        <div className="flex items-center">
+          <Button
+            variant="outline"
+            onClick={handleClick}
+            disabled={disabled || state.isProcessing}
+            icon={state.isProcessing ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+            ) : (
+              <Upload className="w-4 h-4" />
+            )}
+            className={`w-80 transition-all duration-200 ${state.isDragOver ? 'border-2 shadow-md' : ''}`}
+            dataTestId={`${dataTestId || id}-button`}
+          >
+            {state.isProcessing ? 'Processing...' : 'Upload File'}
+          </Button>
+
+          {hasFile && (
+            <div className="flex items-center space-x-2 px-3 py-2 bg-green-50 border border-green-200 rounded-md group ml-3">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <FileText className="w-4 h-4 text-green-600" />
+              <span 
+                onClick={handleDownload}
+                className="text-sm text-green-700 font-medium hover:underline cursor-pointer"
+                title="Download file"
+                data-testid={`${dataTestId || id}-download`}
+              >
+                {filename}
+              </span>
+              <button
+                onClick={handleRemove}
+                disabled={disabled}
+                className="ml-2 p-1 rounded-full hover:bg-green-100 transition-colors opacity-0 group-hover:opacity-100"
+                title="Remove file"
+                data-testid={`${dataTestId || id}-remove`}
+              >
+                <X className="w-3 h-3 text-green-600 hover:text-green-800" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {displayError && <p id={`${id}-error`} className="mt-1 text-sm text-red-500">{displayError}</p>}
+      <HelpText helpText={helpText} error={displayError || undefined} />
+    </div>
+  );
+};
+
+export default FileInput;

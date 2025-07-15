@@ -7,6 +7,7 @@ import Textarea from '../../common/Textarea';
 import Checkbox from '../../common/Checkbox';
 import Radio from '../../common/Radio';
 import Label from '../../common/Label';
+import FileInput from '../../common/FileInput';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
@@ -17,7 +18,6 @@ import { AppConfig, AppConfigItem, AppConfigValues } from '../../../types';
 interface ConfigurationStepProps {
   onNext: () => void;
 }
-
 
 const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { text, target } = useWizard();
@@ -178,6 +178,12 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     updateConfigValue(parentId, id);
   };
 
+  const handleFileChange = (itemName: string, value: string, filename: string) => {
+    // TODO: update filename
+    console.log(filename);
+    updateConfigValue(itemName, value);
+  };
+
   const renderConfigItem = (item: AppConfigItem) => {
     const sharedProps = {
       id: item.name,
@@ -249,6 +255,17 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           );
         }
         return null;
+
+      case 'file':
+        return (
+          <FileInput
+            {...sharedProps}
+            value={getDisplayValue(item)}
+            filename="myfile.txt" // TODO: set to anything for now for UI to update when a file is uploaded
+            onChange={(value, filename) => handleFileChange(item.name, value, filename)}
+            dataTestId={`file-input-${item.name}`}
+          />
+        );
 
       case 'label':
         return (
