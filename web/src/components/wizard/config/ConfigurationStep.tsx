@@ -146,8 +146,6 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     return !!(item.default && ['text', 'password', 'textarea'].includes(item.type));
   };
 
-
-
   const updateConfigValue = (itemName: string, value: string) => {
     // Update the config values map
     setConfigValues(prev => ({ ...prev, [itemName]: value }));
