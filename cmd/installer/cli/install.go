@@ -16,7 +16,6 @@ import (
 	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/google/uuid"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/api/types"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -632,16 +631,16 @@ func runManagerExperienceInstall(
 		return fmt.Errorf("process overrides file: %w", err)
 	}
 
-	var configValues types.AppConfigValues
+	var configValues apitypes.AppConfigValues
 	if flags.configValues != "" {
-		configValues = make(types.AppConfigValues)
+		configValues = make(apitypes.AppConfigValues)
 		kotsConfigValues, err := helpers.ParseConfigValues(flags.configValues)
 		if err != nil {
 			return fmt.Errorf("parse config values file: %w", err)
 		}
 		if kotsConfigValues != nil {
 			for key, value := range kotsConfigValues.Spec.Values {
-				configValues[key] = types.AppConfigValue{Value: value.Value}
+				configValues[key] = apitypes.AppConfigValue{Value: value.Value}
 			}
 		}
 	}
