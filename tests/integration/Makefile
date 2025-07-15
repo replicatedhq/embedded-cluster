@@ -3,6 +3,7 @@ SHELL := /bin/bash
 DEBUG ?=
 PARALLEL ?= 2
 RUN ?=
+SHORT ?= false
 
 .PHONY: test
 test: test-kind
