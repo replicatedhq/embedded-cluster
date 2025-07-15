@@ -14,10 +14,6 @@ var (
 )
 
 func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights bool) (finalErr error) {
-	if c.appConfigManager == nil {
-		return errors.New("app config not found")
-	}
-
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)

@@ -134,3 +134,73 @@ Use the functional options pattern for component initialization. This is the sta
 
 - **Error Logging**: Always log errors at the outermost caller (bottom of the stack). All the context from the trace should be included in the message wrapping.
 - **Discard Logger**: Use `logger.NewDiscardLogger()` for tests
+
+## Function Organization and Ordering
+
+### Function Ordering Principles
+
+Organize functions within a file to maximize readability and maintainability:
+
+- **Public Functions First**: Place exported (public) functions at the top of the file, as they are the primary interface for the package
+- **Similar Functions Together**: Group related functions together (e.g., all CRUD operations, all validation functions, all utility functions)
+- **Private Functions Last**: Place unexported (private) functions at the bottom of the file
+- **Constructor Functions**: Place constructor functions (e.g., `New*`) near the top, after any constants or type definitions
+
+### Recommended Order
+
+1. **Package declaration and imports**
+2. **Constants and type definitions**
+3. **Constructor functions** (`New*`)
+4. **Public interface methods** (if implementing an interface)
+5. **Public utility functions**
+6. **Public business logic functions**
+7. **Private helper functions**
+8. **Private utility functions**
+
+### Example Structure
+
+```go
+package example
+
+import (
+    // imports...
+)
+
+const (
+    // constants...
+)
+
+type MyStruct struct {
+    // fields...
+}
+
+// Constructor
+func NewMyStruct() *MyStruct {
+    // implementation...
+}
+
+// Public interface methods
+func (m *MyStruct) PublicMethod() error {
+    // implementation...
+}
+
+// Public utility functions
+func ValidateInput(input string) error {
+    // implementation...
+}
+
+// Public business logic
+func (m *MyStruct) ProcessData() error {
+    // implementation...
+}
+
+// Private helper functions
+func (m *MyStruct) validateInternal() error {
+    // implementation...
+}
+
+// Private utility functions
+func helperFunction() {
+    // implementation...
+}
+```

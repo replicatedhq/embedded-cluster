@@ -9,7 +9,7 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/tiendc/go-deepcopy"
-	"gopkg.in/yaml.v2"
+	kyaml "sigs.k8s.io/yaml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -32,7 +32,7 @@ func (m *appConfigManager) GetConfig() (kotsv1beta1.Config, error) {
 
 	// Parse to Config struct
 	var processedConfig kotsv1beta1.Config
-	if err := yaml.Unmarshal([]byte(processedYAML), &processedConfig); err != nil {
+	if err := kyaml.Unmarshal([]byte(processedYAML), &processedConfig); err != nil {
 		return kotsv1beta1.Config{}, fmt.Errorf("unmarshal processed config: %w", err)
 	}
 

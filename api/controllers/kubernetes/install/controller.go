@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -155,13 +156,20 @@ func WithStore(store store.Store) InstallControllerOption {
 
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
-		store:        store.NewMemoryStore(),
-		logger:       logger.NewDiscardLogger(),
-		stateMachine: NewStateMachine(),
+		store:  store.NewMemoryStore(),
+		logger: logger.NewDiscardLogger(),
 	}
 
 	for _, opt := range opts {
 		opt(controller)
+	}
+
+	if err := controller.validateReleaseData(); err != nil {
+		return nil, err
+	}
+
+	if controller.stateMachine == nil {
+		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
 	}
 
 	// If none is provided, use the default env settings from helm to create a RESTClientGetter
@@ -194,27 +202,38 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.infraManager = infraManager
 	}
 
-	if controller.releaseData != nil && controller.releaseData.AppConfig != nil {
-		// Initialize the app config manager if an app config is provided
-		if controller.appConfigManager == nil {
-			controller.appConfigManager = appconfig.NewAppConfigManager(
-				*controller.releaseData.AppConfig,
-				appconfig.WithLogger(controller.logger),
-				appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
-			)
+	if controller.appConfigManager == nil {
+		appConfigManager, err := appconfig.NewAppConfigManager(
+			*controller.releaseData.AppConfig,
+			appconfig.WithLogger(controller.logger),
+			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create app config manager: %w", err)
 		}
+		controller.appConfigManager = appConfigManager
+	}
 
-		if controller.configValues != nil {
-			err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
-			if err != nil {
-				return nil, fmt.Errorf("validate app config values: %w", err)
-			}
-			err = controller.appConfigManager.PatchConfigValues(controller.configValues)
-			if err != nil {
-				return nil, fmt.Errorf("patch app config values: %w", err)
-			}
+	if controller.configValues != nil {
+		err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("validate app config values: %w", err)
+		}
+		err = controller.appConfigManager.PatchConfigValues(controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("patch app config values: %w", err)
 		}
 	}
 
 	return controller, nil
+}
+
+func (c *InstallController) validateReleaseData() error {
+	if c.releaseData == nil {
+		return errors.New("release data not found")
+	}
+	if c.releaseData.AppConfig == nil {
+		return errors.New("app config not found")
+	}
+	return nil
 }

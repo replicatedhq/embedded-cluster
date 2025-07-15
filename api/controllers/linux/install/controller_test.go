@@ -149,6 +149,7 @@ func TestGetInstallationConfig(t *testing.T) {
 			controller, err := NewInstallController(
 				WithRuntimeConfig(rc),
 				WithInstallationManager(mockManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
 			)
 			require.NoError(t, err)
 
@@ -418,6 +419,7 @@ func TestConfigureInstallation(t *testing.T) {
 				WithInstallationManager(mockManager),
 				WithStore(mockStore),
 				WithMetricsReporter(metricsReporter),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
 			)
 			require.NoError(t, err)
 
@@ -482,7 +484,9 @@ func TestIntegrationComputeCIDRs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			controller, err := NewInstallController()
+			controller, err := NewInstallController(
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+			)
 			require.NoError(t, err)
 
 			config := types.LinuxInstallationConfig{
@@ -779,7 +783,7 @@ func TestRunHostPreflights(t *testing.T) {
 				WithRuntimeConfig(rc),
 				WithStateMachine(sm),
 				WithHostPreflightManager(mockPreflightManager),
-				WithReleaseData(getTestReleaseData(nil)),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
 				WithMetricsReporter(mockReporter),
 				WithStore(mockStore),
 			)
@@ -843,7 +847,10 @@ func TestGetHostPreflightStatus(t *testing.T) {
 			mockManager := &preflight.MockHostPreflightManager{}
 			tt.setupMock(mockManager)
 
-			controller, err := NewInstallController(WithHostPreflightManager(mockManager))
+			controller, err := NewInstallController(
+				WithHostPreflightManager(mockManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+			)
 			require.NoError(t, err)
 
 			result, err := controller.GetHostPreflightStatus(t.Context())
@@ -892,7 +899,10 @@ func TestGetHostPreflightOutput(t *testing.T) {
 			mockManager := &preflight.MockHostPreflightManager{}
 			tt.setupMock(mockManager)
 
-			controller, err := NewInstallController(WithHostPreflightManager(mockManager))
+			controller, err := NewInstallController(
+				WithHostPreflightManager(mockManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+			)
 			require.NoError(t, err)
 
 			result, err := controller.GetHostPreflightOutput(t.Context())
@@ -941,7 +951,10 @@ func TestGetHostPreflightTitles(t *testing.T) {
 			mockManager := &preflight.MockHostPreflightManager{}
 			tt.setupMock(mockManager)
 
-			controller, err := NewInstallController(WithHostPreflightManager(mockManager))
+			controller, err := NewInstallController(
+				WithHostPreflightManager(mockManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+			)
 			require.NoError(t, err)
 
 			result, err := controller.GetHostPreflightTitles(t.Context())
@@ -994,7 +1007,10 @@ func TestGetInstallationStatus(t *testing.T) {
 			mockManager := &installation.MockInstallationManager{}
 			tt.setupMock(mockManager)
 
-			controller, err := NewInstallController(WithInstallationManager(mockManager))
+			controller, err := NewInstallController(
+				WithInstallationManager(mockManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+			)
 			require.NoError(t, err)
 
 			result, err := controller.GetInstallationStatus(t.Context())
@@ -1058,7 +1074,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateSucceeded,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues").Return(configValues, nil),
 					fm.On("Install", mock.Anything, rc, configValues).Return(nil),
 					mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
@@ -1075,7 +1091,7 @@ func TestSetupInfra(t *testing.T) {
 				mock.InOrder(
 					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
 					mr.On("ReportPreflightsBypassed", mock.Anything, failedPreflightOutput),
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues").Return(configValues, nil),
 					fm.On("Install", mock.Anything, rc, configValues).Return(nil),
 					mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
@@ -1100,7 +1116,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues").Return(configValues, nil),
 					fm.On("Install", mock.Anything, rc, configValues).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "install error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("install error")),
@@ -1116,7 +1132,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues").Return(configValues, nil),
 					fm.On("Install", mock.Anything, rc, configValues).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(nil, assert.AnError),
 				)
@@ -1131,7 +1147,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(configValues, nil),
+					am.On("GetKotsadmConfigValues").Return(configValues, nil),
 					fm.On("Install", mock.Anything, rc, configValues).Panic("this is a panic"),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "this is a panic"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("this is a panic")),
@@ -1177,7 +1193,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   StatePreflightsSucceeded,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues", appConfig).Return(kotsv1beta1.ConfigValues{}, assert.AnError),
+					am.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, assert.AnError),
 				)
 			},
 			expectedErr: assert.AnError,
@@ -1305,7 +1321,10 @@ func TestGetInfra(t *testing.T) {
 			mockManager := &infra.MockInfraManager{}
 			tt.setupMock(mockManager)
 
-			controller, err := NewInstallController(WithInfraManager(mockManager))
+			controller, err := NewInstallController(
+				WithInfraManager(mockManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+			)
 			require.NoError(t, err)
 
 			result, err := controller.GetInfra(t.Context())

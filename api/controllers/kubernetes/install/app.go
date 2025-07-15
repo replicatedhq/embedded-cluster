@@ -2,7 +2,6 @@ package install
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime/debug"
 
@@ -11,18 +10,10 @@ import (
 )
 
 func (c *InstallController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error) {
-	if c.appConfigManager == nil {
-		return kotsv1beta1.Config{}, errors.New("app config not found")
-	}
-
 	return c.appConfigManager.GetConfig()
 }
 
 func (c *InstallController) PatchAppConfigValues(ctx context.Context, values map[string]string) (finalErr error) {
-	if c.appConfigManager == nil {
-		return errors.New("app config not found")
-	}
-
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -70,8 +61,5 @@ func (c *InstallController) PatchAppConfigValues(ctx context.Context, values map
 }
 
 func (c *InstallController) GetAppConfigValues(ctx context.Context, maskPasswords bool) (map[string]string, error) {
-	if c.appConfigManager == nil {
-		return nil, errors.New("app config not found")
-	}
 	return c.appConfigManager.GetConfigValues(maskPasswords)
 }

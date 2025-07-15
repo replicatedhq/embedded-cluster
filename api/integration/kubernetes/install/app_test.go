@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api"
 	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
 	kubernetesinstall "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
+	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -80,15 +81,11 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	// Create a router and register the API routes
 	router := mux.NewRouter()
@@ -149,10 +146,7 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -234,15 +228,11 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -293,15 +283,11 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -350,15 +336,11 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -407,10 +389,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -493,15 +472,11 @@ func TestKubernetesGetAppConfigValues(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	// Create a router and register the API routes
 	router := mux.NewRouter()
@@ -554,8 +529,6 @@ func TestKubernetesGetAppConfigValues(t *testing.T) {
 
 // TestInstallController_PatchAppConfigValuesWithAPIClient tests the PatchAppConfigValues endpoint using the API client
 func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
-	password := "test-password"
-
 	// Create an app config
 	appConfig := kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
@@ -593,10 +566,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: password,
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -664,10 +634,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the completed install controller
-		completedAPIInstance, err := api.New(
-			types.APIConfig{
-				Password: password,
-			},
+		completedAPIInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(completedInstallController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -705,8 +672,6 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 
 // TestInstallController_GetAppConfigValuesWithAPIClient tests the GetAppConfigValues endpoint using the API client
 func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
-	password := "test-password"
-
 	// Create an app config
 	appConfig := kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
@@ -743,10 +708,7 @@ func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: password,
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),

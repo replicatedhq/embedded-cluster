@@ -100,6 +100,7 @@ func TestGetInstallationConfig(t *testing.T) {
 			controller, err := NewInstallController(
 				WithInstallation(ki),
 				WithInstallationManager(mockManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
 			)
 			require.NoError(t, err)
 
@@ -181,6 +182,7 @@ func TestConfigureInstallation(t *testing.T) {
 				WithInstallation(mockInstallation),
 				WithStateMachine(sm),
 				WithInstallationManager(mockManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
 			)
 			require.NoError(t, err)
 
@@ -239,7 +241,10 @@ func TestGetInstallationStatus(t *testing.T) {
 			mockManager := &installation.MockInstallationManager{}
 			tt.setupMock(mockManager)
 
-			controller, err := NewInstallController(WithInstallationManager(mockManager))
+			controller, err := NewInstallController(
+				WithInstallationManager(mockManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+			)
 			require.NoError(t, err)
 
 			result, err := controller.GetInstallationStatus(t.Context())
@@ -485,7 +490,10 @@ func TestGetInfra(t *testing.T) {
 			mockManager := &infra.MockInfraManager{}
 			tt.setupMock(mockManager)
 
-			controller, err := NewInstallController(WithInfraManager(mockManager))
+			controller, err := NewInstallController(
+				WithInfraManager(mockManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+			)
 			require.NoError(t, err)
 
 			result, err := controller.GetInfra(t.Context())

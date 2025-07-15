@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -201,6 +202,10 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		opt(controller)
 	}
 
+	if err := controller.validateReleaseData(); err != nil {
+		return nil, err
+	}
+
 	if controller.stateMachine == nil {
 		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
 	}
@@ -248,29 +253,40 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
-	if controller.releaseData != nil && controller.releaseData.AppConfig != nil {
-		// Initialize the app config manager if an app config is provided
-		if controller.appConfigManager == nil {
-			controller.appConfigManager = appconfig.NewAppConfigManager(
-				*controller.releaseData.AppConfig,
-				appconfig.WithLogger(controller.logger),
-				appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
-			)
+	if controller.appConfigManager == nil {
+		appConfigManager, err := appconfig.NewAppConfigManager(
+			*controller.releaseData.AppConfig,
+			appconfig.WithLogger(controller.logger),
+			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create app config manager: %w", err)
 		}
+		controller.appConfigManager = appConfigManager
+	}
 
-		if controller.configValues != nil {
-			err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
-			if err != nil {
-				return nil, fmt.Errorf("validate app config values: %w", err)
-			}
-			err = controller.appConfigManager.PatchConfigValues(controller.configValues)
-			if err != nil {
-				return nil, fmt.Errorf("patch app config values: %w", err)
-			}
+	if controller.configValues != nil {
+		err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("validate app config values: %w", err)
+		}
+		err = controller.appConfigManager.PatchConfigValues(controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("patch app config values: %w", err)
 		}
 	}
 
 	controller.registerReportingHandlers()
 
 	return controller, nil
+}
+
+func (c *InstallController) validateReleaseData() error {
+	if c.releaseData == nil {
+		return errors.New("release data not found")
+	}
+	if c.releaseData.AppConfig == nil {
+		return errors.New("app config not found")
+	}
+	return nil
 }
