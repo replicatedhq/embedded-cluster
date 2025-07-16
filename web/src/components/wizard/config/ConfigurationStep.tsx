@@ -141,9 +141,9 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     return configValues?.[item.name]?.value ?? (item.value || item.default || '');
   };
 
-  const updateConfigValue = (itemName: string, value: string) => {
+  const updateConfigValue = (itemName: string, value: string, filename?: string) => {
     // Update the config values map
-    setConfigValues(prev => ({ ...prev, [itemName]: { value } }));
+    setConfigValues(prev => ({ ...prev, [itemName]: { value, filename } }));
 
     // Mark field as dirty
     setDirtyFields(prev => new Set(prev).add(itemName));
@@ -179,9 +179,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   const handleFileChange = (itemName: string, value: string, filename: string) => {
-    // TODO: update filename
-    console.log(filename);
-    updateConfigValue(itemName, value);
+    updateConfigValue(itemName, value, filename);
   };
 
   const renderConfigItem = (item: AppConfigItem) => {
@@ -261,7 +259,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           <FileInput
             {...sharedProps}
             value={getDisplayValue(item)}
-            filename="myfile.txt" // TODO: set to anything for now for UI to update when a file is uploaded
+            filename={configValues[item.name]?.filename}
             onChange={(value, filename) => handleFileChange(item.name, value, filename)}
             dataTestId={`file-input-${item.name}`}
           />
