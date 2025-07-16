@@ -57,18 +57,20 @@ const FileInput: React.FC<FileInputProps> = ({
 
       reader.onload = () => {
         if (typeof reader.result === 'string') {
-          const base64 = btoa(reader.result);
+          // readAsDataURL returns "data:mime/type;base64,<data>"
+          // We need to extract just the base64 part
+          const base64 = reader.result.split(',')[1];
           resolve(base64);
         } else {
-          reject(new Error('Failed to read file content'));
+          reject(new Error('Unexpected result type when reading file'));
         }
       };
 
-      reader.onerror = () => {
-        reject(new Error('Failed to read file'));
+      reader.onerror = (e: ProgressEvent<FileReader>) => {
+        reject(new Error(e.target?.error?.message || 'Failed to read file'));
       };
 
-      reader.readAsText(file);
+      reader.readAsDataURL(file);
     });
   };
 
@@ -149,10 +151,14 @@ const FileInput: React.FC<FileInputProps> = ({
     if (disabled || !value || !filename) return;
 
     try {
-      // Convert base64 to blob
-      const bytes = Uint8Array.from(atob(value), c => c.charCodeAt(0));
+      // Convert base64 to blob for download
+      const content = atob(value);
+      const bytes = new Uint8Array(content.length);
+      for (let i = 0; i < content.length; i++) {
+        bytes[i] = content.charCodeAt(i);
+      }
       const blob = new Blob([bytes]);
-      
+
       // Create URL and trigger download
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -210,7 +216,7 @@ const FileInput: React.FC<FileInputProps> = ({
             <div className="flex items-center space-x-2 px-3 py-2 bg-green-50 border border-green-200 rounded-md group ml-3">
               <CheckCircle className="w-4 h-4 text-green-500" />
               <FileText className="w-4 h-4 text-green-600" />
-              <span 
+              <span
                 onClick={handleDownload}
                 className="text-sm text-green-700 font-medium hover:underline cursor-pointer"
                 title="Download file"

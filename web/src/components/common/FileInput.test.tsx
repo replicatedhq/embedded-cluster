@@ -13,31 +13,14 @@ vi.mock('../../contexts/SettingsContext', () => ({
   })
 }));
 
-// Helper function to create mock files
-const createMockFile = (name: string, size: number, type: string): File => {
-  const content = 'a'.repeat(size);
+// Helper function to create a mock file
+const createMockFile = (name: string, content: string, type: string): File => {
   return new File([content], name, { type });
 };
 
-// Mock FileReader
-class MockFileReader {
-  result: string | null = null;
-  onload: ((event: ProgressEvent<FileReader>) => void) | null = null;
-  onerror: ((event: ProgressEvent<FileReader>) => void) | null = null;
-
-  readAsText(_file: File) {
-    // Simulate async behavior
-    setTimeout(() => {
-      this.result = 'mock-base64-content';
-      if (this.onload) {
-        this.onload({} as ProgressEvent<FileReader>);
-      }
-    }, 10);
-  }
-}
-
-// Replace global FileReader with mock
-global.FileReader = MockFileReader as any;
+// Test content with UTF-8 characters
+const mockFileContent = 'Hello 👋 café naïve résumé 中文 🚀';
+const mockFileContentBase64 = btoa(String.fromCharCode(...new TextEncoder().encode(mockFileContent)));
 
 // Mock DOM methods locally
 const mockAnchorClick = vi.fn();
@@ -54,7 +37,7 @@ describe('FileInput', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Mock document.createElement for anchor elements
     vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
       const element = originalCreateElement(tagName);
@@ -121,13 +104,13 @@ describe('FileInput', () => {
       render(<FileInput {...defaultProps} onChange={mockOnChange} />);
 
       const fileInput = screen.getByTestId('test-file-input');
-      const testFile = createMockFile('test.txt', 100, 'text/plain');
+      const testFile = createMockFile('test.txt', mockFileContent, 'text/plain');
 
       fireEvent.change(fileInput, { target: { files: [testFile] } });
 
       // Wait for async file processing
       await waitFor(() => {
-        expect(mockOnChange).toHaveBeenCalledWith(btoa('mock-base64-content'), 'test.txt');
+        expect(mockOnChange).toHaveBeenCalledWith(mockFileContentBase64, 'test.txt');
       });
     });
 
@@ -135,7 +118,7 @@ describe('FileInput', () => {
       render(<FileInput {...defaultProps} />);
 
       const fileInput = screen.getByTestId('test-file-input');
-      const testFile = createMockFile('test.txt', 100, 'text/plain');
+      const testFile = createMockFile('test.txt', mockFileContent, 'text/plain');
 
       await act(async () => {
         fireEvent.change(fileInput, { target: { files: [testFile] } });
@@ -177,7 +160,7 @@ describe('FileInput', () => {
 
       const uploadButton = screen.getByTestId('test-file-input-button');
       const container = uploadButton.closest('div');
-      const testFile = createMockFile('dropped.txt', 100, 'text/plain');
+      const testFile = createMockFile('dropped.txt', mockFileContent, 'text/plain');
 
       const dropEvent = new Event('drop', { bubbles: true });
       Object.defineProperty(dropEvent, 'dataTransfer', {
@@ -189,7 +172,7 @@ describe('FileInput', () => {
       fireEvent(container!, dropEvent);
 
       await waitFor(() => {
-        expect(mockOnChange).toHaveBeenCalledWith(btoa('mock-base64-content'), 'dropped.txt');
+        expect(mockOnChange).toHaveBeenCalledWith(mockFileContentBase64, 'dropped.txt');
       });
     });
 
@@ -277,7 +260,7 @@ describe('FileInput', () => {
     it('downloads file when filename is clicked', async () => {
       const user = userEvent.setup();
       const testContent = 'test file content';
-      
+
       render(
         <FileInput
           {...defaultProps}
@@ -315,8 +298,8 @@ describe('FileInput', () => {
 
     it('handles download errors gracefully', async () => {
       const user = userEvent.setup();
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+
       // Mock URL.createObjectURL to throw an error
       vi.spyOn(URL, 'createObjectURL').mockImplementationOnce(() => {
         throw new Error('Download failed');
@@ -376,24 +359,31 @@ describe('FileInput', () => {
       render(<FileInput {...defaultProps} onChange={mockOnChange} />);
 
       const fileInput = screen.getByTestId('test-file-input');
-      const testFile = createMockFile('test.txt', 100, 'text/plain');
+      const testFile = createMockFile('test.txt', mockFileContent, 'text/plain');
 
       fireEvent.change(fileInput, { target: { files: [testFile] } });
 
       await waitFor(() => {
-        expect(mockOnChange).toHaveBeenCalledWith(btoa('mock-base64-content'), 'test.txt');
+        expect(mockOnChange).toHaveBeenCalledWith(mockFileContentBase64, 'test.txt');
       });
     });
 
-    it('handles encoding errors gracefully', async () => {
+    it('handles file read errors gracefully', async () => {
       // Mock FileReader to simulate error
       const OriginalFileReader = global.FileReader;
       global.FileReader = class {
         onerror: ((event: ProgressEvent<FileReader>) => void) | null = null;
-        readAsText() {
+        readAsDataURL() {
           setTimeout(() => {
             if (this.onerror) {
-              this.onerror({} as ProgressEvent<FileReader>);
+              const errorEvent = {
+                target: {
+                  error: {
+                    message: 'Invalid file type'
+                  }
+                }
+              } as ProgressEvent<FileReader>;
+              this.onerror(errorEvent);
             }
           }, 10);
         }
@@ -402,12 +392,44 @@ describe('FileInput', () => {
       render(<FileInput {...defaultProps} />);
 
       const fileInput = screen.getByTestId('test-file-input');
-      const testFile = createMockFile('test.txt', 100, 'text/plain');
+      const testFile = createMockFile('test.txt', mockFileContent, 'text/plain');
 
       fireEvent.change(fileInput, { target: { files: [testFile] } });
 
       await waitFor(() => {
-        expect(screen.getByText('Failed to read file')).toBeInTheDocument();
+        expect(screen.getByText('Invalid file type')).toBeInTheDocument();
+      });
+
+      // Restore original FileReader
+      global.FileReader = OriginalFileReader;
+    });
+
+    it('handles onload with non-string result error gracefully', async () => {
+      // Mock FileReader to simulate ArrayBuffer result (non-string)
+      const OriginalFileReader = global.FileReader;
+      global.FileReader = class {
+        result: ArrayBuffer | null = null;
+        onload: ((event: ProgressEvent<FileReader>) => void) | null = null;
+        readAsDataURL() {
+          setTimeout(() => {
+            // Simulate ArrayBuffer result instead of string
+            this.result = new ArrayBuffer(10);
+            if (this.onload) {
+              this.onload({} as ProgressEvent<FileReader>);
+            }
+          }, 10);
+        }
+      } as any;
+
+      render(<FileInput {...defaultProps} />);
+
+      const fileInput = screen.getByTestId('test-file-input');
+      const testFile = createMockFile('test.txt', mockFileContent, 'text/plain');
+
+      fireEvent.change(fileInput, { target: { files: [testFile] } });
+
+      await waitFor(() => {
+        expect(screen.getByText('Unexpected result type when reading file')).toBeInTheDocument();
       });
 
       // Restore original FileReader
