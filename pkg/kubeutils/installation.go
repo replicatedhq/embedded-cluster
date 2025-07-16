@@ -243,7 +243,18 @@ func CreateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.In
 	}
 	in.Labels["replicated.com/disaster-recovery"] = "ec-install"
 
-	return cli.Create(ctx, in)
+	backoff := wait.Backoff{Steps: 5, Duration: 2 * time.Second, Factor: 1.0, Jitter: 0.1}
+	return wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		err := cli.Create(ctx, in)
+		if err != nil {
+			// Wait for the CRD to be truly ready
+			if meta.IsNoMatchError(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		return true, nil
+	})
 }
 
 func UpdateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, mutate func(in *ecv1beta1.Installation)) error {

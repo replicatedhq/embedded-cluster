@@ -316,23 +316,12 @@ func (c *Cluster) Destroy() {
 	for _, node := range c.Nodes {
 		c.removeNode(node)
 	}
-
-	if c.network != nil {
-		c.removeNetwork(*c.network)
-	}
 }
 
 func (c *Cluster) removeNode(node Node) {
 	output, err := exec.Command("replicated", "vm", "rm", node.ID).CombinedOutput()
 	if err != nil {
 		c.t.Logf("failed to destroy node %s: %v: %s", node.ID, err, string(output))
-	}
-}
-
-func (c *Cluster) removeNetwork(network Network) {
-	output, err := exec.Command("replicated", "network", "rm", network.ID).CombinedOutput()
-	if err != nil {
-		c.t.Logf("failed to destroy network %s: %v: %s", network.ID, err, string(output))
 	}
 }
 
