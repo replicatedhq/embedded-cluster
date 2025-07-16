@@ -32,7 +32,6 @@ const Label: React.FC<LabelProps> = ({
                 {children}
               </code>
             ),
-            p: ({ children }) => <span>{children}</span>,
           }}
         >
           {content}

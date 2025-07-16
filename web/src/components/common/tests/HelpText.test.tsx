@@ -69,12 +69,13 @@ describe('HelpText', () => {
     expect(screen.getByText('default-value')).toBeInTheDocument();
   });
 
-  it('renders as span instead of paragraph', () => {
+  it('renders paragraphs with inline styling', () => {
     const { container } = render(<HelpText helpText="Help text" />);
-    // The ReactMarkdown should render p tags as spans based on our custom components
-    const spans = container.querySelectorAll('span');
-    expect(spans.length).toBeGreaterThan(0);
+    // The ReactMarkdown should render p tags with inline styling via CSS
     const paragraphs = container.querySelectorAll('p');
-    expect(paragraphs.length).toBe(0);
+    expect(paragraphs.length).toBeGreaterThan(0);
+    // Check that the container has the inline styling classes
+    const helpDiv = container.querySelector('div');
+    expect(helpDiv).toHaveClass('[&_p]:inline', '[&_p]:mb-0');
   });
 });
