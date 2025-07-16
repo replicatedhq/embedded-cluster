@@ -220,7 +220,7 @@ const FileInput: React.FC<FileInputProps> = ({
                 onClick={handleDownload}
                 className="text-sm text-green-700 font-medium hover:underline cursor-pointer"
                 title="Download file"
-                data-testid={`${dataTestId || id}-download`}
+                data-testid={`${dataTestId || id}-filename`}
               >
                 {filename}
               </span>

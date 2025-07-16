@@ -199,7 +199,7 @@ describe('FileInput', () => {
       );
 
       expect(screen.getByText('selected-file.txt')).toBeInTheDocument();
-      expect(screen.getByTestId('test-file-input-download')).toBeInTheDocument();
+      expect(screen.getByTestId('test-file-input-filename')).toBeInTheDocument();
       expect(screen.getByTestId('test-file-input-remove')).toBeInTheDocument();
     });
 
@@ -251,7 +251,7 @@ describe('FileInput', () => {
         />
       );
 
-      const filename = screen.getByTestId('test-file-input-download');
+      const filename = screen.getByTestId('test-file-input-filename');
       expect(filename).toBeInTheDocument();
       expect(filename).toHaveClass('hover:underline', 'cursor-pointer');
       expect(filename).toHaveAttribute('title', 'Download file');
@@ -269,7 +269,7 @@ describe('FileInput', () => {
         />
       );
 
-      await user.click(screen.getByTestId('test-file-input-download'));
+      await user.click(screen.getByTestId('test-file-input-filename'));
 
       expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
       expect(mockAnchorClick).toHaveBeenCalled();
@@ -290,7 +290,7 @@ describe('FileInput', () => {
       const fileInput = screen.getByTestId('test-file-input');
       const clickSpy = vi.spyOn(fileInput, 'click');
 
-      const filename = screen.getByTestId('test-file-input-download');
+      const filename = screen.getByTestId('test-file-input-filename');
       await user.click(filename);
 
       expect(clickSpy).not.toHaveBeenCalled();
@@ -313,7 +313,7 @@ describe('FileInput', () => {
         />
       );
 
-      await user.click(screen.getByTestId('test-file-input-download'));
+      await user.click(screen.getByTestId('test-file-input-filename'));
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to download file:', expect.any(Error));
       consoleErrorSpy.mockRestore();
