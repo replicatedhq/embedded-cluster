@@ -309,6 +309,7 @@ func isFileType(item kotsv1beta1.ConfigItem) bool {
 	return item.Type == "file"
 }
 
+// isValueBase64Encoded checks if the value of a ConfigValue is base64 encoded, this is used for file items
 func isValueBase64Encoded(configValue kotsv1beta1.ConfigValue) bool {
 	if configValue.Value == "" {
 		return true // empty values are considered valid
