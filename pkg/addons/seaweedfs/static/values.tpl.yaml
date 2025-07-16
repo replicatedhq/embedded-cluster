@@ -9,7 +9,7 @@ master:
 {{- if .ReplaceImages }}
   imageOverride: '{{ ImageString (index .Images "seaweedfs") }}'
 {{- end }}
-  replicas: 1
+  replicas: 3
   nodeSelector: ~
   disableHttp: true
   volumeSizeLimitMB: 30000
