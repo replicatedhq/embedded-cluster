@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -211,6 +212,14 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 							Title:    "Required Item",
 							Required: true,
 						},
+						{
+							Name:     "file-item",
+							Type:     "file",
+							Title:    "File Item",
+							Filename: "file.txt",
+							Default:  multitype.BoolOrString{StrVal: "SGVsbG8="},
+							Value:    multitype.BoolOrString{StrVal: "QQ=="},
+						},
 					},
 				},
 			},
@@ -244,6 +253,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 			Values: types.AppConfigValues{
 				"test-item":     types.AppConfigValue{Value: "new-value"},
 				"required-item": types.AppConfigValue{Value: "required-value"},
+				"file-item":     types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
 			},
 		}
 
@@ -267,10 +277,13 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		var response types.AppConfig
 		err = json.NewDecoder(rec.Body).Decode(&response)
 		require.NoError(t, err)
+		fmt.Printf("Response: %+v\n", response.Groups[0].Items)
 
 		// Verify the raw app config is returned
 		assert.Equal(t, "value", response.Groups[0].Items[0].Value.String(), "first item should return raw config schema value")
 		assert.Equal(t, "value2", response.Groups[0].Items[1].Value.String(), "second item should return raw config schema value")
+		assert.Equal(t, "QQ==", response.Groups[0].Items[3].Value.String(), "fourth item should return raw config schema value for file")
+		assert.Equal(t, "file.txt", response.Groups[0].Items[3].Filename, "fourth item should contain a filename")
 	})
 
 	// Test authorization
@@ -453,6 +466,14 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 							Default: multitype.BoolOrString{StrVal: "default"},
 							Value:   multitype.BoolOrString{StrVal: "value"},
 						},
+						{
+							Name:     "file-item",
+							Type:     "file",
+							Title:    "File Item",
+							Filename: "file.txt",
+							Default:  multitype.BoolOrString{StrVal: "SGVsbG8="},
+							Value:    multitype.BoolOrString{StrVal: "QQ=="},
+						},
 					},
 				},
 			},
@@ -462,6 +483,7 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 	// Create config values that should be applied to the config
 	configValues := types.AppConfigValues{
 		"test-item": types.AppConfigValue{Value: "applied-value"},
+		"file-item": types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
 	}
 
 	// Create an install controller with the config values
@@ -552,6 +574,14 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 							Title:    "Required Item",
 							Required: true,
 						},
+						{
+							Name:     "file-item",
+							Type:     "file",
+							Title:    "File Item",
+							Filename: "file.txt",
+							Default:  multitype.BoolOrString{StrVal: "SGVsbG8="},
+							Value:    multitype.BoolOrString{StrVal: "QQ=="},
+						},
 					},
 				},
 			},
@@ -592,6 +622,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		configValues := types.AppConfigValues{
 			"test-item":     types.AppConfigValue{Value: "new-value"},
 			"required-item": types.AppConfigValue{Value: "required-value"},
+			"file-item":     types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
 		}
 
 		// Set the app config values using the client
@@ -601,6 +632,8 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		// Verify the raw app config is returned (not the applied values)
 		assert.Equal(t, "value", config.Groups[0].Items[0].Value.String(), "first item should return raw config schema value")
 		assert.Equal(t, "", config.Groups[0].Items[1].Value.String(), "second item should return empty value since it has no default")
+		assert.Equal(t, "QQ==", config.Groups[0].Items[2].Value.String(), "third item should return raw config schema value for file")
+		assert.Equal(t, "file.txt", config.Groups[0].Items[2].Filename, "third item should contain a filename")
 	})
 
 	// Test PatchLinuxAppConfigValues with missing required item
@@ -689,6 +722,14 @@ func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
 							Default: multitype.BoolOrString{StrVal: "default"},
 							Value:   multitype.BoolOrString{StrVal: "value"},
 						},
+						{
+							Name:     "file-item",
+							Type:     "file",
+							Title:    "File Item",
+							Filename: "file.txt",
+							Default:  multitype.BoolOrString{StrVal: "SGVsbG8="},
+							Value:    multitype.BoolOrString{StrVal: "QQ=="},
+						},
 					},
 				},
 			},
@@ -698,6 +739,7 @@ func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
 	// Create config values that should be applied to the config
 	configValues := types.AppConfigValues{
 		"test-item": types.AppConfigValue{Value: "applied-value"},
+		"file-item": types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
 	}
 
 	// Create an install controller with the config values
