@@ -7,6 +7,7 @@ import Textarea from '../../common/Textarea';
 import Checkbox from '../../common/Checkbox';
 import Radio from '../../common/Radio';
 import Label from '../../common/Label';
+import FileInput from '../../common/FileInput';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
@@ -17,7 +18,6 @@ import { AppConfig, AppConfigItem, AppConfigValues } from '../../../types';
 interface ConfigurationStepProps {
   onNext: () => void;
 }
-
 
 const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { text, target } = useWizard();
@@ -141,9 +141,9 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     return configValues?.[item.name]?.value ?? (item.value || item.default || '');
   };
 
-  const updateConfigValue = (itemName: string, value: string) => {
+  const updateConfigValue = (itemName: string, value: string, filename?: string) => {
     // Update the config values map
-    setConfigValues(prev => ({ ...prev, [itemName]: { value } }));
+    setConfigValues(prev => ({ ...prev, [itemName]: { value, filename } }));
 
     // Mark field as dirty
     setDirtyFields(prev => new Set(prev).add(itemName));
@@ -176,6 +176,10 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     const { id, checked } = e.target;
     if (!checked) return;
     updateConfigValue(parentId, id);
+  };
+
+  const handleFileChange = (itemName: string, value: string, filename: string) => {
+    updateConfigValue(itemName, value, filename);
   };
 
   const renderConfigItem = (item: AppConfigItem) => {
@@ -249,6 +253,17 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           );
         }
         return null;
+
+      case 'file':
+        return (
+          <FileInput
+            {...sharedProps}
+            value={getDisplayValue(item)}
+            filename={configValues[item.name]?.filename}
+            onChange={(value, filename) => handleFileChange(item.name, value, filename)}
+            dataTestId={`file-input-${item.name}`}
+          />
+        );
 
       case 'label':
         return (

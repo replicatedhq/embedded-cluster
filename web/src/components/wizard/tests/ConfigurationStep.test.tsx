@@ -61,6 +61,12 @@ const MOCK_APP_CONFIG: AppConfig = {
           name: "markdown_label",
           title: "This is **bold** text and *italic* text with a [link](https://example.com).",
           type: "label"
+        },
+        {
+          name: "ssl_certificate",
+          title: "SSL Certificate",
+          type: "file",
+          help_text: "Provide your SSL certificate file"
         }
       ]
     },
@@ -178,6 +184,7 @@ describe.each([
     expect(screen.getByTestId("config-item-description")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-enable_feature")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-auth_type")).toBeInTheDocument();
+    expect(screen.getByTestId("config-item-ssl_certificate")).toBeInTheDocument();
 
     // Check that the database tab is not rendered
     expect(screen.queryByTestId("config-item-db_host")).not.toBeInTheDocument();
@@ -305,6 +312,7 @@ describe.each([
     expect(screen.queryByTestId("config-item-description")).not.toBeInTheDocument();
     expect(screen.queryByTestId("config-item-enable_feature")).not.toBeInTheDocument();
     expect(screen.queryByTestId("config-item-auth_type")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("config-item-ssl_certificate")).not.toBeInTheDocument();
   });
 
   it("handles text input changes correctly", async () => {
@@ -1509,4 +1517,172 @@ describe.each([
     expect(enableSslField.checked).toBe(true); // default "1" is used since getEffectiveValue includes default
   });
 
+  describe("File input functionality", () => {
+    it("renders file input field correctly", async () => {
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Check that the file input is rendered
+      expect(screen.getByTestId("config-item-ssl_certificate")).toBeInTheDocument();
+      expect(screen.getByTestId("file-input-ssl_certificate")).toBeInTheDocument();
+    });
+
+    it("handles file upload, displays filename, and removes file", async () => {
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      const fileInput = screen.getByTestId("file-input-ssl_certificate");
+      
+      // Create a mock file
+      const file = new File(['certificate content'], 'cert.pem', { type: 'text/plain' });
+      
+      // Mock FileReader
+      const mockFileReader = {
+        readAsDataURL: vi.fn().mockImplementation(() => {
+          // Simulate async file reading completing
+          setTimeout(() => {
+            if (mockFileReader.onload) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              mockFileReader.onload({ target: { result: 'data:text/plain;base64,Y2VydGlmaWNhdGUgY29udGVudA==' } } as any);
+            }
+          }, 0);
+        }),
+        result: 'data:text/plain;base64,Y2VydGlmaWNhdGUgY29udGVudA==',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onload: null as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onerror: null as any
+      };
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
+      
+      // Simulate file selection
+      fireEvent.change(fileInput, { target: { files: [file] } });
+      
+      // Wait for the async file reading to complete
+      await waitFor(() => {
+        expect(mockFileReader.readAsDataURL).toHaveBeenCalledWith(file);
+      });
+
+      // Wait for the filename to appear
+      await waitFor(() => {
+        expect(screen.getByTestId('file-input-ssl_certificate-filename')).toBeInTheDocument();
+      });
+
+      const fileName = screen.getByTestId('file-input-ssl_certificate-filename');
+      expect(fileName).toHaveTextContent('cert.pem');
+
+      // Remove file
+      const removeButton = screen.getByTestId('file-input-ssl_certificate-remove');
+      fireEvent.click(removeButton);
+
+      // File should be removed
+      expect(fileName).not.toBeInTheDocument();
+    });
+
+    it("submits file content and filename in form", async () => {
+      let submittedValues: { values: AppConfigValues } | null = null;
+
+      server.use(
+        http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+          const body = await request.json() as { values: AppConfigValues };
+          submittedValues = body;
+          const updatedConfig = createMockConfigWithValues(body.values);
+          return HttpResponse.json(updatedConfig);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      const fileInput = screen.getByTestId("file-input-ssl_certificate");
+      
+      // Create a mock file
+      const file = new File(['certificate content'], 'cert.pem', { type: 'text/plain' });
+      
+      // Mock FileReader
+      const mockFileReader = {
+        readAsDataURL: vi.fn().mockImplementation(() => {
+          // Simulate async file reading completing
+          setTimeout(() => {
+            if (mockFileReader.onload) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              mockFileReader.onload({ target: { result: 'data:text/plain;base64,Y2VydGlmaWNhdGUgY29udGVudA==' } } as any);
+            }
+          }, 0);
+        }),
+        result: 'data:text/plain;base64,Y2VydGlmaWNhdGUgY29udGVudA==',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onload: null as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onerror: null as any
+      };
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
+      
+      // Simulate file selection
+      fireEvent.change(fileInput, { target: { files: [file] } });
+      
+      // Wait for the async file reading to complete
+      await waitFor(() => {
+        expect(mockFileReader.readAsDataURL).toHaveBeenCalledWith(file);
+      });
+
+      // Wait for the filename to appear
+      await waitFor(() => {
+        expect(screen.getByTestId('file-input-ssl_certificate-filename')).toBeInTheDocument();
+      });
+
+      const fileName = screen.getByTestId('file-input-ssl_certificate-filename');
+      expect(fileName).toHaveTextContent('cert.pem');
+
+      // Submit form
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for the mutation to complete
+      await waitFor(
+        () => {
+          expect(mockOnNext).toHaveBeenCalled();
+        },
+        { timeout: 3000 }
+      );
+
+      // Verify the file content and filename were submitted
+      expect(submittedValues).not.toBeNull();
+      expect(submittedValues!.values.ssl_certificate).toEqual({
+        value: 'Y2VydGlmaWNhdGUgY29udGVudA==', // base64 encoded "certificate content"
+        filename: 'cert.pem'
+      });
+    });
+  });
 });

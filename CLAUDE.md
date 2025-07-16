@@ -105,6 +105,9 @@ make lint
 - **Structured Error Handling** - Consistent error wrapping and context
 - **Go Best Practices** - Proper error handling, naming conventions, interface design
 - **API Guidelines** - Structured errors, consistent HTTP patterns
+- **Code Quality Checks** - Always run linting and validation after changes:
+  - **Web changes**: Run `npm run lint` and `npm run test:unit` from the `/web` directory
+  - **Go changes**: Run `make vet` from the root directory to check Go code quality
 
 ### Testing Requirements
 - Unit tests alongside source files (`*_test.go`)
