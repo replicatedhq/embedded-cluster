@@ -1560,15 +1560,19 @@ describe.each([
           // Simulate async file reading completing
           setTimeout(() => {
             if (mockFileReader.onload) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               mockFileReader.onload({ target: { result: 'data:text/plain;base64,Y2VydGlmaWNhdGUgY29udGVudA==' } } as any);
             }
           }, 0);
         }),
         result: 'data:text/plain;base64,Y2VydGlmaWNhdGUgY29udGVudA==',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onload: null as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onerror: null as any
       };
       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
       
       // Simulate file selection
@@ -1630,15 +1634,19 @@ describe.each([
           // Simulate async file reading completing
           setTimeout(() => {
             if (mockFileReader.onload) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               mockFileReader.onload({ target: { result: 'data:text/plain;base64,Y2VydGlmaWNhdGUgY29udGVudA==' } } as any);
             }
           }, 0);
         }),
         result: 'data:text/plain;base64,Y2VydGlmaWNhdGUgY29udGVudA==',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onload: null as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onerror: null as any
       };
       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
       
       // Simulate file selection

@@ -370,12 +370,10 @@ describe('FileInput', () => {
 
     it('handles file read errors gracefully', async () => {
       // Mock FileReader to simulate error
-      const OriginalFileReader = global.FileReader;
-      global.FileReader = class {
-        onerror: ((event: ProgressEvent<FileReader>) => void) | null = null;
-        readAsDataURL() {
+      const mockFileReader = {
+        readAsDataURL: vi.fn().mockImplementation(() => {
           setTimeout(() => {
-            if (this.onerror) {
+            if (mockFileReader.onerror) {
               const errorEvent = {
                 target: {
                   error: {
@@ -383,12 +381,16 @@ describe('FileInput', () => {
                   }
                 }
               } as ProgressEvent<FileReader>;
-              this.onerror(errorEvent);
+              mockFileReader.onerror(errorEvent);
             }
           }, 10);
-        }
+        }),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any;
+        onerror: null as any
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
 
       render(<FileInput {...defaultProps} />);
 
@@ -400,28 +402,27 @@ describe('FileInput', () => {
       await waitFor(() => {
         expect(screen.getByText('Invalid file type')).toBeInTheDocument();
       });
-
-      // Restore original FileReader
-      global.FileReader = OriginalFileReader;
     });
 
     it('handles onload with non-string result error gracefully', async () => {
       // Mock FileReader to simulate ArrayBuffer result (non-string)
-      const OriginalFileReader = global.FileReader;
-      global.FileReader = class {
-        result: ArrayBuffer | null = null;
-        onload: ((event: ProgressEvent<FileReader>) => void) | null = null;
-        readAsDataURL() {
+      const mockFileReader = {
+        readAsDataURL: vi.fn().mockImplementation(() => {
           setTimeout(() => {
             // Simulate ArrayBuffer result instead of string
-            this.result = new ArrayBuffer(10);
-            if (this.onload) {
-              this.onload({} as ProgressEvent<FileReader>);
+            mockFileReader.result = new ArrayBuffer(10);
+            if (mockFileReader.onload) {
+              mockFileReader.onload({} as ProgressEvent<FileReader>);
             }
           }, 10);
-        }
+        }),
+        result: null as ArrayBuffer | null,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any;
+        onload: null as any
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
 
       render(<FileInput {...defaultProps} />);
 
@@ -433,9 +434,6 @@ describe('FileInput', () => {
       await waitFor(() => {
         expect(screen.getByText('Unexpected result type when reading file')).toBeInTheDocument();
       });
-
-      // Restore original FileReader
-      global.FileReader = OriginalFileReader;
     });
   });
 });
