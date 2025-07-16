@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"maps"
@@ -21,6 +22,8 @@ const (
 var (
 	// ErrConfigItemRequired is returned when a required item is not set
 	ErrConfigItemRequired = errors.New("item is required")
+	// ErrValueNotBase64Encoded is returned when a file item value is not base64 encoded
+	ErrValueNotBase64Encoded = errors.New("value must be base64 encoded for file items")
 )
 
 func (m *appConfigManager) GetConfig() (kotsv1beta1.Config, error) {
@@ -47,12 +50,16 @@ func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValu
 		return fmt.Errorf("get config: %w", err)
 	}
 
-	// check required items
 	for _, group := range processedConfig.Spec.Groups {
 		for _, item := range group.Items {
 			configValue := getConfigValueFromItem(item, configValues)
+			// check required items
 			if isRequiredItem(item) && isUnsetItem(configValue) {
 				ve = types.AppendFieldError(ve, item.Name, ErrConfigItemRequired)
+			}
+			// check value is base64 encoded for file items
+			if isFileType(item) && !isValueBase64Encoded(configValue) {
+				ve = types.AppendFieldError(ve, item.Name, ErrValueNotBase64Encoded)
 			}
 		}
 	}
@@ -182,7 +189,7 @@ func (m *appConfigManager) GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, e
 			kotsadmConfigValues.Spec.Values[item.Name] = getConfigValueFromItem(item, storedValues)
 
 			for _, childItem := range item.Items {
-				kotsadmConfigValues.Spec.Values[childItem.Name] = getConfigValueFromChildItem(item.Type, childItem, storedValues)
+				kotsadmConfigValues.Spec.Values[childItem.Name] = getConfigValueFromChildItem(item, childItem, storedValues)
 			}
 		}
 	}
@@ -190,48 +197,56 @@ func (m *appConfigManager) GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, e
 	return kotsadmConfigValues, nil
 }
 
-func getConfigValueFromItem(item kotsv1beta1.ConfigItem, configValues types.AppConfigValues) kotsv1beta1.ConfigValue {
-	configValue := kotsv1beta1.ConfigValue{
-		Default: item.Default.String(),
-	}
-	if item.Type == "password" {
-		configValue.ValuePlaintext = item.Value.String()
+// setConfigValueByType sets either Value or ValuePlaintext based on the item type
+func setConfigValueByType(cv *kotsv1beta1.ConfigValue, itemType string, value string) {
+	if itemType == "password" {
+		cv.ValuePlaintext = value
 	} else {
-		configValue.Value = item.Value.String()
+		cv.Value = value
+	}
+}
+
+// applyStoredValueOverride applies stored values from configValues if they exist
+func applyStoredValueOverride(cv *kotsv1beta1.ConfigValue, itemType string, itemName string, configValues types.AppConfigValues) {
+	if v, ok := configValues[itemName]; ok {
+		setConfigValueByType(cv, itemType, v.Value)
+		cv.Filename = v.Filename
+	}
+}
+
+// createConfigValue creates a ConfigValue with the given parameters and applies overrides
+func createConfigValue(defaultValue, initialValue, itemType, filename, itemName string, configValues types.AppConfigValues) kotsv1beta1.ConfigValue {
+	configValue := kotsv1beta1.ConfigValue{
+		Default:  defaultValue,
+		Filename: filename,
 	}
 
-	// override values from the config values store
-	if v, ok := configValues[item.Name]; ok {
-		if item.Type == "password" {
-			configValue.ValuePlaintext = v.Value
-		} else {
-			configValue.Value = v.Value
-		}
-	}
+	setConfigValueByType(&configValue, itemType, initialValue)
+	applyStoredValueOverride(&configValue, itemType, itemName, configValues)
 
 	return configValue
 }
 
-func getConfigValueFromChildItem(itemType string, childItem kotsv1beta1.ConfigChildItem, configValues types.AppConfigValues) kotsv1beta1.ConfigValue {
-	configValue := kotsv1beta1.ConfigValue{
-		Default: childItem.Default.String(),
-	}
-	if itemType == "password" {
-		configValue.ValuePlaintext = childItem.Value.String()
-	} else {
-		configValue.Value = childItem.Value.String()
-	}
+func getConfigValueFromItem(item kotsv1beta1.ConfigItem, configValues types.AppConfigValues) kotsv1beta1.ConfigValue {
+	return createConfigValue(
+		item.Default.String(),
+		item.Value.String(),
+		item.Type,
+		item.Filename,
+		item.Name,
+		configValues,
+	)
+}
 
-	// override values from the config values store
-	if v, ok := configValues[childItem.Name]; ok {
-		if itemType == "password" {
-			configValue.ValuePlaintext = v.Value
-		} else {
-			configValue.Value = v.Value
-		}
-	}
-
-	return configValue
+func getConfigValueFromChildItem(item kotsv1beta1.ConfigItem, childItem kotsv1beta1.ConfigChildItem, configValues types.AppConfigValues) kotsv1beta1.ConfigValue {
+	return createConfigValue(
+		childItem.Default.String(),
+		childItem.Value.String(),
+		item.Type,
+		item.Filename,
+		childItem.Name,
+		configValues,
+	)
 }
 
 // filterAppConfig filters out disabled groups and items based on their 'when' condition
@@ -287,4 +302,20 @@ func isRequiredItem(item kotsv1beta1.ConfigItem) bool {
 func isUnsetItem(configValue kotsv1beta1.ConfigValue) bool {
 	// TODO: repeatable items
 	return configValue.Value == "" && configValue.Default == ""
+}
+
+// isFileType checks if the item type is "file"
+func isFileType(item kotsv1beta1.ConfigItem) bool {
+	return item.Type == "file"
+}
+
+// isValueBase64Encoded checks if the value of a ConfigValue is base64 encoded, this is used for file items
+func isValueBase64Encoded(configValue kotsv1beta1.ConfigValue) bool {
+	if configValue.Value == "" {
+		return true // empty values are considered valid
+	}
+	if _, err := base64.StdEncoding.DecodeString(configValue.Value); err != nil {
+		return false
+	}
+	return true
 }

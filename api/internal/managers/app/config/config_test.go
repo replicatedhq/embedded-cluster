@@ -1323,6 +1323,153 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "file items with filename field",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "file-group",
+							Title: "File Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "file-with-filename",
+									Title:    "File with Filename",
+									Type:     "file",
+									Filename: "config.yaml",
+									When:     "true",
+								},
+								{
+									Name:  "file-without-filename",
+									Title: "File without Filename",
+									Type:  "file",
+									When:  "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			newValues: types.AppConfigValues{
+				"file-with-filename":    types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "custom.yaml"},
+				"file-without-filename": types.AppConfigValue{Value: "VGVzdCBDb250ZW50"},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{
+					"file-with-filename":    types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "custom.yaml"},
+					"file-without-filename": types.AppConfigValue{Value: "VGVzdCBDb250ZW50"},
+				}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "file items with existing values and filename merging",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "file-group",
+							Title: "File Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "file-item-1",
+									Title:    "File Item 1",
+									Type:     "file",
+									Filename: "default-1.txt",
+									When:     "true",
+								},
+								{
+									Name:     "file-item-2",
+									Title:    "File Item 2",
+									Type:     "file",
+									Filename: "default-2.txt",
+									When:     "true",
+								},
+								{
+									Name:  "file-item-3",
+									Title: "File Item 3",
+									Type:  "file",
+									When:  "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			newValues: types.AppConfigValues{
+				"file-item-1": types.AppConfigValue{Value: "TmV3IENvbnRlbnQ=", Filename: "new-1.txt"},     // update both value and filename
+				"file-item-3": types.AppConfigValue{Value: "VGhpcmQgQ29udGVudA==", Filename: "new-3.txt"}, // update item 3
+				// file-item-2 not provided, should keep existing value
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				existingValues := types.AppConfigValues{
+					"file-item-1": types.AppConfigValue{Value: "T2xkIENvbnRlbnQ=", Filename: "old-1.txt"},
+					"file-item-2": types.AppConfigValue{Value: "U2Vjb25kIENvbnRlbnQ=", Filename: "existing-2.txt"},
+				}
+				mockStore.On("GetConfigValues").Return(existingValues, nil)
+				expectedValues := types.AppConfigValues{
+					"file-item-1": types.AppConfigValue{Value: "TmV3IENvbnRlbnQ=", Filename: "new-1.txt"},          // new values override existing
+					"file-item-2": types.AppConfigValue{Value: "U2Vjb25kIENvbnRlbnQ=", Filename: "existing-2.txt"}, // existing values preserved
+					"file-item-3": types.AppConfigValue{Value: "VGhpcmQgQ29udGVudA==", Filename: "new-3.txt"},      // new values added
+				}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "file items in disabled groups are filtered out",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "enabled-file",
+									Title:    "Enabled File",
+									Type:     "file",
+									Filename: "enabled.txt",
+									When:     "true",
+								},
+							},
+						},
+						{
+							Name:  "disabled-group",
+							Title: "Disabled Group",
+							When:  "false",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "disabled-file",
+									Title:    "Disabled File",
+									Type:     "file",
+									Filename: "disabled.txt",
+									When:     "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			newValues: types.AppConfigValues{
+				"enabled-file":  types.AppConfigValue{Value: "RW5hYmxlZCBDb250ZW50", Filename: "enabled.txt"},
+				"disabled-file": types.AppConfigValue{Value: "RGlzYWJsZWQgQ29udGVudA==", Filename: "disabled.txt"},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				mockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+				expectedValues := types.AppConfigValues{
+					"enabled-file": types.AppConfigValue{Value: "RW5hYmxlZCBDb250ZW50", Filename: "enabled.txt"},
+					// disabled-file should be filtered out
+				}
+				mockStore.On("SetConfigValues", expectedValues).Return(nil)
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1680,6 +1827,163 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 				"templated-text":          types.AppConfigValue{Value: "text-value"},
 				"templated-password":      types.AppConfigValue{Value: PasswordMask},
 				"disabled-templated-item": types.AppConfigValue{Value: "disabled-value"}, // store value is returned even if item is disabled
+			},
+			wantErr: false,
+		},
+		{
+			name: "file items with valid base64 values",
+			appConfig: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "file-group",
+							Title: "File Group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "valid-file",
+									Title: "Valid File",
+									Type:  "file",
+								},
+								{
+									Name:  "another-valid-file",
+									Title: "Another Valid File",
+									Type:  "file",
+								},
+								{
+									Name:  "text-field",
+									Title: "Text Field",
+									Type:  "text",
+								},
+							},
+						},
+					},
+				},
+			},
+			maskPasswords: false,
+			storeValues: types.AppConfigValues{
+				"valid-file":         types.AppConfigValue{Value: "SGVsbG8gV29ybGQ="},  // "Hello World" in base64
+				"another-valid-file": types.AppConfigValue{Value: "VGVzdCBDb250ZW50"},  // "Test Content" in base64
+				"text-field":         types.AppConfigValue{Value: "not-base64-but-ok"}, // text field doesn't need base64
+			},
+			expectedValues: types.AppConfigValues{
+				"valid-file":         types.AppConfigValue{Value: "SGVsbG8gV29ybGQ="},  // "Hello World" in base64
+				"another-valid-file": types.AppConfigValue{Value: "VGVzdCBDb250ZW50"},  // "Test Content" in base64
+				"text-field":         types.AppConfigValue{Value: "not-base64-but-ok"}, // text field doesn't need base64
+			},
+			wantErr: false,
+		},
+		{
+			name: "file items with empty values should be valid",
+			appConfig: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "file-group",
+							Title: "File Group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "empty-file",
+									Title: "Empty File",
+									Type:  "file",
+								},
+								{
+									Name:  "missing-file",
+									Title: "Missing File",
+									Type:  "file",
+								},
+							},
+						},
+					},
+				},
+			},
+			maskPasswords: false,
+			storeValues: types.AppConfigValues{
+				"empty-file": types.AppConfigValue{Value: ""}, // empty value should be valid
+				// missing-file is not in store values, should be valid
+			},
+			expectedValues: types.AppConfigValues{
+				"empty-file": types.AppConfigValue{Value: ""}, // empty value should be valid
+				// missing-file is not in store values, should be valid
+			},
+			wantErr: false,
+		},
+		{
+			name: "file items with filename field",
+			appConfig: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "file-group",
+							Title: "File Group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "file-with-filename",
+									Title:    "File with Filename",
+									Type:     "file",
+									Filename: "config.yaml",
+								},
+								{
+									Name:  "file-without-filename",
+									Title: "File without Filename",
+									Type:  "file",
+								},
+							},
+						},
+					},
+				},
+			},
+			maskPasswords: false,
+			storeValues: types.AppConfigValues{
+				"file-with-filename":    types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "custom.yaml"},
+				"file-without-filename": types.AppConfigValue{Value: "VGVzdCBDb250ZW50"},
+			},
+			expectedValues: types.AppConfigValues{
+				"file-with-filename":    types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "custom.yaml"},
+				"file-without-filename": types.AppConfigValue{Value: "VGVzdCBDb250ZW50"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "file items with mixed base64 and filename handling",
+			appConfig: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "file-group",
+							Title: "File Group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "valid-file-with-filename",
+									Title:    "Valid File with Filename",
+									Type:     "file",
+									Filename: "default.txt",
+								},
+								{
+									Name:     "empty-file-with-filename",
+									Title:    "Empty File with Filename",
+									Type:     "file",
+									Filename: "empty.txt",
+								},
+								{
+									Name:  "text-field",
+									Title: "Text Field",
+									Type:  "text",
+								},
+							},
+						},
+					},
+				},
+			},
+			maskPasswords: false,
+			storeValues: types.AppConfigValues{
+				"valid-file-with-filename": types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "overridden.txt"},
+				"empty-file-with-filename": types.AppConfigValue{Value: "", Filename: "still-empty.txt"},
+				"text-field":               types.AppConfigValue{Value: "regular text"},
+			},
+			expectedValues: types.AppConfigValues{
+				"valid-file-with-filename": types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "overridden.txt"},
+				"empty-file-with-filename": types.AppConfigValue{Value: "", Filename: "still-empty.txt"},
+				"text-field":               types.AppConfigValue{Value: "regular text"},
 			},
 			wantErr: false,
 		},
@@ -2508,6 +2812,266 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "file items with filename field",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "file-group",
+							Title: "File Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "file-with-filename",
+									Title:    "File with Filename",
+									Type:     "file",
+									Value:    multitype.BoolOrString{StrVal: "RGVmYXVsdCBDb250ZW50"}, // "Default Content"
+									Default:  multitype.BoolOrString{StrVal: "RGVmYXVsdCBDb250ZW50"}, // "Default Content"
+									Filename: "config.yaml",
+									When:     "true",
+								},
+								{
+									Name:    "file-without-filename",
+									Title:   "File without Filename",
+									Type:    "file",
+									Value:   multitype.BoolOrString{StrVal: "QW5vdGhlciBEZWZhdWx0"}, // "Another Default"
+									Default: multitype.BoolOrString{StrVal: "QW5vdGhlciBEZWZhdWx0"}, // "Another Default"
+									When:    "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := types.AppConfigValues{
+					"file-with-filename":    types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "custom.yaml"},
+					"file-without-filename": types.AppConfigValue{Value: "VGVzdCBDb250ZW50"},
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"file-with-filename": {
+							Value:    "SGVsbG8gV29ybGQ=", // store value overrides schema value
+							Default:  "RGVmYXVsdCBDb250ZW50",
+							Filename: "custom.yaml", // store filename overrides schema filename
+						},
+						"file-without-filename": {
+							Value:   "VGVzdCBDb250ZW50", // store value overrides schema value
+							Default: "QW5vdGhlciBEZWZhdWx0",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "file items with child items and filename handling",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "file-group",
+							Title: "File Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "parent-file",
+									Title:    "Parent File",
+									Type:     "file",
+									Value:    multitype.BoolOrString{StrVal: "UGFyZW50IERlZmF1bHQ="}, // "Parent Default"
+									Default:  multitype.BoolOrString{StrVal: "UGFyZW50IERlZmF1bHQ="}, // "Parent Default"
+									Filename: "parent.txt",
+									When:     "true",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:    "child-file",
+											Title:   "Child File",
+											Value:   multitype.BoolOrString{StrVal: "Q2hpbGQgRGVmYXVsdA=="}, // "Child Default"
+											Default: multitype.BoolOrString{StrVal: "Q2hpbGQgRGVmYXVsdA=="}, // "Child Default"
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := types.AppConfigValues{
+					"parent-file": types.AppConfigValue{Value: "TmV3IFBhcmVudA==", Filename: "new-parent.txt"},
+					"child-file":  types.AppConfigValue{Value: "TmV3IENoaWxk", Filename: "new-child.txt"},
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"parent-file": {
+							Value:    "TmV3IFBhcmVudA==",
+							Default:  "UGFyZW50IERlZmF1bHQ=",
+							Filename: "new-parent.txt", // child inherits parent's filename behavior
+						},
+						"child-file": {
+							Value:    "TmV3IENoaWxk",
+							Default:  "Q2hpbGQgRGVmYXVsdA==",
+							Filename: "new-child.txt", // child inherits parent's filename behavior
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "file items without store values use defaults",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "file-group",
+							Title: "File Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "file-with-store",
+									Title:    "File with Store",
+									Type:     "file",
+									Value:    multitype.BoolOrString{StrVal: "RGVmYXVsdCBXaXRoIFN0b3Jl"}, // "Default With Store"
+									Default:  multitype.BoolOrString{StrVal: "RGVmYXVsdCBXaXRoIFN0b3Jl"}, // "Default With Store"
+									Filename: "with-store.txt",
+									When:     "true",
+								},
+								{
+									Name:     "file-without-store",
+									Title:    "File without Store",
+									Type:     "file",
+									Value:    multitype.BoolOrString{StrVal: "RGVmYXVsdCBXaXRob3V0IFN0b3Jl"}, // "Default Without Store"
+									Default:  multitype.BoolOrString{StrVal: "RGVmYXVsdCBXaXRob3V0IFN0b3Jl"}, // "Default Without Store"
+									Filename: "without-store.txt",
+									When:     "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := types.AppConfigValues{
+					"file-with-store": types.AppConfigValue{Value: "U3RvcmVkIFZhbHVl", Filename: "stored.txt"},
+					// file-without-store is not in store
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"file-with-store": {
+							Value:    "U3RvcmVkIFZhbHVl",
+							Default:  "RGVmYXVsdCBXaXRoIFN0b3Jl",
+							Filename: "stored.txt",
+						},
+						"file-without-store": {
+							Value:    "RGVmYXVsdCBXaXRob3V0IFN0b3Jl", // uses schema value
+							Default:  "RGVmYXVsdCBXaXRob3V0IFN0b3Jl",
+							Filename: "without-store.txt", // uses schema filename
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "file items in disabled groups are filtered out",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "enabled-group",
+							Title: "Enabled Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "enabled-file",
+									Title:    "Enabled File",
+									Type:     "file",
+									Value:    multitype.BoolOrString{StrVal: "RW5hYmxlZCBEZWZhdWx0"}, // "Enabled Default"
+									Default:  multitype.BoolOrString{StrVal: "RW5hYmxlZCBEZWZhdWx0"}, // "Enabled Default"
+									Filename: "enabled.txt",
+									When:     "true",
+								},
+							},
+						},
+						{
+							Name:  "disabled-group",
+							Title: "Disabled Group",
+							When:  "false",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "disabled-file",
+									Title:    "Disabled File",
+									Type:     "file",
+									Value:    multitype.BoolOrString{StrVal: "RGlzYWJsZWQgRGVmYXVsdA=="}, // "Disabled Default"
+									Default:  multitype.BoolOrString{StrVal: "RGlzYWJsZWQgRGVmYXVsdA=="}, // "Disabled Default"
+									Filename: "disabled.txt",
+									When:     "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(mockStore *config.MockStore) {
+				storeValues := types.AppConfigValues{
+					"enabled-file":  types.AppConfigValue{Value: "RW5hYmxlZCBTdG9yZQ==", Filename: "enabled-store.txt"},
+					"disabled-file": types.AppConfigValue{Value: "RGlzYWJsZWQgU3RvcmU=", Filename: "disabled-store.txt"},
+				}
+				mockStore.On("GetConfigValues").Return(storeValues, nil)
+			},
+			expected: kotsv1beta1.ConfigValues{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "ConfigValues",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kots-app-config",
+				},
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"enabled-file": {
+							Value:    "RW5hYmxlZCBTdG9yZQ==",
+							Default:  "RW5hYmxlZCBEZWZhdWx0",
+							Filename: "enabled-store.txt",
+						},
+						// disabled-file should not be present due to disabled group
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2795,6 +3359,260 @@ func TestValidateConfigValues(t *testing.T) {
 				"unknown_item": types.AppConfigValue{Value: "value1"},
 			},
 			wantErr: false,
+		},
+		{
+			name: "file items with valid base64 values",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "file_group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "valid_file_item",
+									Type: "file",
+								},
+								{
+									Name: "another_valid_file",
+									Type: "file",
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"valid_file_item":    types.AppConfigValue{Value: "SGVsbG8gV29ybGQ="}, // "Hello World" in base64
+				"another_valid_file": types.AppConfigValue{Value: "VGVzdCBDb250ZW50"}, // "Test Content" in base64
+			},
+			wantErr: false,
+		},
+		{
+			name: "file items with invalid base64 values",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "file_group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "invalid_file_item",
+									Type: "file",
+								},
+								{
+									Name: "another_invalid_file",
+									Type: "file",
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"invalid_file_item":    types.AppConfigValue{Value: "not-base64-content!"}, // invalid base64
+				"another_invalid_file": types.AppConfigValue{Value: "also-not-base64@#"},   // invalid base64
+			},
+			wantErr:     true,
+			errorFields: []string{"invalid_file_item", "another_invalid_file"},
+		},
+		{
+			name: "file items with empty values should be valid",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "file_group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "empty_file_item",
+									Type: "file",
+								},
+								{
+									Name: "missing_file_item",
+									Type: "file",
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"empty_file_item": types.AppConfigValue{Value: ""}, // empty value should be valid
+				// missing_file_item is not provided, should be valid
+			},
+			wantErr: false,
+		},
+		{
+			name: "mixed file and non-file items with validation errors",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "mixed_group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "required_text",
+									Type:     "text",
+									Required: true,
+								},
+								{
+									Name: "invalid_file",
+									Type: "file",
+								},
+								{
+									Name: "valid_file",
+									Type: "file",
+								},
+								{
+									Name: "text_field",
+									Type: "text",
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				// required_text is missing - should cause required error
+				"invalid_file": types.AppConfigValue{Value: "not-base64!"},      // invalid base64
+				"valid_file":   types.AppConfigValue{Value: "VmFsaWQgYmFzZTY0"}, // "Valid base64" in base64
+				"text_field":   types.AppConfigValue{Value: "any text is fine"}, // text field doesn't need base64
+			},
+			wantErr:     true,
+			errorFields: []string{"required_text", "invalid_file"},
+		},
+		{
+			name: "file items in disabled groups should not be validated",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "disabled_group",
+							When: "false",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "file_in_disabled_group",
+									Type: "file",
+								},
+							},
+						},
+						{
+							Name: "enabled_group",
+							When: "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "file_in_enabled_group",
+									Type: "file",
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"file_in_disabled_group": types.AppConfigValue{Value: "not-base64-but-disabled"}, // should not be validated
+				"file_in_enabled_group":  types.AppConfigValue{Value: "also-not-base64"},         // should be validated
+			},
+			wantErr:     true,
+			errorFields: []string{"file_in_enabled_group"},
+		},
+		{
+			name: "disabled file items should not be validated",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "file_group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "disabled_file_item",
+									Type: "file",
+									When: "false",
+								},
+								{
+									Name: "enabled_file_item",
+									Type: "file",
+									When: "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"disabled_file_item": types.AppConfigValue{Value: "not-base64-but-disabled"}, // should not be validated
+				"enabled_file_item":  types.AppConfigValue{Value: "also-not-base64"},         // should be validated
+			},
+			wantErr:     true,
+			errorFields: []string{"enabled_file_item"},
+		},
+		{
+			name: "file items with edge case base64 values",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "file_group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "padding_file",
+									Type: "file",
+								},
+								{
+									Name: "no_padding_file",
+									Type: "file",
+								},
+								{
+									Name: "single_char_file",
+									Type: "file",
+								},
+								{
+									Name: "url_safe_file",
+									Type: "file",
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"padding_file":     types.AppConfigValue{Value: "SGVsbG8="},         // with padding
+				"no_padding_file":  types.AppConfigValue{Value: "SGVsbG8"},          // without padding - should be invalid
+				"single_char_file": types.AppConfigValue{Value: "QQ=="},             // single character "A"
+				"url_safe_file":    types.AppConfigValue{Value: "SGVsbG8gV29ybGQ="}, // standard base64
+			},
+			wantErr:     true,
+			errorFields: []string{"no_padding_file"}, // only no_padding_file should fail
+		},
+		{
+			name: "required file items with invalid base64 should have both errors",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "file_group",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "required_file",
+									Type:     "file",
+									Required: true,
+								},
+								{
+									Name:     "required_file_with_invalid_base64",
+									Type:     "file",
+									Required: true,
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				// required_file is missing - should cause required error
+				"required_file_with_invalid_base64": types.AppConfigValue{Value: "not-base64!"}, // invalid base64
+			},
+			wantErr:     true,
+			errorFields: []string{"required_file", "required_file_with_invalid_base64"},
 		},
 	}
 
