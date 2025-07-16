@@ -4,7 +4,6 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -277,7 +276,6 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		var response types.AppConfig
 		err = json.NewDecoder(rec.Body).Decode(&response)
 		require.NoError(t, err)
-		fmt.Printf("Response: %+v\n", response.Groups[0].Items)
 
 		// Verify the raw app config is returned
 		assert.Equal(t, "value", response.Groups[0].Items[0].Value.String(), "first item should return raw config schema value")
