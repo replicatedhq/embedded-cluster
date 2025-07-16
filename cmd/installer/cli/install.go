@@ -504,7 +504,12 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 	}
 
 	// TODO: validate that a single port isn't used for multiple services
-	rc.SetDataDir(flags.dataDir)
+	// resolve datadir to absolute path
+	absoluteDataDir, err := filepath.Abs(flags.dataDir)
+	if err != nil {
+		return fmt.Errorf("unable to construct path for directory: %w", err)
+	}
+	rc.SetDataDir(absoluteDataDir)
 	rc.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
 	rc.SetHostCABundlePath(hostCABundlePath)
 	rc.SetNetworkSpec(networkSpec)
