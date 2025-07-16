@@ -387,6 +387,7 @@ describe('FileInput', () => {
             }
           }, 10);
         }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any;
 
       render(<FileInput {...defaultProps} />);
@@ -419,6 +420,7 @@ describe('FileInput', () => {
             }
           }, 10);
         }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any;
 
       render(<FileInput {...defaultProps} />);
