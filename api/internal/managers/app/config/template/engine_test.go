@@ -48,7 +48,7 @@ func TestEngine_BasicTemplating(t *testing.T) {
 	assert.Equal(t, "localhost", result)
 }
 
-func TestEngine_ConfigOptionResolution(t *testing.T) {
+func TestEngine_ValuePriority(t *testing.T) {
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{
@@ -57,11 +57,20 @@ func TestEngine_ConfigOptionResolution(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "database_host",
+							Value:   multitype.BoolOrString{StrVal: "db-internal.company.com"},
 							Default: multitype.BoolOrString{StrVal: "localhost"},
 						},
 						{
 							Name:    "database_port",
 							Default: multitype.BoolOrString{StrVal: "5432"},
+						},
+						{
+							Name:    "redis_host",
+							Default: multitype.BoolOrString{StrVal: "redis.company.com"},
+						},
+						{
+							Name: "metrics_endpoint",
+							// No Value and no Default - should return empty string
 						},
 						{
 							Name:    "database_url",
@@ -75,7 +84,7 @@ func TestEngine_ConfigOptionResolution(t *testing.T) {
 
 	engine := NewEngine(config)
 
-	// Test with user-provided values
+	// Test with user-provided values (should override config values)
 	configValues := types.AppConfigValues{
 		"database_host": {Value: "db.example.com"},
 		"database_port": {Value: "5433"},
@@ -84,6 +93,46 @@ func TestEngine_ConfigOptionResolution(t *testing.T) {
 	result, err := engine.ProcessTemplate("{{  ConfigOption \"database_url\"  }}", configValues)
 	require.NoError(t, err)
 	assert.Equal(t, "postgres://db.example.com:5433/app", result)
+
+	// Test with partial user values (should use config value for database_host, user value for database_port)
+	partialConfigValues := types.AppConfigValues{
+		"database_port": {Value: "5433"},
+	}
+
+	result, err = engine.ProcessTemplate("{{  ConfigOption \"database_url\"  }}", partialConfigValues)
+	require.NoError(t, err)
+	assert.Equal(t, "postgres://db-internal.company.com:5433/app", result)
+
+	// Test with no user values (should use config value for database_host, default for database_port)
+	result, err = engine.ProcessTemplate("{{  ConfigOption \"database_url\"  }}", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "postgres://db-internal.company.com:5432/app", result)
+
+	// Test item with only default value (redis_host) - should use default
+	result, err = engine.ProcessTemplate("{{  ConfigOption \"redis_host\"  }}", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "redis.company.com", result)
+
+	// Test item with only default value but user override - should use user value
+	configValues = types.AppConfigValues{
+		"redis_host": {Value: "redis.production.com"},
+	}
+	result, err = engine.ProcessTemplate("{{  ConfigOption \"redis_host\"  }}", configValues)
+	require.NoError(t, err)
+	assert.Equal(t, "redis.production.com", result)
+
+	// Test item with no value and no default - should return empty string
+	result, err = engine.ProcessTemplate("{{  ConfigOption \"metrics_endpoint\"  }}", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "", result)
+
+	// Test item with no value and no default but user override - should use user value
+	configValues = types.AppConfigValues{
+		"metrics_endpoint": {Value: "https://metrics.company.com"},
+	}
+	result, err = engine.ProcessTemplate("{{  ConfigOption \"metrics_endpoint\"  }}", configValues)
+	require.NoError(t, err)
+	assert.Equal(t, "https://metrics.company.com", result)
 }
 
 func TestEngine_ConfigOptionEquals(t *testing.T) {
@@ -95,11 +144,16 @@ func TestEngine_ConfigOptionEquals(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "storage_type",
+							Value:   multitype.BoolOrString{StrVal: "filesystem"},
 							Default: multitype.BoolOrString{StrVal: "local"},
 						},
 						{
+							Name:    "backup_type",
+							Default: multitype.BoolOrString{StrVal: "snapshot"},
+						},
+						{
 							Name:    "s3_bucket",
-							Default: multitype.BoolOrString{StrVal: "my-app-bucket"},
+							Default: multitype.BoolOrString{StrVal: "my-app-backups"},
 						},
 					},
 				},
@@ -109,34 +163,49 @@ func TestEngine_ConfigOptionEquals(t *testing.T) {
 
 	engine := NewEngine(config)
 
+	// Test with user value override - should use user value "s3"
 	configValues := types.AppConfigValues{
 		"storage_type": {Value: "s3"},
 	}
 
-	// Test ConfigOptionEquals - true case
-	result, err := engine.ProcessTemplate("{{  if ConfigOptionEquals \"storage_type\" \"s3\" }}S3 Storage{{  else }}Local Storage{{  end }}", configValues)
+	result, err := engine.ProcessTemplate("{{  if ConfigOptionEquals \"storage_type\" \"s3\" }}S3 Storage{{  else }}Other Storage{{  end }}", configValues)
 	require.NoError(t, err)
 	assert.Equal(t, "S3 Storage", result)
 
-	// Test ConfigOptionEquals - false case
-	result, err = engine.ProcessTemplate("{{  if ConfigOptionEquals \"storage_type\" \"local\" }}Local Storage{{  else }}S3 Storage{{  end }}", configValues)
+	// Test with no user value - should use config value "filesystem"
+	result, err = engine.ProcessTemplate("{{  if ConfigOptionEquals \"storage_type\" \"filesystem\" }}Filesystem Storage{{  else }}Other Storage{{  end }}", nil)
 	require.NoError(t, err)
-	assert.Equal(t, "S3 Storage", result)
+	assert.Equal(t, "Filesystem Storage", result)
+
+	// Test with item that has only default value - should use default "snapshot"
+	result, err = engine.ProcessTemplate("{{  if ConfigOptionEquals \"backup_type\" \"snapshot\" }}Snapshot Backup{{  else }}Other Backup{{  end }}", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "Snapshot Backup", result)
 }
 
 func TestEngine_ConfigOptionData(t *testing.T) {
-	testData := "Hello, World!"
-	encodedData := base64.StdEncoding.EncodeToString([]byte(testData))
+	// Sample certificate content
+	defaultCertContent := "-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJANGt7tgH..."
+	defaultCertEncoded := base64.StdEncoding.EncodeToString([]byte(defaultCertContent))
+
+	// Config-provided certificate content
+	configCertContent := "-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAConfig..."
+	configCertEncoded := base64.StdEncoding.EncodeToString([]byte(configCertContent))
 
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{
 				{
-					Name: "files",
+					Name: "certificates",
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "ssl_cert",
-							Default: multitype.BoolOrString{StrVal: encodedData},
+							Value:   multitype.BoolOrString{StrVal: configCertEncoded},
+							Default: multitype.BoolOrString{StrVal: defaultCertEncoded},
+						},
+						{
+							Name:    "ca_cert",
+							Default: multitype.BoolOrString{StrVal: defaultCertEncoded},
 						},
 					},
 				},
@@ -146,9 +215,26 @@ func TestEngine_ConfigOptionData(t *testing.T) {
 
 	engine := NewEngine(config)
 
+	// Test with no user value - should use config value
 	result, err := engine.ProcessTemplate("{{  ConfigOptionData \"ssl_cert\" }}", nil)
 	require.NoError(t, err)
-	assert.Equal(t, testData, result)
+	assert.Equal(t, configCertContent, result)
+
+	// Test with user value - should override config value
+	userCertContent := "-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAUser..."
+	userCertEncoded := base64.StdEncoding.EncodeToString([]byte(userCertContent))
+	configValues := types.AppConfigValues{
+		"ssl_cert": {Value: userCertEncoded},
+	}
+
+	result, err = engine.ProcessTemplate("{{  ConfigOptionData \"ssl_cert\" }}", configValues)
+	require.NoError(t, err)
+	assert.Equal(t, userCertContent, result)
+
+	// Test with item that has only default value - should use default
+	result, err = engine.ProcessTemplate("{{  ConfigOptionData \"ca_cert\" }}", nil)
+	require.NoError(t, err)
+	assert.Equal(t, defaultCertContent, result)
 }
 
 func TestEngine_LicenseFieldValue(t *testing.T) {
@@ -301,23 +387,30 @@ func TestEngine_DeepDependencyChain(t *testing.T) {
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{
 				{
-					Name: "test",
+					Name: "deployment",
 					Items: []kotsv1beta1.ConfigItem{
 						{
-							Name:    "env",
-							Default: multitype.BoolOrString{StrVal: "production"},
+							Name:    "environment",
+							Value:   multitype.BoolOrString{StrVal: "staging"},
+							Default: multitype.BoolOrString{StrVal: "development"},
 						},
 						{
-							Name:    "region",
-							Default: multitype.BoolOrString{StrVal: "{{  if ConfigOptionEquals \"env\" \"production\" }}us-east-1{{  else }}us-west-2{{  end }}"},
+							Name:    "aws_region",
+							Value:   multitype.BoolOrString{StrVal: "{{  if ConfigOptionEquals \"environment\" \"production\" }}us-east-1{{  else }}us-west-2{{  end }}"},
+							Default: multitype.BoolOrString{StrVal: "us-central-1"},
 						},
 						{
 							Name:    "cluster_name",
-							Default: multitype.BoolOrString{StrVal: "{{  ConfigOption \"env\" }}-{{  ConfigOption \"region\" }}"},
+							Default: multitype.BoolOrString{StrVal: "{{  ConfigOption \"environment\" }}-{{  ConfigOption \"aws_region\" }}"},
 						},
 						{
 							Name:    "database_host",
-							Default: multitype.BoolOrString{StrVal: "{{  ConfigOption \"cluster_name\" }}.db.internal"},
+							Default: multitype.BoolOrString{StrVal: "{{  ConfigOption \"cluster_name\" }}.rds.amazonaws.com"},
+						},
+						{
+							Name:    "redis_host",
+							Value:   multitype.BoolOrString{StrVal: "{{  ConfigOption \"cluster_name\" }}.elasticache.amazonaws.com"},
+							Default: multitype.BoolOrString{StrVal: "localhost"},
 						},
 					},
 				},
@@ -327,9 +420,23 @@ func TestEngine_DeepDependencyChain(t *testing.T) {
 
 	engine := NewEngine(config)
 
+	// Test with no user values - should use config values and resolve deep dependency chain
 	result, err := engine.ProcessTemplate("{{  ConfigOption \"database_host\" }}", nil)
 	require.NoError(t, err)
-	assert.Equal(t, "production-us-east-1.db.internal", result)
+	assert.Equal(t, "staging-us-west-2.rds.amazonaws.com", result)
+
+	// Test another item with config value that depends on the chain
+	result, err = engine.ProcessTemplate("{{  ConfigOption \"redis_host\" }}", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "staging-us-west-2.elasticache.amazonaws.com", result)
+
+	// Test with user override - should change the entire chain
+	configValues := types.AppConfigValues{
+		"environment": {Value: "production"},
+	}
+	result, err = engine.ProcessTemplate("{{  ConfigOption \"database_host\" }}", configValues)
+	require.NoError(t, err)
+	assert.Equal(t, "production-us-east-1.rds.amazonaws.com", result)
 }
 
 func TestEngine_ComplexTemplate(t *testing.T) {
@@ -348,6 +455,7 @@ func TestEngine_ComplexTemplate(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "database_host",
+							Value:   multitype.BoolOrString{StrVal: "db-internal.company.com"},
 							Default: multitype.BoolOrString{StrVal: "localhost"},
 						},
 						{
@@ -360,7 +468,8 @@ func TestEngine_ComplexTemplate(t *testing.T) {
 						},
 						{
 							Name:    "database_enabled",
-							Default: multitype.BoolOrString{StrVal: "true"},
+							Value:   multitype.BoolOrString{StrVal: "true"},
+							Default: multitype.BoolOrString{StrVal: "false"},
 						},
 					},
 				},
@@ -369,11 +478,12 @@ func TestEngine_ComplexTemplate(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "storage_type",
-							Default: multitype.BoolOrString{StrVal: "local"},
+							Value:   multitype.BoolOrString{StrVal: "filesystem"},
+							Default: multitype.BoolOrString{StrVal: "memory"},
 						},
 						{
 							Name:    "s3_bucket",
-							Default: multitype.BoolOrString{StrVal: "my-app-bucket"},
+							Default: multitype.BoolOrString{StrVal: "company-app-backups"},
 						},
 					},
 				},
@@ -383,11 +493,12 @@ func TestEngine_ComplexTemplate(t *testing.T) {
 
 	engine := NewEngine(config, WithLicense(license))
 
+	// Test with user values overriding config values
 	configValues := types.AppConfigValues{
-		"database_host": {Value: "db.example.com"},
+		"database_host": {Value: "db.production.com"},
 		"database_port": {Value: "5432"},
 		"storage_type":  {Value: "s3"},
-		"s3_bucket":     {Value: "production-bucket"},
+		"s3_bucket":     {Value: "production-backups"},
 	}
 
 	template := `database:
@@ -410,18 +521,36 @@ license:
 	expected := `database:
   enabled: true
   
-  url: postgres://db.example.com:5432/app
+  url: postgres://db.production.com:5432/app
   
 storage:
   type: s3
   
-  bucket: production-bucket
+  bucket: production-backups
   
 license:
   customer: Acme Corp
   id: license-123`
 
 	assert.Equal(t, expected, result)
+
+	// Test with no user values - should use config values
+	result, err = engine.ProcessTemplate(template, nil)
+	require.NoError(t, err)
+
+	expectedWithConfigValues := `database:
+  enabled: true
+  
+  url: postgres://db-internal.company.com:5432/app
+  
+storage:
+  type: filesystem
+  
+license:
+  customer: Acme Corp
+  id: license-123`
+
+	assert.Equal(t, expectedWithConfigValues, result)
 }
 
 func TestEngine_ParseAndExecuteSeparately(t *testing.T) {
@@ -433,6 +562,7 @@ func TestEngine_ParseAndExecuteSeparately(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "database_host",
+							Value:   multitype.BoolOrString{StrVal: "db-internal.company.com"},
 							Default: multitype.BoolOrString{StrVal: "localhost"},
 						},
 					},
@@ -450,18 +580,23 @@ func TestEngine_ParseAndExecuteSeparately(t *testing.T) {
 
 	// Execute with different config values
 	configValues1 := types.AppConfigValues{
-		"database_host": {Value: "db1.example.com"},
+		"database_host": {Value: "db1.production.com"},
 	}
 	result1, err := engine.Execute(tmpl, configValues1)
 	require.NoError(t, err)
-	assert.Equal(t, "Host: db1.example.com", result1)
+	assert.Equal(t, "Host: db1.production.com", result1)
 
 	configValues2 := types.AppConfigValues{
-		"database_host": {Value: "db2.example.com"},
+		"database_host": {Value: "db2.staging.com"},
 	}
 	result2, err := engine.Execute(tmpl, configValues2)
 	require.NoError(t, err)
-	assert.Equal(t, "Host: db2.example.com", result2)
+	assert.Equal(t, "Host: db2.staging.com", result2)
+
+	// Execute with no user values - should use config value
+	result3, err := engine.Execute(tmpl, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "Host: db-internal.company.com", result3)
 }
 
 func TestEngine_EmptyTemplate(t *testing.T) {
@@ -497,39 +632,6 @@ func TestEngine_UnknownConfigItem(t *testing.T) {
 	assert.Contains(t, err.Error(), "config item nonexistent not found")
 }
 
-func TestEngine_ValuePriority(t *testing.T) {
-	config := &kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{
-				{
-					Name: "test",
-					Items: []kotsv1beta1.ConfigItem{
-						{
-							Name:    "test_item",
-							Value:   multitype.BoolOrString{StrVal: "config_value"},
-							Default: multitype.BoolOrString{StrVal: "default_value"},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	engine := NewEngine(config)
-
-	// Test with no user value - should use config value
-	result, err := engine.ProcessTemplate("{{  ConfigOption \"test_item\" }}", nil)
-	require.NoError(t, err)
-	assert.Equal(t, "config_value", result)
-
-	// Test with user value - should override config value
-	configValues := types.AppConfigValues{
-		"test_item": {Value: "user_value"},
-	}
-	result, err = engine.ProcessTemplate("{{  ConfigOption \"test_item\" }}", configValues)
-	require.NoError(t, err)
-	assert.Equal(t, "user_value", result)
-}
 
 func TestEngine_LicenseFieldValue_Endpoint(t *testing.T) {
 	license := &kotsv1beta1.License{

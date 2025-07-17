@@ -65,7 +65,7 @@ func (e *Engine) Parse(templateStr string) (*template.Template, error) {
 
 	// Combine sprig functions with our custom functions
 	funcMap := sprig.TxtFuncMap()
-	maps.Copy(funcMap, e.GetFuncMap())
+	maps.Copy(funcMap, e.getFuncMap())
 
 	tmpl, err := template.New("template").Funcs(funcMap).Parse(templateStr)
 	if err != nil {
@@ -127,16 +127,16 @@ func (e *Engine) processTemplate(templateStr string) (string, error) {
 	return buf.String(), nil
 }
 
-func (e *Engine) GetFuncMap() template.FuncMap {
+func (e *Engine) getFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"ConfigOption":       e.ConfigOption,
-		"ConfigOptionEquals": e.ConfigOptionEquals,
-		"ConfigOptionData":   e.ConfigOptionData,
-		"LicenseFieldValue":  e.LicenseFieldValue,
+		"ConfigOption":       e.configOption,
+		"ConfigOptionEquals": e.configOptionEquals,
+		"ConfigOptionData":   e.configOptionData,
+		"LicenseFieldValue":  e.licenseFieldValue,
 	}
 }
 
-func (e *Engine) ConfigOption(name string) (string, error) {
+func (e *Engine) configOption(name string) (string, error) {
 	val, err := e.ResolveConfigItem(name)
 	if err != nil {
 		return "", fmt.Errorf("resolve config item: %w", err)
@@ -144,7 +144,7 @@ func (e *Engine) ConfigOption(name string) (string, error) {
 	return val, nil
 }
 
-func (e *Engine) ConfigOptionEquals(name, expected string) (bool, error) {
+func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
 	val, err := e.ResolveConfigItem(name)
 	if err != nil {
 		return false, fmt.Errorf("resolve config item: %w", err)
@@ -152,7 +152,7 @@ func (e *Engine) ConfigOptionEquals(name, expected string) (bool, error) {
 	return val == expected, nil
 }
 
-func (e *Engine) ConfigOptionData(name string) (string, error) {
+func (e *Engine) configOptionData(name string) (string, error) {
 	val, err := e.ResolveConfigItem(name)
 	if err != nil {
 		return "", fmt.Errorf("resolve config item: %w", err)
@@ -166,7 +166,7 @@ func (e *Engine) ConfigOptionData(name string) (string, error) {
 	return string(decoded), nil
 }
 
-func (e *Engine) LicenseFieldValue(name string) string {
+func (e *Engine) licenseFieldValue(name string) string {
 	if e.license == nil {
 		return ""
 	}
