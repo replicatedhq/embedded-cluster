@@ -862,7 +862,8 @@ func TestKubernetesGetAppConfigValues(t *testing.T) {
 func TestLinuxPatchAppConfigValues(t *testing.T) {
 	// Define expected config values once
 	expectedValues := types.AppConfigValues{
-		"test-item": types.AppConfigValue{Value: "new-value"},
+		"test-item":     types.AppConfigValue{Value: "new-value"},
+		"required-item": types.AppConfigValue{Value: "required-value"},
 	}
 
 	// Create a test server
@@ -886,7 +887,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(expectedValues)
+		json.NewEncoder(w).Encode(types.AppConfigValuesResponse{Values: expectedValues})
 	}))
 	defer server.Close()
 
@@ -924,7 +925,8 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 func TestKubernetesPatchAppConfigValues(t *testing.T) {
 	// Define expected config values once
 	expectedValues := types.AppConfigValues{
-		"test-item": types.AppConfigValue{Value: "new-value"},
+		"test-item":     types.AppConfigValue{Value: "new-value"},
+		"required-item": types.AppConfigValue{Value: "required-values"},
 	}
 
 	// Create a test server
@@ -948,7 +950,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(expectedValues)
+		json.NewEncoder(w).Encode(types.AppConfigValuesResponse{Values: expectedValues})
 	}))
 	defer server.Close()
 
