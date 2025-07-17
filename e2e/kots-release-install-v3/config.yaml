@@ -1,0 +1,148 @@
+apiVersion: kots.io/v1beta1
+kind: Config
+metadata:
+  name: test-config
+spec:
+  groups:
+    - name: config-items
+      title: Config Items
+      items:
+        - name: text_input
+          title: Text Input
+          help_text: A basic text field
+          type: text
+          required: true
+          default: "default text value"
+
+        - name: password_field
+          title: Secret Password
+          type: password
+          required: true
+          help_text: This is a required password field
+
+        - name: textarea_input
+          title: Text Area Input
+          type: textarea
+          help_text: Use this field for longer input
+
+        - name: bool_toggle
+          title: Enable Feature
+          type: bool
+          default: "0"
+          help_text: Toggle to enable feature
+
+        - name: dropdown_choice
+          title: Select One
+          type: select_one
+          items:
+            - name: opt1
+              title: Option 1
+            - name: opt2
+              title: Option 2
+            - name: opt3
+              title: Option 3
+          default: opt1
+
+        - name: radio_choice
+          title: Select One
+          type: radio
+          items:
+            - name: opt1
+              title: Option 1
+            - name: opt2
+              title: Option 2
+            - name: opt3
+              title: Option 3
+          default: opt1
+
+        - name: file_upload
+          title: Upload a File
+          type: file
+          help_text: Upload any type of file
+
+    - name: markdown-items
+      title: Markdown Items
+      items:
+        - name: text_input_markdown_help_text
+          title: Text Input with Markdown Help Text
+          help_text: A basic **text field** with `markdown support` in the help text
+          type: text
+
+        - name: label
+          type: label
+          title: |
+            # H1 Heading
+
+            ## H2 Heading
+
+            ### H3 Heading
+
+            This is a paragraph with **bold**, *italic*, and ~~strikethrough~~ text.  
+            You can also combine them: **_bold and italic_**, or ~~**bold strikethrough**~~.
+
+            Here's a link to [Replicated Docs](https://docs.replicated.com/).
+
+            And here's an image (if your renderer supports images):
+
+            ![Test Image](https://docs.replicated.com/images/logo-replicated-red.png)
+
+            ---
+
+            ### Unordered List
+
+            - Item one
+            - Item two
+              - Nested item
+                - Deeply nested item
+
+            ---
+
+            ### Ordered List
+
+            1. First item
+            2. Second item
+               1. Sub-item
+               2. Another sub-item
+
+            ---
+
+            ### Inline Code
+
+            Use the `console.log()` function to print to the console.
+
+            ---
+
+            ### Code Block
+
+            ```
+            function greet(name) {
+              return `Hello, ${name}!`;
+            }
+            ```
+
+            ---
+
+            ### Blockquote
+
+            > This is a blockquote.  
+            > It can span multiple lines.  
+            > And include **bold** or *italic* text.
+
+            ---
+
+            ### Horizontal Rule
+
+            ---
+
+            ### Table
+
+            | Feature        | Supported? |
+            |----------------|------------|
+            | **Bold**       | ✅         |
+            | *Italic*       | ✅         |
+            | `Code`         | ✅         |
+            | ~~Strikethrough~~ | ✅      |
+
+            ---
+
+            This line contains a <u>custom underline</u> using raw HTML.
