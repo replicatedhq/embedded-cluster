@@ -436,7 +436,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.AppConfig'
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
           description: OK
         "400":
           content:
@@ -594,7 +594,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.AppConfig'
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
           description: OK
         "400":
           content:
