@@ -1338,6 +1338,8 @@ func recordInstallation(
 		cfgspec = &cfg.Spec
 	}
 
+	// run tests
+
 	// parse the end user config
 	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
 	if err != nil {
