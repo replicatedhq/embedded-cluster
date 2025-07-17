@@ -10,16 +10,16 @@ interface HelpTextProps {
 
 const HelpText: React.FC<HelpTextProps> = ({ helpText, defaultValue, error }) => {
   if ((!helpText && !defaultValue) || error) return null;
-  
+
   // Build the combined text with markdown formatting
   let combinedText = helpText || '';
   if (defaultValue) {
     const defaultText = `(Default: \`${defaultValue}\`)`;
     combinedText = helpText ? `${helpText} ${defaultText}` : defaultText;
   }
-  
+
   return (
-    <div className="mt-1 text-sm text-gray-500">
+    <div className="mt-1 text-sm text-gray-500 [&_p]:inline [&_p]:mb-0">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -36,7 +36,6 @@ const HelpText: React.FC<HelpTextProps> = ({ helpText, defaultValue, error }) =>
               {children}
             </code>
           ),
-          p: ({ children }) => <span>{children}</span>, // Render as span instead of paragraph
         }}
       >
         {combinedText}
