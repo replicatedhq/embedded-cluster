@@ -17,10 +17,10 @@ import { ChevronRight, ChevronLeft } from "lucide-react";
  * - Error formatting: formatErrorMessage("adminConsolePort invalid") -> "Admin Console Port invalid"
  */
 const fieldNames = {
-   adminConsolePort: "Admin Console Port",
-   httpProxy: "HTTP Proxy",
-   httpsProxy: "HTTPS Proxy",
-   noProxy: "Proxy Bypass List",
+  adminConsolePort: "Admin Console Port",
+  httpProxy: "HTTP Proxy",
+  httpsProxy: "HTTPS Proxy",
+  noProxy: "Proxy Bypass List",
 }
 
 interface KubernetesSetupStepProps {
@@ -216,7 +216,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
 
             {error && (
               <div className="mt-6 p-3 bg-red-50 text-red-500 rounded-md">
-                {submitError?.errors && submitError.errors.length > 0 
+                {submitError?.errors && submitError.errors.length > 0
                   ? "Please fix the errors in the form above before proceeding."
                   : error
                 }
@@ -227,7 +227,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
       </Card>
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
+        <Button variant="outline" onClick={onBack} dataTestId="kubernetes-setup-button-back" icon={<ChevronLeft className="w-5 h-5" />}>
           Back
         </Button>
         <Button onClick={() => submitConfig(config)} icon={<ChevronRight className="w-5 h-5" />}>
@@ -246,13 +246,13 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
  * @returns The formatted error message with replaced field names
  */
 export function formatErrorMessage(message: string) {
-   let finalMsg = message
-   for (const [field, fieldName] of Object.entries(fieldNames)) {
-      // Case-insensitive regex that matches whole words only
-      // Example: "podCidr", "PodCidr", "PODCIDR" all become "Pod CIDR"
-      finalMsg = finalMsg.replace(new RegExp(`\\b${field}\\b`, 'gi'), fieldName)
-   }
-   return finalMsg
+  let finalMsg = message
+  for (const [field, fieldName] of Object.entries(fieldNames)) {
+    // Case-insensitive regex that matches whole words only
+    // Example: "podCidr", "PodCidr", "PODCIDR" all become "Pod CIDR"
+    finalMsg = finalMsg.replace(new RegExp(`\\b${field}\\b`, 'gi'), fieldName)
+  }
+  return finalMsg
 }
 
 export default KubernetesSetupStep;

@@ -1,4 +1,3 @@
-import React from "react";
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
@@ -57,8 +56,8 @@ describe("WelcomeStep", () => {
     renderWithProviders(<WelcomeStep onNext={mockOnNext} />);
 
     // Check if welcome content is rendered
-    expect(screen.getByText(/Welcome to/)).toBeInTheDocument();
-    expect(screen.getByText(/Enter Password/)).toBeInTheDocument();
+    expect(screen.getByTestId("welcome-step")).toBeInTheDocument();
+    expect(screen.getByTestId("password-input")).toBeInTheDocument();
   });
 
   it("handles password submission successfully", async () => {
@@ -75,7 +74,7 @@ describe("WelcomeStep", () => {
     renderWithProviders(<WelcomeStep onNext={mockOnNext} />);
 
     // Fill in password
-    const passwordInput = screen.getByLabelText(/Enter Password/);
+    const passwordInput = screen.getByTestId("password-input");
     fireEvent.change(passwordInput, { target: { value: "password" } });
 
     // Submit form

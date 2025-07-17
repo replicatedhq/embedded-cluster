@@ -77,7 +77,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="welcome-step">
       <Card>
         <div className="flex flex-col items-center text-center py-12">
           <AppIcon className="h-20 w-20 mb-6" />
@@ -95,6 +95,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
               required
               icon={<Lock className="w-5 h-5" />}
               className="w-full"
+              dataTestId="password-input"
             />
 
             <Button
@@ -103,6 +104,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
               className="w-full mt-4"
               icon={<ChevronRight className="w-5 h-5" />}
               disabled={isLoading}
+              dataTestId="welcome-button-next"
             >
               {text.welcomeButtonText}
             </Button>

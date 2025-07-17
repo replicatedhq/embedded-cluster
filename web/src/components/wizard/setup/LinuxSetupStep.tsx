@@ -319,7 +319,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
       </Card>
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
+        <Button variant="outline" onClick={onBack} dataTestId="linux-setup-button-back" icon={<ChevronLeft className="w-5 h-5" />}>
           Back
         </Button>
         <Button onClick={() => submitConfig(config)} icon={<ChevronRight className="w-5 h-5" />}>
