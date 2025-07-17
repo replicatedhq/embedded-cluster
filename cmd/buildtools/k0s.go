@@ -21,29 +21,38 @@ var k0sImageComponents = map[string]addonComponent{
 	},
 	"quay.io/k0sproject/calico-node": {
 		name: "calico-node",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "calico-node"
-		},
-		getWolfiPackageVersion: func(opts addonComponentOptions) string {
-			return getCalicoVersion(opts)
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			// latest patch version of the current minor version
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			tag, err := GetGreatestGitHubTag(opts.ctx, "projectcalico", "calico", constraints)
+			if err != nil {
+				return "", fmt.Errorf("failed to get gh release: %w", err)
+			}
+			return fmt.Sprintf("docker.io/calico/node:%s", tag), nil
 		},
 	},
 	"quay.io/k0sproject/calico-cni": {
 		name: "calico-cni",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "calico-cni"
-		},
-		getWolfiPackageVersion: func(opts addonComponentOptions) string {
-			return getCalicoVersion(opts)
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			// latest patch version of the current minor version
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			tag, err := GetGreatestGitHubTag(opts.ctx, "projectcalico", "calico", constraints)
+			if err != nil {
+				return "", fmt.Errorf("failed to get gh release: %w", err)
+			}
+			return fmt.Sprintf("docker.io/calico/cni:%s", tag), nil
 		},
 	},
 	"quay.io/k0sproject/calico-kube-controllers": {
 		name: "calico-kube-controllers",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "calico-kube-controllers"
-		},
-		getWolfiPackageVersion: func(opts addonComponentOptions) string {
-			return getCalicoVersion(opts)
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			// latest patch version of the current minor version
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			tag, err := GetGreatestGitHubTag(opts.ctx, "projectcalico", "calico", constraints)
+			if err != nil {
+				return "", fmt.Errorf("failed to get gh release: %w", err)
+			}
+			return fmt.Sprintf("docker.io/calico/kube-controllers:%s", tag), nil
 		},
 	},
 	"registry.k8s.io/metrics-server/metrics-server": {
