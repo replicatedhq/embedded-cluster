@@ -16,7 +16,7 @@ The project bundles k0s (open source Kubernetes distribution) with applications,
 ### Core Technologies
 - **Go** - Primary language for backend, CLI, and operators
 - **TypeScript/React** - Frontend web UI with Vite build system
-- **Kubernetes (k0s v1.31.8+k0s.0)** - Foundation Kubernetes distribution
+- **Kubernetes (k0s)** - Foundation Kubernetes distribution
 - **Docker** - Container runtime and development environment
 
 ### Key Dependencies
