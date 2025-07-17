@@ -151,7 +151,7 @@ func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		types.PatchAppConfigValuesRequest	true	"Patch App Config Values Request"
-//	@Success		200		{object}	types.AppConfig
+//	@Success		200		{object}	types.AppConfigValuesResponse
 //	@Failure		400		{object}	types.APIError
 //	@Router			/kubernetes/install/app/config/values [patch]
 func (h *Handler) PatchConfigValues(w http.ResponseWriter, r *http.Request) {
@@ -167,7 +167,7 @@ func (h *Handler) PatchConfigValues(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.GetAppConfig(w, r)
+	h.GetAppConfigValues(w, r)
 }
 
 // GetAppConfigValues handler to get the app config values

@@ -246,7 +246,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request to set config values
+		// Create a request to patch config values
 		patchRequest := types.PatchAppConfigValuesRequest{
 			Values: types.AppConfigValues{
 				"test-item":     types.AppConfigValue{Value: "new-value"},
@@ -258,7 +258,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		reqBodyBytes, err := json.Marshal(patchRequest)
 		require.NoError(t, err)
 
-		// Create a request to set config values
+		// Create a request to patch config values
 		req := httptest.NewRequest(http.MethodPatch, "/kubernetes/install/app/config/values", bytes.NewReader(reqBodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+"TOKEN")
@@ -272,15 +272,16 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
-		var response types.AppConfig
+		var response types.AppConfigValuesResponse
 		err = json.NewDecoder(rec.Body).Decode(&response)
 		require.NoError(t, err)
+		require.NotNil(t, response.Values, "response values should not be nil")
 
-		// Verify the raw app config is returned
-		assert.Equal(t, "value", response.Groups[0].Items[0].Value.String(), "first item should return raw config schema value")
-		assert.Equal(t, "value2", response.Groups[0].Items[1].Value.String(), "second item should return raw config schema value")
-		assert.Equal(t, "QQ==", response.Groups[0].Items[3].Value.String(), "fourth item should return raw config schema value for file")
-		assert.Equal(t, "file.txt", response.Groups[0].Items[3].Filename, "fourth item should contain a filename")
+		// Verify the app config values are returned from the store
+		assert.Equal(t, "new-value", response.Values["test-item"].Value, "test-item should be updated")
+		assert.Equal(t, "required-value", response.Values["required-item"].Value, "required-item should be updated")
+		assert.Equal(t, "SGVsbG8gV29ybGQ=", response.Values["file-item"].Value, "file-item value should be updated")
+		assert.Equal(t, "new-file.txt", response.Values["file-item"].Filename, "file-item value should contain a filename")
 	})
 
 	// Test authorization
@@ -304,7 +305,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request to set config values
+		// Create a request to patch config values
 		patchRequest := types.PatchAppConfigValuesRequest{
 			Values: types.AppConfigValues{
 				"test-item":     types.AppConfigValue{Value: "new-value"},
@@ -357,7 +358,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request to set config values
+		// Create a request to patch config values
 		patchRequest := types.PatchAppConfigValuesRequest{
 			Values: types.AppConfigValues{
 				"test-item":     types.AppConfigValue{Value: "new-value"},
@@ -411,7 +412,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
 
-		// Create a request to set config values without the required item
+		// Create a request to patch config values without the required item
 		patchRequest := types.PatchAppConfigValuesRequest{
 			Values: types.AppConfigValues{
 				"test-item": types.AppConfigValue{Value: "new-value"},
@@ -625,11 +626,11 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		config, err := c.PatchKubernetesAppConfigValues(configValues)
 		require.NoError(t, err, "PatchKubernetesAppConfigValues should succeed")
 
-		// Verify the raw app config is returned (not the applied values)
-		assert.Equal(t, "value", config.Groups[0].Items[0].Value.String(), "first item should return raw config schema value")
-		assert.Equal(t, "", config.Groups[0].Items[1].Value.String(), "second item should return empty value since it has no default")
-		assert.Equal(t, "QQ==", config.Groups[0].Items[2].Value.String(), "third item should return raw config schema value for file")
-		assert.Equal(t, "file.txt", config.Groups[0].Items[2].Filename, "third item should contain a filename")
+		// Verify the config values are returned
+		assert.Equal(t, "new-value", config["test-item"].Value, "new value for test-item should be returned")
+		assert.Equal(t, "required-value", config["required-item"].Value, "new value for required-item should be returned")
+		assert.Equal(t, "SGVsbG8gV29ybGQ=", config["file-item"].Value, "new value for file-item should be returned")
+		assert.Equal(t, "new-file.txt", config["file-item"].Filename, "file-item value should contain a filename")
 	})
 
 	// Test PatchKubernetesAppConfigValues with missing required item

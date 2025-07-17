@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -23,6 +23,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { text, target } = useWizard();
   const { token } = useAuth();
   const { settings } = useSettings();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('');
   const [configValues, setConfigValues] = useState<AppConfigValues>({});
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
@@ -74,7 +75,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   });
 
   // Mutation to save config values
-  const { mutate: submitConfigValues } = useMutation({
+  const { mutate: submitConfigValues } = useMutation<AppConfigValues>({
     mutationFn: async () => {
       // Build payload with only dirty fields
       const dirtyValues: AppConfigValues = {};
@@ -102,12 +103,16 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         throw new Error(errorData.message || 'Failed to save configuration');
       }
 
-      return response.json();
+      const data = await response.json();
+      return data.values || {};
     },
-    onSuccess: () => {
+    onSuccess: (appConfigValues) => {
       setSubmitError(null);
       // Clear dirty fields after successful submission
       setDirtyFields(new Set());
+      // Update config values with the latest from the API
+      setConfigValues(appConfigValues);
+      queryClient.setQueryData(['appConfigValues', target], appConfigValues);
       onNext();
     },
     onError: (error: Error) => {

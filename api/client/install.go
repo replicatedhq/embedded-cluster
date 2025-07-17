@@ -349,39 +349,39 @@ func (c *client) GetLinuxAppConfigValues() (types.AppConfigValues, error) {
 	return response.Values, nil
 }
 
-func (c *client) PatchLinuxAppConfigValues(values types.AppConfigValues) (types.AppConfig, error) {
+func (c *client) PatchLinuxAppConfigValues(values types.AppConfigValues) (types.AppConfigValues, error) {
 	req := types.PatchAppConfigValuesRequest{
 		Values: values,
 	}
 	b, err := json.Marshal(req)
 	if err != nil {
-		return types.AppConfig{}, err
+		return types.AppConfigValues{}, err
 	}
 
 	httpReq, err := http.NewRequest("PATCH", c.apiURL+"/api/linux/install/app/config/values", bytes.NewBuffer(b))
 	if err != nil {
-		return types.AppConfig{}, err
+		return types.AppConfigValues{}, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	setAuthorizationHeader(httpReq, c.token)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return types.AppConfig{}, err
+		return types.AppConfigValues{}, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return types.AppConfig{}, errorFromResponse(resp)
+		return types.AppConfigValues{}, errorFromResponse(resp)
 	}
 
-	var config types.AppConfig
+	var config types.AppConfigValuesResponse
 	err = json.NewDecoder(resp.Body).Decode(&config)
 	if err != nil {
-		return types.AppConfig{}, err
+		return types.AppConfigValues{}, err
 	}
 
-	return config, nil
+	return config.Values, nil
 }
 
 func (c *client) GetKubernetesAppConfig() (types.AppConfig, error) {
@@ -438,38 +438,38 @@ func (c *client) GetKubernetesAppConfigValues() (types.AppConfigValues, error) {
 	return response.Values, nil
 }
 
-func (c *client) PatchKubernetesAppConfigValues(values types.AppConfigValues) (types.AppConfig, error) {
+func (c *client) PatchKubernetesAppConfigValues(values types.AppConfigValues) (types.AppConfigValues, error) {
 	request := types.PatchAppConfigValuesRequest{
 		Values: values,
 	}
 
 	b, err := json.Marshal(request)
 	if err != nil {
-		return types.AppConfig{}, err
+		return types.AppConfigValues{}, err
 	}
 
 	httpReq, err := http.NewRequest("PATCH", c.apiURL+"/api/kubernetes/install/app/config/values", bytes.NewBuffer(b))
 	if err != nil {
-		return types.AppConfig{}, err
+		return types.AppConfigValues{}, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	setAuthorizationHeader(httpReq, c.token)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return types.AppConfig{}, err
+		return types.AppConfigValues{}, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return types.AppConfig{}, errorFromResponse(resp)
+		return types.AppConfigValues{}, errorFromResponse(resp)
 	}
 
-	var config types.AppConfig
+	var config types.AppConfigValuesResponse
 	err = json.NewDecoder(resp.Body).Decode(&config)
 	if err != nil {
-		return types.AppConfig{}, err
+		return types.AppConfigValues{}, err
 	}
 
-	return config, nil
+	return config.Values, nil
 }

@@ -1550,10 +1550,10 @@ describe.each([
       });
 
       const fileInput = screen.getByTestId("file-input-ssl_certificate");
-      
+
       // Create a mock file
       const file = new File(['certificate content'], 'cert.pem', { type: 'text/plain' });
-      
+
       // Mock FileReader
       const mockFileReader = {
         readAsDataURL: vi.fn().mockImplementation(() => {
@@ -1571,13 +1571,13 @@ describe.each([
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onerror: null as any
       };
-      
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
-      
+
       // Simulate file selection
       fireEvent.change(fileInput, { target: { files: [file] } });
-      
+
       // Wait for the async file reading to complete
       await waitFor(() => {
         expect(mockFileReader.readAsDataURL).toHaveBeenCalledWith(file);
@@ -1624,10 +1624,10 @@ describe.each([
       });
 
       const fileInput = screen.getByTestId("file-input-ssl_certificate");
-      
+
       // Create a mock file
       const file = new File(['certificate content'], 'cert.pem', { type: 'text/plain' });
-      
+
       // Mock FileReader
       const mockFileReader = {
         readAsDataURL: vi.fn().mockImplementation(() => {
@@ -1645,13 +1645,13 @@ describe.each([
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onerror: null as any
       };
-      
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
-      
+
       // Simulate file selection
       fireEvent.change(fileInput, { target: { files: [file] } });
-      
+
       // Wait for the async file reading to complete
       await waitFor(() => {
         expect(mockFileReader.readAsDataURL).toHaveBeenCalledWith(file);

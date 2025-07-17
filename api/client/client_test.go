@@ -860,23 +860,10 @@ func TestKubernetesGetAppConfigValues(t *testing.T) {
 }
 
 func TestLinuxPatchAppConfigValues(t *testing.T) {
-	// Define expected config once
-	expectedConfig := types.AppConfig{
-		Groups: []kotsv1beta1.ConfigGroup{
-			{
-				Name:  "test-group",
-				Title: "Test Group",
-				Items: []kotsv1beta1.ConfigItem{
-					{
-						Name:    "test-item",
-						Type:    "text",
-						Title:   "Test Item",
-						Default: multitype.BoolOrString{StrVal: "default"},
-						Value:   multitype.BoolOrString{StrVal: "value"},
-					},
-				},
-			},
-		},
+	// Define expected config values once
+	expectedValues := types.AppConfigValues{
+		"test-item":     types.AppConfigValue{Value: "new-value"},
+		"required-item": types.AppConfigValue{Value: "required-value"},
 	}
 
 	// Create a test server
@@ -900,11 +887,11 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(expectedConfig)
+		json.NewEncoder(w).Encode(types.AppConfigValuesResponse{Values: expectedValues})
 	}))
 	defer server.Close()
 
-	// Test successful set
+	// Test successful patch
 	c := New(server.URL, WithToken("test-token"))
 	configValues := types.AppConfigValues{
 		"test-item":     types.AppConfigValue{Value: "new-value"},
@@ -912,7 +899,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 	}
 	config, err := c.PatchLinuxAppConfigValues(configValues)
 	require.NoError(t, err)
-	assert.Equal(t, expectedConfig, config)
+	assert.Equal(t, expectedValues, config)
 
 	// Test error response
 	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -925,9 +912,9 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	config, err = c.PatchLinuxAppConfigValues(configValues)
+	configValues, err = c.PatchLinuxAppConfigValues(configValues)
 	assert.Error(t, err)
-	assert.Equal(t, types.AppConfig{}, config)
+	assert.Equal(t, types.AppConfigValues{}, configValues)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -936,23 +923,10 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 }
 
 func TestKubernetesPatchAppConfigValues(t *testing.T) {
-	// Define expected config once
-	expectedConfig := types.AppConfig{
-		Groups: []kotsv1beta1.ConfigGroup{
-			{
-				Name:  "test-group",
-				Title: "Test Group",
-				Items: []kotsv1beta1.ConfigItem{
-					{
-						Name:    "test-item",
-						Type:    "text",
-						Title:   "Test Item",
-						Default: multitype.BoolOrString{StrVal: "default"},
-						Value:   multitype.BoolOrString{StrVal: "value"},
-					},
-				},
-			},
-		},
+	// Define expected config values once
+	expectedValues := types.AppConfigValues{
+		"test-item":     types.AppConfigValue{Value: "new-value"},
+		"required-item": types.AppConfigValue{Value: "required-values"},
 	}
 
 	// Create a test server
@@ -976,19 +950,19 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(expectedConfig)
+		json.NewEncoder(w).Encode(types.AppConfigValuesResponse{Values: expectedValues})
 	}))
 	defer server.Close()
 
-	// Test successful set
+	// Test successful patch
 	c := New(server.URL, WithToken("test-token"))
 	configValues := types.AppConfigValues{
 		"test-item":     types.AppConfigValue{Value: "new-value"},
 		"required-item": types.AppConfigValue{Value: "required-value"},
 	}
-	config, err := c.PatchKubernetesAppConfigValues(configValues)
+	configValuesResponse, err := c.PatchKubernetesAppConfigValues(configValues)
 	assert.NoError(t, err)
-	assert.Equal(t, expectedConfig, config)
+	assert.Equal(t, expectedValues, configValuesResponse)
 
 	// Test error response
 	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1001,9 +975,9 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	config, err = c.PatchKubernetesAppConfigValues(configValues)
+	configValuesResponse, err = c.PatchKubernetesAppConfigValues(configValues)
 	assert.Error(t, err)
-	assert.Equal(t, types.AppConfig{}, config)
+	assert.Equal(t, types.AppConfigValues{}, configValuesResponse)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")

@@ -18,7 +18,7 @@ type Client interface {
 	GetLinuxInfraStatus() (types.Infra, error)
 	GetLinuxAppConfig() (types.AppConfig, error)
 	GetLinuxAppConfigValues() (types.AppConfigValues, error)
-	PatchLinuxAppConfigValues(types.AppConfigValues) (types.AppConfig, error)
+	PatchLinuxAppConfigValues(types.AppConfigValues) (types.AppConfigValues, error)
 
 	GetKubernetesInstallationConfig() (types.KubernetesInstallationConfig, error)
 	ConfigureKubernetesInstallation(config types.KubernetesInstallationConfig) (types.Status, error)
@@ -27,7 +27,7 @@ type Client interface {
 	GetKubernetesInfraStatus() (types.Infra, error)
 	GetKubernetesAppConfig() (types.AppConfig, error)
 	GetKubernetesAppConfigValues() (types.AppConfigValues, error)
-	PatchKubernetesAppConfigValues(types.AppConfigValues) (types.AppConfig, error)
+	PatchKubernetesAppConfigValues(types.AppConfigValues) (types.AppConfigValues, error)
 }
 
 type client struct {
