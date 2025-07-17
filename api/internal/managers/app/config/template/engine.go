@@ -90,8 +90,7 @@ func (e *Engine) Execute(tmpl *template.Template, configValues types.AppConfigVa
 	e.configValues = configValues
 
 	var buf bytes.Buffer
-	err := tmpl.Execute(&buf, nil)
-	if err != nil {
+	if err := tmpl.Execute(&buf, nil); err != nil {
 		return "", err
 	}
 
@@ -102,31 +101,27 @@ func (e *Engine) Execute(tmpl *template.Template, configValues types.AppConfigVa
 func (e *Engine) ProcessTemplate(templateStr string, configValues types.AppConfigValues) (string, error) {
 	tmpl, err := e.Parse(templateStr)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("parse template: %w", err)
 	}
 
-	return e.Execute(tmpl, configValues)
+	result, err := e.Execute(tmpl, configValues)
+	if err != nil {
+		return "", fmt.Errorf("execute template: %w", err)
+	}
+
+	return result, nil
 }
 
-// processTemplateInternal processes a template string using the current execution state
-func (e *Engine) processTemplateInternal(templateStr string) (string, error) {
-	if templateStr == "" {
-		return "", nil
-	}
-
-	// Combine sprig functions with our custom functions
-	funcMap := sprig.TxtFuncMap()
-	maps.Copy(funcMap, e.GetFuncMap())
-
-	tmpl, err := template.New("template").Funcs(funcMap).Parse(templateStr)
+// processTemplate processes a template string using the current execution state
+func (e *Engine) processTemplate(templateStr string) (string, error) {
+	tmpl, err := e.Parse(templateStr)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("parse template: %w", err)
 	}
 
 	var buf bytes.Buffer
-	err = tmpl.Execute(&buf, nil)
-	if err != nil {
-		return "", err
+	if err := tmpl.Execute(&buf, nil); err != nil {
+		return "", fmt.Errorf("execute template: %w", err)
 	}
 
 	return buf.String(), nil
@@ -142,13 +137,17 @@ func (e *Engine) GetFuncMap() template.FuncMap {
 }
 
 func (e *Engine) ConfigOption(name string) (string, error) {
-	return e.ResolveConfigItem(name)
+	val, err := e.ResolveConfigItem(name)
+	if err != nil {
+		return "", fmt.Errorf("resolve config item: %w", err)
+	}
+	return val, nil
 }
 
 func (e *Engine) ConfigOptionEquals(name, expected string) (bool, error) {
 	val, err := e.ResolveConfigItem(name)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("resolve config item: %w", err)
 	}
 	return val == expected, nil
 }
@@ -156,13 +155,13 @@ func (e *Engine) ConfigOptionEquals(name, expected string) (bool, error) {
 func (e *Engine) ConfigOptionData(name string) (string, error) {
 	val, err := e.ResolveConfigItem(name)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("resolve config item: %w", err)
 	}
 
 	// Base64 decode for file content
 	decoded, err := base64.StdEncoding.DecodeString(val)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("decode base64 value: %w", err)
 	}
 	return string(decoded), nil
 }
@@ -252,14 +251,14 @@ func (e *Engine) ResolveConfigItem(name string) (string, error) {
 		effectiveValue = userVal.Value
 	} else if configItem.Value.String() != "" {
 		// Process config value template
-		val, err := e.processTemplateInternal(configItem.Value.String())
+		val, err := e.processTemplate(configItem.Value.String())
 		if err != nil {
 			return "", fmt.Errorf("error processing value template for %s: %w", name, err)
 		}
 		effectiveValue = val
 	} else if configItem.Default.String() != "" {
 		// Process config default template
-		val, err := e.processTemplateInternal(configItem.Default.String())
+		val, err := e.processTemplate(configItem.Default.String())
 		if err != nil {
 			return "", fmt.Errorf("error processing default template for %s: %w", name, err)
 		}
