@@ -197,56 +197,56 @@ func (m *appConfigManager) GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, e
 	return kotsadmConfigValues, nil
 }
 
-// setConfigValueByType sets either Value or ValuePlaintext based on the item type
-func setConfigValueByType(cv *kotsv1beta1.ConfigValue, itemType string, value string) {
-	if itemType == "password" {
-		cv.ValuePlaintext = value
-	} else {
-		cv.Value = value
-	}
-}
-
-// applyStoredValueOverride applies stored values from configValues if they exist
-func applyStoredValueOverride(cv *kotsv1beta1.ConfigValue, itemType string, itemName string, configValues types.AppConfigValues) {
-	if v, ok := configValues[itemName]; ok {
-		setConfigValueByType(cv, itemType, v.Value)
-		cv.Filename = v.Filename
-	}
-}
-
-// createConfigValue creates a ConfigValue with the given parameters and applies overrides
-func createConfigValue(defaultValue, initialValue, itemType, filename, itemName string, configValues types.AppConfigValues) kotsv1beta1.ConfigValue {
+func getConfigValueFromItem(item kotsv1beta1.ConfigItem, configValues types.AppConfigValues) kotsv1beta1.ConfigValue {
 	configValue := kotsv1beta1.ConfigValue{
-		Default:  defaultValue,
-		Filename: filename,
+		Default:  item.Default.String(),
+		Filename: item.Filename,
 	}
 
-	setConfigValueByType(&configValue, itemType, initialValue)
-	applyStoredValueOverride(&configValue, itemType, itemName, configValues)
+	// Set value based on item type
+	if item.Type == "password" {
+		configValue.ValuePlaintext = item.Value.String()
+	} else {
+		configValue.Value = item.Value.String()
+	}
+
+	// Apply stored value override if it exists
+	if v, ok := configValues[item.Name]; ok {
+		if item.Type == "password" {
+			configValue.ValuePlaintext = v.Value
+		} else {
+			configValue.Value = v.Value
+		}
+		configValue.Filename = v.Filename
+	}
 
 	return configValue
 }
 
-func getConfigValueFromItem(item kotsv1beta1.ConfigItem, configValues types.AppConfigValues) kotsv1beta1.ConfigValue {
-	return createConfigValue(
-		item.Default.String(),
-		item.Value.String(),
-		item.Type,
-		item.Filename,
-		item.Name,
-		configValues,
-	)
-}
-
 func getConfigValueFromChildItem(item kotsv1beta1.ConfigItem, childItem kotsv1beta1.ConfigChildItem, configValues types.AppConfigValues) kotsv1beta1.ConfigValue {
-	return createConfigValue(
-		childItem.Default.String(),
-		childItem.Value.String(),
-		item.Type,
-		item.Filename,
-		childItem.Name,
-		configValues,
-	)
+	configValue := kotsv1beta1.ConfigValue{
+		Default:  childItem.Default.String(),
+		Filename: item.Filename,
+	}
+
+	// Set value based on parent item type
+	if item.Type == "password" {
+		configValue.ValuePlaintext = childItem.Value.String()
+	} else {
+		configValue.Value = childItem.Value.String()
+	}
+
+	// Apply stored value override if it exists
+	if v, ok := configValues[childItem.Name]; ok {
+		if item.Type == "password" {
+			configValue.ValuePlaintext = v.Value
+		} else {
+			configValue.Value = v.Value
+		}
+		configValue.Filename = v.Filename
+	}
+
+	return configValue
 }
 
 // filterAppConfig filters out disabled groups and items based on their 'when' condition
