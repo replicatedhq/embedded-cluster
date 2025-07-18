@@ -86,7 +86,7 @@ func (e *Engine) parse(templateStr string) (*template.Template, error) {
 	return tmpl, nil
 }
 
-// Execute executes a parsed template
+// Execute executes a the engine's parsed template
 func (e *Engine) Execute(configValues types.AppConfigValues) (string, error) {
 	if e.tmpl == nil {
 		return "", nil
