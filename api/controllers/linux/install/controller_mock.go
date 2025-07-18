@@ -92,6 +92,12 @@ func (m *MockController) GetAppConfig(ctx context.Context) (types.AppConfig, err
 	return args.Get(0).(types.AppConfig), args.Error(1)
 }
 
+// TemplateAppConfig mocks the TemplateAppConfig method
+func (m *MockController) TemplateAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error) {
+	args := m.Called(ctx, values)
+	return args.Get(0).(types.AppConfig), args.Error(1)
+}
+
 // PatchAppConfigValues mocks the PatchAppConfigValues method
 func (m *MockController) PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) error {
 	args := m.Called(ctx, values)
