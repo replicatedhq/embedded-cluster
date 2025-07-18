@@ -138,7 +138,7 @@ func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.JSON(w, r, http.StatusOK, types.AppConfig(appConfig.Spec), h.logger)
+	utils.JSON(w, r, http.StatusOK, appConfig, h.logger)
 }
 
 // PatchConfigValues handler to set the app config values

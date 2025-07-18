@@ -16,8 +16,8 @@ var _ AppConfigManager = &appConfigManager{}
 
 // AppConfigManager provides methods for managing appConfig structure setup
 type AppConfigManager interface {
-	// GetConfig returns the config with disabled groups and items filtered out
-	GetConfig() (kotsv1beta1.Config, error)
+	// GetConfig returns the config templated with the stored values
+	GetConfig() (types.AppConfig, error)
 	// GetConfigValues returns the current config values
 	GetConfigValues(maskPasswords bool) (types.AppConfigValues, error)
 	// ValidateConfigValues validates the config values

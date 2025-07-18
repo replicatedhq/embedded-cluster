@@ -20,7 +20,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -34,7 +33,7 @@ type Controller interface {
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
-	GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error)
+	GetAppConfig(ctx context.Context) (types.AppConfig, error)
 	PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) error
 	GetAppConfigValues(ctx context.Context, maskPasswords bool) (types.AppConfigValues, error)
 }

@@ -14,9 +14,9 @@ type MockAppConfigManager struct {
 }
 
 // GetConfig mocks the GetConfig method
-func (m *MockAppConfigManager) GetConfig() (kotsv1beta1.Config, error) {
+func (m *MockAppConfigManager) GetConfig() (types.AppConfig, error) {
 	args := m.Called()
-	return args.Get(0).(kotsv1beta1.Config), args.Error(1)
+	return args.Get(0).(types.AppConfig), args.Error(1)
 }
 
 // GetConfigValues mocks the GetConfigValues method
