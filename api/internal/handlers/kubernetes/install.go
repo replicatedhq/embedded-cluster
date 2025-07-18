@@ -141,6 +141,35 @@ func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, r, http.StatusOK, appConfig, h.logger)
 }
 
+// PostTemplateAppConfig handler to template the app config with provided values
+//
+//	@ID				postKubernetesInstallTemplateAppConfig
+//	@Summary		Template the app config with provided values
+//	@Description	Template the app config with provided values and return the templated config
+//	@Tags			kubernetes-install
+//	@Security		bearerauth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		types.TemplateAppConfigRequest	true	"Template App Config Request"
+//	@Success		200		{object}	types.AppConfig
+//	@Failure		400		{object}	types.APIError
+//	@Router			/kubernetes/install/app/config/template [post]
+func (h *Handler) PostTemplateAppConfig(w http.ResponseWriter, r *http.Request) {
+	var req types.TemplateAppConfigRequest
+	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
+		return
+	}
+
+	appConfig, err := h.installController.TemplateAppConfig(r.Context(), req.Values)
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to template app config")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	utils.JSON(w, r, http.StatusOK, appConfig, h.logger)
+}
+
 // PatchConfigValues handler to set the app config values
 //
 //	@ID				patchKubernetesInstallAppConfigValues
