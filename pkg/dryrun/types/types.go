@@ -35,6 +35,8 @@ type DryRun struct {
 	OSEnv      map[string]string `json:"osEnv"`
 	K8sObjects []string          `json:"k8sObjects"`
 
+	Logout string `json:"logout"`
+
 	// These fields are used as mocks
 	kcli    client.Client        `json:"-"`
 	mcli    metadata.Interface   `json:"-"`

@@ -1,6 +1,7 @@
 package dryrun
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
@@ -26,6 +28,7 @@ import (
 var (
 	dr     *types.DryRun
 	drFile string
+	logout *bytes.Buffer
 	mu     sync.Mutex
 )
 
@@ -78,11 +81,18 @@ func Init(outputFile string, client *Client) {
 	metrics.Set(client.Metrics)
 	k0s.Set(client.K0sClient)
 	kotsadm.Set(client.Kotsadm)
+
+	logout = bytes.NewBuffer(nil)
+	logrus.SetLevel(logrus.InfoLevel)
+	logrus.SetOutput(logout)
 }
 
 func Dump() error {
 	mu.Lock()
 	defer mu.Unlock()
+
+	dr.Logout = logout.String()
+	logout.Reset()
 
 	output, err := yaml.Marshal(dr)
 	if err != nil {

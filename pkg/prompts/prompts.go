@@ -13,6 +13,7 @@ import (
 
 var (
 	_isTerminal bool = false
+	_testPrompt Prompt = nil
 )
 
 func SetTerminal(isTerminal bool) {
@@ -36,10 +37,25 @@ type Prompt interface {
 
 // New returns a new Prompt.
 func New() Prompt {
+	// If a test prompt is set, use it instead
+	if _testPrompt != nil {
+		return _testPrompt
+	}
 	if os.Getenv("EMBEDDED_CLUSTER_PLAIN_PROMPTS") == "true" {
 		return plain.New()
 	}
 	return decorative.New()
+}
+
+// SetTestPrompt sets a test prompt to be used instead of the normal prompt.
+// This is intended for testing purposes only.
+func SetTestPrompt(prompt Prompt) {
+	_testPrompt = prompt
+}
+
+// ClearTestPrompt clears the test prompt and restores normal behavior.
+func ClearTestPrompt() {
+	_testPrompt = nil
 }
 
 func IsTerminal() bool {
