@@ -21,29 +21,32 @@ var k0sImageComponents = map[string]addonComponent{
 	},
 	"quay.io/k0sproject/calico-node": {
 		name: "calico-node",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "calico-node"
-		},
-		getWolfiPackageVersion: func(opts addonComponentOptions) string {
-			return getCalicoVersion(opts)
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			tag, err := getCalicoTag(opts)
+			if err != nil {
+				return "", fmt.Errorf("failed to get calico release: %w", err)
+			}
+			return fmt.Sprintf("registry.replicated.com/library/calico-node:%s", tag), nil
 		},
 	},
 	"quay.io/k0sproject/calico-cni": {
 		name: "calico-cni",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "calico-cni"
-		},
-		getWolfiPackageVersion: func(opts addonComponentOptions) string {
-			return getCalicoVersion(opts)
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			tag, err := getCalicoTag(opts)
+			if err != nil {
+				return "", fmt.Errorf("failed to get calico tag: %w", err)
+			}
+			return fmt.Sprintf("registry.replicated.com/library/calico-cni:%s", tag), nil
 		},
 	},
 	"quay.io/k0sproject/calico-kube-controllers": {
 		name: "calico-kube-controllers",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "calico-kube-controllers"
-		},
-		getWolfiPackageVersion: func(opts addonComponentOptions) string {
-			return getCalicoVersion(opts)
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			tag, err := getCalicoTag(opts)
+			if err != nil {
+				return "", fmt.Errorf("failed to get calico tag: %w", err)
+			}
+			return fmt.Sprintf("registry.replicated.com/library/calico-kube-controllers:%s", tag), nil
 		},
 	},
 	"registry.k8s.io/metrics-server/metrics-server": {
@@ -124,12 +127,21 @@ func getK0sVersion() (*semver.Version, error) {
 	return semver.MustParse(v), nil
 }
 
-func getCalicoVersion(opts addonComponentOptions) string {
-	// k0s < 1.32 does not work with calico 3.29+ images due to missing rbac
-	// permissions in the manifests that k0s uses to deploy calico.
-	if opts.k0sVersion.LessThan(semver.MustParse("1.32")) {
-		return "3.28"
+func getCalicoTag(opts addonComponentOptions) (string, error) {
+	calicoVersion := getCalicoVersion(opts)
+	constraints := mustParseSemverConstraints(latestPatchConstraint(calicoVersion))
+	tag, err := GetGreatestGitHubTag(opts.ctx, "projectcalico", "calico", constraints)
+	if err != nil {
+		return "", fmt.Errorf("failed to get calico release: %w", err)
 	}
-	// latest minor version that wolfi supports
-	return latestMinorVersion(opts.upstreamVersion)
+	return tag, nil
+}
+
+func getCalicoVersion(opts addonComponentOptions) *semver.Version {
+	// k0s versions prior to 1.31 use calico versions < 3.28,
+	// but securebuild doesn't have versions prior to 3.28
+	if opts.k0sVersion.LessThan(semver.MustParse("1.31")) {
+		return semver.MustParse("3.28.0")
+	}
+	return opts.upstreamVersion
 }
