@@ -28,7 +28,6 @@ import (
 var (
 	dr     *types.DryRun
 	drFile string
-	logout *bytes.Buffer
 	mu     sync.Mutex
 )
 
@@ -49,6 +48,7 @@ func Init(outputFile string, client *Client) {
 		Commands:          []types.Command{},
 		Metrics:           []types.Metric{},
 		HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
+		LogBuffer:         bytes.NewBuffer(nil),
 	}
 	drFile = outputFile
 	if client == nil {
@@ -82,17 +82,16 @@ func Init(outputFile string, client *Client) {
 	k0s.Set(client.K0sClient)
 	kotsadm.Set(client.Kotsadm)
 
-	logout = bytes.NewBuffer(nil)
 	logrus.SetLevel(logrus.InfoLevel)
-	logrus.SetOutput(logout)
+	logrus.SetOutput(dr.LogBuffer)
 }
 
 func Dump() error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	dr.Logout = logout.String()
-	logout.Reset()
+	dr.LogOutput = dr.LogBuffer.String()
+	dr.LogBuffer.Reset()
 
 	output, err := yaml.Marshal(dr)
 	if err != nil {

@@ -93,7 +93,7 @@ defaultDomains:
 	dr := dryrunInstallWithCustomReleaseData(t, &dryrun.Client{HelmClient: hcli}, clusterConfigData, airgapReleaseData)
 
 	// Verify that the airgap warning appears in the output
-	assert.Contains(t, dr.Logout, "You downloaded an air gap bundle but didn't provide it with --airgap-bundle")
+	assert.Contains(t, dr.LogOutput, "You downloaded an air gap bundle but didn't provide it with --airgap-bundle")
 
 	// Verify that the installation proceeded
 	foundInstallStart := false
@@ -154,7 +154,7 @@ defaultDomains:
 	verifyInstallationSucceeded(t, dr)
 
 	// Verify that the airgap warning does not appear in the output
-	assert.NotContains(t, dr.Logout, "You downloaded an air gap bundle but didn't provide it with --airgap-bundle")
+	assert.NotContains(t, dr.LogOutput, "You downloaded an air gap bundle but didn't provide it with --airgap-bundle")
 
 	// Verify that the mock expectations were met
 	mockPrompt.AssertExpectations(t)
