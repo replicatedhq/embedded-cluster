@@ -7,33 +7,43 @@ spec:
     - name: config-items
       title: Config Items
       items:
-        - name: text_input
-          title: Text Input
-          help_text: A basic text field
+        - name: label
+          type: label
+          title: |
+            ## Config Items
+
+            The values set in the config items below will populate the `configitems` ConfigMap in the app (nginx-app).
+
+            ---
+
+        - name: text
+          title: Text
           type: text
-          required: true
-          default: "default text value"
+          default: "default text"
+          help_text: "Help text of a **_Text* config item type"
 
-        - name: password_field
-          title: Secret Password
+        - name: password
+          title: Password
           type: password
-          required: true
-          help_text: This is a required password field
+          default: "default password"
+          help_text: "Help text of a **_Password_** config item type"
 
-        - name: textarea_input
-          title: Text Area Input
+        - name: textarea
+          title: Textarea
           type: textarea
-          help_text: Use this field for longer input
+          default: "default textarea"
+          help_text: "Help text of a **_Textarea_** config item type"
 
-        - name: bool_toggle
-          title: Enable Feature
+        - name: checkbox
+          title: Checkbox
           type: bool
           default: "0"
-          help_text: Toggle to enable feature
+          help_text: "Help text of a **_Checkbox_** config item type"
 
-        - name: dropdown_choice
-          title: Select One
-          type: select_one
+        - name: dropdown
+          title: Dropdown
+          type: dropdown
+          help_text: "Help text of a **_Dropdown_** config item type"
           items:
             - name: opt1
               title: Option 1
@@ -43,9 +53,10 @@ spec:
               title: Option 3
           default: opt1
 
-        - name: radio_choice
-          title: Select One
+        - name: radio
+          title: Radio
           type: radio
+          help_text: "Help text of a *Radio* config item type"
           items:
             - name: opt1
               title: Option 1
@@ -55,22 +66,23 @@ spec:
               title: Option 3
           default: opt1
 
-        - name: file_upload
-          title: Upload a File
+        - name: file
+          title: File
           type: file
-          help_text: Upload any type of file
+          help_text: "Help text of a **_File_** config item type"
 
     - name: markdown-items
       title: Markdown Items
       items:
-        - name: text_input_markdown_help_text
-          title: Text Input with Markdown Help Text
-          help_text: A basic **text field** with `markdown support` in the help text
-          type: text
-
         - name: label
           type: label
           title: |
+            ## Markdown Items
+
+            This group is dedicated to markdown support.
+
+            ---
+
             # H1 Heading
 
             ## H2 Heading

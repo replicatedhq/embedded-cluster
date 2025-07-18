@@ -32,6 +32,14 @@ spec:
         repository: repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "anonymous/registry.replicated.com/library" }}/replicated-sdk-image
       imagePullSecrets:
         - name: '{{repl ImagePullSecretName }}'
+    ConfigItemsConfigMapData:
+      text: repl{{ ConfigOption "text" }}
+      password: repl{{ ConfigOption "password" }}
+      textarea: repl{{ ConfigOption "textarea" }}
+      checkbox: repl{{ ConfigOption "checkbox" }}
+      dropdown: repl{{ ConfigOption "dropdown" }}
+      radio: repl{{ ConfigOption "radio" }}
+      file: repl{{  ConfigOptionFilename "file" }}
   builder:
     replicated:
       enabled: true
