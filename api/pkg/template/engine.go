@@ -133,7 +133,7 @@ func (e *Engine) getFuncMap() template.FuncMap {
 }
 
 func (e *Engine) configOption(name string) (string, error) {
-	val, err := e.ResolveConfigItem(name)
+	val, err := e.resolveConfigItem(name)
 	if err != nil {
 		return "", fmt.Errorf("resolve config item: %w", err)
 	}
@@ -141,7 +141,7 @@ func (e *Engine) configOption(name string) (string, error) {
 }
 
 func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
-	val, err := e.ResolveConfigItem(name)
+	val, err := e.resolveConfigItem(name)
 	if err != nil {
 		return false, fmt.Errorf("resolve config item: %w", err)
 	}
@@ -149,7 +149,7 @@ func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
 }
 
 func (e *Engine) configOptionData(name string) (string, error) {
-	val, err := e.ResolveConfigItem(name)
+	val, err := e.resolveConfigItem(name)
 	if err != nil {
 		return "", fmt.Errorf("resolve config item: %w", err)
 	}
@@ -219,8 +219,8 @@ func (e *Engine) licenseFieldValue(name string) string {
 	}
 }
 
-// ResolveConfigItem resolves a specific config item (internal recursive method)
-func (e *Engine) ResolveConfigItem(name string) (string, error) {
+// resolveConfigItem resolves a specific config item (internal recursive method)
+func (e *Engine) resolveConfigItem(name string) (string, error) {
 	// Check if already resolved
 	if value, exists := e.resolved[name]; exists {
 		return value, nil
