@@ -262,6 +262,7 @@ jobs:
             api/*.go
             api/types/**
             api/pkg/**
+            !api/pkg/template/**
             cmd/**
             kinds/**
             operator/**
