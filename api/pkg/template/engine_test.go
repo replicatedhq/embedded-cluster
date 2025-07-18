@@ -80,6 +80,11 @@ func TestEngine_ValuePriority(t *testing.T) {
 							Name:    "database_url",
 							Default: multitype.BoolOrString{StrVal: "postgres://{{  ConfigOption \"database_host\" }}:{{  ConfigOption \"database_port\" }}/app"},
 						},
+						{
+							Name:    "empty_template_value",
+							Value:   multitype.BoolOrString{StrVal: "{{  if false }}never_shown{{  end }}"},
+							Default: multitype.BoolOrString{StrVal: "fallback_default"},
+						},
 					},
 				},
 			},
@@ -151,6 +156,13 @@ func TestEngine_ValuePriority(t *testing.T) {
 	result, err = engine.Execute(configValues)
 	require.NoError(t, err)
 	assert.Equal(t, "https://metrics.company.com", result)
+
+	// Test item with template value that evaluates to empty - should fall back to default
+	err = engine.Parse("{{  ConfigOption \"empty_template_value\"  }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "fallback_default", result)
 }
 
 func TestEngine_ConfigOptionEquals(t *testing.T) {

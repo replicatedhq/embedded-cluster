@@ -245,20 +245,24 @@ func (e *Engine) resolveConfigItem(name string) (string, error) {
 	// Priority: user value > config value > config default
 	if userVal, exists := e.configValues[name]; exists {
 		effectiveValue = userVal.Value
-	} else if configItem.Value.String() != "" {
-		// Process config value template
-		val, err := e.processTemplate(configItem.Value.String())
-		if err != nil {
-			return "", fmt.Errorf("error processing value template for %s: %w", name, err)
+	} else {
+		// Try config value first
+		if configItem.Value.String() != "" {
+			val, err := e.processTemplate(configItem.Value.String())
+			if err != nil {
+				return "", fmt.Errorf("error processing value template for %s: %w", name, err)
+			}
+			effectiveValue = val
 		}
-		effectiveValue = val
-	} else if configItem.Default.String() != "" {
-		// Process config default template
-		val, err := e.processTemplate(configItem.Default.String())
-		if err != nil {
-			return "", fmt.Errorf("error processing default template for %s: %w", name, err)
+
+		// If still empty, try default
+		if effectiveValue == "" && configItem.Default.String() != "" {
+			val, err := e.processTemplate(configItem.Default.String())
+			if err != nil {
+				return "", fmt.Errorf("error processing default template for %s: %w", name, err)
+			}
+			effectiveValue = val
 		}
-		effectiveValue = val
 	}
 
 	// Cache the result
