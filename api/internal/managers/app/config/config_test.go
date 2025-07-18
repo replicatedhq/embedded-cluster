@@ -18,7 +18,7 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 	tests := []struct {
 		name     string
 		config   kotsv1beta1.Config
-		expected kotsv1beta1.Config
+		expected types.AppConfig
 	}{
 		{
 			name: "config with template processing",
@@ -42,21 +42,19 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 					},
 				},
 			},
-			expected: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "templated_group",
-							Title: "HTTP Configuration",
-							When:  "true",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "templated_item",
-									Title: "HTTP ENABLED",
-									Type:  "text",
-									Value: multitype.BoolOrString{StrVal: "8080"},
-									When:  "true",
-								},
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "templated_group",
+						Title: "HTTP Configuration",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:  "templated_item",
+								Title: "HTTP ENABLED",
+								Type:  "text",
+								Value: multitype.BoolOrString{StrVal: "8080"},
+								When:  "true",
 							},
 						},
 					},
@@ -106,21 +104,19 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 					},
 				},
 			},
-			expected: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "templated_enabled_group",
-							Title: "Enabled Group",
-							When:  "true",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "templated_enabled_item",
-									Title: "Port: 8080",
-									Type:  "text",
-									Value: multitype.BoolOrString{Type: multitype.Bool, BoolVal: true},
-									When:  "true",
-								},
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "templated_enabled_group",
+						Title: "Enabled Group",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:  "templated_enabled_item",
+								Title: "Port: 8080",
+								Type:  "text",
+								Value: multitype.BoolOrString{Type: multitype.Bool, BoolVal: true},
+								When:  "true",
 							},
 						},
 					},
@@ -191,21 +187,19 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 					},
 				},
 			},
-			expected: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "visible_config_group",
-							Title: "Visible Config Group",
-							When:  "true",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "visible_config_group_visible_item_1",
-									Title: "Visible Item 1",
-									Type:  "text",
-									Value: multitype.BoolOrString{StrVal: "visible_config_group_visible_item_1_value"},
-									When:  "true",
-								},
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "visible_config_group",
+						Title: "Visible Config Group",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:  "visible_config_group_visible_item_1",
+								Title: "Visible Item 1",
+								Type:  "text",
+								Value: multitype.BoolOrString{StrVal: "visible_config_group_visible_item_1_value"},
+								When:  "true",
 							},
 						},
 					},
@@ -241,21 +235,19 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 					},
 				},
 			},
-			expected: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "group_with_empty_when",
-							Title: "Group with Empty When",
-							When:  "",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "item_with_empty_when",
-									Title: "Item with Empty When",
-									Type:  "text",
-									Value: multitype.BoolOrString{StrVal: "item_with_empty_when_value"},
-									When:  "",
-								},
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "group_with_empty_when",
+						Title: "Group with Empty When",
+						When:  "",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:  "item_with_empty_when",
+								Title: "Item with Empty When",
+								Type:  "text",
+								Value: multitype.BoolOrString{StrVal: "item_with_empty_when_value"},
+								When:  "",
 							},
 						},
 					},
@@ -269,10 +261,8 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 					Groups: []kotsv1beta1.ConfigGroup{},
 				},
 			},
-			expected: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{},
-				},
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{},
 			},
 		},
 		{
@@ -289,10 +279,8 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 					},
 				},
 			},
-			expected: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{},
-				},
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{},
 			},
 		},
 		{
@@ -331,10 +319,8 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 					},
 				},
 			},
-			expected: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{},
-				},
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{},
 			},
 		},
 		{
@@ -380,28 +366,26 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 					},
 				},
 			},
-			expected: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "mixed_group",
-							Title: "Mixed Group",
-							When:  "true",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "enabled_item_1",
-									Title: "Enabled Item 1",
-									Type:  "text",
-									Value: multitype.BoolOrString{StrVal: "enabled_item_1_value"},
-									When:  "true",
-								},
-								{
-									Name:  "enabled_item_2",
-									Title: "Enabled Item 2",
-									Type:  "text",
-									Value: multitype.BoolOrString{StrVal: "enabled_item_2_value"},
-									When:  "true",
-								},
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "mixed_group",
+						Title: "Mixed Group",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:  "enabled_item_1",
+								Title: "Enabled Item 1",
+								Type:  "text",
+								Value: multitype.BoolOrString{StrVal: "enabled_item_1_value"},
+								When:  "true",
+							},
+							{
+								Name:  "enabled_item_2",
+								Title: "Enabled Item 2",
+								Type:  "text",
+								Value: multitype.BoolOrString{StrVal: "enabled_item_2_value"},
+								When:  "true",
 							},
 						},
 					},
