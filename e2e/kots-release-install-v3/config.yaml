@@ -10,66 +10,192 @@ spec:
         - name: label
           type: label
           title: |
-            ## Config Items
-
             The values set in the config items below will populate the `configitems` ConfigMap in the app (nginx-app).
 
+        - name: label
+          type: label
+          title: |
+            ## Text Items
             ---
 
-        - name: text
-          title: Text
+        - name: text_simple
+          title: Simple Text
+          type: text
+          help_text: "Help text of a simple **_Text_** config item type"
+
+        - name: text_with_default
+          title: Text with default value
           type: text
           default: "default text"
-          help_text: "Help text of a **_Text* config item type"
+          help_text: "Help text of a **_Text_** config item type **_with default value_**"
 
-        - name: password
-          title: Password
+        - name: text_required
+          title: Text marked required
+          type: text
+          required: true
+          help_text: "Help text of a **_Text_** config item type **_marked required_**"
+
+        - name: label
+          type: label
+          title: |
+            ## Password Items
+            ---
+
+        - name: password_simple
+          title: Simple Password
+          type: password
+          help_text: "Help text of a simple **_Password_** config item type"
+
+        - name: password_with_default
+          title: Password with default value
           type: password
           default: "default password"
-          help_text: "Help text of a **_Password_** config item type"
+          help_text: "Help text of a **_Password_** config item type **_with default value_**"
 
-        - name: textarea
-          title: Textarea
+        - name: password_required
+          title: Password marked required
+          type: password
+          required: true
+          help_text: "Help text of a **_Password_** config item type **_marked required_**"
+
+        - name: label
+          type: label
+          title: |
+            ## Textarea Items
+            ---
+
+        - name: textarea_simple
+          title: Simple Textarea
+          type: textarea
+          help_text: "Help text of a simple **_Textarea_** config item type"
+
+        - name: textarea_with_default
+          title: Textarea with default value
           type: textarea
           default: "default textarea"
-          help_text: "Help text of a **_Textarea_** config item type"
+          help_text: "Help text of a **_Textarea_** config item type **_with default value_**"
 
-        - name: checkbox
-          title: Checkbox
+        - name: textarea_required
+          title: Textarea marked required
+          type: textarea
+          required: true
+          help_text: "Help text of a **_Textarea_** config item type **_marked required_**"
+
+        - name: label
+          type: label
+          title: |
+            ## Checkbox/Bool Items
+            ---
+
+        - name: checkbox_simple
+          title: Simple Checkbox
           type: bool
-          default: "0"
-          help_text: "Help text of a **_Checkbox_** config item type"
+          help_text: "Help text of a simple **_Checkbox_** config item type"
 
-        - name: dropdown
-          title: Dropdown
+        - name: checkbox_with_default
+          title: Checkbox with default value
+          type: bool
+          default: "1"
+          help_text: "Help text of a **_Checkbox_** config item type **_with default value_**"
+
+        - name: checkbox_required
+          title: Checkbox marked required
+          type: bool
+          required: true
+          help_text: "Help text of a **_Checkbox_** config item type **_marked required_**"
+
+        - name: label
+          type: label
+          title: |
+            ## Dropdown Items
+            ---
+
+        - name: dropdown_simple
+          title: Simple Dropdown
           type: dropdown
-          help_text: "Help text of a **_Dropdown_** config item type"
+          help_text: "Help text of a simple **_Dropdown_** config item type"
           items:
             - name: opt1
               title: Option 1
             - name: opt2
               title: Option 2
-            - name: opt3
-              title: Option 3
+
+        - name: dropdown_with_default
+          title: Dropdown with default value
+          type: dropdown
+          help_text: "Help text of a **_Dropdown_** config item type **_with default value_**"
+          items:
+            - name: opt1
+              title: Option 1
+            - name: opt2
+              title: Option 2
           default: opt1
 
-        - name: radio
-          title: Radio
+        - name: dropdown_required
+          title: Dropdown marked required
+          type: dropdown
+          required: true
+          help_text: "Help text of a **_Dropdown_** config item type **_marked required_**"
+          items:
+            - name: opt1
+              title: Option 1
+            - name: opt2
+              title: Option 2
+
+        - name: label
+          type: label
+          title: |
+            ## Radio Items
+            ---
+
+        - name: radio_simple
+          title: Simple Radio
           type: radio
-          help_text: "Help text of a *Radio* config item type"
+          help_text: "Help text of a simple **_Radio_** config item type"
           items:
             - name: opt1
               title: Option 1
             - name: opt2
               title: Option 2
-            - name: opt3
-              title: Option 3
+
+        - name: radio_with_default
+          title: Radio with default value
+          type: radio
+          help_text: "Help text of a **_Radio_** config item type **_with default value_**"
+          items:
+            - name: opt1
+              title: Option 1
+            - name: opt2
+              title: Option 2
           default: opt1
 
-        - name: file
-          title: File
+        - name: radio_required
+          title: Radio marked required
+          type: radio
+          required: true
+          help_text: "Help text of a **_Radio_** config item type **_marked required_**"
+          items:
+            - name: opt1
+              title: Option 1
+            - name: opt2
+              title: Option 2
+
+        - name: label
+          type: label
+          title: |
+            ## File Items
+            ---
+
+        - name: file_simple
+          title: Simple File
           type: file
-          help_text: "Help text of a **_File_** config item type"
+          help_text: "Help text of a simple **_File_** config item type"
+
+        - name: file_required
+          title: File marked required
+          type: file
+          required: true
+          help_text: "Help text of a **_File_** config item type **_marked required_**"
 
     - name: markdown-items
       title: Markdown Items

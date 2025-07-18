@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "nginx-app.labels" . | nindent 4 }}
 data:
-  {{- range $key, $value := .Values.ConfigItemsConfigMapData }}
-    {{ $key }}: {{ $value | toString | quote }}
+  {{- range $key, $value := .Values.configItemsConfigMapData }}
+  {{ $key }}: {{ $value | toString | quote }}
   {{- end }}
 

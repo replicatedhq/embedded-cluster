@@ -32,14 +32,41 @@ spec:
         repository: repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "anonymous/registry.replicated.com/library" }}/replicated-sdk-image
       imagePullSecrets:
         - name: '{{repl ImagePullSecretName }}'
-    ConfigItemsConfigMapData:
-      text: repl{{ ConfigOption "text" }}
-      password: repl{{ ConfigOption "password" }}
-      textarea: repl{{ ConfigOption "textarea" }}
-      checkbox: repl{{ ConfigOption "checkbox" }}
-      dropdown: repl{{ ConfigOption "dropdown" }}
-      radio: repl{{ ConfigOption "radio" }}
-      file: repl{{  ConfigOptionFilename "file" }}
+    configItemsConfigMapData:
+      # Text items
+      text_simple: repl{{ ConfigOption "text_simple" }}
+      text_with_default: repl{{ ConfigOption "text_with_default" }}
+      text_required: repl{{ ConfigOption "text_required" }}
+
+      # Password items
+      password_simple: repl{{ ConfigOption "password_simple" }}
+      password_with_default: repl{{ ConfigOption "password_with_default" }}
+      password_required: repl{{ ConfigOption "password_required" }}
+
+      # Textarea items
+      textarea_simple: repl{{ ConfigOption "textarea_simple" }}
+      textarea_with_default: repl{{ ConfigOption "textarea_with_default" }}
+      textarea_required: repl{{ ConfigOption "textarea_required" }}
+
+      # Checkbox/Bool items
+      checkbox_simple: repl{{ ConfigOption "checkbox_simple" }}
+      checkbox_with_default: repl{{ ConfigOption "checkbox_with_default" }}
+      checkbox_required: repl{{ ConfigOption "checkbox_required" }}
+
+      # Dropdown items
+      dropdown_simple: repl{{ ConfigOption "dropdown_simple" }}
+      dropdown_with_default: repl{{ ConfigOption "dropdown_with_default" }}
+      dropdown_required: repl{{ ConfigOption "dropdown_required" }}
+
+      # Radio items
+      radio_simple: repl{{ ConfigOption "radio_simple" }}
+      radio_with_default: repl{{ ConfigOption "radio_with_default" }}
+      radio_required: repl{{ ConfigOption "radio_required" }}
+
+      # File items
+      file_simple: repl{{  ConfigOptionFilename "file_simple" }}
+      file_required: repl{{  ConfigOptionFilename "file_required" }}
+
   builder:
     replicated:
       enabled: true
