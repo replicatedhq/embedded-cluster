@@ -27,6 +27,9 @@ npm run test:unit
 When making changes to Go files:
 
 ```bash
+# Format Go code to ensure consistent style
+go fmt ./...
+
 # Run Go vet to check for common issues
 make vet
 
@@ -48,6 +51,7 @@ Before committing changes, ensure you have:
 - [ ] Checked for proper data-testid attributes in new components
 
 ### For Go Changes
+- [ ] Ran `go fmt ./...` to ensure consistent formatting
 - [ ] Ran `make vet` with no issues
 - [ ] Ran `make unit-tests` with all tests passing
 - [ ] Verified proper error handling and context wrapping

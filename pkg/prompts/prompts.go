@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	_isTerminal bool = false
+	_isTerminal bool   = false
 	_testPrompt Prompt = nil
 )
 
