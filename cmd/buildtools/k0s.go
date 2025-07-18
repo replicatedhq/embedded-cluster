@@ -139,6 +139,5 @@ func getCalicoVersion(opts addonComponentOptions) *semver.Version {
 	if opts.k0sVersion.LessThan(semver.MustParse("1.31")) {
 		return semver.MustParse("3.28.0")
 	}
-	// latest minor version that wolfi supports
 	return opts.upstreamVersion
 }
