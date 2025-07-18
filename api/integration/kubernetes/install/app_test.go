@@ -918,30 +918,30 @@ func TestKubernetesTemplateAppConfig(t *testing.T) {
 
 		// Verify the templates were processed with default values
 		require.Len(t, response.Groups, 2, "both groups should be present when db_enabled is true")
-		
+
 		// Check database group
 		dbGroup := response.Groups[0]
 		assert.Equal(t, "Database Configuration", dbGroup.Title, "group title should be templated")
 		require.Len(t, dbGroup.Items, 4, "all database items should be present")
-		
+
 		// Check db_enabled item
 		assert.Equal(t, "db_enabled", dbGroup.Items[0].Name)
 		assert.Equal(t, "true", dbGroup.Items[0].Value.String())
-		
+
 		// Check db_type item
 		assert.Equal(t, "db_type", dbGroup.Items[1].Name)
 		assert.Equal(t, "mysql", dbGroup.Items[1].Value.String())
-		
+
 		// Check db_host item (uses ConfigOption template)
 		assert.Equal(t, "db_host", dbGroup.Items[2].Name)
 		assert.Equal(t, "Database Host (mysql)", dbGroup.Items[2].Title, "title should be templated with db_type")
 		assert.Equal(t, "mysql.example.com", dbGroup.Items[2].Value.String(), "value should be templated with db_type")
-		
+
 		// Check db_port item (uses conditional template)
 		assert.Equal(t, "db_port", dbGroup.Items[3].Name)
 		assert.Equal(t, "3306", dbGroup.Items[3].Value.String(), "should be mysql port")
 		assert.Equal(t, "3306", dbGroup.Items[3].Default.String(), "default should be mysql port")
-		
+
 		// Check optional features group
 		optionalGroup := response.Groups[1]
 		assert.Equal(t, "Optional Features", optionalGroup.Title)
@@ -1004,25 +1004,25 @@ func TestKubernetesTemplateAppConfig(t *testing.T) {
 
 		// Verify the templates were processed with user values
 		require.Len(t, response.Groups, 2, "both groups should be present when db_enabled is true")
-		
+
 		// Check database group
 		dbGroup := response.Groups[0]
 		assert.Equal(t, "Database Configuration", dbGroup.Title, "group title should be templated")
 		require.Len(t, dbGroup.Items, 4, "all database items should be present")
-		
+
 		// Check db_enabled item - config value remains unchanged
 		assert.Equal(t, "db_enabled", dbGroup.Items[0].Name)
 		assert.Equal(t, "true", dbGroup.Items[0].Value.String(), "config value should remain unchanged")
-		
+
 		// Check db_type item - config value remains unchanged
 		assert.Equal(t, "db_type", dbGroup.Items[1].Name)
 		assert.Equal(t, "mysql", dbGroup.Items[1].Value.String(), "config value should remain unchanged")
-		
+
 		// Check db_host item - template uses user-provided db_type value
 		assert.Equal(t, "db_host", dbGroup.Items[2].Name)
 		assert.Equal(t, "Database Host (postgresql)", dbGroup.Items[2].Title, "title should use user-provided db_type")
 		assert.Equal(t, "postgresql.example.com", dbGroup.Items[2].Value.String(), "value should use user-provided db_type")
-		
+
 		// Check db_port item - conditional template uses user-provided db_type
 		assert.Equal(t, "db_port", dbGroup.Items[3].Name)
 		assert.Equal(t, "5432", dbGroup.Items[3].Value.String(), "should be postgresql port based on user db_type")
@@ -1080,12 +1080,12 @@ func TestKubernetesTemplateAppConfig(t *testing.T) {
 
 		// Verify conditional filtering works
 		require.Len(t, response.Groups, 1, "only one group should remain when db_enabled is false")
-		
+
 		// Check that only db_enabled and db_type items remain (no When conditions)
 		dbGroup := response.Groups[0]
 		assert.Equal(t, "Database Configuration", dbGroup.Title)
 		require.Len(t, dbGroup.Items, 2, "only items without When conditions should remain")
-		
+
 		assert.Equal(t, "db_enabled", dbGroup.Items[0].Name)
 		assert.Equal(t, "db_type", dbGroup.Items[1].Name)
 	})
