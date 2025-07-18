@@ -669,11 +669,18 @@ func TestEngine_EmptyTemplate(t *testing.T) {
 	// Test empty template string
 	err := engine.Parse("")
 	require.NoError(t, err)
-	assert.Nil(t, engine.tmpl)
+	assert.NotNil(t, engine.tmpl)
 
 	result, err := engine.Execute(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "", result)
+}
+
+func TestEngine_ExecuteWithoutParsing(t *testing.T) {
+	engine := NewEngine(nil)
+	_, err := engine.Execute(nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "template not parsed")
 }
 
 func TestEngine_UnknownConfigItem(t *testing.T) {

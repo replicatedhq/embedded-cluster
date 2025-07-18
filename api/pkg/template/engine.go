@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"maps"
+	"strings"
 	"sync"
 	"text/template"
 
@@ -23,6 +24,7 @@ type Engine struct {
 	releaseData  *release.ReleaseData
 
 	tmpl     *template.Template
+	funcMap  template.FuncMap
 	visited  map[string]bool
 	resolved map[string]string
 	mtx      sync.Mutex
@@ -54,6 +56,10 @@ func NewEngine(config *kotsv1beta1.Config, opts ...EngineOption) *Engine {
 		opt(engine)
 	}
 
+	// Initialize funcMap once
+	engine.funcMap = sprig.TxtFuncMap()
+	maps.Copy(engine.funcMap, engine.getFuncMap())
+
 	return engine
 }
 
@@ -70,15 +76,7 @@ func (e *Engine) Parse(templateStr string) error {
 
 // parse parses a template string and returns a prepared template
 func (e *Engine) parse(templateStr string) (*template.Template, error) {
-	if templateStr == "" {
-		return nil, nil
-	}
-
-	// Combine sprig functions with our custom functions
-	funcMap := sprig.TxtFuncMap()
-	maps.Copy(funcMap, e.getFuncMap())
-
-	tmpl, err := template.New("template").Funcs(funcMap).Parse(templateStr)
+	tmpl, err := template.New("template").Funcs(e.funcMap).Parse(templateStr)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +87,7 @@ func (e *Engine) parse(templateStr string) (*template.Template, error) {
 // Execute executes a the engine's parsed template
 func (e *Engine) Execute(configValues types.AppConfigValues) (string, error) {
 	if e.tmpl == nil {
-		return "", nil
+		return "", fmt.Errorf("template not parsed")
 	}
 
 	e.mtx.Lock()
@@ -110,6 +108,11 @@ func (e *Engine) Execute(configValues types.AppConfigValues) (string, error) {
 
 // processTemplate processes a template string using the current execution state
 func (e *Engine) processTemplate(templateStr string) (string, error) {
+	// Quick optimization: if there are no template delimiters, return as-is
+	if !strings.Contains(templateStr, "{{") {
+		return templateStr, nil
+	}
+
 	tmpl, err := e.parse(templateStr)
 	if err != nil {
 		return "", fmt.Errorf("parse template: %w", err)
