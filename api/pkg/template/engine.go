@@ -22,7 +22,7 @@ type Engine struct {
 	license      *kotsv1beta1.License
 	releaseData  *release.ReleaseData
 
-	// Simple cycle detection and result caching
+	tmpl     *template.Template
 	visited  map[string]bool
 	resolved map[string]string
 	mtx      sync.Mutex
@@ -57,8 +57,19 @@ func NewEngine(config *kotsv1beta1.Config, opts ...EngineOption) *Engine {
 	return engine
 }
 
-// Parse parses a template string and returns a prepared template
-func (e *Engine) Parse(templateStr string) (*template.Template, error) {
+// Parse parses a template and populates the engine's template
+func (e *Engine) Parse(templateStr string) error {
+	tmpl, err := e.parse(templateStr)
+	if err != nil {
+		return err
+	}
+
+	e.tmpl = tmpl
+	return nil
+}
+
+// parse parses a template string and returns a prepared template
+func (e *Engine) parse(templateStr string) (*template.Template, error) {
 	if templateStr == "" {
 		return nil, nil
 	}
@@ -76,8 +87,8 @@ func (e *Engine) Parse(templateStr string) (*template.Template, error) {
 }
 
 // Execute executes a parsed template
-func (e *Engine) Execute(tmpl *template.Template, configValues types.AppConfigValues) (string, error) {
-	if tmpl == nil {
+func (e *Engine) Execute(configValues types.AppConfigValues) (string, error) {
+	if e.tmpl == nil {
 		return "", nil
 	}
 
@@ -90,31 +101,16 @@ func (e *Engine) Execute(tmpl *template.Template, configValues types.AppConfigVa
 	e.configValues = configValues
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, nil); err != nil {
+	if err := e.tmpl.Execute(&buf, nil); err != nil {
 		return "", err
 	}
 
 	return buf.String(), nil
 }
 
-// ProcessTemplate processes any template string (convenience method)
-func (e *Engine) ProcessTemplate(templateStr string, configValues types.AppConfigValues) (string, error) {
-	tmpl, err := e.Parse(templateStr)
-	if err != nil {
-		return "", fmt.Errorf("parse template: %w", err)
-	}
-
-	result, err := e.Execute(tmpl, configValues)
-	if err != nil {
-		return "", fmt.Errorf("execute template: %w", err)
-	}
-
-	return result, nil
-}
-
 // processTemplate processes a template string using the current execution state
 func (e *Engine) processTemplate(templateStr string) (string, error) {
-	tmpl, err := e.Parse(templateStr)
+	tmpl, err := e.parse(templateStr)
 	if err != nil {
 		return "", fmt.Errorf("parse template: %w", err)
 	}
