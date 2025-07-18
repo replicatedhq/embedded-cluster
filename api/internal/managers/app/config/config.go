@@ -27,8 +27,14 @@ var (
 )
 
 func (m *appConfigManager) GetConfig() (kotsv1beta1.Config, error) {
+	// Get current config values for template execution
+	configValues, err := m.appConfigStore.GetConfigValues()
+	if err != nil {
+		return kotsv1beta1.Config{}, fmt.Errorf("get config values: %w", err)
+	}
+
 	// Execute the config template
-	processedYAML, err := m.executeConfigTemplate()
+	processedYAML, err := m.executeConfigTemplate(configValues)
 	if err != nil {
 		return kotsv1beta1.Config{}, fmt.Errorf("execute config template: %w", err)
 	}
@@ -40,6 +46,29 @@ func (m *appConfigManager) GetConfig() (kotsv1beta1.Config, error) {
 	}
 
 	return filterAppConfig(processedConfig)
+}
+
+// TemplateConfig templates the config with provided values and returns the templated config
+func (m *appConfigManager) TemplateConfig(configValues types.AppConfigValues) (types.AppConfig, error) {
+	// Execute the config template with provided values
+	result, err := m.executeConfigTemplate(configValues)
+	if err != nil {
+		return types.AppConfig{}, fmt.Errorf("execute config template: %w", err)
+	}
+
+	// Parse to Config struct
+	var processedConfig kotsv1beta1.Config
+	if err := kyaml.Unmarshal([]byte(result), &processedConfig); err != nil {
+		return types.AppConfig{}, fmt.Errorf("unmarshal processed config: %w", err)
+	}
+
+	// Filter and return as AppConfig (which is an alias for ConfigSpec)
+	filteredConfig, err := filterAppConfig(processedConfig)
+	if err != nil {
+		return types.AppConfig{}, fmt.Errorf("filter config: %w", err)
+	}
+
+	return types.AppConfig(filteredConfig.Spec), nil
 }
 
 func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValues) error {

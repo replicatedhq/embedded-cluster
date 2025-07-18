@@ -27,14 +27,14 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 					Groups: []kotsv1beta1.ConfigGroup{
 						{
 							Name:  "templated_group",
-							Title: "{{ print \"HTTP Configuration\" }}",
+							Title: "{{repl print \"HTTP Configuration\" }}",
 							When:  "true",
 							Items: []kotsv1beta1.ConfigItem{
 								{
 									Name:  "templated_item",
-									Title: "{{ upper \"http enabled\" }}",
+									Title: "repl{{ upper \"http enabled\" }}",
 									Type:  "text",
-									Value: multitype.BoolOrString{StrVal: "{{ print \"8080\" }}"},
+									Value: multitype.BoolOrString{StrVal: "{{repl print \"8080\" }}"},
 									When:  "true",
 								},
 							},
@@ -70,35 +70,35 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 					Groups: []kotsv1beta1.ConfigGroup{
 						{
 							Name:  "templated_enabled_group",
-							Title: "{{ print \"Enabled Group\" }}",
+							Title: "repl{{ print \"Enabled Group\" }}",
 							When:  "true",
 							Items: []kotsv1beta1.ConfigItem{
 								{
 									Name:  "templated_enabled_item",
-									Title: "{{ printf \"Port: %d\" 8080 }}",
+									Title: "{{repl printf \"Port: %d\" 8080 }}",
 									Type:  "text",
-									Value: multitype.BoolOrString{StrVal: "{{ print \"true\" }}"},
+									Value: multitype.BoolOrString{StrVal: "repl{{ print \"true\" }}"},
 									When:  "true",
 								},
 								{
 									Name:  "templated_disabled_item",
-									Title: "{{ print \"Disabled Item\" }}",
+									Title: "{{repl print \"Disabled Item\" }}",
 									Type:  "text",
-									Value: multitype.BoolOrString{StrVal: "{{ print \"false\" }}"},
+									Value: multitype.BoolOrString{StrVal: "{{repl print \"false\" }}"},
 									When:  "false",
 								},
 							},
 						},
 						{
 							Name:  "templated_disabled_group",
-							Title: "{{ print \"Disabled Group\" }}",
+							Title: "repl{{ print \"Disabled Group\" }}",
 							When:  "false",
 							Items: []kotsv1beta1.ConfigItem{
 								{
 									Name:  "item_in_disabled_group",
-									Title: "{{ print \"Item in Disabled Group\" }}",
+									Title: "{{repl print \"Item in Disabled Group\" }}",
 									Type:  "text",
-									Value: multitype.BoolOrString{StrVal: "{{ print \"disabled\" }}"},
+									Value: multitype.BoolOrString{StrVal: "repl{{ print \"disabled\" }}"},
 									When:  "true",
 								},
 							},
@@ -118,7 +118,7 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 									Name:  "templated_enabled_item",
 									Title: "Port: 8080",
 									Type:  "text",
-									Value: multitype.BoolOrString{StrVal: "true"},
+									Value: multitype.BoolOrString{Type: multitype.Bool, BoolVal: true},
 									When:  "true",
 								},
 							},
@@ -432,6 +432,450 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 
 			// Verify the original config was not modified (deep copy worked)
 			assert.Equal(t, originalConfig, tt.config, "original config should not be modified")
+		})
+	}
+}
+
+func TestAppConfigManager_TemplateConfig(t *testing.T) {
+	tests := []struct {
+		name           string
+		config         kotsv1beta1.Config
+		configValues   types.AppConfigValues
+		expectedConfig types.AppConfig
+		expectError    bool
+	}{
+		{
+			name: "basic template processing with repl functions",
+			config: kotsv1beta1.Config{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "Config",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "template-config",
+				},
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "server",
+							Title: "{{repl upper \"server configuration\" }}",
+							When:  "{{repl ConfigOptionEquals \"server_enabled\" \"true\" }}",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "server_enabled",
+									Title:   "Enable Server",
+									Type:    "bool",
+									Default: multitype.BoolOrString{StrVal: "true"},
+									Value:   multitype.BoolOrString{StrVal: "true"},
+									When:    "repl{{ print \"true\" }}",
+								},
+								{
+									Name:    "port",
+									Title:   "repl{{ printf \"HTTP Port: %s\" (ConfigOption \"port_default\") }}",
+									Type:    "text",
+									Default: multitype.BoolOrString{StrVal: "8080"},
+									Value:   multitype.BoolOrString{StrVal: "{{repl ConfigOption \"port_default\" }}"},
+									When:    "{{repl ConfigOptionEquals \"server_enabled\" \"true\" }}",
+								},
+								{
+									Name:    "port_default",
+									Title:   "{{repl print \"Default Port\" }}",
+									Type:    "text",
+									Default: multitype.BoolOrString{StrVal: "3000"},
+									Value:   multitype.BoolOrString{StrVal: "repl{{ printf \"%s\" \"custom_port\" }}"},
+									When:    "repl{{ ConfigOptionEquals \"server_enabled\" \"true\" }}",
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"server_enabled": {Value: "true"},
+				"port":           {Value: "8080"},
+				"port_default":   {Value: "3000"},
+			},
+			expectedConfig: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "server",
+						Title: "SERVER CONFIGURATION",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:    "server_enabled",
+								Title:   "Enable Server",
+								Type:    "bool",
+								Default: multitype.BoolOrString{StrVal: "true"},
+								Value:   multitype.BoolOrString{StrVal: "true"},
+								When:    "true",
+							},
+							{
+								Name:    "port",
+								Title:   "HTTP Port: 3000",
+								Type:    "text",
+								Default: multitype.BoolOrString{StrVal: "8080"},
+								Value:   multitype.BoolOrString{StrVal: "3000"},
+								When:    "true",
+							},
+							{
+								Name:    "port_default",
+								Title:   "Default Port",
+								Type:    "text",
+								Default: multitype.BoolOrString{StrVal: "3000"},
+								Value:   multitype.BoolOrString{StrVal: "custom_port"},
+								When:    "true",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "conditional templates with ConfigOptionEquals",
+			config: kotsv1beta1.Config{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "Config",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "conditional-config",
+				},
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "database",
+							Title: "repl{{ if ConfigOptionEquals \"db_type\" \"postgresql\" }}PostgreSQL Configuration{{repl else }}Other Database Configuration{{repl end }}",
+							When:  "{{repl ConfigOptionEquals \"db_enabled\" \"true\" }}",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "db_enabled",
+									Title:   "Enable Database",
+									Type:    "bool",
+									Default: multitype.BoolOrString{StrVal: "true"},
+									Value:   multitype.BoolOrString{StrVal: "true"},
+									When:    "repl{{ print \"true\" }}",
+								},
+								{
+									Name:    "db_type",
+									Title:   "{{repl print \"Database Type\" }}",
+									Type:    "select_one",
+									Default: multitype.BoolOrString{StrVal: "mysql"},
+									Value:   multitype.BoolOrString{StrVal: "postgresql"},
+									When:    "{{repl ConfigOptionEquals \"db_enabled\" \"true\" }}",
+								},
+								{
+									Name:    "db_host",
+									Title:   "repl{{ if ConfigOptionEquals \"db_type\" \"postgresql\" }}PostgreSQL Host{{repl else }}Database Host{{repl end }}",
+									Type:    "text",
+									Default: multitype.BoolOrString{StrVal: "localhost"},
+									Value:   multitype.BoolOrString{StrVal: "{{repl if ConfigOptionEquals \"db_type\" \"postgresql\" }}postgres.example.com{{repl else }}mysql.example.com{{repl end }}"},
+									When:    "repl{{ ConfigOptionEquals \"db_enabled\" \"true\" }}",
+								},
+								{
+									Name:    "db_port",
+									Title:   "Database Port",
+									Type:    "text",
+									Default: multitype.BoolOrString{StrVal: "repl{{ if ConfigOptionEquals \"db_type\" \"postgresql\" }}\"5432\"{{repl else }}\"3306\"{{repl end }}"},
+									Value:   multitype.BoolOrString{StrVal: "{{repl if ConfigOptionEquals \"db_type\" \"postgresql\" }}\"5432\"{{repl else }}\"3306\"{{repl end }}"},
+									When:    "{{repl ConfigOptionEquals \"db_enabled\" \"true\" }}",
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"db_enabled": {Value: "true"},
+				"db_type":    {Value: "postgresql"},
+			},
+			expectedConfig: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "database",
+						Title: "PostgreSQL Configuration",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:    "db_enabled",
+								Title:   "Enable Database",
+								Type:    "bool",
+								Default: multitype.BoolOrString{StrVal: "true"},
+								Value:   multitype.BoolOrString{StrVal: "true"},
+								When:    "true",
+							},
+							{
+								Name:    "db_type",
+								Title:   "Database Type",
+								Type:    "select_one",
+								Default: multitype.BoolOrString{StrVal: "mysql"},
+								Value:   multitype.BoolOrString{StrVal: "postgresql"},
+								When:    "true",
+							},
+							{
+								Name:    "db_host",
+								Title:   "PostgreSQL Host",
+								Type:    "text",
+								Default: multitype.BoolOrString{StrVal: "localhost"},
+								Value:   multitype.BoolOrString{StrVal: "postgres.example.com"},
+								When:    "true",
+							},
+							{
+								Name:    "db_port",
+								Title:   "Database Port",
+								Type:    "text",
+								Default: multitype.BoolOrString{StrVal: "5432"},
+								Value:   multitype.BoolOrString{StrVal: "\"5432\""},
+								When:    "true",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "sprig functions with mixed delimiters",
+			config: kotsv1beta1.Config{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "Config",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "sprig-config",
+				},
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "application",
+							Title: "{{repl title \"application settings\" }}",
+							When:  "repl{{ ConfigOptionEquals \"app_enabled\" \"true\" }}",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "app_enabled",
+									Title:   "Enable Application",
+									Type:    "bool",
+									Default: multitype.BoolOrString{StrVal: "true"},
+									Value:   multitype.BoolOrString{StrVal: "true"},
+									When:    "{{repl print \"true\" }}",
+								},
+								{
+									Name:    "app_name",
+									Title:   "repl{{ upper \"application name\" }}",
+									Type:    "text",
+									Default: multitype.BoolOrString{StrVal: "{{repl lower \"MY-APP\" }}"},
+									Value:   multitype.BoolOrString{StrVal: "repl{{ default \"my-custom-app\" \"\" }}"},
+									When:    "{{repl ConfigOptionEquals \"app_enabled\" \"true\" }}",
+								},
+								{
+									Name:    "app_version",
+									Title:   "{{repl print \"Version\" }}",
+									Type:    "text",
+									Default: multitype.BoolOrString{StrVal: "repl{{ printf \"v%s\" \"1.0.0\" }}"},
+									Value:   multitype.BoolOrString{StrVal: "{{repl printf \"v%s\" \"2.0.0\" }}"},
+									When:    "repl{{ ConfigOptionEquals \"app_enabled\" \"true\" }}",
+								},
+								{
+									Name:    "app_description",
+									Title:   "Description",
+									Type:    "textarea",
+									Default: multitype.BoolOrString{StrVal: "{{repl quote \"Default description\" }}"},
+									Value:   multitype.BoolOrString{StrVal: "repl{{ quote \"Custom application description\" }}"},
+									When:    "{{repl ConfigOptionEquals \"app_enabled\" \"true\" }}",
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"app_enabled": {Value: "true"},
+				"app_name":    {Value: "custom-app"},
+				"app_version": {Value: "v3.0.0"},
+			},
+			expectedConfig: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "application",
+						Title: "Application Settings",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:    "app_enabled",
+								Title:   "Enable Application",
+								Type:    "bool",
+								Default: multitype.BoolOrString{StrVal: "true"},
+								Value:   multitype.BoolOrString{StrVal: "true"},
+								When:    "true",
+							},
+							{
+								Name:    "app_name",
+								Title:   "APPLICATION NAME",
+								Type:    "text",
+								Default: multitype.BoolOrString{StrVal: "my-app"},
+								Value:   multitype.BoolOrString{StrVal: "my-custom-app"},
+								When:    "true",
+							},
+							{
+								Name:    "app_version",
+								Title:   "Version",
+								Type:    "text",
+								Default: multitype.BoolOrString{StrVal: "v1.0.0"},
+								Value:   multitype.BoolOrString{StrVal: "v2.0.0"},
+								When:    "true",
+							},
+							{
+								Name:    "app_description",
+								Title:   "Description",
+								Type:    "textarea",
+								Default: multitype.BoolOrString{StrVal: "\"Default description\""},
+								Value:   multitype.BoolOrString{StrVal: "Custom application description"},
+								When:    "true",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "filtering disabled items and groups",
+			config: kotsv1beta1.Config{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "Config",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "filtering-config",
+				},
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "feature_toggle",
+							Title: "{{repl print \"Feature Toggle\" }}",
+							When:  "{{repl ConfigOptionEquals \"enable_features\" \"true\" }}",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "enable_features",
+									Title:   "Enable Features",
+									Type:    "bool",
+									Default: multitype.BoolOrString{StrVal: "true"},
+									Value:   multitype.BoolOrString{StrVal: "true"},
+									When:    "{{repl ConfigOptionEquals \"global_enabled\" \"yes\" }}",
+								},
+								{
+									Name:    "global_enabled",
+									Title:   "Global Enabled",
+									Type:    "select_one",
+									Default: multitype.BoolOrString{StrVal: "yes"},
+									Value:   multitype.BoolOrString{StrVal: "yes"},
+									When:    "repl{{ print \"true\" }}",
+								},
+							},
+						},
+						{
+							Name:  "enabled_group",
+							Title: "{{repl print \"Enabled Group\" }}",
+							When:  "repl{{ ConfigOptionEquals \"enable_features\" \"true\" }}",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "enabled_item",
+									Title:   "repl{{ print \"Enabled Item\" }}",
+									Type:    "text",
+									Default: multitype.BoolOrString{StrVal: "enabled"},
+									Value:   multitype.BoolOrString{StrVal: "{{repl print \"enabled_value\" }}"},
+									When:    "{{repl ConfigOptionEquals \"global_enabled\" \"yes\" }}",
+								},
+								{
+									Name:    "disabled_item",
+									Title:   "{{repl print \"Disabled Item\" }}",
+									Type:    "text",
+									Default: multitype.BoolOrString{StrVal: "disabled"},
+									Value:   multitype.BoolOrString{StrVal: "repl{{ print \"disabled_value\" }}"},
+									When:    "repl{{ ConfigOptionEquals \"global_enabled\" \"no\" }}",
+								},
+							},
+						},
+						{
+							Name:  "disabled_group",
+							Title: "repl{{ print \"Disabled Group\" }}",
+							When:  "{{repl ConfigOptionEquals \"enable_features\" \"false\" }}",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "item_in_disabled_group",
+									Title:   "{{repl print \"Item in Disabled Group\" }}",
+									Type:    "text",
+									Default: multitype.BoolOrString{StrVal: "should_not_appear"},
+									Value:   multitype.BoolOrString{StrVal: "repl{{ print \"should_not_appear\" }}"},
+									When:    "{{repl ConfigOptionEquals \"global_enabled\" \"yes\" }}",
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"enable_features": {Value: "true"},
+				"global_enabled":  {Value: "yes"},
+				"enabled_item":    {Value: "custom_enabled"},
+			},
+			expectedConfig: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "feature_toggle",
+						Title: "Feature Toggle",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:    "enable_features",
+								Title:   "Enable Features",
+								Type:    "bool",
+								Default: multitype.BoolOrString{StrVal: "true"},
+								Value:   multitype.BoolOrString{StrVal: "true"},
+								When:    "true",
+							},
+							{
+								Name:    "global_enabled",
+								Title:   "Global Enabled",
+								Type:    "select_one",
+								Default: multitype.BoolOrString{StrVal: "yes"},
+								Value:   multitype.BoolOrString{StrVal: "yes"},
+								When:    "true",
+							},
+						},
+					},
+					{
+						Name:  "enabled_group",
+						Title: "Enabled Group",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:    "enabled_item",
+								Title:   "Enabled Item",
+								Type:    "text",
+								Default: multitype.BoolOrString{StrVal: "enabled"},
+								Value:   multitype.BoolOrString{StrVal: "enabled_value"},
+								When:    "true",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manager, err := NewAppConfigManager(tt.config)
+			require.NoError(t, err)
+
+			result, err := manager.TemplateConfig(tt.configValues)
+
+			if tt.expectError {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedConfig, result)
 		})
 	}
 }
@@ -1289,18 +1733,18 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 					Groups: []kotsv1beta1.ConfigGroup{
 						{
 							Name:  "templated-group",
-							Title: "{{ upper \"http configuration\" }}",
+							Title: "repl{{ upper \"http configuration\" }}",
 							When:  "true",
 							Items: []kotsv1beta1.ConfigItem{
 								{
 									Name:  "templated-enabled-item",
-									Title: "{{ printf \"Port: %d\" 8080 }}",
+									Title: "{{repl printf \"Port: %d\" 8080 }}",
 									Type:  "text",
 									When:  "true",
 								},
 								{
 									Name:  "templated-disabled-item",
-									Title: "{{ lower \"DISABLED ITEM\" }}",
+									Title: "repl{{ lower \"DISABLED ITEM\" }}",
 									Type:  "text",
 									When:  "false",
 								},
@@ -1791,24 +2235,24 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 					Groups: []kotsv1beta1.ConfigGroup{
 						{
 							Name:  "templated-group",
-							Title: "{{ title \"user configuration\" }}",
+							Title: "{{repl title \"user configuration\" }}",
 							When:  "true",
 							Items: []kotsv1beta1.ConfigItem{
 								{
 									Name:  "templated-text",
-									Title: "{{ upper \"text field\" }}",
+									Title: "repl{{ upper \"text field\" }}",
 									Type:  "text",
 									When:  "true",
 								},
 								{
 									Name:  "templated-password",
-									Title: "{{ printf \"Password for %s\" \"admin\" }}",
+									Title: "{{repl printf \"Password for %s\" \"admin\" }}",
 									Type:  "password",
 									When:  "true",
 								},
 								{
 									Name:  "disabled-templated-item",
-									Title: "{{ lower \"DISABLED ITEM\" }}",
+									Title: "repl{{ lower \"DISABLED ITEM\" }}",
 									Type:  "text",
 									When:  "false",
 								},
@@ -2748,31 +3192,31 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 					Groups: []kotsv1beta1.ConfigGroup{
 						{
 							Name:  "templated-group",
-							Title: "{{ title \"server configuration\" }}",
+							Title: "{{repl title \"server configuration\" }}",
 							When:  "true",
 							Items: []kotsv1beta1.ConfigItem{
 								{
 									Name:    "templated-item",
-									Title:   "{{ upper \"http port\" }}",
+									Title:   "repl{{ upper \"http port\" }}",
 									Type:    "text",
-									Value:   multitype.BoolOrString{StrVal: "{{ toString 8080 }}"},
-									Default: multitype.BoolOrString{StrVal: "{{ toString 8080 }}"},
+									Value:   multitype.BoolOrString{StrVal: "{{repl toString 8080 }}"},
+									Default: multitype.BoolOrString{StrVal: "{{repl toString 8080 }}"},
 									When:    "true",
 								},
 								{
 									Name:    "sprig-functions-item",
-									Title:   "{{ printf \"Port: %d\" 9090 }}",
+									Title:   "repl{{ printf \"Port: %d\" 9090 }}",
 									Type:    "text",
-									Value:   multitype.BoolOrString{StrVal: "{{ add 9000 90 }}"},
-									Default: multitype.BoolOrString{StrVal: "{{ add 9000 90 }}"},
+									Value:   multitype.BoolOrString{StrVal: "{{repl add 9000 90 }}"},
+									Default: multitype.BoolOrString{StrVal: "{{repl add 9000 90 }}"},
 									When:    "true",
 								},
 								{
 									Name:    "disabled-templated-item",
-									Title:   "{{ lower \"DISABLED ITEM\" }}",
+									Title:   "{{repl lower \"DISABLED ITEM\" }}",
 									Type:    "text",
-									Value:   multitype.BoolOrString{StrVal: "{{ trim \"  disabled  \" }}"},
-									Default: multitype.BoolOrString{StrVal: "{{ trim \"  disabled  \" }}"},
+									Value:   multitype.BoolOrString{StrVal: "repl{{ trim \"  disabled  \" }}"},
+									Default: multitype.BoolOrString{StrVal: "{{repl trim \"  disabled  \" }}"},
 									When:    "false",
 								},
 							},

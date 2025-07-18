@@ -45,3 +45,9 @@ func (m *MockAppConfigManager) GetKotsadmConfigValues() (kotsv1beta1.ConfigValue
 	args := m.Called()
 	return args.Get(0).(kotsv1beta1.ConfigValues), args.Error(1)
 }
+
+// TemplateConfig mocks the TemplateConfig method
+func (m *MockAppConfigManager) TemplateConfig(configValues types.AppConfigValues) (types.AppConfig, error) {
+	args := m.Called(configValues)
+	return args.Get(0).(types.AppConfig), args.Error(1)
+}
