@@ -50,15 +50,22 @@ func TestLinuxGetAppConfig(t *testing.T) {
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{
 				{
-					Name:  "templated-group",
-					Title: "{{ print \"HTTP Configuration\" }}",
+					Name:  "deployment-config",
+					Title: "{{repl print \"Deployment Configuration\" }}",
 					Items: []kotsv1beta1.ConfigItem{
 						{
-							Name:    "templated-item",
+							Name:    "cluster-name",
 							Type:    "text",
-							Title:   "{{ upper \"http port\" }}",
-							Default: multitype.BoolOrString{StrVal: "{{ print \"8080\" }}"},
-							Value:   multitype.BoolOrString{StrVal: "{{ print \"8080\" }}"},
+							Title:   "Cluster Name",
+							Default: multitype.BoolOrString{StrVal: "production-cluster"},
+							Value:   multitype.BoolOrString{StrVal: "production-cluster"},
+						},
+						{
+							Name:    "namespace",
+							Type:    "text",
+							Title:   "repl{{ upper \"target namespace\" }}",
+							Default: multitype.BoolOrString{StrVal: "{{repl printf \"default-%s\" \"namespace\" }}"},
+							Value:   multitype.BoolOrString{StrVal: "repl{{ printf \"%s-deployment\" (ConfigOption \"cluster-name\") }}"},
 						},
 					},
 				},
@@ -175,10 +182,12 @@ func TestLinuxGetAppConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify the templates were processed
-		assert.Equal(t, "HTTP Configuration", response.Groups[0].Title, "group title should be processed from template")
-		assert.Equal(t, "HTTP PORT", response.Groups[0].Items[0].Title, "item title should be processed from template")
-		assert.Equal(t, "8080", response.Groups[0].Items[0].Value.String(), "item value should be processed from template")
-		assert.Equal(t, "8080", response.Groups[0].Items[0].Default.String(), "item default should be processed from template")
+		assert.Equal(t, "Deployment Configuration", response.Groups[0].Title, "group title should be processed from template")
+		assert.Equal(t, "Cluster Name", response.Groups[0].Items[0].Title, "first item title should be non-templated")
+		assert.Equal(t, "production-cluster", response.Groups[0].Items[0].Value.String(), "first item value should be non-templated")
+		assert.Equal(t, "TARGET NAMESPACE", response.Groups[0].Items[1].Title, "templated item title should be processed from template")
+		assert.Equal(t, "production-cluster-deployment", response.Groups[0].Items[1].Value.String(), "templated item value should be processed from ConfigOption template")
+		assert.Equal(t, "default-namespace", response.Groups[0].Items[1].Default.String(), "templated item default should be processed from template")
 	})
 }
 

@@ -2,11 +2,12 @@ package config
 
 import (
 	"fmt"
-	"text/template"
 
 	configstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	apitemplate "github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
@@ -15,8 +16,8 @@ var _ AppConfigManager = &appConfigManager{}
 
 // AppConfigManager provides methods for managing appConfig structure setup
 type AppConfigManager interface {
-	// GetConfig returns the config with disabled groups and items filtered out
-	GetConfig() (kotsv1beta1.Config, error)
+	// GetConfig returns the config templated with the stored values
+	GetConfig() (types.AppConfig, error)
 	// GetConfigValues returns the current config values
 	GetConfigValues(maskPasswords bool) (types.AppConfigValues, error)
 	// ValidateConfigValues validates the config values
@@ -26,14 +27,18 @@ type AppConfigManager interface {
 	// GetKotsadmConfigValues merges the config values with the app config defaults and returns a
 	// kotsv1beta1.ConfigValues struct.
 	GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, error)
+	// TemplateConfig templates the config with provided values and returns the templated config
+	TemplateConfig(configValues types.AppConfigValues) (types.AppConfig, error)
 }
 
 // appConfigManager is an implementation of the AppConfigManager interface
 type appConfigManager struct {
 	rawConfig      kotsv1beta1.Config
 	appConfigStore configstore.Store
+	releaseData    *release.ReleaseData
+	license        *kotsv1beta1.License
 	logger         logrus.FieldLogger
-	configTemplate *template.Template
+	templateEngine *apitemplate.Engine
 }
 
 type AppConfigManagerOption func(*appConfigManager)
@@ -50,9 +55,15 @@ func WithAppConfigStore(store configstore.Store) AppConfigManagerOption {
 	}
 }
 
-func WithConfigTemplate(tmpl *template.Template) AppConfigManagerOption {
+func WithReleaseData(releaseData *release.ReleaseData) AppConfigManagerOption {
 	return func(c *appConfigManager) {
-		c.configTemplate = tmpl
+		c.releaseData = releaseData
+	}
+}
+
+func WithLicense(license *kotsv1beta1.License) AppConfigManagerOption {
+	return func(c *appConfigManager) {
+		c.license = license
 	}
 }
 
@@ -74,10 +85,16 @@ func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOpti
 		manager.appConfigStore = configstore.NewMemoryStore()
 	}
 
-	if manager.configTemplate == nil {
-		if err := manager.initConfigTemplate(); err != nil {
-			return nil, fmt.Errorf("initialize config template: %w", err)
-		}
+	if manager.templateEngine == nil {
+		manager.templateEngine = apitemplate.NewEngine(
+			&manager.rawConfig,
+			apitemplate.WithLicense(manager.license),
+			apitemplate.WithReleaseData(manager.releaseData),
+		)
+	}
+
+	if err := manager.initConfigTemplate(); err != nil {
+		return nil, fmt.Errorf("initialize config template: %w", err)
 	}
 
 	return manager, nil

@@ -6,10 +6,9 @@ import (
 	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
-func (c *InstallController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error) {
+func (c *InstallController) GetAppConfig(ctx context.Context) (types.AppConfig, error) {
 	return c.appConfigManager.GetConfig()
 }
 

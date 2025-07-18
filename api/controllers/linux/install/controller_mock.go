@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -88,9 +87,9 @@ func (m *MockController) GetInfra(ctx context.Context) (types.Infra, error) {
 }
 
 // GetAppConfig mocks the GetAppConfig method
-func (m *MockController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error) {
+func (m *MockController) GetAppConfig(ctx context.Context) (types.AppConfig, error) {
 	args := m.Called(ctx)
-	return args.Get(0).(kotsv1beta1.Config), args.Error(1)
+	return args.Get(0).(types.AppConfig), args.Error(1)
 }
 
 // PatchAppConfigValues mocks the PatchAppConfigValues method
