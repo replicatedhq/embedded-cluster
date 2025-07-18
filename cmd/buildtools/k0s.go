@@ -22,9 +22,7 @@ var k0sImageComponents = map[string]addonComponent{
 	"quay.io/k0sproject/calico-node": {
 		name: "calico-node",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			calicoVersion := getCalicoVersion(opts)
-			constraints := mustParseSemverConstraints(latestPatchConstraint(calicoVersion))
-			tag, err := GetGreatestGitHubTag(opts.ctx, "projectcalico", "calico", constraints)
+			tag, err := getCalicoTag(opts)
 			if err != nil {
 				return "", fmt.Errorf("failed to get calico release: %w", err)
 			}
@@ -34,11 +32,9 @@ var k0sImageComponents = map[string]addonComponent{
 	"quay.io/k0sproject/calico-cni": {
 		name: "calico-cni",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			calicoVersion := getCalicoVersion(opts)
-			constraints := mustParseSemverConstraints(latestPatchConstraint(calicoVersion))
-			tag, err := GetGreatestGitHubTag(opts.ctx, "projectcalico", "calico", constraints)
+			tag, err := getCalicoTag(opts)
 			if err != nil {
-				return "", fmt.Errorf("failed to get calico release: %w", err)
+				return "", fmt.Errorf("failed to get calico tag: %w", err)
 			}
 			return fmt.Sprintf("registry.replicated.com/library/calico-cni:%s", tag), nil
 		},
@@ -46,11 +42,9 @@ var k0sImageComponents = map[string]addonComponent{
 	"quay.io/k0sproject/calico-kube-controllers": {
 		name: "calico-kube-controllers",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			calicoVersion := getCalicoVersion(opts)
-			constraints := mustParseSemverConstraints(latestPatchConstraint(calicoVersion))
-			tag, err := GetGreatestGitHubTag(opts.ctx, "projectcalico", "calico", constraints)
+			tag, err := getCalicoTag(opts)
 			if err != nil {
-				return "", fmt.Errorf("failed to get calico release: %w", err)
+				return "", fmt.Errorf("failed to get calico tag: %w", err)
 			}
 			return fmt.Sprintf("registry.replicated.com/library/calico-kube-controllers:%s", tag), nil
 		},
@@ -131,6 +125,16 @@ func getK0sVersion() (*semver.Version, error) {
 		return nil, fmt.Errorf("failed to get k0s version: %w", err)
 	}
 	return semver.MustParse(v), nil
+}
+
+func getCalicoTag(opts addonComponentOptions) (string, error) {
+	calicoVersion := getCalicoVersion(opts)
+	constraints := mustParseSemverConstraints(latestPatchConstraint(calicoVersion))
+	tag, err := GetGreatestGitHubTag(opts.ctx, "projectcalico", "calico", constraints)
+	if err != nil {
+		return "", fmt.Errorf("failed to get calico release: %w", err)
+	}
+	return tag, nil
 }
 
 func getCalicoVersion(opts addonComponentOptions) *semver.Version {
