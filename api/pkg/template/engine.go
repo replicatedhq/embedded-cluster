@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"text/template"
@@ -15,19 +16,28 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/tiendc/go-deepcopy"
 )
 
 type Engine struct {
-	config       *kotsv1beta1.Config
-	configValues types.AppConfigValues
-	license      *kotsv1beta1.License
-	releaseData  *release.ReleaseData
+	config      *kotsv1beta1.Config
+	license     *kotsv1beta1.License
+	releaseData *release.ReleaseData
 
-	tmpl     *template.Template
-	funcMap  template.FuncMap
-	visited  map[string]bool
-	resolved map[string]string
-	mtx      sync.Mutex
+	// Internal state
+	configValues     types.AppConfigValues
+	prevConfigValues types.AppConfigValues
+	tmpl             *template.Template
+	funcMap          template.FuncMap
+	cache            map[string]CacheValue
+	depsTree         map[string][]string
+	stack            []string
+	mtx              sync.Mutex
+}
+
+type CacheValue struct {
+	Value     string
+	Processed bool
 }
 
 type EngineOption func(*Engine)
@@ -46,10 +56,13 @@ func WithReleaseData(releaseData *release.ReleaseData) EngineOption {
 
 func NewEngine(config *kotsv1beta1.Config, opts ...EngineOption) *Engine {
 	engine := &Engine{
-		config:   config,
-		visited:  make(map[string]bool),
-		resolved: make(map[string]string),
-		mtx:      sync.Mutex{},
+		config:           config,
+		configValues:     make(types.AppConfigValues),
+		prevConfigValues: make(types.AppConfigValues),
+		cache:            make(map[string]CacheValue),
+		depsTree:         make(map[string][]string),
+		stack:            []string{},
+		mtx:              sync.Mutex{},
 	}
 
 	for _, opt := range opts {
@@ -96,10 +109,24 @@ func (e *Engine) Execute(configValues types.AppConfigValues) (string, error) {
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 
-	// Reset execution state
-	e.visited = make(map[string]bool)
-	e.resolved = make(map[string]string)
-	e.configValues = configValues
+	// Store previous config values
+	if err := deepcopy.Copy(&e.prevConfigValues, &e.configValues); err != nil {
+		return "", fmt.Errorf("copy previous config values: %w", err)
+	}
+
+	// Store new config values
+	if err := deepcopy.Copy(&e.configValues, &configValues); err != nil {
+		return "", fmt.Errorf("copy new config values: %w", err)
+	}
+
+	// Mark all cached values as not yet processed in this execution
+	for name, cacheVal := range e.cache {
+		cacheVal.Processed = false
+		e.cache[name] = cacheVal
+	}
+
+	// Reset stack
+	e.stack = []string{}
 
 	var buf bytes.Buffer
 	if err := e.tmpl.Execute(&buf, nil); err != nil {
@@ -139,6 +166,8 @@ func (e *Engine) getFuncMap() template.FuncMap {
 }
 
 func (e *Engine) configOption(name string) (string, error) {
+	e.recordDependency(name)
+
 	val, err := e.resolveConfigItem(name)
 	if err != nil {
 		return "", fmt.Errorf("resolve config item: %w", err)
@@ -147,6 +176,8 @@ func (e *Engine) configOption(name string) (string, error) {
 }
 
 func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
+	e.recordDependency(name)
+
 	val, err := e.resolveConfigItem(name)
 	if err != nil {
 		return false, fmt.Errorf("resolve config item: %w", err)
@@ -155,6 +186,8 @@ func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
 }
 
 func (e *Engine) configOptionData(name string) (string, error) {
+	e.recordDependency(name)
+
 	val, err := e.resolveConfigItem(name)
 	if err != nil {
 		return "", fmt.Errorf("resolve config item: %w", err)
@@ -225,20 +258,81 @@ func (e *Engine) licenseFieldValue(name string) string {
 	}
 }
 
+// recordDependency records that the current item depends on another item
+func (e *Engine) recordDependency(dependency string) {
+	// Get the current item in the stack
+	if len(e.stack) > 0 {
+		currentItem := e.stack[len(e.stack)-1]
+
+		// Add dependency if not already present
+		if !slices.Contains(e.depsTree[currentItem], dependency) {
+			e.depsTree[currentItem] = append(e.depsTree[currentItem], dependency)
+		}
+	}
+}
+
+// shouldInvalidate checks if a cached item should be invalidated
+func (e *Engine) shouldInvalidate(itemName string) bool {
+	// Check if this item's user value changed
+	if e.configValueChanged(itemName) {
+		return true
+	}
+
+	// Recursively check if any dependencies should be invalidated
+	for _, dep := range e.depsTree[itemName] {
+		if e.shouldInvalidate(dep) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// configValueChanged checks if a config item's user value changed
+func (e *Engine) configValueChanged(itemName string) bool {
+	prevVal, prevExists := e.prevConfigValues[itemName]
+	currentVal, currentExists := e.configValues[itemName]
+
+	if prevExists != currentExists {
+		return true
+	}
+
+	return prevVal.Value != currentVal.Value
+}
+
 // resolveConfigItem resolves a specific config item (internal recursive method)
 func (e *Engine) resolveConfigItem(name string) (string, error) {
-	// Check if already resolved
-	if value, exists := e.resolved[name]; exists {
-		return value, nil
+	// Check if we have a cached value
+	if cacheVal, exists := e.cache[name]; exists {
+		// If already processed in this execution, use it
+		if cacheVal.Processed {
+			return cacheVal.Value, nil
+		}
+
+		// Value is from previous execution - check if still valid
+		if !e.shouldInvalidate(name) {
+			// Still valid - mark as processed and use it
+			cacheVal.Processed = true
+			e.cache[name] = cacheVal
+			return cacheVal.Value, nil
+		}
+
+		// Value is stale - remove from cache
+		delete(e.cache, name)
 	}
 
 	// Check for circular dependency
-	if e.visited[name] {
+	if slices.Contains(e.stack, name) {
 		return "", fmt.Errorf("circular dependency detected for %s", name)
 	}
 
-	// Mark as visited for cycle detection
-	e.visited[name] = true
+	// Track resolution path for dependency discovery
+	e.stack = append(e.stack, name)
+	defer func() {
+		if len(e.stack) > 0 {
+			e.stack = e.stack[:len(e.stack)-1]
+		}
+	}()
 
 	// Find the config item definition
 	configItem := e.findConfigItem(name)
@@ -271,8 +365,12 @@ func (e *Engine) resolveConfigItem(name string) (string, error) {
 		}
 	}
 
-	// Cache the result
-	e.resolved[name] = effectiveValue
+	// Cache the result and mark as processed
+	e.cache[name] = CacheValue{
+		Value:     effectiveValue,
+		Processed: true,
+	}
+
 	return effectiveValue, nil
 }
 
