@@ -3,6 +3,7 @@ package config
 import (
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
@@ -24,62 +25,62 @@ func TestConfigTemplateProcessing(t *testing.T) {
 			Groups: []kotsv1beta1.ConfigGroup{
 				{
 					Name:  "basic_templates",
-					Title: `{{ print "Basic Template Tests" }}`,
+					Title: `{{repl print "Basic Template Tests" }}`,
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:     "simple_print",
-							Title:    `{{ print "Simple Print" }}`,
+							Title:    `repl{{ print "Simple Print" }}`,
 							Type:     "text",
-							Default:  multitype.BoolOrString{StrVal: `{{ print "default_value" }}`},
-							Value:    multitype.BoolOrString{StrVal: `{{ print "actual_value" }}`},
-							HelpText: `{{ print "This is help text" }}`,
+							Default:  multitype.BoolOrString{StrVal: `{{repl print "default_value" }}`},
+							Value:    multitype.BoolOrString{StrVal: `repl{{ print "actual_value" }}`},
+							HelpText: `{{repl print "This is help text" }}`,
 						},
 						{
 							Name:    "printf_test",
-							Title:   `{{ printf "Port: %d" 8080 }}`,
+							Title:   `repl{{ printf "Port: %d" 8080 }}`,
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `{{ printf "%d" 9000 }}`},
-							Value:   multitype.BoolOrString{StrVal: `{{ printf "%d" 3000 }}`},
+							Default: multitype.BoolOrString{StrVal: `{{repl printf "%d" 9000 }}`},
+							Value:   multitype.BoolOrString{StrVal: `repl{{ printf "%d" 3000 }}`},
 						},
 					},
 				},
 				{
 					Name:  "sprig_functions",
-					Title: `{{ upper "sprig function tests" }}`,
+					Title: `repl{{ upper "sprig function tests" }}`,
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "upper_lower",
-							Title:   `{{ upper "http port" }}`,
+							Title:   `{{repl upper "http port" }}`,
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `{{ lower "DEFAULT_VALUE" }}`},
-							Value:   multitype.BoolOrString{StrVal: `{{ upper "value_text" }}`},
+							Default: multitype.BoolOrString{StrVal: `repl{{ lower "DEFAULT_VALUE" }}`},
+							Value:   multitype.BoolOrString{StrVal: `{{repl upper "value_text" }}`},
 						},
 						{
 							Name:    "default_function",
-							Title:   `{{ print "Default Function" }}`,
+							Title:   `repl{{ print "Default Function" }}`,
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `{{ default "fallback" "" }}`},
-							Value:   multitype.BoolOrString{StrVal: `{{ default "main_value" "" }}`},
+							Default: multitype.BoolOrString{StrVal: `{{repl default "fallback" "" }}`},
+							Value:   multitype.BoolOrString{StrVal: `repl{{ default "main_value" "" }}`},
 						},
 						{
 							Name:    "quote_function",
-							Title:   `{{ print "Quote Function" }}`,
+							Title:   `{{repl print "Quote Function" }}`,
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `{{ quote "quoted_value" }}`},
-							Value:   multitype.BoolOrString{StrVal: `{{ quote "actual_quoted" }}`},
+							Default: multitype.BoolOrString{StrVal: `repl{{ quote "quoted_value" }}`},
+							Value:   multitype.BoolOrString{StrVal: `{{repl quote "actual_quoted" }}`},
 						},
 					},
 				},
 				{
 					Name:  "edge_cases",
-					Title: `{{ print "Edge Cases" }}`,
+					Title: `{{repl print "Edge Cases" }}`,
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "undefined_field",
-							Title:   `{{ .NonExistentField }}`, // This will render as "<no value>" - Go template's default for undefined fields
+							Title:   `repl{{ .NonExistentField }}`, // This will render as "<no value>" - Go template's default for undefined fields
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `{{ .AnotherUndefinedField }}`},    // This will also render as "<no value>"
-							Value:   multitype.BoolOrString{StrVal: `{{ .YetAnotherUndefinedField }}`}, // This will also render as "<no value>"
+							Default: multitype.BoolOrString{StrVal: `{{repl .AnotherUndefinedField }}`},    // This will also render as "<no value>"
+							Value:   multitype.BoolOrString{StrVal: `repl{{ .YetAnotherUndefinedField }}`}, // This will also render as "<no value>"
 						},
 						{
 							Name:    "empty_template",
@@ -87,6 +88,33 @@ func TestConfigTemplateProcessing(t *testing.T) {
 							Type:    "text",
 							Default: multitype.BoolOrString{StrVal: `regular_value`},
 							Value:   multitype.BoolOrString{StrVal: `regular_actual_value`},
+						},
+					},
+				},
+				{
+					Name:  "repl_functions",
+					Title: "REPL Function Tests",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "config_option_test",
+							Title:   "Config Option Test",
+							Type:    "text",
+							Default: multitype.BoolOrString{StrVal: `{{repl ConfigOption "simple_print" }}`},
+							Value:   multitype.BoolOrString{StrVal: `{{repl ConfigOption "printf_test" }}`},
+						},
+						{
+							Name:    "config_option_equals_test",
+							Title:   "Config Option Equals Test",
+							Type:    "text",
+							Default: multitype.BoolOrString{StrVal: `{{repl if ConfigOptionEquals "simple_print" "actual_value" }}match{{repl else }}no match{{repl end }}`},
+							Value:   multitype.BoolOrString{StrVal: `{{repl if ConfigOptionEquals "printf_test" "3000" }}equals{{repl else }}not equals{{repl end }}`},
+						},
+						{
+							Name:    "combined_repl_test",
+							Title:   "Combined REPL Test",
+							Type:    "text",
+							Default: multitype.BoolOrString{StrVal: `prefix-{{repl ConfigOption "simple_print" }}-suffix`},
+							Value:   multitype.BoolOrString{StrVal: `{{repl upper (ConfigOption "simple_print") }}`},
 						},
 					},
 				},
@@ -100,7 +128,7 @@ func TestConfigTemplateProcessing(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, manager)
 
-		result, err := manager.executeConfigTemplate()
+		result, err := manager.executeConfigTemplate(types.AppConfigValues{})
 		require.NoError(t, err)
 		require.NotEmpty(t, result)
 
@@ -116,40 +144,40 @@ spec:
     - default: 'default_value'
       help_text: 'This is help text'
       name: simple_print
-      title: 'Simple Print'
+      title: Simple Print
       type: text
-      value: 'actual_value'
+      value: actual_value
     - default: '9000'
       name: printf_test
       title: 'Port: 8080'
       type: text
-      value: '3000'
+      value: 3000
     name: basic_templates
     title: 'Basic Template Tests'
   - items:
-    - default: 'default_value'
+    - default: default_value
       name: upper_lower
       title: 'HTTP PORT'
       type: text
       value: 'VALUE_TEXT'
     - default: 'fallback'
       name: default_function
-      title: 'Default Function'
+      title: Default Function
       type: text
-      value: 'main_value'
-    - default: '"quoted_value"'
+      value: main_value
+    - default: "quoted_value"
       name: quote_function
       title: 'Quote Function'
       type: text
       value: '"actual_quoted"'
     name: sprig_functions
-    title: 'SPRIG FUNCTION TESTS'
+    title: SPRIG FUNCTION TESTS
   - items:
     - default: '<no value>'
       name: undefined_field
-      title: '<no value>'
+      title: <no value>
       type: text
-      value: '<no value>'
+      value: <no value>
     - default: regular_value
       name: empty_template
       title: Regular Title
@@ -157,6 +185,24 @@ spec:
       value: regular_actual_value
     name: edge_cases
     title: 'Edge Cases'
+  - items:
+    - default: 'actual_value'
+      name: config_option_test
+      title: Config Option Test
+      type: text
+      value: '3000'
+    - default: 'match'
+      name: config_option_equals_test
+      title: Config Option Equals Test
+      type: text
+      value: 'equals'
+    - default: prefix-actual_value-suffix
+      name: combined_repl_test
+      title: Combined REPL Test
+      type: text
+      value: 'ACTUAL_VALUE'
+    name: repl_functions
+    title: REPL Function Tests
 status: {}
 `
 
@@ -170,7 +216,7 @@ status: {}
 				Groups: []kotsv1beta1.ConfigGroup{
 					{
 						Name:  "invalid_group",
-						Title: `{{ invalid template syntax`,
+						Title: `{{repl invalid template syntax`,
 					},
 				},
 			},
@@ -190,7 +236,7 @@ status: {}
 		require.NoError(t, err)
 		require.NotNil(t, manager)
 
-		result, err := manager.executeConfigTemplate()
+		result, err := manager.executeConfigTemplate(types.AppConfigValues{})
 		require.NoError(t, err)
 		require.NotEmpty(t, result)
 
@@ -214,22 +260,22 @@ status: {}
 				Groups: []kotsv1beta1.ConfigGroup{
 					{
 						Name:  "complex_group",
-						Title: `{{ printf "Complex %s Configuration" (upper "nested") }}`,
+						Title: `repl{{ printf "Complex %s Configuration" (upper "nested") }}`,
 						Items: []kotsv1beta1.ConfigItem{
 							{
 								Name:     "complex_item",
-								Title:    `{{ printf "%s: %s" (upper "database") (lower "CONNECTION") }}`,
+								Title:    `{{repl printf "%s: %s" (upper "database") (lower "CONNECTION") }}`,
 								Type:     "text",
-								Default:  multitype.BoolOrString{StrVal: `{{ printf "host:%s,port:%d" (default "localhost" "") 5432 }}`},
-								Value:    multitype.BoolOrString{StrVal: `{{ printf "host:%s,port:%d" (default "prod-db" "") 5433 }}`},
-								HelpText: `{{ printf "Configure %s settings for %s" (lower "DATABASE") (upper "application") }}`,
+								Default:  multitype.BoolOrString{StrVal: `repl{{ printf "host:%s,port:%d" (default "localhost" "") 5432 }}`},
+								Value:    multitype.BoolOrString{StrVal: `{{repl printf "host:%s,port:%d" (default "prod-db" "") 5433 }}`},
+								HelpText: `repl{{ printf "Configure %s settings for %s" (lower "DATABASE") (upper "application") }}`,
 							},
 							{
 								Name:    "conditional_item",
-								Title:   `{{ if true }}Enabled Feature{{ else }}Disabled Feature{{ end }}`,
+								Title:   `{{repl if true }}Enabled Feature{{repl else }}Disabled Feature{{repl end }}`,
 								Type:    "bool",
-								Default: multitype.BoolOrString{StrVal: `{{ if true }}true{{ else }}false{{ end }}`},
-								Value:   multitype.BoolOrString{StrVal: `{{ if false }}true{{ else }}false{{ end }}`},
+								Default: multitype.BoolOrString{StrVal: `repl{{ if true }}true{{repl else }}false{{repl end }}`},
+								Value:   multitype.BoolOrString{StrVal: `{{repl if false }}true{{repl else }}false{{repl end }}`},
 							},
 						},
 					},
@@ -241,7 +287,7 @@ status: {}
 		require.NoError(t, err)
 		require.NotNil(t, manager)
 
-		result, err := manager.executeConfigTemplate()
+		result, err := manager.executeConfigTemplate(types.AppConfigValues{})
 		require.NoError(t, err)
 		require.NotEmpty(t, result)
 
@@ -254,19 +300,19 @@ metadata:
 spec:
   groups:
   - items:
-    - default: 'host:localhost,port:5432'
-      help_text: 'Configure database settings for APPLICATION'
+    - default: host:localhost,port:5432
+      help_text: Configure database settings for APPLICATION
       name: complex_item
       title: 'DATABASE: connection'
       type: text
       value: 'host:prod-db,port:5433'
-    - default: 'true'
+    - default: true
       name: conditional_item
       title: 'Enabled Feature'
       type: bool
       value: 'false'
     name: complex_group
-    title: 'Complex NESTED Configuration'
+    title: Complex NESTED Configuration
 status: {}
 `
 
@@ -280,10 +326,10 @@ status: {}
 		require.NotNil(t, manager)
 
 		// Execute template multiple times
-		result1, err1 := manager.executeConfigTemplate()
+		result1, err1 := manager.executeConfigTemplate(types.AppConfigValues{})
 		require.NoError(t, err1)
 
-		result2, err2 := manager.executeConfigTemplate()
+		result2, err2 := manager.executeConfigTemplate(types.AppConfigValues{})
 		require.NoError(t, err2)
 
 		// Results should be identical (template was parsed once)

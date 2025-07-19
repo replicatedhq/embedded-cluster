@@ -984,3 +984,99 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
 	assert.Equal(t, "Bad Request", apiErr.Message)
 }
+
+func TestLinuxTemplateAppConfig(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/api/linux/install/app/config/template", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		var req types.TemplateAppConfigRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, err)
+
+		// Mock server returns templated results (as if processed by the template engine)
+		config := types.AppConfig{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "database",
+					Title: "DATABASE CONFIGURATION",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "db_host",
+							Title:   "Host: localhost",
+							Type:    "text",
+							Default: multitype.BoolOrString{StrVal: "localhost"},
+							Value:   multitype.BoolOrString{StrVal: "localhost"},
+						},
+					},
+				},
+			},
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(config)
+	}))
+	defer server.Close()
+
+	c := New(server.URL, WithToken("test-token"))
+	values := types.AppConfigValues{
+		"db_host": types.AppConfigValue{Value: "localhost"},
+	}
+
+	config, err := c.TemplateLinuxAppConfig(values)
+	require.NoError(t, err)
+	assert.Equal(t, "database", config.Groups[0].Name)
+	assert.Equal(t, "DATABASE CONFIGURATION", config.Groups[0].Title)
+	assert.Equal(t, "Host: localhost", config.Groups[0].Items[0].Title)
+	assert.Equal(t, "localhost", config.Groups[0].Items[0].Value.StrVal)
+}
+
+func TestKubernetesTemplateAppConfig(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/api/kubernetes/install/app/config/template", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		var req types.TemplateAppConfigRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, err)
+
+		// Mock server returns templated results (as if processed by the template engine)
+		config := types.AppConfig{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "application",
+					Title: "Application Settings",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "app_name",
+							Title:   "APPLICATION NAME",
+							Type:    "text",
+							Default: multitype.BoolOrString{StrVal: "my-app"},
+							Value:   multitype.BoolOrString{StrVal: "myapp"},
+						},
+					},
+				},
+			},
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(config)
+	}))
+	defer server.Close()
+
+	c := New(server.URL, WithToken("test-token"))
+	values := types.AppConfigValues{
+		"app_name": types.AppConfigValue{Value: "myapp"},
+	}
+
+	config, err := c.TemplateKubernetesAppConfig(values)
+	require.NoError(t, err)
+	assert.Equal(t, "application", config.Groups[0].Name)
+	assert.Equal(t, "Application Settings", config.Groups[0].Title)
+	assert.Equal(t, "APPLICATION NAME", config.Groups[0].Items[0].Title)
+	assert.Equal(t, "myapp", config.Groups[0].Items[0].Value.StrVal)
+}
