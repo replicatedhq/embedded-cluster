@@ -100,3 +100,12 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+ConfigItemsConfigMapData:
+  text: ""
+  password: ""
+  textarea: ""
+  checkbox: ""
+  dropdown: ""
+  radio: ""
+  file: ""
