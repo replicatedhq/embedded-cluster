@@ -170,6 +170,17 @@ func TestEngine_ValuePriority(t *testing.T) {
 	result, err = engine.Execute(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "fallback_default", result)
+
+	// Test with empty user value (should use empty string, not fall back to config value)
+	emptyConfigValues := types.AppConfigValues{
+		"database_host": {Value: ""}, // Empty user value should be used as-is
+		"database_port": {Value: "5433"},
+	}
+	err = engine.Parse("{{repl ConfigOption \"database_url\" }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(emptyConfigValues)
+	require.NoError(t, err)
+	assert.Equal(t, "postgres://:5433/app", result) // Empty host should result in empty string, not config fallback
 }
 
 func TestEngine_ConfigOptionEquals(t *testing.T) {
@@ -762,4 +773,178 @@ func TestEngine_LicenseFieldValue_EndpointWithoutReleaseData(t *testing.T) {
 	result, err := engine.Execute(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "", result)
+}
+
+func TestEngine_DependencyTreeAndCaching(t *testing.T) {
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name: "app",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "environment",
+							Value:   multitype.BoolOrString{StrVal: "staging"},
+							Default: multitype.BoolOrString{StrVal: "development"},
+						},
+						{
+							Name:    "region",
+							Value:   multitype.BoolOrString{StrVal: "{{repl ConfigOption \"environment\" }}-region"},
+							Default: multitype.BoolOrString{StrVal: "default-region"},
+						},
+						{
+							Name:    "database_url",
+							Default: multitype.BoolOrString{StrVal: "postgres://{{repl ConfigOption \"environment\" }}:{{repl ConfigOption \"region\" }}/app"},
+						},
+						{
+							Name:    "redis_url",
+							Value:   multitype.BoolOrString{StrVal: "redis://{{repl ConfigOption \"database_url\" }}/0"},
+							Default: multitype.BoolOrString{StrVal: "redis://localhost/0"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	engine := NewEngine(config)
+
+	// Define the expected dependency tree (should remain constant throughout the test)
+	expectedDepsTree := map[string][]string{
+		"redis_url":    {"database_url"},
+		"database_url": {"environment", "region"},
+		"region":       {"environment"},
+		// environment doesn't appear because it has no template dependencies
+	}
+
+	// Test 1: First execution - build dependency tree
+	err := engine.Parse("{{repl ConfigOption \"redis_url\" }}")
+	require.NoError(t, err)
+	result, err := engine.Execute(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
+	assert.Equal(t, expectedDepsTree, engine.depsTree)
+
+	// Verify cache was populated
+	assert.Equal(t, "staging", engine.cache["environment"].Value)
+	assert.Equal(t, "staging-region", engine.cache["region"].Value)
+	assert.Equal(t, "postgres://staging:staging-region/app", engine.cache["database_url"].Value)
+	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", engine.cache["redis_url"].Value)
+
+	// Test 2: Second execution with no changes - should use cache
+	result, err = engine.Execute(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
+	assert.Equal(t, expectedDepsTree, engine.depsTree)
+
+	// Test 3: Change a user value - should invalidate dependent items
+	configValues := types.AppConfigValues{
+		"environment": {Value: "production"},
+	}
+	result, err = engine.Execute(configValues)
+	require.NoError(t, err)
+	assert.Equal(t, "redis://postgres://production:production-region/app/0", result)
+	assert.Equal(t, expectedDepsTree, engine.depsTree)
+
+	// Verify that items dependent on 'environment' were recomputed
+	assert.Equal(t, "production", engine.cache["environment"].Value)
+	assert.Equal(t, "production-region", engine.cache["region"].Value)
+	assert.Equal(t, "postgres://production:production-region/app", engine.cache["database_url"].Value)
+	assert.Equal(t, "redis://postgres://production:production-region/app/0", engine.cache["redis_url"].Value)
+
+	// Test 4: Execute again with same user values - should use cache
+	result, err = engine.Execute(configValues)
+	require.NoError(t, err)
+	assert.Equal(t, "redis://postgres://production:production-region/app/0", result)
+	assert.Equal(t, expectedDepsTree, engine.depsTree)
+
+	// Test 5: Change user value again - should detect change and invalidate
+	configValues = types.AppConfigValues{
+		"environment": {Value: "development"},
+	}
+	result, err = engine.Execute(configValues)
+	require.NoError(t, err)
+	assert.Equal(t, "redis://postgres://development:development-region/app/0", result)
+	assert.Equal(t, expectedDepsTree, engine.depsTree)
+
+	// Verify all dependent items were updated
+	assert.Equal(t, "development", engine.cache["environment"].Value)
+	assert.Equal(t, "development-region", engine.cache["region"].Value)
+	assert.Equal(t, "postgres://development:development-region/app", engine.cache["database_url"].Value)
+	assert.Equal(t, "redis://postgres://development:development-region/app/0", engine.cache["redis_url"].Value)
+
+	// Test 6: Remove user value (go back to config value) - should invalidate
+	result, err = engine.Execute(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
+	assert.Equal(t, expectedDepsTree, engine.depsTree)
+
+	// Should be back to original config values
+	assert.Equal(t, "staging", engine.cache["environment"].Value)
+	assert.Equal(t, "staging-region", engine.cache["region"].Value)
+	assert.Equal(t, "postgres://staging:staging-region/app", engine.cache["database_url"].Value)
+	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", engine.cache["redis_url"].Value)
+
+	// Test 7: Change top-level item (redis_url) directly - should only affect itself
+	configValues = types.AppConfigValues{
+		"redis_url": {Value: "redis://custom-url/0"},
+	}
+	err = engine.Parse("{{repl ConfigOption \"redis_url\" }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(configValues)
+	require.NoError(t, err)
+	assert.Equal(t, "redis://custom-url/0", result)
+	assert.Equal(t, expectedDepsTree, engine.depsTree)
+
+	// Only redis_url should have user value, others should remain from config
+	assert.Equal(t, "redis://custom-url/0", engine.cache["redis_url"].Value)
+	assert.Equal(t, "staging", engine.cache["environment"].Value)                                // unchanged
+	assert.Equal(t, "staging-region", engine.cache["region"].Value)                              // unchanged
+	assert.Equal(t, "postgres://staging:staging-region/app", engine.cache["database_url"].Value) // unchanged
+
+	// Test 8: Remove redis_url user value (go back to config value) - should invalidate
+	result, err = engine.Execute(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
+	assert.Equal(t, expectedDepsTree, engine.depsTree)
+
+	// Should be back to original config values
+	assert.Equal(t, "staging", engine.cache["environment"].Value)
+	assert.Equal(t, "staging-region", engine.cache["region"].Value)
+	assert.Equal(t, "postgres://staging:staging-region/app", engine.cache["database_url"].Value)
+	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", engine.cache["redis_url"].Value)
+
+	// Test 9: Change middle item (region) - should invalidate dependents but not dependencies
+	configValues = types.AppConfigValues{
+		"region": {Value: "custom-region"},
+	}
+	result, err = engine.Execute(configValues)
+	require.NoError(t, err)
+	assert.Equal(t, "redis://postgres://staging:custom-region/app/0", result)
+	assert.Equal(t, expectedDepsTree, engine.depsTree)
+
+	// Verify dependencies vs dependents
+	assert.Equal(t, "staging", engine.cache["environment"].Value)                                      // unchanged (dependency)
+	assert.Equal(t, "custom-region", engine.cache["region"].Value)                                     // changed (middle item)
+	assert.Equal(t, "postgres://staging:custom-region/app", engine.cache["database_url"].Value)        // changed (dependent)
+	assert.Equal(t, "redis://postgres://staging:custom-region/app/0", engine.cache["redis_url"].Value) // changed (dependent)
+
+	// Test 10: Reset to no user values, then change middle item (database_url) directly - should only affect itself and dependents
+	result, err = engine.Execute(nil)
+	require.NoError(t, err)
+	assert.Equal(t, expectedDepsTree, engine.depsTree)
+
+	configValues = types.AppConfigValues{
+		"database_url": {Value: "postgres://direct-override/app"},
+	}
+	result, err = engine.Execute(configValues)
+	require.NoError(t, err)
+	assert.Equal(t, "redis://postgres://direct-override/app/0", result)
+	assert.Equal(t, expectedDepsTree, engine.depsTree)
+
+	// Verify only database_url and its dependents changed
+	assert.Equal(t, "staging", engine.cache["environment"].Value)                                // unchanged (dependency)
+	assert.Equal(t, "staging-region", engine.cache["region"].Value)                              // unchanged (dependency) - back to config value
+	assert.Equal(t, "postgres://direct-override/app", engine.cache["database_url"].Value)        // changed (directly)
+	assert.Equal(t, "redis://postgres://direct-override/app/0", engine.cache["redis_url"].Value) // changed (dependent)
 }

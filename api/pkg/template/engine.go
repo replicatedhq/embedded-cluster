@@ -16,7 +16,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
-	"github.com/tiendc/go-deepcopy"
 )
 
 type Engine struct {
@@ -110,14 +109,8 @@ func (e *Engine) Execute(configValues types.AppConfigValues) (string, error) {
 	defer e.mtx.Unlock()
 
 	// Store previous config values
-	if err := deepcopy.Copy(&e.prevConfigValues, &e.configValues); err != nil {
-		return "", fmt.Errorf("copy previous config values: %w", err)
-	}
-
-	// Store new config values
-	if err := deepcopy.Copy(&e.configValues, &configValues); err != nil {
-		return "", fmt.Errorf("copy new config values: %w", err)
-	}
+	e.prevConfigValues = e.configValues
+	e.configValues = configValues
 
 	// Mark all cached values as not yet processed in this execution
 	for name, cacheVal := range e.cache {
