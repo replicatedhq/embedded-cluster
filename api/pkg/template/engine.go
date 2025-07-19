@@ -76,7 +76,10 @@ func (e *Engine) Parse(templateStr string) error {
 
 // parse parses a template string and returns a prepared template
 func (e *Engine) parse(templateStr string) (*template.Template, error) {
-	tmpl, err := template.New("template").Funcs(e.funcMap).Parse(templateStr)
+	// go's template doesn't support multiple delimiters, so we normalize the template
+	normalized := strings.ReplaceAll(templateStr, "repl{{", "{{repl")
+
+	tmpl, err := template.New("template").Delims("{{repl", "}}").Funcs(e.funcMap).Parse(normalized)
 	if err != nil {
 		return nil, err
 	}

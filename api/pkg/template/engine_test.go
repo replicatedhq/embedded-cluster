@@ -37,19 +37,26 @@ func TestEngine_BasicTemplating(t *testing.T) {
 
 	engine := NewEngine(config)
 
-	// Test basic sprig function
-	err := engine.Parse("{{  upper \"hello world\"  }}")
+	// Test basic sprig function with {{repl format
+	err := engine.Parse("{{repl upper \"hello world\"  }}")
 	require.NoError(t, err)
 	result, err := engine.Execute(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "HELLO WORLD", result)
 
-	// Test ConfigOption with default values
-	err = engine.Parse("{{  ConfigOption \"database_host\"  }}")
+	// Test ConfigOption with default values using repl{{ format
+	err = engine.Parse("repl{{ ConfigOption \"database_host\"  }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "localhost", result)
+
+	// Test mixing both delimiter formats in one template
+	err = engine.Parse("Host: repl{{ ConfigOption \"database_host\" }} Port: {{repl ConfigOption \"database_port\" }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "Host: localhost Port: 5432", result)
 }
 
 func TestEngine_ValuePriority(t *testing.T) {
@@ -78,11 +85,11 @@ func TestEngine_ValuePriority(t *testing.T) {
 						},
 						{
 							Name:    "database_url",
-							Default: multitype.BoolOrString{StrVal: "postgres://{{  ConfigOption \"database_host\" }}:{{  ConfigOption \"database_port\" }}/app"},
+							Default: multitype.BoolOrString{StrVal: "postgres://repl{{ ConfigOption \"database_host\" }}:{{repl ConfigOption \"database_port\" }}/app"},
 						},
 						{
 							Name:    "empty_template_value",
-							Value:   multitype.BoolOrString{StrVal: "{{  if false }}never_shown{{  end }}"},
+							Value:   multitype.BoolOrString{StrVal: "repl{{ if false }}never_shown{{repl end }}"},
 							Default: multitype.BoolOrString{StrVal: "fallback_default"},
 						},
 					},
@@ -99,7 +106,7 @@ func TestEngine_ValuePriority(t *testing.T) {
 		"database_port": {Value: "5433"},
 	}
 
-	err := engine.Parse("{{  ConfigOption \"database_url\"  }}")
+	err := engine.Parse("{{repl ConfigOption \"database_url\" }}")
 	require.NoError(t, err)
 	result, err := engine.Execute(configValues)
 	require.NoError(t, err)
@@ -110,21 +117,21 @@ func TestEngine_ValuePriority(t *testing.T) {
 		"database_port": {Value: "5433"},
 	}
 
-	err = engine.Parse("{{  ConfigOption \"database_url\"  }}")
+	err = engine.Parse("{{repl ConfigOption \"database_url\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(partialConfigValues)
 	require.NoError(t, err)
 	assert.Equal(t, "postgres://db-internal.company.com:5433/app", result)
 
 	// Test with no user values (should use config value for database_host, default for database_port)
-	err = engine.Parse("{{  ConfigOption \"database_url\"  }}")
+	err = engine.Parse("{{repl ConfigOption \"database_url\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "postgres://db-internal.company.com:5432/app", result)
 
 	// Test item with only default value (redis_host) - should use default
-	err = engine.Parse("{{  ConfigOption \"redis_host\"  }}")
+	err = engine.Parse("{{repl ConfigOption \"redis_host\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(nil)
 	require.NoError(t, err)
@@ -134,14 +141,14 @@ func TestEngine_ValuePriority(t *testing.T) {
 	configValues = types.AppConfigValues{
 		"redis_host": {Value: "redis.production.com"},
 	}
-	err = engine.Parse("{{  ConfigOption \"redis_host\"  }}")
+	err = engine.Parse("{{repl ConfigOption \"redis_host\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(configValues)
 	require.NoError(t, err)
 	assert.Equal(t, "redis.production.com", result)
 
 	// Test item with no value and no default - should return empty string
-	err = engine.Parse("{{  ConfigOption \"metrics_endpoint\"  }}")
+	err = engine.Parse("{{repl ConfigOption \"metrics_endpoint\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(nil)
 	require.NoError(t, err)
@@ -151,14 +158,14 @@ func TestEngine_ValuePriority(t *testing.T) {
 	configValues = types.AppConfigValues{
 		"metrics_endpoint": {Value: "https://metrics.company.com"},
 	}
-	err = engine.Parse("{{  ConfigOption \"metrics_endpoint\"  }}")
+	err = engine.Parse("{{repl ConfigOption \"metrics_endpoint\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(configValues)
 	require.NoError(t, err)
 	assert.Equal(t, "https://metrics.company.com", result)
 
 	// Test item with template value that evaluates to empty - should fall back to default
-	err = engine.Parse("{{  ConfigOption \"empty_template_value\"  }}")
+	err = engine.Parse("{{repl ConfigOption \"empty_template_value\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(nil)
 	require.NoError(t, err)
@@ -198,21 +205,21 @@ func TestEngine_ConfigOptionEquals(t *testing.T) {
 		"storage_type": {Value: "s3"},
 	}
 
-	err := engine.Parse("{{  if ConfigOptionEquals \"storage_type\" \"s3\" }}S3 Storage{{  else }}Other Storage{{  end }}")
+	err := engine.Parse("repl{{ if ConfigOptionEquals \"storage_type\" \"s3\" }}S3 Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
 	result, err := engine.Execute(configValues)
 	require.NoError(t, err)
 	assert.Equal(t, "S3 Storage", result)
 
 	// Test with no user value - should use config value "filesystem"
-	err = engine.Parse("{{  if ConfigOptionEquals \"storage_type\" \"filesystem\" }}Filesystem Storage{{  else }}Other Storage{{  end }}")
+	err = engine.Parse("{{repl if ConfigOptionEquals \"storage_type\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "Filesystem Storage", result)
 
 	// Test with item that has only default value - should use default "snapshot"
-	err = engine.Parse("{{  if ConfigOptionEquals \"backup_type\" \"snapshot\" }}Snapshot Backup{{  else }}Other Backup{{  end }}")
+	err = engine.Parse("repl{{ if ConfigOptionEquals \"backup_type\" \"snapshot\" }}Snapshot Backup{{repl else }}Other Backup{{repl end }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(nil)
 	require.NoError(t, err)
@@ -252,7 +259,7 @@ func TestEngine_ConfigOptionData(t *testing.T) {
 	engine := NewEngine(config)
 
 	// Test with no user value - should use config value
-	err := engine.Parse("{{  ConfigOptionData \"ssl_cert\" }}")
+	err := engine.Parse("{{repl ConfigOptionData \"ssl_cert\" }}")
 	require.NoError(t, err)
 	result, err := engine.Execute(nil)
 	require.NoError(t, err)
@@ -265,14 +272,14 @@ func TestEngine_ConfigOptionData(t *testing.T) {
 		"ssl_cert": {Value: userCertEncoded},
 	}
 
-	err = engine.Parse("{{  ConfigOptionData \"ssl_cert\" }}")
+	err = engine.Parse("{{repl ConfigOptionData \"ssl_cert\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(configValues)
 	require.NoError(t, err)
 	assert.Equal(t, userCertContent, result)
 
 	// Test with item that has only default value - should use default
-	err = engine.Parse("{{  ConfigOptionData \"ca_cert\" }}")
+	err = engine.Parse("{{repl ConfigOptionData \"ca_cert\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(nil)
 	require.NoError(t, err)
@@ -375,7 +382,7 @@ func TestEngine_LicenseFieldValue(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.field, func(t *testing.T) {
-			err := engine.Parse(fmt.Sprintf("{{ LicenseFieldValue \"%s\" }}", tc.field))
+			err := engine.Parse(fmt.Sprintf("{{repl LicenseFieldValue \"%s\" }}", tc.field))
 			require.NoError(t, err)
 			result, err := engine.Execute(nil)
 			require.NoError(t, err)
@@ -393,7 +400,7 @@ func TestEngine_LicenseFieldValueWithoutLicense(t *testing.T) {
 
 	engine := NewEngine(config)
 
-	err := engine.Parse("{{  LicenseFieldValue \"customerName\" }}")
+	err := engine.Parse("{{repl LicenseFieldValue \"customerName\" }}")
 	require.NoError(t, err)
 	result, err := engine.Execute(nil)
 	require.NoError(t, err)
@@ -409,11 +416,11 @@ func TestEngine_CircularDependency(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "item_a",
-							Default: multitype.BoolOrString{StrVal: "{{  ConfigOption \"item_b\" }}"},
+							Default: multitype.BoolOrString{StrVal: "{{repl ConfigOption \"item_b\" }}"},
 						},
 						{
 							Name:    "item_b",
-							Default: multitype.BoolOrString{StrVal: "{{  ConfigOption \"item_a\" }}"},
+							Default: multitype.BoolOrString{StrVal: "{{repl ConfigOption \"item_a\" }}"},
 						},
 					},
 				},
@@ -423,7 +430,7 @@ func TestEngine_CircularDependency(t *testing.T) {
 
 	engine := NewEngine(config)
 
-	err := engine.Parse("{{  ConfigOption \"item_a\" }}")
+	err := engine.Parse("{{repl ConfigOption \"item_a\" }}")
 	require.NoError(t, err)
 	_, err = engine.Execute(nil)
 	require.Error(t, err)
@@ -444,20 +451,20 @@ func TestEngine_DeepDependencyChain(t *testing.T) {
 						},
 						{
 							Name:    "aws_region",
-							Value:   multitype.BoolOrString{StrVal: "{{  if ConfigOptionEquals \"environment\" \"production\" }}us-east-1{{  else }}us-west-2{{  end }}"},
+							Value:   multitype.BoolOrString{StrVal: "repl{{ if ConfigOptionEquals \"environment\" \"production\" }}us-east-1{{repl else }}us-west-2{{repl end }}"},
 							Default: multitype.BoolOrString{StrVal: "us-central-1"},
 						},
 						{
 							Name:    "cluster_name",
-							Default: multitype.BoolOrString{StrVal: "{{  ConfigOption \"environment\" }}-{{  ConfigOption \"aws_region\" }}"},
+							Default: multitype.BoolOrString{StrVal: "{{repl ConfigOption \"environment\" }}-repl{{ ConfigOption \"aws_region\" }}"},
 						},
 						{
 							Name:    "database_host",
-							Default: multitype.BoolOrString{StrVal: "{{  ConfigOption \"cluster_name\" }}.rds.amazonaws.com"},
+							Default: multitype.BoolOrString{StrVal: "{{repl ConfigOption \"cluster_name\" }}.rds.amazonaws.com"},
 						},
 						{
 							Name:    "redis_host",
-							Value:   multitype.BoolOrString{StrVal: "{{  ConfigOption \"cluster_name\" }}.elasticache.amazonaws.com"},
+							Value:   multitype.BoolOrString{StrVal: "{{repl ConfigOption \"cluster_name\" }}.elasticache.amazonaws.com"},
 							Default: multitype.BoolOrString{StrVal: "localhost"},
 						},
 					},
@@ -469,14 +476,14 @@ func TestEngine_DeepDependencyChain(t *testing.T) {
 	engine := NewEngine(config)
 
 	// Test with no user values - should use config values and resolve deep dependency chain
-	err := engine.Parse("{{  ConfigOption \"database_host\" }}")
+	err := engine.Parse("{{repl ConfigOption \"database_host\" }}")
 	require.NoError(t, err)
 	result, err := engine.Execute(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "staging-us-west-2.rds.amazonaws.com", result)
 
 	// Test another item with config value that depends on the chain
-	err = engine.Parse("{{  ConfigOption \"redis_host\" }}")
+	err = engine.Parse("{{repl ConfigOption \"redis_host\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(nil)
 	require.NoError(t, err)
@@ -486,7 +493,7 @@ func TestEngine_DeepDependencyChain(t *testing.T) {
 	configValues := types.AppConfigValues{
 		"environment": {Value: "production"},
 	}
-	err = engine.Parse("{{  ConfigOption \"database_host\" }}")
+	err = engine.Parse("{{repl ConfigOption \"database_host\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(configValues)
 	require.NoError(t, err)
@@ -518,7 +525,7 @@ func TestEngine_ComplexTemplate(t *testing.T) {
 						},
 						{
 							Name:    "database_url",
-							Default: multitype.BoolOrString{StrVal: "postgres://{{  ConfigOption \"database_host\" }}:{{  ConfigOption \"database_port\" }}/app"},
+							Default: multitype.BoolOrString{StrVal: "postgres://repl{{ ConfigOption \"database_host\" }}:{{repl ConfigOption \"database_port\" }}/app"},
 						},
 						{
 							Name:    "database_enabled",
@@ -556,18 +563,18 @@ func TestEngine_ComplexTemplate(t *testing.T) {
 	}
 
 	template := `database:
-  enabled: {{  ConfigOption "database_enabled" }}
-  {{  if ConfigOptionEquals "database_enabled" "true" }}
-  url: {{  ConfigOption "database_url" }}
-  {{  end }}
+  enabled: repl{{ ConfigOption "database_enabled" }}
+  {{repl if ConfigOptionEquals "database_enabled" "true" }}
+  url: repl{{ ConfigOption "database_url" }}
+  {{repl end }}
 storage:
-  type: {{  ConfigOption "storage_type" }}
-  {{  if ConfigOptionEquals "storage_type" "s3" }}
-  bucket: {{  ConfigOption "s3_bucket" }}
-  {{  end }}
+  type: {{repl ConfigOption "storage_type" }}
+  repl{{ if ConfigOptionEquals "storage_type" "s3" }}
+  bucket: {{repl ConfigOption "s3_bucket" }}
+  repl{{ end }}
 license:
-  customer: {{  LicenseFieldValue "customerName" }}
-  id: {{  LicenseFieldValue "licenseID" }}`
+  customer: repl{{ LicenseFieldValue "customerName" }}
+  id: {{repl LicenseFieldValue "licenseID" }}`
 
 	err := engine.Parse(template)
 	require.NoError(t, err)
@@ -632,7 +639,7 @@ func TestEngine_ParseAndExecuteSeparately(t *testing.T) {
 	engine := NewEngine(config)
 
 	// Parse once
-	err := engine.Parse("Host: {{  ConfigOption \"database_host\" }}")
+	err := engine.Parse("Host: {{repl ConfigOption \"database_host\" }}")
 	require.NoError(t, err)
 	require.NotNil(t, engine.tmpl)
 
@@ -692,7 +699,7 @@ func TestEngine_UnknownConfigItem(t *testing.T) {
 
 	engine := NewEngine(config)
 
-	err := engine.Parse("{{  ConfigOption \"nonexistent\" }}")
+	err := engine.Parse("{{repl ConfigOption \"nonexistent\" }}")
 	require.NoError(t, err)
 	_, err = engine.Execute(nil)
 	require.Error(t, err)
@@ -727,7 +734,7 @@ func TestEngine_LicenseFieldValue_Endpoint(t *testing.T) {
 
 	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
 
-	err := engine.Parse("{{ LicenseFieldValue \"endpoint\" }}")
+	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
 	require.NoError(t, err)
 	result, err := engine.Execute(nil)
 	require.NoError(t, err)
@@ -750,7 +757,7 @@ func TestEngine_LicenseFieldValue_EndpointWithoutReleaseData(t *testing.T) {
 
 	engine := NewEngine(config, WithLicense(license))
 
-	err := engine.Parse("{{ LicenseFieldValue \"endpoint\" }}")
+	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
 	require.NoError(t, err)
 	result, err := engine.Execute(nil)
 	require.NoError(t, err)

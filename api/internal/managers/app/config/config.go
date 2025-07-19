@@ -26,20 +26,55 @@ var (
 	ErrValueNotBase64Encoded = errors.New("value must be base64 encoded for file items")
 )
 
-func (m *appConfigManager) GetConfig() (kotsv1beta1.Config, error) {
-	// Execute the config template
-	processedYAML, err := m.executeConfigTemplate()
+func (m *appConfigManager) GetConfig() (types.AppConfig, error) {
+	// Get current config values for template execution
+	configValues, err := m.appConfigStore.GetConfigValues()
 	if err != nil {
-		return kotsv1beta1.Config{}, fmt.Errorf("execute config template: %w", err)
+		return types.AppConfig{}, fmt.Errorf("get config values: %w", err)
+	}
+
+	// Execute the config template
+	processedYAML, err := m.executeConfigTemplate(configValues)
+	if err != nil {
+		return types.AppConfig{}, fmt.Errorf("execute config template: %w", err)
 	}
 
 	// Parse to Config struct
 	var processedConfig kotsv1beta1.Config
 	if err := kyaml.Unmarshal([]byte(processedYAML), &processedConfig); err != nil {
-		return kotsv1beta1.Config{}, fmt.Errorf("unmarshal processed config: %w", err)
+		return types.AppConfig{}, fmt.Errorf("unmarshal processed config: %w", err)
 	}
 
-	return filterAppConfig(processedConfig)
+	// Filter and return as AppConfig (which is an alias for ConfigSpec)
+	filteredConfig, err := filterAppConfig(processedConfig)
+	if err != nil {
+		return types.AppConfig{}, fmt.Errorf("filter config: %w", err)
+	}
+
+	return types.AppConfig(filteredConfig.Spec), nil
+}
+
+// TemplateConfig templates the config with provided values and returns the templated config
+func (m *appConfigManager) TemplateConfig(configValues types.AppConfigValues) (types.AppConfig, error) {
+	// Execute the config template with provided values
+	result, err := m.executeConfigTemplate(configValues)
+	if err != nil {
+		return types.AppConfig{}, fmt.Errorf("execute config template: %w", err)
+	}
+
+	// Parse to Config struct
+	var processedConfig kotsv1beta1.Config
+	if err := kyaml.Unmarshal([]byte(result), &processedConfig); err != nil {
+		return types.AppConfig{}, fmt.Errorf("unmarshal processed config: %w", err)
+	}
+
+	// Filter and return as AppConfig (which is an alias for ConfigSpec)
+	filteredConfig, err := filterAppConfig(processedConfig)
+	if err != nil {
+		return types.AppConfig{}, fmt.Errorf("filter config: %w", err)
+	}
+
+	return types.AppConfig(filteredConfig.Spec), nil
 }
 
 func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValues) error {
@@ -50,7 +85,7 @@ func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValu
 		return fmt.Errorf("get config: %w", err)
 	}
 
-	for _, group := range processedConfig.Spec.Groups {
+	for _, group := range processedConfig.Groups {
 		for _, item := range group.Items {
 			configValue := getConfigValueFromItem(item, configValues)
 			// check required items
@@ -88,7 +123,7 @@ func (m *appConfigManager) PatchConfigValues(newValues types.AppConfigValues) er
 
 	// only keep values for enabled groups and items
 	filteredValues := make(types.AppConfigValues)
-	for _, g := range processedConfig.Spec.Groups {
+	for _, g := range processedConfig.Groups {
 		// skip the group if it is not enabled
 		if !isItemEnabled(g.When) {
 			continue
@@ -137,7 +172,7 @@ func (m *appConfigManager) GetConfigValues(maskPasswords bool) (types.AppConfigV
 	maps.Copy(maskedValues, configValues)
 
 	// Mask password fields
-	for _, group := range processedConfig.Spec.Groups {
+	for _, group := range processedConfig.Groups {
 		for _, item := range group.Items {
 			if item.Type == "password" {
 				// Mask item
@@ -184,7 +219,7 @@ func (m *appConfigManager) GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, e
 	}
 
 	// add values from the processed config
-	for _, group := range processedConfig.Spec.Groups {
+	for _, group := range processedConfig.Groups {
 		for _, item := range group.Items {
 			kotsadmConfigValues.Spec.Values[item.Name] = getConfigValueFromItem(item, storedValues)
 

@@ -1,11 +1,9 @@
 package config
 
 import (
-	"bytes"
 	"fmt"
-	"text/template"
 
-	"github.com/Masterminds/sprig/v3"
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -15,22 +13,18 @@ func (m *appConfigManager) initConfigTemplate() error {
 		return fmt.Errorf("marshal config to yaml: %w", err)
 	}
 
-	tmpl := template.New("config").Funcs(sprig.TxtFuncMap())
-	parsedTemplate, err := tmpl.Parse(string(configYAML))
-	if err != nil {
+	if err := m.templateEngine.Parse(string(configYAML)); err != nil {
 		return fmt.Errorf("template parse error: %w", err)
 	}
 
-	m.configTemplate = parsedTemplate
 	return nil
 }
 
-func (m *appConfigManager) executeConfigTemplate() (string, error) {
-	var buf bytes.Buffer
-	err := m.configTemplate.Execute(&buf, nil) // No custom context yet - vanilla Go templates only
+func (m *appConfigManager) executeConfigTemplate(configValues types.AppConfigValues) (string, error) {
+	result, err := m.templateEngine.Execute(configValues)
 	if err != nil {
 		return "", fmt.Errorf("template execution error: %w", err)
 	}
 
-	return buf.String(), nil
+	return result, nil
 }

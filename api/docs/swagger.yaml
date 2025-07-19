@@ -186,6 +186,11 @@ components:
         state:
           $ref: '#/components/schemas/types.State'
       type: object
+    types.TemplateAppConfigRequest:
+      properties:
+        values:
+          $ref: '#/components/schemas/types.AppConfigValues'
+      type: object
     v1beta1.ConfigChildItem:
       properties:
         default:
@@ -405,6 +410,36 @@ paths:
       summary: Get the app config
       tags:
       - kubernetes-install
+  /kubernetes/install/app/config/template:
+    post:
+      description: Template the app config with provided values and return the templated
+        config
+      operationId: postKubernetesInstallTemplateAppConfig
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+        description: Template App Config Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfig'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Template the app config with provided values
+      tags:
+      - kubernetes-install
   /kubernetes/install/app/config/values:
     get:
       description: Get the app config values
@@ -561,6 +596,36 @@ paths:
       security:
       - bearerauth: []
       summary: Get the app config
+      tags:
+      - linux-install
+  /linux/install/app/config/template:
+    post:
+      description: Template the app config with provided values and return the templated
+        config
+      operationId: postLinuxInstallTemplateAppConfig
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+        description: Template App Config Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfig'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Template the app config with provided values
       tags:
       - linux-install
   /linux/install/app/config/values:

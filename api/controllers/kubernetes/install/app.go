@@ -6,10 +6,9 @@ import (
 	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
-func (c *InstallController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error) {
+func (c *InstallController) GetAppConfig(ctx context.Context) (types.AppConfig, error) {
 	return c.appConfigManager.GetConfig()
 }
 
@@ -62,4 +61,8 @@ func (c *InstallController) PatchAppConfigValues(ctx context.Context, values typ
 
 func (c *InstallController) GetAppConfigValues(ctx context.Context, maskPasswords bool) (types.AppConfigValues, error) {
 	return c.appConfigManager.GetConfigValues(maskPasswords)
+}
+
+func (c *InstallController) TemplateAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error) {
+	return c.appConfigManager.TemplateConfig(values)
 }
