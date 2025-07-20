@@ -932,6 +932,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	// Test 10: Reset to no user values, then change middle item (database_url) directly - should only affect itself and dependents
 	result, err = engine.Execute(nil)
 	require.NoError(t, err)
+	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
 
 	configValues = types.AppConfigValues{
