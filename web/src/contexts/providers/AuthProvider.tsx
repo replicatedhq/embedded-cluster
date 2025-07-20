@@ -1,23 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { handleUnauthorized } from "../utils/auth";
-import { useInitialState } from "./InitialStateContext";
-
-interface AuthContextType {
-  token: string | null;
-  setToken: (token: string | null) => void;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-}
-
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+import React, { useState, useEffect } from "react";
+import { AuthContext, AuthContextType } from "../definitions/AuthContext";
+import { handleUnauthorized } from "../../utils/auth";
+import { useInitialState } from "../hooks/useInitialState";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setTokenState] = useState<string | null>(() => {
@@ -35,7 +19,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   // Get the installation target from initial state
   const { installTarget } = useInitialState()
-
   // Check token validity on mount and when token changes
   useEffect(() => {
     if (token) {
@@ -48,12 +31,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
         .then((response) => {
           if (!response.ok) {
-            // If we get a 401, handle it
-            if (response.status === 401) {
-              const error = new Error("Unauthorized");
-              (error as Error & { status?: number }).status = 401;
-              handleUnauthorized(error);
-            }
+            const err = new Error(`HTTP error! status: ${response.status}`);
+            (err as Error & { status?: number }).status = response.status;
+            throw err;
           }
           setIsLoading(false);
         })
@@ -67,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, installTarget]);
 
   useEffect(() => {
     // Listen for storage events to sync token state across tabs
@@ -78,21 +58,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     window.addEventListener("storage", handleStorageChange);
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  const value = {
+  const value: AuthContextType = {
     token,
     setToken,
     isAuthenticated: !!token,
     isLoading,
   };
-
-  if (isLoading) {
-    return null; // Don't render anything while checking token validity
-  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

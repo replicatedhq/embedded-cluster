@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } 
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { renderWithProviders } from "../../../test/setup.tsx";
+import { renderWithProviders } from "../../../test/renderWithProviders.tsx";
 import ConfigurationStep from "../config/ConfigurationStep.tsx";
 import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from "../../../types";
 

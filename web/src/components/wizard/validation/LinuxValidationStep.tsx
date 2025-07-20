@@ -2,11 +2,11 @@ import React from "react";
 import Card from "../../common/Card";
 import Button from "../../common/Button";
 import { Modal } from "../../common/Modal";
-import { useWizard } from "../../../contexts/WizardModeContext";
+import { useWizard } from "../../../contexts/hooks/useWizard";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import LinuxPreflightCheck from "./LinuxPreflightCheck";
 import { useMutation } from "@tanstack/react-query";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuth } from "../../../contexts/hooks/useAuth";
 
 interface LinuxValidationStepProps {
   onNext: () => void;

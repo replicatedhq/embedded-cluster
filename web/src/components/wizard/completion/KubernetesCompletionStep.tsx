@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import Card from "../../common/Card";
 import Button from "../../common/Button";
-import { useKubernetesConfig } from "../../../contexts/KubernetesConfigContext";
-import { useInitialState } from "../../../contexts/InitialStateContext";
-import { useSettings } from "../../../contexts/SettingsContext";
+import { useKubernetesConfig } from "../../../contexts/hooks/useKubernetesConfig";
+import { useInitialState } from "../../../contexts/hooks/useInitialState";
+import { useSettings } from "../../../contexts/hooks/useSettings";
 import { CheckCircle, ClipboardCheck, Copy, Terminal } from "lucide-react";
 
 const KubernetesCompletionStep: React.FC = () => {

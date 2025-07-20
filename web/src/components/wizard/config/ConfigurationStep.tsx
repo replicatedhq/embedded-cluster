@@ -8,9 +8,9 @@ import Checkbox from '../../common/Checkbox';
 import Radio from '../../common/Radio';
 import Label from '../../common/Label';
 import FileInput from '../../common/FileInput';
-import { useWizard } from '../../../contexts/WizardModeContext';
-import { useAuth } from '../../../contexts/AuthContext';
-import { useSettings } from '../../../contexts/SettingsContext';
+import { useWizard } from '../../../contexts/hooks/useWizard';
+import { useAuth } from '../../../contexts/hooks/useAuth';
+import { useSettings } from '../../../contexts/hooks/useSettings';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { handleUnauthorized } from '../../../utils/auth';
 import { AppConfig, AppConfigItem, AppConfigValues } from '../../../types';
@@ -132,7 +132,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     if (apiConfigValues && Object.keys(configValues).length === 0) {
       setConfigValues(apiConfigValues);
     }
-  }, [apiConfigValues]);
+  }, [apiConfigValues, configValues]);
 
   // Helper function to get the display value for a config item (no defaults)
   const getDisplayValue = (item: AppConfigItem): string => {

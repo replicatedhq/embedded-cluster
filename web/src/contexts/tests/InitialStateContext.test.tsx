@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { InitialStateContext, useInitialState, InitialStateProvider } from "../InitialStateContext";
+import { InitialStateContext } from "../definitions/InitialStateContext";
+import { InitialStateProvider } from "../providers/InitialStateProvider";
+import { useInitialState } from "../hooks/useInitialState";
 import { InstallationTarget } from "../../types/installation-target";
 
 type CustomWindow = typeof window & {

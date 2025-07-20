@@ -1,5 +1,5 @@
 import { screen, waitFor, fireEvent } from "@testing-library/react";
-import { renderWithProviders } from "../../../test/setup.tsx";
+import { renderWithProviders } from "../../../test/renderWithProviders.tsx";
 import LinuxPreflightCheck from "../validation/LinuxPreflightCheck.tsx";
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { setupServer } from "msw/node";

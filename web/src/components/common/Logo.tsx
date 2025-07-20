@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { useInitialState } from '../../contexts/InitialStateContext';
+import { useInitialState } from '../../contexts/hooks/useInitialState';
 
 export const AppIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => {
   const { icon } = useInitialState();

@@ -1,9 +1,9 @@
 import React from "react";
 import Card from "../../common/Card";
 import Button from "../../common/Button";
-import { useLinuxConfig } from "../../../contexts/LinuxConfigContext";
-import { useInitialState } from "../../../contexts/InitialStateContext";
-import { useSettings } from "../../../contexts/SettingsContext";
+import { useLinuxConfig } from "../../../contexts/hooks/useLinuxConfig";
+import { useInitialState } from "../../../contexts/hooks/useInitialState";
+import { useSettings } from "../../../contexts/hooks/useSettings";
 import { CheckCircle, ExternalLink } from "lucide-react";
 
 const LinuxCompletionStep: React.FC = () => {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { renderWithProviders } from "../../../test/setup.tsx";
+import { renderWithProviders } from "../../../test/renderWithProviders.tsx";
 import WelcomeStep from "../WelcomeStep.tsx";
 
 const server = setupServer(

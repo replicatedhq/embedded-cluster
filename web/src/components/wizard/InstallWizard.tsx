@@ -11,7 +11,7 @@ import LinuxCompletionStep from "./completion/LinuxCompletionStep";
 import KubernetesCompletionStep from "./completion/KubernetesCompletionStep";
 import { WizardStep } from "../../types";
 import { AppIcon } from "../common/Logo";
-import { useWizard } from "../../contexts/WizardModeContext";
+import { useWizard } from "../../contexts/hooks/useWizard";
 
 const InstallWizard: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<WizardStep>("welcome");

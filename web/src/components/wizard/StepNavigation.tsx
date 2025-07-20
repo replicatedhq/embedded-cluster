@@ -1,8 +1,8 @@
 import React from 'react';
 import { WizardStep } from '../../types';
 import { ClipboardList, Settings, Shield, Download, CheckCircle, Server } from 'lucide-react';
-import { useWizard } from '../../contexts/WizardModeContext';
-import { useSettings } from '../../contexts/SettingsContext';
+import { useWizard } from '../../contexts/hooks/useWizard';
+import { useSettings } from '../../contexts/hooks/useSettings';
 
 interface StepNavigationProps {
   currentStep: WizardStep;

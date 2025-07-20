@@ -3,7 +3,7 @@ import React from 'react';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
-import { renderWithProviders } from '../../../test/setup.tsx';
+import { renderWithProviders } from '../../../test/renderWithProviders.tsx';
 import LinuxValidationStep from '../validation/LinuxValidationStep.tsx';
 
 const server = setupServer(

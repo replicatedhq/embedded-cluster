@@ -3,34 +3,15 @@ import Input from "../../common/Input";
 import Select from "../../common/Select";
 import Button from "../../common/Button";
 import Card from "../../common/Card";
-import { useInitialState } from "../../../contexts/InitialStateContext";
-import { useLinuxConfig } from "../../../contexts/LinuxConfigContext";
-import { useWizard } from "../../../contexts/WizardModeContext";
+import { useInitialState } from "../../../contexts/hooks/useInitialState";
+import { useLinuxConfig } from "../../../contexts/hooks/useLinuxConfig";
+import { useWizard } from "../../../contexts/hooks/useWizard";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuth } from "../../../contexts/hooks/useAuth";
 import { handleUnauthorized } from "../../../utils/auth";
+import { formatErrorMessage, linuxFieldNames } from "../../../utils/errorMessages";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
-/**
- * Maps internal field names to user-friendly display names.
- * Used for:
- * - Input IDs: <Input id="adminConsolePort" />
- * - Labels: <Input label={fieldNames.adminConsolePort} />
- * - Error formatting: formatErrorMessage("adminConsolePort invalid") -> "Admin Console Port invalid"
- */
-const fieldNames = {
-  adminConsolePort: "Admin Console Port",
-  dataDirectory: "Data Directory",
-  localArtifactMirrorPort: "Local Artifact Mirror Port",
-  httpProxy: "HTTP Proxy",
-  httpsProxy: "HTTPS Proxy",
-  noProxy: "Proxy Bypass List",
-  networkInterface: "Network Interface",
-  podCidr: "Pod CIDR",
-  serviceCidr: "Service CIDR",
-  globalCidr: "Reserved Network Range (CIDR)",
-  cidr: "CIDR",
-}
 
 interface LinuxSetupStepProps {
   onNext: () => void;
@@ -160,7 +141,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
 
   const getFieldError = (fieldName: string) => {
     const fieldError = submitError?.errors?.find((err) => err.field === fieldName);
-    return fieldError ? formatErrorMessage(fieldError.message) : undefined;
+    return fieldError ? formatErrorMessage(fieldError.message, linuxFieldNames) : undefined;
   };
 
   return (
@@ -184,7 +165,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                 <div className="space-y-4">
                   <Input
                     id="dataDirectory"
-                    label={fieldNames.dataDirectory}
+                    label={linuxFieldNames.dataDirectory}
                     value={config.dataDirectory || ""}
                     onChange={handleInputChange}
                     placeholder="/var/lib/embedded-cluster"
@@ -196,7 +177,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
 
                   <Input
                     id="adminConsolePort"
-                    label={fieldNames.adminConsolePort}
+                    label={linuxFieldNames.adminConsolePort}
                     value={config.adminConsolePort?.toString() || ""}
                     onChange={handleInputChange}
                     placeholder="30000"
@@ -208,7 +189,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
 
                   <Input
                     id="localArtifactMirrorPort"
-                    label={fieldNames.localArtifactMirrorPort}
+                    label={linuxFieldNames.localArtifactMirrorPort}
                     value={config.localArtifactMirrorPort?.toString() || ""}
                     onChange={handleInputChange}
                     placeholder="50000"
@@ -225,7 +206,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                 <div className="space-y-4">
                   <Input
                     id="httpProxy"
-                    label={fieldNames.httpProxy}
+                    label={linuxFieldNames.httpProxy}
                     value={config.httpProxy || ""}
                     onChange={handleInputChange}
                     placeholder="http://proxy.example.com:3128"
@@ -236,7 +217,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
 
                   <Input
                     id="httpsProxy"
-                    label={fieldNames.httpsProxy}
+                    label={linuxFieldNames.httpsProxy}
                     value={config.httpsProxy || ""}
                     onChange={handleInputChange}
                     placeholder="https://proxy.example.com:3128"
@@ -247,7 +228,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
 
                   <Input
                     id="noProxy"
-                    label={fieldNames.noProxy}
+                    label={linuxFieldNames.noProxy}
                     value={config.noProxy || ""}
                     onChange={handleInputChange}
                     placeholder="localhost,127.0.0.1,.example.com"
@@ -272,7 +253,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                   <div className="space-y-4">
                     <Select
                       id="networkInterface"
-                      label={fieldNames.networkInterface}
+                      label={linuxFieldNames.networkInterface}
                       value={config.networkInterface || ""}
                       onChange={handleSelectChange}
                       options={[
@@ -292,7 +273,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
 
                     <Input
                       id="globalCidr"
-                      label={fieldNames.globalCidr}
+                      label={linuxFieldNames.globalCidr}
                       value={config.globalCidr || ""}
                       onChange={handleInputChange}
                       placeholder="10.244.0.0/16"
@@ -329,22 +310,5 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
     </div>
   );
 };
-
-/**
- * Formats error messages by replacing technical field names with more user-friendly display names.
- * Example: "adminConsolePort" becomes "Admin Console Port".
- *
- * @param message - The error message to format
- * @returns The formatted error message with replaced field names
- */
-export function formatErrorMessage(message: string) {
-  let finalMsg = message
-  for (const [field, fieldName] of Object.entries(fieldNames)) {
-    // Case-insensitive regex that matches whole words only
-    // Example: "podCidr", "PodCidr", "PODCIDR" all become "Pod CIDR"
-    finalMsg = finalMsg.replace(new RegExp(`\\b${field}\\b`, 'gi'), fieldName)
-  }
-  return finalMsg
-}
 
 export default LinuxSetupStep;

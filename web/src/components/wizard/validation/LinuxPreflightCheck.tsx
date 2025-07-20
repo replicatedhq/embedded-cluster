@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { useSettings } from "../../../contexts/SettingsContext";
+import { useSettings } from "../../../contexts/hooks/useSettings";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Button from "../../common/Button";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuth } from "../../../contexts/hooks/useAuth";
 
 interface LinuxPreflightCheckProps {
   onComplete: (success: boolean, allowIgnoreHostPreflights: boolean) => void;

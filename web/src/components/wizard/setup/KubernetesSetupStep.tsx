@@ -2,26 +2,14 @@ import React, { useState } from "react";
 import Input from "../../common/Input";
 import Button from "../../common/Button";
 import Card from "../../common/Card";
-import { useKubernetesConfig } from "../../../contexts/KubernetesConfigContext";
-import { useWizard } from "../../../contexts/WizardModeContext";
+import { useKubernetesConfig } from "../../../contexts/hooks/useKubernetesConfig";
+import { useWizard } from "../../../contexts/hooks/useWizard";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuth } from "../../../contexts/hooks/useAuth";
 import { handleUnauthorized } from "../../../utils/auth";
+import { formatErrorMessage, kubernetesFieldNames } from "../../../utils/errorMessages";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 
-/**
- * Maps internal field names to user-friendly display names.
- * Used for:
- * - Input IDs: <Input id="adminConsolePort" />
- * - Labels: <Input label={fieldNames.adminConsolePort} />
- * - Error formatting: formatErrorMessage("adminConsolePort invalid") -> "Admin Console Port invalid"
- */
-const fieldNames = {
-  adminConsolePort: "Admin Console Port",
-  httpProxy: "HTTP Proxy",
-  httpsProxy: "HTTPS Proxy",
-  noProxy: "Proxy Bypass List",
-}
 
 interface KubernetesSetupStepProps {
   onNext: () => void;
@@ -139,7 +127,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
 
   const getFieldError = (fieldName: string) => {
     const fieldError = submitError?.errors?.find((err) => err.field === fieldName);
-    return fieldError ? formatErrorMessage(fieldError.message) : undefined;
+    return fieldError ? formatErrorMessage(fieldError.message, kubernetesFieldNames) : undefined;
   };
 
   return (
@@ -163,7 +151,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                 <div className="space-y-4">
                   <Input
                     id="adminConsolePort"
-                    label={fieldNames.adminConsolePort}
+                    label={kubernetesFieldNames.adminConsolePort}
                     value={config.adminConsolePort?.toString() || ""}
                     onChange={handleInputChange}
                     placeholder="30000"
@@ -180,7 +168,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                 <div className="space-y-4">
                   <Input
                     id="httpProxy"
-                    label={fieldNames.httpProxy}
+                    label={kubernetesFieldNames.httpProxy}
                     value={config.httpProxy || ""}
                     onChange={handleInputChange}
                     placeholder="http://proxy.example.com:3128"
@@ -191,7 +179,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
 
                   <Input
                     id="httpsProxy"
-                    label={fieldNames.httpsProxy}
+                    label={kubernetesFieldNames.httpsProxy}
                     value={config.httpsProxy || ""}
                     onChange={handleInputChange}
                     placeholder="https://proxy.example.com:3128"
@@ -202,7 +190,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
 
                   <Input
                     id="noProxy"
-                    label={fieldNames.noProxy}
+                    label={kubernetesFieldNames.noProxy}
                     value={config.noProxy || ""}
                     onChange={handleInputChange}
                     placeholder="localhost,127.0.0.1,.example.com"
@@ -237,22 +225,5 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
     </div>
   );
 };
-
-/**
- * Formats error messages by replacing technical field names with more user-friendly display names.
- * Example: "adminConsolePort" becomes "Admin Console Port".
- *
- * @param message - The error message to format
- * @returns The formatted error message with replaced field names
- */
-export function formatErrorMessage(message: string) {
-  let finalMsg = message
-  for (const [field, fieldName] of Object.entries(fieldNames)) {
-    // Case-insensitive regex that matches whole words only
-    // Example: "podCidr", "PodCidr", "PODCIDR" all become "Pod CIDR"
-    finalMsg = finalMsg.replace(new RegExp(`\\b${field}\\b`, 'gi'), fieldName)
-  }
-  return finalMsg
-}
 
 export default KubernetesSetupStep;

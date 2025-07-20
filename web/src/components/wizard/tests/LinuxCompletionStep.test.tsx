@@ -1,7 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
-import { renderWithProviders } from "../../../test/setup.tsx";
+import { renderWithProviders } from "../../../test/renderWithProviders.tsx";
 import LinuxCompletionStep from "../completion/LinuxCompletionStep.tsx";
 
 // Mock window.open

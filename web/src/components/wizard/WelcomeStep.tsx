@@ -4,9 +4,9 @@ import Button from "../common/Button";
 import Input from "../common/Input";
 import { AppIcon } from "../common/Logo";
 import { ChevronRight, Lock } from "lucide-react";
-import { useWizard } from "../../contexts/WizardModeContext";
+import { useWizard } from "../../contexts/hooks/useWizard";
 import { useMutation } from "@tanstack/react-query";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts/hooks/useAuth";
 
 interface WelcomeStepProps {
   onNext: () => void;

@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { LinuxConfigProvider } from "./contexts/LinuxConfigContext";
-import { KubernetesConfigProvider } from "./contexts/KubernetesConfigContext";
-import { SettingsProvider } from "./contexts/SettingsContext";
-import { WizardProvider } from "./contexts/WizardModeContext";
-import { InitialStateProvider } from "./contexts/InitialStateContext";
-import { AuthProvider } from "./contexts/AuthContext";
+import { LinuxConfigProvider } from "./contexts/providers/LinuxConfigProvider";
+import { KubernetesConfigProvider } from "./contexts/providers/KubernetesConfigProvider";
+import { SettingsProvider } from "./contexts/providers/SettingsProvider";
+import { WizardProvider } from "./contexts/providers/WizardProvider";
+import { InitialStateProvider } from "./contexts/providers/InitialStateProvider";
+import { AuthProvider } from "./contexts/providers/AuthProvider";
 import ConnectionMonitor from "./components/common/ConnectionMonitor";
 import InstallWizard from "./components/wizard/InstallWizard";
 import { QueryClientProvider } from "@tanstack/react-query";
