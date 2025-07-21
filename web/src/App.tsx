@@ -4,7 +4,7 @@ import { KubernetesConfigProvider } from "./contexts/KubernetesConfigContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { WizardProvider } from "./contexts/WizardModeContext";
 import { InitialStateProvider } from "./contexts/InitialStateContext";
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider } from "./providers/AuthProvider";
 import ConnectionMonitor from "./components/common/ConnectionMonitor";
 import InstallWizard from "./components/wizard/InstallWizard";
 import { QueryClientProvider } from "@tanstack/react-query";
