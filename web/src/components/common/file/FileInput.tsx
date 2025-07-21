@@ -56,7 +56,7 @@ const FileInput: React.FC<FileInputProps> = ({
   const hasFile = useMemo(() => value && filename || defaultValue, [value, filename, defaultValue]);
   const downloadValue = useMemo(() => value || defaultValue, [value, defaultValue]);
   const downloadFilename = useMemo(() => filename || defaultFilename, [filename, defaultFilename]);
-  const valueIsDefault = useMemo(() => !value && defaultValue, [value, defaultValue]);
+  const valueIsDefault = useMemo(() => !value && Boolean(defaultValue), [value, defaultValue]);
   const displayError = useMemo(() => error || state.internalError, [error, state.internalError]);
 
   const encodeFileToBase64 = (file: File): Promise<string> => {
