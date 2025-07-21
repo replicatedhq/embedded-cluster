@@ -82,7 +82,7 @@ describe('FileInput', () => {
         />
       );
 
-      const helpText = screen.getByTestId('test-file-input-help-text');
+      const helpText = screen.getByTestId('help-text-test-file-input');
       expect(helpText).toBeInTheDocument();
       expect(helpText).toHaveTextContent('Upload a file');
       expect(helpText).toHaveTextContent('Default: File provided');
@@ -97,7 +97,7 @@ describe('FileInput', () => {
         />
       );
 
-      const helpText = screen.getByTestId('test-file-input-help-text');
+      const helpText = screen.getByTestId('help-text-test-file-input');
       expect(helpText).toBeInTheDocument();
       expect(helpText).toHaveTextContent('Upload a file');
       expect(helpText).not.toHaveTextContent('Default:');

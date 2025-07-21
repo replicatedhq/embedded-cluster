@@ -20,7 +20,7 @@ const HelpText: React.FC<HelpTextProps> = ({ dataTestId, helpText, defaultValue,
   }
 
   return (
-    <div data-testid={dataTestId ? `${dataTestId}-help-text` : "help-text"} className="mt-1 text-sm text-gray-500 [&_p]:inline [&_p]:mb-0">
+    <div data-testid={dataTestId ? `help-text-${dataTestId}` : "help-text"} className="mt-1 text-sm text-gray-500 [&_p]:inline [&_p]:mb-0">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
