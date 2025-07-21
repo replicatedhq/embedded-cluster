@@ -1,9 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { LinuxConfigProvider } from "./contexts/LinuxConfigContext";
-import { KubernetesConfigProvider } from "./contexts/KubernetesConfigContext";
-import { SettingsProvider } from "./contexts/SettingsContext";
-import { WizardProvider } from "./contexts/WizardModeContext";
-import { InitialStateProvider } from "./contexts/InitialStateContext";
+import { LinuxConfigProvider } from "./providers/LinuxConfigProvider";
+import { KubernetesConfigProvider } from "./providers/KubernetesConfigProvider";
+import { SettingsProvider } from "./providers/SettingsProvider";
+import { WizardProvider } from "./providers/WizardProvider";
+import { InitialStateProvider } from "./providers/InitialStateProvider";
 import { AuthProvider } from "./providers/AuthProvider";
 import ConnectionMonitor from "./components/common/ConnectionMonitor";
 import InstallWizard from "./components/wizard/InstallWizard";
