@@ -183,6 +183,9 @@ type filterFn func(string) bool
 
 func GetGitHubRelease(ctx context.Context, owner, repo string, filter filterFn) (string, error) {
 	client := github.NewClient(nil)
+	if token := os.Getenv("GH_TOKEN"); token != "" {
+		client = client.WithAuthToken(token)
+	}
 	releases, _, err := client.Repositories.ListReleases(
 		ctx, owner, repo, &github.ListOptions{},
 	)
@@ -201,6 +204,9 @@ func GetGitHubRelease(ctx context.Context, owner, repo string, filter filterFn) 
 // GetLatestGitHubTag returns the latest tag from a GitHub repository.
 func GetLatestGitHubTag(ctx context.Context, owner, repo string) (string, error) {
 	client := github.NewClient(nil)
+	if token := os.Getenv("GH_TOKEN"); token != "" {
+		client = client.WithAuthToken(token)
+	}
 	tags, _, err := client.Repositories.ListTags(ctx, owner, repo, &github.ListOptions{})
 	if err != nil {
 		return "", fmt.Errorf("list tags: %w", err)
@@ -216,6 +222,9 @@ func GetLatestGitHubTag(ctx context.Context, owner, repo string) (string, error)
 // will list "v1.124.12" as being newer than "v1.124.12-build.0" and it is not in our usage.
 func GetLatestKotsHelmTag(ctx context.Context) (string, error) {
 	client := github.NewClient(nil)
+	if token := os.Getenv("GH_TOKEN"); token != "" {
+		client = client.WithAuthToken(token)
+	}
 	tags, _, err := client.Repositories.ListTags(ctx, "replicatedhq", "kots-helm", &github.ListOptions{PerPage: 100})
 	if err != nil {
 		return "", fmt.Errorf("list tags: %w", err)
@@ -250,6 +259,9 @@ func GetLatestKotsHelmTag(ctx context.Context) (string, error) {
 // that matches the provided constraints.
 func GetGreatestGitHubTag(ctx context.Context, owner, repo string, constrants *semver.Constraints) (string, error) {
 	client := github.NewClient(nil)
+	if token := os.Getenv("GH_TOKEN"); token != "" {
+		client = client.WithAuthToken(token)
+	}
 	tags, _, err := client.Repositories.ListTags(ctx, owner, repo, &github.ListOptions{PerPage: 100})
 	if err != nil {
 		return "", fmt.Errorf("list tags: %w", err)
