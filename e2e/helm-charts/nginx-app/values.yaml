@@ -134,5 +134,6 @@ configItemsConfigMapData:
 
   # File items
   file_simple: ""
+  file_with_default: ""
   file_required: ""
 

@@ -64,8 +64,9 @@ spec:
       radio_required: repl{{ ConfigOption "radio_required" }}
 
       # File items
-      file_simple: repl{{  ConfigOptionFilename "file_simple" }}
-      file_required: repl{{  ConfigOptionFilename "file_required" }}
+      file_simple: repl{{ ConfigOptionFilename "file_simple" }}
+      file_with_default: repl{{ ConfigOptionFilename "file_with_default" }}
+      file_required: repl{{ ConfigOptionFilename "file_required" }}
 
   builder:
     replicated:
