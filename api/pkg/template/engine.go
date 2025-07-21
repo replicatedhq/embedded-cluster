@@ -114,7 +114,9 @@ func (e *Engine) parse(templateStr string) (*template.Template, error) {
 	return tmpl, nil
 }
 
-// Execute executes a the engine's parsed template using the provided config values
+// Execute executes the template engine using the provided config values.
+// In ModeConfig, it processes and templates the KOTS config itself, returning the templated config.
+// In ModeGeneric, it executes the engine's parsed template and returns the templated result.
 func (e *Engine) Execute(configValues types.AppConfigValues) (string, error) {
 	e.mtx.Lock()
 	defer e.mtx.Unlock()

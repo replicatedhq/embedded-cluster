@@ -5,8 +5,208 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestEngine_templateConfigItems(t *testing.T) {
+	tests := []struct {
+		name         string
+		config       *kotsv1beta1.Config
+		configValues types.AppConfigValues
+		expected     *kotsv1beta1.Config
+	}{
+		{
+			name: "templates in value and default fields",
+			config: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "settings",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "hostname",
+									Value:   multitype.BoolOrString{StrVal: "repl{{ upper \"app.example.com\" }}"},
+									Default: multitype.BoolOrString{StrVal: "repl{{ lower \"LOCALHOST\" }}"},
+								},
+								{
+									Name:    "port",
+									Default: multitype.BoolOrString{StrVal: "repl{{ add 8000 80 }}"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "settings",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "hostname",
+									Value:   multitype.BoolOrString{StrVal: "APP.EXAMPLE.COM"},
+									Default: multitype.BoolOrString{StrVal: "localhost"},
+								},
+								{
+									Name:    "port",
+									Value:   multitype.BoolOrString{StrVal: ""},
+									Default: multitype.BoolOrString{StrVal: "8080"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "template dependencies",
+			config: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "dependent",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "base_url",
+									Default: multitype.BoolOrString{StrVal: "https://api.example.com"},
+								},
+								{
+									Name:    "full_endpoint",
+									Value:   multitype.BoolOrString{StrVal: "repl{{ ConfigOption \"base_url\" }}/v1/health"},
+									Default: multitype.BoolOrString{StrVal: "https://localhost/health"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "dependent",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "base_url",
+									Value:   multitype.BoolOrString{StrVal: ""},
+									Default: multitype.BoolOrString{StrVal: "https://api.example.com"},
+								},
+								{
+									Name:    "full_endpoint",
+									Value:   multitype.BoolOrString{StrVal: "https://api.example.com/v1/health"},
+									Default: multitype.BoolOrString{StrVal: "https://localhost/health"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "file type with templates",
+			config: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "files",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "cert_file",
+									Type:    "file",
+									Value:   multitype.BoolOrString{StrVal: "repl{{ upper \"cert\" }}.pem"},
+									Default: multitype.BoolOrString{StrVal: "repl{{ lower \"DEFAULT\" }}-cert.pem"},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"cert_file": {Filename: "uploaded-cert.pem", Value: "cert-content"},
+			},
+			expected: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "files",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "cert_file",
+									Type:    "file",
+									Value:   multitype.BoolOrString{StrVal: "CERT.pem"},
+									Default: multitype.BoolOrString{StrVal: "default-cert.pem"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "templates in non-templated fields are not currently processed",
+			config: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "repl{{ upper \"group\" }}",
+							Title: "repl{{ title \"settings group\" }}",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:        "hostname",
+									Title:       "repl{{ title \"hostname field\" }}",
+									HelpText:    "repl{{ upper \"help text\" }}",
+									Type:        "repl{{ lower \"TEXT\" }}",
+									Value:       multitype.BoolOrString{StrVal: "repl{{ upper \"app.example.com\" }}"},
+									Default:     multitype.BoolOrString{StrVal: "localhost"},
+									Recommended: true,
+									Required:    true,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "repl{{ upper \"group\" }}",
+							Title: "repl{{ title \"settings group\" }}",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:        "hostname",
+									Title:       "repl{{ title \"hostname field\" }}",
+									HelpText:    "repl{{ upper \"help text\" }}",
+									Type:        "repl{{ lower \"TEXT\" }}",
+									Value:       multitype.BoolOrString{StrVal: "APP.EXAMPLE.COM"},
+									Default:     multitype.BoolOrString{StrVal: "localhost"},
+									Recommended: true,
+									Required:    true,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			engine := NewEngine(tt.config, WithMode(ModeConfig))
+
+			result, err := engine.templateConfigItems()
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+
+			// Compare the entire config structure
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
 
 func TestEngine_ConfigValueChanged(t *testing.T) {
 	config := &kotsv1beta1.Config{
