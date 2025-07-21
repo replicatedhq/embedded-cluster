@@ -162,4 +162,3 @@ export const renderWithProviders = (
 };
 
 export default renderWithProviders;
-
