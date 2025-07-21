@@ -383,7 +383,10 @@ func (e *Engine) getConfigItemValue(configItem kotsv1beta1.ConfigItem) (string, 
 		if err != nil {
 			return "", fmt.Errorf("process value template: %w", err)
 		}
-		return val, nil
+		// if the value is still empty, fallback
+		if val != "" {
+			return val, nil
+		}
 	}
 
 	// If still empty, try default
@@ -392,7 +395,10 @@ func (e *Engine) getConfigItemValue(configItem kotsv1beta1.ConfigItem) (string, 
 		if err != nil {
 			return "", fmt.Errorf("process default template: %w", err)
 		}
-		return val, nil
+		// if the value is still empty, fallback
+		if val != "" {
+			return val, nil
+		}
 	}
 
 	// If still empty, return empty string
