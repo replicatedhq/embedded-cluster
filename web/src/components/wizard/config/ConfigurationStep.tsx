@@ -7,7 +7,7 @@ import Textarea from '../../common/Textarea';
 import Checkbox from '../../common/Checkbox';
 import Radio from '../../common/Radio';
 import Label from '../../common/Label';
-import FileInput from '../../common/file/FileInput';
+import FileInput from '../../common/file';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';

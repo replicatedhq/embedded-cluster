@@ -201,7 +201,7 @@ const FileInput: React.FC<FileInputProps> = ({
           disabled={disabled}
           onChange={handleInputChange}
           className="hidden"
-          data-testid={dataTestId || id}
+          data-testid={`${dataTestId || id}`}
         />
 
         <div className="flex items-center">
@@ -221,8 +221,7 @@ const FileInput: React.FC<FileInputProps> = ({
           </Button>
 
           {hasFile && <File
-            id={id}
-            dataTestId={dataTestId}
+            dataTestId={dataTestId || id}
             handleDownload={handleDownload}
             handleRemove={handleRemove}
             filename={downloadFilename}
@@ -233,8 +232,8 @@ const FileInput: React.FC<FileInputProps> = ({
       </div>
 
       {displayError && <p id={`${id}-error`} className="mt-1 text-sm text-red-500">{displayError}</p>}
-      {/* Don't show the default value for file in the help text, instead just highlight there is something */}
-      <HelpText helpText={helpText} defaultValue='File provided ' error={displayError || undefined} />
+      {/* Don't show the default value for file in the help text, instead just highlight a default file exsits */}
+      <HelpText dataTestId={dataTestId || id} helpText={helpText} defaultValue={defaultValue ? "File provided" : undefined} error={displayError || undefined} />
     </div>
   );
 };
