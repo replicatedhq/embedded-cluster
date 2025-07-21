@@ -235,6 +235,74 @@ func TestEngine_ConfigOptionEquals(t *testing.T) {
 	result, err = engine.Execute(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "Snapshot Backup", result)
+
+	// Test with an unknown item - an error is returned and false is returned
+	err = engine.Parse("{{repl if ConfigOptionEquals \"notfound\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(nil)
+	require.Error(t, err)
+	assert.Equal(t, "", result)
+}
+
+func TestEngine_ConfigOptionNotEquals(t *testing.T) {
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name: "storage",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "storage_type",
+							Value:   multitype.BoolOrString{StrVal: "filesystem"},
+							Default: multitype.BoolOrString{StrVal: "local"},
+						},
+						{
+							Name:    "backup_type",
+							Default: multitype.BoolOrString{StrVal: "snapshot"},
+						},
+						{
+							Name:    "s3_bucket",
+							Default: multitype.BoolOrString{StrVal: "my-app-backups"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	engine := NewEngine(config)
+
+	// Test with user value override - should use user value "s3"
+	configValues := types.AppConfigValues{
+		"storage_type": {Value: "s3"},
+	}
+
+	err := engine.Parse("repl{{ if ConfigOptionNotEquals \"storage_type\" \"s3\" }}S3 Storage{{repl else }}Other Storage{{repl end }}")
+	require.NoError(t, err)
+	result, err := engine.Execute(configValues)
+	require.NoError(t, err)
+	assert.Equal(t, "Other Storage", result)
+
+	// Test with no user value - should use config value "filesystem"
+	err = engine.Parse("{{repl if ConfigOptionNotEquals \"storage_type\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "Other Storage", result)
+
+	// Test with item that has only default value - should use default "snapshot"
+	err = engine.Parse("repl{{ if ConfigOptionNotEquals \"backup_type\" \"snapshot\" }}Snapshot Backup{{repl else }}Other Backup{{repl end }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "Other Backup", result)
+
+	// Test with an unknown item - an error is returned and false is returned
+	err = engine.Parse("{{repl if ConfigOptionNotEquals \"notfound\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(nil)
+	require.Error(t, err)
+	assert.Equal(t, "", result)
 }
 
 func TestEngine_ConfigOptionData(t *testing.T) {
@@ -295,6 +363,55 @@ func TestEngine_ConfigOptionData(t *testing.T) {
 	result, err = engine.Execute(nil)
 	require.NoError(t, err)
 	assert.Equal(t, defaultCertContent, result)
+}
+
+func TestEngine_ConfigOptionFilename(t *testing.T) {
+	content := "default content"
+	contentEncoded := base64.StdEncoding.EncodeToString([]byte(content))
+
+	userContent := "user content"
+	userContentEncoded := base64.StdEncoding.EncodeToString([]byte(userContent))
+
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name: "a_file_group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:     "a_file",
+							Value:    multitype.BoolOrString{StrVal: contentEncoded},
+							Filename: "a_file.txt",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	engine := NewEngine(config)
+
+	err := engine.Parse("{{repl ConfigOptionFilename \"a_file\" }}")
+	require.NoError(t, err)
+
+	// Test with no user value - should be empty
+	result, err := engine.Execute(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "", result)
+
+	// Test with user value - should be user value
+	result, err = engine.Execute(types.AppConfigValues{
+		"a_file": {Value: userContentEncoded, Filename: "user_file.txt"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "user_file.txt", result)
+
+	// Test with an unknown item - an error is returned and empty string is returned
+	err = engine.Parse("{{repl ConfigOptionFilename \"notfound\" }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(nil)
+	require.Error(t, err)
+	assert.Equal(t, "", result)
 }
 
 func TestEngine_LicenseFieldValue(t *testing.T) {

@@ -151,37 +151,30 @@ func (e *Engine) processTemplate(templateStr string) (string, error) {
 
 func (e *Engine) getFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"ConfigOption":       e.configOption,
-		"ConfigOptionEquals": e.configOptionEquals,
-		"ConfigOptionData":   e.configOptionData,
-		"LicenseFieldValue":  e.licenseFieldValue,
+		"ConfigOption":          e.configOption,
+		"ConfigOptionData":      e.configOptionData,
+		"ConfigOptionEquals":    e.configOptionEquals,
+		"ConfigOptionFilename":  e.configOptionFilename,
+		"ConfigOptionNotEquals": e.configOptionNotEquals,
+
+		"LicenseFieldValue": e.licenseFieldValue,
 	}
 }
 
 func (e *Engine) configOption(name string) (string, error) {
 	e.recordDependency(name)
 
-	val, err := e.resolveConfigItem(name)
+	val, err := e.resolveConfigItem(name, e.getConfigItemValue)
 	if err != nil {
 		return "", fmt.Errorf("resolve config item: %w", err)
 	}
 	return val, nil
 }
 
-func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
-	e.recordDependency(name)
-
-	val, err := e.resolveConfigItem(name)
-	if err != nil {
-		return false, fmt.Errorf("resolve config item: %w", err)
-	}
-	return val == expected, nil
-}
-
 func (e *Engine) configOptionData(name string) (string, error) {
 	e.recordDependency(name)
 
-	val, err := e.resolveConfigItem(name)
+	val, err := e.resolveConfigItem(name, e.getConfigItemValue)
 	if err != nil {
 		return "", fmt.Errorf("resolve config item: %w", err)
 	}
@@ -192,6 +185,37 @@ func (e *Engine) configOptionData(name string) (string, error) {
 		return "", fmt.Errorf("decode base64 value: %w", err)
 	}
 	return string(decoded), nil
+}
+
+func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
+	e.recordDependency(name)
+
+	val, err := e.resolveConfigItem(name, e.getConfigItemValue)
+	if err != nil {
+		return false, fmt.Errorf("resolve config item: %w", err)
+	}
+	return val == expected, nil
+}
+
+func (e *Engine) configOptionNotEquals(name, expected string) (bool, error) {
+	e.recordDependency(name)
+
+	val, err := e.resolveConfigItem(name, e.getConfigItemValue)
+	if err != nil {
+		// NOTE: this is parity from KOTS but I would expect this to return true
+		return false, fmt.Errorf("resolve config item: %w", err)
+	}
+	return val != expected, nil
+}
+
+func (e *Engine) configOptionFilename(name string) (string, error) {
+	e.recordDependency(name)
+
+	val, err := e.resolveConfigItem(name, e.getConfigItemFilename)
+	if err != nil {
+		return "", fmt.Errorf("resolve config item: %w", err)
+	}
+	return val, nil
 }
 
 func (e *Engine) licenseFieldValue(name string) string {
@@ -294,7 +318,7 @@ func (e *Engine) configValueChanged(itemName string) bool {
 }
 
 // resolveConfigItem resolves a specific config item (internal recursive method)
-func (e *Engine) resolveConfigItem(name string) (string, error) {
+func (e *Engine) resolveConfigItem(name string, getter func(configItem kotsv1beta1.ConfigItem) (string, error)) (string, error) {
 	// Check if we have a cached value
 	if cacheVal, exists := e.cache[name]; exists {
 		// If already processed in this execution, use it
@@ -333,38 +357,58 @@ func (e *Engine) resolveConfigItem(name string) (string, error) {
 		return "", fmt.Errorf("config item %s not found", name)
 	}
 
-	var effectiveValue string
-
-	// Priority: user value > config value > config default
-	if userVal, exists := e.configValues[name]; exists {
-		effectiveValue = userVal.Value
-	} else {
-		// Try config value first
-		if configItem.Value.String() != "" {
-			val, err := e.processTemplate(configItem.Value.String())
-			if err != nil {
-				return "", fmt.Errorf("error processing value template for %s: %w", name, err)
-			}
-			effectiveValue = val
-		}
-
-		// If still empty, try default
-		if effectiveValue == "" && configItem.Default.String() != "" {
-			val, err := e.processTemplate(configItem.Default.String())
-			if err != nil {
-				return "", fmt.Errorf("error processing default template for %s: %w", name, err)
-			}
-			effectiveValue = val
-		}
+	value, err := getter(*configItem)
+	if err != nil {
+		return "", fmt.Errorf("get config item %s value: %w", name, err)
 	}
 
 	// Cache the result and mark as processed
 	e.cache[name] = CacheValue{
-		Value:     effectiveValue,
+		Value:     value,
 		Processed: true,
 	}
 
-	return effectiveValue, nil
+	return value, nil
+}
+
+func (e *Engine) getConfigItemValue(configItem kotsv1beta1.ConfigItem) (string, error) {
+	// Priority: user value > config value > config default
+	if userVal, exists := e.configValues[configItem.Name]; exists {
+		return userVal.Value, nil
+	}
+
+	// Try config value first
+	if configItem.Value.String() != "" {
+		val, err := e.processTemplate(configItem.Value.String())
+		if err != nil {
+			return "", fmt.Errorf("process value template: %w", err)
+		}
+		return val, nil
+	}
+
+	// If still empty, try default
+	if configItem.Default.String() != "" {
+		val, err := e.processTemplate(configItem.Default.String())
+		if err != nil {
+			return "", fmt.Errorf("process default template: %w", err)
+		}
+		return val, nil
+	}
+
+	// If still empty, return empty string
+	return "", nil
+}
+
+func (e *Engine) getConfigItemFilename(configItem kotsv1beta1.ConfigItem) (string, error) {
+	// Priority: user value
+	if userVal, exists := e.configValues[configItem.Name]; exists {
+		return userVal.Filename, nil
+	}
+
+	// Do not use the config item's filename for KOTS parity
+
+	// If still empty, return empty string
+	return "", nil
 }
 
 func (e *Engine) findConfigItem(name string) *kotsv1beta1.ConfigItem {
