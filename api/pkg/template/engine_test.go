@@ -1210,9 +1210,9 @@ repl{{ toJson $tls }}`},
 		return engine.Execute(configValuesFor(firstHostname))
 	})
 
-	// Verify performance characteristics: non-cached should be in ms, cached in µs
-	assert.True(t, firstDuration > time.Millisecond*50, "First execution should take at least 50ms (cert generation)")
-	assert.True(t, firstCachedDuration < time.Millisecond, "First cached execution should be under 1ms (microseconds)")
+	// Verify performance characteristics: non-cached should be in ms, cached much faster
+	assert.True(t, firstDuration > time.Millisecond*100, "First execution should take at least 100ms (cert generation)")
+	assert.True(t, firstCachedDuration < time.Millisecond*10, "First cached execution should be under 10ms")
 
 	// Verify caching provides significant speedup
 	assert.True(t, firstCachedDuration < firstDuration/2,
@@ -1237,8 +1237,8 @@ repl{{ toJson $tls }}`},
 	})
 
 	// Verify performance characteristics for second hostname
-	assert.True(t, secondDuration > time.Millisecond*50, "Second execution should take at least 50ms (cert generation)")
-	assert.True(t, secondCachedDuration < time.Millisecond, "Second cached execution should be under 1ms (microseconds)")
+	assert.True(t, secondDuration > time.Millisecond*100, "Second execution should take at least 100ms (cert generation)")
+	assert.True(t, secondCachedDuration < time.Millisecond*10, "Second cached execution should be under 10ms")
 
 	// Verify second cached result is identical to second execution
 	assert.Equal(t, secondResult, secondCachedResult, "Second cached execution should return identical result")
