@@ -67,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, installTarget]);
 
   useEffect(() => {
     // Listen for storage events to sync token state across tabs

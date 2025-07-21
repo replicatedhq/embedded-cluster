@@ -132,7 +132,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     if (apiConfigValues && Object.keys(configValues).length === 0) {
       setConfigValues(apiConfigValues);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- configValues is not a dependency of this effect
   }, [apiConfigValues]);
 
   // Helper function to get the display value for a config item (no defaults)

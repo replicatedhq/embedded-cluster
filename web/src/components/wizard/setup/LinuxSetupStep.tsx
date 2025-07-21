@@ -9,6 +9,7 @@ import { useWizard } from "../../../contexts/WizardModeContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { handleUnauthorized } from "../../../utils/auth";
+import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
@@ -160,7 +161,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
 
   const getFieldError = (fieldName: string) => {
     const fieldError = submitError?.errors?.find((err) => err.field === fieldName);
-    return fieldError ? formatErrorMessage(fieldError.message) : undefined;
+    return fieldError ? formatErrorMessage(fieldError.message, fieldNames) : undefined;
   };
 
   return (
@@ -329,22 +330,5 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
     </div>
   );
 };
-
-/**
- * Formats error messages by replacing technical field names with more user-friendly display names.
- * Example: "adminConsolePort" becomes "Admin Console Port".
- *
- * @param message - The error message to format
- * @returns The formatted error message with replaced field names
- */
-export function formatErrorMessage(message: string) {
-  let finalMsg = message
-  for (const [field, fieldName] of Object.entries(fieldNames)) {
-    // Case-insensitive regex that matches whole words only
-    // Example: "podCidr", "PodCidr", "PODCIDR" all become "Pod CIDR"
-    finalMsg = finalMsg.replace(new RegExp(`\\b${field}\\b`, 'gi'), fieldName)
-  }
-  return finalMsg
-}
 
 export default LinuxSetupStep;
