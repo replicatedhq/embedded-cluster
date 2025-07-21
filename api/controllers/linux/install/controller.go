@@ -266,11 +266,11 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	}
 
 	if controller.configValues != nil {
-		err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
+		err := controller.appConfigManager.ValidateConfigValues(controller.configValues, controller.rc)
 		if err != nil {
 			return nil, fmt.Errorf("validate app config values: %w", err)
 		}
-		err = controller.appConfigManager.PatchConfigValues(controller.configValues)
+		err = controller.appConfigManager.PatchConfigValues(controller.configValues, controller.rc)
 		if err != nil {
 			return nil, fmt.Errorf("patch app config values: %w", err)
 		}

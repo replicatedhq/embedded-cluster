@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +44,7 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 		values        types.AppConfigValues
 		currentState  statemachine.State
 		expectedState statemachine.State
-		setupMocks    func(*appconfig.MockAppConfigManager, *store.MockStore)
+		setupMocks    func(*appconfig.MockAppConfigManager, *store.MockStore, kubernetesinstallation.Installation)
 		expectedErr   bool
 	}{
 		{
@@ -53,10 +54,10 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 			},
 			currentState:  StateNew,
 			expectedState: StateApplicationConfigured,
-			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
+			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore, ki kubernetesinstallation.Installation) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}, ki).Return(nil),
+					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}, ki).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -68,10 +69,10 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 			},
 			currentState:  StateApplicationConfigurationFailed,
 			expectedState: StateApplicationConfigured,
-			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
+			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore, ki kubernetesinstallation.Installation) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}, ki).Return(nil),
+					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}, ki).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -83,10 +84,10 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 			},
 			currentState:  StateApplicationConfigured,
 			expectedState: StateApplicationConfigured,
-			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
+			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore, ki kubernetesinstallation.Installation) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}, ki).Return(nil),
+					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}, ki).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -98,9 +99,9 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 			},
 			currentState:  StateNew,
 			expectedState: StateApplicationConfigurationFailed,
-			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
+			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore, ki kubernetesinstallation.Installation) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "invalid-value"}}).Return(errors.New("validation error")),
+					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "invalid-value"}}, ki).Return(errors.New("validation error")),
 				)
 			},
 			expectedErr: true,
@@ -112,10 +113,10 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 			},
 			currentState:  StateNew,
 			expectedState: StateApplicationConfigurationFailed,
-			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
+			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore, ki kubernetesinstallation.Installation) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(errors.New("set config error")),
+					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}, ki).Return(nil),
+					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}, ki).Return(errors.New("set config error")),
 				)
 			},
 			expectedErr: true,
@@ -127,7 +128,7 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 			},
 			currentState:  StateInfrastructureInstalling,
 			expectedState: StateInfrastructureInstalling,
-			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
+			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore, ki kubernetesinstallation.Installation) {
 			},
 			expectedErr: true,
 		},
@@ -137,13 +138,16 @@ func TestInstallController_PatchAppConfigValues(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sm := NewStateMachine(WithCurrentState(tt.currentState))
 
+			ki := kubernetesinstallation.New(nil)
+
 			mockAppConfigManager := &appconfig.MockAppConfigManager{}
 			mockStore := &store.MockStore{}
 
-			tt.setupMocks(mockAppConfigManager, mockStore)
+			tt.setupMocks(mockAppConfigManager, mockStore, ki)
 
 			controller, err := NewInstallController(
 				WithStateMachine(sm),
+				WithInstallation(ki),
 				WithAppConfigManager(mockAppConfigManager),
 				WithReleaseData(getTestReleaseData(&appConfig)),
 				WithStore(mockStore),
@@ -195,18 +199,18 @@ func TestInstallController_GetAppConfigValues(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		setupMocks     func(*appconfig.MockAppConfigManager, *store.MockStore)
+		setupMocks     func(*appconfig.MockAppConfigManager, *store.MockStore, kubernetesinstallation.Installation)
 		expectedValues types.AppConfigValues
 		expectedErr    bool
 	}{
 		{
 			name: "successful get app config values",
-			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
+			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore, ki kubernetesinstallation.Installation) {
 				expectedValues := types.AppConfigValues{
 					"test-item":    types.AppConfigValue{Value: "test-value"},
 					"another-item": types.AppConfigValue{Value: "another-value"},
 				}
-				am.On("GetConfigValues", false).Return(expectedValues, nil)
+				am.On("GetConfigValues", false, ki).Return(expectedValues, nil)
 			},
 			expectedValues: types.AppConfigValues{
 				"test-item":    types.AppConfigValue{Value: "test-value"},
@@ -216,16 +220,16 @@ func TestInstallController_GetAppConfigValues(t *testing.T) {
 		},
 		{
 			name: "get config values error",
-			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
-				am.On("GetConfigValues", false).Return(nil, errors.New("get config values error"))
+			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore, ki kubernetesinstallation.Installation) {
+				am.On("GetConfigValues", false, ki).Return(nil, errors.New("get config values error"))
 			},
 			expectedValues: nil,
 			expectedErr:    true,
 		},
 		{
 			name: "empty config values",
-			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore) {
-				am.On("GetConfigValues", false).Return(types.AppConfigValues{}, nil)
+			setupMocks: func(am *appconfig.MockAppConfigManager, st *store.MockStore, ki kubernetesinstallation.Installation) {
+				am.On("GetConfigValues", false, ki).Return(types.AppConfigValues{}, nil)
 			},
 			expectedValues: types.AppConfigValues{},
 			expectedErr:    false,
@@ -234,12 +238,15 @@ func TestInstallController_GetAppConfigValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ki := kubernetesinstallation.New(nil)
+
 			mockAppConfigManager := &appconfig.MockAppConfigManager{}
 			mockStore := &store.MockStore{}
 
-			tt.setupMocks(mockAppConfigManager, mockStore)
+			tt.setupMocks(mockAppConfigManager, mockStore, ki)
 
 			controller, err := NewInstallController(
+				WithInstallation(ki),
 				WithAppConfigManager(mockAppConfigManager),
 				WithStore(mockStore),
 				WithReleaseData(getTestReleaseData(&appConfig)),

@@ -84,6 +84,25 @@ jobs:
         run: |
           make unit-tests
 
+  should-run-int-tests-kind:
+    name: Should run integration tests (kind)
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.changed-files.outputs.any_changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v46.0.5
+        with:
+          files: |
+            kinds/**
+            pkg/**
+            pkg-new/**
+            tests/integration/**
+
   int-tests:
     name: Integration tests
     runs-on: ubuntu-latest
@@ -91,8 +110,19 @@ jobs:
       - int-tests-api
       - int-tests-kind
       - int-tests-kind-ha-registry
+    if: ${{ !cancelled() }}
     steps:
-      - name: Succeed if all tests passed
+      # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
+      - name: fail if int-tests-api job was not successful
+        if: needs.int-tests-api.result != 'success' && needs.int-tests-api.result != 'skipped'
+        run: exit 1
+      - name: fail if int-tests-kind job was not successful
+        if: needs.int-tests-kind.result != 'success' && needs.int-tests-kind.result != 'skipped'
+        run: exit 1
+      - name: fail if int-tests-kind-ha-registry job was not successful
+        if: needs.int-tests-kind-ha-registry.result != 'success' && needs.int-tests-kind-ha-registry.result != 'skipped'
+        run: exit 1
+      - name: succeed if everything else passed
         run: echo "Integration tests succeeded"
 
   int-tests-api:
@@ -117,6 +147,7 @@ jobs:
   int-tests-kind:
     name: Integration tests (kind)
     runs-on: ubuntu-latest
+    if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -139,6 +170,7 @@ jobs:
   int-tests-kind-ha-registry:
     name: Integration tests (kind) HA registry
     runs-on: ubuntu-latest
+    if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -248,7 +280,7 @@ jobs:
     name: Should run e2e
     runs-on: ubuntu-latest
     outputs:
-      run-e2e: ${{ steps.changed-files.outputs.any_changed }}
+      run: ${{ steps.changed-files.outputs.any_changed }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -284,7 +316,7 @@ jobs:
     needs:
       - git-sha
       - should-run-e2e
-    if: needs.should-run-e2e.outputs.run-e2e == 'true'
+    if: needs.should-run-e2e.outputs.run == 'true'
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
@@ -365,7 +397,7 @@ jobs:
     needs:
       - git-sha
       - should-run-e2e
-    if: needs.should-run-e2e.outputs.run-e2e == 'true'
+    if: needs.should-run-e2e.outputs.run == 'true'
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
@@ -447,7 +479,7 @@ jobs:
     needs:
       - git-sha
       - should-run-e2e
-    if: needs.should-run-e2e.outputs.run-e2e == 'true'
+    if: needs.should-run-e2e.outputs.run == 'true'
     outputs:
       ec_version: ${{ steps.export.outputs.ec_version }}
       k0s_version: ${{ steps.export.outputs.k0s_version }}
@@ -483,7 +515,7 @@ jobs:
     needs:
       - git-sha
       - should-run-e2e
-    if: needs.should-run-e2e.outputs.run-e2e == 'true'
+    if: needs.should-run-e2e.outputs.run == 'true'
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
@@ -604,7 +636,7 @@ jobs:
     needs:
       - git-sha
       - should-run-e2e
-    if: needs.should-run-e2e.outputs.run-e2e == 'true'
+    if: needs.should-run-e2e.outputs.run == 'true'
     outputs:
       version_specifier: ${{ steps.export-version-specifier.outputs.version_specifier }}
     steps:

@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
@@ -81,6 +82,7 @@ func TestLinuxGetAppConfig(t *testing.T) {
 
 	// Create an install controller with the config values
 	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 		linuxinstall.WithConfigValues(configValues),
 		linuxinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
@@ -147,6 +149,7 @@ func TestLinuxGetAppConfig(t *testing.T) {
 	t.Run("Template processing", func(t *testing.T) {
 		// Create an install controller with the templated config
 		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfigWithTemplates,
 			}),
@@ -245,6 +248,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
@@ -306,6 +310,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
@@ -359,6 +364,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 	t.Run("Invalid state transition", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateSucceeded))),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
@@ -413,6 +419,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 	t.Run("Missing required item", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),
@@ -506,6 +513,7 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 
 	// Create an install controller with the config values
 	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 		linuxinstall.WithConfigValues(configValues),
 		linuxinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
@@ -608,6 +616,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 
 	// Create an install controller with the app config
 	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
 		linuxinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
@@ -679,6 +688,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 	t.Run("PatchLinuxAppConfigValues invalid state", func(t *testing.T) {
 		// Create an install controller in a completed state
 		completedInstallController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateSucceeded))),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
@@ -762,6 +772,7 @@ func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
 
 	// Create an install controller with the config values
 	installController, err := linuxinstall.NewInstallController(
+		linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 		linuxinstall.WithConfigValues(configValues),
 		linuxinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
@@ -884,6 +895,7 @@ func TestLinuxTemplateAppConfig(t *testing.T) {
 	t.Run("Success with default values", func(t *testing.T) {
 		// Create an install controller with the templated config
 		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfigWithTemplates,
 			}),
@@ -965,6 +977,7 @@ func TestLinuxTemplateAppConfig(t *testing.T) {
 	t.Run("Success with user values", func(t *testing.T) {
 		// Create an install controller with the templated config
 		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfigWithTemplates,
 			}),
@@ -1044,6 +1057,7 @@ func TestLinuxTemplateAppConfig(t *testing.T) {
 	t.Run("Success with db disabled", func(t *testing.T) {
 		// Create an install controller with the templated config
 		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfigWithTemplates,
 			}),
@@ -1105,6 +1119,7 @@ func TestLinuxTemplateAppConfig(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create an install controller with the templated config
 		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfigWithTemplates,
 			}),
@@ -1154,6 +1169,7 @@ func TestLinuxTemplateAppConfig(t *testing.T) {
 	t.Run("Invalid JSON request", func(t *testing.T) {
 		// Create an install controller with the templated config
 		installController, err := linuxinstall.NewInstallController(
+			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfigWithTemplates,
 			}),

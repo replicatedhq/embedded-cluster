@@ -4,12 +4,26 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type MockInstallationConfig struct {
+	mock.Mock
+}
+
+func (m *MockInstallationConfig) ProxySpec() *ecv1beta1.ProxySpec {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(*ecv1beta1.ProxySpec)
+}
 
 func TestConfigTemplateProcessing(t *testing.T) {
 	// Create a comprehensive config with various template scenarios
@@ -128,7 +142,7 @@ func TestConfigTemplateProcessing(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, manager)
 
-		result, err := manager.executeConfigTemplate(types.AppConfigValues{})
+		result, err := manager.executeConfigTemplate(types.AppConfigValues{}, &MockInstallationConfig{})
 		require.NoError(t, err)
 		require.NotEmpty(t, result)
 
@@ -217,7 +231,7 @@ status: {}
 		require.NoError(t, err)
 		require.NotNil(t, manager)
 
-		result, err := manager.executeConfigTemplate(types.AppConfigValues{})
+		result, err := manager.executeConfigTemplate(types.AppConfigValues{}, &MockInstallationConfig{})
 		require.NoError(t, err)
 		require.NotEmpty(t, result)
 
@@ -268,7 +282,7 @@ status: {}
 		require.NoError(t, err)
 		require.NotNil(t, manager)
 
-		result, err := manager.executeConfigTemplate(types.AppConfigValues{})
+		result, err := manager.executeConfigTemplate(types.AppConfigValues{}, &MockInstallationConfig{})
 		require.NoError(t, err)
 		require.NotEmpty(t, result)
 
@@ -307,10 +321,10 @@ status: {}
 		require.NotNil(t, manager)
 
 		// Execute template multiple times
-		result1, err1 := manager.executeConfigTemplate(types.AppConfigValues{})
+		result1, err1 := manager.executeConfigTemplate(types.AppConfigValues{}, &MockInstallationConfig{})
 		require.NoError(t, err1)
 
-		result2, err2 := manager.executeConfigTemplate(types.AppConfigValues{})
+		result2, err2 := manager.executeConfigTemplate(types.AppConfigValues{}, &MockInstallationConfig{})
 		require.NoError(t, err2)
 
 		// Results should be identical (template was parsed once)

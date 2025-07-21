@@ -12,11 +12,26 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type MockInstallationConfig struct {
+	mock.Mock
+}
+
+func (m *MockInstallationConfig) ProxySpec() *ecv1beta1.ProxySpec {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(*ecv1beta1.ProxySpec)
+}
+
 func TestEngine_BasicTemplating(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{
@@ -42,26 +57,28 @@ func TestEngine_BasicTemplating(t *testing.T) {
 	// Test basic sprig function with {{repl format
 	err := engine.Parse("{{repl upper \"hello world\"  }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "HELLO WORLD", result)
 
 	// Test ConfigOption with default values using repl{{ format
 	err = engine.Parse("repl{{ ConfigOption \"database_host\"  }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "localhost", result)
 
 	// Test mixing both delimiter formats in one template
 	err = engine.Parse("Host: repl{{ ConfigOption \"database_host\" }} Port: {{repl ConfigOption \"database_port\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "Host: localhost Port: 5432", result)
 }
 
 func TestEngine_ValuePriority(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{
@@ -110,7 +127,7 @@ func TestEngine_ValuePriority(t *testing.T) {
 
 	err := engine.Parse("{{repl ConfigOption \"database_url\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(configValues)
+	result, err := engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "postgres://db.example.com:5433/app", result)
 
@@ -121,21 +138,21 @@ func TestEngine_ValuePriority(t *testing.T) {
 
 	err = engine.Parse("{{repl ConfigOption \"database_url\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(partialConfigValues)
+	result, err = engine.Execute(partialConfigValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "postgres://db-internal.company.com:5433/app", result)
 
 	// Test with no user values (should use config value for database_host, default for database_port)
 	err = engine.Parse("{{repl ConfigOption \"database_url\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "postgres://db-internal.company.com:5432/app", result)
 
 	// Test item with only default value (redis_host) - should use default
 	err = engine.Parse("{{repl ConfigOption \"redis_host\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "redis.company.com", result)
 
@@ -145,14 +162,14 @@ func TestEngine_ValuePriority(t *testing.T) {
 	}
 	err = engine.Parse("{{repl ConfigOption \"redis_host\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "redis.production.com", result)
 
 	// Test item with no value and no default - should return empty string
 	err = engine.Parse("{{repl ConfigOption \"metrics_endpoint\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "", result)
 
@@ -162,14 +179,14 @@ func TestEngine_ValuePriority(t *testing.T) {
 	}
 	err = engine.Parse("{{repl ConfigOption \"metrics_endpoint\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "https://metrics.company.com", result)
 
 	// Test item with template value that evaluates to empty - should fall back to default
 	err = engine.Parse("{{repl ConfigOption \"empty_template_value\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "fallback_default", result)
 
@@ -180,12 +197,14 @@ func TestEngine_ValuePriority(t *testing.T) {
 	}
 	err = engine.Parse("{{repl ConfigOption \"database_url\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(emptyConfigValues)
+	result, err = engine.Execute(emptyConfigValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "postgres://:5433/app", result) // Empty host should result in empty string, not config fallback
 }
 
 func TestEngine_ConfigOptionEquals(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{
@@ -220,33 +239,35 @@ func TestEngine_ConfigOptionEquals(t *testing.T) {
 
 	err := engine.Parse("repl{{ if ConfigOptionEquals \"storage_type\" \"s3\" }}S3 Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(configValues)
+	result, err := engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "S3 Storage", result)
 
 	// Test with no user value - should use config value "filesystem"
 	err = engine.Parse("{{repl if ConfigOptionEquals \"storage_type\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "Filesystem Storage", result)
 
 	// Test with item that has only default value - should use default "snapshot"
 	err = engine.Parse("repl{{ if ConfigOptionEquals \"backup_type\" \"snapshot\" }}Snapshot Backup{{repl else }}Other Backup{{repl end }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "Snapshot Backup", result)
 
 	// Test with an unknown item - an error is returned and false is returned
 	err = engine.Parse("{{repl if ConfigOptionEquals \"notfound\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.Error(t, err)
 	assert.Equal(t, "", result)
 }
 
 func TestEngine_ConfigOptionNotEquals(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{
@@ -281,33 +302,35 @@ func TestEngine_ConfigOptionNotEquals(t *testing.T) {
 
 	err := engine.Parse("repl{{ if ConfigOptionNotEquals \"storage_type\" \"s3\" }}S3 Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(configValues)
+	result, err := engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "Other Storage", result)
 
 	// Test with no user value - should use config value "filesystem"
 	err = engine.Parse("{{repl if ConfigOptionNotEquals \"storage_type\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "Other Storage", result)
 
 	// Test with item that has only default value - should use default "snapshot"
 	err = engine.Parse("repl{{ if ConfigOptionNotEquals \"backup_type\" \"snapshot\" }}Snapshot Backup{{repl else }}Other Backup{{repl end }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "Other Backup", result)
 
 	// Test with an unknown item - an error is returned and false is returned
 	err = engine.Parse("{{repl if ConfigOptionNotEquals \"notfound\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.Error(t, err)
 	assert.Equal(t, "", result)
 }
 
 func TestEngine_ConfigOptionData(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	// Sample certificate content
 	defaultCertContent := "-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJANGt7tgH..."
 	defaultCertEncoded := base64.StdEncoding.EncodeToString([]byte(defaultCertContent))
@@ -344,7 +367,7 @@ func TestEngine_ConfigOptionData(t *testing.T) {
 	// Test with no user value - should use config value
 	err := engine.Parse("{{repl ConfigOptionData \"ssl_cert\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, configCertContent, result)
 
@@ -357,19 +380,21 @@ func TestEngine_ConfigOptionData(t *testing.T) {
 
 	err = engine.Parse("{{repl ConfigOptionData \"ssl_cert\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, userCertContent, result)
 
 	// Test with item that has only default value - should use default
 	err = engine.Parse("{{repl ConfigOptionData \"ca_cert\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, defaultCertContent, result)
 }
 
 func TestEngine_ConfigOptionFilename(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	content := "default content"
 	contentEncoded := base64.StdEncoding.EncodeToString([]byte(content))
 
@@ -400,26 +425,28 @@ func TestEngine_ConfigOptionFilename(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test with no user value - should be empty
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "", result)
 
 	// Test with user value - should be user value
 	result, err = engine.Execute(types.AppConfigValues{
 		"a_file": {Value: userContentEncoded, Filename: "user_file.txt"},
-	})
+	}, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "user_file.txt", result)
 
 	// Test with an unknown item - an error is returned and empty string is returned
 	err = engine.Parse("{{repl ConfigOptionFilename \"notfound\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.Error(t, err)
 	assert.Equal(t, "", result)
 }
 
 func TestEngine_ConfigOptionFilenameAndDataAndValue(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	content := "default content"
 	contentEncoded := base64.StdEncoding.EncodeToString([]byte(content))
 
@@ -450,19 +477,21 @@ func TestEngine_ConfigOptionFilenameAndDataAndValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test with no user value - should be default value but not use the config's filename
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, " default content", result)
 
 	// Test with user value - should be user value
 	result, err = engine.Execute(types.AppConfigValues{
 		"a_file": {Value: userContentEncoded, Filename: "user_file.txt"},
-	})
+	}, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "user_file.txt user content", result)
 }
 
 func TestEngine_LicenseFieldValue(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	license := &kotsv1beta1.License{
 		Spec: kotsv1beta1.LicenseSpec{
 			// Basic license fields
@@ -560,7 +589,7 @@ func TestEngine_LicenseFieldValue(t *testing.T) {
 		t.Run(tc.field, func(t *testing.T) {
 			err := engine.Parse(fmt.Sprintf("{{repl LicenseFieldValue \"%s\" }}", tc.field))
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, mockIC)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result, "Field %s should return %s", tc.field, tc.expected)
 		})
@@ -568,6 +597,8 @@ func TestEngine_LicenseFieldValue(t *testing.T) {
 }
 
 func TestEngine_LicenseFieldValueWithoutLicense(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{},
@@ -578,12 +609,96 @@ func TestEngine_LicenseFieldValueWithoutLicense(t *testing.T) {
 
 	err := engine.Parse("{{repl LicenseFieldValue \"customerName\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "", result)
 }
 
+func TestEngine_HTTPProxy(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+	mockIC.On("ProxySpec").Return(&ecv1beta1.ProxySpec{
+		HTTPProxy:  "http://proxy.example.com",
+		HTTPSProxy: "https://proxy.example.com",
+		NoProxy:    "localhost,127.0.0.1",
+	})
+
+	engine := NewEngine(nil)
+	err := engine.Parse("{{repl HTTPProxy }}")
+	require.NoError(t, err)
+	result, err := engine.Execute(nil, mockIC)
+	require.NoError(t, err)
+	assert.Equal(t, "http://proxy.example.com", result)
+
+	err = engine.Parse("{{repl HTTPSProxy }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(nil, mockIC)
+	require.NoError(t, err)
+	assert.Equal(t, "https://proxy.example.com", result)
+
+	err = engine.Parse("{{repl NoProxy }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(nil, mockIC)
+	require.NoError(t, err)
+	assert.Equal(t, "localhost,127.0.0.1", result)
+
+	mockIC.AssertExpectations(t)
+}
+
+func TestEngine_HTTPProxy_NilProxySpec(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+	mockIC.On("ProxySpec").Return(nil)
+
+	engine := NewEngine(nil)
+	err := engine.Parse("{{repl HTTPProxy }}")
+	require.NoError(t, err)
+	result, err := engine.Execute(nil, mockIC)
+	require.NoError(t, err)
+	assert.Equal(t, "", result)
+
+	err = engine.Parse("{{repl HTTPSProxy }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(nil, mockIC)
+	require.NoError(t, err)
+	assert.Equal(t, "", result)
+
+	err = engine.Parse("{{repl NoProxy }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(nil, mockIC)
+	require.NoError(t, err)
+	assert.Equal(t, "", result)
+
+	mockIC.AssertExpectations(t)
+}
+
+func TestEngine_HTTPProxy_EmptyProxySpec(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+	mockIC.On("ProxySpec").Return(&ecv1beta1.ProxySpec{})
+
+	engine := NewEngine(nil)
+	err := engine.Parse("{{repl HTTPProxy }}")
+	require.NoError(t, err)
+	result, err := engine.Execute(nil, mockIC)
+	require.NoError(t, err)
+	assert.Equal(t, "", result)
+
+	err = engine.Parse("{{repl HTTPSProxy }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(nil, mockIC)
+	require.NoError(t, err)
+	assert.Equal(t, "", result)
+
+	err = engine.Parse("{{repl NoProxy }}")
+	require.NoError(t, err)
+	result, err = engine.Execute(nil, mockIC)
+	require.NoError(t, err)
+	assert.Equal(t, "", result)
+
+	mockIC.AssertExpectations(t)
+}
+
 func TestEngine_CircularDependency(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{
@@ -608,12 +723,14 @@ func TestEngine_CircularDependency(t *testing.T) {
 
 	err := engine.Parse("{{repl ConfigOption \"item_a\" }}")
 	require.NoError(t, err)
-	_, err = engine.Execute(nil)
+	_, err = engine.Execute(nil, mockIC)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "circular dependency detected for item_a")
 }
 
 func TestEngine_DeepDependencyChain(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{
@@ -654,14 +771,14 @@ func TestEngine_DeepDependencyChain(t *testing.T) {
 	// Test with no user values - should use config values and resolve deep dependency chain
 	err := engine.Parse("{{repl ConfigOption \"database_host\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "staging-us-west-2.rds.amazonaws.com", result)
 
 	// Test another item with config value that depends on the chain
 	err = engine.Parse("{{repl ConfigOption \"redis_host\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "staging-us-west-2.elasticache.amazonaws.com", result)
 
@@ -671,12 +788,14 @@ func TestEngine_DeepDependencyChain(t *testing.T) {
 	}
 	err = engine.Parse("{{repl ConfigOption \"database_host\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "production-us-east-1.rds.amazonaws.com", result)
 }
 
 func TestEngine_ComplexTemplate(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	license := &kotsv1beta1.License{
 		Spec: kotsv1beta1.LicenseSpec{
 			CustomerName: "Acme Corp",
@@ -754,7 +873,7 @@ license:
 
 	err := engine.Parse(template)
 	require.NoError(t, err)
-	result, err := engine.Execute(configValues)
+	result, err := engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 
 	expected := `database:
@@ -776,7 +895,7 @@ license:
 	// Test with no user values - should use config values
 	err = engine.Parse(template)
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 
 	expectedWithConfigValues := `database:
@@ -795,6 +914,8 @@ license:
 }
 
 func TestEngine_ParseAndExecuteSeparately(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{
@@ -823,24 +944,26 @@ func TestEngine_ParseAndExecuteSeparately(t *testing.T) {
 	configValues1 := types.AppConfigValues{
 		"database_host": {Value: "db1.production.com"},
 	}
-	result1, err := engine.Execute(configValues1)
+	result1, err := engine.Execute(configValues1, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "Host: db1.production.com", result1)
 
 	configValues2 := types.AppConfigValues{
 		"database_host": {Value: "db2.staging.com"},
 	}
-	result2, err := engine.Execute(configValues2)
+	result2, err := engine.Execute(configValues2, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "Host: db2.staging.com", result2)
 
 	// Execute with no user values - should use config value
-	result3, err := engine.Execute(nil)
+	result3, err := engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "Host: db-internal.company.com", result3)
 }
 
 func TestEngine_EmptyTemplate(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{},
@@ -854,19 +977,34 @@ func TestEngine_EmptyTemplate(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, engine.tmpl)
 
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "", result)
 }
 
 func TestEngine_ExecuteWithoutParsing(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	engine := NewEngine(nil)
-	_, err := engine.Execute(nil)
+	_, err := engine.Execute(nil, mockIC)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "template not parsed")
 }
 
+func TestEngine_ExecuteWithoutInstallationConfig(t *testing.T) {
+	engine := NewEngine(nil)
+
+	err := engine.Parse("")
+	require.NoError(t, err)
+
+	_, err = engine.Execute(nil, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "installation config is nil")
+}
+
 func TestEngine_UnknownConfigItem(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{},
@@ -877,12 +1015,14 @@ func TestEngine_UnknownConfigItem(t *testing.T) {
 
 	err := engine.Parse("{{repl ConfigOption \"nonexistent\" }}")
 	require.NoError(t, err)
-	_, err = engine.Execute(nil)
+	_, err = engine.Execute(nil, mockIC)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "config item nonexistent not found")
 }
 
 func TestEngine_LicenseFieldValue_Endpoint(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	license := &kotsv1beta1.License{
 		Spec: kotsv1beta1.LicenseSpec{
 			CustomerName: "Acme Corp",
@@ -912,12 +1052,14 @@ func TestEngine_LicenseFieldValue_Endpoint(t *testing.T) {
 
 	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "https://my-app.example.com", result)
 }
 
 func TestEngine_LicenseFieldValue_EndpointWithoutReleaseData(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	license := &kotsv1beta1.License{
 		Spec: kotsv1beta1.LicenseSpec{
 			CustomerName: "Acme Corp",
@@ -935,12 +1077,14 @@ func TestEngine_LicenseFieldValue_EndpointWithoutReleaseData(t *testing.T) {
 
 	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "", result)
 }
 
 func TestEngine_DependencyTreeAndCaching(t *testing.T) {
+	mockIC := &MockInstallationConfig{}
+
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
 			Groups: []kotsv1beta1.ConfigGroup{
@@ -985,7 +1129,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	// Test 1: First execution - build dependency tree
 	err := engine.Parse("{{repl ConfigOption \"redis_url\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -997,7 +1141,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", engine.cache["redis_url"].Effective)
 
 	// Test 2: Second execution with no changes - should use cache
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -1006,7 +1150,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	configValues := types.AppConfigValues{
 		"environment": {Value: "production"},
 	}
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://production:production-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -1018,7 +1162,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	assert.Equal(t, "redis://postgres://production:production-region/app/0", engine.cache["redis_url"].Effective)
 
 	// Test 4: Execute again with same user values - should use cache
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://production:production-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -1027,7 +1171,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	configValues = types.AppConfigValues{
 		"environment": {Value: "development"},
 	}
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://development:development-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -1039,7 +1183,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	assert.Equal(t, "redis://postgres://development:development-region/app/0", engine.cache["redis_url"].Effective)
 
 	// Test 6: Remove user value (go back to config value) - should invalidate
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -1056,7 +1200,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	}
 	err = engine.Parse("{{repl ConfigOption \"redis_url\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "redis://custom-url/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -1068,7 +1212,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	assert.Equal(t, "postgres://staging:staging-region/app", engine.cache["database_url"].Effective) // unchanged
 
 	// Test 8: Remove redis_url user value (go back to config value) - should invalidate
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -1083,7 +1227,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	configValues = types.AppConfigValues{
 		"region": {Value: "custom-region"},
 	}
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://staging:custom-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -1095,7 +1239,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	assert.Equal(t, "redis://postgres://staging:custom-region/app/0", engine.cache["redis_url"].Effective) // changed (dependent)
 
 	// Test 10: Reset to no user values, then change middle item (database_url) directly - should only affect itself and dependents
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -1103,7 +1247,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	configValues = types.AppConfigValues{
 		"database_url": {Value: "postgres://direct-override/app"},
 	}
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://direct-override/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -1232,12 +1376,14 @@ repl{{ toJson $tls }}`),
 		},
 	}
 
+	mockIC := &MockInstallationConfig{}
+
 	engine := NewEngine(config, WithMode(ModeConfig))
 
 	// Test 1: First execution with hostname - should be slow (certificate generation)
 	firstHostname := "example.com"
 	firstDuration, firstResult := timeExecution("first", func() (string, error) {
-		return engine.Execute(configValuesFor(firstHostname))
+		return engine.Execute(configValuesFor(firstHostname), mockIC)
 	})
 
 	// Verify basic YAML structure
@@ -1252,7 +1398,7 @@ repl{{ toJson $tls }}`),
 
 	// Test 2: First cached execution - should be fast
 	firstCachedDuration, firstCachedResult := timeExecution("first cached", func() (string, error) {
-		return engine.Execute(configValuesFor(firstHostname))
+		return engine.Execute(configValuesFor(firstHostname), mockIC)
 	})
 
 	// Verify performance characteristics: non-cached should be in ms, cached much faster
@@ -1270,7 +1416,7 @@ repl{{ toJson $tls }}`),
 	// Test 3: Second execution with different hostname - should be slow again (new certificate generation)
 	secondHostname := "test.example.com"
 	secondDuration, secondResult := timeExecution("second", func() (string, error) {
-		return engine.Execute(configValuesFor(secondHostname))
+		return engine.Execute(configValuesFor(secondHostname), mockIC)
 	})
 
 	// Verify different certificates are generated for different hostnames
@@ -1278,7 +1424,7 @@ repl{{ toJson $tls }}`),
 
 	// Test 4: Second cached execution - should be fast again
 	secondCachedDuration, secondCachedResult := timeExecution("second cached", func() (string, error) {
-		return engine.Execute(configValuesFor(secondHostname))
+		return engine.Execute(configValuesFor(secondHostname), mockIC)
 	})
 
 	// Verify performance characteristics for second hostname
@@ -1334,10 +1480,12 @@ func TestEngine_ConfigMode_BasicTemplating(t *testing.T) {
 		},
 	}
 
+	mockIC := &MockInstallationConfig{}
+
 	engine := NewEngine(config, WithMode(ModeConfig))
 
 	// Test basic config mode execution
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 
 	expectedYAML := `apiVersion: kots.io/v1beta1
@@ -1407,6 +1555,8 @@ func TestEngine_ConfigMode_ValuePriority(t *testing.T) {
 		},
 	}
 
+	mockIC := &MockInstallationConfig{}
+
 	engine := NewEngine(config, WithMode(ModeConfig))
 
 	// Test with user values (should override config values)
@@ -1415,7 +1565,7 @@ func TestEngine_ConfigMode_ValuePriority(t *testing.T) {
 		"app_version": {Value: "2.0.0"},
 	}
 
-	result, err := engine.Execute(configValues)
+	result, err := engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 
 	expectedYAMLWithUserValues := `apiVersion: kots.io/v1beta1
@@ -1448,7 +1598,7 @@ status: {}
 	assert.YAMLEq(t, expectedYAMLWithUserValues, result)
 
 	// Test without user values (should use config values and defaults)
-	result2, err := engine.Execute(nil)
+	result2, err := engine.Execute(nil, mockIC)
 	require.NoError(t, err)
 
 	expectedYAMLWithoutUserValues := `apiVersion: kots.io/v1beta1
@@ -1511,10 +1661,12 @@ func TestEngine_ConfigMode_CircularDependency(t *testing.T) {
 		},
 	}
 
+	mockIC := &MockInstallationConfig{}
+
 	engine := NewEngine(config, WithMode(ModeConfig))
 
 	// Should detect circular dependency and return error
-	_, err := engine.Execute(nil)
+	_, err := engine.Execute(nil, mockIC)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "circular dependency detected")
 }
@@ -1561,6 +1713,8 @@ func TestEngine_ConfigMode_ComplexDependencyChain(t *testing.T) {
 		},
 	}
 
+	mockIC := &MockInstallationConfig{}
+
 	engine := NewEngine(config, WithMode(ModeConfig))
 
 	// Test with user values
@@ -1569,7 +1723,7 @@ func TestEngine_ConfigMode_ComplexDependencyChain(t *testing.T) {
 		"api_version": {Value: "v2"},
 	}
 
-	result, err := engine.Execute(configValues)
+	result, err := engine.Execute(configValues, mockIC)
 	require.NoError(t, err)
 
 	expectedYAML := `apiVersion: kots.io/v1beta1

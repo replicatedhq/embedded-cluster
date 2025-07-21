@@ -39,7 +39,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 		}
 	}
 
-	configValues, err := c.appConfigManager.GetKotsadmConfigValues()
+	configValues, err := c.appConfigManager.GetKotsadmConfigValues(c.rc)
 	if err != nil {
 		return fmt.Errorf("failed to get kotsadm config values: %w", err)
 	}

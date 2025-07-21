@@ -406,7 +406,7 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 			assert.NoError(t, err)
 
 			// Apply values to config
-			result, err := manager.GetConfig()
+			result, err := manager.GetConfig(&MockInstallationConfig{})
 
 			// Verify no error occurred
 			require.NoError(t, err)
@@ -851,7 +851,7 @@ func TestAppConfigManager_TemplateConfig(t *testing.T) {
 			manager, err := NewAppConfigManager(tt.config)
 			require.NoError(t, err)
 
-			result, err := manager.TemplateConfig(tt.configValues)
+			result, err := manager.TemplateConfig(tt.configValues, &MockInstallationConfig{})
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -1911,7 +1911,7 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 			assert.NoError(t, err)
 
 			// Call PatchConfigValues
-			err = manager.PatchConfigValues(tt.newValues)
+			err = manager.PatchConfigValues(tt.newValues, &MockInstallationConfig{})
 
 			// Verify expectations
 			if tt.wantErr {
@@ -2428,7 +2428,7 @@ func TestAppConfigManager_GetConfigValues(t *testing.T) {
 			assert.NoError(t, err)
 
 			// Call GetConfigValues
-			result, err := manager.GetConfigValues(tt.maskPasswords)
+			result, err := manager.GetConfigValues(tt.maskPasswords, &MockInstallationConfig{})
 
 			// Verify expectations
 			if tt.wantErr {
@@ -3513,7 +3513,7 @@ func TestAppConfigManager_GetKotsadmConfigValues(t *testing.T) {
 			assert.NoError(t, err)
 
 			// Call GetKotsadmConfigValues
-			result, err := manager.GetKotsadmConfigValues()
+			result, err := manager.GetKotsadmConfigValues(&MockInstallationConfig{})
 
 			// Verify expectations
 			if tt.wantErr {
@@ -4088,7 +4088,7 @@ func TestValidateConfigValues(t *testing.T) {
 			assert.NoError(t, err)
 
 			// Run the validation
-			err = manager.ValidateConfigValues(tt.configValues)
+			err = manager.ValidateConfigValues(tt.configValues, &MockInstallationConfig{})
 
 			// Check if error is expected
 			if tt.wantErr {

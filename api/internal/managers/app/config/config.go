@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 
+	apitemplate "github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
@@ -26,7 +27,7 @@ var (
 	ErrValueNotBase64Encoded = errors.New("value must be base64 encoded for file items")
 )
 
-func (m *appConfigManager) GetConfig() (types.AppConfig, error) {
+func (m *appConfigManager) GetConfig(config apitemplate.InstallationConfig) (types.AppConfig, error) {
 	// Get current config values for template execution
 	configValues, err := m.appConfigStore.GetConfigValues()
 	if err != nil {
@@ -34,7 +35,7 @@ func (m *appConfigManager) GetConfig() (types.AppConfig, error) {
 	}
 
 	// Execute the config template
-	processedYAML, err := m.executeConfigTemplate(configValues)
+	processedYAML, err := m.executeConfigTemplate(configValues, config)
 	if err != nil {
 		return types.AppConfig{}, fmt.Errorf("execute config template: %w", err)
 	}
@@ -55,9 +56,9 @@ func (m *appConfigManager) GetConfig() (types.AppConfig, error) {
 }
 
 // TemplateConfig templates the config with provided values and returns the templated config
-func (m *appConfigManager) TemplateConfig(configValues types.AppConfigValues) (types.AppConfig, error) {
+func (m *appConfigManager) TemplateConfig(configValues types.AppConfigValues, config apitemplate.InstallationConfig) (types.AppConfig, error) {
 	// Execute the config template with provided values
-	result, err := m.executeConfigTemplate(configValues)
+	result, err := m.executeConfigTemplate(configValues, config)
 	if err != nil {
 		return types.AppConfig{}, fmt.Errorf("execute config template: %w", err)
 	}
@@ -77,10 +78,10 @@ func (m *appConfigManager) TemplateConfig(configValues types.AppConfigValues) (t
 	return types.AppConfig(filteredConfig.Spec), nil
 }
 
-func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValues) error {
+func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValues, config apitemplate.InstallationConfig) error {
 	var ve *types.APIError
 
-	processedConfig, err := m.GetConfig()
+	processedConfig, err := m.GetConfig(config)
 	if err != nil {
 		return fmt.Errorf("get config: %w", err)
 	}
@@ -103,7 +104,7 @@ func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValu
 }
 
 // PatchConfigValues performs a partial update by merging new values with existing ones
-func (m *appConfigManager) PatchConfigValues(newValues types.AppConfigValues) error {
+func (m *appConfigManager) PatchConfigValues(newValues types.AppConfigValues, config apitemplate.InstallationConfig) error {
 	// Get existing values
 	existingValues, err := m.appConfigStore.GetConfigValues()
 	if err != nil {
@@ -116,7 +117,7 @@ func (m *appConfigManager) PatchConfigValues(newValues types.AppConfigValues) er
 	maps.Copy(mergedValues, newValues)
 
 	// Get processed config to determine enabled groups and items
-	processedConfig, err := m.GetConfig()
+	processedConfig, err := m.GetConfig(config)
 	if err != nil {
 		return fmt.Errorf("get config: %w", err)
 	}
@@ -150,7 +151,7 @@ func (m *appConfigManager) PatchConfigValues(newValues types.AppConfigValues) er
 }
 
 // GetConfigValues returns config values with optional password field masking
-func (m *appConfigManager) GetConfigValues(maskPasswords bool) (types.AppConfigValues, error) {
+func (m *appConfigManager) GetConfigValues(maskPasswords bool, config apitemplate.InstallationConfig) (types.AppConfigValues, error) {
 	configValues, err := m.appConfigStore.GetConfigValues()
 	if err != nil {
 		return nil, err
@@ -162,7 +163,7 @@ func (m *appConfigManager) GetConfigValues(maskPasswords bool) (types.AppConfigV
 	}
 
 	// Get processed config to determine password fields
-	processedConfig, err := m.GetConfig()
+	processedConfig, err := m.GetConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("get config: %w", err)
 	}
@@ -194,8 +195,8 @@ func (m *appConfigManager) GetConfigValues(maskPasswords bool) (types.AppConfigV
 	return maskedValues, nil
 }
 
-func (m *appConfigManager) GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, error) {
-	processedConfig, err := m.GetConfig()
+func (m *appConfigManager) GetKotsadmConfigValues(config apitemplate.InstallationConfig) (kotsv1beta1.ConfigValues, error) {
+	processedConfig, err := m.GetConfig(config)
 	if err != nil {
 		return kotsv1beta1.ConfigValues{}, fmt.Errorf("get config: %w", err)
 	}

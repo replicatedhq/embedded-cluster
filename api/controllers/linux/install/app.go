@@ -9,7 +9,7 @@ import (
 )
 
 func (c *InstallController) GetAppConfig(ctx context.Context) (types.AppConfig, error) {
-	return c.appConfigManager.GetConfig()
+	return c.appConfigManager.GetConfig(c.rc)
 }
 
 func (c *InstallController) PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) (finalErr error) {
@@ -41,12 +41,12 @@ func (c *InstallController) PatchAppConfigValues(ctx context.Context, values typ
 		}
 	}()
 
-	err = c.appConfigManager.ValidateConfigValues(values)
+	err = c.appConfigManager.ValidateConfigValues(values, c.rc)
 	if err != nil {
 		return fmt.Errorf("validate app config values: %w", err)
 	}
 
-	err = c.appConfigManager.PatchConfigValues(values)
+	err = c.appConfigManager.PatchConfigValues(values, c.rc)
 	if err != nil {
 		return fmt.Errorf("patch app config values: %w", err)
 	}
@@ -60,9 +60,9 @@ func (c *InstallController) PatchAppConfigValues(ctx context.Context, values typ
 }
 
 func (c *InstallController) GetAppConfigValues(ctx context.Context, maskPasswords bool) (types.AppConfigValues, error) {
-	return c.appConfigManager.GetConfigValues(maskPasswords)
+	return c.appConfigManager.GetConfigValues(maskPasswords, c.rc)
 }
 
 func (c *InstallController) TemplateAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error) {
-	return c.appConfigManager.TemplateConfig(values)
+	return c.appConfigManager.TemplateConfig(values, c.rc)
 }

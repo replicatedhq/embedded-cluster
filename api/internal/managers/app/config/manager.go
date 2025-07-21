@@ -15,18 +15,18 @@ var _ AppConfigManager = &appConfigManager{}
 // AppConfigManager provides methods for managing appConfig structure setup
 type AppConfigManager interface {
 	// GetConfig returns the config templated with the stored values
-	GetConfig() (types.AppConfig, error)
+	GetConfig(config apitemplate.InstallationConfig) (types.AppConfig, error)
 	// GetConfigValues returns the current config values
-	GetConfigValues(maskPasswords bool) (types.AppConfigValues, error)
+	GetConfigValues(maskPasswords bool, config apitemplate.InstallationConfig) (types.AppConfigValues, error)
 	// ValidateConfigValues validates the config values
-	ValidateConfigValues(values types.AppConfigValues) error
+	ValidateConfigValues(values types.AppConfigValues, config apitemplate.InstallationConfig) error
 	// PatchConfigValues patches the current config values
-	PatchConfigValues(values types.AppConfigValues) error
+	PatchConfigValues(values types.AppConfigValues, config apitemplate.InstallationConfig) error
 	// GetKotsadmConfigValues merges the config values with the app config defaults and returns a
 	// kotsv1beta1.ConfigValues struct.
-	GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, error)
+	GetKotsadmConfigValues(config apitemplate.InstallationConfig) (kotsv1beta1.ConfigValues, error)
 	// TemplateConfig templates the config with provided values and returns the templated config
-	TemplateConfig(configValues types.AppConfigValues) (types.AppConfig, error)
+	TemplateConfig(configValues types.AppConfigValues, config apitemplate.InstallationConfig) (types.AppConfig, error)
 }
 
 // appConfigManager is an implementation of the AppConfigManager interface

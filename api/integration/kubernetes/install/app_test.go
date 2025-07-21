@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
@@ -81,6 +82,7 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 
 	// Create an install controller with the config values
 	installController, err := kubernetesinstall.NewInstallController(
+		kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 		kubernetesinstall.WithConfigValues(configValues),
 		kubernetesinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
@@ -147,6 +149,7 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 	t.Run("Template processing", func(t *testing.T) {
 		// Create an install controller with the templated config
 		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfigWithTemplates,
 			}),
@@ -245,6 +248,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),
@@ -305,6 +309,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),
@@ -357,6 +362,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 	t.Run("Invalid state transition", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateSucceeded))),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
@@ -411,6 +417,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 	t.Run("Missing required item", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),
@@ -504,6 +511,7 @@ func TestKubernetesGetAppConfigValues(t *testing.T) {
 
 	// Create an install controller with the config values
 	installController, err := kubernetesinstall.NewInstallController(
+		kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 		kubernetesinstall.WithConfigValues(configValues),
 		kubernetesinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
@@ -606,6 +614,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 
 	// Create an install controller with the app config
 	installController, err := kubernetesinstall.NewInstallController(
+		kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateNew))),
 		kubernetesinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
@@ -677,6 +686,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 	t.Run("PatchKubernetesAppConfigValues invalid state", func(t *testing.T) {
 		// Create an install controller in a completed state
 		completedInstallController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateSucceeded))),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
@@ -760,6 +770,7 @@ func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
 
 	// Create an install controller with the config values
 	installController, err := kubernetesinstall.NewInstallController(
+		kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 		kubernetesinstall.WithConfigValues(configValues),
 		kubernetesinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
@@ -882,6 +893,7 @@ func TestKubernetesTemplateAppConfig(t *testing.T) {
 	t.Run("Success with default values", func(t *testing.T) {
 		// Create an install controller with the templated config
 		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfigWithTemplates,
 			}),
@@ -963,6 +975,7 @@ func TestKubernetesTemplateAppConfig(t *testing.T) {
 	t.Run("Success with user values", func(t *testing.T) {
 		// Create an install controller with the templated config
 		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfigWithTemplates,
 			}),
@@ -1042,6 +1055,7 @@ func TestKubernetesTemplateAppConfig(t *testing.T) {
 	t.Run("Success with db disabled", func(t *testing.T) {
 		// Create an install controller with the templated config
 		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfigWithTemplates,
 			}),
@@ -1103,6 +1117,7 @@ func TestKubernetesTemplateAppConfig(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create an install controller with the templated config
 		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfigWithTemplates,
 			}),
@@ -1152,6 +1167,7 @@ func TestKubernetesTemplateAppConfig(t *testing.T) {
 	t.Run("Invalid JSON request", func(t *testing.T) {
 		// Create an install controller with the templated config
 		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithInstallation(kubernetesinstallation.New(nil)),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfigWithTemplates,
 			}),

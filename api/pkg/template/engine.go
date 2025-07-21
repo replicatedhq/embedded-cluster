@@ -11,6 +11,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	kyaml "sigs.k8s.io/yaml"
@@ -33,14 +34,19 @@ type Engine struct {
 	releaseData *release.ReleaseData
 
 	// Internal state
-	configValues     types.AppConfigValues
-	prevConfigValues types.AppConfigValues
-	tmpl             *template.Template
-	funcMap          template.FuncMap
-	cache            map[string]ResolvedConfigItem
-	depsTree         map[string][]string
-	stack            []string
-	mtx              sync.Mutex
+	configValues       types.AppConfigValues
+	prevConfigValues   types.AppConfigValues
+	installationConfig InstallationConfig
+	tmpl               *template.Template
+	funcMap            template.FuncMap
+	cache              map[string]ResolvedConfigItem
+	depsTree           map[string][]string
+	stack              []string
+	mtx                sync.Mutex
+}
+
+type InstallationConfig interface {
+	ProxySpec() *ecv1beta1.ProxySpec
 }
 
 type EngineOption func(*Engine)
@@ -117,13 +123,20 @@ func (e *Engine) parse(templateStr string) (*template.Template, error) {
 // Execute executes the template engine using the provided config values.
 // In ModeConfig, it processes and templates the KOTS config itself, returning the templated config.
 // In ModeGeneric, it executes the engine's parsed template and returns the templated result.
-func (e *Engine) Execute(configValues types.AppConfigValues) (string, error) {
+func (e *Engine) Execute(configValues types.AppConfigValues, installationConfig InstallationConfig) (string, error) {
+	if installationConfig == nil {
+		return "", fmt.Errorf("installation config is nil")
+	}
+
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 
 	// Store previous config values
 	e.prevConfigValues = e.configValues
 	e.configValues = configValues
+
+	// Store installation config
+	e.installationConfig = installationConfig
 
 	// Mark all cached values as not yet processed in this execution
 	for key, cacheVal := range e.cache {
@@ -195,7 +208,35 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"ConfigOptionNotEquals": e.configOptionNotEquals,
 
 		"LicenseFieldValue": e.licenseFieldValue,
+
+		"HTTPProxy":  e.httpProxy,
+		"HTTPSProxy": e.httpsProxy,
+		"NoProxy":    e.noProxy,
 	}
+}
+
+func (e *Engine) httpProxy() string {
+	spec := e.installationConfig.ProxySpec()
+	if spec == nil {
+		return ""
+	}
+	return spec.HTTPProxy
+}
+
+func (e *Engine) httpsProxy() string {
+	spec := e.installationConfig.ProxySpec()
+	if spec == nil {
+		return ""
+	}
+	return spec.HTTPSProxy
+}
+
+func (e *Engine) noProxy() string {
+	spec := e.installationConfig.ProxySpec()
+	if spec == nil {
+		return ""
+	}
+	return spec.NoProxy
 }
 
 // recordDependency records that the current item depends on another item
