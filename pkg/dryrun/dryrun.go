@@ -82,7 +82,7 @@ func Init(outputFile string, client *Client) {
 	k0s.Set(client.K0sClient)
 	kotsadm.Set(client.Kotsadm)
 
-	logrus.SetLevel(logrus.InfoLevel)
+	logrus.SetLevel(logrus.DebugLevel)
 	logrus.SetOutput(dr.LogBuffer)
 }
 
