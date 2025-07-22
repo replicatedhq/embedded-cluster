@@ -14,7 +14,7 @@ images:
             amd64: v1.19.0-k8s-1.30
             arm64: v1.19.0-k8s-1.30
     goldpinger:
-        repo: proxy.replicated.com/anonymous/bloomberg/goldpinger
+        repo: proxy.replicated.com/anonymous/registry.replicated.com/library/goldpinger
         tag:
             amd64: latest
             arm64: latest

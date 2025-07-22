@@ -21,7 +21,7 @@ var operatorImageComponents = map[string]addonComponent{
 	"docker.io/library/busybox": {
 		name: "utils",
 	},
-	"docker.io/bloomberg/goldpinger": {
+	"registry.replicated.com/library/goldpinger": {
 		name:             "goldpinger",
 		useUpstreamImage: true,
 	},
