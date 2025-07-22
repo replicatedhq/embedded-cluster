@@ -106,14 +106,10 @@ func (e *Engine) configOptionFilename(name string) (string, error) {
 }
 
 // resolveConfigItem processes a config item and returns its resolved values. It determines:
-// 1. The effective value - the final value used in templates
+// 1. The effective value - the final value used in templates determined by following priority: user value > config value > config default
 // 2. The templated value - the templated result of the item's "value" field
 // 3. The templated default - the templated result of the item's "default" field
 // 4. The filename - the filename of the "file" type config item (if it exists)
-//
-// The effective value is determined either by:
-// - The provided effectiveValueGetter function, if specified
-// - Or following priority: user value > config value > config default
 func (e *Engine) resolveConfigItem(name string) (*ResolvedConfigItem, error) {
 	// Check if we have a cached value
 	if cacheVal, ok := e.getItemCacheValue(name); ok {
