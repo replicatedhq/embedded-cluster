@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"maps"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -200,6 +201,29 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"HTTPProxy":  e.httpProxy,
 		"HTTPSProxy": e.httpsProxy,
 		"NoProxy":    e.noProxy,
+
+		"Now":          e.now,
+		"NowFmt":       e.nowFormat,
+		"ToLower":      strings.ToLower,
+		"ToUpper":      strings.ToUpper,
+		"TrimSpace":    strings.TrimSpace,
+		"Trim":         e.trim,
+		"UrlEncode":    url.QueryEscape,
+		"Base64Encode": e.base64Encode,
+		"Base64Decode": e.base64Decode,
+		"Split":        strings.Split,
+		"RandomBytes":  e.randomBytes,
+		"RandomString": e.randomString,
+		"Add":          e.add,
+		"Sub":          e.sub,
+		"Mult":         e.mult,
+		"Div":          e.div,
+		"ParseBool":    e.parseBool,
+		"ParseFloat":   e.parseFloat,
+		"ParseInt":     e.parseInt,
+		"ParseUint":    e.parseUint,
+		"HumanSize":    e.humanSize,
+		"YamlEscape":   e.yamlEscape,
 	}
 }
 
