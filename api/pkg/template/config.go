@@ -22,6 +22,9 @@ type ResolvedConfigItem struct {
 	// This represents the config-defined default after template processing
 	Default string
 
+	// Filename is the filename of the "file" type config item (if it exists)
+	Filename string
+
 	// Processed indicates whether this item has been processed in the current execution
 	// Used for cache invalidation - false means it's from a previous execution
 	Processed bool
@@ -34,7 +37,7 @@ func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 
 	for i := range cfg.Spec.Groups {
 		for j := range cfg.Spec.Groups[i].Items {
-			resolved, err := e.resolveConfigItem(cfg.Spec.Groups[i].Items[j].Name, nil)
+			resolved, err := e.resolveConfigItem(cfg.Spec.Groups[i].Items[j].Name)
 			if err != nil {
 				return nil, err
 			}
@@ -48,7 +51,7 @@ func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 func (e *Engine) configOption(name string) (string, error) {
 	e.recordDependency(name)
 
-	resolved, err := e.resolveConfigItem(name, nil)
+	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
 		return "", fmt.Errorf("resolve config item: %w", err)
 	}
@@ -58,7 +61,7 @@ func (e *Engine) configOption(name string) (string, error) {
 func (e *Engine) configOptionData(name string) (string, error) {
 	e.recordDependency(name)
 
-	resolved, err := e.resolveConfigItem(name, nil)
+	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
 		return "", fmt.Errorf("resolve config item: %w", err)
 	}
@@ -74,7 +77,7 @@ func (e *Engine) configOptionData(name string) (string, error) {
 func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
 	e.recordDependency(name)
 
-	resolved, err := e.resolveConfigItem(name, nil)
+	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
 		return false, fmt.Errorf("resolve config item: %w", err)
 	}
@@ -84,7 +87,7 @@ func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
 func (e *Engine) configOptionNotEquals(name, expected string) (bool, error) {
 	e.recordDependency(name)
 
-	resolved, err := e.resolveConfigItem(name, nil)
+	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
 		// NOTE: this is parity from KOTS but I would expect this to return true
 		return false, fmt.Errorf("resolve config item: %w", err)
@@ -95,22 +98,22 @@ func (e *Engine) configOptionNotEquals(name, expected string) (bool, error) {
 func (e *Engine) configOptionFilename(name string) (string, error) {
 	e.recordDependency(name)
 
-	resolved, err := e.resolveConfigItem(name, e.getConfigItemFilename)
+	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
 		return "", fmt.Errorf("resolve config item: %w", err)
 	}
-	return resolved.Effective, nil
+	return resolved.Filename, nil
 }
 
 // resolveConfigItem processes a config item and returns its resolved values. It determines:
 // 1. The effective value - the final value used in templates
 // 2. The templated value - the templated result of the item's "value" field
 // 3. The templated default - the templated result of the item's "default" field
-//
+// 4. The filename - the filename of the "file" type config item (if it exists)
 // The effective value is determined either by:
 // - The provided effectiveValueGetter function, if specified
 // - Or following priority: user value > config value > config default
-func (e *Engine) resolveConfigItem(name string, effectiveValueGetter func(configItem *kotsv1beta1.ConfigItem) (string, error)) (*ResolvedConfigItem, error) {
+func (e *Engine) resolveConfigItem(name string) (*ResolvedConfigItem, error) {
 	// Check if we have a cached value
 	if cacheVal, ok := e.getItemCacheValue(name); ok {
 		return cacheVal, nil
@@ -156,20 +159,12 @@ func (e *Engine) resolveConfigItem(name string, effectiveValueGetter func(config
 	}
 
 	// Priority: user value > config value > config default
-	if effectiveValueGetter != nil {
-		ev, err := effectiveValueGetter(configItem)
-		if err != nil {
-			return nil, fmt.Errorf("get effective value for %s: %w", name, err)
-		}
-		effectiveValue = ev
+	if userVal, exists := e.configValues[name]; exists {
+		effectiveValue = userVal.Value
+	} else if templatedValue != "" {
+		effectiveValue = templatedValue
 	} else {
-		if userVal, exists := e.configValues[name]; exists {
-			effectiveValue = userVal.Value
-		} else if templatedValue != "" {
-			effectiveValue = templatedValue
-		} else {
-			effectiveValue = templatedDefault
-		}
+		effectiveValue = templatedDefault
 	}
 
 	// Cache the result and mark as processed
@@ -177,6 +172,7 @@ func (e *Engine) resolveConfigItem(name string, effectiveValueGetter func(config
 		Effective: effectiveValue,
 		Value:     templatedValue,
 		Default:   templatedDefault,
+		Filename:  e.getItemFilename(configItem),
 		Processed: true,
 	}
 	e.cache[name] = resolved
@@ -236,16 +232,16 @@ func (e *Engine) configValueChanged(itemName string) bool {
 	return prevVal.Value != currentVal.Value
 }
 
-func (e *Engine) getConfigItemFilename(configItem *kotsv1beta1.ConfigItem) (string, error) {
+func (e *Engine) getItemFilename(configItem *kotsv1beta1.ConfigItem) string {
 	// Priority: user value
 	if userVal, exists := e.configValues[configItem.Name]; exists {
-		return userVal.Filename, nil
+		return userVal.Filename
 	}
 
 	// Do not use the config item's filename for KOTS parity
 
 	// If still empty, return empty string
-	return "", nil
+	return ""
 }
 
 func (e *Engine) findConfigItem(name string) *kotsv1beta1.ConfigItem {

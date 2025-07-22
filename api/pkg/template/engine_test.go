@@ -419,6 +419,49 @@ func TestEngine_ConfigOptionFilename(t *testing.T) {
 	assert.Equal(t, "", result)
 }
 
+func TestEngine_ConfigOptionFilenameAndDataAndValue(t *testing.T) {
+	content := "default content"
+	contentEncoded := base64.StdEncoding.EncodeToString([]byte(content))
+
+	userContent := "user content"
+	userContentEncoded := base64.StdEncoding.EncodeToString([]byte(userContent))
+
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name: "a_file_group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Type:     "file",
+							Name:     "a_file",
+							Value:    multitype.FromString(contentEncoded),
+							Filename: "a_file.txt",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	engine := NewEngine(config)
+
+	err := engine.Parse("{{repl ConfigOptionFilename \"a_file\" }} {{repl ConfigOptionData \"a_file\" }}")
+	require.NoError(t, err)
+
+	// Test with no user value - should be default value but not use the config's filename
+	result, err := engine.Execute(nil)
+	require.NoError(t, err)
+	assert.Equal(t, " default content", result)
+
+	// Test with user value - should be user value
+	result, err = engine.Execute(types.AppConfigValues{
+		"a_file": {Value: userContentEncoded, Filename: "user_file.txt"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "user_file.txt user content", result)
+}
+
 func TestEngine_LicenseFieldValue(t *testing.T) {
 	license := &kotsv1beta1.License{
 		Spec: kotsv1beta1.LicenseSpec{
