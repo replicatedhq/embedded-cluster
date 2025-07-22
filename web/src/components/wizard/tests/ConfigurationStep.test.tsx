@@ -1685,4 +1685,159 @@ describe.each([
       });
     });
   });
+
+  describe("Required field validation", () => {
+    it("shows error message for required text field when empty on submit", async () => {
+      // Create config with required field for this specific test
+      const configWithRequiredField: AppConfig = {
+        groups: [
+          {
+            name: "settings",
+            title: "Settings", 
+            description: "Configure application settings",
+            items: [
+              {
+                name: "required_field",
+                title: "Required Field",
+                type: "text",
+                value: "",
+                required: true,
+                help_text: "This field is required"
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        http.get(`*/api/${target}/install/app/config`, () => {
+          return HttpResponse.json(configWithRequiredField);
+        }),
+        http.get(`*/api/${target}/install/app/config/values`, () => {
+          return HttpResponse.json({ values: {} });
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Wait for the required field to be rendered
+      await waitFor(() => {
+        expect(screen.getByTestId("text-input-required_field")).toBeInTheDocument();
+      });
+
+      // Ensure the required field is empty
+      const requiredInput = screen.getByTestId("text-input-required_field");
+      expect(requiredInput).toHaveValue("");
+
+      // Submit form without filling required field
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for validation error to appear
+      await waitFor(() => {
+        expect(screen.getByText("Required Field is required")).toBeInTheDocument();
+      });
+
+      // Verify onNext was not called due to validation error
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
+
+    it("autofocuses on first required field with validation error on submit", async () => {
+      // Create config with multiple required fields to test focus priority
+      const configWithMultipleRequiredFields: AppConfig = {
+        groups: [
+          {
+            name: "settings",
+            title: "Settings", 
+            description: "Configure application settings",
+            items: [
+              {
+                name: "optional_field",
+                title: "Optional Field",
+                type: "text",
+                value: "",
+                required: false,
+                help_text: "This field is optional"
+              },
+              {
+                name: "first_required_field",
+                title: "First Required Field",
+                type: "text",
+                value: "",
+                required: true,
+                help_text: "This is the first required field"
+              },
+              {
+                name: "second_required_field",
+                title: "Second Required Field",
+                type: "text",
+                value: "",
+                required: true,
+                help_text: "This is the second required field"
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        http.get(`*/api/${target}/install/app/config`, () => {
+          return HttpResponse.json(configWithMultipleRequiredFields);
+        }),
+        http.get(`*/api/${target}/install/app/config/values`, () => {
+          return HttpResponse.json({ values: {} });
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Wait for the required fields to be rendered
+      await waitFor(() => {
+        expect(screen.getByTestId("text-input-first_required_field")).toBeInTheDocument();
+      });
+
+      // Ensure both required fields are empty
+      const firstRequiredInput = screen.getByTestId("text-input-first_required_field");
+      const secondRequiredInput = screen.getByTestId("text-input-second_required_field");
+      expect(firstRequiredInput).toHaveValue("");
+      expect(secondRequiredInput).toHaveValue("");
+
+      // Submit form without filling required fields
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for validation errors to appear
+      await waitFor(() => {
+        expect(screen.getByText("First Required Field is required")).toBeInTheDocument();
+      });
+
+      // Verify that the first required field (in DOM order) is focused
+      await waitFor(() => {
+        expect(firstRequiredInput).toHaveFocus();
+      });
+
+      // Verify onNext was not called due to validation error
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
+  });
 });

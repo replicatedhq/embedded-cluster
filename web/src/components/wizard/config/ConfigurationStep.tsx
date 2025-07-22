@@ -13,7 +13,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { handleUnauthorized } from '../../../utils/auth';
-import { AppConfig, AppConfigItem, AppConfigValues } from '../../../types';
+import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from '../../../types';
 
 interface ConfigurationStepProps {
   onNext: () => void;
@@ -28,6 +28,8 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const [configValues, setConfigValues] = useState<AppConfigValues>({});
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const themeColor = settings.themeColor;
 
   // Fetch app config from API
@@ -74,9 +76,97 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     },
   });
 
+  // Helper function to find the first required field with validation error in DOM order
+  const findFirstRequiredFieldWithError = (validationErrors: Record<string, string>): AppConfigItem | null => {
+    if (!appConfig?.groups || Object.keys(validationErrors).length === 0) {
+      return null;
+    }
+    
+    // Iterate through groups and items in DOM order to find first required field with error
+    for (const group of appConfig.groups) {
+      for (const item of group.items) {
+        if (item.required && validationErrors[item.name]) {
+          return item;
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  // Helper function to find which group/tab contains a specific field
+  const findGroupForField = (fieldName: string): AppConfigGroup | null => {
+    if (!appConfig?.groups) return null;
+    
+    return appConfig.groups.find(group => 
+      group.items.some(item => item.name === fieldName)
+    ) || null;
+  };
+
+  // Helper function to focus on a field with tab switching support
+  const focusFieldWithTabSupport = (fieldItem: AppConfigItem): void => {
+    const targetGroup = findGroupForField(fieldItem.name);
+    
+    if (!targetGroup) {
+      console.warn(`Could not find group for field: ${fieldItem.name}`);
+      return;
+    }
+    
+    // Switch to the correct tab if field is in a different tab
+    if (targetGroup.name !== activeTab) {
+      setActiveTab(targetGroup.name);
+    }
+    
+    // Focus the field after a brief delay to ensure DOM updates complete
+    // This is especially important when switching tabs
+    const focusDelay = targetGroup.name !== activeTab ? 100 : 10;
+    setTimeout(() => {
+      const fieldElement = document.getElementById(fieldItem.name);
+      if (fieldElement) {
+        fieldElement.focus();
+      } else {
+        console.warn(`Could not find DOM element for field: ${fieldItem.name}`);
+      }
+    }, focusDelay);
+  };
+
+  // Helper function to perform client-side validation before submission
+  const performClientSideValidation = (): boolean => {
+    setHasSubmitted(true);
+    
+    const allItems = appConfig?.groups?.flatMap(group => group.items) || [];
+    const validationErrors = validateRequiredFields(allItems);
+    setValidationErrors(validationErrors);
+    
+    const hasErrors = Object.keys(validationErrors).length > 0;
+    
+    if (hasErrors) {
+      // Set submit error immediately for synchronous display
+      setSubmitError('Please fill in all required fields');
+      
+      // Focus on the first required field with error
+      const firstErrorField = findFirstRequiredFieldWithError(validationErrors);
+      if (firstErrorField) {
+        focusFieldWithTabSupport(firstErrorField);
+      }
+    } else {
+      // Clear any existing submit error when validation passes
+      setSubmitError(null);
+    }
+    
+    return !hasErrors;
+  };
+
   // Mutation to save config values
   const { mutate: submitConfigValues } = useMutation<AppConfigValues>({
     mutationFn: async () => {
+      // Perform client-side validation first
+      const isValid = performClientSideValidation();
+      if (!isValid) {
+        // Validation error already handled synchronously, just return early
+        return Promise.reject(new Error('Client validation failed'));
+      }
+
       // Build payload with only dirty fields
       const dirtyValues: AppConfigValues = {};
       dirtyFields.forEach(fieldName => {
@@ -108,6 +198,8 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     },
     onSuccess: (appConfigValues) => {
       setSubmitError(null);
+      setValidationErrors({});
+      setHasSubmitted(false);
       // Clear dirty fields after successful submission
       setDirtyFields(new Set());
       // Update config values with the latest from the API
@@ -116,7 +208,10 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       onNext();
     },
     onError: (error: Error) => {
-      setSubmitError(error?.message || 'Failed to save configuration');
+      // Only set submit error for actual server errors, not client validation failures
+      if (error?.message !== 'Client validation failed') {
+        setSubmitError(error?.message || 'Failed to save configuration');
+      }
     },
   });
 
@@ -144,6 +239,29 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const getEffectiveValue = (item: AppConfigItem): string => {
     // First check user value, then config item value, then default (use ?? to allow empty strings from the user)
     return configValues?.[item.name]?.value ?? (item.value || item.default || '');
+  };
+
+  // Helper function to get current value for validation (similar to getDisplayValue)
+  const getCurrentValue = (item: AppConfigItem): string => {
+    return configValues?.[item.name]?.value ?? (item.value || '');
+  };
+
+  // Validate required fields - returns validation errors for empty required fields
+  const validateRequiredFields = (items: AppConfigItem[]): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    
+    for (const item of items) {
+      if (item.required) {
+        const currentValue = getCurrentValue(item);
+        const isEmpty = !currentValue || currentValue.trim() === '';
+        
+        if (isEmpty) {
+          errors[item.name] = `${item.title} is required`;
+        }
+      }
+    }
+    
+    return errors;
   };
 
   const updateConfigValue = (itemName: string, value: string, filename?: string) => {
@@ -188,11 +306,18 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   const renderConfigItem = (item: AppConfigItem) => {
+    // Server errors (from API response) override any lingering client validation errors
+    // This handles cases where:
+    // 1. Pre-existing server errors from initial config load
+    // 2. Server rejection after client validation passed
+    // 3. Ensuring server errors always take precedence over stale client errors
+    const displayError = item.error || (hasSubmitted ? validationErrors[item.name] : undefined);
+    
     const sharedProps = {
       id: item.name,
       label: item.title,
       helpText: item.help_text,
-      error: item.error,
+      error: displayError,
       required: item.required,
     }
 

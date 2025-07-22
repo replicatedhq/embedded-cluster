@@ -198,7 +198,7 @@ initial-release: check-env-EC_VERSION check-env-APP_VERSION
 
 .PHONY: rebuild-release
 rebuild-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
-rebuild-release: export RELEASE_YAML_DIR = e2e/kots-release-install
+rebuild-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
 rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=0 \
 	SKIP_RELEASE=1 \
