@@ -195,6 +195,7 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"ConfigOptionNotEquals": e.configOptionNotEquals,
 
 		"LicenseFieldValue": e.licenseFieldValue,
+		"LicenseDockerCfg":  e.licenseDockerCfg,
 
 		"HTTPProxy":  e.httpProxy,
 		"HTTPSProxy": e.httpsProxy,
