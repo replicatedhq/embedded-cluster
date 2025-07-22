@@ -15,6 +15,12 @@ import { ChevronRight, Loader2 } from 'lucide-react';
 import { handleUnauthorized } from '../../../utils/auth';
 import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from '../../../types';
 
+// Constants for configuration
+const FOCUS_DELAY_CROSS_TAB_MS = 100;
+const FOCUS_DELAY_SAME_TAB_MS = 10;
+const CLIENT_VALIDATION_ERROR_MESSAGE = 'Client validation failed';
+const REQUIRED_FIELDS_ERROR_MESSAGE = 'Please fill in all required fields';
+
 interface ConfigurationStepProps {
   onNext: () => void;
 }
@@ -119,7 +125,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     
     // Focus the field after a brief delay to ensure DOM updates complete
     // This is especially important when switching tabs
-    const focusDelay = targetGroup.name !== activeTab ? 100 : 10;
+    const focusDelay = targetGroup.name !== activeTab ? FOCUS_DELAY_CROSS_TAB_MS : FOCUS_DELAY_SAME_TAB_MS;
     setTimeout(() => {
       const fieldElement = document.getElementById(fieldItem.name);
       if (fieldElement) {
@@ -142,7 +148,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     
     if (hasErrors) {
       // Set submit error immediately for synchronous display
-      setSubmitError('Please fill in all required fields');
+      setSubmitError(REQUIRED_FIELDS_ERROR_MESSAGE);
       
       // Focus on the first required field with error
       const firstErrorField = findFirstRequiredFieldWithError(validationErrors);
@@ -164,7 +170,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       const isValid = performClientSideValidation();
       if (!isValid) {
         // Validation error already handled synchronously, just return early
-        return Promise.reject(new Error('Client validation failed'));
+        return Promise.reject(new Error(CLIENT_VALIDATION_ERROR_MESSAGE));
       }
 
       // Build payload with only dirty fields
@@ -209,7 +215,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     },
     onError: (error: Error) => {
       // Only set submit error for actual server errors, not client validation failures
-      if (error?.message !== 'Client validation failed') {
+      if (error?.message !== CLIENT_VALIDATION_ERROR_MESSAGE) {
         setSubmitError(error?.message || 'Failed to save configuration');
       }
     },
