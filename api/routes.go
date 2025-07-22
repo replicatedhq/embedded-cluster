@@ -46,9 +46,7 @@ func (a *API) registerLinuxRoutes(router *mux.Router) {
 	installRouter.HandleFunc("/infra/setup", a.handlers.linux.PostSetupInfra).Methods("POST")
 	installRouter.HandleFunc("/infra/status", a.handlers.linux.GetInfraStatus).Methods("GET")
 
-	installRouter.HandleFunc("/app/config", a.handlers.linux.GetAppConfig).Methods("GET")
 	installRouter.HandleFunc("/app/config/template", a.handlers.linux.PostTemplateAppConfig).Methods("POST")
-	installRouter.HandleFunc("/app/config/values", a.handlers.linux.GetAppConfigValues).Methods("GET")
 	installRouter.HandleFunc("/app/config/values", a.handlers.linux.PatchConfigValues).Methods("PATCH")
 }
 
@@ -63,9 +61,7 @@ func (a *API) registerKubernetesRoutes(router *mux.Router) {
 	installRouter.HandleFunc("/infra/setup", a.handlers.kubernetes.PostSetupInfra).Methods("POST")
 	installRouter.HandleFunc("/infra/status", a.handlers.kubernetes.GetInfraStatus).Methods("GET")
 
-	installRouter.HandleFunc("/app/config", a.handlers.kubernetes.GetAppConfig).Methods("GET")
 	installRouter.HandleFunc("/app/config/template", a.handlers.kubernetes.PostTemplateAppConfig).Methods("POST")
-	installRouter.HandleFunc("/app/config/values", a.handlers.kubernetes.GetAppConfigValues).Methods("GET")
 	installRouter.HandleFunc("/app/config/values", a.handlers.kubernetes.PatchConfigValues).Methods("PATCH")
 }
 

@@ -120,26 +120,7 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, r, http.StatusOK, infra, h.logger)
 }
 
-// GetAppConfig handler to get the app config
-//
-//	@ID				getKubernetesInstallAppConfig
-//	@Summary		Get the app config
-//	@Description	get the app config
-//	@Tags			kubernetes-install
-//	@Security		bearerauth
-//	@Produce		json
-//	@Success		200	{object}	types.AppConfig
-//	@Router			/kubernetes/install/app/config [get]
-func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
-	appConfig, err := h.installController.GetAppConfig(r.Context())
-	if err != nil {
-		utils.LogError(r, err, h.logger, "failed to get app config")
-		utils.JSONError(w, r, err, h.logger)
-		return
-	}
 
-	utils.JSON(w, r, http.StatusOK, appConfig, h.logger)
-}
 
 // PostTemplateAppConfig handler to template the app config with provided values
 //
@@ -160,7 +141,7 @@ func (h *Handler) PostTemplateAppConfig(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	appConfig, err := h.installController.TemplateAppConfig(r.Context(), req.Values)
+	appConfig, err := h.installController.TemplateAppConfig(r.Context(), req.Values, true)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to template app config")
 		utils.JSONError(w, r, err, h.logger)
@@ -180,7 +161,7 @@ func (h *Handler) PostTemplateAppConfig(w http.ResponseWriter, r *http.Request) 
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		types.PatchAppConfigValuesRequest	true	"Patch App Config Values Request"
-//	@Success		200		{object}	types.AppConfigValuesResponse
+//	@Success		200
 //	@Failure		400		{object}	types.APIError
 //	@Router			/kubernetes/install/app/config/values [patch]
 func (h *Handler) PatchConfigValues(w http.ResponseWriter, r *http.Request) {
@@ -196,29 +177,7 @@ func (h *Handler) PatchConfigValues(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.GetAppConfigValues(w, r)
+	w.WriteHeader(http.StatusOK)
 }
 
-// GetAppConfigValues handler to get the app config values
-//
-//	@ID				getKubernetesInstallAppConfigValues
-//	@Summary		Get the app config values
-//	@Description	Get the app config values
-//	@Tags			kubernetes-install
-//	@Security		bearerauth
-//	@Produce		json
-//	@Success		200	{object}	types.AppConfigValuesResponse
-//	@Router			/kubernetes/install/app/config/values [get]
-func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
-	configValues, err := h.installController.GetAppConfigValues(r.Context(), true)
-	if err != nil {
-		utils.LogError(r, err, h.logger, "failed to get app config values")
-		utils.JSONError(w, r, err, h.logger)
-		return
-	}
 
-	response := types.AppConfigValuesResponse{
-		Values: configValues,
-	}
-	utils.JSON(w, r, http.StatusOK, response, h.logger)
-}
