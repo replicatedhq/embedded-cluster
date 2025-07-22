@@ -222,6 +222,12 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 							Required: true,
 						},
 						{
+							Name:     "required-password",
+							Type:     "password",
+							Title:    "Required Password",
+							Required: true,
+						},
+						{
 							Name:     "file-item",
 							Type:     "file",
 							Title:    "File Item",
@@ -260,9 +266,10 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		// Create a request to patch config values
 		patchRequest := types.PatchAppConfigValuesRequest{
 			Values: types.AppConfigValues{
-				"test-item":     types.AppConfigValue{Value: "new-value"},
-				"required-item": types.AppConfigValue{Value: "required-value"},
-				"file-item":     types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
+				"test-item":         types.AppConfigValue{Value: "new-value"},
+				"required-item":     types.AppConfigValue{Value: "required-value"},
+				"required-password": types.AppConfigValue{Value: "required-password"},
+				"file-item":         types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
 			},
 		}
 
@@ -453,9 +460,11 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&apiError)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
-		assert.Len(t, apiError.Errors, 1)
+		assert.Len(t, apiError.Errors, 2)
 		assert.Equal(t, apiError.Errors[0].Field, "required-item")
 		assert.Equal(t, apiError.Errors[0].Message, "item is required")
+		assert.Equal(t, apiError.Errors[1].Field, "required-password")
+		assert.Equal(t, apiError.Errors[1].Message, "item is required")
 	})
 }
 
