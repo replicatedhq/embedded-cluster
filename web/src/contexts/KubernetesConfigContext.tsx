@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import { createContext, useContext } from 'react';
 
 export interface KubernetesConfig {
   adminConsolePort?: number;
@@ -15,30 +15,7 @@ interface KubernetesConfigContextType {
   resetConfig: () => void;
 }
 
-const defaultKubernetesConfig: KubernetesConfig = {
-  useProxy: false,
-  installCommand: 'kubectl -n kotsadm port-forward svc/kotsadm 8800:3000'
-};
-
 export const KubernetesConfigContext = createContext<KubernetesConfigContextType | undefined>(undefined);
-
-export const KubernetesConfigProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [config, setConfig] = useState<KubernetesConfig>(defaultKubernetesConfig);
-
-  const updateConfig = (newConfig: Partial<KubernetesConfig>) => {
-    setConfig((prev) => ({ ...prev, ...newConfig }));
-  };
-
-  const resetConfig = () => {
-    setConfig(defaultKubernetesConfig);
-  };
-
-  return (
-    <KubernetesConfigContext.Provider value={{ config, updateConfig, resetConfig }}>
-      {children}
-    </KubernetesConfigContext.Provider>
-  );
-};
 
 export const useKubernetesConfig = (): KubernetesConfigContextType => {
   const context = useContext(KubernetesConfigContext);

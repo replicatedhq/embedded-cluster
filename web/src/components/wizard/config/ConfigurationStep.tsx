@@ -1,29 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import Markdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Textarea from '../../common/Textarea';
+import Checkbox from '../../common/Checkbox';
+import Radio from '../../common/Radio';
+import Label from '../../common/Label';
+import FileInput from '../../common/file';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { handleUnauthorized } from '../../../utils/auth';
-import { AppConfig, AppConfigItem } from '../../../types';
+import { AppConfig, AppConfigItem, AppConfigValues } from '../../../types';
 
 interface ConfigurationStepProps {
   onNext: () => void;
 }
 
-
 const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { text, target } = useWizard();
   const { token } = useAuth();
   const { settings } = useSettings();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('');
-  const [changedValues, setChangedValues] = useState<Record<string, string>>({});
+  const [configValues, setConfigValues] = useState<AppConfigValues>({});
+  const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
   const [submitError, setSubmitError] = useState<string | null>(null);
   const themeColor = settings.themeColor;
 
@@ -50,7 +53,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   });
 
   // Fetch current config values
-  const { data: configValues, isLoading: isConfigValuesLoading, error: getConfigValuesError } = useQuery<Record<string, string>>({
+  const { data: apiConfigValues, isLoading: isConfigValuesLoading, error: getConfigValuesError } = useQuery<AppConfigValues>({
     queryKey: ['appConfigValues', target],
     queryFn: async () => {
       const response = await fetch(`/api/${target}/install/app/config/values`, {
@@ -72,15 +75,23 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   });
 
   // Mutation to save config values
-  const { mutate: submitConfigValues } = useMutation({
+  const { mutate: submitConfigValues } = useMutation<AppConfigValues>({
     mutationFn: async () => {
+      // Build payload with only dirty fields
+      const dirtyValues: AppConfigValues = {};
+      dirtyFields.forEach(fieldName => {
+        if (configValues[fieldName] !== undefined) {
+          dirtyValues[fieldName] = configValues[fieldName];
+        }
+      });
+
       const response = await fetch(`/api/${target}/install/app/config/values`, {
-        method: 'POST',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ values: changedValues }),
+        body: JSON.stringify({ values: dirtyValues }),
       });
 
       if (!response.ok) {
@@ -92,10 +103,16 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         throw new Error(errorData.message || 'Failed to save configuration');
       }
 
-      return response.json();
+      const data = await response.json();
+      return data.values || {};
     },
-    onSuccess: () => {
+    onSuccess: (appConfigValues) => {
       setSubmitError(null);
+      // Clear dirty fields after successful submission
+      setDirtyFields(new Set());
+      // Update config values with the latest from the API
+      setConfigValues(appConfigValues);
+      queryClient.setQueryData(['appConfigValues', target], appConfigValues);
       onNext();
     },
     onError: (error: Error) => {
@@ -110,45 +127,50 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     }
   }, [appConfig, activeTab]);
 
-  // Initialize changedValues with current values when they load
+  // Initialize configValues with initial values when they load
   useEffect(() => {
-    if (configValues && Object.keys(changedValues).length === 0) {
-      setChangedValues(configValues);
+    if (apiConfigValues && Object.keys(configValues).length === 0) {
+      setConfigValues(apiConfigValues);
     }
-  }, [configValues]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- configValues is not a dependency of this effect
+  }, [apiConfigValues]);
 
   // Helper function to get the display value for a config item (no defaults)
   const getDisplayValue = (item: AppConfigItem): string => {
-    // First check user value, then config item value
-    return changedValues?.[item.name] || item.value || '';
+    // First check user value, then config item value (use ?? to allow empty strings from the user)
+    return configValues?.[item.name]?.value ?? (item.value || '');
   };
 
   // Helper function to get the effective value for a config item (includes defaults)
   const getEffectiveValue = (item: AppConfigItem): string => {
-    // First check user value, then config item value, then default
-    return changedValues?.[item.name] || item.value || item.default || '';
+    // First check user value, then config item value, then default (use ?? to allow empty strings from the user)
+    return configValues?.[item.name]?.value ?? (item.value || item.default || '');
   };
 
-  const updateConfigValue = (itemName: string, value: string) => {
-    // Update the changed values map
-    setChangedValues(prev => {
-      const newValues = { ...prev };
+  const updateConfigValue = (itemName: string, value: string, filename?: string) => {
+    // Update the config values map
+    setConfigValues(prev => ({ ...prev, [itemName]: { value, filename } }));
 
-      if (value === '') {
-        // Remove the item if it's empty
-        delete newValues[itemName];
-      } else {
-        // Add or update the item with the new value
-        newValues[itemName] = value;
-      }
-
-      return newValues;
-    });
+    // Mark field as dirty
+    setDirtyFields(prev => new Set(prev).add(itemName));
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     updateConfigValue(id, value);
+  };
+
+  const handlePasswordFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Auto-select entire text for password fields
+    e.target.select();
+  };
+
+  const handlePasswordKeyDown = (itemName: string, e: React.KeyboardEvent<Element>) => {
+    // If field is not dirty and user types a character, clear the field first
+    if (!dirtyFields.has(itemName) && e.key.length === 1) {
+      // Clear the field before the character is added
+      updateConfigValue(itemName, '');
+    }
   };
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,102 +184,101 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     updateConfigValue(parentId, id);
   };
 
+  const handleFileChange = (itemName: string, value: string, filename: string) => {
+    updateConfigValue(itemName, value, filename);
+  };
+
   const renderConfigItem = (item: AppConfigItem) => {
+    const sharedProps = {
+      id: item.name,
+      label: item.title,
+      helpText: item.help_text,
+      error: item.error,
+      required: item.required,
+    }
+
     switch (item.type) {
       case 'text':
         return (
           <Input
-            id={item.name}
-            label={item.title}
+            {...sharedProps}
+            defaultValue={item.default}
             value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`text-input-${item.name}`}
-            helpText={item.help_text}
+            className="w-96"
+          />
+        );
+
+      case 'password':
+        return (
+          <Input
+            {...sharedProps}
+            defaultValue={item.default}
+            type="password"
+            value={getDisplayValue(item)}
+            onChange={handleInputChange}
+            onKeyDown={(e) => handlePasswordKeyDown(item.name, e)}
+            onFocus={handlePasswordFocus}
+            dataTestId={`password-input-${item.name}`}
+            className="w-96"
           />
         );
 
       case 'textarea':
         return (
           <Textarea
-            id={item.name}
-            label={item.title}
+            {...sharedProps}
+            defaultValue={item.default}
             value={getDisplayValue(item)}
             onChange={handleInputChange}
             dataTestId={`textarea-input-${item.name}`}
+            className="w-full max-w-2xl"
           />
         );
 
       case 'bool':
         return (
-          <div className="flex items-center space-x-3">
-            <input
-              id={item.name}
-              type="checkbox"
-              checked={getEffectiveValue(item) === '1'}
-              onChange={handleCheckboxChange}
-              className="h-4 w-4 focus:ring-offset-2 border-gray-300 rounded"
-              data-testid={`bool-input-${item.name}`}
-              style={{
-                color: themeColor,
-                '--tw-ring-color': themeColor,
-              } as React.CSSProperties}
-            />
-            <label htmlFor={item.name} className="text-sm text-gray-700">
-              {item.title}
-            </label>
-          </div>
+          <Checkbox
+            {...sharedProps}
+            checked={getEffectiveValue(item) === '1'}
+            onChange={handleCheckboxChange}
+            dataTestId={`bool-input-${item.name}`}
+          />
         );
 
       case 'radio':
         if (item.items) {
           return (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                {item.title}
-              </label>
-              <div className="space-y-2">
-                {item.items.map(child => (
-                  <div key={child.name} className="flex items-center">
-                    <input
-                      type="radio"
-                      id={child.name}
-                      value={child.name}
-                      checked={getEffectiveValue(item) === child.name}
-                      onChange={e => handleRadioChange(item.name, e)}
-                      className="h-4 w-4 focus:ring-offset-2 border-gray-300"
-                      data-testid={`radio-input-${child.name}`}
-                      style={{
-                        color: themeColor,
-                        '--tw-ring-color': themeColor,
-                      } as React.CSSProperties}
-                    />
-                    <label htmlFor={child.name} className="ml-3 text-sm text-gray-700">
-                      {child.title}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Radio
+              {...sharedProps}
+              value={getEffectiveValue(item)}
+              options={item.items}
+              onChange={e => handleRadioChange(item.name, e)}
+            />
           );
         }
         return null;
 
+      case 'file':
+        return (
+          <FileInput
+            {...sharedProps}
+            value={getDisplayValue(item)}
+            filename={configValues[item.name]?.filename}
+            defaultValue={item.default}
+            defaultFilename={item.name}
+            onChange={(value: string, filename: string) => handleFileChange(item.name, value, filename)}
+            dataTestId={`file-input-${item.name}`}
+          />
+        );
+
       case 'label':
         return (
-          <div className="mb-4" data-testid={`label-${item.name}`}>
-            <div className="text-sm font-medium text-gray-700 break-words">
-              <Markdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  a: ({ ...props }) => (
-                    <a {...props} target="_blank" rel="noopener noreferrer" />
-                  ),
-                }}
-              >
-                {item.title}
-              </Markdown>
-            </div>
-          </div>
+          <Label
+            content={item.title}
+            dataTestId={`label-${item.name}`}
+          />
         );
 
       default:

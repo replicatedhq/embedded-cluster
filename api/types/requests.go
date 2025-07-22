@@ -1,6 +1,11 @@
 package types
 
-// SetAppConfigValuesRequest represents the request when setting the app config values
-type SetAppConfigValuesRequest struct {
-	Values map[string]string `json:"values"`
+// PatchAppConfigValuesRequest represents the request when patching the app config values
+type PatchAppConfigValuesRequest struct {
+	Values AppConfigValues `json:"values"`
+}
+
+// TemplateAppConfigRequest represents the request when templating the app config
+type TemplateAppConfigRequest struct {
+	Values AppConfigValues `json:"values"`
 }

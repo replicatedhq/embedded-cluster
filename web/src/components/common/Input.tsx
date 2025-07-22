@@ -1,46 +1,51 @@
 import React from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
+import HelpText from './HelpText';
 
 interface InputProps {
   id: string;
   label: string;
+  helpText?: string;
+  defaultValue?: string;
+  error?: string;
+  required?: boolean;
   type?: string;
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onKeyDown?: (e: React.KeyboardEvent) => void;
+  icon?: React.ReactNode;
   placeholder?: string;
-  required?: boolean;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
   disabled?: boolean;
-  error?: string;
-  helpText?: string;
   className?: string;
   labelClassName?: string;
-  icon?: React.ReactNode;
   dataTestId?: string;
 }
 
 const Input: React.FC<InputProps> = ({
   id,
   label,
+  helpText,
+  defaultValue,
+  error,
+  required,
   type = 'text',
   value,
-  onChange,
-  onKeyDown,
+  icon,
   placeholder = '',
-  required = false,
+  onKeyDown,
+  onChange,
+  onFocus,
   disabled = false,
-  error,
-  helpText,
   className = '',
   labelClassName = '',
-  icon,
   dataTestId,
 }) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
 
   return (
-    <div className="mb-4">
+    <div className={`mb-4 ${className}`}>
       <label htmlFor={id} className={`block text-sm font-medium text-gray-700 mb-1 ${labelClassName}`}>
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
@@ -57,6 +62,7 @@ const Input: React.FC<InputProps> = ({
           value={value}
           onChange={onChange}
           onKeyDown={onKeyDown}
+          onFocus={onFocus}
           placeholder={placeholder}
           disabled={disabled}
           required={required}
@@ -64,7 +70,7 @@ const Input: React.FC<InputProps> = ({
             error ? 'border-red-500' : 'border-gray-300'
           } rounded-md shadow-sm focus:outline-none ${
             disabled ? 'bg-gray-100 text-gray-500' : 'bg-white'
-          } ${className}`}
+          }`}
           style={{
             '--tw-ring-color': themeColor,
             '--tw-ring-offset-color': themeColor,
@@ -73,7 +79,7 @@ const Input: React.FC<InputProps> = ({
         />
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-      {helpText && !error && <p className="mt-1 text-sm text-gray-500">{helpText}</p>}
+      <HelpText helpText={helpText} defaultValue={defaultValue} error={error} />
     </div>
   );
 };

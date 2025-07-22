@@ -1,0 +1,82 @@
+---
+description: 
+globs: "*.go,web/*.tsx,web/*.ts,web/*.js,web/*.jsx"
+alwaysApply: false
+---
+# Code Quality Checks
+
+Essential code quality checks that must be run after making changes to ensure code standards.
+
+## Quality Assurance Commands
+
+### Web Changes
+When making changes to files in the `/web` directory:
+
+```bash
+# Navigate to web directory
+cd web
+
+# Run linting to check code quality
+npm run lint
+
+# Run unit tests to ensure functionality
+npm run test:unit
+```
+
+### Go Changes
+When making changes to Go files:
+
+```bash
+# Format Go code to ensure consistent style
+go fmt ./...
+
+# Run Go vet to check for common issues
+make vet
+
+# Run unit tests
+make unit-tests
+
+# Run integration tests
+make test-integration
+```
+
+## Pre-commit Checklist
+
+Before committing changes, ensure you have:
+
+### For Web Changes
+- [ ] Ran `npm run lint` with no errors
+- [ ] Ran `npm run test:unit` with all tests passing
+- [ ] Verified TypeScript compilation with no errors
+- [ ] Checked for proper data-testid attributes in new components
+
+### For Go Changes
+- [ ] Ran `go fmt ./...` to ensure consistent formatting
+- [ ] Ran `make vet` with no issues
+- [ ] Ran `make unit-tests` with all tests passing
+- [ ] Verified proper error handling and context wrapping
+- [ ] Ensured interfaces are used for external dependencies
+
+## Continuous Integration
+
+These checks are also run in CI/CD pipelines, but running them locally first:
+- Saves time by catching issues early
+- Provides faster feedback during development
+- Ensures consistent code quality across the team
+
+## Error Resolution
+
+If quality checks fail:
+- **Linting errors**: Fix the specific style/format issues indicated
+- **Test failures**: Debug and fix the failing tests
+- **Type errors**: Resolve TypeScript compilation issues
+- **Vet issues**: Address Go code quality problems
+
+## Integration with Development Workflow
+
+Make these checks part of your standard development workflow:
+1. Make code changes
+2. Run appropriate quality checks
+3. Fix any issues found
+
+This ensures high code quality and reduces the likelihood of CI/CD pipeline failures.

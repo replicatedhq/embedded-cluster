@@ -39,6 +39,11 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 		}
 	}
 
+	configValues, err := c.appConfigManager.GetKotsadmConfigValues()
+	if err != nil {
+		return fmt.Errorf("failed to get kotsadm config values: %w", err)
+	}
+
 	err = c.stateMachine.Transition(lock, StateInfrastructureInstalling)
 	if err != nil {
 		return types.NewConflictError(err)
@@ -66,11 +71,6 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 				}
 			}
 		}()
-
-		configValues, err := c.store.AppConfigStore().GetConfigValues()
-		if err != nil {
-			return fmt.Errorf("getting config values from store: %w", err)
-		}
 
 		if err := c.infraManager.Install(ctx, c.rc, configValues); err != nil {
 			return fmt.Errorf("failed to install infrastructure: %w", err)

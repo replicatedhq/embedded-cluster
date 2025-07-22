@@ -4,7 +4,6 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import KubernetesSetupStep from "../setup/KubernetesSetupStep.tsx";
-import { formatErrorMessage } from "../setup/KubernetesSetupStep.tsx";
 
 const MOCK_KUBERNETES_CONFIG = {
   adminConsolePort: 30000,
@@ -33,6 +32,7 @@ const server = setupServer(
 
 describe("KubernetesSetupStep", () => {
   const mockOnNext = vi.fn();
+  const mockOnBack = vi.fn();
 
   beforeAll(() => {
     server.listen();
@@ -52,7 +52,7 @@ describe("KubernetesSetupStep", () => {
   });
 
   it("renders the kubernetes setup form with card, title, and next button", async () => {
-    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
         authenticated: true,
         target: "kubernetes",
@@ -73,7 +73,7 @@ describe("KubernetesSetupStep", () => {
     await screen.findByText("Loading configuration...");
 
     // Check for title and description
-    await screen.findByText("Configure the installation settings.");
+    await screen.findByText("Set up the Kubernetes cluster for this installation.");
 
     // Check all input fields are present
     screen.getByLabelText(/Admin Console Port/, { selector: "input" });
@@ -94,7 +94,7 @@ describe("KubernetesSetupStep", () => {
       })
     );
 
-    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
         authenticated: true,
         target: "kubernetes",
@@ -110,7 +110,7 @@ describe("KubernetesSetupStep", () => {
 
     // Wait for loading to complete
     await screen.findByText("Loading configuration...");
-    await screen.findByText("Configure the installation settings.");
+    await screen.findByText("Set up the Kubernetes cluster for this installation.");
 
     // Fill in required form values
     const adminPortInput = screen.getByLabelText(/Admin Console Port/);
@@ -143,7 +143,7 @@ describe("KubernetesSetupStep", () => {
       })
     );
 
-    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
         authenticated: true,
         target: "kubernetes",
@@ -159,7 +159,7 @@ describe("KubernetesSetupStep", () => {
 
     // Wait for loading to complete
     await screen.findByText("Loading configuration...");
-    await screen.findByText("Configure the installation settings.");
+    await screen.findByText("Set up the Kubernetes cluster for this installation.");
 
     // Fill in required form values
     const adminPortInput = screen.getByLabelText(/Admin Console Port/);
@@ -211,7 +211,7 @@ describe("KubernetesSetupStep", () => {
       })
     );
 
-    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
       wrapperProps: {
         authenticated: true,
         target: "kubernetes",
@@ -251,48 +251,5 @@ describe("KubernetesSetupStep", () => {
       },
       { timeout: 3000 }
     );
-  });
-});
-
-describe("formatErrorMessage", () => {
-  it("handles empty string", () => {
-    expect(formatErrorMessage("")).toBe("");
-  });
-
-  it("replaces field names with their proper format", () => {
-    expect(formatErrorMessage("adminConsolePort")).toBe("Admin Console Port");
-    expect(formatErrorMessage("httpProxy")).toBe("HTTP Proxy");
-    expect(formatErrorMessage("httpsProxy")).toBe("HTTPS Proxy");
-    expect(formatErrorMessage("noProxy")).toBe("Proxy Bypass List");
-  });
-
-  it("handles multiple field names in one message", () => {
-    expect(formatErrorMessage("httpProxy and httpsProxy are required")).toBe("HTTP Proxy and HTTPS Proxy are required");
-    expect(formatErrorMessage("adminConsolePort and noProxy must be set")).toBe("Admin Console Port and Proxy Bypass List must be set");
-  });
-
-  it("preserves non-field words", () => {
-    expect(formatErrorMessage("The adminConsolePort is invalid")).toBe("The Admin Console Port is invalid");
-    expect(formatErrorMessage("Please set the httpProxy")).toBe("Please set the HTTP Proxy");
-  });
-
-  it("handles case insensitivity correctly", () => {
-    expect(formatErrorMessage("AdminConsolePort")).toBe("Admin Console Port");
-    expect(formatErrorMessage("HTTPPROXY")).toBe("HTTP Proxy");
-    expect(formatErrorMessage("NoProxy")).toBe("Proxy Bypass List");
-  });
-
-  it("handles real-world error messages", () => {
-    expect(formatErrorMessage("httpProxy and httpsProxy cannot be empty when noProxy is set")).toBe(
-      "HTTP Proxy and HTTPS Proxy cannot be empty when Proxy Bypass List is set"
-    );
-    expect(formatErrorMessage("adminConsolePort must be between 1024 and 65535")).toBe(
-      "Admin Console Port must be between 1024 and 65535"
-    );
-  });
-
-  it("handles special characters and formatting", () => {
-    expect(formatErrorMessage("httpProxy: invalid URL format")).toBe("HTTP Proxy: invalid URL format");
-    expect(formatErrorMessage("adminConsolePort: 30000 (invalid)")).toBe("Admin Console Port: 30000 (invalid)");
   });
 });

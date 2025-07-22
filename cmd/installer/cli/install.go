@@ -504,7 +504,12 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 	}
 
 	// TODO: validate that a single port isn't used for multiple services
-	rc.SetDataDir(flags.dataDir)
+	// resolve datadir to absolute path
+	absoluteDataDir, err := filepath.Abs(flags.dataDir)
+	if err != nil {
+		return fmt.Errorf("unable to construct path for directory: %w", err)
+	}
+	rc.SetDataDir(absoluteDataDir)
 	rc.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
 	rc.SetHostCABundlePath(hostCABundlePath)
 	rc.SetNetworkSpec(networkSpec)
@@ -540,7 +545,7 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kuberne
 		return fmt.Errorf("failed to connect to kubernetes api server: %w", err)
 	}
 
-	flags.installConfig.kubernetesRESTClientGetter = flags.kubernetesEnvSettings.RESTClientGetter()
+	flags.kubernetesRESTClientGetter = flags.kubernetesEnvSettings.RESTClientGetter()
 
 	return nil
 }
@@ -631,6 +636,20 @@ func runManagerExperienceInstall(
 		return fmt.Errorf("process overrides file: %w", err)
 	}
 
+	var configValues apitypes.AppConfigValues
+	if flags.configValues != "" {
+		configValues = make(apitypes.AppConfigValues)
+		kotsConfigValues, err := helpers.ParseConfigValues(flags.configValues)
+		if err != nil {
+			return fmt.Errorf("parse config values file: %w", err)
+		}
+		if kotsConfigValues != nil {
+			for key, value := range kotsConfigValues.Spec.Values {
+				configValues[key] = apitypes.AppConfigValue{Value: value.Value}
+			}
+		}
+	}
+
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
 			Password: flags.adminConsolePassword,
@@ -641,7 +660,7 @@ func runManagerExperienceInstall(
 			},
 			License:       flags.licenseBytes,
 			AirgapBundle:  flags.airgapBundle,
-			ConfigValues:  flags.configValues,
+			ConfigValues:  configValues,
 			ReleaseData:   release.GetReleaseData(),
 			EndUserConfig: eucfg,
 			ClusterID:     flags.clusterID,
@@ -651,7 +670,7 @@ func runManagerExperienceInstall(
 				AllowIgnoreHostPreflights: flags.ignoreHostPreflights,
 			},
 			KubernetesConfig: apitypes.KubernetesConfig{
-				RESTClientGetter: flags.installConfig.kubernetesRESTClientGetter,
+				RESTClientGetter: flags.kubernetesRESTClientGetter,
 				Installation:     ki,
 			},
 		},

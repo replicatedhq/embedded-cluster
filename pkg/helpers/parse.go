@@ -42,3 +42,18 @@ func ParseLicense(fpath string) (*kotsv1beta1.License, error) {
 	}
 	return &license, nil
 }
+
+func ParseConfigValues(fpath string) (*kotsv1beta1.ConfigValues, error) {
+	if fpath == "" {
+		return nil, nil
+	}
+	data, err := os.ReadFile(fpath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read config values file: %w", err)
+	}
+	var configValues kotsv1beta1.ConfigValues
+	if err := kyaml.Unmarshal(data, &configValues); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal config values file: %w", err)
+	}
+	return &configValues, nil
+}

@@ -2,27 +2,17 @@ package install
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
-func (c *InstallController) GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error) {
-	if c.releaseData == nil || c.releaseData.AppConfig == nil {
-		return kotsv1beta1.Config{}, errors.New("app config not found")
-	}
-
-	return c.appConfigManager.GetConfig(*c.releaseData.AppConfig)
+func (c *InstallController) GetAppConfig(ctx context.Context) (types.AppConfig, error) {
+	return c.appConfigManager.GetConfig()
 }
 
-func (c *InstallController) SetAppConfigValues(ctx context.Context, values map[string]string) (finalErr error) {
-	if c.releaseData == nil || c.releaseData.AppConfig == nil {
-		return errors.New("app config not found")
-	}
-
+func (c *InstallController) PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -51,9 +41,14 @@ func (c *InstallController) SetAppConfigValues(ctx context.Context, values map[s
 		}
 	}()
 
-	err = c.appConfigManager.SetConfigValues(*c.releaseData.AppConfig, values)
+	err = c.appConfigManager.ValidateConfigValues(values)
 	if err != nil {
-		return fmt.Errorf("set app config values: %w", err)
+		return fmt.Errorf("validate app config values: %w", err)
+	}
+
+	err = c.appConfigManager.PatchConfigValues(values)
+	if err != nil {
+		return fmt.Errorf("patch app config values: %w", err)
 	}
 
 	err = c.stateMachine.Transition(lock, StateApplicationConfigured)
@@ -64,6 +59,10 @@ func (c *InstallController) SetAppConfigValues(ctx context.Context, values map[s
 	return nil
 }
 
-func (c *InstallController) GetAppConfigValues(ctx context.Context) (map[string]string, error) {
-	return c.appConfigManager.GetConfigValues()
+func (c *InstallController) GetAppConfigValues(ctx context.Context, maskPasswords bool) (types.AppConfigValues, error) {
+	return c.appConfigManager.GetConfigValues(maskPasswords)
+}
+
+func (c *InstallController) TemplateAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error) {
+	return c.appConfigManager.TemplateConfig(values)
 }

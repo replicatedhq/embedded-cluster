@@ -89,7 +89,7 @@ func (r *Registry) ensureS3Secret(ctx context.Context, kcli client.Client) error
 		},
 	}
 
-	obj.ObjectMeta.Labels = seaweedfs.ApplyLabels(obj.ObjectMeta.Labels, "s3")
+	obj.Labels = seaweedfs.ApplyLabels(obj.Labels, "s3")
 
 	if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "create s3 secret")

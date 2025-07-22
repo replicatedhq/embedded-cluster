@@ -17,7 +17,6 @@ import (
 	clientcmd "k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/yaml"
 )
@@ -25,7 +24,7 @@ import (
 // SetupCtrlLogging returns a function that can be used to capture the logs from the controller-runtime package.
 func SetupCtrlLogging(t *testing.T) {
 	pr, pw := io.Pipe()
-	k8slogger := ctrlzap.New(func(o *zap.Options) {
+	k8slogger := ctrlzap.New(func(o *ctrlzap.Options) {
 		o.DestWriter = pw
 	})
 	ctrllog.SetLogger(k8slogger)

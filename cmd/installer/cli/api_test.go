@@ -62,6 +62,9 @@ func Test_serveAPI(t *testing.T) {
 				Application: &kotsv1beta1.Application{
 					Spec: kotsv1beta1.ApplicationSpec{},
 				},
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
 			},
 			ClusterID: "123",
 		},

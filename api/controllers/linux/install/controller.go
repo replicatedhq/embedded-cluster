@@ -2,6 +2,8 @@ package install
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
@@ -18,7 +20,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,9 +33,10 @@ type Controller interface {
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
-	GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error)
-	SetAppConfigValues(ctx context.Context, values map[string]string) error
-	GetAppConfigValues(ctx context.Context) (map[string]string, error)
+	GetAppConfig(ctx context.Context) (types.AppConfig, error)
+	TemplateAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error)
+	PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) error
+	GetAppConfigValues(ctx context.Context, maskPasswords bool) (types.AppConfigValues, error)
 }
 
 type RunHostPreflightsOptions struct {
@@ -56,7 +58,7 @@ type InstallController struct {
 	tlsConfig                 types.TLSConfig
 	license                   []byte
 	airgapBundle              string
-	configValuesFile          string
+	configValues              types.AppConfigValues
 	endUserConfig             *ecv1beta1.Config
 	clusterID                 string
 	store                     store.Store
@@ -129,9 +131,9 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
-func WithConfigValuesFile(configValuesFile string) InstallControllerOption {
+func WithConfigValues(configValues types.AppConfigValues) InstallControllerOption {
 	return func(c *InstallController) {
-		c.configValuesFile = configValuesFile
+		c.configValues = configValues
 	}
 }
 
@@ -200,6 +202,10 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		opt(controller)
 	}
 
+	if err := controller.validateReleaseData(); err != nil {
+		return nil, err
+	}
+
 	if controller.stateMachine == nil {
 		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
 	}
@@ -233,13 +239,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
-	if controller.appConfigManager == nil {
-		controller.appConfigManager = appconfig.NewAppConfigManager(
-			appconfig.WithLogger(controller.logger),
-			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
-		)
-	}
-
 	if controller.infraManager == nil {
 		controller.infraManager = infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
@@ -248,14 +247,46 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
-			infra.WithConfigValuesFile(controller.configValuesFile), // CLI file path
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
 		)
 	}
 
+	if controller.appConfigManager == nil {
+		appConfigManager, err := appconfig.NewAppConfigManager(
+			*controller.releaseData.AppConfig,
+			appconfig.WithLogger(controller.logger),
+			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create app config manager: %w", err)
+		}
+		controller.appConfigManager = appConfigManager
+	}
+
+	if controller.configValues != nil {
+		err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("validate app config values: %w", err)
+		}
+		err = controller.appConfigManager.PatchConfigValues(controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("patch app config values: %w", err)
+		}
+	}
+
 	controller.registerReportingHandlers()
 
 	return controller, nil
+}
+
+func (c *InstallController) validateReleaseData() error {
+	if c.releaseData == nil {
+		return errors.New("release data not found")
+	}
+	if c.releaseData.AppConfig == nil {
+		return errors.New("app config not found")
+	}
+	return nil
 }

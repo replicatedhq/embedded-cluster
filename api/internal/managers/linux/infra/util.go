@@ -6,12 +6,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
-	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -27,47 +26,43 @@ func (m *infraManager) waitForNode(ctx context.Context, kcli client.Client) erro
 	return nil
 }
 
-func (m *infraManager) kubeClient() (client.Client, error) {
-	if m.kcli != nil {
-		return m.kcli, nil
-	}
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return nil, fmt.Errorf("create kube client: %w", err)
-	}
-	return kcli, nil
-}
-
-func (m *infraManager) metadataClient() (metadata.Interface, error) {
-	if m.mcli != nil {
-		return m.mcli, nil
-	}
-	mcli, err := kubeutils.MetadataClient()
-	if err != nil {
-		return nil, fmt.Errorf("create metadata client: %w", err)
-	}
-	return mcli, nil
-}
-
-func (m *infraManager) helmClient(rc runtimeconfig.RuntimeConfig) (helm.Client, error) {
-	if m.hcli != nil {
-		return m.hcli, nil
+// setupClients initializes the kube, metadata, and helm clients if they are not already set.
+// We need to do it after the infra manager is initialized to ensure that the runtime config is available and we already have a cluster setup
+func (m *infraManager) setupClients(kubeConfigPath string, airgapChartsPath string) error {
+	if m.kcli == nil {
+		kcli, err := clients.NewKubeClient(clients.KubeClientOptions{KubeConfigPath: kubeConfigPath})
+		if err != nil {
+			return fmt.Errorf("create kube client: %w", err)
+		}
+		m.kcli = kcli
 	}
 
-	airgapChartsPath := ""
-	if m.airgapBundle != "" {
-		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
+	if m.mcli == nil {
+		mcli, err := clients.NewMetadataClient(clients.KubeClientOptions{KubeConfigPath: kubeConfigPath})
+		if err != nil {
+			return fmt.Errorf("create metadata client: %w", err)
+		}
+		m.mcli = mcli
 	}
-	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: rc.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
-		LogFn:      m.logFn("helm"),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create helm client: %w", err)
+
+	if m.hcli == nil {
+		airgapPath := ""
+		if m.airgapBundle != "" {
+			airgapPath = airgapChartsPath
+		}
+		hcli, err := helm.NewClient(helm.HelmOptions{
+			KubeConfig: kubeConfigPath,
+			K0sVersion: versions.K0sVersion,
+			AirgapPath: airgapPath,
+			LogFn:      m.logFn("helm"),
+		})
+		if err != nil {
+			return fmt.Errorf("create helm client: %w", err)
+		}
+		m.hcli = hcli
 	}
-	return hcli, nil
+
+	return nil
 }
 
 func (m *infraManager) getECConfigSpec() *ecv1beta1.ConfigSpec {
