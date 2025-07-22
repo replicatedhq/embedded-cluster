@@ -37,7 +37,7 @@ type Engine struct {
 	prevConfigValues types.AppConfigValues
 	tmpl             *template.Template
 	funcMap          template.FuncMap
-	cache            map[string]ResolvedConfigItem
+	cache            map[string]resolvedConfigItem
 	depsTree         map[string][]string
 	stack            []string
 	mtx              sync.Mutex
@@ -69,7 +69,7 @@ func NewEngine(config *kotsv1beta1.Config, opts ...EngineOption) *Engine {
 		config:           config,
 		configValues:     make(types.AppConfigValues),
 		prevConfigValues: make(types.AppConfigValues),
-		cache:            make(map[string]ResolvedConfigItem),
+		cache:            make(map[string]resolvedConfigItem),
 		depsTree:         make(map[string][]string),
 		stack:            []string{},
 		mtx:              sync.Mutex{},
@@ -195,6 +195,10 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"ConfigOptionNotEquals": e.configOptionNotEquals,
 
 		"LicenseFieldValue": e.licenseFieldValue,
+
+		"HTTPProxy":  e.httpProxy,
+		"HTTPSProxy": e.httpsProxy,
+		"NoProxy":    e.noProxy,
 	}
 }
 
