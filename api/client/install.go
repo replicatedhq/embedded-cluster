@@ -295,33 +295,6 @@ func (c *client) GetKubernetesInfraStatus() (types.Infra, error) {
 	return infra, nil
 }
 
-func (c *client) GetLinuxAppConfig() (types.AppConfig, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/app/config", nil)
-	if err != nil {
-		return types.AppConfig{}, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	setAuthorizationHeader(req, c.token)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return types.AppConfig{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return types.AppConfig{}, errorFromResponse(resp)
-	}
-
-	var config types.AppConfig
-	err = json.NewDecoder(resp.Body).Decode(&config)
-	if err != nil {
-		return types.AppConfig{}, err
-	}
-
-	return config, nil
-}
-
 func (c *client) GetLinuxAppConfigValues() (types.AppConfigValues, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/app/config/values", nil)
 	if err != nil {
@@ -382,33 +355,6 @@ func (c *client) PatchLinuxAppConfigValues(values types.AppConfigValues) (types.
 	}
 
 	return config.Values, nil
-}
-
-func (c *client) GetKubernetesAppConfig() (types.AppConfig, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app/config", nil)
-	if err != nil {
-		return types.AppConfig{}, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	setAuthorizationHeader(req, c.token)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return types.AppConfig{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return types.AppConfig{}, errorFromResponse(resp)
-	}
-
-	var config types.AppConfig
-	err = json.NewDecoder(resp.Body).Decode(&config)
-	if err != nil {
-		return types.AppConfig{}, err
-	}
-
-	return config, nil
 }
 
 func (c *client) GetKubernetesAppConfigValues() (types.AppConfigValues, error) {
