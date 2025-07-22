@@ -110,6 +110,7 @@ func (e *Engine) configOptionFilename(name string) (string, error) {
 // 2. The templated value - the templated result of the item's "value" field
 // 3. The templated default - the templated result of the item's "default" field
 // 4. The filename - the filename of the "file" type config item (if it exists)
+//
 // The effective value is determined either by:
 // - The provided effectiveValueGetter function, if specified
 // - Or following priority: user value > config value > config default
