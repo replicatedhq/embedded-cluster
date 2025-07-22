@@ -6,31 +6,6 @@ linters:
     - ineffassign
     - nolintlint
     - staticcheck
-<<<<<<< HEAD
-    # - unused
-
-    # Our own extras:
-    - gofmt
-    # We disable nolintlint on purpose given there's directives only applicable on latest which fail on previous release
-    # branches
-    # - nolintlint # lints nolint directives
-    # - revive
-
-linters-settings:
-  govet:
-    # These govet checks are disabled by default, but they're useful.
-    enable:
-    - nilness
-    - reflectvaluecompare
-    - sortslice
-    - unusedwrite
-  unused:
-    field-writes-are-uses: false
-    exported-fields-are-used: false
-    # parameters-are-used: false
-    local-variables-are-used: false
-
-=======
   settings:
     govet:
       enable:
@@ -48,7 +23,6 @@ linters-settings:
       - third_party$
       - builtin$
       - examples$
->>>>>>> release-2.7.3+k8s-1.31
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
