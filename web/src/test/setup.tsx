@@ -3,13 +3,16 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { render, RenderOptions } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider, RouteObject } from "react-router-dom";
 import { vi } from "vitest";
+import { JSX } from "react/jsx-runtime";
 
+import { InitialState } from "../types";
+import { InstallationTarget } from "../types/installation-target";
 import { createQueryClient } from "../query-client";
 import { LinuxConfigContext, LinuxConfig } from "../contexts/LinuxConfigContext";
 import { KubernetesConfigContext, KubernetesConfig } from "../contexts/KubernetesConfigContext";
 import { SettingsContext, Settings } from "../contexts/SettingsContext";
-import { WizardContext, WizardMode, WizardTarget } from "../contexts/WizardModeContext";
-import { BrandingContext } from "../contexts/BrandingContext";
+import { WizardContext, WizardMode } from "../contexts/WizardModeContext";
+import { InitialStateContext } from "../contexts/InitialStateContext";
 import { AuthContext } from "../contexts/AuthContext";
 
 // Mock localStorage for tests
@@ -30,10 +33,7 @@ interface MockProviderProps {
   children: React.ReactNode;
   queryClient: ReturnType<typeof createQueryClient>;
   contexts: {
-    brandingContext: {
-      title: string;
-      icon?: string;
-    };
+    initialStateContext: InitialState
     linuxConfigContext: {
       config: LinuxConfig;
       updateConfig: (newConfig: Partial<LinuxConfig>) => void;
@@ -49,7 +49,7 @@ interface MockProviderProps {
       updateSettings: (newSettings: Partial<Settings>) => void;
     };
     wizardModeContext: {
-      target: WizardTarget;
+      target: InstallationTarget;
       mode: WizardMode;
       text: {
         title: string;
@@ -60,6 +60,8 @@ interface MockProviderProps {
         configurationDescription: string;
         linuxSetupTitle: string;
         linuxSetupDescription: string;
+        kubernetesSetupTitle: string;
+        kubernetesSetupDescription: string;
         validationTitle: string;
         validationDescription: string;
         installationTitle: string;
@@ -76,6 +78,7 @@ interface MockProviderProps {
   };
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- this is a test component
 const MockProvider = ({ children, queryClient, contexts }: MockProviderProps) => {
   // Set up localStorage with the auth token if provided
   React.useEffect(() => {
@@ -87,19 +90,19 @@ const MockProvider = ({ children, queryClient, contexts }: MockProviderProps) =>
   }, [contexts.authContext.token]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={{ ...contexts.authContext, isLoading: false }}>
-        <LinuxConfigContext.Provider value={contexts.linuxConfigContext}>
-          <KubernetesConfigContext.Provider value={contexts.kubernetesConfigContext}>
-            <SettingsContext.Provider value={contexts.settingsContext}>
-              <BrandingContext.Provider value={contexts.brandingContext}>
+    <InitialStateContext.Provider value={contexts.initialStateContext}>
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={{ ...contexts.authContext, isLoading: false }}>
+          <LinuxConfigContext.Provider value={contexts.linuxConfigContext}>
+            <KubernetesConfigContext.Provider value={contexts.kubernetesConfigContext}>
+              <SettingsContext.Provider value={contexts.settingsContext}>
                 <WizardContext.Provider value={contexts.wizardModeContext}>{children}</WizardContext.Provider>
-              </BrandingContext.Provider>
-            </SettingsContext.Provider>
-          </KubernetesConfigContext.Provider>
-        </LinuxConfigContext.Provider>
-      </AuthContext.Provider>
-    </QueryClientProvider>
+              </SettingsContext.Provider>
+            </KubernetesConfigContext.Provider>
+          </LinuxConfigContext.Provider>
+        </AuthContext.Provider>
+      </QueryClientProvider>
+    </InitialStateContext.Provider>
   );
 };
 
@@ -111,7 +114,7 @@ interface RenderWithProvidersOptions extends RenderOptions {
     routePath?: string;
     authenticated?: boolean;
     authToken?: string;
-    target?: WizardTarget;
+    target?: InstallationTarget;
   };
   wrapper?: React.ComponentType<{ children: React.ReactNode }>;
 }
@@ -121,7 +124,7 @@ export const renderWithProviders = (
   options: RenderWithProvidersOptions = {},
 ) => {
   const defaultContextValues: MockProviderProps["contexts"] = {
-    brandingContext: { title: "My App" },
+    initialStateContext: { title: "My App", installTarget: options.wrapperProps?.target || "linux" },
     linuxConfigContext: {
       config: {
         adminConsolePort: 8800,
@@ -158,6 +161,8 @@ export const renderWithProviders = (
         configurationDescription: "Configure your My App installation by providing the information below.",
         linuxSetupTitle: "Setup",
         linuxSetupDescription: "Set up the hosts to use for this installation.",
+        kubernetesSetupTitle: "Kubernetes Setup",
+        kubernetesSetupDescription: "Set up the Kubernetes cluster for this installation.",
         validationTitle: "Validation",
         validationDescription: "Validate the host requirements before proceeding with installation.",
         installationTitle: "Installing My App",
@@ -174,7 +179,7 @@ export const renderWithProviders = (
   };
 
   const mergedContextValues: MockProviderProps["contexts"] = {
-    brandingContext: { ...defaultContextValues.brandingContext, ...options.wrapperProps?.contextValues?.brandingContext },
+    initialStateContext: { ...defaultContextValues.initialStateContext, ...options.wrapperProps?.contextValues?.initialStateContext },
     linuxConfigContext: { ...defaultContextValues.linuxConfigContext, ...options.wrapperProps?.contextValues?.linuxConfigContext },
     kubernetesConfigContext: { ...defaultContextValues.kubernetesConfigContext, ...options.wrapperProps?.contextValues?.kubernetesConfigContext },
     settingsContext: { ...defaultContextValues.settingsContext, ...options.wrapperProps?.contextValues?.settingsContext },

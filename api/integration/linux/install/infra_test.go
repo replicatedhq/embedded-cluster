@@ -19,12 +19,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/assets"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
-	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	linuxinfra "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
 	linuxpreflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
@@ -33,6 +33,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -56,6 +58,33 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 	metascheme := metadatafake.NewTestScheme()
 	require.NoError(t, metav1.AddMetaToScheme(metascheme))
 	require.NoError(t, corev1.AddToScheme(metascheme))
+
+	appConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "network-config",
+					Title: "{{ print \"Network Configuration\" }}",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "service-cidr",
+							Type:    "text",
+							Title:   "{{ upper \"service cidr\" }}",
+							Default: multitype.FromString("{{ print \"10.96.0.0/12\" }}"),
+							Value:   multitype.FromString("{{ print \"10.96.0.0/12\" }}"),
+						},
+						{
+							Name:    "pod-cidr",
+							Type:    "text",
+							Title:   "{{ upper \"pod cidr\" }}",
+							Default: multitype.FromString("{{ print \"10.244.0.0/16\" }}"),
+							Value:   multitype.FromString("{{ print \"10.244.0.0/16\" }}"),
+						},
+					},
+				},
+			},
+		},
+	}
 
 	t.Run("Success", func(t *testing.T) {
 		hostname, err := os.Hostname()
@@ -102,9 +131,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			linuxinfra.WithHelmClient(helmMock),
 			linuxinfra.WithLicense(assets.LicenseData),
 			linuxinfra.WithHostUtils(hostutilsMock),
-			linuxinfra.WithKotsInstaller(func() error {
-				return nil
-			}),
+			linuxinfra.WithKotsCLIInstaller(&MockKotsCLIInstaller{}),
 			linuxinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -113,6 +140,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
 
@@ -133,7 +161,6 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			k0sMock.On("WaitForK0s").Return(nil),
 			hostutilsMock.On("AddInsecureRegistry", mock.Anything).Return(nil),
 			helmMock.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil), // 4 addons
-			helmMock.On("Close").Return(nil),
 		)
 
 		// Create an install controller with the mocked managers
@@ -150,20 +177,17 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -271,14 +295,10 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create the API
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -329,19 +349,20 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsFailed))),
 			linuxinstall.WithHostPreflightManager(pfManager),
 			linuxinstall.WithAllowIgnoreHostPreflights(true), // CLI flag allows bypass
+			linuxinstall.WithReleaseData(&release.ReleaseData{
+				EmbeddedClusterConfig: &ecv1beta1.Config{},
+				ChannelRelease:        &release.ChannelRelease{},
+				AppConfig:             &appConfig,
+			}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -386,19 +407,20 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsFailed))),
 			linuxinstall.WithHostPreflightManager(pfManager),
 			linuxinstall.WithAllowIgnoreHostPreflights(false), // CLI flag does NOT allow bypass
+			linuxinstall.WithReleaseData(&release.ReleaseData{
+				EmbeddedClusterConfig: &ecv1beta1.Config{},
+				ChannelRelease:        &release.ChannelRelease{},
+				AppConfig:             &appConfig,
+			}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -450,19 +472,20 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsFailed))),
 			linuxinstall.WithHostPreflightManager(pfManager),
 			linuxinstall.WithAllowIgnoreHostPreflights(true), // CLI flag allows bypass
+			linuxinstall.WithReleaseData(&release.ReleaseData{
+				EmbeddedClusterConfig: &ecv1beta1.Config{},
+				ChannelRelease:        &release.ChannelRelease{},
+				AppConfig:             &appConfig,
+			}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -513,19 +536,20 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsRunning))),
 			linuxinstall.WithHostPreflightManager(pfManager),
+			linuxinstall.WithReleaseData(&release.ReleaseData{
+				EmbeddedClusterConfig: &ecv1beta1.Config{},
+				ChannelRelease:        &release.ChannelRelease{},
+				AppConfig:             &appConfig,
+			}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -579,20 +603,17 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease:        &release.ChannelRelease{},
+				AppConfig:             &appConfig,
 			}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -643,10 +664,10 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		pfManager := preflight.NewHostPreflightManager(
 			preflight.WithHostPreflightStore(linuxpreflightstore.NewMemoryStore(linuxpreflightstore.WithHostPreflight(hpf))),
 		)
-		infraManager := infra.NewInfraManager(
-			infra.WithK0s(k0sMock),
-			infra.WithHostUtils(hostutilsMock),
-			infra.WithLicense(assets.LicenseData),
+		infraManager := linuxinfra.NewInfraManager(
+			linuxinfra.WithK0s(k0sMock),
+			linuxinfra.WithHostUtils(hostutilsMock),
+			linuxinfra.WithLicense(assets.LicenseData),
 		)
 
 		// Setup k0s mock expectations with failure
@@ -665,6 +686,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease:        &release.ChannelRelease{},
+				AppConfig:             &appConfig,
 			}),
 			linuxinstall.WithRuntimeConfig(rc),
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsSucceeded))),
@@ -672,15 +694,11 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -729,4 +747,11 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		k0sMock.AssertExpectations(t)
 		hostutilsMock.AssertExpectations(t)
 	})
+}
+
+type MockKotsCLIInstaller struct {
+}
+
+func (m *MockKotsCLIInstaller) Install(opts kotscli.InstallOptions) error {
+	return nil
 }

@@ -622,7 +622,7 @@ jobs:
       - e2e-docker
       - release
       - release-app
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
       - name: fail if e2e job was not successful

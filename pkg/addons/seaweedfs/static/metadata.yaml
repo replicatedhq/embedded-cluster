@@ -11,5 +11,5 @@ images:
     seaweedfs:
         repo: proxy.replicated.com/anonymous/replicated/ec-seaweedfs
         tag:
-            amd64: 3.93-r0-amd64@sha256:49ed48d48042d36a2757cb1d8c3f07ef925e71e3547c6e778e006b1b66aff48c
-            arm64: 3.93-r0-arm64@sha256:78e53d9cd250b1028ae348b090622050c69c1ce901fa250ea92efd3b166d5e87
+            amd64: 3.93-r0-amd64@sha256:5bf67206c2411d783fe98f2fd1b0b2fdc280db8c0dcfbd87ba9c51d1038cc9f7
+            arm64: 3.93-r0-arm64@sha256:ef6e8d3d4fe27faaae22c902c0af0463445619dba5d16418385bcf7a40696cff

@@ -116,7 +116,7 @@ func deletePVC(ctx context.Context, cli client.Client, pvc corev1.PersistentVolu
 		return fmt.Errorf("get pv %s: %w", pvc.Spec.VolumeName, err)
 	}
 
-	if pv.ObjectMeta.Name != "" {
+	if pv.Name != "" {
 		err = cli.Delete(ctx, &pv)
 		if err != nil {
 			return fmt.Errorf("delete pv %s: %w", pv.Name, err)

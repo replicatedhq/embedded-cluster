@@ -7,12 +7,14 @@ import (
 	infrastore "github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,28 +25,32 @@ var _ InfraManager = &infraManager{}
 // InfraManager provides methods for managing infrastructure setup
 type InfraManager interface {
 	Get() (types.Infra, error)
-	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues map[string]string) error
+	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues kotsv1beta1.ConfigValues) error
+}
+
+// KotsCLIInstaller is an interface that wraps the Install method from the kotscli package
+type KotsCLIInstaller interface {
+	Install(opts kotscli.InstallOptions) error
 }
 
 // infraManager is an implementation of the InfraManager interface
 type infraManager struct {
-	infraStore       infrastore.Store
-	password         string
-	tlsConfig        types.TLSConfig
-	license          []byte
-	airgapBundle     string
-	configValuesFile string // Keep for CLI file path priority
-	releaseData      *release.ReleaseData
-	endUserConfig    *ecv1beta1.Config
-	clusterID        string
-	logger           logrus.FieldLogger
-	k0scli           k0s.K0sInterface
-	kcli             client.Client
-	mcli             metadata.Interface
-	hcli             helm.Client
-	hostUtils        hostutils.HostUtilsInterface
-	kotsInstaller    func() error
-	mu               sync.RWMutex
+	infraStore    infrastore.Store
+	password      string
+	tlsConfig     types.TLSConfig
+	license       []byte
+	airgapBundle  string
+	releaseData   *release.ReleaseData
+	endUserConfig *ecv1beta1.Config
+	clusterID     string
+	logger        logrus.FieldLogger
+	k0scli        k0s.K0sInterface
+	kcli          client.Client
+	mcli          metadata.Interface
+	hcli          helm.Client
+	hostUtils     hostutils.HostUtilsInterface
+	kotsCLI       KotsCLIInstaller
+	mu            sync.RWMutex
 }
 
 type InfraManagerOption func(*infraManager)
@@ -82,12 +88,6 @@ func WithLicense(license []byte) InfraManagerOption {
 func WithAirgapBundle(airgapBundle string) InfraManagerOption {
 	return func(c *infraManager) {
 		c.airgapBundle = airgapBundle
-	}
-}
-
-func WithConfigValuesFile(configValuesFile string) InfraManagerOption {
-	return func(c *infraManager) {
-		c.configValuesFile = configValuesFile
 	}
 }
 
@@ -139,9 +139,9 @@ func WithHostUtils(hostUtils hostutils.HostUtilsInterface) InfraManagerOption {
 	}
 }
 
-func WithKotsInstaller(kotsInstaller func() error) InfraManagerOption {
+func WithKotsCLIInstaller(kotsCLI KotsCLIInstaller) InfraManagerOption {
 	return func(c *infraManager) {
-		c.kotsInstaller = kotsInstaller
+		c.kotsCLI = kotsCLI
 	}
 }
 

@@ -3,12 +3,13 @@ import Input from "../../common/Input";
 import Select from "../../common/Select";
 import Button from "../../common/Button";
 import Card from "../../common/Card";
-import { useBranding } from "../../../contexts/BrandingContext";
+import { useInitialState } from "../../../contexts/InitialStateContext";
 import { useLinuxConfig } from "../../../contexts/LinuxConfigContext";
 import { useWizard } from "../../../contexts/WizardModeContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { handleUnauthorized } from "../../../utils/auth";
+import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
@@ -19,17 +20,17 @@ import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
  * - Error formatting: formatErrorMessage("adminConsolePort invalid") -> "Admin Console Port invalid"
  */
 const fieldNames = {
-   adminConsolePort: "Admin Console Port",
-   dataDirectory: "Data Directory",
-   localArtifactMirrorPort: "Local Artifact Mirror Port",
-   httpProxy: "HTTP Proxy",
-   httpsProxy: "HTTPS Proxy",
-   noProxy: "Proxy Bypass List",
-   networkInterface: "Network Interface",
-   podCidr: "Pod CIDR",
-   serviceCidr: "Service CIDR",
-   globalCidr: "Reserved Network Range (CIDR)",
-   cidr: "CIDR",
+  adminConsolePort: "Admin Console Port",
+  dataDirectory: "Data Directory",
+  localArtifactMirrorPort: "Local Artifact Mirror Port",
+  httpProxy: "HTTP Proxy",
+  httpsProxy: "HTTPS Proxy",
+  noProxy: "Proxy Bypass List",
+  networkInterface: "Network Interface",
+  podCidr: "Pod CIDR",
+  serviceCidr: "Service CIDR",
+  globalCidr: "Reserved Network Range (CIDR)",
+  cidr: "CIDR",
 }
 
 interface LinuxSetupStepProps {
@@ -49,7 +50,7 @@ interface ConfigError extends Error {
 const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
   const { config, updateConfig } = useLinuxConfig();
   const { text } = useWizard();
-  const { title } = useBranding();
+  const { title } = useInitialState();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { token } = useAuth();
@@ -160,7 +161,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
 
   const getFieldError = (fieldName: string) => {
     const fieldError = submitError?.errors?.find((err) => err.field === fieldName);
-    return fieldError ? formatErrorMessage(fieldError.message) : undefined;
+    return fieldError ? formatErrorMessage(fieldError.message, fieldNames) : undefined;
   };
 
   return (
@@ -178,125 +179,137 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
           </div>
         ) : (
           <>
-            <div className="space-y-4">
-              <h2 className="text-lg font-medium text-gray-900">System Configuration</h2>
-              <Input
-                id="dataDirectory"
-                label={fieldNames.dataDirectory}
-                value={config.dataDirectory || ""}
-                onChange={handleInputChange}
-                placeholder="/var/lib/embedded-cluster"
-                helpText={`Directory where ${title} will store its data`}
-                error={getFieldError("dataDirectory")}
-                required
-              />
-
-              <Input
-                id="adminConsolePort"
-                label={fieldNames.adminConsolePort}
-                value={config.adminConsolePort?.toString() || ""}
-                onChange={handleInputChange}
-                placeholder="30000"
-                helpText="Port for the Admin Console"
-                error={getFieldError("adminConsolePort")}
-                required
-              />
-
-              <Input
-                id="localArtifactMirrorPort"
-                label={fieldNames.localArtifactMirrorPort}
-                value={config.localArtifactMirrorPort?.toString() || ""}
-                onChange={handleInputChange}
-                placeholder="50000"
-                helpText="Port for the local artifact mirror"
-                error={getFieldError("localArtifactMirrorPort")}
-                required
-              />
-            </div>
-
-            <div className="space-y-4">
-              <h2 className="text-lg font-medium text-gray-900">Proxy Configuration</h2>
+            <div className="space-y-8">
               <div className="space-y-4">
-                <Input
-                  id="httpProxy"
-                  label={fieldNames.httpProxy}
-                  value={config.httpProxy || ""}
-                  onChange={handleInputChange}
-                  placeholder="http://proxy.example.com:3128"
-                  helpText="HTTP proxy server URL"
-                  error={getFieldError("httpProxy")}
-                />
-
-                <Input
-                  id="httpsProxy"
-                  label={fieldNames.httpsProxy}
-                  value={config.httpsProxy || ""}
-                  onChange={handleInputChange}
-                  placeholder="https://proxy.example.com:3128"
-                  helpText="HTTPS proxy server URL"
-                  error={getFieldError("httpsProxy")}
-                />
-
-                <Input
-                  id="noProxy"
-                  label={fieldNames.noProxy}
-                  value={config.noProxy || ""}
-                  onChange={handleInputChange}
-                  placeholder="localhost,127.0.0.1,.example.com"
-                  helpText="Comma-separated list of hosts to bypass the proxy"
-                  error={getFieldError("noProxy")}
-                />
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <button
-                type="button"
-                className="flex items-center text-lg font-medium text-gray-900 mb-4"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-              >
-                {showAdvanced ? <ChevronDown className="w-4 h-4 mr-1" /> : <ChevronRight className="w-4 h-4 mr-1" />}
-                Advanced Settings
-              </button>
-
-              {showAdvanced && (
-                <div className="space-y-6">
-                  <Select
-                    id="networkInterface"
-                    label={fieldNames.networkInterface}
-                    value={config.networkInterface || ""}
-                    onChange={handleSelectChange}
-                    options={[
-                      ...(availableNetworkInterfaces.length > 0
-                        ? availableNetworkInterfaces.map((iface: string) => ({
-                            value: iface,
-                            label: iface,
-                          }))
-                        : []),
-                    ]}
-                    helpText={`Network interface to use for ${title}`}
-                    error={getFieldError("networkInterface")}
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">System Configuration</h2>
+                <div className="space-y-4">
+                  <Input
+                    id="dataDirectory"
+                    label={fieldNames.dataDirectory}
+                    value={config.dataDirectory || ""}
+                    onChange={handleInputChange}
+                    placeholder="/var/lib/embedded-cluster"
+                    helpText={`Directory where ${title} will store its data`}
+                    error={getFieldError("dataDirectory")}
                     required
-                    placeholder="Select a network interface"
+                    className="w-96"
                   />
 
                   <Input
-                    id="globalCidr"
-                    label={fieldNames.globalCidr}
-                    value={config.globalCidr || ""}
+                    id="adminConsolePort"
+                    label={fieldNames.adminConsolePort}
+                    value={config.adminConsolePort?.toString() || ""}
                     onChange={handleInputChange}
-                    placeholder="10.244.0.0/16"
-                    helpText="CIDR notation for the reserved network range (must be /16 or larger)"
-                    error={getFieldError("globalCidr")}
+                    placeholder="30000"
+                    helpText="Port for the Admin Console"
+                    error={getFieldError("adminConsolePort")}
                     required
+                    className="w-96"
+                  />
+
+                  <Input
+                    id="localArtifactMirrorPort"
+                    label={fieldNames.localArtifactMirrorPort}
+                    value={config.localArtifactMirrorPort?.toString() || ""}
+                    onChange={handleInputChange}
+                    placeholder="50000"
+                    helpText="Port for the local artifact mirror"
+                    error={getFieldError("localArtifactMirrorPort")}
+                    required
+                    className="w-96"
                   />
                 </div>
-              )}
+              </div>
+
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Proxy Configuration</h2>
+                <div className="space-y-4">
+                  <Input
+                    id="httpProxy"
+                    label={fieldNames.httpProxy}
+                    value={config.httpProxy || ""}
+                    onChange={handleInputChange}
+                    placeholder="http://proxy.example.com:3128"
+                    helpText="HTTP proxy server URL"
+                    error={getFieldError("httpProxy")}
+                    className="w-96"
+                  />
+
+                  <Input
+                    id="httpsProxy"
+                    label={fieldNames.httpsProxy}
+                    value={config.httpsProxy || ""}
+                    onChange={handleInputChange}
+                    placeholder="https://proxy.example.com:3128"
+                    helpText="HTTPS proxy server URL"
+                    error={getFieldError("httpsProxy")}
+                    className="w-96"
+                  />
+
+                  <Input
+                    id="noProxy"
+                    label={fieldNames.noProxy}
+                    value={config.noProxy || ""}
+                    onChange={handleInputChange}
+                    placeholder="localhost,127.0.0.1,.example.com"
+                    helpText="Comma-separated list of hosts to bypass the proxy"
+                    error={getFieldError("noProxy")}
+                    className="w-96"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  className="flex items-center text-lg font-semibold text-gray-900 mb-6"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                >
+                  {showAdvanced ? <ChevronDown className="w-4 h-4 mr-1" /> : <ChevronRight className="w-4 h-4 mr-1" />}
+                  Advanced Settings
+                </button>
+
+                {showAdvanced && (
+                  <div className="space-y-4">
+                    <Select
+                      id="networkInterface"
+                      label={fieldNames.networkInterface}
+                      value={config.networkInterface || ""}
+                      onChange={handleSelectChange}
+                      options={[
+                        ...(availableNetworkInterfaces.length > 0
+                          ? availableNetworkInterfaces.map((iface: string) => ({
+                            value: iface,
+                            label: iface,
+                          }))
+                          : []),
+                      ]}
+                      helpText={`Network interface to use for ${title}`}
+                      error={getFieldError("networkInterface")}
+                      required
+                      placeholder="Select a network interface"
+                      className="w-96"
+                    />
+
+                    <Input
+                      id="globalCidr"
+                      label={fieldNames.globalCidr}
+                      value={config.globalCidr || ""}
+                      onChange={handleInputChange}
+                      placeholder="10.244.0.0/16"
+                      helpText="CIDR notation for the reserved network range (must be /16 or larger)"
+                      error={getFieldError("globalCidr")}
+                      required
+                      className="w-96"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {error && (
-              <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
-                {submitError?.errors && submitError.errors.length > 0 
+              <div className="mt-6 p-3 bg-red-50 text-red-500 rounded-md">
+                {submitError?.errors && submitError.errors.length > 0
                   ? "Please fix the errors in the form above before proceeding."
                   : error
                 }
@@ -307,7 +320,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
       </Card>
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
+        <Button variant="outline" onClick={onBack} dataTestId="linux-setup-button-back" icon={<ChevronLeft className="w-5 h-5" />}>
           Back
         </Button>
         <Button onClick={() => submitConfig(config)} icon={<ChevronRight className="w-5 h-5" />}>
@@ -317,22 +330,5 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
     </div>
   );
 };
-
-/**
- * Formats error messages by replacing technical field names with more user-friendly display names.
- * Example: "adminConsolePort" becomes "Admin Console Port".
- *
- * @param message - The error message to format
- * @returns The formatted error message with replaced field names
- */
-export function formatErrorMessage(message: string) {
-   let finalMsg = message
-   for (const [field, fieldName] of Object.entries(fieldNames)) {
-      // Case-insensitive regex that matches whole words only
-      // Example: "podCidr", "PodCidr", "PODCIDR" all become "Pod CIDR"
-      finalMsg = finalMsg.replace(new RegExp(`\\b${field}\\b`, 'gi'), fieldName)
-   }
-   return finalMsg
-}
 
 export default LinuxSetupStep;

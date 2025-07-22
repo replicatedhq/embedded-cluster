@@ -145,8 +145,12 @@ output/bins/fio-%:
 .PHONY: cmd/installer/goods/bins/fio
 cmd/installer/goods/bins/fio:
 ifneq ($(DISABLE_FIO_BUILD),1)
+ifeq ($(FIO_VERSION),)
+	$(error FIO_VERSION is not set)
+else
 	$(MAKE) output/bins/fio-$(FIO_VERSION)-$(ARCH)
 	cp output/bins/fio-$(FIO_VERSION)-$(ARCH) $@
+endif
 endif
 
 .PHONY: cmd/installer/goods/internal/bins/kubectl-kots
@@ -190,7 +194,7 @@ output/bin/embedded-cluster-release-builder:
 .PHONY: initial-release
 initial-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 initial-release: export APP_VERSION = appver-dev-$(call random-string)
-initial-release: export RELEASE_YAML_DIR = e2e/kots-release-install
+initial-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
 initial-release: export V2_ENABLED = 0
 initial-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=0 \
@@ -216,6 +220,7 @@ upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 
 .PHONY: go.mod
 go.mod: Makefile
+	(cd kinds && go get github.com/k0sproject/k0s@$(K0S_GO_VERSION) && go mod tidy)
 	go get github.com/k0sproject/k0s@$(K0S_GO_VERSION)
 	go mod tidy
 

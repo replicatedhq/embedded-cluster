@@ -1,0 +1,294 @@
+apiVersion: kots.io/v1beta1
+kind: Config
+metadata:
+  name: test-config
+spec:
+  groups:
+    - name: config-items
+      title: Config Items
+      items:
+        - name: label
+          type: label
+          title: |
+            The values set in the config items below will populate the `configitems` ConfigMap in the app (nginx-app).
+
+        - name: label
+          type: label
+          title: |
+            ## Text Items
+            ---
+
+        - name: text_simple
+          title: Simple Text
+          type: text
+          help_text: "Help text of a simple **_Text_** config item type"
+
+        - name: text_with_default
+          title: Text with default value
+          type: text
+          default: "default text"
+          help_text: "Help text of a **_Text_** config item type **_with default value_**"
+
+        - name: text_required
+          title: Text marked required
+          type: text
+          required: true
+          help_text: "Help text of a **_Text_** config item type **_marked required_**"
+
+        - name: label
+          type: label
+          title: |
+            ## Password Items
+            ---
+
+        - name: password_simple
+          title: Simple Password
+          type: password
+          help_text: "Help text of a simple **_Password_** config item type"
+
+        - name: password_with_default
+          title: Password with default value
+          type: password
+          default: "default password"
+          help_text: "Help text of a **_Password_** config item type **_with default value_**"
+
+        - name: password_required
+          title: Password marked required
+          type: password
+          required: true
+          help_text: "Help text of a **_Password_** config item type **_marked required_**"
+
+        - name: label
+          type: label
+          title: |
+            ## Textarea Items
+            ---
+
+        - name: textarea_simple
+          title: Simple Textarea
+          type: textarea
+          help_text: "Help text of a simple **_Textarea_** config item type"
+
+        - name: textarea_with_default
+          title: Textarea with default value
+          type: textarea
+          default: "default textarea"
+          help_text: "Help text of a **_Textarea_** config item type **_with default value_**"
+
+        - name: textarea_required
+          title: Textarea marked required
+          type: textarea
+          required: true
+          help_text: "Help text of a **_Textarea_** config item type **_marked required_**"
+
+        - name: label
+          type: label
+          title: |
+            ## Checkbox/Bool Items
+            ---
+
+        - name: checkbox_simple
+          title: Simple Checkbox
+          type: bool
+          help_text: "Help text of a simple **_Checkbox_** config item type"
+
+        - name: checkbox_with_default
+          title: Checkbox with default value
+          type: bool
+          default: "1"
+          help_text: "Help text of a **_Checkbox_** config item type **_with default value_**"
+
+        - name: checkbox_required
+          title: Checkbox marked required
+          type: bool
+          required: true
+          help_text: "Help text of a **_Checkbox_** config item type **_marked required_**"
+
+        # TODO: uncomment when we support dropdowns in the UI
+        # - name: label
+        #   type: label
+        #   title: |
+        #     ## Dropdown Items
+        #     ---
+
+        - name: dropdown_simple
+          title: Simple Dropdown
+          type: dropdown
+          help_text: "Help text of a simple **_Dropdown_** config item type"
+          items:
+            - name: opt1
+              title: Option 1
+            - name: opt2
+              title: Option 2
+
+        - name: dropdown_with_default
+          title: Dropdown with default value
+          type: dropdown
+          help_text: "Help text of a **_Dropdown_** config item type **_with default value_**"
+          items:
+            - name: opt1
+              title: Option 1
+            - name: opt2
+              title: Option 2
+          default: opt1
+
+        - name: dropdown_required
+          title: Dropdown marked required
+          type: dropdown
+          required: true
+          help_text: "Help text of a **_Dropdown_** config item type **_marked required_**"
+          items:
+            - name: opt1
+              title: Option 1
+            - name: opt2
+              title: Option 2
+          default: opt1 # temporarily set a default to get past the required validation until we support dropdowns in the UI
+
+        - name: label
+          type: label
+          title: |
+            ## Radio Items
+            ---
+
+        - name: radio_simple
+          title: Simple Radio
+          type: radio
+          help_text: "Help text of a simple **_Radio_** config item type"
+          items:
+            - name: opt1
+              title: Option 1
+            - name: opt2
+              title: Option 2
+
+        - name: radio_with_default
+          title: Radio with default value
+          type: radio
+          help_text: "Help text of a **_Radio_** config item type **_with default value_**"
+          items:
+            - name: opt1
+              title: Option 1
+            - name: opt2
+              title: Option 2
+          default: opt1
+
+        - name: radio_required
+          title: Radio marked required
+          type: radio
+          required: true
+          help_text: "Help text of a **_Radio_** config item type **_marked required_**"
+          items:
+            - name: opt1
+              title: Option 1
+            - name: opt2
+              title: Option 2
+
+        - name: label
+          type: label
+          title: |
+            ## File Items
+            ---
+
+        - name: file_simple
+          title: Simple File
+          type: file
+          help_text: "Help text of a simple **_File_** config item type"
+
+        - name: file_with_default
+          title: File with default value
+          type: file
+          default: "default file"
+          help_text: "Help text of a **_File_** config item type **_with default value_**"
+
+        - name: file_required
+          title: File marked required
+          type: file
+          required: true
+          help_text: "Help text of a **_File_** config item type **_marked required_**"
+
+    - name: markdown-items
+      title: Markdown Items
+      items:
+        - name: label
+          type: label
+          title: |
+            ## Markdown Items
+
+            This group is dedicated to markdown support.
+
+            ---
+
+            # H1 Heading
+
+            ## H2 Heading
+
+            ### H3 Heading
+
+            This is a paragraph with **bold**, *italic*, and ~~strikethrough~~ text.  
+            You can also combine them: **_bold and italic_**, or ~~**bold strikethrough**~~.
+
+            Here's a link to [Replicated Docs](https://docs.replicated.com/).
+
+            And here's an image (if your renderer supports images):
+
+            ![Test Image](https://docs.replicated.com/images/logo-replicated-red.png)
+
+            ---
+
+            ### Unordered List
+
+            - Item one
+            - Item two
+              - Nested item
+                - Deeply nested item
+
+            ---
+
+            ### Ordered List
+
+            1. First item
+            2. Second item
+               1. Sub-item
+               2. Another sub-item
+
+            ---
+
+            ### Inline Code
+
+            Use the `console.log()` function to print to the console.
+
+            ---
+
+            ### Code Block
+
+            ```
+            function greet(name) {
+              return `Hello, ${name}!`;
+            }
+            ```
+
+            ---
+
+            ### Blockquote
+
+            > This is a blockquote.  
+            > It can span multiple lines.  
+            > And include **bold** or *italic* text.
+
+            ---
+
+            ### Horizontal Rule
+
+            ---
+
+            ### Table
+
+            | Feature        | Supported? |
+            |----------------|------------|
+            | **Bold**       | ✅         |
+            | *Italic*       | ✅         |
+            | `Code`         | ✅         |
+            | ~~Strikethrough~~ | ✅      |
+
+            ---
+
+            This line contains a <u>custom underline</u> using raw HTML.

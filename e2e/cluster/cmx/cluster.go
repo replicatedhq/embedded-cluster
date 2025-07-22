@@ -158,7 +158,7 @@ func discoverPrivateIP(node Node) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("find private ip starting with 10.")
+	return "", fmt.Errorf("failed to find private ip starting with 10 dot")
 }
 
 func ensureAssetsDir(node Node) error {
@@ -236,7 +236,7 @@ func waitForSSH(node Node, t *testing.T) error {
 
 func (c *Cluster) Airgap() error {
 	// Update network policy to airgap
-	output, err := exec.Command("replicated", "network", "update", "policy", "--id", c.network.ID, "--policy=airgap").CombinedOutput()
+	output, err := exec.Command("replicated", "network", "update", c.network.ID, "--policy=airgap").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("update network policy: %v: %s", err, string(output))
 	}
@@ -316,23 +316,12 @@ func (c *Cluster) Destroy() {
 	for _, node := range c.Nodes {
 		c.removeNode(node)
 	}
-
-	if c.network != nil {
-		c.removeNetwork(*c.network)
-	}
 }
 
 func (c *Cluster) removeNode(node Node) {
 	output, err := exec.Command("replicated", "vm", "rm", node.ID).CombinedOutput()
 	if err != nil {
 		c.t.Logf("failed to destroy node %s: %v: %s", node.ID, err, string(output))
-	}
-}
-
-func (c *Cluster) removeNetwork(network Network) {
-	output, err := exec.Command("replicated", "network", "rm", network.ID).CombinedOutput()
-	if err != nil {
-		c.t.Logf("failed to destroy network %s: %v: %s", network.ID, err, string(output))
 	}
 }
 

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -34,6 +35,9 @@ type DryRun struct {
 	// These fields are set on marshal
 	OSEnv      map[string]string `json:"osEnv"`
 	K8sObjects []string          `json:"k8sObjects"`
+
+	LogOutput string        `json:"logOutput"`
+	LogBuffer *bytes.Buffer `json:"-"`
 
 	// These fields are used as mocks
 	kcli    client.Client        `json:"-"`

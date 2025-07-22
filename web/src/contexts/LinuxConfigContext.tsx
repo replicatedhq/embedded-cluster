@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import { createContext, useContext } from 'react';
 
 export interface LinuxConfig {
   adminConsolePort?: number;
@@ -18,30 +18,7 @@ interface LinuxConfigContextType {
   resetConfig: () => void;
 }
 
-const defaultLinuxConfig: LinuxConfig = {
-  dataDirectory: '/var/lib/embedded-cluster',
-  useProxy: false,
-};
-
 export const LinuxConfigContext = createContext<LinuxConfigContextType | undefined>(undefined);
-
-export const LinuxConfigProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [config, setConfig] = useState<LinuxConfig>(defaultLinuxConfig);
-
-  const updateConfig = (newConfig: Partial<LinuxConfig>) => {
-    setConfig((prev) => ({ ...prev, ...newConfig }));
-  };
-
-  const resetConfig = () => {
-    setConfig(defaultLinuxConfig);
-  };
-
-  return (
-    <LinuxConfigContext.Provider value={{ config, updateConfig, resetConfig }}>
-      {children}
-    </LinuxConfigContext.Provider>
-  );
-};
 
 export const useLinuxConfig = (): LinuxConfigContextType => {
   const context = useContext(LinuxConfigContext);

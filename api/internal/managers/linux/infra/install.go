@@ -3,6 +3,7 @@ package infra
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime/debug"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -31,13 +32,14 @@ import (
 const K0sComponentName = "Runtime"
 
 func AlreadyInstalledError() error {
+	//nolint:staticcheck // ST1005 TODO: use a constant here and print a better error message
 	return fmt.Errorf(
 		"\nAn installation is detected on this machine.\nTo install, you must first remove the existing installation.\nYou can do this by running the following command:\n\n  sudo ./%s reset\n",
 		runtimeconfig.AppSlug(),
 	)
 }
 
-func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues map[string]string) (finalErr error) {
+func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues kotsv1beta1.ConfigValues) (finalErr error) {
 	installed, err := m.k0scli.IsInstalled()
 	if err != nil {
 		return fmt.Errorf("check if k0s is installed: %w", err)
@@ -72,7 +74,7 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 	return nil
 }
 
-func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig, configValues map[string]string) error {
+func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig, configValues kotsv1beta1.ConfigValues) error {
 	components := []types.InfraComponent{{Name: K0sComponentName}}
 
 	addOns := addons.GetAddOnsForInstall(m.getAddonInstallOpts(license, rc, configValues))
@@ -90,7 +92,7 @@ func (m *infraManager) initComponentsList(license *kotsv1beta1.License, rc runti
 	return nil
 }
 
-func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues map[string]string) error {
+func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues kotsv1beta1.ConfigValues) error {
 	license := &kotsv1beta1.License{}
 	if err := kyaml.Unmarshal(m.license, license); err != nil {
 		return fmt.Errorf("parse license: %w", err)
@@ -105,40 +107,24 @@ func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConf
 		return fmt.Errorf("install k0s: %w", err)
 	}
 
-	kcli, err := m.kubeClient()
-	if err != nil {
-		return fmt.Errorf("create kube client: %w", err)
-	}
-
-	mcli, err := m.metadataClient()
-	if err != nil {
-		return fmt.Errorf("create metadata client: %w", err)
-	}
-
-	hcli, err := m.helmClient(rc)
-	if err != nil {
-		return fmt.Errorf("create helm client: %w", err)
-	}
-	defer hcli.Close()
-
-	in, err := m.recordInstallation(ctx, kcli, license, rc)
+	in, err := m.recordInstallation(ctx, m.kcli, license, rc)
 	if err != nil {
 		return fmt.Errorf("record installation: %w", err)
 	}
 
-	if err := m.installAddOns(ctx, kcli, mcli, hcli, license, rc, configValues); err != nil {
+	if err := m.installAddOns(ctx, m.kcli, m.mcli, m.hcli, license, rc, configValues); err != nil {
 		return fmt.Errorf("install addons: %w", err)
 	}
 
-	if err := m.installExtensions(ctx, hcli); err != nil {
+	if err := m.installExtensions(ctx, m.hcli); err != nil {
 		return fmt.Errorf("install extensions: %w", err)
 	}
 
-	if err := kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateInstalled, "Installed"); err != nil {
+	if err := kubeutils.SetInstallationState(ctx, m.kcli, in, ecv1beta1.InstallationStateInstalled, "Installed"); err != nil {
 		return fmt.Errorf("update installation: %w", err)
 	}
 
-	if err = support.CreateHostSupportBundle(ctx, kcli); err != nil {
+	if err = support.CreateHostSupportBundle(ctx, m.kcli); err != nil {
 		m.logger.Warnf("Unable to create host support bundle: %v", err)
 	}
 
@@ -192,15 +178,16 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 		return nil, fmt.Errorf("wait for k0s: %w", err)
 	}
 
-	kcli, err := m.kubeClient()
+	// initialize the manager's helm and kube clients
+	err = m.setupClients(rc.PathToKubeConfig(), rc.EmbeddedClusterChartsSubDir())
 	if err != nil {
-		return nil, fmt.Errorf("create kube client: %w", err)
+		return nil, fmt.Errorf("setup clients: %w", err)
 	}
 
 	m.setStatusDesc(fmt.Sprintf("Waiting for %s", componentName))
 
 	logFn("waiting for node to be ready")
-	if err := m.waitForNode(ctx, kcli); err != nil {
+	if err := m.waitForNode(ctx, m.kcli); err != nil {
 		return nil, fmt.Errorf("wait for node: %w", err)
 	}
 
@@ -245,7 +232,7 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 	return in, nil
 }
 
-func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig, configValues map[string]string) error {
+func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig, configValues kotsv1beta1.ConfigValues) error {
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -287,7 +274,7 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 	return nil
 }
 
-func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig, configValues map[string]string) addons.InstallOptions {
+func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig, configValues kotsv1beta1.ConfigValues) addons.InstallOptions {
 	ecDomains := utils.GetDomains(m.releaseData)
 
 	opts := addons.InstallOptions{
@@ -311,31 +298,31 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 		ServiceCIDR:             rc.ServiceCIDR(),
 	}
 
-	if m.kotsInstaller != nil { // used for testing
-		opts.KotsInstaller = m.kotsInstaller
-	} else {
-		opts.KotsInstaller = func() error {
-			installOpts := kotscli.InstallOptions{
-				RuntimeConfig:         rc,
-				AppSlug:               license.Spec.AppSlug,
-				License:               m.license,
-				Namespace:             constants.KotsadmNamespace,
-				ClusterID:             m.clusterID,
-				AirgapBundle:          m.airgapBundle,
-				ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
-				// TODO (@salah): capture kots install logs
-				// Stdout:                stdout,
-			}
-
-			// Prioritize CLI-provided file over passed configValues to respect explicit user intent
-			if m.configValuesFile != "" {
-				installOpts.ConfigValuesFile = m.configValuesFile
-			} else if len(configValues) > 0 {
-				installOpts.ConfigValues = configValues
-			}
-
-			return kotscli.Install(installOpts)
+	// TODO: move creation of the KotsInstaller to the AppConfigManager, rename to AppInstallManager
+	opts.KotsInstaller = func() error {
+		installOpts := kotscli.InstallOptions{
+			RuntimeConfig:         rc,
+			AppSlug:               license.Spec.AppSlug,
+			License:               m.license,
+			Namespace:             constants.KotsadmNamespace,
+			ClusterID:             m.clusterID,
+			AirgapBundle:          m.airgapBundle,
+			ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
+			// TODO (@salah): capture kots install logs
+			// Stdout:                stdout,
 		}
+
+		configValuesFile, err := m.createConfigValuesFile(configValues)
+		if err != nil {
+			return fmt.Errorf("creating config values file: %w", err)
+		}
+		installOpts.ConfigValuesFile = configValuesFile
+
+		if m.kotsCLI != nil {
+			return m.kotsCLI.Install(installOpts)
+		}
+
+		return kotscli.Install(installOpts)
 	}
 
 	return opts
@@ -371,4 +358,23 @@ func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) 
 		return fmt.Errorf("install extensions: %w", err)
 	}
 	return nil
+}
+
+func (m *infraManager) createConfigValuesFile(configValues kotsv1beta1.ConfigValues) (string, error) {
+	// Use Kubernetes-specific YAML serialization to properly handle TypeMeta and ObjectMeta
+	data, err := kyaml.Marshal(configValues)
+	if err != nil {
+		return "", fmt.Errorf("marshaling config values: %w", err)
+	}
+
+	configValuesFile, err := os.CreateTemp("", "config-values*.yaml")
+	if err != nil {
+		return "", fmt.Errorf("unable to create temp file: %w", err)
+	}
+
+	if _, err := configValuesFile.Write(data); err != nil {
+		return "", fmt.Errorf("unable to write config values to temp file: %w", err)
+	}
+
+	return configValuesFile.Name(), nil
 }

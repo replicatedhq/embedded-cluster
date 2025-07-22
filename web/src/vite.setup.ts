@@ -1,9 +1,19 @@
 import { expect, vi, beforeEach, afterEach } from "vitest";
-import * as matchers from "@testing-library/jest-dom/matchers";
+import matchers from "@testing-library/jest-dom/matchers";
 import { act } from "react";
 import { faker } from "@faker-js/faker";
 
 expect.extend(matchers);
+
+// Mock URL for test environment
+const originalURL = globalThis.URL;
+class URLWithMocks extends originalURL {
+  static createObjectURL = vi.fn(() => 'blob:test-url');
+  static revokeObjectURL = vi.fn();
+}
+
+// Set up global URL mock
+vi.stubGlobal('URL', URLWithMocks);
 
 vi.mock("@/query-client", async () => {
   const queryClient =

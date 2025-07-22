@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/mock"
 )
@@ -13,22 +14,40 @@ type MockAppConfigManager struct {
 }
 
 // GetConfig mocks the GetConfig method
-func (m *MockAppConfigManager) GetConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error) {
-	args := m.Called(config)
-	return args.Get(0).(kotsv1beta1.Config), args.Error(1)
+func (m *MockAppConfigManager) GetConfig() (types.AppConfig, error) {
+	args := m.Called()
+	return args.Get(0).(types.AppConfig), args.Error(1)
 }
 
 // GetConfigValues mocks the GetConfigValues method
-func (m *MockAppConfigManager) GetConfigValues() (map[string]string, error) {
-	args := m.Called()
+func (m *MockAppConfigManager) GetConfigValues(maskPasswords bool) (types.AppConfigValues, error) {
+	args := m.Called(maskPasswords)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(map[string]string), args.Error(1)
+	return args.Get(0).(types.AppConfigValues), args.Error(1)
 }
 
-// SetConfigValues mocks the SetConfigValues method
-func (m *MockAppConfigManager) SetConfigValues(config kotsv1beta1.Config, configValues map[string]string) error {
-	args := m.Called(config, configValues)
+// ValidateConfigValues mocks the ValidateConfigValues method
+func (m *MockAppConfigManager) ValidateConfigValues(configValues types.AppConfigValues) error {
+	args := m.Called(configValues)
 	return args.Error(0)
+}
+
+// PatchConfigValues mocks the PatchConfigValues method
+func (m *MockAppConfigManager) PatchConfigValues(values types.AppConfigValues) error {
+	args := m.Called(values)
+	return args.Error(0)
+}
+
+// GetKotsadmConfigValues mocks the GetKotsadmConfigValues method
+func (m *MockAppConfigManager) GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, error) {
+	args := m.Called()
+	return args.Get(0).(kotsv1beta1.ConfigValues), args.Error(1)
+}
+
+// TemplateConfig mocks the TemplateConfig method
+func (m *MockAppConfigManager) TemplateConfig(configValues types.AppConfigValues) (types.AppConfig, error) {
+	args := m.Called(configValues)
+	return args.Get(0).(types.AppConfig), args.Error(1)
 }

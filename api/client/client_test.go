@@ -597,8 +597,8 @@ func TestLinuxGetAppConfig(t *testing.T) {
 						Name:    "test-item",
 						Type:    "text",
 						Title:   "Test Item",
-						Default: multitype.BoolOrString{StrVal: "default"},
-						Value:   multitype.BoolOrString{StrVal: "value"},
+						Default: multitype.FromString("default"),
+						Value:   multitype.FromString("value"),
 					},
 				},
 			},
@@ -658,8 +658,8 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 						Name:    "test-item",
 						Type:    "text",
 						Title:   "Test Item",
-						Default: multitype.BoolOrString{StrVal: "default"},
-						Value:   multitype.BoolOrString{StrVal: "value"},
+						Default: multitype.FromString("default"),
+						Value:   multitype.FromString("value"),
 					},
 				},
 			},
@@ -709,10 +709,10 @@ func TestKubernetesGetAppConfig(t *testing.T) {
 
 func TestLinuxGetAppConfigValues(t *testing.T) {
 	// Define expected values once
-	expectedValues := map[string]string{
-		"test-key1": "test-value1",
-		"test-key2": "test-value2",
-		"test-key3": "test-value3",
+	expectedValues := types.AppConfigValues{
+		"test-key1": types.AppConfigValue{Value: "test-value1"},
+		"test-key2": types.AppConfigValue{Value: "test-value2"},
+		"test-key3": types.AppConfigValue{Value: "test-value3"},
 	}
 
 	// Create a test server
@@ -785,10 +785,10 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 
 func TestKubernetesGetAppConfigValues(t *testing.T) {
 	// Define expected values once
-	expectedValues := map[string]string{
-		"test-key1": "test-value1",
-		"test-key2": "test-value2",
-		"test-key3": "test-value3",
+	expectedValues := types.AppConfigValues{
+		"test-key1": types.AppConfigValue{Value: "test-value1"},
+		"test-key2": types.AppConfigValue{Value: "test-value2"},
+		"test-key3": types.AppConfigValue{Value: "test-value3"},
 	}
 
 	// Create a test server
@@ -857,4 +857,226 @@ func TestKubernetesGetAppConfigValues(t *testing.T) {
 	require.True(t, ok, "Expected err to be of type *types.APIError")
 	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
 	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}
+
+func TestLinuxPatchAppConfigValues(t *testing.T) {
+	// Define expected config values once
+	expectedValues := types.AppConfigValues{
+		"test-item":     types.AppConfigValue{Value: "new-value"},
+		"required-item": types.AppConfigValue{Value: "required-value"},
+	}
+
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check request method and path
+		assert.Equal(t, "PATCH", r.Method)
+		assert.Equal(t, "/api/linux/install/app/config/values", r.URL.Path)
+
+		// Check headers
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Decode request body
+		var req types.PatchAppConfigValuesRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, err, "Failed to decode request body")
+
+		// Verify the request contains expected values
+		assert.Equal(t, "new-value", req.Values["test-item"].Value)
+		assert.Equal(t, "required-value", req.Values["required-item"].Value)
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(types.AppConfigValuesResponse{Values: expectedValues})
+	}))
+	defer server.Close()
+
+	// Test successful patch
+	c := New(server.URL, WithToken("test-token"))
+	configValues := types.AppConfigValues{
+		"test-item":     types.AppConfigValue{Value: "new-value"},
+		"required-item": types.AppConfigValue{Value: "required-value"},
+	}
+	config, err := c.PatchLinuxAppConfigValues(configValues)
+	require.NoError(t, err)
+	assert.Equal(t, expectedValues, config)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusBadRequest,
+			Message:    "Bad Request",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	configValues, err = c.PatchLinuxAppConfigValues(configValues)
+	assert.Error(t, err)
+	assert.Equal(t, types.AppConfigValues{}, configValues)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
+	assert.Equal(t, "Bad Request", apiErr.Message)
+}
+
+func TestKubernetesPatchAppConfigValues(t *testing.T) {
+	// Define expected config values once
+	expectedValues := types.AppConfigValues{
+		"test-item":     types.AppConfigValue{Value: "new-value"},
+		"required-item": types.AppConfigValue{Value: "required-values"},
+	}
+
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check request method and path
+		assert.Equal(t, "PATCH", r.Method)
+		assert.Equal(t, "/api/kubernetes/install/app/config/values", r.URL.Path)
+
+		// Check headers
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Decode request body
+		var req types.PatchAppConfigValuesRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, err, "Failed to decode request body")
+
+		// Verify the request contains expected values
+		assert.Equal(t, "new-value", req.Values["test-item"].Value)
+		assert.Equal(t, "required-value", req.Values["required-item"].Value)
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(types.AppConfigValuesResponse{Values: expectedValues})
+	}))
+	defer server.Close()
+
+	// Test successful patch
+	c := New(server.URL, WithToken("test-token"))
+	configValues := types.AppConfigValues{
+		"test-item":     types.AppConfigValue{Value: "new-value"},
+		"required-item": types.AppConfigValue{Value: "required-value"},
+	}
+	configValuesResponse, err := c.PatchKubernetesAppConfigValues(configValues)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedValues, configValuesResponse)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusBadRequest,
+			Message:    "Bad Request",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	configValuesResponse, err = c.PatchKubernetesAppConfigValues(configValues)
+	assert.Error(t, err)
+	assert.Equal(t, types.AppConfigValues{}, configValuesResponse)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
+	assert.Equal(t, "Bad Request", apiErr.Message)
+}
+
+func TestLinuxTemplateAppConfig(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/api/linux/install/app/config/template", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		var req types.TemplateAppConfigRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, err)
+
+		// Mock server returns templated results (as if processed by the template engine)
+		config := types.AppConfig{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "database",
+					Title: "DATABASE CONFIGURATION",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "db_host",
+							Title:   "Host: localhost",
+							Type:    "text",
+							Default: multitype.FromString("localhost"),
+							Value:   multitype.FromString("localhost"),
+						},
+					},
+				},
+			},
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(config)
+	}))
+	defer server.Close()
+
+	c := New(server.URL, WithToken("test-token"))
+	values := types.AppConfigValues{
+		"db_host": types.AppConfigValue{Value: "localhost"},
+	}
+
+	config, err := c.TemplateLinuxAppConfig(values)
+	require.NoError(t, err)
+	assert.Equal(t, "database", config.Groups[0].Name)
+	assert.Equal(t, "DATABASE CONFIGURATION", config.Groups[0].Title)
+	assert.Equal(t, "Host: localhost", config.Groups[0].Items[0].Title)
+	assert.Equal(t, "localhost", config.Groups[0].Items[0].Value.StrVal)
+}
+
+func TestKubernetesTemplateAppConfig(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/api/kubernetes/install/app/config/template", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		var req types.TemplateAppConfigRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, err)
+
+		// Mock server returns templated results (as if processed by the template engine)
+		config := types.AppConfig{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "application",
+					Title: "Application Settings",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "app_name",
+							Title:   "APPLICATION NAME",
+							Type:    "text",
+							Default: multitype.FromString("my-app"),
+							Value:   multitype.FromString("myapp"),
+						},
+					},
+				},
+			},
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(config)
+	}))
+	defer server.Close()
+
+	c := New(server.URL, WithToken("test-token"))
+	values := types.AppConfigValues{
+		"app_name": types.AppConfigValue{Value: "myapp"},
+	}
+
+	config, err := c.TemplateKubernetesAppConfig(values)
+	require.NoError(t, err)
+	assert.Equal(t, "application", config.Groups[0].Name)
+	assert.Equal(t, "Application Settings", config.Groups[0].Title)
+	assert.Equal(t, "APPLICATION NAME", config.Groups[0].Items[0].Title)
+	assert.Equal(t, "myapp", config.Groups[0].Items[0].Value.StrVal)
 }
