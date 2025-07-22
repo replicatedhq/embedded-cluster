@@ -18,6 +18,7 @@ spec:
           title: Secret Password
           type: password
           help_text: This is a required password field
+          required: true
 
         - name: textarea_input
           title: Text Area Input

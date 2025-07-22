@@ -1839,5 +1839,192 @@ describe.each([
       // Verify onNext was not called due to validation error
       expect(mockOnNext).not.toHaveBeenCalled();
     });
+
+    it("autofocus switches to correct tab when required field is in non-active tab", async () => {
+      // Create config with required fields in different tabs
+      const configWithMultipleTabsAndRequiredFields: AppConfig = {
+        groups: [
+          {
+            name: "settings",
+            title: "Settings", 
+            description: "Configure application settings",
+            items: [
+              {
+                name: "optional_setting",
+                title: "Optional Setting",
+                type: "text",
+                value: "filled",
+                required: false,
+                help_text: "This field is optional"
+              }
+            ]
+          },
+          {
+            name: "database",
+            title: "Database",
+            description: "Configure database settings", 
+            items: [
+              {
+                name: "db_required_field",
+                title: "Database Required Field",
+                type: "text",
+                value: "",
+                required: true,
+                help_text: "This database field is required"
+              },
+              {
+                name: "db_optional_field", 
+                title: "Database Optional Field",
+                type: "text",
+                value: "",
+                required: false,
+                help_text: "This database field is optional"
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        http.get(`*/api/${target}/install/app/config`, () => {
+          return HttpResponse.json(configWithMultipleTabsAndRequiredFields);
+        }),
+        http.get(`*/api/${target}/install/app/config/values`, () => {
+          return HttpResponse.json({ values: {} });
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Wait for tabs and fields to be rendered - should default to first tab (settings)
+      await waitFor(() => {
+        expect(screen.getByTestId("config-tab-settings")).toBeInTheDocument();
+        expect(screen.getByTestId("config-tab-database")).toBeInTheDocument();
+      });
+
+      // Verify we're on the settings tab initially (first tab is active by default)
+      const settingsTab = screen.getByTestId("config-tab-settings");
+      const databaseTab = screen.getByTestId("config-tab-database");
+      
+      // Settings tab should be active (has the blue color styling)
+      expect(settingsTab).toHaveStyle("color: rgb(49, 109, 230)");
+      
+      // Database tab should be inactive (has gray color)
+      expect(databaseTab).toHaveStyle("color: rgb(107, 114, 128)");
+
+      // Verify settings tab field is visible, database tab field is not visible  
+      expect(screen.getByTestId("text-input-optional_setting")).toBeInTheDocument();
+      expect(screen.queryByTestId("text-input-db_required_field")).not.toBeInTheDocument();
+
+      // Submit form without filling required field (which is in database tab)
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for validation errors to appear
+      await waitFor(() => {
+        expect(screen.getByText("Database Required Field is required")).toBeInTheDocument();
+      });
+
+      // Verify that the system switched to the database tab
+      await waitFor(() => {
+        expect(databaseTab).toHaveStyle("color: rgb(49, 109, 230)"); // Now active
+      });
+
+      // Verify that the database required field is now visible and focused
+      await waitFor(() => {
+        const dbRequiredInput = screen.getByTestId("text-input-db_required_field");
+        expect(dbRequiredInput).toBeInTheDocument();
+        expect(dbRequiredInput).toHaveFocus();
+      });
+
+      // Verify settings tab field is no longer visible (tab switched)
+      expect(screen.queryByTestId("text-input-optional_setting")).not.toBeInTheDocument();
+
+      // Verify onNext was not called due to validation error
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
+
+    it("shows red border for required text input when empty on submit", async () => {
+      // Create config with required text field
+      const configWithRequiredField: AppConfig = {
+        groups: [
+          {
+            name: "settings",
+            title: "Settings", 
+            description: "Configure application settings",
+            items: [
+              {
+                name: "required_text_field",
+                title: "Required Text Field",
+                type: "text",
+                value: "",
+                required: true,
+                help_text: "This field is required"
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        http.get(`*/api/${target}/install/app/config`, () => {
+          return HttpResponse.json(configWithRequiredField);
+        }),
+        http.get(`*/api/${target}/install/app/config/values`, () => {
+          return HttpResponse.json({ values: {} });
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Wait for the required field to be rendered
+      await waitFor(() => {
+        expect(screen.getByTestId("text-input-required_text_field")).toBeInTheDocument();
+      });
+
+      const requiredInput = screen.getByTestId("text-input-required_text_field");
+      
+      // Initially, field should have normal gray border
+      expect(requiredInput).toHaveClass("border-gray-300");
+      expect(requiredInput).not.toHaveClass("border-red-500");
+
+      // Submit form without filling required field
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for validation error to appear
+      await waitFor(() => {
+        expect(screen.getByText("Required Text Field is required")).toBeInTheDocument();
+      });
+
+      // Verify the input now has red border
+      await waitFor(() => {
+        expect(requiredInput).toHaveClass("border-red-500");
+        expect(requiredInput).not.toHaveClass("border-gray-300");
+      });
+
+      // Verify onNext was not called due to validation error
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
   });
 });
