@@ -215,30 +215,6 @@ func (e *Engine) getFuncMap() template.FuncMap {
 	}
 }
 
-func (e *Engine) httpProxy() string {
-	spec := e.installationConfig.ProxySpec()
-	if spec == nil {
-		return ""
-	}
-	return spec.HTTPProxy
-}
-
-func (e *Engine) httpsProxy() string {
-	spec := e.installationConfig.ProxySpec()
-	if spec == nil {
-		return ""
-	}
-	return spec.HTTPSProxy
-}
-
-func (e *Engine) noProxy() string {
-	spec := e.installationConfig.ProxySpec()
-	if spec == nil {
-		return ""
-	}
-	return spec.NoProxy
-}
-
 // recordDependency records that the current item depends on another item
 func (e *Engine) recordDependency(dependency string) {
 	// Get the current item in the stack
