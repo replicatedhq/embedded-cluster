@@ -336,7 +336,7 @@ func isRequiredItem(item kotsv1beta1.ConfigItem) bool {
 
 func isUnsetItem(configValue kotsv1beta1.ConfigValue) bool {
 	// TODO: repeatable items
-	return configValue.Value == "" && configValue.Default == ""
+	return configValue.ValuePlaintext == "" && configValue.Value == "" && configValue.Default == ""
 }
 
 // isFileType checks if the item type is "file"
