@@ -10,7 +10,7 @@ import (
 )
 
 type ResolvedConfigItem struct {
-	// Effective is the final resolved value following priority: user value > config value > default value
+	// Effective is the final resolved value following priority: user value > config value > config default
 	// This is what ConfigOption functions return and what gets used in templates
 	Effective string
 
@@ -109,7 +109,7 @@ func (e *Engine) configOptionFilename(name string) (string, error) {
 //
 // The effective value is determined either by:
 // - The provided effectiveValueGetter function, if specified
-// - Or following priority: user-provided value > config value > default value
+// - Or following priority: user value > config value > config default
 func (e *Engine) resolveConfigItem(name string, effectiveValueGetter func(configItem *kotsv1beta1.ConfigItem) (string, error)) (*ResolvedConfigItem, error) {
 	// Check if we have a cached value
 	if cacheVal, ok := e.getItemCacheValue(name); ok {
