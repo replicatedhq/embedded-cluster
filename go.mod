@@ -18,6 +18,7 @@ require (
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/creack/pty v1.1.24
 	github.com/distribution/reference v0.6.0
+	github.com/docker/go-units v0.5.0
 	github.com/evanphx/json-patch v5.9.11+incompatible
 	github.com/fatih/color v1.18.0
 	github.com/go-logr/logr v1.4.3
@@ -141,7 +142,6 @@ require (
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
-	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
