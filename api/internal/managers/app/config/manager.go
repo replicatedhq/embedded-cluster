@@ -1,8 +1,6 @@
 package config
 
 import (
-	"fmt"
-
 	configstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	apitemplate "github.com/replicatedhq/embedded-cluster/api/pkg/template"
@@ -88,13 +86,10 @@ func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOpti
 	if manager.templateEngine == nil {
 		manager.templateEngine = apitemplate.NewEngine(
 			&manager.rawConfig,
+			apitemplate.WithMode(apitemplate.ModeConfig),
 			apitemplate.WithLicense(manager.license),
 			apitemplate.WithReleaseData(manager.releaseData),
 		)
-	}
-
-	if err := manager.initConfigTemplate(); err != nil {
-		return nil, fmt.Errorf("initialize config template: %w", err)
 	}
 
 	return manager, nil
