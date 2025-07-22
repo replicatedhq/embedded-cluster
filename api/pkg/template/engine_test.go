@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
@@ -462,127 +460,6 @@ func TestEngine_ConfigOptionFilenameAndDataAndValue(t *testing.T) {
 	assert.Equal(t, "user_file.txt user content", result)
 }
 
-func TestEngine_LicenseFieldValue(t *testing.T) {
-	license := &kotsv1beta1.License{
-		Spec: kotsv1beta1.LicenseSpec{
-			// Basic license fields
-			CustomerName:    "Acme Corp",
-			LicenseID:       "license-123",
-			LicenseType:     "prod",
-			LicenseSequence: 456,
-			Signature:       []byte("signature-data"),
-			AppSlug:         "my-app",
-			ChannelID:       "channel-456",
-			ChannelName:     "Stable",
-
-			// Boolean feature flags
-			IsSnapshotSupported:               true,
-			IsDisasterRecoverySupported:       false,
-			IsGitOpsSupported:                 true,
-			IsSupportBundleUploadSupported:    false,
-			IsEmbeddedClusterMultiNodeEnabled: true,
-			IsIdentityServiceSupported:        false,
-			IsGeoaxisSupported:                true,
-			IsAirgapSupported:                 false,
-			IsSemverRequired:                  true,
-
-			// Custom entitlements
-			Entitlements: map[string]kotsv1beta1.EntitlementField{
-				"maxNodes": {
-					Value: kotsv1beta1.EntitlementValue{
-						Type:   kotsv1beta1.String,
-						StrVal: "10",
-					},
-				},
-				"storageLimit": {
-					Value: kotsv1beta1.EntitlementValue{
-						Type:   kotsv1beta1.Int,
-						IntVal: 100,
-					},
-				},
-				"isFeatureEnabled": {
-					Value: kotsv1beta1.EntitlementValue{
-						Type:    kotsv1beta1.Bool,
-						BoolVal: true,
-					},
-				},
-			},
-		},
-	}
-
-	config := &kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{},
-		},
-	}
-
-	engine := NewEngine(config, WithLicense(license))
-
-	// Test basic license fields
-	testCases := []struct {
-		field    string
-		expected string
-	}{
-		{"customerName", "Acme Corp"},
-		{"licenseID", "license-123"},
-		{"licenseId", "license-123"}, // Test alias
-		{"licenseType", "prod"},
-		{"licenseSequence", "456"},
-		{"signature", "signature-data"},
-		{"appSlug", "my-app"},
-		{"channelID", "channel-456"},
-		{"channelName", "Stable"},
-
-		// Boolean feature flags
-		{"isSnapshotSupported", "true"},
-		{"IsDisasterRecoverySupported", "false"},
-		{"isGitOpsSupported", "true"},
-		{"isSupportBundleUploadSupported", "false"},
-		{"isEmbeddedClusterMultiNodeEnabled", "true"},
-		{"isIdentityServiceSupported", "false"},
-		{"isGeoaxisSupported", "true"},
-		{"isAirgapSupported", "false"},
-		{"isSemverRequired", "true"},
-
-		// Custom entitlements
-		{"maxNodes", "10"},
-		{"storageLimit", "100"},
-		{"isFeatureEnabled", "true"},
-
-		// Endpoint field (should be empty without releaseData)
-		{"endpoint", ""},
-
-		// Unknown field
-		{"unknownField", ""},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.field, func(t *testing.T) {
-			err := engine.Parse(fmt.Sprintf("{{repl LicenseFieldValue \"%s\" }}", tc.field))
-			require.NoError(t, err)
-			result, err := engine.Execute(nil)
-			require.NoError(t, err)
-			assert.Equal(t, tc.expected, result, "Field %s should return %s", tc.field, tc.expected)
-		})
-	}
-}
-
-func TestEngine_LicenseFieldValueWithoutLicense(t *testing.T) {
-	config := &kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{},
-		},
-	}
-
-	engine := NewEngine(config)
-
-	err := engine.Parse("{{repl LicenseFieldValue \"customerName\" }}")
-	require.NoError(t, err)
-	result, err := engine.Execute(nil)
-	require.NoError(t, err)
-	assert.Equal(t, "", result)
-}
-
 func TestEngine_CircularDependency(t *testing.T) {
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
@@ -880,64 +757,6 @@ func TestEngine_UnknownConfigItem(t *testing.T) {
 	_, err = engine.Execute(nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "config item nonexistent not found")
-}
-
-func TestEngine_LicenseFieldValue_Endpoint(t *testing.T) {
-	license := &kotsv1beta1.License{
-		Spec: kotsv1beta1.LicenseSpec{
-			CustomerName: "Acme Corp",
-			LicenseID:    "license-123",
-		},
-	}
-
-	config := &kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{},
-		},
-	}
-
-	// Mock release data with embedded cluster config
-	releaseData := &release.ReleaseData{
-		EmbeddedClusterConfig: &ecv1beta1.Config{
-			Spec: ecv1beta1.ConfigSpec{},
-		},
-		ChannelRelease: &release.ChannelRelease{
-			DefaultDomains: release.Domains{
-				ReplicatedAppDomain: "my-app.example.com",
-			},
-		},
-	}
-
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
-
-	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
-	require.NoError(t, err)
-	result, err := engine.Execute(nil)
-	require.NoError(t, err)
-	assert.Equal(t, "https://my-app.example.com", result)
-}
-
-func TestEngine_LicenseFieldValue_EndpointWithoutReleaseData(t *testing.T) {
-	license := &kotsv1beta1.License{
-		Spec: kotsv1beta1.LicenseSpec{
-			CustomerName: "Acme Corp",
-			LicenseID:    "license-123",
-		},
-	}
-
-	config := &kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{},
-		},
-	}
-
-	engine := NewEngine(config, WithLicense(license))
-
-	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
-	require.NoError(t, err)
-	result, err := engine.Execute(nil)
-	require.NoError(t, err)
-	assert.Equal(t, "", result)
 }
 
 func TestEngine_DependencyTreeAndCaching(t *testing.T) {

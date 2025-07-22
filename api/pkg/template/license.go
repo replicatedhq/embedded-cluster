@@ -1,10 +1,15 @@
 package template
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 func (e *Engine) licenseFieldValue(name string) string {
@@ -62,4 +67,78 @@ func (e *Engine) licenseFieldValue(name string) string {
 		}
 		return ""
 	}
+}
+
+func (e *Engine) licenseDockerCfg() (string, error) {
+	if e.license == nil {
+		return "", fmt.Errorf("license is nil")
+	}
+	if e.releaseData == nil {
+		return "", fmt.Errorf("release data is nil")
+	}
+
+	auth := fmt.Sprintf("%s:%s", e.license.Spec.LicenseID, e.license.Spec.LicenseID)
+	encodedAuth := base64.StdEncoding.EncodeToString([]byte(auth))
+
+	registryProxyInfo := getRegistryProxyInfo(e.license, e.releaseData)
+
+	dockercfg := map[string]any{
+		"auths": map[string]any{
+			registryProxyInfo.Proxy: map[string]string{
+				"auth": encodedAuth,
+			},
+			registryProxyInfo.Registry: map[string]string{
+				"auth": encodedAuth,
+			},
+		},
+	}
+
+	b, err := json.Marshal(dockercfg)
+	if err != nil {
+		return "", fmt.Errorf("marshal dockercfg: %w", err)
+	}
+
+	return base64.StdEncoding.EncodeToString(b), nil
+}
+
+type registryProxyInfo struct {
+	Registry string
+	Proxy    string
+	Upstream string
+}
+
+func getRegistryProxyInfo(license *kotsv1beta1.License, releaseData *release.ReleaseData) *registryProxyInfo {
+	registryProxyInfo := getRegistryProxyInfoFromLicense(license)
+
+	ecDomains := utils.GetDomains(releaseData)
+	registryProxyInfo.Proxy = ecDomains.ReplicatedAppDomain
+	registryProxyInfo.Registry = ecDomains.ReplicatedRegistryDomain
+	return registryProxyInfo
+}
+
+func getRegistryProxyInfoFromLicense(license *kotsv1beta1.License) *registryProxyInfo {
+	defaultInfo := &registryProxyInfo{
+		Upstream: "registry.replicated.com",
+		Registry: "registry.replicated.com",
+		Proxy:    "proxy.replicated.com",
+	}
+
+	if license == nil {
+		return defaultInfo
+	}
+
+	u, err := url.Parse(license.Spec.Endpoint)
+	if err != nil {
+		return defaultInfo
+	}
+
+	if u.Hostname() == "staging.replicated.app" {
+		return &registryProxyInfo{
+			Upstream: "registry.staging.replicated.com",
+			Registry: "registry.staging.replicated.com",
+			Proxy:    "proxy.staging.replicated.com",
+		}
+	}
+
+	return defaultInfo
 }
