@@ -656,18 +656,18 @@ func TestLinuxTemplateAppConfig(t *testing.T) {
 		assert.Equal(t, "db_enabled", dbGroup.Items[0].Name)
 		assert.Equal(t, "true", dbGroup.Items[0].Value.String(), "config value should remain unchanged")
 
-		// Check db_type item - config value remains unchanged
+		// Check db_type item - user value takes precedence over config value
 		assert.Equal(t, "db_type", dbGroup.Items[1].Name)
-		assert.Equal(t, "mysql", dbGroup.Items[1].Value.String(), "config value should remain unchanged")
+		assert.Equal(t, "postgresql", dbGroup.Items[1].Value.String(), "user value should take precedence over config value")
 
-		// Check db_host item - template uses user-provided db_type value
+		// Check db_host item - user value takes precedence over templated config value
 		assert.Equal(t, "db_host", dbGroup.Items[2].Name)
 		assert.Equal(t, "Database Host (postgresql)", dbGroup.Items[2].Title, "title should use user-provided db_type")
-		assert.Equal(t, "postgresql.example.com", dbGroup.Items[2].Value.String(), "value should use user-provided db_type")
+		assert.Equal(t, "custom-host", dbGroup.Items[2].Value.String(), "user value should take precedence over templated config value")
 
-		// Check db_port item - conditional template uses user-provided db_type
+		// Check db_port item - user value takes precedence over templated config value
 		assert.Equal(t, "db_port", dbGroup.Items[3].Name)
-		assert.Equal(t, "5432", dbGroup.Items[3].Value.String(), "should be postgresql port based on user db_type")
+		assert.Equal(t, "9999", dbGroup.Items[3].Value.String(), "user value should take precedence over templated config value")
 		assert.Equal(t, "5432", dbGroup.Items[3].Default.String(), "default should be postgresql port")
 	})
 
