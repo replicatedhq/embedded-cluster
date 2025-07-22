@@ -4,6 +4,8 @@ github.com/Masterminds/semver/v3 v3.3.1 h1:QtNSWtVZ3nBfk8mAOu/B6v7FMJ+NHTIgUPi7r
 github.com/Masterminds/semver/v3 v3.3.1/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3dyBCFEj5IhUbnKptjxatkF07cF2ak3yi77so=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
+github.com/containerd/containerd v1.7.27 h1:yFyEyojddO3MIGVER2xJLWoCIn+Up4GaHFquP7hsFII=
+github.com/containerd/containerd v1.7.27/go.mod h1:xZmPnl75Vc+BLGt4MIfu6bp+fy03gdHAn9bz+FreFR0=
 github.com/cyphar/filepath-securejoin v0.4.1 h1:JyxxyPEaktOD+GAnqIqTf9A8tHyAG22rowi7HkoSU1s=
 github.com/cyphar/filepath-securejoin v0.4.1/go.mod h1:Sdj7gXlvMcPZsbhwhQ33GguGLDGQL7h7bg04C/+u9jI=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -32,8 +34,8 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/k0sproject/dig v0.4.0 h1:yBxFUUxNXAMGBg6b7c6ypxdx/o3RmhoI5v5ABOw5tn0=
 github.com/k0sproject/dig v0.4.0/go.mod h1:rlZ7N7ZEcB4Fi96TPXkZ4dqyAiDWOGLapyL9YpZ7Qz4=
-github.com/k0sproject/k0s v1.31.9-0.20250428141639-26a9908cf691 h1:/w7R/XMauHygKj7I2Y1dLkPbmXTsxO1mCQxqomDIoMk=
-github.com/k0sproject/k0s v1.31.9-0.20250428141639-26a9908cf691/go.mod h1:1aXYSUq/BOQvhIhjeQX9AQs2Yk/kthQh/E1r2rtMcCs=
+github.com/k0sproject/k0s v1.30.10-0.20250117153350-dcf3c22bb568 h1:JSfvTBrsNMWDISDUMVRZV6hP5eRusBS6d0Gv2lA4lSA=
+github.com/k0sproject/k0s v1.30.10-0.20250117153350-dcf3c22bb568/go.mod h1:Nmj+slwFht6ile7OHHGiSrcRRGmrA9U9PzjnG9/6gc0=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
