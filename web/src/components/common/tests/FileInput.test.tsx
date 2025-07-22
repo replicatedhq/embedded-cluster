@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import FileInput from './FileInput';
+import FileInput from '../file';
 
 // Mock the SettingsContext
 const mockThemeColor = '#3498DB';
-vi.mock('../../contexts/SettingsContext', () => ({
+vi.mock('../../../contexts/SettingsContext', () => ({
   useSettings: () => ({
     settings: {
       themeColor: mockThemeColor
@@ -32,6 +32,7 @@ describe('FileInput', () => {
   const defaultProps = {
     id: 'test-file-input',
     label: 'Test File Input',
+    defaultFilename: 'default.txt',
     onChange: vi.fn(),
   };
 
@@ -53,8 +54,53 @@ describe('FileInput', () => {
     it('renders with basic props', () => {
       render(<FileInput {...defaultProps} />);
 
-      expect(screen.getByText('Test File Input')).toBeInTheDocument();
+      expect(screen.getByLabelText('Test File Input')).toBeInTheDocument();
       expect(screen.getByTestId('test-file-input-button')).toBeInTheDocument();
+    });
+
+    it('renders with default value', () => {
+      render(
+        <FileInput
+          {...defaultProps}
+          defaultValue={btoa('default content')}
+          defaultFilename="default-file.txt"
+        />
+      );
+
+      expect(screen.getByTestId('test-file-input-filename')).toHaveTextContent('default-file.txt');
+      // Should not show remove button for default values
+      expect(screen.queryByTestId('test-file-input-remove')).not.toBeInTheDocument();
+    });
+
+    it('shows file provided help text with default text placeholder if default value exists', () => {
+      render(
+        <FileInput
+          {...defaultProps}
+          defaultValue={btoa('default content')}
+          defaultFilename="default.txt"
+          helpText="Upload a file"
+        />
+      );
+
+      const helpText = screen.getByTestId('help-text-test-file-input');
+      expect(helpText).toBeInTheDocument();
+      expect(helpText).toHaveTextContent('Upload a file');
+      expect(helpText).toHaveTextContent('Default: File provided');
+    });
+
+    it('does not show default text placeholder in help text if default value is not provided', () => {
+      render(
+        <FileInput
+          {...defaultProps}
+          defaultFilename="default.txt"
+          helpText="Upload a file"
+        />
+      );
+
+      const helpText = screen.getByTestId('help-text-test-file-input');
+      expect(helpText).toBeInTheDocument();
+      expect(helpText).toHaveTextContent('Upload a file');
+      expect(helpText).not.toHaveTextContent('Default:');
     });
 
     it('renders with required indicator when required is true', () => {
@@ -201,6 +247,53 @@ describe('FileInput', () => {
       expect(screen.getByText('selected-file.txt')).toBeInTheDocument();
       expect(screen.getByTestId('test-file-input-filename')).toBeInTheDocument();
       expect(screen.getByTestId('test-file-input-remove')).toBeInTheDocument();
+    });
+
+    it('prioritizes user value over default value', () => {
+      render(
+        <FileInput
+          {...defaultProps}
+          value={btoa('user content')}
+          filename="user-file.txt"
+          defaultValue={btoa('default content')}
+          defaultFilename="default.txt"
+        />
+      );
+
+      expect(screen.getByTestId('test-file-input-filename')).toHaveTextContent('user-file.txt');
+      expect(screen.getByTestId('test-file-input-filename')).not.toHaveTextContent('default.txt');
+      // Should show remove button for user values
+      expect(screen.getByTestId('test-file-input-remove')).toBeInTheDocument();
+    });
+
+    it('uses default filename when only value is provided', () => {
+      render(
+        <FileInput
+          {...defaultProps}
+          defaultValue={btoa('default content')}
+        />
+      );
+
+      expect(screen.getByTestId('test-file-input-filename')).toHaveTextContent('default.txt');
+    });
+
+    it('downloads default file when filename is clicked and no user file exists', async () => {
+      const user = userEvent.setup();
+      const defaultContent = 'default file content';
+
+      render(
+        <FileInput
+          {...defaultProps}
+          defaultValue={btoa(defaultContent)}
+          defaultFilename="default-download.txt"
+        />
+      );
+
+      await user.click(screen.getByTestId('test-file-input-filename'));
+
+      expect(URL.createObjectURL).toHaveBeenCalledWith(new Blob([defaultContent]));
+      expect(mockAnchorClick).toHaveBeenCalled();
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-url');
     });
 
     it('removes file when remove button is clicked', async () => {
@@ -433,6 +526,61 @@ describe('FileInput', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Unexpected result type when reading file')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Default Value Behavior', () => {
+    it('allows removal of user-uploaded files', () => {
+      render(
+        <FileInput
+          {...defaultProps}
+          value={btoa('user content')}
+          filename="user-file.txt"
+          defaultValue={btoa('default content')}
+          defaultFilename="default.txt"
+        />
+      );
+
+      expect(screen.getByTestId('test-file-input-remove')).toBeInTheDocument();
+    });
+
+    it('does not allow removal of default files', () => {
+      render(
+        <FileInput
+          {...defaultProps}
+          defaultValue={btoa('default content')}
+          defaultFilename="default.txt"
+        />
+      );
+
+      // Should not show remove button for default values
+      expect(screen.queryByTestId('test-file-input-remove')).not.toBeInTheDocument();
+    });
+
+    it('switches from default to user file when file is selected', async () => {
+      const mockOnChange = vi.fn();
+      render(
+        <FileInput
+          {...defaultProps}
+          onChange={mockOnChange}
+          defaultValue={btoa('default content')}
+          defaultFilename="default.txt"
+        />
+      );
+
+      // Initially shows default file
+      expect(screen.getByTestId('test-file-input-filename')).toHaveTextContent('default.txt');
+      expect(screen.queryByTestId('test-file-input-remove')).not.toBeInTheDocument();
+
+      // Upload a new file
+      const fileInput = screen.getByTestId('test-file-input');
+      const testFile = createMockFile('new-file.txt', 'new content', 'text/plain');
+
+      fireEvent.change(fileInput, { target: { files: [testFile] } });
+
+      await waitFor(() => {
+        expect(mockOnChange).toHaveBeenCalledWith(btoa('new content'), 'new-file.txt');
       });
     });
   });

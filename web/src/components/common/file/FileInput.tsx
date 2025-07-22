@@ -1,13 +1,16 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
-import Button from './Button';
-import { Upload, FileText, CheckCircle, X } from 'lucide-react';
-import HelpText from './HelpText';
+import Button from '../Button';
+import { Upload } from 'lucide-react';
+import File from './File';
+import HelpText from '../HelpText';
 
 interface FileInputProps {
   id: string;
   label: string;
   value?: string;           // Base64 encoded file content
   filename?: string;        // Original filename
+  defaultValue?: string;    // Default base64 content
+  defaultFilename: string; // Default filename to be used if no file is selected
   onChange: (value: string, filename: string) => void;
   disabled?: boolean;
   error?: string;
@@ -29,7 +32,9 @@ const FileInput: React.FC<FileInputProps> = ({
   id,
   label,
   value,
+  defaultValue,
   filename,
+  defaultFilename,
   onChange,
   disabled = false,
   error,
@@ -48,7 +53,10 @@ const FileInput: React.FC<FileInputProps> = ({
     internalError: null,
   });
 
-  const hasFile = useMemo(() => value && filename, [value, filename]);
+  const hasFile = useMemo(() => value && filename || defaultValue, [value, filename, defaultValue]);
+  const downloadValue = useMemo(() => value || defaultValue, [value, defaultValue]);
+  const downloadFilename = useMemo(() => filename || defaultFilename, [filename, defaultFilename]);
+  const valueIsDefault = useMemo(() => !value && Boolean(defaultValue), [value, defaultValue]);
   const displayError = useMemo(() => error || state.internalError, [error, state.internalError]);
 
   const encodeFileToBase64 = (file: File): Promise<string> => {
@@ -148,11 +156,11 @@ const FileInput: React.FC<FileInputProps> = ({
 
   const handleDownload = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (disabled || !value || !filename) return;
+    if (disabled || !downloadValue || !downloadFilename) return;
 
     try {
       // Convert base64 to blob for download
-      const content = atob(value);
+      const content = atob(downloadValue);
       const bytes = new Uint8Array(content.length);
       for (let i = 0; i < content.length; i++) {
         bytes[i] = content.charCodeAt(i);
@@ -163,13 +171,13 @@ const FileInput: React.FC<FileInputProps> = ({
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = filename;
+      link.download = downloadFilename;
       link.click();
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to download file:', error);
     }
-  }, [disabled, value, filename]);
+  }, [disabled, downloadValue, downloadFilename]);
 
   return (
     <div className={`mb-4 ${className}`}>
@@ -193,7 +201,7 @@ const FileInput: React.FC<FileInputProps> = ({
           disabled={disabled}
           onChange={handleInputChange}
           className="hidden"
-          data-testid={dataTestId || id}
+          data-testid={`${dataTestId || id}`}
         />
 
         <div className="flex items-center">
@@ -212,34 +220,20 @@ const FileInput: React.FC<FileInputProps> = ({
             {state.isProcessing ? 'Processing...' : 'Upload File'}
           </Button>
 
-          {hasFile && (
-            <div className="flex items-center space-x-2 px-3 py-2 bg-green-50 border border-green-200 rounded-md group ml-3">
-              <CheckCircle className="w-4 h-4 text-green-500" />
-              <FileText className="w-4 h-4 text-green-600" />
-              <span
-                onClick={handleDownload}
-                className="text-sm text-green-700 font-medium hover:underline cursor-pointer"
-                title="Download file"
-                data-testid={`${dataTestId || id}-filename`}
-              >
-                {filename}
-              </span>
-              <button
-                onClick={handleRemove}
-                disabled={disabled}
-                className="ml-2 p-1 rounded-full hover:bg-green-100 transition-colors opacity-0 group-hover:opacity-100"
-                title="Remove file"
-                data-testid={`${dataTestId || id}-remove`}
-              >
-                <X className="w-3 h-3 text-green-600 hover:text-green-800" />
-              </button>
-            </div>
-          )}
+          {hasFile && <File
+            dataTestId={dataTestId || id}
+            handleDownload={handleDownload}
+            handleRemove={handleRemove}
+            filename={downloadFilename}
+            allowRemove={!valueIsDefault} // Only allow remove if not using default value
+            disabled={disabled} />
+          }
         </div>
       </div>
 
       {displayError && <p id={`${id}-error`} className="mt-1 text-sm text-red-500">{displayError}</p>}
-      <HelpText helpText={helpText} error={displayError || undefined} />
+      {/* Don't show the default value for file in the help text, instead just highlight a default file exsits */}
+      <HelpText dataTestId={dataTestId || id} helpText={helpText} defaultValue={defaultValue ? "File provided" : undefined} error={displayError || undefined} />
     </div>
   );
 };

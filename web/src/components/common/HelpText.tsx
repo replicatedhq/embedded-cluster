@@ -3,12 +3,13 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 interface HelpTextProps {
+  dataTestId?: string;
   helpText?: string;
   defaultValue?: string;
   error?: string;
 }
 
-const HelpText: React.FC<HelpTextProps> = ({ helpText, defaultValue, error }) => {
+const HelpText: React.FC<HelpTextProps> = ({ dataTestId, helpText, defaultValue, error }) => {
   if ((!helpText && !defaultValue) || error) return null;
 
   // Build the combined text with markdown formatting
@@ -19,7 +20,7 @@ const HelpText: React.FC<HelpTextProps> = ({ helpText, defaultValue, error }) =>
   }
 
   return (
-    <div className="mt-1 text-sm text-gray-500 [&_p]:inline [&_p]:mb-0">
+    <div data-testid={dataTestId ? `help-text-${dataTestId}` : "help-text"} className="mt-1 text-sm text-gray-500 [&_p]:inline [&_p]:mb-0">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
