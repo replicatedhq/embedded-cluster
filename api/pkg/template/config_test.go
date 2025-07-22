@@ -27,12 +27,12 @@ func TestEngine_templateConfigItems(t *testing.T) {
 							Items: []kotsv1beta1.ConfigItem{
 								{
 									Name:    "hostname",
-									Value:   multitype.BoolOrString{StrVal: "repl{{ upper \"app.example.com\" }}"},
-									Default: multitype.BoolOrString{StrVal: "repl{{ lower \"LOCALHOST\" }}"},
+									Value:   multitype.FromString("repl{{ upper \"app.example.com\" }}"),
+									Default: multitype.FromString("repl{{ lower \"LOCALHOST\" }}"),
 								},
 								{
 									Name:    "port",
-									Default: multitype.BoolOrString{StrVal: "repl{{ add 8000 80 }}"},
+									Default: multitype.FromString("repl{{ add 8000 80 }}"),
 								},
 							},
 						},
@@ -47,13 +47,13 @@ func TestEngine_templateConfigItems(t *testing.T) {
 							Items: []kotsv1beta1.ConfigItem{
 								{
 									Name:    "hostname",
-									Value:   multitype.BoolOrString{StrVal: "APP.EXAMPLE.COM"},
-									Default: multitype.BoolOrString{StrVal: "localhost"},
+									Value:   multitype.FromString("APP.EXAMPLE.COM"),
+									Default: multitype.FromString("localhost"),
 								},
 								{
 									Name:    "port",
-									Value:   multitype.BoolOrString{StrVal: ""},
-									Default: multitype.BoolOrString{StrVal: "8080"},
+									Value:   multitype.FromString(""),
+									Default: multitype.FromString("8080"),
 								},
 							},
 						},
@@ -71,12 +71,12 @@ func TestEngine_templateConfigItems(t *testing.T) {
 							Items: []kotsv1beta1.ConfigItem{
 								{
 									Name:    "base_url",
-									Default: multitype.BoolOrString{StrVal: "https://api.example.com"},
+									Default: multitype.FromString("https://api.example.com"),
 								},
 								{
 									Name:    "full_endpoint",
-									Value:   multitype.BoolOrString{StrVal: "repl{{ ConfigOption \"base_url\" }}/v1/health"},
-									Default: multitype.BoolOrString{StrVal: "https://localhost/health"},
+									Value:   multitype.FromString("repl{{ ConfigOption \"base_url\" }}/v1/health"),
+									Default: multitype.FromString("https://localhost/health"),
 								},
 							},
 						},
@@ -91,13 +91,13 @@ func TestEngine_templateConfigItems(t *testing.T) {
 							Items: []kotsv1beta1.ConfigItem{
 								{
 									Name:    "base_url",
-									Value:   multitype.BoolOrString{StrVal: ""},
-									Default: multitype.BoolOrString{StrVal: "https://api.example.com"},
+									Value:   multitype.FromString(""),
+									Default: multitype.FromString("https://api.example.com"),
 								},
 								{
 									Name:    "full_endpoint",
-									Value:   multitype.BoolOrString{StrVal: "https://api.example.com/v1/health"},
-									Default: multitype.BoolOrString{StrVal: "https://localhost/health"},
+									Value:   multitype.FromString("https://api.example.com/v1/health"),
+									Default: multitype.FromString("https://localhost/health"),
 								},
 							},
 						},
@@ -116,8 +116,8 @@ func TestEngine_templateConfigItems(t *testing.T) {
 								{
 									Name:    "cert_file",
 									Type:    "file",
-									Value:   multitype.BoolOrString{StrVal: "repl{{ upper \"cert\" }}.pem"},
-									Default: multitype.BoolOrString{StrVal: "repl{{ lower \"DEFAULT\" }}-cert.pem"},
+									Value:   multitype.FromString("repl{{ upper \"cert\" }}.pem"),
+									Default: multitype.FromString("repl{{ lower \"DEFAULT\" }}-cert.pem"),
 								},
 							},
 						},
@@ -136,8 +136,8 @@ func TestEngine_templateConfigItems(t *testing.T) {
 								{
 									Name:    "cert_file",
 									Type:    "file",
-									Value:   multitype.BoolOrString{StrVal: "CERT.pem"},
-									Default: multitype.BoolOrString{StrVal: "default-cert.pem"},
+									Value:   multitype.FromString("CERT.pem"),
+									Default: multitype.FromString("default-cert.pem"),
 								},
 							},
 						},
@@ -159,8 +159,8 @@ func TestEngine_templateConfigItems(t *testing.T) {
 									Title:       "repl{{ title \"hostname field\" }}",
 									HelpText:    "repl{{ upper \"help text\" }}",
 									Type:        "repl{{ lower \"TEXT\" }}",
-									Value:       multitype.BoolOrString{StrVal: "repl{{ upper \"app.example.com\" }}"},
-									Default:     multitype.BoolOrString{StrVal: "localhost"},
+									Value:       multitype.FromString("repl{{ upper \"app.example.com\" }}"),
+									Default:     multitype.FromString("localhost"),
 									Recommended: true,
 									Required:    true,
 								},
@@ -181,8 +181,8 @@ func TestEngine_templateConfigItems(t *testing.T) {
 									Title:       "repl{{ title \"hostname field\" }}",
 									HelpText:    "repl{{ upper \"help text\" }}",
 									Type:        "repl{{ lower \"TEXT\" }}",
-									Value:       multitype.BoolOrString{StrVal: "APP.EXAMPLE.COM"},
-									Default:     multitype.BoolOrString{StrVal: "localhost"},
+									Value:       multitype.FromString("APP.EXAMPLE.COM"),
+									Default:     multitype.FromString("localhost"),
 									Recommended: true,
 									Required:    true,
 								},

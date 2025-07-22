@@ -25,11 +25,11 @@ func TestEngine_BasicTemplating(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "database_host",
-							Default: multitype.BoolOrString{StrVal: "localhost"},
+							Default: multitype.FromString("localhost"),
 						},
 						{
 							Name:    "database_port",
-							Default: multitype.BoolOrString{StrVal: "5432"},
+							Default: multitype.FromString("5432"),
 						},
 					},
 				},
@@ -70,16 +70,16 @@ func TestEngine_ValuePriority(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "database_host",
-							Value:   multitype.BoolOrString{StrVal: "db-internal.company.com"},
-							Default: multitype.BoolOrString{StrVal: "localhost"},
+							Value:   multitype.FromString("db-internal.company.com"),
+							Default: multitype.FromString("localhost"),
 						},
 						{
 							Name:    "database_port",
-							Default: multitype.BoolOrString{StrVal: "5432"},
+							Default: multitype.FromString("5432"),
 						},
 						{
 							Name:    "redis_host",
-							Default: multitype.BoolOrString{StrVal: "redis.company.com"},
+							Default: multitype.FromString("redis.company.com"),
 						},
 						{
 							Name: "metrics_endpoint",
@@ -87,12 +87,12 @@ func TestEngine_ValuePriority(t *testing.T) {
 						},
 						{
 							Name:    "database_url",
-							Default: multitype.BoolOrString{StrVal: "postgres://repl{{ ConfigOption \"database_host\" }}:{{repl ConfigOption \"database_port\" }}/app"},
+							Default: multitype.FromString("postgres://repl{{ ConfigOption \"database_host\" }}:{{repl ConfigOption \"database_port\" }}/app"),
 						},
 						{
 							Name:    "empty_template_value",
-							Value:   multitype.BoolOrString{StrVal: "repl{{ if false }}never_shown{{repl end }}"},
-							Default: multitype.BoolOrString{StrVal: "fallback_default"},
+							Value:   multitype.FromString("repl{{ if false }}never_shown{{repl end }}"),
+							Default: multitype.FromString("fallback_default"),
 						},
 					},
 				},
@@ -194,16 +194,16 @@ func TestEngine_ConfigOptionEquals(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "storage_type",
-							Value:   multitype.BoolOrString{StrVal: "filesystem"},
-							Default: multitype.BoolOrString{StrVal: "local"},
+							Value:   multitype.FromString("filesystem"),
+							Default: multitype.FromString("local"),
 						},
 						{
 							Name:    "backup_type",
-							Default: multitype.BoolOrString{StrVal: "snapshot"},
+							Default: multitype.FromString("snapshot"),
 						},
 						{
 							Name:    "s3_bucket",
-							Default: multitype.BoolOrString{StrVal: "my-app-backups"},
+							Default: multitype.FromString("my-app-backups"),
 						},
 					},
 				},
@@ -255,16 +255,16 @@ func TestEngine_ConfigOptionNotEquals(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "storage_type",
-							Value:   multitype.BoolOrString{StrVal: "filesystem"},
-							Default: multitype.BoolOrString{StrVal: "local"},
+							Value:   multitype.FromString("filesystem"),
+							Default: multitype.FromString("local"),
 						},
 						{
 							Name:    "backup_type",
-							Default: multitype.BoolOrString{StrVal: "snapshot"},
+							Default: multitype.FromString("snapshot"),
 						},
 						{
 							Name:    "s3_bucket",
-							Default: multitype.BoolOrString{StrVal: "my-app-backups"},
+							Default: multitype.FromString("my-app-backups"),
 						},
 					},
 				},
@@ -324,12 +324,14 @@ func TestEngine_ConfigOptionData(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "ssl_cert",
-							Value:   multitype.BoolOrString{StrVal: configCertEncoded},
-							Default: multitype.BoolOrString{StrVal: defaultCertEncoded},
+							Type:    "file",
+							Value:   multitype.FromString(configCertEncoded),
+							Default: multitype.FromString(defaultCertEncoded),
 						},
 						{
 							Name:    "ca_cert",
-							Default: multitype.BoolOrString{StrVal: defaultCertEncoded},
+							Type:    "file",
+							Default: multitype.FromString(defaultCertEncoded),
 						},
 					},
 				},
@@ -383,7 +385,7 @@ func TestEngine_ConfigOptionFilename(t *testing.T) {
 						{
 							Type:     "file",
 							Name:     "a_file",
-							Value:    multitype.BoolOrString{StrVal: contentEncoded},
+							Value:    multitype.FromString(contentEncoded),
 							Filename: "a_file.txt",
 						},
 					},
@@ -547,11 +549,11 @@ func TestEngine_CircularDependency(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "item_a",
-							Default: multitype.BoolOrString{StrVal: "{{repl ConfigOption \"item_b\" }}"},
+							Default: multitype.FromString("{{repl ConfigOption \"item_b\" }}"),
 						},
 						{
 							Name:    "item_b",
-							Default: multitype.BoolOrString{StrVal: "{{repl ConfigOption \"item_a\" }}"},
+							Default: multitype.FromString("{{repl ConfigOption \"item_a\" }}"),
 						},
 					},
 				},
@@ -577,26 +579,26 @@ func TestEngine_DeepDependencyChain(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "environment",
-							Value:   multitype.BoolOrString{StrVal: "staging"},
-							Default: multitype.BoolOrString{StrVal: "development"},
+							Value:   multitype.FromString("staging"),
+							Default: multitype.FromString("development"),
 						},
 						{
 							Name:    "aws_region",
-							Value:   multitype.BoolOrString{StrVal: "repl{{ if ConfigOptionEquals \"environment\" \"production\" }}us-east-1{{repl else }}us-west-2{{repl end }}"},
-							Default: multitype.BoolOrString{StrVal: "us-central-1"},
+							Value:   multitype.FromString("repl{{ if ConfigOptionEquals \"environment\" \"production\" }}us-east-1{{repl else }}us-west-2{{repl end }}"),
+							Default: multitype.FromString("us-central-1"),
 						},
 						{
 							Name:    "cluster_name",
-							Default: multitype.BoolOrString{StrVal: "{{repl ConfigOption \"environment\" }}-repl{{ ConfigOption \"aws_region\" }}"},
+							Default: multitype.FromString("{{repl ConfigOption \"environment\" }}-repl{{ ConfigOption \"aws_region\" }}"),
 						},
 						{
 							Name:    "database_host",
-							Default: multitype.BoolOrString{StrVal: "{{repl ConfigOption \"cluster_name\" }}.rds.amazonaws.com"},
+							Default: multitype.FromString("{{repl ConfigOption \"cluster_name\" }}.rds.amazonaws.com"),
 						},
 						{
 							Name:    "redis_host",
-							Value:   multitype.BoolOrString{StrVal: "{{repl ConfigOption \"cluster_name\" }}.elasticache.amazonaws.com"},
-							Default: multitype.BoolOrString{StrVal: "localhost"},
+							Value:   multitype.FromString("{{repl ConfigOption \"cluster_name\" }}.elasticache.amazonaws.com"),
+							Default: multitype.FromString("localhost"),
 						},
 					},
 				},
@@ -647,21 +649,21 @@ func TestEngine_ComplexTemplate(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "database_host",
-							Value:   multitype.BoolOrString{StrVal: "db-internal.company.com"},
-							Default: multitype.BoolOrString{StrVal: "localhost"},
+							Value:   multitype.FromString("db-internal.company.com"),
+							Default: multitype.FromString("localhost"),
 						},
 						{
 							Name:    "database_port",
-							Default: multitype.BoolOrString{StrVal: "5432"},
+							Default: multitype.FromString("5432"),
 						},
 						{
 							Name:    "database_url",
-							Default: multitype.BoolOrString{StrVal: "postgres://repl{{ ConfigOption \"database_host\" }}:{{repl ConfigOption \"database_port\" }}/app"},
+							Default: multitype.FromString("postgres://repl{{ ConfigOption \"database_host\" }}:{{repl ConfigOption \"database_port\" }}/app"),
 						},
 						{
 							Name:    "database_enabled",
-							Value:   multitype.BoolOrString{StrVal: "true"},
-							Default: multitype.BoolOrString{StrVal: "false"},
+							Value:   multitype.FromString("true"),
+							Default: multitype.FromString("false"),
 						},
 					},
 				},
@@ -670,12 +672,12 @@ func TestEngine_ComplexTemplate(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "storage_type",
-							Value:   multitype.BoolOrString{StrVal: "filesystem"},
-							Default: multitype.BoolOrString{StrVal: "memory"},
+							Value:   multitype.FromString("filesystem"),
+							Default: multitype.FromString("memory"),
 						},
 						{
 							Name:    "s3_bucket",
-							Default: multitype.BoolOrString{StrVal: "company-app-backups"},
+							Default: multitype.FromString("company-app-backups"),
 						},
 					},
 				},
@@ -758,8 +760,8 @@ func TestEngine_ParseAndExecuteSeparately(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "database_host",
-							Value:   multitype.BoolOrString{StrVal: "db-internal.company.com"},
-							Default: multitype.BoolOrString{StrVal: "localhost"},
+							Value:   multitype.FromString("db-internal.company.com"),
+							Default: multitype.FromString("localhost"),
 						},
 					},
 				},
@@ -904,22 +906,22 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 					Items: []kotsv1beta1.ConfigItem{
 						{
 							Name:    "environment",
-							Value:   multitype.BoolOrString{StrVal: "staging"},
-							Default: multitype.BoolOrString{StrVal: "development"},
+							Value:   multitype.FromString("staging"),
+							Default: multitype.FromString("development"),
 						},
 						{
 							Name:    "region",
-							Value:   multitype.BoolOrString{StrVal: "{{repl ConfigOption \"environment\" }}-region"},
-							Default: multitype.BoolOrString{StrVal: "default-region"},
+							Value:   multitype.FromString("{{repl ConfigOption \"environment\" }}-region"),
+							Default: multitype.FromString("default-region"),
 						},
 						{
 							Name:    "database_url",
-							Default: multitype.BoolOrString{StrVal: "postgres://{{repl ConfigOption \"environment\" }}:{{repl ConfigOption \"region\" }}/app"},
+							Default: multitype.FromString("postgres://{{repl ConfigOption \"environment\" }}:{{repl ConfigOption \"region\" }}/app"),
 						},
 						{
 							Name:    "redis_url",
-							Value:   multitype.BoolOrString{StrVal: "redis://{{repl ConfigOption \"database_url\" }}/0"},
-							Default: multitype.BoolOrString{StrVal: "redis://localhost/0"},
+							Value:   multitype.FromString("redis://{{repl ConfigOption \"database_url\" }}/0"),
+							Default: multitype.FromString("redis://localhost/0"),
 						},
 					},
 				},
@@ -1157,29 +1159,29 @@ func TestEngine_ConfigMode_TLSGeneration(t *testing.T) {
 							Title:  "TLS JSON",
 							Type:   "textarea",
 							Hidden: true,
-							Default: multitype.BoolOrString{StrVal: `repl{{ $ca := genCA (ConfigOption "ingress_hostname") 365 }}
+							Default: multitype.FromString(`repl{{ $ca := genCA (ConfigOption "ingress_hostname") 365 }}
 repl{{ $tls := dict "ca" $ca }}
 repl{{ $cert := genSignedCert (ConfigOption "ingress_hostname") (list ) (list (ConfigOption "ingress_hostname")) 365 $ca }}
 repl{{ $_ := set $tls "cert" $cert }}
-repl{{ toJson $tls }}`},
+repl{{ toJson $tls }}`),
 						},
 						{
 							Name:    "tls_ca",
 							Title:   "Signing Authority",
 							Type:    "textarea",
-							Default: multitype.BoolOrString{StrVal: `repl{{ fromJson (ConfigOption "tls_json") | dig "ca" "Cert" "" }}`},
+							Default: multitype.FromString(`repl{{ fromJson (ConfigOption "tls_json") | dig "ca" "Cert" "" }}`),
 						},
 						{
 							Name:    "tls_cert",
 							Title:   "TLS Cert",
 							Type:    "textarea",
-							Default: multitype.BoolOrString{StrVal: `repl{{ fromJson (ConfigOption "tls_json") | dig "cert" "Cert" "" }}`},
+							Default: multitype.FromString(`repl{{ fromJson (ConfigOption "tls_json") | dig "cert" "Cert" "" }}`),
 						},
 						{
 							Name:    "tls_key",
 							Title:   "TLS Key",
 							Type:    "textarea",
-							Default: multitype.BoolOrString{StrVal: `repl{{ fromJson (ConfigOption "tls_json") | dig "cert" "Key" "" }}`},
+							Default: multitype.FromString(`repl{{ fromJson (ConfigOption "tls_json") | dig "cert" "Key" "" }}`),
 						},
 					},
 				},
@@ -1269,19 +1271,19 @@ func TestEngine_ConfigMode_BasicTemplating(t *testing.T) {
 							Name:    "database_host",
 							Title:   "Database Host",
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: "localhost"},
+							Default: multitype.FromString("localhost"),
 						},
 						{
 							Name:    "database_port",
 							Title:   "Database Port",
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: "5432"},
+							Default: multitype.FromString("5432"),
 						},
 						{
 							Name:    "database_url",
 							Title:   "Database URL",
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: "postgres://repl{{ ConfigOption \"database_host\" }}:repl{{ ConfigOption \"database_port\" }}/app"},
+							Default: multitype.FromString("postgres://repl{{ ConfigOption \"database_host\" }}:repl{{ ConfigOption \"database_port\" }}/app"),
 						},
 					},
 				},
@@ -1341,20 +1343,20 @@ func TestEngine_ConfigMode_ValuePriority(t *testing.T) {
 							Name:    "app_name",
 							Title:   "Application Name",
 							Type:    "text",
-							Value:   multitype.BoolOrString{StrVal: "MyApp"},
-							Default: multitype.BoolOrString{StrVal: "DefaultApp"},
+							Value:   multitype.FromString("MyApp"),
+							Default: multitype.FromString("DefaultApp"),
 						},
 						{
 							Name:    "app_version",
 							Title:   "Version",
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: "1.0.0"},
+							Default: multitype.FromString("1.0.0"),
 						},
 						{
 							Name:    "display_name",
 							Title:   "Display Name",
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: "repl{{ ConfigOption \"app_name\" }} v repl{{ ConfigOption \"app_version\" }}"},
+							Default: multitype.FromString("repl{{ ConfigOption \"app_name\" }} v repl{{ ConfigOption \"app_version\" }}"),
 						},
 					},
 				},
@@ -1452,13 +1454,13 @@ func TestEngine_ConfigMode_CircularDependency(t *testing.T) {
 							Name:    "item_a",
 							Title:   "Item A",
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: "repl{{ ConfigOption \"item_b\" }}"},
+							Default: multitype.FromString("repl{{ ConfigOption \"item_b\" }}"),
 						},
 						{
 							Name:    "item_b",
 							Title:   "Item B",
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: "repl{{ ConfigOption \"item_a\" }}"},
+							Default: multitype.FromString("repl{{ ConfigOption \"item_a\" }}"),
 						},
 					},
 				},
@@ -1490,25 +1492,25 @@ func TestEngine_ConfigMode_ComplexDependencyChain(t *testing.T) {
 							Name:    "base_url",
 							Title:   "Base URL",
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: "https://api.example.com"},
+							Default: multitype.FromString("https://api.example.com"),
 						},
 						{
 							Name:    "api_version",
 							Title:   "API Version",
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: "v1"},
+							Default: multitype.FromString("v1"),
 						},
 						{
 							Name:    "api_endpoint",
 							Title:   "API Endpoint",
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: "repl{{ ConfigOption \"base_url\" }}/repl{{ ConfigOption \"api_version\" }}"},
+							Default: multitype.FromString("repl{{ ConfigOption \"base_url\" }}/repl{{ ConfigOption \"api_version\" }}"),
 						},
 						{
 							Name:    "full_config",
 							Title:   "Full Configuration",
 							Type:    "textarea",
-							Default: multitype.BoolOrString{StrVal: "endpoint: repl{{ ConfigOption \"api_endpoint\" }}\nversion: repl{{ ConfigOption \"api_version\" }}"},
+							Default: multitype.FromString("endpoint: repl{{ ConfigOption \"api_endpoint\" }}\nversion: repl{{ ConfigOption \"api_version\" }}"),
 						},
 					},
 				},
