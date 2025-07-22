@@ -22,11 +22,11 @@ type AppConfigManager interface {
 	ValidateConfigValues(values types.AppConfigValues) error
 	// PatchConfigValues patches the current config values
 	PatchConfigValues(values types.AppConfigValues) error
+	// TemplateConfig templates the config with provided values and returns the templated config
+	TemplateConfig(configValues types.AppConfigValues) (types.AppConfig, error)
 	// GetKotsadmConfigValues merges the config values with the app config defaults and returns a
 	// kotsv1beta1.ConfigValues struct.
 	GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, error)
-	// TemplateConfig templates the config with provided values and returns the templated config
-	TemplateConfig(configValues types.AppConfigValues) (types.AppConfig, error)
 }
 
 // appConfigManager is an implementation of the AppConfigManager interface
