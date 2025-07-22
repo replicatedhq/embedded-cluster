@@ -55,6 +55,18 @@ spec:
               title: Option 3
           default: opt1
 
+        - name: radio_choice_required
+          title: Select Another One
+          type: radio
+          items:
+            - name: opt1
+              title: Option 1
+            - name: opt2
+              title: Option 2
+            - name: opt3
+              title: Option 3
+          required: true
+
         - name: file_upload
           title: Upload a File
           type: file

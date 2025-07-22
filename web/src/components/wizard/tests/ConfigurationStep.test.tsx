@@ -2026,5 +2026,88 @@ describe.each([
       // Verify onNext was not called due to validation error
       expect(mockOnNext).not.toHaveBeenCalled();
     });
+
+    it("autofocuses on first radio button option when radio field is required and empty", async () => {
+      // Create config with required radio field
+      const configWithRequiredRadioField: AppConfig = {
+        groups: [
+          {
+            name: "settings",
+            title: "Settings", 
+            description: "Configure application settings",
+            items: [
+              {
+                name: "auth_method",
+                title: "Authentication Method",
+                type: "radio",
+                value: "", // Empty - no option selected
+                required: true,
+                help_text: "Choose your authentication method",
+                items: [
+                  {
+                    name: "auth_method_local",
+                    title: "Local Authentication"
+                  },
+                  {
+                    name: "auth_method_ldap", 
+                    title: "LDAP Authentication"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        http.get(`*/api/${target}/install/app/config`, () => {
+          return HttpResponse.json(configWithRequiredRadioField);
+        }),
+        http.get(`*/api/${target}/install/app/config/values`, () => {
+          return HttpResponse.json({ values: {} });
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Wait for the radio field to be rendered
+      await waitFor(() => {
+        expect(screen.getByTestId("config-item-auth_method")).toBeInTheDocument();
+      });
+
+      // Ensure no radio button is selected initially
+      const localAuthRadio = screen.getByTestId("radio-input-auth_method_local");
+      const ldapAuthRadio = screen.getByTestId("radio-input-auth_method_ldap");
+      expect(localAuthRadio).not.toBeChecked();
+      expect(ldapAuthRadio).not.toBeChecked();
+
+      // Submit form without selecting required radio field
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for validation error to appear
+      await waitFor(() => {
+        expect(screen.getByText("Authentication Method is required")).toBeInTheDocument();
+      });
+
+      // Verify that the first radio button option is focused
+      // Since radio buttons use individual option IDs, we focus the first option
+      await waitFor(() => {
+        expect(localAuthRadio).toHaveFocus();
+      });
+
+      // Verify onNext was not called due to validation error
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
   });
 });

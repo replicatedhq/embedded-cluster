@@ -127,11 +127,18 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     // This is especially important when switching tabs
     const focusDelay = targetGroup.name !== activeTab ? FOCUS_DELAY_CROSS_TAB_MS : FOCUS_DELAY_SAME_TAB_MS;
     setTimeout(() => {
-      const fieldElement = document.getElementById(fieldItem.name);
+      let fieldElement = document.getElementById(fieldItem.name);
+      
+      // Special handling for radio buttons - they use individual option IDs instead of the parent field name
+      if (!fieldElement && fieldItem.type === 'radio' && fieldItem.items && fieldItem.items.length > 0) {
+        // For radio buttons, focus the first radio option
+        fieldElement = document.getElementById(fieldItem.items[0].name);
+      }
+      
       if (fieldElement) {
         fieldElement.focus();
       } else {
-        console.warn(`Could not find DOM element for field: ${fieldItem.name}`);
+        console.warn(`Could not find DOM element for field: ${fieldItem.name} (type: ${fieldItem.type})`);
       }
     }, focusDelay);
   };
