@@ -1,7 +1,7 @@
 package template
 
 /*
-  This was taken from https://github.com/replicatedhq/replicated/blob/main/templates/context.go
+  This was taken from https://github.com/replicatedhq/kots/blob/806e07452fe244a15572b759d70b8af2cd67bfaf/pkg/template/static_context.go
 */
 
 import (
