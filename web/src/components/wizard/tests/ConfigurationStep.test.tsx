@@ -1693,7 +1693,7 @@ describe.each([
         groups: [
           {
             name: "settings",
-            title: "Settings", 
+            title: "Settings",
             description: "Configure application settings",
             items: [
               {
