@@ -55,6 +55,10 @@ func (c *InstallController) PatchAppConfigValues(ctx context.Context, values typ
 	return nil
 }
 
+func (c *InstallController) GetAppConfigValues(ctx context.Context) (types.AppConfigValues, error) {
+	return c.appConfigManager.GetConfigValues()
+}
+
 func (c *InstallController) TemplateAppConfig(ctx context.Context, values types.AppConfigValues, maskPasswords bool) (types.AppConfig, error) {
 	return c.appConfigManager.TemplateConfig(values, maskPasswords)
 }

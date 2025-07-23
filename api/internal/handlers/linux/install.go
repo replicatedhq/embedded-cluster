@@ -238,7 +238,7 @@ func (h *Handler) PostTemplateAppConfig(w http.ResponseWriter, r *http.Request) 
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body	types.PatchAppConfigValuesRequest	true	"Patch App Config Values Request"
-//	@Success		200
+//	@Success		200	{object}	types.AppConfigValuesResponse
 //	@Failure		400	{object}	types.APIError
 //	@Router			/linux/install/app/config/values [patch]
 func (h *Handler) PatchConfigValues(w http.ResponseWriter, r *http.Request) {
@@ -254,5 +254,31 @@ func (h *Handler) PatchConfigValues(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	h.GetConfigValues(w, r)
+}
+
+// GetConfigValues handler to get the app config values
+//
+//	@ID				getLinuxInstallAppConfigValues
+//	@Summary		Get the app config values
+//	@Description	Get the current app config values
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.AppConfigValuesResponse
+//	@Failure		400	{object}	types.APIError
+//	@Router			/linux/install/app/config/values [get]
+func (h *Handler) GetConfigValues(w http.ResponseWriter, r *http.Request) {
+	values, err := h.installController.GetAppConfigValues(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get app config values")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	response := types.AppConfigValuesResponse{
+		Values: values,
+	}
+
+	utils.JSON(w, r, http.StatusOK, response, h.logger)
 }

@@ -35,6 +35,7 @@ type Controller interface {
 	GetInfra(ctx context.Context) (types.Infra, error)
 	TemplateAppConfig(ctx context.Context, values types.AppConfigValues, maskPasswords bool) (types.AppConfig, error)
 	PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) error
+	GetAppConfigValues(ctx context.Context) (types.AppConfigValues, error)
 }
 
 type RunHostPreflightsOptions struct {

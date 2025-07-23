@@ -294,6 +294,107 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 	})
 }
 
+func TestKubernetesGetAppConfigValues(t *testing.T) {
+	// Create an app config
+	appConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "test-group",
+					Title: "Test Group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "test-item",
+							Type:    "text",
+							Title:   "Test Item",
+							Default: multitype.FromString("default"),
+							Value:   multitype.FromString("value"),
+						},
+						{
+							Name:     "file-item",
+							Type:     "file",
+							Title:    "File Item",
+							Filename: "file.txt",
+							Default:  multitype.FromString("SGVsbG8="),
+							Value:    multitype.FromString("QQ=="),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create config values that should be applied to the config
+	configValues := types.AppConfigValues{
+		"test-item": types.AppConfigValue{Value: "applied-value"},
+		"file-item": types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
+	}
+
+	// Create an install controller with the config values
+	installController, err := kubernetesinstall.NewInstallController(
+		kubernetesinstall.WithConfigValues(configValues),
+		kubernetesinstall.WithReleaseData(&release.ReleaseData{
+			AppConfig: &appConfig,
+		}),
+	)
+	require.NoError(t, err)
+
+	// Create the API with the install controller
+	apiInstance := integration.NewAPIWithReleaseData(t,
+		api.WithKubernetesInstallController(installController),
+		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
+		api.WithLogger(logger.NewDiscardLogger()),
+	)
+
+	// Create a router and register the API routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router)
+
+	// Test successful get
+	t.Run("Success", func(t *testing.T) {
+		// Create a request
+		req := httptest.NewRequest(http.MethodGet, "/kubernetes/install/app/config/values", nil)
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var response types.AppConfigValuesResponse
+		err = json.NewDecoder(rec.Body).Decode(&response)
+		require.NoError(t, err)
+
+		// Verify the app config values are returned from the store
+		assert.Equal(t, configValues, response.Values, "app config values should be returned from store")
+	})
+
+	// Test authorization
+	t.Run("Authorization error", func(t *testing.T) {
+		// Create a request
+		req := httptest.NewRequest(http.MethodGet, "/kubernetes/install/app/config/values", nil)
+		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
+	})
+}
+
 // TestInstallController_PatchAppConfigValuesWithAPIClient tests the PatchAppConfigValues endpoint using the API client
 func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 	// Create an app config
@@ -445,6 +546,97 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		require.True(t, ok, "Error should be of type *types.APIError")
 		assert.Equal(t, http.StatusConflict, apiErr.StatusCode, "Error should have Conflict status code")
 		assert.Contains(t, apiErr.Message, "invalid transition", "Error should mention invalid transition")
+	})
+}
+
+// TestInstallController_GetAppConfigValuesWithAPIClient tests the GetAppConfigValues endpoint using the API client
+func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
+	// Create an app config
+	appConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "test-group",
+					Title: "Test Group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "test-item",
+							Type:    "text",
+							Title:   "Test Item",
+							Default: multitype.FromString("default"),
+							Value:   multitype.FromString("value"),
+						},
+						{
+							Name:     "file-item",
+							Type:     "file",
+							Title:    "File Item",
+							Filename: "file.txt",
+							Default:  multitype.FromString("SGVsbG8="),
+							Value:    multitype.FromString("QQ=="),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create config values that should be applied to the config
+	configValues := types.AppConfigValues{
+		"test-item": types.AppConfigValue{Value: "applied-value"},
+		"file-item": types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
+	}
+
+	// Create an install controller with the config values
+	installController, err := kubernetesinstall.NewInstallController(
+		kubernetesinstall.WithConfigValues(configValues),
+		kubernetesinstall.WithReleaseData(&release.ReleaseData{
+			AppConfig: &appConfig,
+		}),
+	)
+	require.NoError(t, err)
+
+	// Create the API with the install controller
+	apiInstance := integration.NewAPIWithReleaseData(t,
+		api.WithKubernetesInstallController(installController),
+		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
+		api.WithLogger(logger.NewDiscardLogger()),
+	)
+	require.NoError(t, err)
+
+	// Create a router and register the API routes
+	router := mux.NewRouter()
+	apiInstance.RegisterRoutes(router.PathPrefix("/api").Subrouter())
+
+	// Create a test server using the router
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	// Create client with the predefined token
+	c := apiclient.New(server.URL, apiclient.WithToken("TOKEN"))
+
+	// Test GetKubernetesAppConfigValues
+	t.Run("GetKubernetesAppConfigValues", func(t *testing.T) {
+		// Get the app config values using the client
+		values, err := c.GetKubernetesAppConfigValues()
+		require.NoError(t, err, "GetKubernetesAppConfigValues should succeed")
+
+		// Verify the app config values are returned from the store
+		assert.Equal(t, configValues, values, "app config values should be returned from store")
+	})
+
+	// Test GetKubernetesAppConfigValues with invalid token
+	t.Run("GetKubernetesAppConfigValues unauthorized", func(t *testing.T) {
+		// Create client with invalid token
+		invalidClient := apiclient.New(server.URL, apiclient.WithToken("INVALID_TOKEN"))
+
+		// Get the app config values using the client
+		_, err := invalidClient.GetKubernetesAppConfigValues()
+		require.Error(t, err, "GetKubernetesAppConfigValues should fail with invalid token")
+
+		// Check that the error is of correct type
+		apiErr, ok := err.(*types.APIError)
+		require.True(t, ok, "Error should be of type *types.APIError")
+		assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode, "Error should have Unauthorized status code")
 	})
 }
 

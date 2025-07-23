@@ -585,6 +585,158 @@ func TestErrorFromResponse(t *testing.T) {
 	assert.Contains(t, err.Error(), "unexpected response")
 }
 
+func TestLinuxGetAppConfigValues(t *testing.T) {
+	// Define expected values once
+	expectedValues := types.AppConfigValues{
+		"test-key1": types.AppConfigValue{Value: "test-value1"},
+		"test-key2": types.AppConfigValue{Value: "test-value2"},
+		"test-key3": types.AppConfigValue{Value: "test-value3"},
+	}
+
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/linux/install/app/config/values", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		response := types.AppConfigValuesResponse{Values: expectedValues}
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	// Test successful get
+	c := New(server.URL, WithToken("test-token"))
+	values, err := c.GetLinuxAppConfigValues()
+	assert.NoError(t, err)
+	assert.Equal(t, expectedValues, values)
+
+	// Test authentication (without token)
+	authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/linux/install/app/config/values", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Empty(t, r.Header.Get("Authorization"))
+
+		// Return unauthorized response
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusUnauthorized,
+			Message:    "Unauthorized",
+		})
+	}))
+	defer authServer.Close()
+
+	c = New(authServer.URL)
+	values, err = c.GetLinuxAppConfigValues()
+	assert.Error(t, err)
+	assert.Nil(t, values)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode)
+	assert.Equal(t, "Unauthorized", apiErr.Message)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	values, err = c.GetLinuxAppConfigValues()
+	assert.Error(t, err)
+	assert.Nil(t, values)
+
+	apiErr, ok = err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}
+
+func TestKubernetesGetAppConfigValues(t *testing.T) {
+	// Define expected values once
+	expectedValues := types.AppConfigValues{
+		"test-key1": types.AppConfigValue{Value: "test-value1"},
+		"test-key2": types.AppConfigValue{Value: "test-value2"},
+		"test-key3": types.AppConfigValue{Value: "test-value3"},
+	}
+
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/kubernetes/install/app/config/values", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		response := types.AppConfigValuesResponse{Values: expectedValues}
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	// Test successful get
+	c := New(server.URL, WithToken("test-token"))
+	values, err := c.GetKubernetesAppConfigValues()
+	assert.NoError(t, err)
+	assert.Equal(t, expectedValues, values)
+
+	// Test authentication (without token)
+	authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/kubernetes/install/app/config/values", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Empty(t, r.Header.Get("Authorization"))
+
+		// Return unauthorized response
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusUnauthorized,
+			Message:    "Unauthorized",
+		})
+	}))
+	defer authServer.Close()
+
+	c = New(authServer.URL)
+	values, err = c.GetKubernetesAppConfigValues()
+	assert.Error(t, err)
+	assert.Nil(t, values)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode)
+	assert.Equal(t, "Unauthorized", apiErr.Message)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	values, err = c.GetKubernetesAppConfigValues()
+	assert.Error(t, err)
+	assert.Nil(t, values)
+
+	apiErr, ok = err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}
+
 func TestLinuxPatchAppConfigValues(t *testing.T) {
 	// Define expected config values once
 	expectedValues := types.AppConfigValues{

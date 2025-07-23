@@ -152,6 +152,10 @@ func (m *appConfigManager) PatchConfigValues(newValues types.AppConfigValues) er
 	return m.appConfigStore.SetConfigValues(filteredValues)
 }
 
+func (m *appConfigManager) GetConfigValues() (types.AppConfigValues, error) {
+	return m.appConfigStore.GetConfigValues()
+}
+
 func (m *appConfigManager) GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, error) {
 	processedConfig, err := m.TemplateConfig(nil, false)
 	if err != nil {
