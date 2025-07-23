@@ -40,6 +40,11 @@ components:
       additionalProperties:
         $ref: '#/components/schemas/types.AppConfigValue'
       type: object
+    types.AppConfigValuesResponse:
+      properties:
+        values:
+          $ref: '#/components/schemas/types.AppConfigValues'
+      type: object
     types.AuthRequest:
       properties:
         password:
@@ -435,7 +440,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
           description: OK
         "400":
           content:
@@ -577,6 +582,27 @@ paths:
       tags:
       - linux-install
   /linux/install/app/config/values:
+    get:
+      description: Get the current app config values
+      operationId: getLinuxInstallAppConfigValues
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get the app config values
+      tags:
+      - linux-install
     patch:
       description: Set the app config values with partial updates
       operationId: patchLinuxInstallAppConfigValues
@@ -592,7 +618,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
           description: OK
         "400":
           content:

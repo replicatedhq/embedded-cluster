@@ -237,9 +237,9 @@ func (h *Handler) PostTemplateAppConfig(w http.ResponseWriter, r *http.Request) 
 //	@Security		bearerauth
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body	types.PatchAppConfigValuesRequest	true	"Patch App Config Values Request"
-//	@Success		200	{object}	types.AppConfigValuesResponse
-//	@Failure		400	{object}	types.APIError
+//	@Param			request	body		types.PatchAppConfigValuesRequest	true	"Patch App Config Values Request"
+//	@Success		200		{object}	types.AppConfigValuesResponse
+//	@Failure		400		{object}	types.APIError
 //	@Router			/linux/install/app/config/values [patch]
 func (h *Handler) PatchConfigValues(w http.ResponseWriter, r *http.Request) {
 	var req types.PatchAppConfigValuesRequest
