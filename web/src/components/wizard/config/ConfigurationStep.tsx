@@ -124,16 +124,32 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     // This is especially important when switching tabs
     const focusDelay = targetGroup.name !== activeTab ? FOCUS_DELAY_CROSS_TAB_MS : FOCUS_DELAY_SAME_TAB_MS;
     setTimeout(() => {
-      let fieldElement = document.getElementById(fieldItem.name);
+      let fieldElement: HTMLElement | null = null;
       
-      // Special handling for radio buttons - they use individual option IDs instead of the parent field name
-      if (!fieldElement && fieldItem.type === 'radio' && fieldItem.items && fieldItem.items.length > 0) {
-        // For radio buttons, focus the first radio option
+      // Special handling for file inputs - focus the upload button instead of hidden input
+      if (fieldItem.type === 'file') {
+        // For file inputs, focus the upload button using data-testid (follows pattern: file-input-{name}-button)
+        fieldElement = document.querySelector(`[data-testid="file-input-${fieldItem.name}-button"]`) as HTMLElement;
+      }
+      // Special handling for radio buttons - focus the first radio option  
+      else if (fieldItem.type === 'radio' && fieldItem.items && fieldItem.items.length > 0) {
+        // For radio buttons, focus the first radio option using its ID
         fieldElement = document.getElementById(fieldItem.items[0].name);
+      }
+      // Special handling for checkboxes - focus the checkbox input
+      else if (fieldItem.type === 'bool') {
+        // For checkboxes, focus using the field ID
+        fieldElement = document.getElementById(fieldItem.name);
+      }
+      // Default case - use the field name as element ID
+      else {
+        fieldElement = document.getElementById(fieldItem.name);
       }
       
       if (fieldElement) {
         fieldElement.focus();
+        // Scroll the element into view to ensure it's visible
+        fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       } else {
         console.warn(`Could not find DOM element for field: ${fieldItem.name} (type: ${fieldItem.type})`);
       }
