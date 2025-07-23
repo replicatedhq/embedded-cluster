@@ -2,23 +2,33 @@ package template
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"maps"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kyaml "sigs.k8s.io/yaml"
+)
+
+// Mode defines the operating mode of the template engine
+type Mode string
+
+const (
+	// ModeConfig is for processing and templating the KOTS config itself
+	ModeConfig Mode = "config"
+	// ModeGeneric is for processing and templating generic manifests
+	ModeGeneric Mode = "generic"
 )
 
 type Engine struct {
+	mode        Mode
 	config      *kotsv1beta1.Config
 	license     *kotsv1beta1.License
 	releaseData *release.ReleaseData
@@ -28,18 +38,19 @@ type Engine struct {
 	prevConfigValues types.AppConfigValues
 	tmpl             *template.Template
 	funcMap          template.FuncMap
-	cache            map[string]CacheValue
+	cache            map[string]resolvedConfigItem
 	depsTree         map[string][]string
 	stack            []string
 	mtx              sync.Mutex
 }
 
-type CacheValue struct {
-	Value     string
-	Processed bool
-}
-
 type EngineOption func(*Engine)
+
+func WithMode(mode Mode) EngineOption {
+	return func(e *Engine) {
+		e.mode = mode
+	}
+}
 
 func WithLicense(license *kotsv1beta1.License) EngineOption {
 	return func(e *Engine) {
@@ -55,10 +66,11 @@ func WithReleaseData(releaseData *release.ReleaseData) EngineOption {
 
 func NewEngine(config *kotsv1beta1.Config, opts ...EngineOption) *Engine {
 	engine := &Engine{
+		mode:             ModeGeneric, // default to generic mode
 		config:           config,
 		configValues:     make(types.AppConfigValues),
 		prevConfigValues: make(types.AppConfigValues),
-		cache:            make(map[string]CacheValue),
+		cache:            make(map[string]resolvedConfigItem),
 		depsTree:         make(map[string][]string),
 		stack:            []string{},
 		mtx:              sync.Mutex{},
@@ -77,6 +89,10 @@ func NewEngine(config *kotsv1beta1.Config, opts ...EngineOption) *Engine {
 
 // Parse parses a template and populates the engine's template
 func (e *Engine) Parse(templateStr string) error {
+	if e.mode != ModeGeneric {
+		return fmt.Errorf("Parse is only available in generic mode, current mode: %s", e.mode)
+	}
+
 	tmpl, err := e.parse(templateStr)
 	if err != nil {
 		return err
@@ -99,12 +115,10 @@ func (e *Engine) parse(templateStr string) (*template.Template, error) {
 	return tmpl, nil
 }
 
-// Execute executes a the engine's parsed template
+// Execute executes the template engine using the provided config values.
+// In ModeConfig, it processes and templates the KOTS config itself, returning the templated config.
+// In ModeGeneric, it executes the engine's parsed template and returns the templated result.
 func (e *Engine) Execute(configValues types.AppConfigValues) (string, error) {
-	if e.tmpl == nil {
-		return "", fmt.Errorf("template not parsed")
-	}
-
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 
@@ -113,13 +127,37 @@ func (e *Engine) Execute(configValues types.AppConfigValues) (string, error) {
 	e.configValues = configValues
 
 	// Mark all cached values as not yet processed in this execution
-	for name, cacheVal := range e.cache {
+	for key, cacheVal := range e.cache {
 		cacheVal.Processed = false
-		e.cache[name] = cacheVal
+		e.cache[key] = cacheVal
 	}
 
 	// Reset stack
 	e.stack = []string{}
+
+	if e.mode == ModeConfig {
+		// Template each config item individually first to enable caching of expensive operations like certificate generation.
+		// This allows us to track which config items use these operations and determine when they need to be re-run.
+		// Templating the entire config at once would make it difficult to associate operations with specific items.
+		cfg, err := e.templateConfigItems()
+		if err != nil {
+			return "", fmt.Errorf("template config items: %w", err)
+		}
+
+		// Marshal the updated config
+		marshaled, err := kyaml.Marshal(cfg)
+		if err != nil {
+			return "", fmt.Errorf("marshal config: %w", err)
+		}
+
+		// Now template the entire config
+		return e.processTemplate(string(marshaled))
+	}
+
+	// We're in generic mode, check if a template was parsed
+	if e.tmpl == nil {
+		return "", fmt.Errorf("template not parsed")
+	}
 
 	var buf bytes.Buffer
 	if err := e.tmpl.Execute(&buf, nil); err != nil {
@@ -151,103 +189,41 @@ func (e *Engine) processTemplate(templateStr string) (string, error) {
 
 func (e *Engine) getFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"ConfigOption":       e.configOption,
-		"ConfigOptionEquals": e.configOptionEquals,
-		"ConfigOptionData":   e.configOptionData,
-		"LicenseFieldValue":  e.licenseFieldValue,
-	}
-}
+		"ConfigOption":          e.configOption,
+		"ConfigOptionData":      e.configOptionData,
+		"ConfigOptionEquals":    e.configOptionEquals,
+		"ConfigOptionFilename":  e.configOptionFilename,
+		"ConfigOptionNotEquals": e.configOptionNotEquals,
 
-func (e *Engine) configOption(name string) (string, error) {
-	e.recordDependency(name)
+		"LicenseFieldValue": e.licenseFieldValue,
+		"LicenseDockerCfg":  e.licenseDockerCfg,
 
-	val, err := e.resolveConfigItem(name)
-	if err != nil {
-		return "", fmt.Errorf("resolve config item: %w", err)
-	}
-	return val, nil
-}
+		"HTTPProxy":  e.httpProxy,
+		"HTTPSProxy": e.httpsProxy,
+		"NoProxy":    e.noProxy,
 
-func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
-	e.recordDependency(name)
-
-	val, err := e.resolveConfigItem(name)
-	if err != nil {
-		return false, fmt.Errorf("resolve config item: %w", err)
-	}
-	return val == expected, nil
-}
-
-func (e *Engine) configOptionData(name string) (string, error) {
-	e.recordDependency(name)
-
-	val, err := e.resolveConfigItem(name)
-	if err != nil {
-		return "", fmt.Errorf("resolve config item: %w", err)
-	}
-
-	// Base64 decode for file content
-	decoded, err := base64.StdEncoding.DecodeString(val)
-	if err != nil {
-		return "", fmt.Errorf("decode base64 value: %w", err)
-	}
-	return string(decoded), nil
-}
-
-func (e *Engine) licenseFieldValue(name string) string {
-	if e.license == nil {
-		return ""
-	}
-
-	// Update docs at https://github.com/replicatedhq/kots.io/blob/main/content/reference/template-functions/license-context.md
-	// when adding new values
-	switch name {
-	case "isSnapshotSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsSnapshotSupported)
-	case "IsDisasterRecoverySupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsDisasterRecoverySupported)
-	case "isGitOpsSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsGitOpsSupported)
-	case "isSupportBundleUploadSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsSupportBundleUploadSupported)
-	case "isEmbeddedClusterMultiNodeEnabled":
-		return fmt.Sprintf("%t", e.license.Spec.IsEmbeddedClusterMultiNodeEnabled)
-	case "isIdentityServiceSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsIdentityServiceSupported)
-	case "isGeoaxisSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsGeoaxisSupported)
-	case "isAirgapSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsAirgapSupported)
-	case "licenseType":
-		return e.license.Spec.LicenseType
-	case "licenseSequence":
-		return fmt.Sprintf("%d", e.license.Spec.LicenseSequence)
-	case "signature":
-		return string(e.license.Spec.Signature)
-	case "appSlug":
-		return e.license.Spec.AppSlug
-	case "channelID":
-		return e.license.Spec.ChannelID
-	case "channelName":
-		return e.license.Spec.ChannelName
-	case "isSemverRequired":
-		return fmt.Sprintf("%t", e.license.Spec.IsSemverRequired)
-	case "customerName":
-		return e.license.Spec.CustomerName
-	case "licenseID", "licenseId":
-		return e.license.Spec.LicenseID
-	case "endpoint":
-		if e.releaseData == nil {
-			return ""
-		}
-		ecDomains := utils.GetDomains(e.releaseData)
-		return netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain)
-	default:
-		entitlement, ok := e.license.Spec.Entitlements[name]
-		if ok {
-			return fmt.Sprintf("%v", entitlement.Value.Value())
-		}
-		return ""
+		"Now":          e.now,
+		"NowFmt":       e.nowFormat,
+		"ToLower":      strings.ToLower,
+		"ToUpper":      strings.ToUpper,
+		"TrimSpace":    strings.TrimSpace,
+		"Trim":         e.trim,
+		"UrlEncode":    url.QueryEscape,
+		"Base64Encode": e.base64Encode,
+		"Base64Decode": e.base64Decode,
+		"Split":        strings.Split,
+		"RandomBytes":  e.randomBytes,
+		"RandomString": e.randomString,
+		"Add":          e.add,
+		"Sub":          e.sub,
+		"Mult":         e.mult,
+		"Div":          e.div,
+		"ParseBool":    e.parseBool,
+		"ParseFloat":   e.parseFloat,
+		"ParseInt":     e.parseInt,
+		"ParseUint":    e.parseUint,
+		"HumanSize":    e.humanSize,
+		"YamlEscape":   e.yamlEscape,
 	}
 }
 
@@ -262,118 +238,4 @@ func (e *Engine) recordDependency(dependency string) {
 			e.depsTree[currentItem] = append(e.depsTree[currentItem], dependency)
 		}
 	}
-}
-
-// shouldInvalidate checks if a cached item should be invalidated
-func (e *Engine) shouldInvalidate(itemName string) bool {
-	// Check if this item's user value changed
-	if e.configValueChanged(itemName) {
-		return true
-	}
-
-	// Recursively check if any dependencies should be invalidated
-	for _, dep := range e.depsTree[itemName] {
-		if e.shouldInvalidate(dep) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// configValueChanged checks if a config item's user value changed
-func (e *Engine) configValueChanged(itemName string) bool {
-	prevVal, prevExists := e.prevConfigValues[itemName]
-	currentVal, currentExists := e.configValues[itemName]
-
-	if prevExists != currentExists {
-		return true
-	}
-
-	return prevVal.Value != currentVal.Value
-}
-
-// resolveConfigItem resolves a specific config item (internal recursive method)
-func (e *Engine) resolveConfigItem(name string) (string, error) {
-	// Check if we have a cached value
-	if cacheVal, exists := e.cache[name]; exists {
-		// If already processed in this execution, use it
-		if cacheVal.Processed {
-			return cacheVal.Value, nil
-		}
-
-		// Value is from previous execution - check if still valid
-		if !e.shouldInvalidate(name) {
-			// Still valid - mark as processed and use it
-			cacheVal.Processed = true
-			e.cache[name] = cacheVal
-			return cacheVal.Value, nil
-		}
-
-		// Value is stale - remove from cache
-		delete(e.cache, name)
-	}
-
-	// Check for circular dependency
-	if slices.Contains(e.stack, name) {
-		return "", fmt.Errorf("circular dependency detected for %s", name)
-	}
-
-	// Track resolution path for dependency discovery
-	e.stack = append(e.stack, name)
-	defer func() {
-		if len(e.stack) > 0 {
-			e.stack = e.stack[:len(e.stack)-1]
-		}
-	}()
-
-	// Find the config item definition
-	configItem := e.findConfigItem(name)
-	if configItem == nil {
-		return "", fmt.Errorf("config item %s not found", name)
-	}
-
-	var effectiveValue string
-
-	// Priority: user value > config value > config default
-	if userVal, exists := e.configValues[name]; exists {
-		effectiveValue = userVal.Value
-	} else {
-		// Try config value first
-		if configItem.Value.String() != "" {
-			val, err := e.processTemplate(configItem.Value.String())
-			if err != nil {
-				return "", fmt.Errorf("error processing value template for %s: %w", name, err)
-			}
-			effectiveValue = val
-		}
-
-		// If still empty, try default
-		if effectiveValue == "" && configItem.Default.String() != "" {
-			val, err := e.processTemplate(configItem.Default.String())
-			if err != nil {
-				return "", fmt.Errorf("error processing default template for %s: %w", name, err)
-			}
-			effectiveValue = val
-		}
-	}
-
-	// Cache the result and mark as processed
-	e.cache[name] = CacheValue{
-		Value:     effectiveValue,
-		Processed: true,
-	}
-
-	return effectiveValue, nil
-}
-
-func (e *Engine) findConfigItem(name string) *kotsv1beta1.ConfigItem {
-	for _, group := range e.config.Spec.Groups {
-		for _, item := range group.Items {
-			if item.Name == name {
-				return &item
-			}
-		}
-	}
-	return nil
 }

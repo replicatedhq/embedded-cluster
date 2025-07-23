@@ -31,16 +31,16 @@ func TestConfigTemplateProcessing(t *testing.T) {
 							Name:     "simple_print",
 							Title:    `repl{{ print "Simple Print" }}`,
 							Type:     "text",
-							Default:  multitype.BoolOrString{StrVal: `{{repl print "default_value" }}`},
-							Value:    multitype.BoolOrString{StrVal: `repl{{ print "actual_value" }}`},
+							Default:  multitype.FromString(`{{repl print "default_value" }}`),
+							Value:    multitype.FromString(`repl{{ print "actual_value" }}`),
 							HelpText: `{{repl print "This is help text" }}`,
 						},
 						{
 							Name:    "printf_test",
 							Title:   `repl{{ printf "Port: %d" 8080 }}`,
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `{{repl printf "%d" 9000 }}`},
-							Value:   multitype.BoolOrString{StrVal: `repl{{ printf "%d" 3000 }}`},
+							Default: multitype.FromString(`{{repl printf "%d" 9000 }}`),
+							Value:   multitype.FromString(`repl{{ printf "%d" 3000 }}`),
 						},
 					},
 				},
@@ -52,22 +52,22 @@ func TestConfigTemplateProcessing(t *testing.T) {
 							Name:    "upper_lower",
 							Title:   `{{repl upper "http port" }}`,
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `repl{{ lower "DEFAULT_VALUE" }}`},
-							Value:   multitype.BoolOrString{StrVal: `{{repl upper "value_text" }}`},
+							Default: multitype.FromString(`repl{{ lower "DEFAULT_VALUE" }}`),
+							Value:   multitype.FromString(`{{repl upper "value_text" }}`),
 						},
 						{
 							Name:    "default_function",
 							Title:   `repl{{ print "Default Function" }}`,
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `{{repl default "fallback" "" }}`},
-							Value:   multitype.BoolOrString{StrVal: `repl{{ default "main_value" "" }}`},
+							Default: multitype.FromString(`{{repl default "fallback" "" }}`),
+							Value:   multitype.FromString(`repl{{ default "main_value" "" }}`),
 						},
 						{
 							Name:    "quote_function",
 							Title:   `{{repl print "Quote Function" }}`,
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `repl{{ quote "quoted_value" }}`},
-							Value:   multitype.BoolOrString{StrVal: `{{repl quote "actual_quoted" }}`},
+							Default: multitype.FromString(`repl{{ quote "quoted_value" }}`),
+							Value:   multitype.FromString(`{{repl quote "actual_quoted" }}`),
 						},
 					},
 				},
@@ -79,15 +79,15 @@ func TestConfigTemplateProcessing(t *testing.T) {
 							Name:    "undefined_field",
 							Title:   `repl{{ .NonExistentField }}`, // This will render as "<no value>" - Go template's default for undefined fields
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `{{repl .AnotherUndefinedField }}`},    // This will also render as "<no value>"
-							Value:   multitype.BoolOrString{StrVal: `repl{{ .YetAnotherUndefinedField }}`}, // This will also render as "<no value>"
+							Default: multitype.FromString(`{{repl .AnotherUndefinedField }}`),    // This will also render as "<no value)"
+							Value:   multitype.FromString(`repl{{ .YetAnotherUndefinedField }}`), // This will also render as "<no value)"
 						},
 						{
 							Name:    "empty_template",
 							Title:   `Regular Title`,
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `regular_value`},
-							Value:   multitype.BoolOrString{StrVal: `regular_actual_value`},
+							Default: multitype.FromString(`regular_value`),
+							Value:   multitype.FromString(`regular_actual_value`),
 						},
 					},
 				},
@@ -99,22 +99,22 @@ func TestConfigTemplateProcessing(t *testing.T) {
 							Name:    "config_option_test",
 							Title:   "Config Option Test",
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `{{repl ConfigOption "simple_print" }}`},
-							Value:   multitype.BoolOrString{StrVal: `{{repl ConfigOption "printf_test" }}`},
+							Default: multitype.FromString(`{{repl ConfigOption "simple_print" }}`),
+							Value:   multitype.FromString(`{{repl ConfigOption "printf_test" }}`),
 						},
 						{
 							Name:    "config_option_equals_test",
 							Title:   "Config Option Equals Test",
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `{{repl if ConfigOptionEquals "simple_print" "actual_value" }}match{{repl else }}no match{{repl end }}`},
-							Value:   multitype.BoolOrString{StrVal: `{{repl if ConfigOptionEquals "printf_test" "3000" }}equals{{repl else }}not equals{{repl end }}`},
+							Default: multitype.FromString(`{{repl if ConfigOptionEquals "simple_print" "actual_value" }}match{{repl else }}no match{{repl end }}`),
+							Value:   multitype.FromString(`{{repl if ConfigOptionEquals "printf_test" "3000" }}equals{{repl else }}not equals{{repl end }}`),
 						},
 						{
 							Name:    "combined_repl_test",
 							Title:   "Combined REPL Test",
 							Type:    "text",
-							Default: multitype.BoolOrString{StrVal: `prefix-{{repl ConfigOption "simple_print" }}-suffix`},
-							Value:   multitype.BoolOrString{StrVal: `{{repl upper (ConfigOption "simple_print") }}`},
+							Default: multitype.FromString(`prefix-{{repl ConfigOption "simple_print" }}-suffix`),
+							Value:   multitype.FromString(`{{repl upper (ConfigOption "simple_print") }}`),
 						},
 					},
 				},
@@ -141,17 +141,17 @@ metadata:
 spec:
   groups:
   - items:
-    - default: 'default_value'
+    - default: default_value
       help_text: 'This is help text'
       name: simple_print
       title: Simple Print
       type: text
       value: actual_value
-    - default: '9000'
+    - default: "9000"
       name: printf_test
       title: 'Port: 8080'
       type: text
-      value: 3000
+      value: "3000"
     name: basic_templates
     title: 'Basic Template Tests'
   - items:
@@ -159,13 +159,13 @@ spec:
       name: upper_lower
       title: 'HTTP PORT'
       type: text
-      value: 'VALUE_TEXT'
-    - default: 'fallback'
+      value: VALUE_TEXT
+    - default: fallback
       name: default_function
       title: Default Function
       type: text
       value: main_value
-    - default: "quoted_value"
+    - default: '"quoted_value"'
       name: quote_function
       title: 'Quote Function'
       type: text
@@ -173,7 +173,7 @@ spec:
     name: sprig_functions
     title: SPRIG FUNCTION TESTS
   - items:
-    - default: '<no value>'
+    - default: <no value>
       name: undefined_field
       title: <no value>
       type: text
@@ -186,46 +186,27 @@ spec:
     name: edge_cases
     title: 'Edge Cases'
   - items:
-    - default: 'actual_value'
+    - default: actual_value
       name: config_option_test
       title: Config Option Test
       type: text
-      value: '3000'
-    - default: 'match'
+      value: "3000"
+    - default: match
       name: config_option_equals_test
       title: Config Option Equals Test
       type: text
-      value: 'equals'
+      value: equals
     - default: prefix-actual_value-suffix
       name: combined_repl_test
       title: Combined REPL Test
       type: text
-      value: 'ACTUAL_VALUE'
+      value: ACTUAL_VALUE
     name: repl_functions
     title: REPL Function Tests
 status: {}
 `
 
 		assert.Equal(t, expectedYAML, result)
-	})
-
-	// Test invalid template syntax
-	t.Run("invalid_template_syntax", func(t *testing.T) {
-		invalidConfig := kotsv1beta1.Config{
-			Spec: kotsv1beta1.ConfigSpec{
-				Groups: []kotsv1beta1.ConfigGroup{
-					{
-						Name:  "invalid_group",
-						Title: `{{repl invalid template syntax`,
-					},
-				},
-			},
-		}
-
-		manager, err := NewAppConfigManager(invalidConfig)
-		assert.Error(t, err)
-		assert.Nil(t, manager)
-		assert.Contains(t, err.Error(), "template parse error")
 	})
 
 	// Test empty config
@@ -266,16 +247,16 @@ status: {}
 								Name:     "complex_item",
 								Title:    `{{repl printf "%s: %s" (upper "database") (lower "CONNECTION") }}`,
 								Type:     "text",
-								Default:  multitype.BoolOrString{StrVal: `repl{{ printf "host:%s,port:%d" (default "localhost" "") 5432 }}`},
-								Value:    multitype.BoolOrString{StrVal: `{{repl printf "host:%s,port:%d" (default "prod-db" "") 5433 }}`},
+								Default:  multitype.FromString(`repl{{ printf "host:%s,port:%d" (default "localhost" "") 5432 }}`),
+								Value:    multitype.FromString(`{{repl printf "host:%s,port:%d" (default "prod-db" "") 5433 }}`),
 								HelpText: `repl{{ printf "Configure %s settings for %s" (lower "DATABASE") (upper "application") }}`,
 							},
 							{
 								Name:    "conditional_item",
 								Title:   `{{repl if true }}Enabled Feature{{repl else }}Disabled Feature{{repl end }}`,
 								Type:    "bool",
-								Default: multitype.BoolOrString{StrVal: `repl{{ if true }}true{{repl else }}false{{repl end }}`},
-								Value:   multitype.BoolOrString{StrVal: `{{repl if false }}true{{repl else }}false{{repl end }}`},
+								Default: multitype.FromString(`repl{{ if true }}true{{repl else }}false{{repl end }}`),
+								Value:   multitype.FromString(`{{repl if false }}true{{repl else }}false{{repl end }}`),
 							},
 						},
 					},
@@ -305,12 +286,12 @@ spec:
       name: complex_item
       title: 'DATABASE: connection'
       type: text
-      value: 'host:prod-db,port:5433'
-    - default: true
+      value: host:prod-db,port:5433
+    - default: "true"
       name: conditional_item
       title: 'Enabled Feature'
       type: bool
-      value: 'false'
+      value: "false"
     name: complex_group
     title: Complex NESTED Configuration
 status: {}

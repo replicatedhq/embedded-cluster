@@ -7,7 +7,7 @@ import Textarea from '../../common/Textarea';
 import Checkbox from '../../common/Checkbox';
 import Radio from '../../common/Radio';
 import Label from '../../common/Label';
-import FileInput from '../../common/FileInput';
+import FileInput from '../../common/file';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
@@ -230,6 +230,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     if (apiConfigValues && Object.keys(configValues).length === 0) {
       setConfigValues(apiConfigValues);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- configValues is not a dependency of this effect
   }, [apiConfigValues]);
 
   // Helper function to get the display value for a config item (no defaults)
@@ -376,7 +377,9 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             {...sharedProps}
             value={getDisplayValue(item)}
             filename={configValues[item.name]?.filename}
-            onChange={(value, filename) => handleFileChange(item.name, value, filename)}
+            defaultValue={item.default}
+            defaultFilename={item.name}
+            onChange={(value: string, filename: string) => handleFileChange(item.name, value, filename)}
             dataTestId={`file-input-${item.name}`}
           />
         );

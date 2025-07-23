@@ -16,9 +16,12 @@ interface LoginResponse {
   token: string;
 }
 
+const INCORRECT_PASSWORD_ERROR = "Incorrect password";
+
 const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
   const { text } = useWizard();
   const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | undefined>();
   const { setToken, isAuthenticated } = useAuth();
 
   // Automatically redirect to SetupStep if already authenticated
@@ -31,9 +34,16 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
   const {
     mutate: login,
     isPending: isLoading,
-    error: loginError,
   } = useMutation<LoginResponse, Error, string>({
+    retry(failureCount, error) {
+      if (error.message === INCORRECT_PASSWORD_ERROR) {
+        return false; // Don't retry on incorrect password
+      }
+      // Otherwise retry once, keep the default retry logic
+      return failureCount < 1;
+    },
     mutationFn: async (password: string) => {
+
       const response = await fetch("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ password }),
@@ -43,7 +53,11 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
       });
 
       if (!response.ok) {
-        throw new Error("Invalid password");
+        if (response.status === 401) {
+          throw new Error(INCORRECT_PASSWORD_ERROR);
+        } else {
+          throw new Error(`Login failed: ${response.statusText}`);
+        }
       }
 
       return response.json();
@@ -52,6 +66,9 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
       setToken(data.token);
       onNext();
     },
+    onError: (error) => {
+      setLoginError(error.message);
+    },
   });
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,10 +76,11 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
   };
 
   const handleSubmit = () => {
-    if (!password.trim()) {
-      return;
+    // No point in making a request if password is empty
+    if (!password) {
+      setLoginError(INCORRECT_PASSWORD_ERROR);
+      return
     }
-
     login(password);
   };
 
@@ -91,7 +109,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
               value={password}
               onChange={handlePasswordChange}
               onKeyDown={handleKeyDown}
-              error={loginError?.message}
+              error={loginError}
               required
               icon={<Lock className="w-5 h-5" />}
               className="w-full"

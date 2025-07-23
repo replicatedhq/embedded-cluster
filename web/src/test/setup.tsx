@@ -78,6 +78,7 @@ interface MockProviderProps {
   };
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- this is a test component
 const MockProvider = ({ children, queryClient, contexts }: MockProviderProps) => {
   // Set up localStorage with the auth token if provided
   React.useEffect(() => {

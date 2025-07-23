@@ -1,8 +1,6 @@
 package config
 
 import (
-	"fmt"
-
 	configstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	apitemplate "github.com/replicatedhq/embedded-cluster/api/pkg/template"
@@ -24,11 +22,11 @@ type AppConfigManager interface {
 	ValidateConfigValues(values types.AppConfigValues) error
 	// PatchConfigValues patches the current config values
 	PatchConfigValues(values types.AppConfigValues) error
+	// TemplateConfig templates the config with provided values and returns the templated config
+	TemplateConfig(configValues types.AppConfigValues) (types.AppConfig, error)
 	// GetKotsadmConfigValues merges the config values with the app config defaults and returns a
 	// kotsv1beta1.ConfigValues struct.
 	GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, error)
-	// TemplateConfig templates the config with provided values and returns the templated config
-	TemplateConfig(configValues types.AppConfigValues) (types.AppConfig, error)
 }
 
 // appConfigManager is an implementation of the AppConfigManager interface
@@ -88,13 +86,10 @@ func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOpti
 	if manager.templateEngine == nil {
 		manager.templateEngine = apitemplate.NewEngine(
 			&manager.rawConfig,
+			apitemplate.WithMode(apitemplate.ModeConfig),
 			apitemplate.WithLicense(manager.license),
 			apitemplate.WithReleaseData(manager.releaseData),
 		)
-	}
-
-	if err := manager.initConfigTemplate(); err != nil {
-		return nil, fmt.Errorf("initialize config template: %w", err)
 	}
 
 	return manager, nil

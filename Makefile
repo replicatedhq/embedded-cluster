@@ -145,8 +145,12 @@ output/bins/fio-%:
 .PHONY: cmd/installer/goods/bins/fio
 cmd/installer/goods/bins/fio:
 ifneq ($(DISABLE_FIO_BUILD),1)
+ifeq ($(FIO_VERSION),)
+	$(error FIO_VERSION is not set)
+else
 	$(MAKE) output/bins/fio-$(FIO_VERSION)-$(ARCH)
 	cp output/bins/fio-$(FIO_VERSION)-$(ARCH) $@
+endif
 endif
 
 .PHONY: cmd/installer/goods/internal/bins/kubectl-kots
