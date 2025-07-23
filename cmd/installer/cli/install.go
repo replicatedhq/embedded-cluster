@@ -1221,6 +1221,8 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 		return nil
 	}
 
+	//testins
+
 	if license == nil {
 		return errors.New("license required")
 	}
