@@ -1686,8 +1686,8 @@ describe.each([
     });
   });
 
-  describe("Required field validation", () => {
-    it("shows error message for required text field when empty on submit", async () => {
+  describe("Server-driven validation", () => {
+    it("shows server validation error for required field when submission fails", async () => {
       // Create config with required field for this specific test
       const configWithRequiredField: AppConfig = {
         groups: [
@@ -1715,6 +1715,19 @@ describe.each([
         }),
         http.get(`*/api/${target}/install/app/config/values`, () => {
           return HttpResponse.json({ values: {} });
+        }),
+        // Mock server validation error response
+        http.patch(`*/api/${target}/install/app/config/values`, () => {
+          return new HttpResponse(JSON.stringify({
+            message: "required fields not completed",
+            status_code: 400,
+            errors: [
+              {
+                field: "required_field",
+                message: "Required Field is required"
+              }
+            ]
+          }), { status: 400 });
         })
       );
 
@@ -1743,9 +1756,14 @@ describe.each([
       const nextButton = screen.getByTestId("config-next-button");
       fireEvent.click(nextButton);
 
-      // Wait for validation error to appear
+      // Wait for server validation error to appear (raw server message)
       await waitFor(() => {
         expect(screen.getByText("Required Field is required")).toBeInTheDocument();
+      });
+
+      // Verify the raw server error message at the bottom
+      await waitFor(() => {
+        expect(screen.getByText("required fields not completed")).toBeInTheDocument();
       });
 
       // Verify onNext was not called due to validation error
@@ -1796,6 +1814,23 @@ describe.each([
         }),
         http.get(`*/api/${target}/install/app/config/values`, () => {
           return HttpResponse.json({ values: {} });
+        }),
+        // Mock server validation error response with multiple field errors
+        http.patch(`*/api/${target}/install/app/config/values`, () => {
+          return new HttpResponse(JSON.stringify({
+            message: "required fields not completed",
+            status_code: 400,
+            errors: [
+              {
+                field: "first_required_field",
+                message: "First Required Field is required"
+              },
+              {
+                field: "second_required_field", 
+                message: "Second Required Field is required"
+              }
+            ]
+          }), { status: 400 });
         })
       );
 
@@ -1826,7 +1861,7 @@ describe.each([
       const nextButton = screen.getByTestId("config-next-button");
       fireEvent.click(nextButton);
 
-      // Wait for validation errors to appear
+      // Wait for server validation errors to appear (raw server message)
       await waitFor(() => {
         expect(screen.getByText("First Required Field is required")).toBeInTheDocument();
       });
@@ -1891,6 +1926,19 @@ describe.each([
         }),
         http.get(`*/api/${target}/install/app/config/values`, () => {
           return HttpResponse.json({ values: {} });
+        }),
+        // Mock server validation error response
+        http.patch(`*/api/${target}/install/app/config/values`, () => {
+          return new HttpResponse(JSON.stringify({
+            message: "required fields not completed",
+            status_code: 400,
+            errors: [
+              {
+                field: "db_required_field",
+                message: "Database Required Field is required"
+              }
+            ]
+          }), { status: 400 });
         })
       );
 
@@ -1930,7 +1978,7 @@ describe.each([
       const nextButton = screen.getByTestId("config-next-button");
       fireEvent.click(nextButton);
 
-      // Wait for validation errors to appear
+      // Wait for server validation errors to appear (raw server message)
       await waitFor(() => {
         expect(screen.getByText("Database Required Field is required")).toBeInTheDocument();
       });
@@ -1982,6 +2030,19 @@ describe.each([
         }),
         http.get(`*/api/${target}/install/app/config/values`, () => {
           return HttpResponse.json({ values: {} });
+        }),
+        // Mock server validation error response
+        http.patch(`*/api/${target}/install/app/config/values`, () => {
+          return new HttpResponse(JSON.stringify({
+            message: "required fields not completed",
+            status_code: 400,
+            errors: [
+              {
+                field: "required_text_field",
+                message: "Required Text Field is required"
+              }
+            ]
+          }), { status: 400 });
         })
       );
 
@@ -2012,7 +2073,7 @@ describe.each([
       const nextButton = screen.getByTestId("config-next-button");
       fireEvent.click(nextButton);
 
-      // Wait for validation error to appear
+      // Wait for server validation error to appear (raw server message)
       await waitFor(() => {
         expect(screen.getByText("Required Text Field is required")).toBeInTheDocument();
       });
@@ -2065,6 +2126,19 @@ describe.each([
         }),
         http.get(`*/api/${target}/install/app/config/values`, () => {
           return HttpResponse.json({ values: {} });
+        }),
+        // Mock server validation error response
+        http.patch(`*/api/${target}/install/app/config/values`, () => {
+          return new HttpResponse(JSON.stringify({
+            message: "required fields not completed",
+            status_code: 400,
+            errors: [
+              {
+                field: "auth_method",
+                message: "Authentication Method is required"
+              }
+            ]
+          }), { status: 400 });
         })
       );
 
@@ -2095,7 +2169,7 @@ describe.each([
       const nextButton = screen.getByTestId("config-next-button");
       fireEvent.click(nextButton);
 
-      // Wait for validation error to appear
+      // Wait for server validation error to appear (raw server message)
       await waitFor(() => {
         expect(screen.getByText("Authentication Method is required")).toBeInTheDocument();
       });

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -17,11 +18,13 @@ import (
 const (
 	// PasswordMask is the string used to mask password values in config responses
 	PasswordMask = "••••••••"
+	
+	// Validation error messages
+	DefaultValidationErrorMessage = "field errors"
+	RequiredFieldsErrorMessage    = "required fields not completed"
 )
 
 var (
-	// ErrConfigItemRequired is returned when a required item is not set
-	ErrConfigItemRequired = errors.New("item is required")
 	// ErrValueNotBase64Encoded is returned when a file item value is not base64 encoded
 	ErrValueNotBase64Encoded = errors.New("value must be base64 encoded for file items")
 )
@@ -90,12 +93,31 @@ func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValu
 			configValue := getConfigValueFromItem(item, configValues)
 			// check required items
 			if isRequiredItem(item) && isUnsetItem(configValue) {
-				ve = types.AppendFieldError(ve, item.Name, ErrConfigItemRequired)
+				fieldError := createRequiredFieldError(item)
+				ve = types.AppendFieldError(ve, item.Name, fieldError)
 			}
 			// check value is base64 encoded for file items
 			if isFileType(item) && !isValueBase64Encoded(configValue) {
 				ve = types.AppendFieldError(ve, item.Name, ErrValueNotBase64Encoded)
 			}
+		}
+	}
+
+	// Set appropriate message based on error types
+	if ve != nil && len(ve.Errors) > 0 {
+		// Check if ALL errors are about required fields
+		allRequired := true
+		for _, err := range ve.Errors {
+			if !strings.Contains(err.Message, "is required") {
+				allRequired = false
+				break
+			}
+		}
+		
+		if allRequired {
+			ve.Message = RequiredFieldsErrorMessage
+		} else {
+			ve.Message = DefaultValidationErrorMessage
 		}
 	}
 
@@ -343,6 +365,16 @@ func isUnsetItem(configValue kotsv1beta1.ConfigValue) bool {
 func isFileType(item kotsv1beta1.ConfigItem) bool {
 	return item.Type == "file"
 }
+
+// createRequiredFieldError creates a user-friendly error message for required fields
+func createRequiredFieldError(item kotsv1beta1.ConfigItem) error {
+	fieldName := item.Title
+	if fieldName == "" {
+		fieldName = item.Name
+	}
+	return fmt.Errorf("%s is required", fieldName)
+}
+
 
 // isValueBase64Encoded checks if the value of a ConfigValue is base64 encoded, this is used for file items
 func isValueBase64Encoded(configValue kotsv1beta1.ConfigValue) bool {

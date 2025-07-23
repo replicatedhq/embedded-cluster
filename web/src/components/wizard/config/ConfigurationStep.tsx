@@ -18,8 +18,6 @@ import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from '../..
 // Constants for configuration
 const FOCUS_DELAY_CROSS_TAB_MS = 100;
 const FOCUS_DELAY_SAME_TAB_MS = 10;
-const CLIENT_VALIDATION_ERROR_MESSAGE = 'Client validation failed';
-const REQUIRED_FIELDS_ERROR_MESSAGE = 'Please fill in all required fields';
 
 interface ConfigurationStepProps {
   onNext: () => void;
@@ -34,8 +32,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const [configValues, setConfigValues] = useState<AppConfigValues>({});
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const themeColor = settings.themeColor;
 
   // Fetch app config from API
@@ -82,16 +79,16 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     },
   });
 
-  // Helper function to find the first required field with validation error in DOM order
-  const findFirstRequiredFieldWithError = (validationErrors: Record<string, string>): AppConfigItem | null => {
-    if (!appConfig?.groups || Object.keys(validationErrors).length === 0) {
+  // Helper function to find the first field with server error in DOM order
+  const findFirstFieldWithError = (serverErrors: Record<string, string>): AppConfigItem | null => {
+    if (!appConfig?.groups || Object.keys(serverErrors).length === 0) {
       return null;
     }
     
-    // Iterate through groups and items in DOM order to find first required field with error
+    // Iterate through groups and items in DOM order to find first field with error
     for (const group of appConfig.groups) {
       for (const item of group.items) {
-        if (item.required && validationErrors[item.name]) {
+        if (serverErrors[item.name]) {
           return item;
         }
       }
@@ -143,43 +140,26 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     }, focusDelay);
   };
 
-  // Helper function to perform client-side validation before submission
-  const performClientSideValidation = (): boolean => {
-    setHasSubmitted(true);
+  // Helper function to parse server validation errors from API response
+  const parseServerErrors = (error: any): Record<string, string> => {
+    const fieldErrors: Record<string, string> = {};
     
-    const allItems = appConfig?.groups?.flatMap(group => group.items) || [];
-    const validationErrors = validateRequiredFields(allItems);
-    setValidationErrors(validationErrors);
-    
-    const hasErrors = Object.keys(validationErrors).length > 0;
-    
-    if (hasErrors) {
-      // Set submit error immediately for synchronous display
-      setSubmitError(REQUIRED_FIELDS_ERROR_MESSAGE);
-      
-      // Focus on the first required field with error
-      const firstErrorField = findFirstRequiredFieldWithError(validationErrors);
-      if (firstErrorField) {
-        focusFieldWithTabSupport(firstErrorField);
-      }
-    } else {
-      // Clear any existing submit error when validation passes
-      setSubmitError(null);
+    // Check if error has structured field errors
+    if (error?.errors && Array.isArray(error.errors)) {
+      error.errors.forEach((fieldError: any) => {
+        if (fieldError.field && fieldError.message) {
+          // Pass through server error message directly - no client-side enhancement
+          fieldErrors[fieldError.field] = fieldError.message;
+        }
+      });
     }
     
-    return !hasErrors;
+    return fieldErrors;
   };
 
   // Mutation to save config values
   const { mutate: submitConfigValues } = useMutation<AppConfigValues>({
     mutationFn: async () => {
-      // Perform client-side validation first
-      const isValid = performClientSideValidation();
-      if (!isValid) {
-        // Validation error already handled synchronously, just return early
-        return Promise.reject(new Error(CLIENT_VALIDATION_ERROR_MESSAGE));
-      }
-
       // Build payload with only dirty fields
       const dirtyValues: AppConfigValues = {};
       dirtyFields.forEach(fieldName => {
@@ -203,7 +183,10 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           handleUnauthorized(errorData);
           throw new Error('Session expired. Please log in again.');
         }
-        throw new Error(errorData.message || 'Failed to save configuration');
+        // Re-throw with full error data for parsing in onError
+        const error = new Error(errorData.message || 'Failed to save configuration');
+        (error as any).errorData = errorData;
+        throw error;
       }
 
       const data = await response.json();
@@ -211,8 +194,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     },
     onSuccess: (appConfigValues) => {
       setSubmitError(null);
-      setValidationErrors({});
-      setHasSubmitted(false);
+      setServerErrors({});
       // Clear dirty fields after successful submission
       setDirtyFields(new Set());
       // Update config values with the latest from the API
@@ -220,10 +202,18 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       queryClient.setQueryData(['appConfigValues', target], appConfigValues);
       onNext();
     },
-    onError: (error: Error) => {
-      // Only set submit error for actual server errors, not client validation failures
-      if (error?.message !== CLIENT_VALIDATION_ERROR_MESSAGE) {
-        setSubmitError(error?.message || 'Failed to save configuration');
+    onError: (error: any) => {
+      // Parse server validation errors from response
+      const fieldErrors = parseServerErrors(error?.errorData);
+      setServerErrors(fieldErrors);
+      
+      // Pass through server error message directly - no client-side hardcoding
+      setSubmitError(error?.message || 'Failed to save configuration');
+      
+      // Focus on the first field with server error
+      const firstErrorField = findFirstFieldWithError(fieldErrors);
+      if (firstErrorField) {
+        focusFieldWithTabSupport(firstErrorField);
       }
     },
   });
@@ -254,28 +244,6 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     return configValues?.[item.name]?.value ?? (item.value || item.default || '');
   };
 
-  // Helper function to get current value for validation (similar to getDisplayValue)
-  const getCurrentValue = (item: AppConfigItem): string => {
-    return configValues?.[item.name]?.value ?? (item.value || '');
-  };
-
-  // Validate required fields - returns validation errors for empty required fields
-  const validateRequiredFields = (items: AppConfigItem[]): Record<string, string> => {
-    const errors: Record<string, string> = {};
-    
-    for (const item of items) {
-      if (item.required) {
-        const currentValue = getCurrentValue(item);
-        const isEmpty = !currentValue || currentValue.trim() === '';
-        
-        if (isEmpty) {
-          errors[item.name] = `${item.title} is required`;
-        }
-      }
-    }
-    
-    return errors;
-  };
 
   const updateConfigValue = (itemName: string, value: string, filename?: string) => {
     // Update the config values map
@@ -283,6 +251,15 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
     // Mark field as dirty
     setDirtyFields(prev => new Set(prev).add(itemName));
+
+    // Clear server error for this field when user modifies it
+    if (serverErrors[itemName]) {
+      setServerErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[itemName];
+        return newErrors;
+      });
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -319,12 +296,8 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   const renderConfigItem = (item: AppConfigItem) => {
-    // Server errors (from API response) override any lingering client validation errors
-    // This handles cases where:
-    // 1. Pre-existing server errors from initial config load
-    // 2. Server rejection after client validation passed
-    // 3. Ensuring server errors always take precedence over stale client errors
-    const displayError = item.error || (hasSubmitted ? validationErrors[item.name] : undefined);
+    // Display server errors from API response or initial config load
+    const displayError = item.error || serverErrors[item.name];
     
     const sharedProps = {
       id: item.name,
