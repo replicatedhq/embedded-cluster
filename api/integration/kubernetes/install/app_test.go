@@ -460,26 +460,6 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 	// Create client with the predefined token
 	c := apiclient.New(server.URL, apiclient.WithToken("TOKEN"))
 
-	// Test PatchKubernetesAppConfigValues
-	t.Run("PatchKubernetesAppConfigValues", func(t *testing.T) {
-		// Create config values to set
-		configValues := types.AppConfigValues{
-			"test-item":     types.AppConfigValue{Value: "new-value"},
-			"required-item": types.AppConfigValue{Value: "required-value"},
-			"file-item":     types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
-		}
-
-		// Set the app config values using the client
-		config, err := c.PatchKubernetesAppConfigValues(configValues)
-		require.NoError(t, err, "PatchKubernetesAppConfigValues should succeed")
-
-		// Verify the config values are returned
-		assert.Equal(t, "new-value", config["test-item"].Value, "new value for test-item should be returned")
-		assert.Equal(t, "required-value", config["required-item"].Value, "new value for required-item should be returned")
-		assert.Equal(t, "SGVsbG8gV29ybGQ=", config["file-item"].Value, "new value for file-item should be returned")
-		assert.Equal(t, "new-file.txt", config["file-item"].Filename, "file-item value should contain a filename")
-	})
-
 	// Test PatchKubernetesAppConfigValues with missing required item
 	t.Run("PatchKubernetesAppConfigValues missing required", func(t *testing.T) {
 		// Create config values without the required item
@@ -546,6 +526,26 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		require.True(t, ok, "Error should be of type *types.APIError")
 		assert.Equal(t, http.StatusConflict, apiErr.StatusCode, "Error should have Conflict status code")
 		assert.Contains(t, apiErr.Message, "invalid transition", "Error should mention invalid transition")
+	})
+
+	// Test PatchKubernetesAppConfigValues
+	t.Run("PatchKubernetesAppConfigValues", func(t *testing.T) {
+		// Create config values to set
+		configValues := types.AppConfigValues{
+			"test-item":     types.AppConfigValue{Value: "new-value"},
+			"required-item": types.AppConfigValue{Value: "required-value"},
+			"file-item":     types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
+		}
+
+		// Set the app config values using the client
+		config, err := c.PatchKubernetesAppConfigValues(configValues)
+		require.NoError(t, err, "PatchKubernetesAppConfigValues should succeed")
+
+		// Verify the config values are returned
+		assert.Equal(t, "new-value", config["test-item"].Value, "new value for test-item should be returned")
+		assert.Equal(t, "required-value", config["required-item"].Value, "new value for required-item should be returned")
+		assert.Equal(t, "SGVsbG8gV29ybGQ=", config["file-item"].Value, "new value for file-item should be returned")
+		assert.Equal(t, "new-file.txt", config["file-item"].Filename, "file-item value should contain a filename")
 	})
 }
 

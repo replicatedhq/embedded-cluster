@@ -462,26 +462,6 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 	// Create client with the predefined token
 	c := apiclient.New(server.URL, apiclient.WithToken("TOKEN"))
 
-	// Test PatchLinuxAppConfigValues
-	t.Run("PatchLinuxAppConfigValues", func(t *testing.T) {
-		// Create config values to set
-		configValues := types.AppConfigValues{
-			"test-item":     types.AppConfigValue{Value: "new-value"},
-			"required-item": types.AppConfigValue{Value: "required-value"},
-			"file-item":     types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
-		}
-
-		// Set the app config values using the client
-		config, err := c.PatchLinuxAppConfigValues(configValues)
-		require.NoError(t, err, "PatchLinuxAppConfigValues should succeed")
-
-		// Verify the app config values are returned from the store
-		assert.Equal(t, "new-value", config["test-item"].Value, "test-item should be updated")
-		assert.Equal(t, "required-value", config["required-item"].Value, "required-item should be updated")
-		assert.Equal(t, "SGVsbG8gV29ybGQ=", config["file-item"].Value, "file-item value should be updated")
-		assert.Equal(t, "new-file.txt", config["file-item"].Filename, "file-item value should contain a filename")
-	})
-
 	// Test PatchLinuxAppConfigValues with missing required item
 	t.Run("PatchLinuxAppConfigValues missing required", func(t *testing.T) {
 		// Create config values without the required item
@@ -548,6 +528,26 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		require.True(t, ok, "Error should be of type *types.APIError")
 		assert.Equal(t, http.StatusConflict, apiErr.StatusCode, "Error should have Conflict status code")
 		assert.Contains(t, apiErr.Message, "invalid transition", "Error should mention invalid transition")
+	})
+
+	// Test PatchLinuxAppConfigValues
+	t.Run("PatchLinuxAppConfigValues", func(t *testing.T) {
+		// Create config values to set
+		configValues := types.AppConfigValues{
+			"test-item":     types.AppConfigValue{Value: "new-value"},
+			"required-item": types.AppConfigValue{Value: "required-value"},
+			"file-item":     types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
+		}
+
+		// Set the app config values using the client
+		config, err := c.PatchLinuxAppConfigValues(configValues)
+		require.NoError(t, err, "PatchLinuxAppConfigValues should succeed")
+
+		// Verify the app config values are returned from the store
+		assert.Equal(t, "new-value", config["test-item"].Value, "test-item should be updated")
+		assert.Equal(t, "required-value", config["required-item"].Value, "required-item should be updated")
+		assert.Equal(t, "SGVsbG8gV29ybGQ=", config["file-item"].Value, "file-item value should be updated")
+		assert.Equal(t, "new-file.txt", config["file-item"].Filename, "file-item value should contain a filename")
 	})
 }
 
