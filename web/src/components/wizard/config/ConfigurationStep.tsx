@@ -29,7 +29,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const [changedValues, setChangedValues] = useState<AppConfigValues>({});
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { debouncedFetch } = useDebouncedFetch({ debounceMs: 50 });
+  const { debouncedFetch } = useDebouncedFetch({ debounceMs: 250 });
   const themeColor = settings.themeColor;
 
   const templateConfig = useCallback(async (values: AppConfigValues) => {
