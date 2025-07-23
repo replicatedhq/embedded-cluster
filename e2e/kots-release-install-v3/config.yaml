@@ -4,6 +4,40 @@ metadata:
   name: test-config
 spec:
   groups:
+    - name: cert-example-settings
+      title: My Cert Example Config
+      items:
+        - name: hostname
+          title: Hostname
+          help_text: Enter a DNS hostname to use as the cert's CN.
+          type: text
+
+        - name: tls_json
+          title: TLS JSON
+          type: textarea
+          hidden: true
+          default: |-
+            repl{{ $ca := genCA (ConfigOption "hostname") 365 }}
+            repl{{ $tls := dict "ca" $ca }}
+            repl{{ $cert := genSignedCert (ConfigOption "hostname") (list ) (list (ConfigOption "hostname")) 365 $ca }}
+            repl{{ $_ := set $tls "cert" $cert }}
+            repl{{ toJson $tls }}
+
+        - name: tls_ca
+          title: Signing Authority
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "tls_json") | dig "ca" "Cert" "" }}
+
+        - name: tls_cert
+          title: TLS Cert
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "tls_json") | dig "cert" "Cert" "" }}
+
+        - name: tls_key
+          title: TLS Key
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "tls_json") | dig "cert" "Key" "" }}
+
     - name: config-items
       title: Config Items
       items:
@@ -208,8 +242,15 @@ spec:
     - name: markdown-items
       title: Markdown Items
       items:
+        - name: markdown_toggle
+          title: Toggle Markdown Items
+          type: bool
+          help_text: "Help text of a **_Checkbox_** config item type"
+          default: "1"
+
         - name: label
           type: label
+          when: '{{ ConfigOptionEquals "markdown_toggle" "1" }}'
           title: |
             ## Markdown Items
 

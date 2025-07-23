@@ -55,7 +55,7 @@ func (m *appConfigManager) TemplateConfig(newValues types.AppConfigValues, maskP
 	// Filter out disabled groups and items
 	filteredConfig, err := filterAppConfig(processedConfig)
 	if err != nil {
-		return types.AppConfig{}, fmt.Errorf("filter config: an error occurred while filtering the config: %w", err)
+		return types.AppConfig{}, fmt.Errorf("filter app config: %w", err)
 	}
 
 	// Mask password fields if requested

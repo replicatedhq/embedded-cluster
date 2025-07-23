@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
@@ -13,6 +13,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { handleUnauthorized } from '../../../utils/auth';
+import { useDebouncedFetch } from '../../../utils/debouncedFetch';
 import { AppConfig, AppConfigItem, AppConfigValues } from '../../../types';
 
 interface ConfigurationStepProps {
@@ -28,13 +29,14 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const [changedValues, setChangedValues] = useState<AppConfigValues>({});
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  
+  const { debouncedFetch } = useDebouncedFetch({ debounceMs: 50 });
   const themeColor = settings.themeColor;
 
   const templateConfig = useCallback(async (values: AppConfigValues) => {
-    setError(null);
     try {
-      const response = await fetch(`/api/${target}/install/app/config/template`, {
+      setError(null); // Clear any existing errors
+
+      const response = await debouncedFetch(`/api/${target}/install/app/config/template`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -42,6 +44,11 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         },
         body: JSON.stringify({ values }),
       });
+
+      // If no response, the request was cancelled/aborted - just return silently
+      if (!response) {
+        return;
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -54,10 +61,10 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
       const config = await response.json();
       setAppConfig(config);
-    } catch (err: any) {
-      setError(err?.message || String(err));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
     }
-  }, [target, token]);
+  }, [target, token, debouncedFetch]);
 
   // Fetch initial config on mount
   useEffect(() => {
