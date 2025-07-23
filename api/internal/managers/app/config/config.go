@@ -18,7 +18,7 @@ import (
 const (
 	// PasswordMask is the string used to mask password values in config responses
 	PasswordMask = "••••••••"
-	
+
 	// Validation error messages
 	DefaultValidationErrorMessage = "field errors"
 	RequiredFieldsErrorMessage    = "required fields not completed"
@@ -113,7 +113,7 @@ func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValu
 				break
 			}
 		}
-		
+
 		if allRequired {
 			ve.Message = RequiredFieldsErrorMessage
 		} else {
@@ -374,7 +374,6 @@ func createRequiredFieldError(item kotsv1beta1.ConfigItem) error {
 	}
 	return fmt.Errorf("%s is required", fieldName)
 }
-
 
 // isValueBase64Encoded checks if the value of a ConfigValue is base64 encoded, this is used for file items
 func isValueBase64Encoded(configValue kotsv1beta1.ConfigValue) bool {
