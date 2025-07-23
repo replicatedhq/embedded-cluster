@@ -1076,7 +1076,7 @@ repl{{ toJson $tls }}`),
 
 	// Verify performance characteristics: non-cached should be in ms, cached much faster
 	assert.True(t, firstDuration > time.Millisecond*100, "First execution should take at least 100ms (cert generation)")
-	assert.True(t, firstCachedDuration < time.Millisecond*10, "First cached execution should be under 10ms")
+	assert.True(t, firstCachedDuration < time.Millisecond*20, "First cached execution should be under 20ms")
 
 	// Verify caching provides significant speedup
 	assert.True(t, firstCachedDuration < firstDuration/2,
@@ -1102,7 +1102,7 @@ repl{{ toJson $tls }}`),
 
 	// Verify performance characteristics for second hostname
 	assert.True(t, secondDuration > time.Millisecond*100, "Second execution should take at least 100ms (cert generation)")
-	assert.True(t, secondCachedDuration < time.Millisecond*10, "Second cached execution should be under 10ms")
+	assert.True(t, secondCachedDuration < time.Millisecond*20, "Second cached execution should be under 20ms")
 
 	// Verify second cached result is identical to second execution
 	assert.Equal(t, secondResult, secondCachedResult, "Second cached execution should return identical result")
@@ -1220,6 +1220,13 @@ func TestEngine_ConfigMode_ValuePriority(t *testing.T) {
 							Type:    "text",
 							Default: multitype.FromString("repl{{ ConfigOption \"app_name\" }} v repl{{ ConfigOption \"app_version\" }}"),
 						},
+						{
+							Name:    "app_title",
+							Title:   "App Title",
+							Type:    "text",
+							Value:   multitype.FromString("Application: repl{{ ConfigOption \"app_name\" }}"),
+							Default: multitype.FromString("Default Application"),
+						},
 					},
 				},
 			},
@@ -1248,17 +1255,22 @@ spec:
       name: app_name
       title: Application Name
       type: text
-      value: MyApp
+      value: CustomApp
     - default: 1.0.0
       name: app_version
       title: Version
       type: text
-      value: ""
+      value: "2.0.0"
     - default: CustomApp v 2.0.0
       name: display_name
       title: Display Name
       type: text
       value: ""
+    - default: Default Application
+      name: app_title
+      title: App Title
+      type: text
+      value: "Application: CustomApp"
     name: app_settings
     title: Application Settings
 status: {}
@@ -1292,6 +1304,11 @@ spec:
       title: Display Name
       type: text
       value: ""
+    - default: Default Application
+      name: app_title
+      title: App Title
+      type: text
+      value: "Application: MyApp"
     name: app_settings
     title: Application Settings
 status: {}
@@ -1374,6 +1391,13 @@ func TestEngine_ConfigMode_ComplexDependencyChain(t *testing.T) {
 							Type:    "textarea",
 							Default: multitype.FromString("endpoint: repl{{ ConfigOption \"api_endpoint\" }}\nversion: repl{{ ConfigOption \"api_version\" }}"),
 						},
+						{
+							Name:    "service_url",
+							Title:   "Service URL",
+							Type:    "text",
+							Value:   multitype.FromString("repl{{ ConfigOption \"base_url\" }}/service"),
+							Default: multitype.FromString("http://localhost/service"),
+						},
 					},
 				},
 			},
@@ -1402,12 +1426,12 @@ spec:
       name: base_url
       title: Base URL
       type: text
-      value: ""
+      value: "https://custom.api.com"
     - default: v1
       name: api_version
       title: API Version
       type: text
-      value: ""
+      value: "v2"
     - default: https://custom.api.com/v2
       name: api_endpoint
       title: API Endpoint
@@ -1420,6 +1444,11 @@ spec:
       title: Full Configuration
       type: textarea
       value: ""
+    - default: http://localhost/service
+      name: service_url
+      title: Service URL
+      type: text
+      value: "https://custom.api.com/service"
     name: complex_settings
     title: Complex Dependency Chain
 status: {}

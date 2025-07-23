@@ -14,6 +14,9 @@ type resolvedConfigItem struct {
 	// This is what ConfigOption functions return and what gets used in templates
 	Effective string
 
+	// UserValue is the user-provided value for the config item (if it exists)
+	UserValue string
+
 	// Value is the templated result of the config item's "value" field (if it exists)
 	// This represents the config-defined value after template processing
 	Value string
@@ -41,7 +44,16 @@ func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 			if err != nil {
 				return nil, err
 			}
-			cfg.Spec.Groups[i].Items[j].Value = multitype.FromString(resolved.Value)
+
+			// Apply user value if it exists, otherwise use the templated config value (but not the default)
+			var value string
+			if resolved.UserValue != "" {
+				value = resolved.UserValue
+			} else if resolved.Value != "" {
+				value = resolved.Value
+			}
+
+			cfg.Spec.Groups[i].Items[j].Value = multitype.FromString(value)
 			cfg.Spec.Groups[i].Items[j].Default = multitype.FromString(resolved.Default)
 		}
 	}
@@ -156,7 +168,8 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 	}
 
 	// Priority: user value > config value > config default
-	if userVal, exists := e.configValues[name]; exists {
+	userVal, exists := e.configValues[name]
+	if exists {
 		effectiveValue = userVal.Value
 	} else if templatedValue != "" {
 		effectiveValue = templatedValue
@@ -167,6 +180,7 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 	// Cache the result and mark as processed
 	resolved := resolvedConfigItem{
 		Effective: effectiveValue,
+		UserValue: userVal.Value,
 		Value:     templatedValue,
 		Default:   templatedDefault,
 		Filename:  e.getItemFilename(configItem),
