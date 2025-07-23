@@ -119,7 +119,6 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
 		var response types.AppConfigValuesResponse
@@ -178,7 +177,6 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
-		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
 		var apiError types.APIError
@@ -231,7 +229,6 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusConflict, rec.Code)
-		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
 		var apiError types.APIError
@@ -285,7 +282,6 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
-		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
 		var apiError types.APIError

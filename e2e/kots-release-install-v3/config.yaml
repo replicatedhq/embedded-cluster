@@ -250,7 +250,7 @@ spec:
 
         - name: label
           type: label
-          when: '{{ ConfigOptionEquals "markdown_toggle" "1" }}'
+          when: '{{repl ConfigOptionEquals "markdown_toggle" "1" }}'
           title: |
             ## Markdown Items
 

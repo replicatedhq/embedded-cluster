@@ -120,8 +120,6 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, r, http.StatusOK, infra, h.logger)
 }
 
-
-
 // PostTemplateAppConfig handler to template the app config with provided values
 //
 //	@ID				postKubernetesInstallTemplateAppConfig
@@ -179,5 +177,3 @@ func (h *Handler) PatchConfigValues(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
-
-
