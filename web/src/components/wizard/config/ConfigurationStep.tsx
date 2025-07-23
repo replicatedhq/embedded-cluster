@@ -149,7 +149,9 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       if (fieldElement) {
         fieldElement.focus();
         // Scroll the element into view to ensure it's visible
-        fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (fieldElement.scrollIntoView) {
+          fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       } else {
         console.warn(`Could not find DOM element for field: ${fieldItem.name} (type: ${fieldItem.type})`);
       }
@@ -157,13 +159,14 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   // Helper function to parse server validation errors from API response
-  const parseServerErrors = (error: any): Record<string, string> => {
+  const parseServerErrors = (error: unknown): Record<string, string> => {
     const fieldErrors: Record<string, string> = {};
     
     // Check if error has structured field errors
-    if (error?.errors && Array.isArray(error.errors)) {
-      error.errors.forEach((fieldError: any) => {
-        if (fieldError.field && fieldError.message) {
+    if (error && typeof error === 'object' && 'errors' in error && Array.isArray(error.errors)) {
+      error.errors.forEach((fieldError: unknown) => {
+        if (fieldError && typeof fieldError === 'object' && 'field' in fieldError && 'message' in fieldError && 
+            typeof fieldError.field === 'string' && typeof fieldError.message === 'string') {
           // Pass through server error message directly - no client-side enhancement
           fieldErrors[fieldError.field] = fieldError.message;
         }
@@ -200,8 +203,8 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           throw new Error('Session expired. Please log in again.');
         }
         // Re-throw with full error data for parsing in onError
-        const error = new Error(errorData.message || 'Failed to save configuration');
-        (error as any).errorData = errorData;
+        const error = new Error(errorData.message || 'Failed to save configuration') as Error & { errorData: unknown };
+        error.errorData = errorData;
         throw error;
       }
 
@@ -218,7 +221,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       queryClient.setQueryData(['appConfigValues', target], appConfigValues);
       onNext();
     },
-    onError: (error: any) => {
+    onError: (error: Error & { errorData?: unknown }) => {
       // Parse server validation errors from response
       const fieldErrors = parseServerErrors(error?.errorData);
       setServerErrors(fieldErrors);

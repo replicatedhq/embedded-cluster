@@ -462,9 +462,9 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
 		assert.Len(t, apiError.Errors, 2)
 		assert.Equal(t, apiError.Errors[0].Field, "required-item")
-		assert.Equal(t, apiError.Errors[0].Message, "item is required")
+		assert.Equal(t, apiError.Errors[0].Message, "Required Item is required")
 		assert.Equal(t, apiError.Errors[1].Field, "required-password")
-		assert.Equal(t, apiError.Errors[1].Message, "item is required")
+		assert.Equal(t, apiError.Errors[1].Message, "Required Password is required")
 	})
 }
 
@@ -672,7 +672,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode, "Error should have BadRequest status code")
 		assert.Len(t, apiErr.Errors, 1, "Should have one validation error")
 		assert.Equal(t, "required-item", apiErr.Errors[0].Field, "Error should be for required-item field")
-		assert.Equal(t, "item is required", apiErr.Errors[0].Message, "Error should indicate item is required")
+		assert.Equal(t, "Required Item is required", apiErr.Errors[0].Message, "Error should indicate item is required")
 	})
 
 	// Test PatchLinuxAppConfigValues with invalid state transition
