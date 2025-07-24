@@ -198,7 +198,7 @@ func TestAPIError_ErrorOrNil(t *testing.T) {
 			name: "error with child errors",
 			err: &APIError{
 				StatusCode: http.StatusBadRequest,
-				Message:    "field errors",
+				Message:    "validation failed",
 				Errors: []*APIError{
 					{
 						Message: "field1: invalid value",
