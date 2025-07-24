@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import HelpText from './HelpText';
 
@@ -10,6 +11,7 @@ interface InputProps {
   error?: string;
   required?: boolean;
   type?: string;
+  allowShowPassword?: boolean; // property to control password visibility toggle
   value: string;
   icon?: React.ReactNode;
   placeholder?: string;
@@ -30,6 +32,7 @@ const Input: React.FC<InputProps> = ({
   error,
   required,
   type = 'text',
+  allowShowPassword = true,
   value,
   icon,
   placeholder = '',
@@ -42,7 +45,15 @@ const Input: React.FC<InputProps> = ({
   dataTestId,
 }) => {
   const { settings } = useSettings();
+  const [showPassword, setShowPassword] = useState(false);
   const themeColor = settings.themeColor;
+  const isPasswordField = type === 'password';
+  // For password fields, toggle between 'text' and 'password' types when showPassword is enabled
+  const inputType = isPasswordField && showPassword ? 'text' : type;
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  }
 
   return (
     <div className={`mb-4 ${className}`}>
@@ -58,7 +69,7 @@ const Input: React.FC<InputProps> = ({
         )}
         <input
           id={id}
-          type={type}
+          type={inputType}
           value={value}
           onChange={onChange}
           onKeyDown={onKeyDown}
@@ -66,17 +77,30 @@ const Input: React.FC<InputProps> = ({
           placeholder={placeholder}
           disabled={disabled}
           required={required}
-          className={`w-full px-3 py-2 ${icon ? 'pl-10' : ''} border ${
-            error ? 'border-red-500' : 'border-gray-300'
-          } rounded-md shadow-sm focus:outline-none ${
-            disabled ? 'bg-gray-100 text-gray-500' : 'bg-white'
-          }`}
+          className={`w-full px-3 py-2 ${icon ? 'pl-10' : ''} border ${error ? 'border-red-500' : 'border-gray-300'
+            } rounded-md shadow-sm focus:outline-none ${disabled ? 'bg-gray-100 text-gray-500' : 'bg-white'
+            }`}
           style={{
             '--tw-ring-color': themeColor,
             '--tw-ring-offset-color': themeColor,
           } as React.CSSProperties}
           data-testid={dataTestId}
         />
+        {isPasswordField && allowShowPassword &&
+          <button
+            type="button"
+            onClick={togglePasswordVisibility}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+            tabIndex={-1}
+            data-testid={dataTestId ? `password-visibility-toggle-${dataTestId}` : "password-visibility-toggle"}
+          >
+            {showPassword ? (
+              <EyeOff className="w-5 h-5" data-testid={dataTestId ? `eye-off-icon-${dataTestId}` : "eye-off-icon"} />
+            ) : (
+              <Eye className="w-5 h-5" data-testid={dataTestId ? `eye-icon-${dataTestId}` : "eye-icon"} />
+            )}
+          </button>
+        }
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
       <HelpText helpText={helpText} defaultValue={defaultValue} error={error} />

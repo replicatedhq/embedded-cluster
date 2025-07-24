@@ -1355,6 +1355,91 @@ describe.each([
     expect(passwordInput.value).toBe('abc');
   });
 
+  it("controls password visibility toggle based on user input for password fields", async () => {
+    // Create config with password field
+    const configWithPassword: AppConfig = {
+      groups: [
+        {
+          name: "auth",
+          title: "Authentication",
+          items: [
+            {
+              name: "user_password",
+              title: "User Password",
+              type: "password",
+              value: "••••••••",
+              default: "default_password"
+            }
+          ]
+        }
+      ]
+    };
+
+    server.use(
+      http.post(`*/api/${target}/install/app/config/template`, async () => {
+        return HttpResponse.json(configWithPassword);
+      })
+    );
+
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    // Wait for config to load
+    await waitForForm();
+
+    // Get the password input
+    const passwordInput = screen.getByTestId("password-input-user_password") as HTMLInputElement;
+
+    // Initially, the password visibility toggle should NOT be available
+    // because allowShowPassword returns false when no user value is set
+    expect(screen.queryByTestId("password-visibility-toggle-password-input-user_password")).not.toBeInTheDocument();
+    expect(passwordInput).toHaveValue("••••••••"); // API masked value
+
+    // Simulate user typing in the password field
+    fireEvent.keyDown(passwordInput, { key: 'a' }); // This clears the field
+    fireEvent.change(passwordInput, { target: { value: 'mypassword' } });
+
+    // Wait for the component to re-render and the visibility toggle to appear
+    await waitFor(() => {
+      expect(screen.getByTestId("password-visibility-toggle-password-input-user_password")).toBeInTheDocument();
+    });
+
+    // Verify the eye icon is shown (password is hidden by default)
+    const visibilityToggle = screen.getByTestId("password-visibility-toggle-password-input-user_password");
+    expect(screen.getByTestId("eye-icon-password-input-user_password")).toBeInTheDocument();
+    expect(screen.queryByTestId("eye-off-icon-password-input-user_password")).not.toBeInTheDocument();
+
+    // Password input should be of type "password" (hidden)
+    expect(passwordInput.type).toBe("password");
+
+    // Click the visibility toggle to show password
+    fireEvent.click(visibilityToggle);
+
+    // Verify the eye-off icon is now shown and input type changed to text
+    expect(screen.getByTestId("eye-off-icon-password-input-user_password")).toBeInTheDocument();
+    expect(screen.queryByTestId("eye-icon-password-input-user_password")).not.toBeInTheDocument();
+    expect(passwordInput.type).toBe("text");
+
+    // Click the visibility toggle again to hide password
+    fireEvent.click(visibilityToggle);
+
+    // Verify we're back to the eye icon and password type
+    expect(screen.getByTestId("eye-icon-password-input-user_password")).toBeInTheDocument();
+    expect(screen.queryByTestId("eye-off-icon-password-input-user_password")).not.toBeInTheDocument();
+    expect(passwordInput.type).toBe("password");
+
+    // Clear the password field to test that toggle disappears
+    fireEvent.change(passwordInput, { target: { value: '' } });
+
+    // Wait for the visibility toggle to disappear
+    await waitFor(() => {
+      expect(screen.queryByTestId("password-visibility-toggle-password-input-user_password")).not.toBeInTheDocument();
+    });
+  });
   it("handles empty string values vs undefined/null values correctly", async () => {
     // Create config with realistic field names
     const configWithDefaults: AppConfig = {

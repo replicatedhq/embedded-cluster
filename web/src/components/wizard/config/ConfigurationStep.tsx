@@ -74,7 +74,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       setIsLoading(false);
     };
     fetchInitialConfig();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Mutation to save config values
@@ -125,6 +125,12 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const getEffectiveValue = (item: AppConfigItem): string => {
     // First check user value, then config item value, then default (use ?? to allow empty strings from the user)
     return changedValues?.[item.name]?.value ?? (item.value || item.default || '');
+  };
+
+  // Helper function for password types to determine if the show password toggle should be enabled
+  const allowShowPassword = (item: AppConfigItem): boolean => {
+    // Only allow show password if the item is a password type and has a user value set
+    return Boolean(item.type === "password" && changedValues?.[item.name]?.value);
   };
 
   const updateConfigValue = (itemName: string, value: string, filename?: string) => {
@@ -195,6 +201,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             defaultValue={item.default}
             type="password"
             value={getDisplayValue(item)}
+            allowShowPassword={allowShowPassword(item)}
             onChange={handleInputChange}
             onKeyDown={(e) => handlePasswordKeyDown(item.name, e)}
             onFocus={handlePasswordFocus}
