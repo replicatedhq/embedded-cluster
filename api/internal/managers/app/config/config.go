@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -18,10 +17,6 @@ import (
 const (
 	// PasswordMask is the string used to mask password values in config responses
 	PasswordMask = "••••••••"
-
-	// Validation error messages
-	DefaultValidationErrorMessage = "field errors"
-	RequiredFieldsErrorMessage    = "required fields not completed"
 )
 
 var (
@@ -103,24 +98,6 @@ func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValu
 			if isFileType(item) && !isValueBase64Encoded(configValue) {
 				ve = types.AppendFieldError(ve, item.Name, ErrValueNotBase64Encoded)
 			}
-		}
-	}
-
-	// Set appropriate message based on error types
-	if ve != nil && len(ve.Errors) > 0 {
-		// Check if ALL errors are about required fields
-		allRequired := true
-		for _, err := range ve.Errors {
-			if !strings.Contains(err.Message, "is required") {
-				allRequired = false
-				break
-			}
-		}
-
-		if allRequired {
-			ve.Message = RequiredFieldsErrorMessage
-		} else {
-			ve.Message = DefaultValidationErrorMessage
 		}
 	}
 

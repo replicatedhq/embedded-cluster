@@ -97,7 +97,7 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 			},
 			expectedStatus: &types.Status{
 				State:       types.StateFailed,
-				Description: "validate: field errors: adminConsolePort cannot be the same as the manager port",
+				Description: "validate: validation failed: adminConsolePort cannot be the same as the manager port",
 			},
 			expectedStatusCode: http.StatusBadRequest,
 			expectedError:      true,
@@ -113,7 +113,7 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 			},
 			expectedStatus: &types.Status{
 				State:       types.StateFailed,
-				Description: "validate: field errors: adminConsolePort is required",
+				Description: "validate: validation failed: adminConsolePort is required",
 			},
 			expectedStatusCode: http.StatusBadRequest,
 			expectedError:      true,

@@ -16,12 +16,13 @@ import { handleUnauthorized } from '../../../utils/auth';
 import { useDebouncedFetch } from '../../../utils/debouncedFetch';
 import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from '../../../types';
 
-// Constants for configuration
-const FOCUS_DELAY_CROSS_TAB_MS = 100;
-const FOCUS_DELAY_SAME_TAB_MS = 10;
 
 interface ConfigurationStepProps {
   onNext: () => void;
+}
+
+interface ConfigError extends Error {
+  errors?: { field: string; message: string }[];
 }
 
 const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
@@ -35,7 +36,10 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { debouncedFetch } = useDebouncedFetch({ debounceMs: 250 });
   
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
+  const [itemToFocus, setItemToFocus] = useState<AppConfigItem | null>(null);
+  
+  
   const themeColor = settings.themeColor;
 
   const templateConfig = useCallback(async (values: AppConfigValues) => {
@@ -83,16 +87,16 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Helper function to find the first field with field error in DOM order
-  const findFirstFieldWithError = (fieldErrors: Record<string, string>): AppConfigItem | null => {
-    if (!appConfig?.groups || Object.keys(fieldErrors).length === 0) {
+  // Helper function to find the first item with error in DOM order
+  const findFirstItemWithError = (itemErrors: Record<string, string>): AppConfigItem | null => {
+    if (!appConfig?.groups || Object.keys(itemErrors).length === 0) {
       return null;
     }
     
-    // Iterate through groups and items in DOM order to find first field with error
+    // Iterate through groups and items in DOM order to find first item with error
     for (const group of appConfig.groups) {
       for (const item of group.items) {
-        if (fieldErrors[item.name]) {
+        if (itemErrors[item.name]) {
           return item;
         }
       }
@@ -101,87 +105,50 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     return null;
   };
 
-  // Helper function to find which group/tab contains a specific field
-  const findGroupForField = (fieldName: string): AppConfigGroup | null => {
+  // Helper function to find which group/tab contains a specific item
+  const findGroupForItem = (itemName: string): AppConfigGroup | null => {
     if (!appConfig?.groups) return null;
     
     return appConfig.groups.find(group => 
-      group.items.some(item => item.name === fieldName)
+      group.items.some(item => item.name === itemName)
     ) || null;
   };
 
-  // Helper function to focus on a field with tab switching support
-  const focusFieldWithTabSupport = (fieldItem: AppConfigItem): void => {
-    const targetGroup = findGroupForField(fieldItem.name);
+  // Helper function to focus on an item with tab switching support
+  const focusItemWithTabSupport = (item: AppConfigItem): void => {
+    const targetGroup = findGroupForItem(item.name);
     
     if (!targetGroup) {
-      console.warn(`Could not find group for field: ${fieldItem.name}`);
+      console.warn(`Could not find group for item: ${item.name}`);
       return;
     }
     
-    // Switch to the correct tab if field is in a different tab
+    // Switch to the correct tab if item is in a different tab
     if (targetGroup.name !== activeTab) {
       setActiveTab(targetGroup.name);
     }
     
-    // Focus the field after a brief delay to ensure DOM updates complete
-    // This is especially important when switching tabs
-    const focusDelay = targetGroup.name !== activeTab ? FOCUS_DELAY_CROSS_TAB_MS : FOCUS_DELAY_SAME_TAB_MS;
-    setTimeout(() => {
-      let fieldElement: HTMLElement | null = null;
-      
-      // Special handling for file inputs - focus the upload button instead of hidden input
-      if (fieldItem.type === 'file') {
-        // For file inputs, focus the upload button using data-testid (follows pattern: file-input-{name}-button)
-        fieldElement = document.querySelector(`[data-testid="file-input-${fieldItem.name}-button"]`) as HTMLElement;
-      }
-      // Special handling for radio buttons - focus the first radio option  
-      else if (fieldItem.type === 'radio' && fieldItem.items && fieldItem.items.length > 0) {
-        // For radio buttons, focus the first radio option using its ID
-        fieldElement = document.getElementById(fieldItem.items[0].name);
-      }
-      // Special handling for checkboxes - focus the checkbox input
-      else if (fieldItem.type === 'bool') {
-        // For checkboxes, focus using the field ID
-        fieldElement = document.getElementById(fieldItem.name);
-      }
-      // Default case - use the field name as element ID
-      else {
-        fieldElement = document.getElementById(fieldItem.name);
-      }
-      
-      if (fieldElement) {
-        fieldElement.focus();
-        // Scroll the element into view to ensure it's visible
-        if (fieldElement.scrollIntoView) {
-          fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      } else {
-        console.warn(`Could not find DOM element for field: ${fieldItem.name} (type: ${fieldItem.type})`);
-      }
-    }, focusDelay);
+    // Set the item to focus - useEffect will handle the actual focusing
+    setItemToFocus(item);
   };
 
   // Helper function to parse server validation errors from API response
-  const parseServerErrors = (error: unknown): Record<string, string> => {
-    const fieldErrors: Record<string, string> = {};
+  const parseServerErrors = (error: ConfigError): Record<string, string> => {
+    const itemErrors: Record<string, string> = {};
     
-    // Check if error has structured field errors
-    if (error && typeof error === 'object' && 'errors' in error && Array.isArray(error.errors)) {
-      error.errors.forEach((fieldError: unknown) => {
-        if (fieldError && typeof fieldError === 'object' && 'field' in fieldError && 'message' in fieldError && 
-            typeof fieldError.field === 'string' && typeof fieldError.message === 'string') {
-          // Pass through server error message directly - no client-side enhancement
-          fieldErrors[fieldError.field] = fieldError.message;
-        }
+    // Check if error has structured item errors
+    if (error.errors) {
+      error.errors.forEach((itemError) => {
+        // Pass through server error message directly - no client-side enhancement
+        itemErrors[itemError.field] = itemError.message;
       });
     }
     
-    return fieldErrors;
+    return itemErrors;
   };
 
   // Mutation to save config values
-  const { mutate: submitConfigValues } = useMutation({
+  const { mutate: submitConfigValues } = useMutation<void, ConfigError>({
     mutationFn: async () => {
       const response = await fetch(`/api/${target}/install/app/config/values`, {
         method: 'PATCH',
@@ -199,26 +166,26 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           throw new Error('Session expired. Please log in again.');
         }
         // Re-throw with full error data for parsing in onError
-        const error = new Error(errorData.message || 'Failed to save configuration') as Error & { errorData: unknown };
-        error.errorData = errorData;
+        const error = new Error(errorData.message || 'Failed to save configuration') as ConfigError;
+        error.errors = errorData.errors;
         throw error;
       }
     },
     onSuccess: () => {
       setGeneralError(null);
-      setFieldErrors({}); // Clear field errors
+      setItemErrors({}); // Clear item errors
       setChangedValues({}); // Clear changed values after successful submission
       onNext();
     },
-    onError: (error: Error & { errorData?: unknown }) => {
-      const parsedFieldErrors = parseServerErrors(error?.errorData);
-      setFieldErrors(parsedFieldErrors);
+    onError: (error: ConfigError) => {
+      const parsedItemErrors = parseServerErrors(error);
+      setItemErrors(parsedItemErrors);
       setGeneralError(error?.message || 'Failed to save configuration');
       
-      // Focus on the first field with validation error
-      const firstErrorField = findFirstFieldWithError(parsedFieldErrors);
-      if (firstErrorField) {
-        focusFieldWithTabSupport(firstErrorField);
+      // Focus on the first item with validation error
+      const firstErrorItem = findFirstItemWithError(parsedItemErrors);
+      if (firstErrorItem) {
+        focusItemWithTabSupport(firstErrorItem);
       }
     },
   });
@@ -229,6 +196,43 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       setActiveTab(appConfig.groups[0].name);
     }
   }, [appConfig, activeTab]);
+
+  // Handle focusing on item after tab switches or validation errors
+  useEffect(() => {
+    if (!itemToFocus) return;
+
+    let itemElement: HTMLElement | null = null;
+    
+    // For radio buttons, focus the first radio option
+    if (itemToFocus.type === 'radio' && itemToFocus.items && itemToFocus.items.length > 0) {
+      itemElement = document.getElementById(itemToFocus.items[0].name);
+    } else if (itemToFocus.type === 'file') {
+      // For file inputs, the hidden input can't be focused properly
+      // Find the file input container and focus on the upload button
+      const hiddenInput = document.getElementById(itemToFocus.name);
+      if (hiddenInput) {
+        // Look for the button within the file input's parent container
+        const container = hiddenInput.closest('.mb-4'); // FileInput wrapper
+        const uploadButton = container?.querySelector('button') as HTMLButtonElement;
+        if (uploadButton) {
+          itemElement = uploadButton;
+        }
+      }
+    } else {
+      itemElement = document.getElementById(itemToFocus.name);
+    }
+    
+    if (itemElement) {
+      itemElement.focus();
+      // Scroll the element into view to ensure it's visible
+      if (itemElement.scrollIntoView) {
+        itemElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // Clear the focus request
+    setItemToFocus(null);
+  }, [itemToFocus]);
 
   // Helper function to get the display value for a config item (no defaults)
   const getDisplayValue = (item: AppConfigItem): string => {
@@ -248,9 +252,9 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     const newChangedValues = { ...changedValues, [itemName]: { value, filename } };
     setChangedValues(newChangedValues);
 
-    // Clear field error for this field when user modifies it
-    if (fieldErrors[itemName]) {
-      setFieldErrors(prev => {
+    // Clear item error for this item when user modifies it
+    if (itemErrors[itemName]) {
+      setItemErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[itemName];
         return newErrors;
@@ -292,8 +296,8 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   const renderConfigItem = (item: AppConfigItem) => {
-    // Display field validation errors with priority over initial config errors
-    const displayError = fieldErrors[item.name] || item.error;
+    // Display item validation errors with priority over initial config errors  
+    const displayError = itemErrors[item.name] || item.error;
     
     const sharedProps = {
       id: item.name,
