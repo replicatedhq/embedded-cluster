@@ -35,7 +35,6 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { debouncedFetch } = useDebouncedFetch({ debounceMs: 250 });
   
-  // Add HEAD branch validation features
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const themeColor = settings.themeColor;
 
@@ -212,12 +211,11 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       onNext();
     },
     onError: (error: Error & { errorData?: unknown }) => {
-      // HEAD branch sophisticated error parsing
       const parsedFieldErrors = parseServerErrors(error?.errorData);
       setFieldErrors(parsedFieldErrors);
       setGeneralError(error?.message || 'Failed to save configuration');
       
-      // HEAD branch field focusing
+      // Focus on the first field with validation error
       const firstErrorField = findFirstFieldWithError(parsedFieldErrors);
       if (firstErrorField) {
         focusFieldWithTabSupport(firstErrorField);
@@ -250,7 +248,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     const newChangedValues = { ...changedValues, [itemName]: { value, filename } };
     setChangedValues(newChangedValues);
 
-    // Clear field error for this field when user modifies it (HEAD)
+    // Clear field error for this field when user modifies it
     if (fieldErrors[itemName]) {
       setFieldErrors(prev => {
         const newErrors = { ...prev };
@@ -259,7 +257,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       });
     }
 
-    // Template the config with the new values (main)
+    // Template the config with the new values
     templateConfig(newChangedValues);
   };
 
@@ -294,7 +292,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   const renderConfigItem = (item: AppConfigItem) => {
-    // CORRECT priority: fieldErrors (server validation) > item.error (initial config errors)
+    // Display field validation errors with priority over initial config errors
     const displayError = fieldErrors[item.name] || item.error;
     
     const sharedProps = {
