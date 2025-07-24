@@ -28,10 +28,9 @@ type Controller interface {
 	GetInstallationStatus(ctx context.Context) (types.Status, error)
 	SetupInfra(ctx context.Context) error
 	GetInfra(ctx context.Context) (types.Infra, error)
-	GetAppConfig(ctx context.Context) (types.AppConfig, error)
-	TemplateAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error)
+	TemplateAppConfig(ctx context.Context, values types.AppConfigValues, maskPasswords bool) (types.AppConfig, error)
 	PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) error
-	GetAppConfigValues(ctx context.Context, maskPasswords bool) (types.AppConfigValues, error)
+	GetAppConfigValues(ctx context.Context) (types.AppConfigValues, error)
 }
 
 var _ Controller = (*InstallController)(nil)

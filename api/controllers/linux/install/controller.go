@@ -33,10 +33,9 @@ type Controller interface {
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
-	GetAppConfig(ctx context.Context) (types.AppConfig, error)
-	TemplateAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error)
+	TemplateAppConfig(ctx context.Context, values types.AppConfigValues, maskPasswords bool) (types.AppConfig, error)
 	PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) error
-	GetAppConfigValues(ctx context.Context, maskPasswords bool) (types.AppConfigValues, error)
+	GetAppConfigValues(ctx context.Context) (types.AppConfigValues, error)
 }
 
 type RunHostPreflightsOptions struct {

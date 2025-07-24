@@ -24,174 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestLinuxGetAppConfig(t *testing.T) {
-	// Create an app config
-	appConfig := kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{
-				{
-					Name:  "test-group",
-					Title: "Test Group",
-					Items: []kotsv1beta1.ConfigItem{
-						{
-							Name:    "test-item",
-							Type:    "text",
-							Title:   "Test Item",
-							Default: multitype.FromString("default"),
-							Value:   multitype.FromString("value"),
-						},
-					},
-				},
-			},
-		},
-	}
-
-	// Create an app config with templates
-	appConfigWithTemplates := kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{
-				{
-					Name:  "deployment-config",
-					Title: "{{repl print \"Deployment Configuration\" }}",
-					Items: []kotsv1beta1.ConfigItem{
-						{
-							Name:    "cluster-name",
-							Type:    "text",
-							Title:   "Cluster Name",
-							Default: multitype.FromString("production-cluster"),
-							Value:   multitype.FromString("production-cluster"),
-						},
-						{
-							Name:    "namespace",
-							Type:    "text",
-							Title:   "repl{{ upper \"target namespace\" }}",
-							Default: multitype.FromString("{{repl printf \"default-%s\" \"namespace\" }}"),
-							Value:   multitype.FromString("repl{{ printf \"%s-deployment\" (ConfigOption \"cluster-name\") }}"),
-						},
-					},
-				},
-			},
-		},
-	}
-
-	// Create config values that should be applied to the config
-	configValues := types.AppConfigValues{
-		"test-item": types.AppConfigValue{Value: "applied-value"},
-	}
-
-	// Create an install controller with the config values
-	installController, err := linuxinstall.NewInstallController(
-		linuxinstall.WithConfigValues(configValues),
-		linuxinstall.WithReleaseData(&release.ReleaseData{
-			AppConfig: &appConfig,
-		}),
-	)
-	require.NoError(t, err)
-
-	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
-		api.WithLinuxInstallController(installController),
-		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
-		api.WithLogger(logger.NewDiscardLogger()),
-	)
-
-	// Create a router and register the API routes
-	router := mux.NewRouter()
-	apiInstance.RegisterRoutes(router)
-
-	// Test successful get
-	t.Run("Success", func(t *testing.T) {
-		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config", nil)
-		req.Header.Set("Authorization", "Bearer "+"TOKEN")
-		rec := httptest.NewRecorder()
-
-		// Serve the request
-		router.ServeHTTP(rec, req)
-
-		// Check the response
-		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
-
-		// Parse the response body
-		var response types.AppConfig
-		err = json.NewDecoder(rec.Body).Decode(&response)
-		require.NoError(t, err)
-
-		// Verify the raw app config is returned
-		assert.Equal(t, response.Groups[0].Items[0].Value.String(), "value", "app config should return raw config schema without values applied")
-	})
-
-	// Test authorization
-	t.Run("Authorization error", func(t *testing.T) {
-		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config", nil)
-		req.Header.Set("Authorization", "Bearer "+"NOT_A_TOKEN")
-		rec := httptest.NewRecorder()
-
-		// Serve the request
-		router.ServeHTTP(rec, req)
-
-		// Check the response
-		assert.Equal(t, http.StatusUnauthorized, rec.Code)
-		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
-
-		// Parse the response body
-		var apiError types.APIError
-		err = json.NewDecoder(rec.Body).Decode(&apiError)
-		require.NoError(t, err)
-		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
-	})
-
-	// Test template processing
-	t.Run("Template processing", func(t *testing.T) {
-		// Create an install controller with the templated config
-		installController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithReleaseData(&release.ReleaseData{
-				AppConfig: &appConfigWithTemplates,
-			}),
-		)
-		require.NoError(t, err)
-
-		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
-			api.WithLinuxInstallController(installController),
-			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
-			api.WithLogger(logger.NewDiscardLogger()),
-		)
-		require.NoError(t, err)
-
-		// Create a router and register the API routes
-		router := mux.NewRouter()
-		apiInstance.RegisterRoutes(router)
-
-		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/linux/install/app/config", nil)
-		req.Header.Set("Authorization", "Bearer "+"TOKEN")
-		rec := httptest.NewRecorder()
-
-		// Serve the request
-		router.ServeHTTP(rec, req)
-
-		// Check the response
-		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
-
-		// Parse the response body
-		var response types.AppConfig
-		err = json.NewDecoder(rec.Body).Decode(&response)
-		require.NoError(t, err)
-
-		// Verify the templates were processed
-		assert.Equal(t, "Deployment Configuration", response.Groups[0].Title, "group title should be processed from template")
-		assert.Equal(t, "Cluster Name", response.Groups[0].Items[0].Title, "first item title should be non-templated")
-		assert.Equal(t, "production-cluster", response.Groups[0].Items[0].Value.String(), "first item value should be non-templated")
-		assert.Equal(t, "TARGET NAMESPACE", response.Groups[0].Items[1].Title, "templated item title should be processed from template")
-		assert.Equal(t, "production-cluster-deployment", response.Groups[0].Items[1].Value.String(), "templated item value should be processed from ConfigOption template")
-		assert.Equal(t, "default-namespace", response.Groups[0].Items[1].Default.String(), "templated item default should be processed from template")
-	})
-}
-
 func TestLinuxPatchAppConfigValues(t *testing.T) {
 	// Create an app config
 	appConfig := kotsv1beta1.Config{
@@ -287,7 +119,6 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
 		var response types.AppConfigValuesResponse
@@ -346,7 +177,6 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
-		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
 		var apiError types.APIError
@@ -399,7 +229,6 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusConflict, rec.Code)
-		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
 		var apiError types.APIError
@@ -453,7 +282,6 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 
 		// Check the response
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
-		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
 		var apiError types.APIError
@@ -634,26 +462,6 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 	// Create client with the predefined token
 	c := apiclient.New(server.URL, apiclient.WithToken("TOKEN"))
 
-	// Test PatchLinuxAppConfigValues
-	t.Run("PatchLinuxAppConfigValues", func(t *testing.T) {
-		// Create config values to set
-		configValues := types.AppConfigValues{
-			"test-item":     types.AppConfigValue{Value: "new-value"},
-			"required-item": types.AppConfigValue{Value: "required-value"},
-			"file-item":     types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
-		}
-
-		// Set the app config values using the client
-		config, err := c.PatchLinuxAppConfigValues(configValues)
-		require.NoError(t, err, "PatchLinuxAppConfigValues should succeed")
-
-		// Verify the app config values are returned from the store
-		assert.Equal(t, "new-value", config["test-item"].Value, "test-item should be updated")
-		assert.Equal(t, "required-value", config["required-item"].Value, "required-item should be updated")
-		assert.Equal(t, "SGVsbG8gV29ybGQ=", config["file-item"].Value, "file-item value should be updated")
-		assert.Equal(t, "new-file.txt", config["file-item"].Filename, "file-item value should contain a filename")
-	})
-
 	// Test PatchLinuxAppConfigValues with missing required item
 	t.Run("PatchLinuxAppConfigValues missing required", func(t *testing.T) {
 		// Create config values without the required item
@@ -720,6 +528,26 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		require.True(t, ok, "Error should be of type *types.APIError")
 		assert.Equal(t, http.StatusConflict, apiErr.StatusCode, "Error should have Conflict status code")
 		assert.Contains(t, apiErr.Message, "invalid transition", "Error should mention invalid transition")
+	})
+
+	// Test PatchLinuxAppConfigValues
+	t.Run("PatchLinuxAppConfigValues", func(t *testing.T) {
+		// Create config values to set
+		configValues := types.AppConfigValues{
+			"test-item":     types.AppConfigValue{Value: "new-value"},
+			"required-item": types.AppConfigValue{Value: "required-value"},
+			"file-item":     types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "new-file.txt"},
+		}
+
+		// Set the app config values using the client
+		config, err := c.PatchLinuxAppConfigValues(configValues)
+		require.NoError(t, err, "PatchLinuxAppConfigValues should succeed")
+
+		// Verify the app config values are returned from the store
+		assert.Equal(t, "new-value", config["test-item"].Value, "test-item should be updated")
+		assert.Equal(t, "required-value", config["required-item"].Value, "required-item should be updated")
+		assert.Equal(t, "SGVsbG8gV29ybGQ=", config["file-item"].Value, "file-item value should be updated")
+		assert.Equal(t, "new-file.txt", config["file-item"].Filename, "file-item value should contain a filename")
 	})
 }
 
@@ -1025,18 +853,18 @@ func TestLinuxTemplateAppConfig(t *testing.T) {
 		assert.Equal(t, "db_enabled", dbGroup.Items[0].Name)
 		assert.Equal(t, "true", dbGroup.Items[0].Value.String(), "config value should remain unchanged")
 
-		// Check db_type item - config value remains unchanged
+		// Check db_type item - user value takes precedence over config value
 		assert.Equal(t, "db_type", dbGroup.Items[1].Name)
-		assert.Equal(t, "mysql", dbGroup.Items[1].Value.String(), "config value should remain unchanged")
+		assert.Equal(t, "postgresql", dbGroup.Items[1].Value.String(), "user value should take precedence over config value")
 
-		// Check db_host item - template uses user-provided db_type value
+		// Check db_host item - user value takes precedence over templated config value
 		assert.Equal(t, "db_host", dbGroup.Items[2].Name)
 		assert.Equal(t, "Database Host (postgresql)", dbGroup.Items[2].Title, "title should use user-provided db_type")
-		assert.Equal(t, "postgresql.example.com", dbGroup.Items[2].Value.String(), "value should use user-provided db_type")
+		assert.Equal(t, "custom-host", dbGroup.Items[2].Value.String(), "user value should take precedence over templated config value")
 
-		// Check db_port item - conditional template uses user-provided db_type
+		// Check db_port item - user value takes precedence over templated config value
 		assert.Equal(t, "db_port", dbGroup.Items[3].Name)
-		assert.Equal(t, "5432", dbGroup.Items[3].Value.String(), "should be postgresql port based on user db_type")
+		assert.Equal(t, "9999", dbGroup.Items[3].Value.String(), "user value should take precedence over templated config value")
 		assert.Equal(t, "5432", dbGroup.Items[3].Default.String(), "default should be postgresql port")
 	})
 

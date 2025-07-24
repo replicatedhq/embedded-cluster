@@ -120,27 +120,6 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, r, http.StatusOK, infra, h.logger)
 }
 
-// GetAppConfig handler to get the app config
-//
-//	@ID				getKubernetesInstallAppConfig
-//	@Summary		Get the app config
-//	@Description	get the app config
-//	@Tags			kubernetes-install
-//	@Security		bearerauth
-//	@Produce		json
-//	@Success		200	{object}	types.AppConfig
-//	@Router			/kubernetes/install/app/config [get]
-func (h *Handler) GetAppConfig(w http.ResponseWriter, r *http.Request) {
-	appConfig, err := h.installController.GetAppConfig(r.Context())
-	if err != nil {
-		utils.LogError(r, err, h.logger, "failed to get app config")
-		utils.JSONError(w, r, err, h.logger)
-		return
-	}
-
-	utils.JSON(w, r, http.StatusOK, appConfig, h.logger)
-}
-
 // PostTemplateAppConfig handler to template the app config with provided values
 //
 //	@ID				postKubernetesInstallTemplateAppConfig
@@ -160,7 +139,7 @@ func (h *Handler) PostTemplateAppConfig(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	appConfig, err := h.installController.TemplateAppConfig(r.Context(), req.Values)
+	appConfig, err := h.installController.TemplateAppConfig(r.Context(), req.Values, true)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to template app config")
 		utils.JSONError(w, r, err, h.logger)
@@ -170,7 +149,7 @@ func (h *Handler) PostTemplateAppConfig(w http.ResponseWriter, r *http.Request) 
 	utils.JSON(w, r, http.StatusOK, appConfig, h.logger)
 }
 
-// PatchConfigValues handler to set the app config values
+// PatchAppConfigValues handler to set the app config values
 //
 //	@ID				patchKubernetesInstallAppConfigValues
 //	@Summary		Set the app config values
@@ -183,7 +162,7 @@ func (h *Handler) PostTemplateAppConfig(w http.ResponseWriter, r *http.Request) 
 //	@Success		200		{object}	types.AppConfigValuesResponse
 //	@Failure		400		{object}	types.APIError
 //	@Router			/kubernetes/install/app/config/values [patch]
-func (h *Handler) PatchConfigValues(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) PatchAppConfigValues(w http.ResponseWriter, r *http.Request) {
 	var req types.PatchAppConfigValuesRequest
 	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
 		return
@@ -201,16 +180,17 @@ func (h *Handler) PatchConfigValues(w http.ResponseWriter, r *http.Request) {
 
 // GetAppConfigValues handler to get the app config values
 //
-//	@ID				getKubernetesInstallAppConfigValues
+//	@ID				getLinuxInstallAppConfigValues
 //	@Summary		Get the app config values
-//	@Description	Get the app config values
-//	@Tags			kubernetes-install
+//	@Description	Get the current app config values
+//	@Tags			linux-install
 //	@Security		bearerauth
 //	@Produce		json
 //	@Success		200	{object}	types.AppConfigValuesResponse
-//	@Router			/kubernetes/install/app/config/values [get]
+//	@Failure		400	{object}	types.APIError
+//	@Router			/linux/install/app/config/values [get]
 func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
-	configValues, err := h.installController.GetAppConfigValues(r.Context(), true)
+	values, err := h.installController.GetAppConfigValues(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get app config values")
 		utils.JSONError(w, r, err, h.logger)
@@ -218,7 +198,8 @@ func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := types.AppConfigValuesResponse{
-		Values: configValues,
+		Values: values,
 	}
+
 	utils.JSON(w, r, http.StatusOK, response, h.logger)
 }

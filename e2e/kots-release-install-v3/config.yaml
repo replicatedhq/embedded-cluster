@@ -4,6 +4,164 @@ metadata:
   name: test-config
 spec:
   groups:
+    - name: cert-example-settings
+      title: My Cert Example Config
+      items:
+        - name: hostname
+          title: Hostname
+          help_text: Enter a DNS hostname to use as the cert's CN.
+          type: text
+
+        - name: tls_json
+          title: TLS JSON
+          type: textarea
+          hidden: true
+          default: |-
+            repl{{ $ca := genCA (ConfigOption "hostname") 365 }}
+            repl{{ $tls := dict "ca" $ca }}
+            repl{{ $cert := genSignedCert (ConfigOption "hostname") (list ) (list (ConfigOption "hostname")) 365 $ca }}
+            repl{{ $_ := set $tls "cert" $cert }}
+            repl{{ toJson $tls }}
+
+        - name: tls_ca
+          title: Signing Authority
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "tls_json") | dig "ca" "Cert" "" }}
+
+        - name: tls_cert
+          title: TLS Cert
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "tls_json") | dig "cert" "Cert" "" }}
+
+        - name: tls_key
+          title: TLS Key
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "tls_json") | dig "cert" "Key" "" }}
+
+        - name: api_hostname
+          title: API Hostname
+          help_text: Enter the hostname for the API certificate.
+          type: text
+
+        - name: api_tls_json
+          title: API TLS JSON
+          type: textarea
+          hidden: true
+          default: |-
+            repl{{ $ca := genCA (ConfigOption "api_hostname") 365 }}
+            repl{{ $tls := dict "ca" $ca }}
+            repl{{ $cert := genSignedCert (ConfigOption "api_hostname") (list ) (list (ConfigOption "api_hostname")) 365 $ca }}
+            repl{{ $_ := set $tls "cert" $cert }}
+            repl{{ toJson $tls }}
+
+        - name: api_tls_ca
+          title: API Signing Authority
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "api_tls_json") | dig "ca" "Cert" "" }}
+
+        - name: api_tls_cert
+          title: API TLS Cert
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "api_tls_json") | dig "cert" "Cert" "" }}
+
+        - name: api_tls_key
+          title: API TLS Key
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "api_tls_json") | dig "cert" "Key" "" }}
+
+        - name: db_hostname
+          title: Database Hostname
+          help_text: Enter the hostname for the database certificate.
+          type: text
+
+        - name: db_tls_json
+          title: Database TLS JSON
+          type: textarea
+          hidden: true
+          default: |-
+            repl{{ $ca := genCA (ConfigOption "db_hostname") 365 }}
+            repl{{ $tls := dict "ca" $ca }}
+            repl{{ $cert := genSignedCert (ConfigOption "db_hostname") (list ) (list (ConfigOption "db_hostname")) 365 $ca }}
+            repl{{ $_ := set $tls "cert" $cert }}
+            repl{{ toJson $tls }}
+
+        - name: db_tls_ca
+          title: Database Signing Authority
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "db_tls_json") | dig "ca" "Cert" "" }}
+
+        - name: db_tls_cert
+          title: Database TLS Cert
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "db_tls_json") | dig "cert" "Cert" "" }}
+
+        - name: db_tls_key
+          title: Database TLS Key
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "db_tls_json") | dig "cert" "Key" "" }}
+
+        - name: ingress_hostname
+          title: Ingress Hostname
+          help_text: Enter the hostname for the ingress certificate.
+          type: text
+
+        - name: ingress_tls_json
+          title: Ingress TLS JSON
+          type: textarea
+          hidden: true
+          default: |-
+            repl{{ $ca := genCA (ConfigOption "ingress_hostname") 365 }}
+            repl{{ $tls := dict "ca" $ca }}
+            repl{{ $cert := genSignedCert (ConfigOption "ingress_hostname") (list ) (list (ConfigOption "ingress_hostname")) 365 $ca }}
+            repl{{ $_ := set $tls "cert" $cert }}
+            repl{{ toJson $tls }}
+
+        - name: ingress_tls_ca
+          title: Ingress Signing Authority
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "ingress_tls_json") | dig "ca" "Cert" "" }}
+
+        - name: ingress_tls_cert
+          title: Ingress TLS Cert
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "ingress_tls_json") | dig "cert" "Cert" "" }}
+
+        - name: ingress_tls_key
+          title: Ingress TLS Key
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "ingress_tls_json") | dig "cert" "Key" "" }}
+
+        - name: registry_hostname
+          title: Registry Hostname
+          help_text: Enter the hostname for the container registry certificate.
+          type: text
+
+        - name: registry_tls_json
+          title: Registry TLS JSON
+          type: textarea
+          hidden: true
+          default: |-
+            repl{{ $ca := genCA (ConfigOption "registry_hostname") 365 }}
+            repl{{ $tls := dict "ca" $ca }}
+            repl{{ $cert := genSignedCert (ConfigOption "registry_hostname") (list ) (list (ConfigOption "registry_hostname")) 365 $ca }}
+            repl{{ $_ := set $tls "cert" $cert }}
+            repl{{ toJson $tls }}
+
+        - name: registry_tls_ca
+          title: Registry Signing Authority
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "registry_tls_json") | dig "ca" "Cert" "" }}
+
+        - name: registry_tls_cert
+          title: Registry TLS Cert
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "registry_tls_json") | dig "cert" "Cert" "" }}
+
+        - name: registry_tls_key
+          title: Registry TLS Key
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "registry_tls_json") | dig "cert" "Key" "" }}
+
     - name: config-items
       title: Config Items
       items:
@@ -208,8 +366,15 @@ spec:
     - name: markdown-items
       title: Markdown Items
       items:
+        - name: markdown_toggle
+          title: Toggle Markdown Items
+          type: bool
+          help_text: "Help text of a **_Checkbox_** config item type"
+          default: "1"
+
         - name: label
           type: label
+          when: '{{repl ConfigOptionEquals "markdown_toggle" "1" }}'
           title: |
             ## Markdown Items
 

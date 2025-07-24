@@ -394,22 +394,6 @@ paths:
       summary: Get the health of the API
       tags:
       - health
-  /kubernetes/install/app/config:
-    get:
-      description: get the app config
-      operationId: getKubernetesInstallAppConfig
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.AppConfig'
-          description: OK
-      security:
-      - bearerauth: []
-      summary: Get the app config
-      tags:
-      - kubernetes-install
   /kubernetes/install/app/config/template:
     post:
       description: Template the app config with provided values and return the templated
@@ -441,21 +425,6 @@ paths:
       tags:
       - kubernetes-install
   /kubernetes/install/app/config/values:
-    get:
-      description: Get the app config values
-      operationId: getKubernetesInstallAppConfigValues
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.AppConfigValuesResponse'
-          description: OK
-      security:
-      - bearerauth: []
-      summary: Get the app config values
-      tags:
-      - kubernetes-install
     patch:
       description: Set the app config values with partial updates
       operationId: patchKubernetesInstallAppConfigValues
@@ -582,22 +551,6 @@ paths:
       summary: Get installation configuration status for install
       tags:
       - kubernetes-install
-  /linux/install/app/config:
-    get:
-      description: get the app config
-      operationId: getLinuxInstallAppConfig
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.AppConfig'
-          description: OK
-      security:
-      - bearerauth: []
-      summary: Get the app config
-      tags:
-      - linux-install
   /linux/install/app/config/template:
     post:
       description: Template the app config with provided values and return the templated
@@ -630,7 +583,7 @@ paths:
       - linux-install
   /linux/install/app/config/values:
     get:
-      description: Get the app config values
+      description: Get the current app config values
       operationId: getLinuxInstallAppConfigValues
       responses:
         "200":
@@ -639,6 +592,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.AppConfigValuesResponse'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Get the app config values
