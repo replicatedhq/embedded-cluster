@@ -87,6 +87,7 @@ func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOpti
 			apitemplate.WithMode(apitemplate.ModeConfig),
 			apitemplate.WithLicense(manager.license),
 			apitemplate.WithReleaseData(manager.releaseData),
+			apitemplate.WithLogger(manager.logger),
 		)
 	}
 

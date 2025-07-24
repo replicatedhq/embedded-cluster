@@ -2,6 +2,7 @@ package template
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -144,7 +145,17 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 	// Find the config item definition
 	configItem := e.findConfigItem(name)
 	if configItem == nil {
-		return nil, fmt.Errorf("config item %s not found", name)
+		e.logger.
+			WithField("name", name).
+			WithError(errors.New("config item not found")).
+			Error("failed to resolve config item")
+
+		resolved := resolvedConfigItem{
+			Processed: true,
+		}
+		e.cache[name] = resolved
+
+		return &resolved, nil
 	}
 
 	var effectiveValue, templatedValue, templatedDefault string

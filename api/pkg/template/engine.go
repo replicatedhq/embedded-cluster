@@ -11,9 +11,11 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/sirupsen/logrus"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -32,6 +34,7 @@ type Engine struct {
 	config      *kotsv1beta1.Config
 	license     *kotsv1beta1.License
 	releaseData *release.ReleaseData
+	logger      logrus.FieldLogger
 
 	// Internal state
 	configValues     types.AppConfigValues
@@ -64,6 +67,12 @@ func WithReleaseData(releaseData *release.ReleaseData) EngineOption {
 	}
 }
 
+func WithLogger(logger logrus.FieldLogger) EngineOption {
+	return func(e *Engine) {
+		e.logger = logger
+	}
+}
+
 func NewEngine(config *kotsv1beta1.Config, opts ...EngineOption) *Engine {
 	engine := &Engine{
 		mode:             ModeGeneric, // default to generic mode
@@ -78,6 +87,10 @@ func NewEngine(config *kotsv1beta1.Config, opts ...EngineOption) *Engine {
 
 	for _, opt := range opts {
 		opt(engine)
+	}
+
+	if engine.logger == nil {
+		engine.logger = logger.NewDiscardLogger()
 	}
 
 	// Initialize funcMap once
