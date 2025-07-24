@@ -794,6 +794,8 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 		embCfgSpec = &embCfg.Spec
 	}
 
+	// testing
+
 	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
 	if err != nil {
 		return nil, fmt.Errorf("unable to process overrides file: %w", err)
