@@ -14,7 +14,7 @@ K0S_VERSION = v1.31.11+k0s.0
 K0S_GO_VERSION = v1.31.11+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.30.9+k0s.0
 PREVIOUS_K0S_GO_VERSION ?= v1.30.9+k0s.0
-K0S_BINARY_SOURCE_OVERRIDE = https://repldev-ethan-test.s3.us-east-1.amazonaws.com/k0s
+K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.120.3
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
@@ -37,7 +37,9 @@ METADATA_K0S_BINARY_URL_OVERRIDE =
 METADATA_KOTS_BINARY_URL_OVERRIDE =
 METADATA_OPERATOR_BINARY_URL_OVERRIDE =
 
-ifeq ($(K0S_VERSION),v1.30.5+k0s.0-ec.1)
+ifeq ($(K0S_VERSION),v1.31.11+k0s.0)
+K0S_BINARY_SOURCE_OVERRIDE = https://repldev-ethan-test.s3.us-east-1.amazonaws.com/k0s
+else ifeq ($(K0S_VERSION),v1.30.5+k0s.0-ec.1)
 K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.30.5%2Bk0s.0-ec.1-$(ARCH)
 else ifeq ($(K0S_VERSION),v1.29.9+k0s.0-ec.0)
 K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.29.9%2Bk0s.0-ec.0-$(ARCH)

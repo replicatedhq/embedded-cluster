@@ -669,8 +669,8 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkNodeJoinCommand(t, tc, 0)
@@ -740,8 +740,8 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
@@ -908,8 +908,8 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 		// the '+' character is problematic in the regex used to validate the version, so we use '.' instead
 		appVer,
 		"v1.28.11"}
-	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
