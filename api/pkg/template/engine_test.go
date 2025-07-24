@@ -236,12 +236,12 @@ func TestEngine_ConfigOptionEquals(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Snapshot Backup", result)
 
-	// Test with an unknown item - an error is returned and false is returned
+	// Test with an unknown item - no error is returned and false is returned
 	err = engine.Parse("{{repl if ConfigOptionEquals \"notfound\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(nil)
-	require.Error(t, err)
-	assert.Equal(t, "", result)
+	require.NoError(t, err)
+	assert.Equal(t, "Other Storage", result)
 }
 
 func TestEngine_ConfigOptionNotEquals(t *testing.T) {
@@ -297,12 +297,12 @@ func TestEngine_ConfigOptionNotEquals(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Other Backup", result)
 
-	// Test with an unknown item - an error is returned and false is returned
+	// Test with an unknown item - no error is returned and true is returned
 	err = engine.Parse("{{repl if ConfigOptionNotEquals \"notfound\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(nil)
-	require.Error(t, err)
-	assert.Equal(t, "", result)
+	require.NoError(t, err)
+	assert.Equal(t, "Filesystem Storage", result)
 }
 
 func TestEngine_ConfigOptionData(t *testing.T) {
@@ -409,11 +409,11 @@ func TestEngine_ConfigOptionFilename(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "user_file.txt", result)
 
-	// Test with an unknown item - an error is returned and empty string is returned
+	// Test with an unknown item - no error is returned and empty string is returned
 	err = engine.Parse("{{repl ConfigOptionFilename \"notfound\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(nil)
-	require.Error(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "", result)
 }
 
@@ -754,9 +754,9 @@ func TestEngine_UnknownConfigItem(t *testing.T) {
 
 	err := engine.Parse("{{repl ConfigOption \"nonexistent\" }}")
 	require.NoError(t, err)
-	_, err = engine.Execute(nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "config item nonexistent not found")
+	result, err := engine.Execute(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "", result)
 }
 
 func TestEngine_DependencyTreeAndCaching(t *testing.T) {

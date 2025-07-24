@@ -10,6 +10,10 @@ import (
 	"github.com/replicatedhq/kotskinds/multitype"
 )
 
+var (
+	errConfigItemNotFound = errors.New("config item not found")
+)
+
 type resolvedConfigItem struct {
 	// Effective is the final resolved value following priority: user value > config value > config default
 	// This is what ConfigOption functions return and what gets used in templates
@@ -32,6 +36,9 @@ type resolvedConfigItem struct {
 	// Processed indicates whether this item has been processed in the current execution
 	// Used for cache invalidation - false means it's from a previous execution
 	Processed bool
+
+	// Error is the error that occurred while resolving the config item
+	Error error
 }
 
 // templateConfigItems processes each config item in the engine's config by templating its value and default fields.
@@ -94,6 +101,11 @@ func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("resolve config item: %w", err)
 	}
+
+	if resolved.Error != nil {
+		return false, nil
+	}
+
 	return resolved.Effective == expected, nil
 }
 
@@ -105,6 +117,11 @@ func (e *Engine) configOptionNotEquals(name, expected string) (bool, error) {
 		// NOTE: this is parity from KOTS but I would expect this to return true
 		return false, fmt.Errorf("resolve config item: %w", err)
 	}
+
+	if resolved.Error != nil {
+		return true, nil
+	}
+
 	return resolved.Effective != expected, nil
 }
 
@@ -145,13 +162,18 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 	// Find the config item definition
 	configItem := e.findConfigItem(name)
 	if configItem == nil {
+		// this is a recoverable error
+		// NOTE: this is for parity with KOTS
+		err := errConfigItemNotFound
+
 		e.logger.
 			WithField("name", name).
-			WithError(errors.New("config item not found")).
+			WithError(err).
 			Error("failed to resolve config item")
 
 		resolved := resolvedConfigItem{
 			Processed: true,
+			Error:     err,
 		}
 		e.cache[name] = resolved
 
