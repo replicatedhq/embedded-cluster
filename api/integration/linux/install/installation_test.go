@@ -168,7 +168,7 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 			},
 			expectedStatus: &types.Status{
 				State:       types.StateFailed,
-				Description: "validate: validation failed: adminConsolePort and localArtifactMirrorPort cannot be equal",
+				Description: "validate: field errors: adminConsolePort and localArtifactMirrorPort cannot be equal",
 			},
 			expectedStatusCode: http.StatusBadRequest,
 			expectedError:      true,
