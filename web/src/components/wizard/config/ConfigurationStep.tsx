@@ -36,7 +36,6 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { debouncedFetch } = useDebouncedFetch({ debounceMs: 250 });
   
   // Add HEAD branch validation features
-  const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const themeColor = settings.themeColor;
 
@@ -208,8 +207,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     },
     onSuccess: () => {
       setGeneralError(null);
-      setFieldErrors({}); // ADD: Clear field errors
-      setDirtyFields(new Set()); // ADD: Clear dirty fields  
+      setFieldErrors({}); // Clear field errors
       setChangedValues({}); // Clear changed values after successful submission
       onNext();
     },
@@ -251,9 +249,6 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     // Update the config values map
     const newChangedValues = { ...changedValues, [itemName]: { value, filename } };
     setChangedValues(newChangedValues);
-
-    // Mark field as dirty (HEAD)
-    setDirtyFields(prev => new Set(prev).add(itemName));
 
     // Clear field error for this field when user modifies it (HEAD)
     if (fieldErrors[itemName]) {
