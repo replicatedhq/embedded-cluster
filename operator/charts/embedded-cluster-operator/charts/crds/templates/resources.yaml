@@ -326,7 +326,8 @@ spec:
                 description: AirGap indicates if the installation is airgapped.
                 type: boolean
               airgapUncompressedSize:
-                description: AirgapUncompressedSize holds the size of the uncompressed airgap bundle in bytes.
+                description: AirgapUncompressedSize holds the size of the uncompressed
+                  airgap bundle in bytes.
                 format: int64
                 type: integer
               artifacts:
