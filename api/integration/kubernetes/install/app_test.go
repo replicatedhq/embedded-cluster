@@ -14,6 +14,7 @@ import (
 	kubernetesinstall "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -187,7 +188,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 	t.Run("Invalid state transition", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := kubernetesinstall.NewInstallController(
-			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateSucceeded))),
+			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateSucceeded))),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),
@@ -434,7 +435,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 
 	// Create an install controller with the app config
 	installController, err := kubernetesinstall.NewInstallController(
-		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateNew))),
+		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateNew))),
 		kubernetesinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),
@@ -485,7 +486,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 	t.Run("PatchKubernetesAppConfigValues invalid state", func(t *testing.T) {
 		// Create an install controller in a completed state
 		completedInstallController, err := kubernetesinstall.NewInstallController(
-			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateSucceeded))),
+			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateSucceeded))),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),

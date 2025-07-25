@@ -19,6 +19,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	linuxinstallationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -196,7 +197,7 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 			// Create an install controller with the config manager
 			installController, err := linuxinstall.NewInstallController(
 				linuxinstall.WithRuntimeConfig(rc),
-				linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
+				linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateApplicationConfigured))),
 				linuxinstall.WithHostUtils(tc.mockHostUtils),
 				linuxinstall.WithNetUtils(tc.mockNetUtils),
 				linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
@@ -296,7 +297,7 @@ func TestLinuxConfigureInstallationValidation(t *testing.T) {
 	// Create an install controller with the config manager
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
-		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateApplicationConfigured))),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
@@ -356,7 +357,7 @@ func TestLinuxConfigureInstallationBadRequest(t *testing.T) {
 	// Create an install controller with the config manager
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
-		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured))),
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateHostConfigured))),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
@@ -632,7 +633,7 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 	// Create an install controller with the config manager
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
-		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateApplicationConfigured))),
 		linuxinstall.WithInstallationManager(installationManager),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)

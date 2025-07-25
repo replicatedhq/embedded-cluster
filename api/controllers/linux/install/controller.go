@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
@@ -32,6 +33,8 @@ type Controller interface {
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
+	// App controller methods
+	appcontroller.Controller
 }
 
 type RunHostPreflightsOptions struct {
@@ -61,6 +64,8 @@ type InstallController struct {
 	stateMachine              statemachine.Interface
 	logger                    logrus.FieldLogger
 	allowIgnoreHostPreflights bool
+	// App controller composition
+	*appcontroller.InstallController
 }
 
 type InstallControllerOption func(*InstallController)
@@ -269,6 +274,19 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			return nil, fmt.Errorf("patch app config values: %w", err)
 		}
 	}
+
+	// Initialize the app controller with the app config manager and state machine
+	appInstallController, err := appcontroller.NewInstallController(
+		appcontroller.WithAppConfigManager(controller.appConfigManager),
+		appcontroller.WithStateMachine(controller.stateMachine),
+		appcontroller.WithLogger(controller.logger),
+		appcontroller.WithConfigValues(controller.configValues),
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("create app install controller: %w", err)
+	}
+	controller.InstallController = appInstallController
 
 	controller.registerReportingHandlers()
 

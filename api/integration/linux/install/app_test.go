@@ -14,6 +14,7 @@ import (
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -77,7 +78,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateNew))),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),
@@ -137,7 +138,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateNew))),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),
@@ -189,7 +190,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 	t.Run("Invalid state transition", func(t *testing.T) {
 		// Create an install controller with the app config
 		installController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateSucceeded))),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateSucceeded))),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),
@@ -436,7 +437,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 
 	// Create an install controller with the app config
 	installController, err := linuxinstall.NewInstallController(
-		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateNew))),
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateNew))),
 		linuxinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),
@@ -487,7 +488,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 	t.Run("PatchLinuxAppConfigValues invalid state", func(t *testing.T) {
 		// Create an install controller in a completed state
 		completedInstallController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateSucceeded))),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateSucceeded))),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),

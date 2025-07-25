@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	kubernetesinstall "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
-	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
@@ -145,39 +143,6 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after setting app config values")
 			manager.AssertExpectations(s.T())
 
-		})
-	}
-}
-
-func TestAppInstallControllerSuite(t *testing.T) {
-	installTypes := []struct {
-		name               string
-		installType        string
-		createStateMachine func(initialState statemachine.State) statemachine.Interface
-	}{
-		{
-			name:        "linux install",
-			installType: "linux",
-			createStateMachine: func(initialState statemachine.State) statemachine.Interface {
-				return linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(initialState))
-			},
-		},
-		{
-			name:        "kubernetes install",
-			installType: "kubernetes",
-			createStateMachine: func(initialState statemachine.State) statemachine.Interface {
-				return kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(initialState))
-			},
-		},
-	}
-
-	for _, tt := range installTypes {
-		t.Run(tt.name, func(t *testing.T) {
-			testSuite := &AppInstallControllerTestSuite{
-				installType:        tt.installType,
-				createStateMachine: tt.createStateMachine,
-			}
-			suite.Run(t, testSuite)
 		})
 	}
 }

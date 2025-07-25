@@ -1,4 +1,5 @@
-// package integration
+package integration
+
 //
 // import (
 // 	"bytes"
