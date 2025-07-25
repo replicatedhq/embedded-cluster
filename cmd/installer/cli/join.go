@@ -47,6 +47,7 @@ type JoinCmdFlags struct {
 	assumeYes            bool
 	skipHostPreflights   bool
 	ignoreHostPreflights bool
+	embeddedAssetsSize   int64
 }
 
 // JoinCmd returns a cobra command for joining a node to the cluster.
@@ -124,6 +125,12 @@ func preRunJoin(flags *JoinCmdFlags) error {
 		if err == nil {
 			flags.networkInterface = autoInterface
 		}
+	}
+
+	var err error
+	flags.embeddedAssetsSize, err = goods.SizeOfEmbeddedAssets()
+	if err != nil {
+		return fmt.Errorf("failed to get size of embedded files: %w", err)
 	}
 
 	return nil

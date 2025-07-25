@@ -1451,8 +1451,8 @@ github.com/redis/go-redis/extra/redisotel/v9 v9.0.5/go.mod h1:WZjPDy7VNzn77AAfnA
 github.com/redis/go-redis/v9 v9.7.3 h1:YpPyAayJV+XErNsatSElgRZZVCwXX9QzkKYNvO7x0wM=
 github.com/redis/go-redis/v9 v9.7.3/go.mod h1:bGUrSggJ9X9GUmZpZNEOQKaANxSGgOEBRltRTZHSvrA=
 github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
-github.com/replicatedhq/kotskinds v0.0.0-20250411153224-089dbeb7ba2a h1:aNZ7qcuEmPGIUIIfxF7c0sdKR2+zL2vc5r2V8j8a49I=
-github.com/replicatedhq/kotskinds v0.0.0-20250411153224-089dbeb7ba2a/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
+github.com/replicatedhq/kotskinds v0.0.0-20250609144916-baa60600998c h1:lnCL/wYi2BFTnxOP/lmo9WJwVPG3fk/plgJ/9NrMFw4=
+github.com/replicatedhq/kotskinds v0.0.0-20250609144916-baa60600998c/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
 github.com/replicatedhq/troubleshoot v0.120.3 h1:uM3hAnasUC5maNzbxVsE5PGHD53h0/8EbFIpEBEbkho=
 github.com/replicatedhq/troubleshoot v0.120.3/go.mod h1:K4jkTOFp/HETIKUA9TgHydQbNZvZrb4brtmL33DncnY=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=

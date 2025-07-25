@@ -121,13 +121,15 @@ func writeInstallationStatusMessage(writer *spinner.MessageWriter, install *ecv1
 }
 
 type RecordInstallationOptions struct {
-	ClusterID      string
-	IsAirgap       bool
-	License        *kotsv1beta1.License
-	ConfigSpec     *ecv1beta1.ConfigSpec
-	MetricsBaseURL string
-	RuntimeConfig  *ecv1beta1.RuntimeConfigSpec
-	EndUserConfig  *ecv1beta1.Config
+	ClusterID              string
+	IsAirgap               bool
+	License                *kotsv1beta1.License
+	ConfigSpec             *ecv1beta1.ConfigSpec
+	MetricsBaseURL         string
+	RuntimeConfig          *ecv1beta1.RuntimeConfigSpec
+	EndUserConfig          *ecv1beta1.Config
+	AirgapUncompressedSize int64
+	K0sImageSize           int64
 }
 
 func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInstallationOptions) (*ecv1beta1.Installation, error) {
@@ -163,6 +165,8 @@ func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInst
 			ClusterID:                 opts.ClusterID,
 			MetricsBaseURL:            opts.MetricsBaseURL,
 			AirGap:                    opts.IsAirgap,
+			AirgapUncompressedSize:    opts.AirgapUncompressedSize,
+			K0sImageSize:              opts.K0sImageSize,
 			Config:                    opts.ConfigSpec,
 			RuntimeConfig:             opts.RuntimeConfig,
 			EndUserK0sConfigOverrides: euOverrides,

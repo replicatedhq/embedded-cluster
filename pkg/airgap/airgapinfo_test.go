@@ -36,13 +36,26 @@ func TestAirgapBundleVersions(t *testing.T) {
 			t.Logf("Current working directory: %s", dir)
 			airgapReader := createTarballFromDir(filepath.Join(dir, "testfiles", tt.airgapDir), nil)
 
-			appSlug, channelID, versionLabel, err := ChannelReleaseMetadata(airgapReader)
+			metadata, err := AirgapMetadataFromReader(airgapReader)
 			req.NoError(err)
-			req.Equal(tt.wantAppslug, appSlug)
-			req.Equal(tt.wantChannelid, channelID)
-			req.Equal(tt.wantVersionlabel, versionLabel)
+			req.Equal(tt.wantAppslug, metadata.AirgapInfo.Spec.AppSlug)
+			req.Equal(tt.wantChannelid, metadata.AirgapInfo.Spec.ChannelID)
+			req.Equal(tt.wantVersionlabel, metadata.AirgapInfo.Spec.VersionLabel)
 		})
 	}
+}
+
+func TestAirgapBundleSize(t *testing.T) {
+	req := require.New(t)
+
+	dir, err := os.Getwd()
+	req.NoError(err)
+	t.Logf("Current working directory: %s", dir)
+	airgapReader := createTarballFromDir(filepath.Join(dir, "testfiles", "tiny-airgap-noimages"), nil)
+
+	metadata, err := AirgapMetadataFromReader(airgapReader)
+	req.NoError(err)
+	req.Equal(int64(1234567890), metadata.AirgapInfo.Spec.UncompressedSize)
 }
 
 func createTarballFromDir(rootPath string, additionalFiles map[string][]byte) io.Reader {
@@ -61,7 +74,12 @@ func createTarballFromDir(rootPath string, additionalFiles map[string][]byte) io
 			if err != nil {
 				return err
 			}
-			header.Name = filepath.Base(path)
+			// Use the full relative path from rootPath to preserve directory structure
+			relPath, err := filepath.Rel(rootPath, path)
+			if err != nil {
+				return err
+			}
+			header.Name = relPath
 			err = appTarWriter.WriteHeader(header)
 			if err != nil {
 				return err

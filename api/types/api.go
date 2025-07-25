@@ -2,6 +2,7 @@ package types
 
 import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -10,14 +11,16 @@ import (
 
 // APIConfig holds the configuration for the API server
 type APIConfig struct {
-	Password      string
-	TLSConfig     TLSConfig
-	License       []byte
-	AirgapBundle  string
-	ConfigValues  AppConfigValues
-	ReleaseData   *release.ReleaseData
-	EndUserConfig *ecv1beta1.Config
-	ClusterID     string
+	Password           string
+	TLSConfig          TLSConfig
+	License            []byte
+	AirgapBundle       string
+	AirgapMetadata     *airgap.AirgapMetadata
+	EmbeddedAssetsSize int64
+	ConfigValues       AppConfigValues
+	ReleaseData        *release.ReleaseData
+	EndUserConfig      *ecv1beta1.Config
+	ClusterID          string
 
 	LinuxConfig
 	KubernetesConfig

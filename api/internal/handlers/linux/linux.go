@@ -76,6 +76,8 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 			install.WithTLSConfig(h.cfg.TLSConfig),
 			install.WithLicense(h.cfg.License),
 			install.WithAirgapBundle(h.cfg.AirgapBundle),
+			install.WithAirgapMetadata(h.cfg.AirgapMetadata),
+			install.WithEmbeddedAssetsSize(h.cfg.EmbeddedAssetsSize),
 			install.WithConfigValues(h.cfg.ConfigValues),
 			install.WithEndUserConfig(h.cfg.EndUserConfig),
 			install.WithClusterID(h.cfg.ClusterID),
