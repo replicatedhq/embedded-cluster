@@ -16,7 +16,7 @@ interface CheckboxProps {
   dataTestId?: string;
 }
 
-const Checkbox: React.FC<CheckboxProps> = ({
+const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(({
   id,
   label,
   helpText,
@@ -28,7 +28,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
   className = '',
   labelClassName = '',
   dataTestId,
-}) => {
+}, ref) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
 
@@ -36,6 +36,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
     <div className="mb-4">
       <div className="flex items-center space-x-3">
         <input
+          ref={ref}
           id={id}
           type="checkbox"
           checked={checked}
@@ -58,6 +59,8 @@ const Checkbox: React.FC<CheckboxProps> = ({
       <HelpText helpText={helpText} error={error} />
     </div>
   );
-};
+});
+
+Checkbox.displayName = 'Checkbox';
 
 export default Checkbox;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
@@ -14,10 +14,15 @@ import { useSettings } from '../../../contexts/SettingsContext';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { handleUnauthorized } from '../../../utils/auth';
 import { useDebouncedFetch } from '../../../utils/debouncedFetch';
-import { AppConfig, AppConfigItem, AppConfigValues } from '../../../types';
+import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from '../../../types';
+
 
 interface ConfigurationStepProps {
   onNext: () => void;
+}
+
+interface ConfigError extends Error {
+  errors?: { field: string; message: string }[];
 }
 
 const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
@@ -27,14 +32,26 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const [activeTab, setActiveTab] = useState<string>('');
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [changedValues, setChangedValues] = useState<AppConfigValues>({});
-  const [error, setError] = useState<string | null>(null);
+  const [generalError, setGeneralError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { debouncedFetch } = useDebouncedFetch({ debounceMs: 250 });
+  
+  const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
+  const [itemToFocus, setItemToFocus] = useState<AppConfigItem | null>(null);
+  
+  // Holds refs to each item by name for focusing
+  const itemRefs = useRef<Record<string, HTMLElement | null>>({});
+  
+  // Helper function to assign refs dynamically
+  const setRef = (name: string) => (el: HTMLElement | null) => {
+    itemRefs.current[name] = el;
+  };
+  
   const themeColor = settings.themeColor;
 
   const templateConfig = useCallback(async (values: AppConfigValues) => {
     try {
-      setError(null); // Clear any existing errors
+      setGeneralError(null); // Clear any existing errors
 
       const response = await debouncedFetch(`/api/${target}/install/app/config/template`, {
         method: 'POST',
@@ -62,7 +79,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       const config = await response.json();
       setAppConfig(config);
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
+      setGeneralError(error instanceof Error ? error.message : String(error));
     }
   }, [target, token, debouncedFetch]);
 
@@ -77,8 +94,68 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Helper function to find the first item with error in DOM order
+  const findFirstItemWithError = (itemErrors: Record<string, string>): AppConfigItem | null => {
+    if (!appConfig?.groups || Object.keys(itemErrors).length === 0) {
+      return null;
+    }
+    
+    // Iterate through groups and items in DOM order to find first item with error
+    for (const group of appConfig.groups) {
+      for (const item of group.items) {
+        if (itemErrors[item.name]) {
+          return item;
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  // Helper function to find which group/tab contains a specific item
+  const findGroupForItem = (itemName: string): AppConfigGroup | null => {
+    if (!appConfig?.groups) return null;
+    
+    return appConfig.groups.find(group => 
+      group.items.some(item => item.name === itemName)
+    ) || null;
+  };
+
+  // Helper function to focus on an item with tab switching support
+  const focusItemWithTabSupport = (item: AppConfigItem): void => {
+    const targetGroup = findGroupForItem(item.name);
+    
+    if (!targetGroup) {
+      console.warn(`Could not find group for item: ${item.name}`);
+      return;
+    }
+    
+    // Switch to the correct tab if item is in a different tab
+    if (targetGroup.name !== activeTab) {
+      setActiveTab(targetGroup.name);
+    }
+    
+    // Set the item to focus - useEffect will handle the actual focusing
+    setItemToFocus(item);
+  };
+
+  // Helper function to parse server validation errors from API response
+  const parseServerErrors = (error: ConfigError): Record<string, string> => {
+    const itemErrors: Record<string, string> = {};
+    
+    // Check if error has structured item errors
+    if (error.errors) {
+      error.errors.forEach((itemError) => {
+        // Pass through server error message directly - no client-side enhancement
+        itemErrors[itemError.field] = itemError.message;
+      });
+    }
+    
+    return itemErrors;
+  };
+
   // Mutation to save config values
-  const { mutate: submitConfigValues } = useMutation({
+  const { mutate: submitConfigValues } = useMutation<void, ConfigError>({
     mutationFn: async () => {
       const response = await fetch(`/api/${target}/install/app/config/values`, {
         method: 'PATCH',
@@ -95,16 +172,28 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           handleUnauthorized(errorData);
           throw new Error('Session expired. Please log in again.');
         }
-        throw new Error(errorData.message || 'Failed to save configuration');
+        // Re-throw with full error data for parsing in onError
+        const error = new Error(errorData.message || 'Failed to save configuration') as ConfigError;
+        error.errors = errorData.errors;
+        throw error;
       }
     },
     onSuccess: () => {
-      setError(null);
+      setGeneralError(null);
+      setItemErrors({}); // Clear item errors
       setChangedValues({}); // Clear changed values after successful submission
       onNext();
     },
-    onError: (error: Error) => {
-      setError(error?.message || 'Failed to save configuration');
+    onError: (error: ConfigError) => {
+      const parsedItemErrors = parseServerErrors(error);
+      setItemErrors(parsedItemErrors);
+      setGeneralError(error?.message || 'Failed to save configuration');
+      
+      // Focus on the first item with validation error
+      const firstErrorItem = findFirstItemWithError(parsedItemErrors);
+      if (firstErrorItem) {
+        focusItemWithTabSupport(firstErrorItem);
+      }
     },
   });
 
@@ -114,6 +203,29 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       setActiveTab(appConfig.groups[0].name);
     }
   }, [appConfig, activeTab]);
+
+  // Handle focusing on item after tab switches or validation errors
+  useEffect(() => {
+    if (!itemToFocus) return;
+
+    // Use refs to get the focusable element directly
+    let itemElement: HTMLElement | null = null;
+    
+    // For all inputs including radio, use the main item ref
+    // Radio component forwards ref to the first option automatically
+    itemElement = itemRefs.current[itemToFocus.name];
+    
+    if (itemElement) {
+      itemElement.focus();
+      // Scroll the element into view to ensure it's visible
+      if (itemElement.scrollIntoView) {
+        itemElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // Clear the focus request
+    setItemToFocus(null);
+  }, [itemToFocus]);
 
   // Helper function to get the display value for a config item (no defaults)
   const getDisplayValue = (item: AppConfigItem): string => {
@@ -137,6 +249,15 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     // Update the config values map
     const newChangedValues = { ...changedValues, [itemName]: { value, filename } };
     setChangedValues(newChangedValues);
+
+    // Clear item error for this item when user modifies it
+    if (itemErrors[itemName]) {
+      setItemErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[itemName];
+        return newErrors;
+      });
+    }
 
     // Template the config with the new values
     templateConfig(newChangedValues);
@@ -173,12 +294,16 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   const renderConfigItem = (item: AppConfigItem) => {
+    // Display item validation errors with priority over initial config errors  
+    const displayError = itemErrors[item.name] || item.error;
+    
     const sharedProps = {
       id: item.name,
       label: item.title,
       helpText: item.help_text,
-      error: item.error,
+      error: displayError,
       required: item.required,
+      ref: setRef(item.name),
     }
 
     switch (item.type) {
@@ -304,13 +429,13 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     );
   }
 
-  if (error && !appConfig) {
+  if (generalError && !appConfig) {
     return (
       <div className="space-y-6" data-testid="configuration-step-error">
         <Card>
           <div className="flex flex-col items-center justify-center py-12">
             <p className="text-red-600 mb-4">Failed to load configuration</p>
-            <p className="text-gray-600 text-sm">{error}</p>
+            <p className="text-gray-600 text-sm">{generalError}</p>
           </div>
         </Card>
       </div>
@@ -364,9 +489,9 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
         {renderActiveTab()}
 
-        {error && (
+        {generalError && (
           <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md" data-testid="config-submit-error">
-            {error}
+            {generalError}
           </div>
         )}
       </Card>

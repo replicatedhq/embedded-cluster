@@ -24,7 +24,7 @@ interface InputProps {
   dataTestId?: string;
 }
 
-const Input: React.FC<InputProps> = ({
+const Input = React.forwardRef<HTMLInputElement, InputProps>(({
   id,
   label,
   helpText,
@@ -43,7 +43,7 @@ const Input: React.FC<InputProps> = ({
   className = '',
   labelClassName = '',
   dataTestId,
-}) => {
+}, ref) => {
   const { settings } = useSettings();
   const [showPassword, setShowPassword] = useState(false);
   const themeColor = settings.themeColor;
@@ -68,6 +68,7 @@ const Input: React.FC<InputProps> = ({
           </div>
         )}
         <input
+          ref={ref}
           id={id}
           type={inputType}
           value={value}
@@ -106,6 +107,8 @@ const Input: React.FC<InputProps> = ({
       <HelpText helpText={helpText} defaultValue={defaultValue} error={error} />
     </div>
   );
-};
+});
+
+Input.displayName = 'Input';
 
 export default Input;
