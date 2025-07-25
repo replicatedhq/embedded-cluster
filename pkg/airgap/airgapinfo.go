@@ -73,7 +73,7 @@ func AirgapMetadataFromReader(reader io.Reader) (metadata *AirgapMetadata, err e
 func AirgapMetadataFromPath(path string) (metadata *AirgapMetadata, err error) {
 	reader, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open airgap file: %w", err)
+		return nil, fmt.Errorf("open airgap file: %w", err)
 	}
 	defer reader.Close()
 
