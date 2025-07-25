@@ -23,7 +23,7 @@ func AirgapMetadataFromReader(reader io.Reader) (metadata *AirgapMetadata, err e
 	// decompress tarball
 	ungzip, err := gzip.NewReader(reader)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decompress airgap file: %w", err)
+		return nil, fmt.Errorf("decompress airgap file: %w", err)
 	}
 	defer ungzip.Close()
 
