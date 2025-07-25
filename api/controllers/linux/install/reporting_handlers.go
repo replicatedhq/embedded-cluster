@@ -6,16 +6,17 @@ import (
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 func (c *InstallController) registerReportingHandlers() {
-	c.stateMachine.RegisterEventHandler(StateSucceeded, c.reportInstallSucceeded)
-	c.stateMachine.RegisterEventHandler(StateInfrastructureInstallFailed, c.reportInstallFailed)
-	c.stateMachine.RegisterEventHandler(StateHostConfigurationFailed, c.reportInstallFailed)
-	c.stateMachine.RegisterEventHandler(StateInstallationConfigurationFailed, c.reportInstallFailed)
-	c.stateMachine.RegisterEventHandler(StatePreflightsFailed, c.reportPreflightsFailed)
-	c.stateMachine.RegisterEventHandler(StatePreflightsFailedBypassed, c.reportPreflightsBypassed)
+	c.stateMachine.RegisterEventHandler(states.StateSucceeded, c.reportInstallSucceeded)
+	c.stateMachine.RegisterEventHandler(states.StateInfrastructureInstallFailed, c.reportInstallFailed)
+	c.stateMachine.RegisterEventHandler(states.StateHostConfigurationFailed, c.reportInstallFailed)
+	c.stateMachine.RegisterEventHandler(states.StateInstallationConfigurationFailed, c.reportInstallFailed)
+	c.stateMachine.RegisterEventHandler(states.StatePreflightsFailed, c.reportPreflightsFailed)
+	c.stateMachine.RegisterEventHandler(states.StatePreflightsFailedBypassed, c.reportPreflightsBypassed)
 }
 
 func (c *InstallController) reportInstallSucceeded(ctx context.Context, _, _ statemachine.State) {
@@ -27,17 +28,17 @@ func (c *InstallController) reportInstallFailed(ctx context.Context, _, toState 
 	var err error
 
 	switch toState {
-	case StateInstallationConfigurationFailed:
+	case states.StateInstallationConfigurationFailed:
 		status, err = c.store.LinuxInstallationStore().GetStatus()
 		if err != nil {
 			err = fmt.Errorf("failed to get status from installation store: %w", err)
 		}
-	case StateHostConfigurationFailed:
+	case states.StateHostConfigurationFailed:
 		status, err = c.store.LinuxInstallationStore().GetStatus()
 		if err != nil {
 			err = fmt.Errorf("failed to get status from installation store: %w", err)
 		}
-	case StateInfrastructureInstallFailed:
+	case states.StateInfrastructureInstallFailed:
 		status, err = c.store.LinuxInfraStore().GetStatus()
 		if err != nil {
 			err = fmt.Errorf("failed to get status from infra store: %w", err)

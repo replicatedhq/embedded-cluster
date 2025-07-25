@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,75 +17,75 @@ func TestStateMachineTransitions(t *testing.T) {
 	}{
 		{
 			name:       `State "New" can transition to "ApplicationConfiguring"`,
-			startState: StateNew,
+			startState: states.StateNew,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
+				states.StateApplicationConfiguring,
 			},
 		},
 		{
 			name:       `State "ApplicationConfiguring" can transition to "ApplicationConfigured" or "ApplicationConfigurationFailed"`,
-			startState: StateApplicationConfiguring,
+			startState: states.StateApplicationConfiguring,
 			validTransitions: []statemachine.State{
-				StateApplicationConfigured,
-				StateApplicationConfigurationFailed,
+				states.StateApplicationConfigured,
+				states.StateApplicationConfigurationFailed,
 			},
 		},
 		{
 			name:       `State "ApplicationConfigurationFailed" can transition to "ApplicationConfiguring"`,
-			startState: StateApplicationConfigurationFailed,
+			startState: states.StateApplicationConfigurationFailed,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
+				states.StateApplicationConfiguring,
 			},
 		},
 		{
 			name:       `State "ApplicationConfigured" can transition to "ApplicationConfiguring" or "InstallationConfiguring"`,
-			startState: StateApplicationConfigured,
+			startState: states.StateApplicationConfigured,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
-				StateInstallationConfiguring,
+				states.StateApplicationConfiguring,
+				states.StateInstallationConfiguring,
 			},
 		},
 		{
 			name:       `State "InstallationConfiguring" can transition to "InstallationConfigured" or "InstallationConfigurationFailed"`,
-			startState: StateInstallationConfiguring,
+			startState: states.StateInstallationConfiguring,
 			validTransitions: []statemachine.State{
-				StateInstallationConfigured,
-				StateInstallationConfigurationFailed,
+				states.StateInstallationConfigured,
+				states.StateInstallationConfigurationFailed,
 			},
 		},
 		{
 			name:       `State "InstallationConfigurationFailed" can transition to "ApplicationConfiguring" or "InstallationConfiguring"`,
-			startState: StateInstallationConfigurationFailed,
+			startState: states.StateInstallationConfigurationFailed,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
-				StateInstallationConfiguring,
+				states.StateApplicationConfiguring,
+				states.StateInstallationConfiguring,
 			},
 		},
 		{
 			name:       `State "InstallationConfigured" can transition to "ApplicationConfiguring" or "InstallationConfiguring" or "InfrastructureInstalling"`,
-			startState: StateInstallationConfigured,
+			startState: states.StateInstallationConfigured,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
-				StateInstallationConfiguring,
-				StateInfrastructureInstalling,
+				states.StateApplicationConfiguring,
+				states.StateInstallationConfiguring,
+				states.StateInfrastructureInstalling,
 			},
 		},
 		{
 			name:       `State "InfrastructureInstalling" can transition to "Succeeded" or "InfrastructureInstallFailed"`,
-			startState: StateInfrastructureInstalling,
+			startState: states.StateInfrastructureInstalling,
 			validTransitions: []statemachine.State{
-				StateSucceeded,
-				StateInfrastructureInstallFailed,
+				states.StateSucceeded,
+				states.StateInfrastructureInstallFailed,
 			},
 		},
 		{
 			name:             `State "InfrastructureInstallFailed" can not transition to any other state`,
-			startState:       StateInfrastructureInstallFailed,
+			startState:       states.StateInfrastructureInstallFailed,
 			validTransitions: []statemachine.State{},
 		},
 		{
 			name:             `State "Succeeded" can not transition to any other state`,
-			startState:       StateSucceeded,
+			startState:       states.StateSucceeded,
 			validTransitions: []statemachine.State{},
 		},
 	}
@@ -116,8 +117,8 @@ func TestStateMachineTransitions(t *testing.T) {
 
 func TestIsFinalState(t *testing.T) {
 	finalStates := []statemachine.State{
-		StateSucceeded,
-		StateInfrastructureInstallFailed,
+		states.StateSucceeded,
+		states.StateInfrastructureInstallFailed,
 	}
 
 	for state := range validStateTransitions {

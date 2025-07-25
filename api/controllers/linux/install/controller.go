@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
@@ -33,9 +32,6 @@ type Controller interface {
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
-	TemplateAppConfig(ctx context.Context, values types.AppConfigValues, maskPasswords bool) (types.AppConfig, error)
-	PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) error
-	GetAppConfigValues(ctx context.Context) (types.AppConfigValues, error)
 }
 
 type RunHostPreflightsOptions struct {
@@ -64,7 +60,6 @@ type InstallController struct {
 	rc                        runtimeconfig.RuntimeConfig
 	stateMachine              statemachine.Interface
 	logger                    logrus.FieldLogger
-	mu                        sync.RWMutex
 	allowIgnoreHostPreflights bool
 }
 
