@@ -565,6 +565,10 @@ spec:
               highAvailability:
                 description: HighAvailability indicates if the installation is high availability.
                 type: boolean
+              k0sImageSize:
+                description: K0sImageSize holds the size of the k0s image in bytes.
+                format: int64
+                type: integer
               licenseInfo:
                 description: LicenseInfo holds information about the license used to install the cluster.
                 properties:
