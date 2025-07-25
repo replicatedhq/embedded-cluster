@@ -29,12 +29,12 @@ import (
 type AppInstallTestSuite struct {
 	suite.Suite
 	installType string
-	createAPI   func(initialState statemachine.State, rc *release.ReleaseData, configValues types.AppConfigValues) *api.API
+	createAPI   func(t *testing.T, initialState statemachine.State, rc *release.ReleaseData, configValues types.AppConfigValues) *api.API
 	router      *mux.Router
 	baseURL     string
 }
 
-func (s *AppInstallTestSuite) TestLinuxGetAppConfigValues() {
+func (s *AppInstallTestSuite) TestGetAppConfigValues() {
 	// Create an app config
 	appConfig := kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
@@ -71,7 +71,7 @@ func (s *AppInstallTestSuite) TestLinuxGetAppConfigValues() {
 	}
 
 	// Create an install controller with the app config
-	apiInstance := s.createAPI(states.StateNew, &release.ReleaseData{
+	apiInstance := s.createAPI(s.T(), states.StateNew, &release.ReleaseData{
 		AppConfig: &appConfig,
 	}, configValues)
 
@@ -176,9 +176,9 @@ func (s *AppInstallTestSuite) TestPatchAppConfigValues() {
 	// Test successful set and get
 	s.T().Run("Success", func(t *testing.T) {
 		// Create an install controller with the app config
-		apiInstance := s.createAPI(states.StateNew, &release.ReleaseData{
+		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
 			AppConfig: &appConfig,
-		}, types.AppConfigValues{})
+		}, nil)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -225,9 +225,9 @@ func (s *AppInstallTestSuite) TestPatchAppConfigValues() {
 	// Test authorization
 	s.T().Run("Authorization error", func(t *testing.T) {
 		// Create an install controller with the app config
-		apiInstance := s.createAPI(states.StateNew, &release.ReleaseData{
+		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
 			AppConfig: &appConfig,
-		}, types.AppConfigValues{})
+		}, nil)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -266,9 +266,9 @@ func (s *AppInstallTestSuite) TestPatchAppConfigValues() {
 	// Test invalid state transition
 	s.T().Run("Invalid state transition", func(t *testing.T) {
 		// Create an install controller with the app config
-		apiInstance := s.createAPI(states.StateSucceeded, &release.ReleaseData{
+		apiInstance := s.createAPI(t, states.StateSucceeded, &release.ReleaseData{
 			AppConfig: &appConfig,
-		}, types.AppConfigValues{})
+		}, nil)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -308,9 +308,9 @@ func (s *AppInstallTestSuite) TestPatchAppConfigValues() {
 	// Test missing required item
 	s.T().Run("Missing required item", func(t *testing.T) {
 		// Create an install controller with the app config
-		apiInstance := s.createAPI(states.StateNew, &release.ReleaseData{
+		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
 			AppConfig: &appConfig,
-		}, types.AppConfigValues{})
+		}, nil)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -352,7 +352,7 @@ func (s *AppInstallTestSuite) TestPatchAppConfigValues() {
 	})
 }
 
-func (s *AppInstallTestSuite) TestLinuxTemplateAppConfig() {
+func (s *AppInstallTestSuite) TestTemplateAppConfig() {
 	// Create an app config with realistic templates
 	appConfigWithTemplates := kotsv1beta1.Config{
 		TypeMeta: metav1.TypeMeta{
@@ -421,9 +421,9 @@ func (s *AppInstallTestSuite) TestLinuxTemplateAppConfig() {
 	// Test successful template processing with default values
 	s.T().Run("Success with default values", func(t *testing.T) {
 		// Create an install controller with the app config
-		apiInstance := s.createAPI(states.StateNew, &release.ReleaseData{
+		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
 			AppConfig: &appConfigWithTemplates,
-		}, types.AppConfigValues{})
+		}, nil)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -492,9 +492,9 @@ func (s *AppInstallTestSuite) TestLinuxTemplateAppConfig() {
 	// Test template processing with user-provided values
 	s.T().Run("Success with user values", func(t *testing.T) {
 		// Create an install controller with the app config
-		apiInstance := s.createAPI(states.StateNew, &release.ReleaseData{
+		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
 			AppConfig: &appConfigWithTemplates,
-		}, types.AppConfigValues{})
+		}, nil)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -561,9 +561,9 @@ func (s *AppInstallTestSuite) TestLinuxTemplateAppConfig() {
 	// Test with db_enabled=false to verify conditional filtering
 	s.T().Run("Success with db disabled", func(t *testing.T) {
 		// Create an install controller with the app config
-		apiInstance := s.createAPI(states.StateNew, &release.ReleaseData{
+		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
 			AppConfig: &appConfigWithTemplates,
-		}, types.AppConfigValues{})
+		}, nil)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -612,9 +612,9 @@ func (s *AppInstallTestSuite) TestLinuxTemplateAppConfig() {
 	// Test authorization error
 	s.T().Run("Authorization error", func(t *testing.T) {
 		// Create an install controller with the app config
-		apiInstance := s.createAPI(states.StateNew, &release.ReleaseData{
+		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
 			AppConfig: &appConfigWithTemplates,
-		}, types.AppConfigValues{})
+		}, nil)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -651,9 +651,9 @@ func (s *AppInstallTestSuite) TestLinuxTemplateAppConfig() {
 	// Test invalid JSON request
 	s.T().Run("Invalid JSON request", func(t *testing.T) {
 		// Create an install controller with the app config
-		apiInstance := s.createAPI(states.StateNew, &release.ReleaseData{
+		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
 			AppConfig: &appConfigWithTemplates,
-		}, types.AppConfigValues{})
+		}, nil)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -685,13 +685,13 @@ func TestAppInstallSuite(t *testing.T) {
 	installTypes := []struct {
 		name        string
 		installType string
-		createAPI   func(initialState statemachine.State, rc *release.ReleaseData, configValues types.AppConfigValues) *api.API
+		createAPI   func(t *testing.T, initialState statemachine.State, rc *release.ReleaseData, configValues types.AppConfigValues) *api.API
 		baseURL     string
 	}{
 		{
 			name:        "linux install",
 			installType: "linux",
-			createAPI: func(initialState statemachine.State, rc *release.ReleaseData, configValues types.AppConfigValues) *api.API {
+			createAPI: func(t *testing.T, initialState statemachine.State, rc *release.ReleaseData, configValues types.AppConfigValues) *api.API {
 				controller, err := linuxinstall.NewInstallController(
 					linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(initialState))),
 					linuxinstall.WithReleaseData(rc),
@@ -710,7 +710,7 @@ func TestAppInstallSuite(t *testing.T) {
 		{
 			name:        "kubernetes install",
 			installType: "kubernetes",
-			createAPI: func(initialState statemachine.State, rc *release.ReleaseData, configValues types.AppConfigValues) *api.API {
+			createAPI: func(t *testing.T, initialState statemachine.State, rc *release.ReleaseData, configValues types.AppConfigValues) *api.API {
 				controller, err := kubernetesinstall.NewInstallController(
 					kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(initialState))),
 					kubernetesinstall.WithReleaseData(rc),
