@@ -203,7 +203,7 @@ func TestRecordInstallation(t *testing.T) {
 			name: "online installation without airgap",
 			opts: RecordInstallationOptions{
 				ClusterID: uuid.New().String(),
-				IsAirgap: false,
+				IsAirgap:  false,
 				License: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						IsDisasterRecoverySupported:       true,
@@ -243,7 +243,7 @@ func TestRecordInstallation(t *testing.T) {
 			name: "airgap installation with uncompressed size",
 			opts: RecordInstallationOptions{
 				ClusterID: uuid.New().String(),
-				IsAirgap: true,
+				IsAirgap:  true,
 				License: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						IsDisasterRecoverySupported:       false,
@@ -278,7 +278,7 @@ func TestRecordInstallation(t *testing.T) {
 			name: "airgap installation with large uncompressed size",
 			opts: RecordInstallationOptions{
 				ClusterID: uuid.New().String(),
-				IsAirgap: true,
+				IsAirgap:  true,
 				License: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						IsDisasterRecoverySupported:       false,
