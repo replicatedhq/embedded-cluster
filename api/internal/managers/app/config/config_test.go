@@ -2813,7 +2813,7 @@ func TestValidateConfigValues(t *testing.T) {
 			errorFields: []string{"required_with_value"},
 		},
 		{
-			name: "hidden required item should not be required",
+			name: "hidden required item should be required",
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -2839,7 +2839,8 @@ func TestValidateConfigValues(t *testing.T) {
 				},
 			},
 			configValues: types.AppConfigValues{},
-			wantErr:      false,
+			wantErr:      true,
+			errorFields:  []string{"hidden_required"},
 		},
 		{
 			name: "disabled required item should not be required",
