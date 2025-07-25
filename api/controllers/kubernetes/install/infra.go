@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
@@ -28,7 +29,7 @@ func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
 		return fmt.Errorf("failed to get kotsadm config values: %w", err)
 	}
 
-	err = c.stateMachine.Transition(lock, StateInfrastructureInstalling)
+	err = c.stateMachine.Transition(lock, states.StateInfrastructureInstalling)
 	if err != nil {
 		return types.NewConflictError(err)
 	}
@@ -46,11 +47,11 @@ func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
 			if finalErr != nil {
 				c.logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, StateInfrastructureInstallFailed); err != nil {
+				if err := c.stateMachine.Transition(lock, states.StateInfrastructureInstallFailed); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
 			} else {
-				if err := c.stateMachine.Transition(lock, StateSucceeded); err != nil {
+				if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
 			}
