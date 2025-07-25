@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
@@ -8,6 +9,7 @@ import (
 
 // TestSELinuxSupport tests embedded-cluster installation and functionality on SELinux-enabled systems.
 // This test specifically validates that embedded-cluster works correctly when SELinux is in enforcing mode.
+// Force refresh
 func TestSELinuxSupport(t *testing.T) {
 	t.Parallel()
 
@@ -39,7 +41,13 @@ func TestSELinuxSupport(t *testing.T) {
 
 	// Download embedded-cluster release on the first node
 	t.Logf("Downloading embedded-cluster release on node 0")
-	downloadECRelease(t, cluster, 0)
+	stdout, stderr, err := cluster.RunCommandOnNode(0, []string{
+		"bash", "-c",
+		`curl -fL -o ec-release.tgz "https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/ci/appver-` + os.Getenv("SHORT_SHA") + `" -H "Authorization: 2cQCFfBxG7gXDmq1yAgPSM4OViF" && tar xzf ec-release.tgz && mkdir -p /assets && mv embedded-cluster-smoke-test-staging-app /usr/local/bin/embedded-cluster && mv license.yaml /assets/license.yaml`,
+	})
+	if err != nil {
+		t.Fatalf("fail to download embedded-cluster release on node 0: %v: %s: %s", err, stdout, stderr)
+	}
 
 	// Install embedded-cluster on the first node
 	t.Logf("Installing embedded-cluster on node 0")
@@ -57,7 +65,7 @@ func TestSELinuxSupport(t *testing.T) {
 
 	// Run embedded preflight checks which include SELinux-specific tests
 	t.Logf("Running embedded preflight checks")
-	stdout, stderr, err := cluster.RunCommandOnNode(0, []string{"embedded-preflight.sh"})
+	stdout, stderr, err = cluster.RunCommandOnNode(0, []string{"embedded-preflight.sh"})
 	if err != nil {
 		t.Fatalf("Embedded preflight checks failed: %v (stdout: %s, stderr: %s)", err, stdout, stderr)
 	}
