@@ -38,21 +38,19 @@ func TestSELinuxSupport(t *testing.T) {
 		t.Logf("SELinux is enforcing on node %d", i)
 	}
 
+	// Download embedded-cluster release on the first node
+	t.Logf("Downloading embedded-cluster release on node 0")
+	downloadECRelease(t, cluster, 0)
+	
 	// Install embedded-cluster on the first node
 	t.Logf("Installing embedded-cluster on node 0")
-	line := []string{"env", "PATH=/usr/local/bin:/usr/bin:/bin", "/usr/local/bin/single-node-install.sh", "ui", os.Getenv("SHORT_SHA"), "--admin-console-port", "30003"}
-	stdout, stderr, err := cluster.RunCommandOnNode(0, line)
-	if err != nil {
-		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
-	}
+	installSingleNodeWithOptions(t, cluster, installOptions{
+		adminConsolePort: "30003",
+	})
 
 	// Verify installation succeeded by checking cluster state
 	t.Logf("Verifying cluster installation")
-	line = []string{"env", "PATH=/usr/local/bin:/usr/bin:/bin", "/usr/local/bin/check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	stdout, stderr, err = cluster.RunCommandOnNode(0, line)
-	if err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
+	checkInstallationState(t, cluster)
 
 	// Verify SELinux contexts are correctly set
 	t.Logf("Verifying SELinux contexts for embedded-cluster files")
@@ -60,7 +58,7 @@ func TestSELinuxSupport(t *testing.T) {
 
 	// Run embedded preflight checks which include SELinux-specific tests
 	t.Logf("Running embedded preflight checks")
-	stdout, stderr, err = cluster.RunCommandOnNode(0, []string{"env", "PATH=/usr/local/bin:/usr/bin:/bin", "/usr/local/bin/embedded-preflight.sh"})
+	stdout, stderr, err := cluster.RunCommandOnNode(0, []string{"embedded-preflight.sh"})
 	if err != nil {
 		t.Fatalf("Embedded preflight checks failed: %v (stdout: %s, stderr: %s)", err, stdout, stderr)
 	}
