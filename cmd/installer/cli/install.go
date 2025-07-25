@@ -15,6 +15,7 @@ import (
 	"github.com/AlecAivazis/survey/v2/terminal"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
@@ -57,7 +58,8 @@ type InstallCmdFlags struct {
 	adminConsolePassword string
 	adminConsolePort     int
 	airgapBundle         string
-	airgapInfo           *kotsv1beta1.Airgap
+	airgapMetadata       *airgap.AirgapMetadata
+	embeddedAssetsSize   int64
 	isAirgap             bool
 	licenseFile          string
 	assumeYes            bool
@@ -416,11 +418,17 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 
 	flags.isAirgap = flags.airgapBundle != ""
 	if flags.airgapBundle != "" {
-		var err error
-		flags.airgapInfo, err = airgap.AirgapInfoFromPath(flags.airgapBundle)
+		metadata, err := airgap.AirgapMetadataFromPath(flags.airgapBundle)
 		if err != nil {
 			return fmt.Errorf("failed to get airgap info: %w", err)
 		}
+		flags.airgapMetadata = metadata
+	}
+
+	var err error
+	flags.embeddedAssetsSize, err = goods.SizeOfEmbeddedAssets()
+	if err != nil {
+		return fmt.Errorf("failed to get size of embedded files: %w", err)
 	}
 
 	proxy, err := proxyConfigFromCmd(cmd, flags.assumeYes)
@@ -623,7 +631,8 @@ func runManagerExperienceInstall(ctx context.Context, flags InstallCmdFlags, rc 
 		ManagerPort:               flags.managerPort,
 		License:                   flags.licenseBytes,
 		AirgapBundle:              flags.airgapBundle,
-		AirgapInfo:                flags.airgapInfo,
+		AirgapMetadata:            flags.airgapMetadata,
+		EmbeddedAssetsSize:        flags.embeddedAssetsSize,
 		ConfigValues:              flags.configValues,
 		ReleaseData:               release.GetReleaseData(),
 		EndUserConfig:             eucfg,
@@ -801,9 +810,9 @@ func verifyAndPrompt(ctx context.Context, name string, flags InstallCmdFlags, pr
 	if err != nil {
 		return err
 	}
-	if flags.airgapInfo != nil {
+	if flags.airgapMetadata != nil && flags.airgapMetadata.AirgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
-		if err := checkAirgapMatches(flags.airgapInfo); err != nil {
+		if err := checkAirgapMatches(flags.airgapMetadata.AirgapInfo); err != nil {
 			return err // we want the user to see the error message without a prefix
 		}
 	}
@@ -1275,8 +1284,8 @@ func recordInstallation(
 
 	// extract airgap uncompressed size if airgap info is provided
 	var airgapUncompressedSize int64
-	if flags.airgapInfo != nil {
-		airgapUncompressedSize = flags.airgapInfo.Spec.UncompressedSize
+	if flags.airgapMetadata != nil && flags.airgapMetadata.AirgapInfo != nil {
+		airgapUncompressedSize = flags.airgapMetadata.AirgapInfo.Spec.UncompressedSize
 	}
 
 	// record the installation

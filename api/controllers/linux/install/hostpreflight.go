@@ -36,8 +36,13 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 
 	// Calculate airgap storage space requirement (2x uncompressed size for controller nodes)
 	var controllerAirgapStorageSpace string
-	if c.airgapInfo != nil {
-		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(c.airgapInfo.Spec.UncompressedSize, true)
+	if c.airgapMetadata != nil && c.airgapMetadata.AirgapInfo != nil {
+		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(preflights.AirgapStorageSpaceCalcArgs{
+			UncompressedSize:   c.airgapMetadata.AirgapInfo.Spec.UncompressedSize,
+			EmbeddedAssetsSize: c.embeddedAssetsSize,
+			K0sImageSize:       c.airgapMetadata.K0sImageSize,
+			IsController:       true,
+		})
 	}
 
 	// Prepare host preflights

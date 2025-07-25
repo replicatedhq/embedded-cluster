@@ -12,8 +12,14 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// AirgapInfoFromReader extracts the airgap metadata from the airgap file and returns it
-func AirgapInfoFromReader(reader io.Reader) (metadata *kotsv1beta1.Airgap, err error) {
+type AirgapMetadata struct {
+	AirgapInfo   *kotsv1beta1.Airgap
+	K0sImageSize int64
+}
+
+// AirgapMetadataFromReader extracts the airgap metadata from the airgap file and returns it
+func AirgapMetadataFromReader(reader io.Reader) (metadata *AirgapMetadata, err error) {
+	metadata = &AirgapMetadata{}
 	// decompress tarball
 	ungzip, err := gzip.NewReader(reader)
 	if err != nil {
@@ -28,7 +34,7 @@ func AirgapInfoFromReader(reader io.Reader) (metadata *kotsv1beta1.Airgap, err e
 		nextFile, err = tarreader.Next()
 		if err != nil {
 			if err == io.EOF {
-				return nil, errors.Wrapf(err, "airgap.yaml not found in airgap file")
+				break
 			}
 			return nil, errors.Wrapf(err, "failed to read airgap file")
 		}
@@ -45,17 +51,31 @@ func AirgapInfoFromReader(reader io.Reader) (metadata *kotsv1beta1.Airgap, err e
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to unmarshal airgap.yaml file within airgap file")
 			}
-			return &parsed, nil
+			metadata.AirgapInfo = &parsed
+		}
+
+		if nextFile.Name == ECAiragapImagePath {
+			metadata.K0sImageSize = nextFile.Size
 		}
 	}
+
+	if metadata.K0sImageSize == 0 {
+		return nil, errors.New(fmt.Sprintf("%s not found in airgap file", ECAiragapImagePath))
+	}
+
+	if metadata.AirgapInfo == nil {
+		return nil, errors.New("airgap.yaml not found in airgap file")
+	}
+
+	return metadata, nil
 }
 
-func AirgapInfoFromPath(path string) (metadata *kotsv1beta1.Airgap, err error) {
+func AirgapMetadataFromPath(path string) (metadata *AirgapMetadata, err error) {
 	reader, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open airgap file: %w", err)
 	}
 	defer reader.Close()
 
-	return AirgapInfoFromReader(reader)
+	return AirgapMetadataFromReader(reader)
 }

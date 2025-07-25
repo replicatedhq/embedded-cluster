@@ -99,10 +99,15 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtime
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
 
-	// Calculate airgap storage space requirement (2x uncompressed size for controller nodes)
+	// Calculate airgap storage space requirement
 	var controllerAirgapStorageSpace string
-	if flags.airgapInfo != nil {
-		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(flags.airgapInfo.Spec.UncompressedSize, true)
+	if flags.airgapMetadata != nil && flags.airgapMetadata.AirgapInfo != nil {
+		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(preflights.AirgapStorageSpaceCalcArgs{
+			UncompressedSize:   flags.airgapMetadata.AirgapInfo.Spec.UncompressedSize,
+			EmbeddedAssetsSize: flags.embeddedAssetsSize,
+			K0sImageSize:       flags.airgapMetadata.K0sImageSize,
+			IsController:       true,
+		})
 	}
 
 	opts := preflights.PrepareOptions{

@@ -113,10 +113,20 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		isController := strings.Contains(jcmd.K0sJoinCommand, "controller")
 		if isController {
 			logrus.Debug("Node type determined from join command: controller")
-			controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(jcmd.InstallationSpec.AirgapUncompressedSize, true)
+			controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(preflights.AirgapStorageSpaceCalcArgs{
+				UncompressedSize:   jcmd.InstallationSpec.AirgapUncompressedSize,
+				EmbeddedAssetsSize: flags.embeddedAssetsSize,
+				K0sImageSize:       jcmd.InstallationSpec.K0sImageSize,
+				IsController:       true,
+			})
 		} else {
 			logrus.Debug("Node type determined from join command: worker")
-			workerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(jcmd.InstallationSpec.AirgapUncompressedSize, false)
+			workerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(preflights.AirgapStorageSpaceCalcArgs{
+				UncompressedSize:   jcmd.InstallationSpec.AirgapUncompressedSize,
+				EmbeddedAssetsSize: flags.embeddedAssetsSize,
+				K0sImageSize:       jcmd.InstallationSpec.K0sImageSize,
+				IsController:       false,
+			})
 		}
 	}
 

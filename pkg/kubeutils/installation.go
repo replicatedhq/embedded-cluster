@@ -129,6 +129,7 @@ type RecordInstallationOptions struct {
 	RuntimeConfig          *ecv1beta1.RuntimeConfigSpec
 	EndUserConfig          *ecv1beta1.Config
 	AirgapUncompressedSize int64
+	K0sImageSize           int64
 }
 
 func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInstallationOptions) (*ecv1beta1.Installation, error) {
@@ -165,6 +166,7 @@ func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInst
 			MetricsBaseURL:            opts.MetricsBaseURL,
 			AirGap:                    opts.IsAirgap,
 			AirgapUncompressedSize:    opts.AirgapUncompressedSize,
+			K0sImageSize:              opts.K0sImageSize,
 			Config:                    opts.ConfigSpec,
 			RuntimeConfig:             opts.RuntimeConfig,
 			EndUserK0sConfigOverrides: euOverrides,

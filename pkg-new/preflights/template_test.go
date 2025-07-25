@@ -622,71 +622,71 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 }
 
 func TestCalculateAirgapStorageSpace(t *testing.T) {
+	embeddedAssetsSize := int64(1024 * 1024 * 1024)
+
 	tests := []struct {
-		name             string
-		uncompressedSize int64
-		isController     bool
-		expected         string
+		name               string
+		uncompressedSize   int64
+		embeddedAssetsSize int64
+		k0sImageSize       int64
+		isController       bool
+		expected           string
 	}{
 		{
-			name:             "controller node with 1GB uncompressed size",
-			uncompressedSize: 1024 * 1024 * 1024, // 1GB
-			isController:     true,
-			expected:         "2Gi", // 2x for controller
+			name:               "controller node with 1GB uncompressed size",
+			uncompressedSize:   1024 * 1024 * 1024, // 1GB
+			embeddedAssetsSize: embeddedAssetsSize,
+			isController:       true,
+			expected:           "3Gi", // 2x for uncompressed size + 1x for embedded assets
 		},
 		{
-			name:             "worker node with 1GB uncompressed size",
-			uncompressedSize: 1024 * 1024 * 1024, // 1GB
-			isController:     false,
-			expected:         "1Gi", // 1x for worker
+			name:               "worker node with 1GB k0s image size",
+			uncompressedSize:   1024 * 1024 * 1024, // 1GB
+			embeddedAssetsSize: embeddedAssetsSize,
+			k0sImageSize:       1024 * 1024 * 1024,
+			isController:       false,
+			expected:           "2Gi", // 1x for k0s image + 1x for embedded assets
 		},
 		{
-			name:             "controller node with 500MB uncompressed size",
-			uncompressedSize: 500 * 1024 * 1024, // 500MB
-			isController:     true,
-			expected:         "1000Mi", // 2x
+			name:               "controller node with 500MB uncompressed size",
+			uncompressedSize:   512 * 1024 * 1024, // 1.5GB
+			embeddedAssetsSize: embeddedAssetsSize,
+			isController:       true,
+			expected:           "2Gi",
 		},
 		{
-			name:             "controller node with 500MB uncompressed size",
-			uncompressedSize: 512 * 1024 * 1024, // 500MB
-			isController:     true,
-			expected:         "1Gi", // 2x
+			name:               "controller node with 513MB uncompressed size",
+			uncompressedSize:   513 * 1024 * 1024, // 513MB
+			embeddedAssetsSize: embeddedAssetsSize,
+			isController:       true,
+			expected:           "3Gi",
 		},
 		{
-			name:             "worker node with 500MB uncompressed size",
-			uncompressedSize: 500 * 1024 * 1024, // 500MB
-			isController:     false,
-			expected:         "500Mi", // 1x = 500MB
+			name:               "worker node with 100MB uncompressed size",
+			uncompressedSize:   1,
+			embeddedAssetsSize: embeddedAssetsSize,
+			k0sImageSize:       1 * 1024 * 1024, // 1MB,
+			isController:       false,
+			expected:           "2Gi",
 		},
 		{
-			name:             "controller node with 100MB uncompressed size",
-			uncompressedSize: 100 * 1024 * 1024, // 100MB
-			isController:     true,
-			expected:         "200Mi", // 2x = 200MB
-		},
-		{
-			name:             "worker node with 100MB uncompressed size",
-			uncompressedSize: 100 * 1024 * 1024, // 100MB
-			isController:     false,
-			expected:         "100Mi", // 1x = 100MB
-		},
-		{
-			name:             "zero uncompressed size",
-			uncompressedSize: 0,
-			isController:     true,
-			expected:         "",
-		},
-		{
-			name:             "negative uncompressed size",
-			uncompressedSize: -1,
-			isController:     false,
-			expected:         "",
+			name:               "zero uncompressed size",
+			uncompressedSize:   0,
+			embeddedAssetsSize: embeddedAssetsSize,
+			k0sImageSize:       1024 * 1024 * 1024,
+			isController:       true,
+			expected:           "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := CalculateAirgapStorageSpace(tt.uncompressedSize, tt.isController)
+			result := CalculateAirgapStorageSpace(AirgapStorageSpaceCalcArgs{
+				UncompressedSize:   tt.uncompressedSize,
+				EmbeddedAssetsSize: tt.embeddedAssetsSize,
+				K0sImageSize:       tt.k0sImageSize,
+				IsController:       tt.isController,
+			})
 			require.Equal(t, tt.expected, result)
 		})
 	}

@@ -224,8 +224,8 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 
 	// extract airgap uncompressed size if airgap info is provided
 	var airgapUncompressedSize int64
-	if m.airgapInfo != nil {
-		airgapUncompressedSize = m.airgapInfo.Spec.UncompressedSize
+	if m.airgapMetadata != nil && m.airgapMetadata.AirgapInfo != nil {
+		airgapUncompressedSize = m.airgapMetadata.AirgapInfo.Spec.UncompressedSize
 	}
 
 	// record the installation

@@ -48,10 +48,11 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 				logrus.Debugf("checking airgap bundle matches binary")
 
 				// read file from path
-				airgapInfo, err := airgap.AirgapInfoFromPath(airgapBundle)
+				metadata, err := airgap.AirgapMetadataFromPath(airgapBundle)
 				if err != nil {
-					return fmt.Errorf("failed to get airgap bundle versions: %w", err)
+					return fmt.Errorf("failed to get airgap metadata: %w", err)
 				}
+				airgapInfo := metadata.AirgapInfo
 
 				if err := checkAirgapMatches(airgapInfo); err != nil {
 					return err // we want the user to see the error message without a prefix

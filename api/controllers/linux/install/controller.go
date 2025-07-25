@@ -14,10 +14,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -53,7 +53,8 @@ type InstallController struct {
 	tlsConfig            types.TLSConfig
 	license              []byte
 	airgapBundle         string
-	airgapInfo           *kotsv1beta1.Airgap
+	airgapMetadata       *airgap.AirgapMetadata
+	embeddedAssetsSize   int64
 	configValues         string
 	endUserConfig        *ecv1beta1.Config
 
@@ -128,9 +129,15 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
-func WithAirgapInfo(airgapInfo *kotsv1beta1.Airgap) InstallControllerOption {
+func WithAirgapMetadata(airgapMetadata *airgap.AirgapMetadata) InstallControllerOption {
 	return func(c *InstallController) {
-		c.airgapInfo = airgapInfo
+		c.airgapMetadata = airgapMetadata
+	}
+}
+
+func WithEmbeddedAssetsSize(embeddedAssetsSize int64) InstallControllerOption {
+	return func(c *InstallController) {
+		c.embeddedAssetsSize = embeddedAssetsSize
 	}
 }
 
@@ -226,7 +233,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
-			infra.WithAirgapInfo(controller.airgapInfo),
+			infra.WithAirgapMetadata(controller.airgapMetadata),
+			infra.WithEmbeddedAssetsSize(controller.embeddedAssetsSize),
 			infra.WithConfigValues(controller.configValues),
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),

@@ -1,9 +1,12 @@
 package goods
 
 import (
+	"embed"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
@@ -91,6 +94,58 @@ func (m *Materializer) Materialize() error {
 		return fmt.Errorf("unable to materialize embedded support files: %w", err)
 	}
 	return nil
+}
+
+// SizeOfEmbeddedAssets returns the size of all embedded assets.
+func SizeOfEmbeddedAssets() (int64, error) {
+	binSize, err := calculateFSSize(binfs, "bins")
+	if err != nil {
+		return 0, fmt.Errorf("unable to calculate size of embedded bin files: %w", err)
+	}
+	supportSize, err := calculateFSSize(supportfs, "support")
+	if err != nil {
+		return 0, fmt.Errorf("unable to calculate size of embedded support files: %w", err)
+	}
+	srcpath, err := os.Executable()
+	if err != nil {
+		return 0, fmt.Errorf("unable to get our own executable path: %w", err)
+	}
+
+	info, err := os.Stat(srcpath)
+	if err != nil {
+		return 0, fmt.Errorf("unable to stat our own executable path: %w", err)
+	}
+	binSize += info.Size()
+
+	return binSize + supportSize, nil
+}
+
+// calculateFSSize returns the size of directory dir in the embedded filesystem.
+func calculateFSSize(fsys embed.FS, dir string) (int64, error) {
+	var totalSize int64
+
+	err := fs.WalkDir(fsys, dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		if strings.Contains(path, PlaceHolder) {
+			return nil
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+
+		totalSize += info.Size()
+		return nil
+	})
+	return totalSize, err
 }
 
 // SupportFiles materializes files under the support directory.
