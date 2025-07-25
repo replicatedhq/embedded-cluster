@@ -11,6 +11,8 @@ import (
 func TestSELinuxSupport(t *testing.T) {
 	t.Parallel()
 
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
 	cluster := cmx.NewCluster(&cmx.ClusterInput{
 		T:            t,
 		Nodes:        1,
@@ -37,18 +39,13 @@ func TestSELinuxSupport(t *testing.T) {
 
 	// Install embedded-cluster on the first node
 	t.Logf("Installing embedded-cluster on node 0")
-	line := []string{"single-node-install.sh", "ui"}
-	stdout, stderr, err := cluster.RunCommandOnNode(0, line)
-	if err != nil {
-		t.Fatalf("Failed to install embedded-cluster on node 0: %v (stdout: %s, stderr: %s)", err, stdout, stderr)
-	}
+	installSingleNodeWithOptions(t, cluster, installOptions{
+		adminConsolePort: "30003",
+	})
 
 	// Verify installation succeeded by checking cluster state
 	t.Logf("Verifying cluster installation")
-	stdout, stderr, err = cluster.RunCommandOnNode(0, []string{"check-installation-state.sh"})
-	if err != nil {
-		t.Fatalf("Failed to verify installation state: %v (stdout: %s, stderr: %s)", err, stdout, stderr)
-	}
+	checkInstallationState(t, cluster)
 
 	// Verify SELinux contexts are correctly set
 	t.Logf("Verifying SELinux contexts for embedded-cluster files")
@@ -56,18 +53,13 @@ func TestSELinuxSupport(t *testing.T) {
 
 	// Run embedded preflight checks which include SELinux-specific tests
 	t.Logf("Running embedded preflight checks")
-	stdout, stderr, err = cluster.RunCommandOnNode(0, []string{"embedded-preflight.sh"})
+	stdout, stderr, err := cluster.RunCommandOnNode(0, []string{"embedded-preflight.sh"})
 	if err != nil {
 		t.Fatalf("Embedded preflight checks failed: %v (stdout: %s, stderr: %s)", err, stdout, stderr)
 	}
 
 	// Deploy and test application functionality
-	if err := cluster.SetupPlaywright(); err != nil {
-		t.Fatalf("Failed to setup playwright: %v", err)
-	}
-
-	stdout, stderr, err = cluster.RunPlaywrightTest("deploy-app")
-	if err != nil {
+	if stdout, stderr, err := cluster.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("Failed to deploy app: %v (stdout: %s, stderr: %s)", err, stdout, stderr)
 	}
 
@@ -98,7 +90,7 @@ func verifySelinuxContexts(t *testing.T, cluster *cmx.Cluster) {
 	}
 
 	// Check for any SELinux denials
-	stdout, stderr, err = cluster.RunCommandOnNode(0, []string{"ausearch", "-m", "avc", "-ts", "recent"})
+	stdout, _, err = cluster.RunCommandOnNode(0, []string{"ausearch", "-m", "avc", "-ts", "recent"})
 	if err == nil && stdout != "" {
 		t.Logf("SELinux denials found: %s", stdout)
 		// Don't fail the test immediately, but log for analysis
@@ -156,7 +148,8 @@ func enableSELinuxOnNode(t *testing.T, cluster *cmx.Cluster, nodeIndex int) {
 // waitForNodeReboot waits for a node to come back online after a reboot
 func waitForNodeReboot(t *testing.T, cluster *cmx.Cluster, nodeIndex int) {
 	t.Logf("Waiting for node %d to come back online after reboot", nodeIndex)
-	
+
 	// Use the existing WaitForReboot method from CMX cluster
 	cluster.WaitForReboot()
 }
+
