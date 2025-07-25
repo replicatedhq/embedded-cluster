@@ -190,62 +190,7 @@ spec:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a basic config for the template engine
-			config := kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name: "test_group",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "chart_name",
-									Type:  "text",
-									Value: multitype.FromString("nginx"),
-								},
-								{
-									Name:  "image_tag",
-									Type:  "text",
-									Value: multitype.FromString("1.20.0"),
-								},
-								{
-									Name:  "app_name",
-									Type:  "text",
-									Value: multitype.FromString("myapp"),
-								},
-								{
-									Name:  "chart1_name",
-									Type:  "text",
-									Value: multitype.FromString("nginx"),
-								},
-								{
-									Name:  "chart1_version",
-									Type:  "text",
-									Value: multitype.FromString("1.20.0"),
-								},
-								{
-									Name:  "chart1_replicas",
-									Type:  "text",
-									Value: multitype.FromString("3"),
-								},
-								{
-									Name:  "chart2_name",
-									Type:  "text",
-									Value: multitype.FromString("redis"),
-								},
-								{
-									Name:  "service_type",
-									Type:  "text",
-									Value: multitype.FromString("ClusterIP"),
-								},
-								{
-									Name:  "service_port",
-									Type:  "text",
-									Value: multitype.FromString("6379"),
-								},
-							},
-						},
-					},
-				},
-			}
+			config := createTestConfig()
 
 			// Create release data
 			releaseData := &release.ReleaseData{
@@ -281,4 +226,28 @@ func createHelmChartFromYAML(yamlStr string) *kotsv1beta2.HelmChart {
 		panic(err)
 	}
 	return &chart
+}
+
+// Helper function to create test config for template engine
+func createTestConfig() kotsv1beta1.Config {
+	return kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name: "test_group",
+					Items: []kotsv1beta1.ConfigItem{
+						{Name: "chart_name", Type: "text", Value: multitype.FromString("nginx")},
+						{Name: "image_tag", Type: "text", Value: multitype.FromString("1.20.0")},
+						{Name: "app_name", Type: "text", Value: multitype.FromString("myapp")},
+						{Name: "chart1_name", Type: "text", Value: multitype.FromString("nginx")},
+						{Name: "chart1_version", Type: "text", Value: multitype.FromString("1.20.0")},
+						{Name: "chart1_replicas", Type: "text", Value: multitype.FromString("3")},
+						{Name: "chart2_name", Type: "text", Value: multitype.FromString("redis")},
+						{Name: "service_type", Type: "text", Value: multitype.FromString("ClusterIP")},
+						{Name: "service_port", Type: "text", Value: multitype.FromString("6379")},
+					},
+				},
+			},
+		},
+	}
 }
