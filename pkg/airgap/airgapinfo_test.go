@@ -74,7 +74,12 @@ func createTarballFromDir(rootPath string, additionalFiles map[string][]byte) io
 			if err != nil {
 				return err
 			}
-			header.Name = filepath.Base(path)
+			// Use the full relative path from rootPath to preserve directory structure
+			relPath, err := filepath.Rel(rootPath, path)
+			if err != nil {
+				return err
+			}
+			header.Name = relPath
 			err = appTarWriter.WriteHeader(header)
 			if err != nil {
 				return err
