@@ -5,7 +5,7 @@ go 1.24.4
 require (
 	github.com/google/uuid v1.6.0
 	github.com/k0sproject/dig v0.4.0
-	github.com/k0sproject/k0s v1.31.9-0.20250428141639-26a9908cf691
+	github.com/k0sproject/k0s v1.31.12-0.20250721135121-4b887bc48ed8
 	github.com/stretchr/testify v1.10.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1

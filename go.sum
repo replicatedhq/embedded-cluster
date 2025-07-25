@@ -1221,8 +1221,8 @@ github.com/jung-kurt/gofpdf v1.0.0/go.mod h1:7Id9E/uU8ce6rXgefFLlgrJj/GYY22cpxn+
 github.com/jung-kurt/gofpdf v1.0.3-0.20190309125859-24315acbbda5/go.mod h1:7Id9E/uU8ce6rXgefFLlgrJj/GYY22cpxn+r32jIOes=
 github.com/k0sproject/dig v0.4.0 h1:yBxFUUxNXAMGBg6b7c6ypxdx/o3RmhoI5v5ABOw5tn0=
 github.com/k0sproject/dig v0.4.0/go.mod h1:rlZ7N7ZEcB4Fi96TPXkZ4dqyAiDWOGLapyL9YpZ7Qz4=
-github.com/k0sproject/k0s v1.31.9-0.20250428141639-26a9908cf691 h1:/w7R/XMauHygKj7I2Y1dLkPbmXTsxO1mCQxqomDIoMk=
-github.com/k0sproject/k0s v1.31.9-0.20250428141639-26a9908cf691/go.mod h1:1aXYSUq/BOQvhIhjeQX9AQs2Yk/kthQh/E1r2rtMcCs=
+github.com/k0sproject/k0s v1.31.12-0.20250721135121-4b887bc48ed8 h1:y82CVoY/mcFpatuMRwzjC6wAxVy+t88pAbbEyjpVTf0=
+github.com/k0sproject/k0s v1.31.12-0.20250721135121-4b887bc48ed8/go.mod h1:rxBtPCy2Bfc81c5mn5agePOYjl+jVZK3yYdUkPk1ZhY=
 github.com/k0sproject/version v0.6.0 h1:Wi8wu9j+H36+okIQA47o/YHbzNpKeIYj8IjGdJOdqsI=
 github.com/k0sproject/version v0.6.0/go.mod h1:5/7Js62gDCLBP6mEs0mUcYEEkYneM5qXDKN/hyFlQTM=
 github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 h1:Z9n2FFNUXsshfwJMBgNA0RU6/i7WVaAegv3PtuIHPMs=
