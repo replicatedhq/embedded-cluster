@@ -14,16 +14,6 @@ import (
 	kyaml "sigs.k8s.io/yaml"
 )
 
-// Helper function to create HelmChart from YAML string
-func createHelmChartFromYAML(yamlStr string) *kotsv1beta2.HelmChart {
-	var chart kotsv1beta2.HelmChart
-	err := kyaml.Unmarshal([]byte(yamlStr), &chart)
-	if err != nil {
-		panic(err)
-	}
-	return &chart
-}
-
 func TestAppReleaseManager_TemplateHelmChartCRs(t *testing.T) {
 	ctx := context.Background()
 
@@ -281,4 +271,14 @@ spec:
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+// Helper function to create HelmChart from YAML string
+func createHelmChartFromYAML(yamlStr string) *kotsv1beta2.HelmChart {
+	var chart kotsv1beta2.HelmChart
+	err := kyaml.Unmarshal([]byte(yamlStr), &chart)
+	if err != nil {
+		panic(err)
+	}
+	return &chart
 }
