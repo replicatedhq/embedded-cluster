@@ -815,6 +815,7 @@ jobs:
           - TestMultiNodeAirgapHAInstallation
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
+          - TestSELinuxSupport
         include:
           - test: TestVersion
             is-lxd: true
