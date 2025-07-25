@@ -142,14 +142,14 @@ spec:
 `),
 			},
 			configValues: types.AppConfigValues{
-				"chart1_name":        {Value: "NGINX"},
-				"chart1_version":     {Value: "1.20.0"},
-				"chart1_replicas":    {Value: "3"},
-				"chart2_name":        {Value: "redis"},
-				"service_type":       {Value: "clusterip"},
-				"service_port":       {Value: "6379"},
-				"enable_resources":   {Value: "false"},
-				"redis_persistence":  {Value: "true"},
+				"chart1_name":       {Value: "NGINX"},
+				"chart1_version":    {Value: "1.20.0"},
+				"chart1_replicas":   {Value: "3"},
+				"chart2_name":       {Value: "redis"},
+				"service_type":      {Value: "clusterip"},
+				"service_port":      {Value: "6379"},
+				"enable_resources":  {Value: "false"},
+				"redis_persistence": {Value: "true"},
 			},
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartFromYAML(`
@@ -577,15 +577,15 @@ spec:
 `),
 			expected: map[string]any{
 				"database": map[string]any{
-					"host":     "prod-db",         // from recursive merge optional values (overrode base value)
-					"port":     float64(5432),     // from base values (preserved)
-					"ssl":      true,              // from base values (preserved)
-					"password": "secret",          // from recursive merge optional values (added)
-					"timeout":  float64(30),       // from recursive merge optional values (overrode base value)
+					"host":     "prod-db",     // from recursive merge optional values (overrode base value)
+					"port":     float64(5432), // from base values (preserved)
+					"ssl":      true,          // from base values (preserved)
+					"password": "secret",      // from recursive merge optional values (added)
+					"timeout":  float64(30),   // from recursive merge optional values (overrode base value)
 				},
 				"cache": map[string]any{
-					"type": "redis",         // from direct replacement optional values
-					"ttl":  float64(3600),   // from direct replacement optional values
+					"type": "redis",       // from direct replacement optional values
+					"ttl":  float64(3600), // from direct replacement optional values
 					// Note: size="1Gi" is GONE because entire cache key was replaced
 				},
 			},
