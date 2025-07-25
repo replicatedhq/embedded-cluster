@@ -16,47 +16,37 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api"
 	apilogger "github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/web"
 	"github.com/sirupsen/logrus"
 )
 
 // apiOptions holds the configuration options for the API server
 type apiOptions struct {
-	InstallTarget             string
-	RuntimeConfig             runtimeconfig.RuntimeConfig
-	Logger                    logrus.FieldLogger
-	MetricsReporter           metrics.ReporterInterface
-	Password                  string
-	TLSConfig                 apitypes.TLSConfig
-	ManagerPort               int
-	License                   []byte
-	AirgapBundle              string
-	AirgapMetadata            *airgap.AirgapMetadata
-	EmbeddedAssetsSize        int64
-	ConfigValues              string
-	ReleaseData               *release.ReleaseData
-	EndUserConfig             *ecv1beta1.Config
-	AllowIgnoreHostPreflights bool
-	WebAssetsFS               fs.FS
+	apitypes.APIConfig
+
+	ManagerPort   int
+	InstallTarget string
+
+	Logger          logrus.FieldLogger
+	MetricsReporter metrics.ReporterInterface
+	WebAssetsFS     fs.FS
 }
 
-func startAPI(ctx context.Context, cert tls.Certificate, opts apiOptions) error {
+func startAPI(ctx context.Context, cert tls.Certificate, opts apiOptions, cancel context.CancelFunc) error {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opts.ManagerPort))
 	if err != nil {
 		return fmt.Errorf("unable to create listener: %w", err)
 	}
 
 	go func() {
+		// If the api exits, we want to exit the entire process
+		defer cancel()
 		if err := serveAPI(ctx, listener, cert, opts); err != nil {
 			if !errors.Is(err, http.ErrServerClosed) {
-				logrus.Errorf("api error: %v", err)
+				logrus.Errorf("API server exited with error: %v", err)
 			}
 		}
 	}()
@@ -84,22 +74,8 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		return fmt.Errorf("new api logger: %w", err)
 	}
 
-	cfg := apitypes.APIConfig{
-		RuntimeConfig:             opts.RuntimeConfig,
-		Password:                  opts.Password,
-		TLSConfig:                 opts.TLSConfig,
-		License:                   opts.License,
-		AirgapBundle:              opts.AirgapBundle,
-		AirgapMetadata:            opts.AirgapMetadata,
-		EmbeddedAssetsSize:        opts.EmbeddedAssetsSize,
-		ConfigValues:              opts.ConfigValues,
-		ReleaseData:               opts.ReleaseData,
-		EndUserConfig:             opts.EndUserConfig,
-		AllowIgnoreHostPreflights: opts.AllowIgnoreHostPreflights,
-	}
-
 	api, err := api.New(
-		cfg,
+		opts.APIConfig,
 		api.WithLogger(logger),
 		api.WithMetricsReporter(opts.MetricsReporter),
 	)

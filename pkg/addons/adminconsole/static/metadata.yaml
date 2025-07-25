@@ -5,26 +5,26 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 1.124.18-ec.1
+version: 1.125.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console
 images:
     kotsadm:
         repo: proxy.replicated.com/anonymous/kotsadm/kotsadm
         tag:
-            amd64: v1.124.18-ec.1-amd64@sha256:e1b1b1a1ad17b1c136d8391b13fc494ffcdbdd39ef8b45ced3598c2031d8f73d
-            arm64: v1.124.18-ec.1-arm64@sha256:e7d66343a252714e67b0fc204ec6b0e10c2715779585f6df826290c91f6ab07d
+            amd64: v1.125.0-amd64@sha256:1a1146cba5261a5764ddf99d22ea8af7d4ba4d32cb2f17d7f71a286df8aad5af
+            arm64: v1.125.0-arm64@sha256:e2e4de7bc8727457f1eefb6bf632eb313f2f4f9c3765bb33d51e095155e2fc94
     kotsadm-migrations:
         repo: proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations
         tag:
-            amd64: v1.124.18-ec.1-amd64@sha256:b1fd0efcf9108ddca16236bb6776ced5442e00d5993d1ade71b676407e4a541f
-            arm64: v1.124.18-ec.1-arm64@sha256:ad05891e72a57f14dc2ea8896fc201944ee0b971f134b610917107ba7e1503c1
+            amd64: v1.125.0-amd64@sha256:f1fc22d56bdc8f06dfea0e776461687ba77cc5f806cb30bcbc88ad78cb287784
+            arm64: v1.125.0-arm64@sha256:85163830daccc953ea4cb8d4296cb9580e18d6c35298396fb5d91cab60df6100
     kurl-proxy:
         repo: proxy.replicated.com/anonymous/kotsadm/kurl-proxy
         tag:
-            amd64: v1.124.18-ec.1-amd64@sha256:87835c17cbd34cf492a473b5e946fe327f91c054f9639f28a1b79a40e433b6b0
-            arm64: v1.124.18-ec.1-arm64@sha256:a60ab80b08cfbe8e1c92efc03d1bb8e07d469c605b5d39562adecc3252e15be4
+            amd64: v1.125.0-amd64@sha256:569dde755affbb15e55c3941ee19080b4c106e4853596d4f7d975fca92909402
+            arm64: v1.125.0-arm64@sha256:c96adde565bcb217e832e14f63ca7f1962f510c653ff48889b0c8f9587ecb2c2
     rqlite:
         repo: proxy.replicated.com/anonymous/kotsadm/rqlite
         tag:
-            amd64: 8.37.3-r0-amd64@sha256:b1dffafe3d547c071126a5be38c9195057e2d15ecb6b1d11a6a8860eb866625e
-            arm64: 8.37.3-r0-arm64@sha256:781d4ce9cad04d0305d56aae20cbdc49f0a8924e4fa8aac17a2d20d726df7caf
+            amd64: 8.39.1-r0-amd64@sha256:851eafb91d99ec6b01f82eb733206f81b129aa7491e5256369b9b902786a4e32
+            arm64: 8.39.1-r0-arm64@sha256:9f89af3b8206694f6f86f355007dd8cd6e8277413070a4874eed381b25ae036a

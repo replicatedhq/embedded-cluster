@@ -1,9 +1,5 @@
 package types
 
-import (
-	"github.com/google/uuid"
-)
-
 // Event type constants
 const (
 	EventTypeInstallationStarted   = "InstallationStarted"
@@ -28,7 +24,7 @@ type GenericEvent struct {
 	// ExecutionID is a unique identifier for the current execution
 	ExecutionID string `json:"executionID"`
 	// ClusterID is the unique identifier of the cluster
-	ClusterID uuid.UUID `json:"clusterID"`
+	ClusterID string `json:"clusterID"`
 	// Version is the version of the embedded-cluster software
 	Version string `json:"version"`
 	// Hostname is the hostname of the server
@@ -46,7 +42,7 @@ type GenericEvent struct {
 }
 
 // NewGenericEvent creates a new GenericEvent with the specified name.
-func NewGenericEvent(eventName string, executionID string, clusterID uuid.UUID, version string, hostname string,
+func NewGenericEvent(eventName string, executionID string, clusterID string, version string, hostname string,
 	entryCommand string, flags string, reason string, isExitEvent bool) GenericEvent {
 	return GenericEvent{
 		ExecutionID:  executionID,

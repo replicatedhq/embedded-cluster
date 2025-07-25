@@ -200,7 +200,7 @@ func (b ReplicatedBackup) GetCompletionTimestamp() metav1.Time {
 	for _, backup := range b {
 		if backup.Status.CompletionTimestamp == nil {
 			return metav1.Time{}
-		} else if backup.Status.CompletionTimestamp.Time.After(completionTimestamp.Time) {
+		} else if backup.Status.CompletionTimestamp.After(completionTimestamp.Time) {
 			completionTimestamp = *backup.Status.CompletionTimestamp
 		}
 	}

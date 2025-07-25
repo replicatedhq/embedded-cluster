@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configitems
+  labels:
+    {{- include "nginx-app.labels" . | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.configItemsConfigMapData }}
+  {{ $key }}: {{ $value | toString | quote }}
+  {{- end }}
+

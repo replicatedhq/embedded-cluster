@@ -39,10 +39,12 @@ func ValidateCIDR(cidr string, notLessThan int, private bool) error {
 	}
 
 	if ipnet.String() != cidr {
+		//nolint:staticcheck // ST1005
 		return fmt.Errorf("The provided CIDR block (%s) is not valid", cidr)
 	}
 
 	if size, _ := ipnet.Mask.Size(); size > notLessThan {
+		//nolint:staticcheck // ST1005
 		return fmt.Errorf("The provided CIDR block (%s) is too small. It must be /%d or larger.", cidr, notLessThan)
 	}
 
@@ -57,6 +59,7 @@ func ValidateCIDR(cidr string, notLessThan int, private bool) error {
 		}
 	}
 
+	//nolint:staticcheck // ST1005
 	return fmt.Errorf("The provided CIDR block (%s) is not in a private IP address range (%s)", cidr, strings.Join(privates, ", "))
 }
 

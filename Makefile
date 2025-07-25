@@ -15,7 +15,7 @@ K0S_GO_VERSION = v1.31.8+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.30.9+k0s.0
 PREVIOUS_K0S_GO_VERSION ?= v1.30.9+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.119.1
+TROUBLESHOOT_VERSION = v0.120.3
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
@@ -145,8 +145,12 @@ output/bins/fio-%:
 .PHONY: cmd/installer/goods/bins/fio
 cmd/installer/goods/bins/fio:
 ifneq ($(DISABLE_FIO_BUILD),1)
+ifeq ($(FIO_VERSION),)
+	$(error FIO_VERSION is not set)
+else
 	$(MAKE) output/bins/fio-$(FIO_VERSION)-$(ARCH)
 	cp output/bins/fio-$(FIO_VERSION)-$(ARCH) $@
+endif
 endif
 
 .PHONY: cmd/installer/goods/internal/bins/kubectl-kots
@@ -190,7 +194,7 @@ output/bin/embedded-cluster-release-builder:
 .PHONY: initial-release
 initial-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 initial-release: export APP_VERSION = appver-dev-$(call random-string)
-initial-release: export RELEASE_YAML_DIR = e2e/kots-release-install
+initial-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
 initial-release: export V2_ENABLED = 0
 initial-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=0 \
@@ -198,7 +202,7 @@ initial-release: check-env-EC_VERSION check-env-APP_VERSION
 
 .PHONY: rebuild-release
 rebuild-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
-rebuild-release: export RELEASE_YAML_DIR = e2e/kots-release-install
+rebuild-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
 rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=0 \
 	SKIP_RELEASE=1 \
@@ -216,6 +220,7 @@ upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 
 .PHONY: go.mod
 go.mod: Makefile
+	(cd kinds && go get github.com/k0sproject/k0s@$(K0S_GO_VERSION) && go mod tidy)
 	go get github.com/k0sproject/k0s@$(K0S_GO_VERSION)
 	go mod tidy
 
@@ -343,14 +348,24 @@ create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
 create-node%: MANAGER_NODE_PORT = 30080
 create-node%: K0S_DATA_DIR = /var/lib/embedded-cluster/k0s
+create-node%: K0S_DATA_DIR_V3 = $(shell \
+	if [ -n "$(REPLICATED_APP)" ]; then \
+		echo "/var/lib/$(shell echo '$(REPLICATED_APP)' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')/k0s"; \
+	else \
+		echo "/var/lib/embedded-cluster-smoke-test-staging-app/k0s"; \
+	fi)
 create-node%: ENABLE_V3 = 0
 create-node%:
+	@echo "Mounting data directories:"
+	@echo "  v2: $(K0S_DATA_DIR)"
+	@echo "  v3: $(K0S_DATA_DIR_V3)"
 	@docker run -d \
 		--name node$* \
 		--hostname node$* \
 		--privileged \
 		--restart=unless-stopped \
 		-v $(K0S_DATA_DIR) \
+		-v $(K0S_DATA_DIR_V3) \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \

@@ -29,7 +29,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// If this function name is changed, the .github/workflows/ci.yaml file needs to be updated
+// to match the new function name.
 func TestRegistry_EnableHAAirgap(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
 	ctx := t.Context()
 
 	buildOperatorImage(t)
@@ -101,6 +107,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 	t.Logf("%s installing admin console", formattedTime())
 	adminConsoleAddon := &adminconsole.AdminConsole{
+		ClusterID:          "123",
 		IsAirgap:           true,
 		IsHA:               false,
 		Proxy:              rc.ProxySpec(),
@@ -161,6 +168,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	func() {
 		defer loading.Close()
 		opts := addons.EnableHAOptions{
+			ClusterID:   "123",
 			ServiceCIDR: rc.ServiceCIDR(),
 			ProxySpec:   rc.ProxySpec(),
 		}
@@ -225,6 +233,7 @@ func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSp
 
 	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
 	opts := addons.EnableHAOptions{
+		ClusterID:          "123",
 		AdminConsolePort:   rc.AdminConsolePort(),
 		IsAirgap:           true,
 		IsMultiNodeEnabled: false,

@@ -8,7 +8,9 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
-func (a *api) RegisterRoutes(router *mux.Router) {
+// RegisterRoutes registers the routes for the API. A router is passed in to allow for the routes
+// to be registered on a subrouter.
+func (a *API) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/health", a.handlers.health.GetHealth).Methods("GET")
 
 	// Hack to fix issue
@@ -30,7 +32,7 @@ func (a *api) RegisterRoutes(router *mux.Router) {
 	a.registerConsoleRoutes(authenticatedRouter)
 }
 
-func (a *api) registerLinuxRoutes(router *mux.Router) {
+func (a *API) registerLinuxRoutes(router *mux.Router) {
 	linuxRouter := router.PathPrefix("/linux").Subrouter()
 
 	installRouter := linuxRouter.PathPrefix("/install").Subrouter()
@@ -44,17 +46,28 @@ func (a *api) registerLinuxRoutes(router *mux.Router) {
 	installRouter.HandleFunc("/infra/setup", a.handlers.linux.PostSetupInfra).Methods("POST")
 	installRouter.HandleFunc("/infra/status", a.handlers.linux.GetInfraStatus).Methods("GET")
 
-	// TODO (@salah): remove this once the cli isn't responsible for setting the install status
-	// and the ui isn't polling for it to know if the entire install is complete
-	installRouter.HandleFunc("/status", a.handlers.linux.GetStatus).Methods("GET")
-	installRouter.HandleFunc("/status", a.handlers.linux.PostSetStatus).Methods("POST")
+	installRouter.HandleFunc("/app/config/template", a.handlers.linux.PostTemplateAppConfig).Methods("POST")
+	installRouter.HandleFunc("/app/config/values", a.handlers.linux.GetAppConfigValues).Methods("GET")
+	installRouter.HandleFunc("/app/config/values", a.handlers.linux.PatchAppConfigValues).Methods("PATCH")
 }
 
-func (a *api) registerKubernetesRoutes(router *mux.Router) {
-	// kubernetesRouter := router.PathPrefix("/kubernetes").Subrouter()
+func (a *API) registerKubernetesRoutes(router *mux.Router) {
+	kubernetesRouter := router.PathPrefix("/kubernetes").Subrouter()
+
+	installRouter := kubernetesRouter.PathPrefix("/install").Subrouter()
+	installRouter.HandleFunc("/installation/config", a.handlers.kubernetes.GetInstallationConfig).Methods("GET")
+	installRouter.HandleFunc("/installation/configure", a.handlers.kubernetes.PostConfigureInstallation).Methods("POST")
+	installRouter.HandleFunc("/installation/status", a.handlers.kubernetes.GetInstallationStatus).Methods("GET")
+
+	installRouter.HandleFunc("/infra/setup", a.handlers.kubernetes.PostSetupInfra).Methods("POST")
+	installRouter.HandleFunc("/infra/status", a.handlers.kubernetes.GetInfraStatus).Methods("GET")
+
+	installRouter.HandleFunc("/app/config/template", a.handlers.kubernetes.PostTemplateAppConfig).Methods("POST")
+	installRouter.HandleFunc("/app/config/values", a.handlers.kubernetes.GetAppConfigValues).Methods("GET")
+	installRouter.HandleFunc("/app/config/values", a.handlers.kubernetes.PatchAppConfigValues).Methods("PATCH")
 }
 
-func (a *api) registerConsoleRoutes(router *mux.Router) {
+func (a *API) registerConsoleRoutes(router *mux.Router) {
 	consoleRouter := router.PathPrefix("/console").Subrouter()
 	consoleRouter.HandleFunc("/available-network-interfaces", a.handlers.console.GetListAvailableNetworkInterfaces).Methods("GET")
 }

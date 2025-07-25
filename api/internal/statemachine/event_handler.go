@@ -60,6 +60,7 @@ func (eh *eventHandler) TriggerHandler(ctx context.Context, fromState, toState S
 		defer func() {
 			if r := recover(); r != nil {
 				// Capture panic but don't affect the transition
+				//nolint:staticcheck // ST1005 not sure why we need a newline here
 				err := fmt.Errorf("event handler panic from %s to %s: %v: %s\n", fromState, toState, r, debug.Stack())
 				done <- err
 			}

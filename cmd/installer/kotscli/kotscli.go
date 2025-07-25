@@ -11,7 +11,6 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -27,6 +26,7 @@ type InstallOptions struct {
 	AppSlug               string
 	License               []byte
 	Namespace             string
+	ClusterID             string
 	AirgapBundle          string
 	ConfigValuesFile      string
 	ReplicatedAppEndpoint string
@@ -79,6 +79,7 @@ func Install(opts InstallOptions) error {
 		installArgs = append(installArgs, "--airgap-bundle", opts.AirgapBundle)
 		maskfn = MaskKotsOutputForAirgap()
 	}
+
 	if opts.ConfigValuesFile != "" {
 		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
 	}
@@ -91,7 +92,7 @@ func Install(opts InstallOptions) error {
 	runCommandOptions := helpers.RunCommandOptions{
 		LogOnSuccess: true,
 		Env: map[string]string{
-			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
 		},
 	}
 	if opts.Stdout != nil {
@@ -134,6 +135,7 @@ type AirgapUpdateOptions struct {
 	AppSlug       string
 	Namespace     string
 	AirgapBundle  string
+	ClusterID     string
 }
 
 func AirgapUpdate(opts AirgapUpdateOptions) error {
@@ -160,7 +162,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 	runCommandOptions := helpers.RunCommandOptions{
 		Stdout: loading,
 		Env: map[string]string{
-			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
 		},
 	}
 	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, airgapUpdateArgs...); err != nil {

@@ -10,13 +10,13 @@ The root directory contains the main API setup files and request handlers.
 ### Subpackages
 
 #### `/controllers`
-Contains the business logic for different API endpoints. Each controller package focuses on a specific domain of functionality or workflow (e.g., authentication, console, install, upgrade, join, etc.) and implements the core business logic for that domain or workflow. Controllers can utilize multiple managers with each manager handling a specific subdomain of functionality.
+Contains the business logic for different API endpoints. Each controller package focuses on a specific domain of functionality or workflow (e.g., authentication, console, install, upgrade, join, etc.) and implements the core business logic for that domain or workflow. Controllers can utilize multiple managers with each manager handling a specific subdomain of functionality. Controllers act as orchestrators that read from one manager and pass data to another - never inject managers into other managers.
 
 #### `/internal`
 Contains shared utilities and helper packages that provide common functionality used across different parts of the API. This includes both general-purpose utilities and domain-specific helpers.
 
 #### `/internal/managers`
-Each manager is responsible for a specific subdomain of functionality and provides a clean interface for controllers to interact with. For example, the Preflight Manager manages system requirement checks and validation.
+Each manager is responsible for a specific subdomain of functionality and provides a clean interface for controllers to interact with. For example, the Preflight Manager manages system requirement checks and validation. Managers must remain independent with no cross-manager dependencies - data flows between managers through the controller, not directly between managers.
 
 #### `/internal/statemachine`
 The statemachine is used by controllers to capture workflow state and enforce valid transitions.
@@ -92,6 +92,19 @@ Provides a client library for interacting with the API. The client package imple
    - The EC API should not use the release metadata embedded into the EC binary (CLI)
    - This design choice enables better testability and easier iteration in the development environment
    - API components should be independently configurable and testable
+
+2. **Kubernetes as a Subset of Linux**:
+   - The Kubernetes installation target should be a subset of the Linux installation target
+   - Linux installations include Kubernetes cluster setup (k0s, addons) plus application management
+   - Kubernetes installations focus on application management (deployment, upgrades, lifecycle) on an existing Kubernetes cluster
+   - Once Linux installation finishes setting up the Kubernetes cluster, subsequent operations should follow the same workflow as Kubernetes installations
+
+3. **Consistent Processing of App Config**:
+   - All access to the application config must go through the AppConfigManager interface
+   - Direct access to `releaseData.AppConfig` should be avoided when possible
+   - This ensures consistent template processing across all config usage and prevents bypassing of template evaluation
+   - The manager stores the raw config internally and provides processed config through its interface methods
+   - Controllers check `appConfigManager == nil` to determine config availability rather than checking the raw config
 
 ## Integration
 

@@ -3,12 +3,12 @@ package config
 import (
 	_ "embed"
 	"fmt"
-	"runtime"
 	"strings"
 
 	"github.com/k0sproject/k0s/pkg/airgap"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/constant"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"gopkg.in/yaml.v2"
 )
@@ -84,12 +84,12 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig, proxyRegistryDomain string
 		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = strings.Replace(Metadata.Images["envoy-distroless"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
 	}
 
-	cfg.Spec.Images.CoreDNS.Version = Metadata.Images["coredns"].Tag[runtime.GOARCH]
-	cfg.Spec.Images.Calico.Node.Version = Metadata.Images["calico-node"].Tag[runtime.GOARCH]
-	cfg.Spec.Images.Calico.CNI.Version = Metadata.Images["calico-cni"].Tag[runtime.GOARCH]
-	cfg.Spec.Images.Calico.KubeControllers.Version = Metadata.Images["calico-kube-controllers"].Tag[runtime.GOARCH]
-	cfg.Spec.Images.MetricsServer.Version = Metadata.Images["metrics-server"].Tag[runtime.GOARCH]
-	cfg.Spec.Images.KubeProxy.Version = Metadata.Images["kube-proxy"].Tag[runtime.GOARCH]
-	cfg.Spec.Images.Pause.Version = Metadata.Images["pause"].Tag[runtime.GOARCH]
-	cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Version = Metadata.Images["envoy-distroless"].Tag[runtime.GOARCH]
+	cfg.Spec.Images.CoreDNS.Version = Metadata.Images["coredns"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Images.Calico.Node.Version = Metadata.Images["calico-node"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Images.Calico.CNI.Version = Metadata.Images["calico-cni"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Images.Calico.KubeControllers.Version = Metadata.Images["calico-kube-controllers"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Images.MetricsServer.Version = Metadata.Images["metrics-server"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Images.KubeProxy.Version = Metadata.Images["kube-proxy"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Images.Pause.Version = Metadata.Images["pause"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Version = Metadata.Images["envoy-distroless"].Tag[helpers.ClusterArch()]
 }

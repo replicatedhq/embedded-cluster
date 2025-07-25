@@ -100,7 +100,7 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, logf types.LogFu
 		return errors.Wrap(err, "ensure CA configmap")
 	}
 
-	if a.IsAirgap {
+	if a.isEmbeddedCluster() && a.IsAirgap {
 		registryIP, err := registry.GetRegistryClusterIP(a.ServiceCIDR)
 		if err != nil {
 			return errors.Wrap(err, "get registry cluster IP")

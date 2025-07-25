@@ -27,11 +27,11 @@ const (
 	ECConfigPath            = "/etc/embedded-cluster/ec.yaml"
 )
 
-// BinaryName returns the intended binary name. This is the app slug when a release is embedded,
+// AppSlug returns the intended binary name. This is the app slug when a release is embedded,
 // otherwise it is the basename of the executable. This is useful for places where we need to
 // present the name of the binary to the user. We make sure the name does not contain invalid
 // characters for a filename.
-func BinaryName() string {
+func AppSlug() string {
 	var name string
 	if release := release.GetChannelRelease(); release != nil {
 		name = release.AppSlug

@@ -1,5 +1,12 @@
 components:
   schemas:
+    github_com_replicatedhq_embedded-cluster_api_types.Health:
+      properties:
+        status:
+          type: string
+      type: object
+    github_com_replicatedhq_kotskinds_multitype.BoolOrString:
+      type: object
     types.APIError:
       properties:
         errors:
@@ -13,6 +20,30 @@ components:
           type: string
         status_code:
           type: integer
+      type: object
+    types.AppConfig:
+      properties:
+        groups:
+          items:
+            $ref: '#/components/schemas/v1beta1.ConfigGroup'
+          type: array
+          uniqueItems: false
+      type: object
+    types.AppConfigValue:
+      properties:
+        filename:
+          type: string
+        value:
+          type: string
+      type: object
+    types.AppConfigValues:
+      additionalProperties:
+        $ref: '#/components/schemas/types.AppConfigValue'
+      type: object
+    types.AppConfigValuesResponse:
+      properties:
+        values:
+          $ref: '#/components/schemas/types.AppConfigValues'
       type: object
     types.AuthRequest:
       properties:
@@ -31,11 +62,6 @@ components:
             type: string
           type: array
           uniqueItems: false
-      type: object
-    types.Health:
-      properties:
-        status:
-          type: string
       type: object
     types.HostPreflightsOutput:
       properties:
@@ -81,11 +107,6 @@ components:
         status:
           $ref: '#/components/schemas/types.Status'
       type: object
-    types.InfraSetupRequest:
-      properties:
-        ignoreHostPreflights:
-          type: boolean
-      type: object
     types.InstallHostPreflightsStatusResponse:
       properties:
         allowIgnoreHostPreflights:
@@ -100,7 +121,23 @@ components:
           type: array
           uniqueItems: false
       type: object
-    types.InstallationConfig:
+    types.KubernetesInstallationConfig:
+      properties:
+        adminConsolePort:
+          type: integer
+        httpProxy:
+          type: string
+        httpsProxy:
+          type: string
+        noProxy:
+          type: string
+      type: object
+    types.LinuxInfraSetupRequest:
+      properties:
+        ignoreHostPreflights:
+          type: boolean
+      type: object
+    types.LinuxInstallationConfig:
       properties:
         adminConsolePort:
           type: integer
@@ -123,6 +160,11 @@ components:
         serviceCidr:
           type: string
       type: object
+    types.PatchAppConfigValuesRequest:
+      properties:
+        values:
+          $ref: '#/components/schemas/types.AppConfigValues'
+      type: object
     types.PostInstallRunHostPreflightsRequest:
       properties:
         isUi:
@@ -143,6 +185,137 @@ components:
           type: string
         state:
           $ref: '#/components/schemas/types.State'
+      type: object
+    types.TemplateAppConfigRequest:
+      properties:
+        values:
+          $ref: '#/components/schemas/types.AppConfigValues'
+      type: object
+    v1beta1.ConfigChildItem:
+      properties:
+        default:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_multitype.BoolOrString'
+        name:
+          type: string
+        recommended:
+          type: boolean
+        title:
+          type: string
+        value:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_multitype.BoolOrString'
+      type: object
+    v1beta1.ConfigGroup:
+      properties:
+        description:
+          type: string
+        items:
+          items:
+            $ref: '#/components/schemas/v1beta1.ConfigItem'
+          type: array
+          uniqueItems: false
+        name:
+          type: string
+        title:
+          type: string
+        when:
+          type: string
+      type: object
+    v1beta1.ConfigItem:
+      properties:
+        affix:
+          type: string
+        countByGroup:
+          additionalProperties:
+            type: integer
+          type: object
+        data:
+          type: string
+        default:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_multitype.BoolOrString'
+        error:
+          type: string
+        filename:
+          type: string
+        help_text:
+          type: string
+        hidden:
+          type: boolean
+        items:
+          items:
+            $ref: '#/components/schemas/v1beta1.ConfigChildItem'
+          type: array
+          uniqueItems: false
+        minimumCount:
+          type: integer
+        multi_value:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        multiple:
+          type: boolean
+        name:
+          type: string
+        readonly:
+          type: boolean
+        recommended:
+          type: boolean
+        repeatable:
+          type: boolean
+        required:
+          type: boolean
+        templates:
+          items:
+            $ref: '#/components/schemas/v1beta1.RepeatTemplate'
+          type: array
+          uniqueItems: false
+        title:
+          type: string
+        type:
+          type: string
+        validation:
+          $ref: '#/components/schemas/v1beta1.ConfigItemValidation'
+        value:
+          $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_multitype.BoolOrString'
+        valuesByGroup:
+          $ref: '#/components/schemas/v1beta1.ValuesByGroup'
+        when:
+          type: string
+        write_once:
+          type: boolean
+      type: object
+    v1beta1.ConfigItemValidation:
+      properties:
+        regex:
+          $ref: '#/components/schemas/v1beta1.RegexValidator'
+      type: object
+    v1beta1.GroupValues:
+      additionalProperties:
+        type: string
+      type: object
+    v1beta1.RegexValidator:
+      properties:
+        message:
+          type: string
+        pattern:
+          type: string
+      type: object
+    v1beta1.RepeatTemplate:
+      properties:
+        apiVersion:
+          type: string
+        kind:
+          type: string
+        name:
+          type: string
+        namespace:
+          type: string
+        yamlPath:
+          type: string
+      type: object
+    v1beta1.ValuesByGroup:
+      additionalProperties:
+        $ref: '#/components/schemas/v1beta1.GroupValues'
       type: object
   securitySchemes:
     bearerauth:
@@ -216,11 +389,248 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.Health'
+                $ref: '#/components/schemas/github_com_replicatedhq_embedded-cluster_api_types.Health'
           description: OK
       summary: Get the health of the API
       tags:
       - health
+  /kubernetes/install/app/config/template:
+    post:
+      description: Template the app config with provided values and return the templated
+        config
+      operationId: postKubernetesInstallTemplateAppConfig
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+        description: Template App Config Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfig'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Template the app config with provided values
+      tags:
+      - kubernetes-install
+  /kubernetes/install/app/config/values:
+    patch:
+      description: Set the app config values with partial updates
+      operationId: patchKubernetesInstallAppConfigValues
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+        description: Patch App Config Values Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Set the app config values
+      tags:
+      - kubernetes-install
+  /kubernetes/install/infra/setup:
+    post:
+      description: Setup infra components
+      operationId: postKubernetesInstallSetupInfra
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Infra'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Setup infra components
+      tags:
+      - kubernetes-install
+  /kubernetes/install/infra/status:
+    get:
+      description: Get the current status of the infra
+      operationId: getKubernetesInstallInfraStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Infra'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the status of the infra
+      tags:
+      - kubernetes-install
+  /kubernetes/install/installation/config:
+    get:
+      description: get the Kubernetes installation config
+      operationId: getKubernetesInstallInstallationConfig
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.KubernetesInstallationConfig'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the Kubernetes installation config
+      tags:
+      - kubernetes-install
+  /kubernetes/install/installation/configure:
+    post:
+      description: configure the Kubernetes installation for install
+      operationId: postKubernetesInstallConfigureInstallation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.KubernetesInstallationConfig'
+        description: Installation config
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Status'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Configure the Kubernetes installation for install
+      tags:
+      - kubernetes-install
+  /kubernetes/install/installation/status:
+    get:
+      description: Get the current status of the installation configuration for install
+      operationId: getKubernetesInstallInstallationStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Status'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get installation configuration status for install
+      tags:
+      - kubernetes-install
+  /linux/install/app/config/template:
+    post:
+      description: Template the app config with provided values and return the templated
+        config
+      operationId: postLinuxInstallTemplateAppConfig
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+        description: Template App Config Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfig'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Template the app config with provided values
+      tags:
+      - linux-install
+  /linux/install/app/config/values:
+    get:
+      description: Get the current app config values
+      operationId: getLinuxInstallAppConfigValues
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get the app config values
+      tags:
+      - linux-install
+    patch:
+      description: Set the app config values with partial updates
+      operationId: patchLinuxInstallAppConfigValues
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+        description: Patch App Config Values Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Set the app config values
+      tags:
+      - linux-install
   /linux/install/host-preflights/run:
     post:
       description: Run install host preflight checks using installation config and
@@ -270,7 +680,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.InfraSetupRequest'
+              $ref: '#/components/schemas/types.LinuxInfraSetupRequest'
         description: Infra Setup Request
         required: true
       responses:
@@ -310,7 +720,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.InstallationConfig'
+                $ref: '#/components/schemas/types.LinuxInstallationConfig'
           description: OK
       security:
       - bearerauth: []
@@ -325,7 +735,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.InstallationConfig'
+              $ref: '#/components/schemas/types.LinuxInstallationConfig'
         description: Installation config
         required: true
       responses:
@@ -335,6 +745,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.Status'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Configure the installation for install
@@ -354,44 +770,6 @@ paths:
       security:
       - bearerauth: []
       summary: Get installation configuration status for install
-      tags:
-      - linux-install
-  /linux/install/status:
-    get:
-      description: Get the current status of the install workflow
-      operationId: getLinuxInstallStatus
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Status'
-          description: OK
-      security:
-      - bearerauth: []
-      summary: Get the status of the install workflow
-      tags:
-      - linux-install
-    post:
-      description: Set the status of the install workflow
-      operationId: postLinuxInstallSetStatus
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/types.Status'
-        description: Status
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Status'
-          description: OK
-      security:
-      - bearerauth: []
-      summary: Set the status of the install workflow
       tags:
       - linux-install
 servers:

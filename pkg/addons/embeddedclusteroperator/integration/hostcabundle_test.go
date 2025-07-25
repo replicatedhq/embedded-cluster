@@ -24,6 +24,7 @@ func TestHostCABundle(t *testing.T) {
 	addon := &embeddedclusteroperator.EmbeddedClusterOperator{
 		DryRun:                true,
 		ChartLocationOverride: chartLocation,
+		ClusterID:             "123",
 		HostCABundlePath:      "/etc/ssl/certs/ca-certificates.crt",
 	}
 
@@ -53,8 +54,8 @@ func TestHostCABundle(t *testing.T) {
 		}
 	}
 	if assert.NotNil(t, volume, "EmbeddedClusterOperator host-ca-bundle volume should not be nil") {
-		assert.Equal(t, volume.VolumeSource.HostPath.Path, "/etc/ssl/certs/ca-certificates.crt")
-		assert.Equal(t, volume.VolumeSource.HostPath.Type, ptr.To(corev1.HostPathFileOrCreate))
+		assert.Equal(t, volume.HostPath.Path, "/etc/ssl/certs/ca-certificates.crt")
+		assert.Equal(t, volume.HostPath.Type, ptr.To(corev1.HostPathFileOrCreate))
 	}
 
 	var volumeMount *corev1.VolumeMount

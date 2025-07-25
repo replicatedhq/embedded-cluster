@@ -270,7 +270,7 @@ func newMigrationPod(image string) *corev1.Pod {
 		},
 	}
 
-	pod.ObjectMeta.Labels = applyRegistryLabels(pod.ObjectMeta.Labels, dataMigrationPodName)
+	pod.Labels = applyRegistryLabels(pod.Labels, dataMigrationPodName)
 
 	return pod
 }
@@ -379,7 +379,7 @@ func ensureS3Secret(ctx context.Context, kcli client.Client) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: constants.RegistryNamespace,
 			Name:      seaweedfsS3SecretName,
-			Labels:    seaweedfs.ApplyLabels(secret.ObjectMeta.Labels, "s3"),
+			Labels:    seaweedfs.ApplyLabels(secret.Labels, "s3"),
 		},
 		Data: map[string][]byte{
 			"s3AccessKey": []byte(accessKey),

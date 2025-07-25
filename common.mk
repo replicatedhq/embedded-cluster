@@ -28,7 +28,7 @@ endif
 GO_BUILD_TAGS ?= containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay
 
 ifdef GH_TOKEN
-GH_AUTH_HEADER ?= "Authorization: token $(GH_TOKEN)"
+GH_AUTH_HEADER ?= -H 'Authorization: token $(GH_TOKEN)'
 endif
 
 image-tag = $(shell echo "$1" | sed 's/+/-/')

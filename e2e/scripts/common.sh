@@ -137,7 +137,7 @@ wait_for_pods_running() {
         current_time=$(date +%s)
         elapsed_time=$((current_time - start_time))
         if [ "$elapsed_time" -ge "$timeout" ]; then
-            kubectl get pods -A -o yaml || true
+            kubectl get pods -A || true
             kubectl describe nodes || true
             echo "Timed out waiting for all pods to be running."
             return 1
@@ -146,7 +146,6 @@ wait_for_pods_running() {
         non_running_pods=$(kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 != "Running" && $4 != "Completed" { print $0 }' | wc -l || echo 1)
         if [ "$non_running_pods" -ne 0 ]; then
             echo "Not all pods are running. Waiting."
-            kubectl get pods,nodes -A || true
             sleep 5
             continue
         fi
@@ -298,10 +297,10 @@ ensure_version_metadata_present() {
 }
 
 # ensure_binary_copy verifies that the installer is copying itself to the default location of
-# banaries in the node.
+# binaries on the node.
 ensure_binary_copy() {
     if ! ls "${EMBEDDED_CLUSTER_BASE_DIR}/bin/${EMBEDDED_CLUSTER_BIN}" ; then
-        echo "embedded-cluster binary not found on default location"
+        echo "embedded-cluster binary not found at default location"
         ls -la "${EMBEDDED_CLUSTER_BASE_DIR}/bin"
         return 1
     fi

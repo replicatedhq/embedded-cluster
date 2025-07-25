@@ -3,6 +3,8 @@ package install
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -10,24 +12,24 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
-func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.InstallationConfig, error) {
+func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfig, error) {
 	config, err := c.installationManager.GetConfig()
 	if err != nil {
-		return types.InstallationConfig{}, err
+		return types.LinuxInstallationConfig{}, err
 	}
 
-	if err := c.installationManager.SetConfigDefaults(&config); err != nil {
-		return types.InstallationConfig{}, fmt.Errorf("set defaults: %w", err)
+	if err := c.installationManager.SetConfigDefaults(&config, c.rc); err != nil {
+		return types.LinuxInstallationConfig{}, fmt.Errorf("set defaults: %w", err)
 	}
 
 	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
-		return types.InstallationConfig{}, fmt.Errorf("validate: %w", err)
+		return types.LinuxInstallationConfig{}, fmt.Errorf("validate: %w", err)
 	}
 
 	return config, nil
 }
 
-func (c *InstallController) ConfigureInstallation(ctx context.Context, config types.InstallationConfig) error {
+func (c *InstallController) ConfigureInstallation(ctx context.Context, config types.LinuxInstallationConfig) error {
 	err := c.configureInstallation(ctx, config)
 	if err != nil {
 		return err
@@ -39,19 +41,29 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 
 		lock, err := c.stateMachine.AcquireLock()
 		if err != nil {
-			c.logger.Error("failed to acquire lock", "error", err)
+			c.logger.WithError(err).Error("failed to acquire lock")
 			return
 		}
 		defer lock.Release()
 
+		err = c.stateMachine.Transition(lock, StateHostConfiguring)
+		if err != nil {
+			c.logger.WithError(err).Error("failed to transition states")
+			return
+		}
+
 		err = c.installationManager.ConfigureHost(ctx, c.rc)
 
 		if err != nil {
-			c.logger.Error("failed to configure host", "error", err)
+			c.logger.WithError(err).Error("failed to configure host")
+			err = c.stateMachine.Transition(lock, StateHostConfigurationFailed)
+			if err != nil {
+				c.logger.WithError(err).Error("failed to transition states")
+			}
 		} else {
 			err = c.stateMachine.Transition(lock, StateHostConfigured)
 			if err != nil {
-				c.logger.Error("failed to transition states", "error", err)
+				c.logger.WithError(err).Error("failed to transition states")
 			}
 		}
 	}()
@@ -59,16 +71,42 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 	return nil
 }
 
-func (c *InstallController) configureInstallation(ctx context.Context, config types.InstallationConfig) error {
+func (c *InstallController) configureInstallation(_ context.Context, config types.LinuxInstallationConfig) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
 	}
 	defer lock.Release()
 
-	if err := c.stateMachine.ValidateTransition(lock, StateInstallationConfigured); err != nil {
+	if err := c.stateMachine.ValidateTransition(lock, StateInstallationConfiguring, StateInstallationConfigured); err != nil {
 		return types.NewConflictError(err)
 	}
+
+	err = c.stateMachine.Transition(lock, StateInstallationConfiguring)
+	if err != nil {
+		return fmt.Errorf("failed to transition states: %w", err)
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+		}
+		if finalErr != nil {
+			failureStatus := types.Status{
+				State:       types.StateFailed,
+				Description: finalErr.Error(),
+				LastUpdated: time.Now(),
+			}
+
+			if err = c.store.LinuxInstallationStore().SetStatus(failureStatus); err != nil {
+				c.logger.Errorf("failed to update status: %w", err)
+			}
+
+			if err := c.stateMachine.Transition(lock, StateInstallationConfigurationFailed); err != nil {
+				c.logger.Errorf("failed to transition states: %w", err)
+			}
+		}
+	}()
 
 	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
 		return fmt.Errorf("validate: %w", err)
@@ -116,7 +154,7 @@ func (c *InstallController) configureInstallation(ctx context.Context, config ty
 	return nil
 }
 
-func (c *InstallController) computeCIDRs(config *types.InstallationConfig) error {
+func (c *InstallController) computeCIDRs(config *types.LinuxInstallationConfig) error {
 	if config.GlobalCIDR != "" {
 		podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(config.GlobalCIDR)
 		if err != nil {

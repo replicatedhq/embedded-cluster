@@ -3,11 +3,16 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { render, RenderOptions } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider, RouteObject } from "react-router-dom";
 import { vi } from "vitest";
+import { JSX } from "react/jsx-runtime";
 
+import { InitialState } from "../types";
+import { InstallationTarget } from "../types/installation-target";
 import { createQueryClient } from "../query-client";
-import { ConfigContext, ClusterConfig } from "../contexts/ConfigContext";
-import { WizardModeContext, WizardMode } from "../contexts/WizardModeContext";
-import { BrandingContext } from "../contexts/BrandingContext";
+import { LinuxConfigContext, LinuxConfig } from "../contexts/LinuxConfigContext";
+import { KubernetesConfigContext, KubernetesConfig } from "../contexts/KubernetesConfigContext";
+import { SettingsContext, Settings } from "../contexts/SettingsContext";
+import { WizardContext, WizardMode } from "../contexts/WizardModeContext";
+import { InitialStateContext } from "../contexts/InitialStateContext";
 import { AuthContext } from "../contexts/AuthContext";
 
 // Mock localStorage for tests
@@ -24,45 +29,39 @@ if (!window.HTMLElement.prototype.scrollIntoView) {
   window.HTMLElement.prototype.scrollIntoView = vi.fn();
 }
 
-interface PrototypeSettings {
-  skipValidation: boolean;
-  failPreflights: boolean;
-  failInstallation: boolean;
-  failHostPreflights: boolean;
-  installTarget: "linux" | "kubernetes";
-  themeColor: string;
-  skipNodeValidation: boolean;
-  useSelfSignedCert: boolean;
-  enableMultiNode: boolean;
-  availableNetworkInterfaces: Array<{
-    name: string;
-  }>;
-}
-
 interface MockProviderProps {
   children: React.ReactNode;
   queryClient: ReturnType<typeof createQueryClient>;
   contexts: {
-    brandingContext: {
-      title: string;
-      icon?: string;
-    };
-    configContext: {
-      config: ClusterConfig;
-      prototypeSettings: PrototypeSettings;
-      updateConfig: (newConfig: Partial<ClusterConfig>) => void;
-      updatePrototypeSettings: (newSettings: Partial<PrototypeSettings>) => void;
+    initialStateContext: InitialState
+    linuxConfigContext: {
+      config: LinuxConfig;
+      updateConfig: (newConfig: Partial<LinuxConfig>) => void;
       resetConfig: () => void;
     };
+    kubernetesConfigContext: {
+      config: KubernetesConfig;
+      updateConfig: (newConfig: Partial<KubernetesConfig>) => void;
+      resetConfig: () => void;
+    };
+    settingsContext: {
+      settings: Settings;
+      updateSettings: (newSettings: Partial<Settings>) => void;
+    };
     wizardModeContext: {
+      target: InstallationTarget;
       mode: WizardMode;
       text: {
         title: string;
         subtitle: string;
         welcomeTitle: string;
         welcomeDescription: string;
-        setupTitle: string;
-        setupDescription: string;
+        configurationTitle: string;
+        configurationDescription: string;
+        linuxSetupTitle: string;
+        linuxSetupDescription: string;
+        kubernetesSetupTitle: string;
+        kubernetesSetupDescription: string;
         validationTitle: string;
         validationDescription: string;
         installationTitle: string;
@@ -79,6 +78,7 @@ interface MockProviderProps {
   };
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- this is a test component
 const MockProvider = ({ children, queryClient, contexts }: MockProviderProps) => {
   // Set up localStorage with the auth token if provided
   React.useEffect(() => {
@@ -90,15 +90,19 @@ const MockProvider = ({ children, queryClient, contexts }: MockProviderProps) =>
   }, [contexts.authContext.token]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={{ ...contexts.authContext, isLoading: false }}>
-        <ConfigContext.Provider value={contexts.configContext}>
-          <BrandingContext.Provider value={contexts.brandingContext}>
-            <WizardModeContext.Provider value={contexts.wizardModeContext}>{children}</WizardModeContext.Provider>
-          </BrandingContext.Provider>
-        </ConfigContext.Provider>
-      </AuthContext.Provider>
-    </QueryClientProvider>
+    <InitialStateContext.Provider value={contexts.initialStateContext}>
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={{ ...contexts.authContext, isLoading: false }}>
+          <LinuxConfigContext.Provider value={contexts.linuxConfigContext}>
+            <KubernetesConfigContext.Provider value={contexts.kubernetesConfigContext}>
+              <SettingsContext.Provider value={contexts.settingsContext}>
+                <WizardContext.Provider value={contexts.wizardModeContext}>{children}</WizardContext.Provider>
+              </SettingsContext.Provider>
+            </KubernetesConfigContext.Provider>
+          </LinuxConfigContext.Provider>
+        </AuthContext.Provider>
+      </QueryClientProvider>
+    </InitialStateContext.Provider>
   );
 };
 
@@ -106,9 +110,11 @@ interface RenderWithProvidersOptions extends RenderOptions {
   wrapperProps?: {
     initialEntries?: string[];
     preloadedState?: Record<string, unknown>;
+    contextValues?: Partial<MockProviderProps["contexts"]>;
     routePath?: string;
     authenticated?: boolean;
     authToken?: string;
+    target?: InstallationTarget;
   };
   wrapper?: React.ComponentType<{ children: React.ReactNode }>;
 }
@@ -116,39 +122,47 @@ interface RenderWithProvidersOptions extends RenderOptions {
 export const renderWithProviders = (
   ui: JSX.Element,
   options: RenderWithProvidersOptions = {},
-  contextValues: MockProviderProps["contexts"] = {
-    brandingContext: { title: "My App" },
-    configContext: {
+) => {
+  const defaultContextValues: MockProviderProps["contexts"] = {
+    initialStateContext: { title: "My App", installTarget: options.wrapperProps?.target || "linux" },
+    linuxConfigContext: {
       config: {
-        storageClass: "standard",
+        adminConsolePort: 8800,
         dataDirectory: "/var/lib/embedded-cluster",
         useProxy: false,
       },
-      prototypeSettings: {
-        skipValidation: false,
-        failPreflights: false,
-        failInstallation: false,
-        failHostPreflights: false,
-        installTarget: "linux",
-        themeColor: "#316DE6",
-        skipNodeValidation: false,
-        useSelfSignedCert: false,
-        enableMultiNode: true,
-        availableNetworkInterfaces: [],
+      updateConfig: vi.fn(),
+      resetConfig: vi.fn(),
+    },
+    kubernetesConfigContext: {
+      config: {
+        adminConsolePort: 8080,
+        useProxy: false,
+        installCommand: 'kubectl -n kotsadm port-forward svc/kotsadm 8800:3000',
       },
-      updateConfig: () => {},
-      updatePrototypeSettings: () => {},
-      resetConfig: () => {},
+      updateConfig: vi.fn(),
+      resetConfig: vi.fn(),
+    },
+    settingsContext: {
+      settings: {
+        themeColor: "#316DE6",
+      },
+      updateSettings: vi.fn(),
     },
     wizardModeContext: {
+      target: options.wrapperProps?.target || "linux",
       mode: "install",
       text: {
         title: "My App",
         subtitle: "Installation Wizard",
         welcomeTitle: "Welcome to My App",
-        welcomeDescription: "This wizard will guide you through installing My App on your Linux machine.",
-        setupTitle: "Setup",
-        setupDescription: "Set up the hosts to use for this installation.",
+        welcomeDescription: `This wizard will guide you through installing My App on your ${options.wrapperProps?.target === "kubernetes" ? "Kubernetes cluster" : "Linux machine"}.`,
+        configurationTitle: "Configuration",
+        configurationDescription: "Configure your My App installation by providing the information below.",
+        linuxSetupTitle: "Setup",
+        linuxSetupDescription: "Set up the hosts to use for this installation.",
+        kubernetesSetupTitle: "Kubernetes Setup",
+        kubernetesSetupDescription: "Set up the Kubernetes cluster for this installation.",
         validationTitle: "Validation",
         validationDescription: "Validate the host requirements before proceeding with installation.",
         installationTitle: "Installing My App",
@@ -162,8 +176,16 @@ export const renderWithProviders = (
       setToken: vi.fn(),
       isAuthenticated: !!options.wrapperProps?.authenticated || !!options.wrapperProps?.authToken,
     },
-  }
-) => {
+  };
+
+  const mergedContextValues: MockProviderProps["contexts"] = {
+    initialStateContext: { ...defaultContextValues.initialStateContext, ...options.wrapperProps?.contextValues?.initialStateContext },
+    linuxConfigContext: { ...defaultContextValues.linuxConfigContext, ...options.wrapperProps?.contextValues?.linuxConfigContext },
+    kubernetesConfigContext: { ...defaultContextValues.kubernetesConfigContext, ...options.wrapperProps?.contextValues?.kubernetesConfigContext },
+    settingsContext: { ...defaultContextValues.settingsContext, ...options.wrapperProps?.contextValues?.settingsContext },
+    wizardModeContext: { ...defaultContextValues.wizardModeContext, ...options.wrapperProps?.contextValues?.wizardModeContext },
+    authContext: { ...defaultContextValues.authContext, ...options.wrapperProps?.contextValues?.authContext },
+  };
   const { wrapperProps = {}, wrapper: CustomWrapper } = options;
   const { routePath, initialEntries = ["/"] } = wrapperProps;
 
@@ -197,7 +219,7 @@ export const renderWithProviders = (
     {
       path: routePath || "/*",
       element: (
-        <MockProvider queryClient={queryClient} contexts={contextValues}>
+        <MockProvider queryClient={queryClient} contexts={mergedContextValues}>
           {CustomWrapper ? <CustomWrapper>{ui}</CustomWrapper> : ui}
         </MockProvider>
       ),

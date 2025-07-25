@@ -16,7 +16,7 @@ import (
 //	@Tags			linux-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.InstallationConfig
+//	@Success		200	{object}	types.LinuxInstallationConfig
 //	@Router			/linux/install/installation/config [get]
 func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) {
 	config, err := h.installController.GetInstallationConfig(r.Context())
@@ -38,11 +38,12 @@ func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) 
 //	@Security		bearerauth
 //	@Accept			json
 //	@Produce		json
-//	@Param			installationConfig	body		types.InstallationConfig	true	"Installation config"
+//	@Param			installationConfig	body		types.LinuxInstallationConfig	true	"Installation config"
 //	@Success		200					{object}	types.Status
+//	@Failure		400					{object}	types.APIError
 //	@Router			/linux/install/installation/configure [post]
 func (h *Handler) PostConfigureInstallation(w http.ResponseWriter, r *http.Request) {
-	var config types.InstallationConfig
+	var config types.LinuxInstallationConfig
 	if err := utils.BindJSON(w, r, &config, h.logger); err != nil {
 		return
 	}
@@ -158,11 +159,11 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 //	@Security		bearerauth
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		types.InfraSetupRequest	true	"Infra Setup Request"
+//	@Param			request	body		types.LinuxInfraSetupRequest	true	"Infra Setup Request"
 //	@Success		200		{object}	types.Infra
 //	@Router			/linux/install/infra/setup [post]
 func (h *Handler) PostSetupInfra(w http.ResponseWriter, r *http.Request) {
-	var req types.InfraSetupRequest
+	var req types.LinuxInfraSetupRequest
 	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
 		return
 	}
@@ -198,56 +199,86 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, r, http.StatusOK, infra, h.logger)
 }
 
-// PostSetStatus handler to set the status of the install workflow
+// PostTemplateAppConfig handler to template the app config with provided values
 //
-//	@ID				postLinuxInstallSetStatus
-//	@Summary		Set the status of the install workflow
-//	@Description	Set the status of the install workflow
+//	@ID				postLinuxInstallTemplateAppConfig
+//	@Summary		Template the app config with provided values
+//	@Description	Template the app config with provided values and return the templated config
 //	@Tags			linux-install
 //	@Security		bearerauth
 //	@Accept			json
 //	@Produce		json
-//	@Param			status	body		types.Status	true	"Status"
-//	@Success		200		{object}	types.Status
-//	@Router			/linux/install/status [post]
-func (h *Handler) PostSetStatus(w http.ResponseWriter, r *http.Request) {
-	var status types.Status
-	if err := utils.BindJSON(w, r, &status, h.logger); err != nil {
+//	@Param			request	body		types.TemplateAppConfigRequest	true	"Template App Config Request"
+//	@Success		200		{object}	types.AppConfig
+//	@Failure		400		{object}	types.APIError
+//	@Router			/linux/install/app/config/template [post]
+func (h *Handler) PostTemplateAppConfig(w http.ResponseWriter, r *http.Request) {
+	var req types.TemplateAppConfigRequest
+	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
 		return
 	}
 
-	if err := types.ValidateStatus(status); err != nil {
-		utils.LogError(r, err, h.logger, "invalid install status")
+	appConfig, err := h.installController.TemplateAppConfig(r.Context(), req.Values, true)
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to template app config")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
-	if err := h.installController.SetStatus(r.Context(), status); err != nil {
-		utils.LogError(r, err, h.logger, "failed to set install status")
-		utils.JSONError(w, r, err, h.logger)
-		return
-	}
-
-	h.GetStatus(w, r)
+	utils.JSON(w, r, http.StatusOK, appConfig, h.logger)
 }
 
-// GetStatus handler to get the status of the install workflow
+// PatchAppConfigValues handler to set the app config values
 //
-//	@ID				getLinuxInstallStatus
-//	@Summary		Get the status of the install workflow
-//	@Description	Get the current status of the install workflow
+//	@ID				patchLinuxInstallAppConfigValues
+//	@Summary		Set the app config values
+//	@Description	Set the app config values with partial updates
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		types.PatchAppConfigValuesRequest	true	"Patch App Config Values Request"
+//	@Success		200		{object}	types.AppConfigValuesResponse
+//	@Failure		400		{object}	types.APIError
+//	@Router			/linux/install/app/config/values [patch]
+func (h *Handler) PatchAppConfigValues(w http.ResponseWriter, r *http.Request) {
+	var req types.PatchAppConfigValuesRequest
+	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
+		return
+	}
+
+	err := h.installController.PatchAppConfigValues(r.Context(), req.Values)
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to set app config values")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetAppConfigValues(w, r)
+}
+
+// GetAppConfigValues handler to get the app config values
+//
+//	@ID				getLinuxInstallAppConfigValues
+//	@Summary		Get the app config values
+//	@Description	Get the current app config values
 //	@Tags			linux-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.Status
-//	@Router			/linux/install/status [get]
-func (h *Handler) GetStatus(w http.ResponseWriter, r *http.Request) {
-	status, err := h.installController.GetStatus(r.Context())
+//	@Success		200	{object}	types.AppConfigValuesResponse
+//	@Failure		400	{object}	types.APIError
+//	@Router			/linux/install/app/config/values [get]
+func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
+	values, err := h.installController.GetAppConfigValues(r.Context())
 	if err != nil {
-		utils.LogError(r, err, h.logger, "failed to get install status")
+		utils.LogError(r, err, h.logger, "failed to get app config values")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
-	utils.JSON(w, r, http.StatusOK, status, h.logger)
+	response := types.AppConfigValuesResponse{
+		Values: values,
+	}
+
+	utils.JSON(w, r, http.StatusOK, response, h.logger)
 }

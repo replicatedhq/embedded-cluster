@@ -69,6 +69,7 @@ jobs:
           INPUT_VELERO_CHART_VERSION: ${{ github.event.inputs.velero_chart_version }}
           INPUT_SEAWEEDFS_CHART_VERSION: ${{ github.event.inputs.seaweedfs_chart_version }}
           ARCHS: "amd64,arm64"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod 755 ./output/bin/buildtools
           ./output/bin/buildtools update addon ${{ matrix.addon }}

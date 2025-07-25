@@ -12,6 +12,7 @@ import (
 	"time"
 
 	apilogger "github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -55,15 +56,21 @@ func Test_serveAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	config := apiOptions{
-		Logger:      apilogger.NewDiscardLogger(),
-		Password:    "password",
-		ManagerPort: portInt,
-		WebAssetsFS: webAssetsFS,
-		ReleaseData: &release.ReleaseData{
-			Application: &kotsv1beta1.Application{
-				Spec: kotsv1beta1.ApplicationSpec{},
+		APIConfig: apitypes.APIConfig{
+			Password: "password",
+			ReleaseData: &release.ReleaseData{
+				Application: &kotsv1beta1.Application{
+					Spec: kotsv1beta1.ApplicationSpec{},
+				},
+				AppConfig: &kotsv1beta1.Config{
+					Spec: kotsv1beta1.ConfigSpec{},
+				},
 			},
+			ClusterID: "123",
 		},
+		ManagerPort: portInt,
+		Logger:      apilogger.NewDiscardLogger(),
+		WebAssetsFS: webAssetsFS,
 	}
 
 	go func() {

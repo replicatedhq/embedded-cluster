@@ -100,3 +100,40 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+configItemsConfigMapData:
+  # Text items
+  text_simple: ""
+  text_with_default: ""
+  text_required: ""
+
+  # Password items
+  password_simple: ""
+  password_with_default: ""
+  password_required: ""
+
+  # Textarea items
+  textarea_simple: ""
+  textarea_with_default: ""
+  textarea_required: ""
+
+  # Checkbox/Bool items
+  checkbox_simple: ""
+  checkbox_with_default: ""
+  checkbox_required: ""
+
+  # Dropdown items
+  dropdown_simple: ""
+  dropdown_with_default: ""
+  dropdown_required: ""
+
+  # Radio items
+  radio_simple: ""
+  radio_with_default: ""
+  radio_required: ""
+
+  # File items
+  file_simple: ""
+  file_with_default: ""
+  file_required: ""
+

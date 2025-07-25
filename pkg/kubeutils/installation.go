@@ -13,7 +13,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/crds"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -122,6 +121,7 @@ func writeInstallationStatusMessage(writer *spinner.MessageWriter, install *ecv1
 }
 
 type RecordInstallationOptions struct {
+	ClusterID              string
 	IsAirgap               bool
 	License                *kotsv1beta1.License
 	ConfigSpec             *ecv1beta1.ConfigSpec
@@ -162,7 +162,7 @@ func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInst
 			Name: time.Now().Format("20060102150405"),
 		},
 		Spec: ecv1beta1.InstallationSpec{
-			ClusterID:                 metrics.ClusterID().String(),
+			ClusterID:                 opts.ClusterID,
 			MetricsBaseURL:            opts.MetricsBaseURL,
 			AirGap:                    opts.IsAirgap,
 			AirgapUncompressedSize:    opts.AirgapUncompressedSize,
@@ -170,7 +170,7 @@ func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInst
 			Config:                    opts.ConfigSpec,
 			RuntimeConfig:             opts.RuntimeConfig,
 			EndUserK0sConfigOverrides: euOverrides,
-			BinaryName:                runtimeconfig.BinaryName(),
+			BinaryName:                runtimeconfig.AppSlug(),
 			LicenseInfo: &ecv1beta1.LicenseInfo{
 				IsDisasterRecoverySupported: opts.License.Spec.IsDisasterRecoverySupported,
 				IsMultiNodeEnabled:          opts.License.Spec.IsEmbeddedClusterMultiNodeEnabled,
@@ -242,12 +242,23 @@ func EnsureInstallationCRD(ctx context.Context, kcli client.Client) error {
 func CreateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
 	in.Spec.SourceType = ecv1beta1.InstallationSourceTypeCRD
 
-	if in.ObjectMeta.Labels == nil {
-		in.ObjectMeta.Labels = map[string]string{}
+	if in.Labels == nil {
+		in.Labels = map[string]string{}
 	}
-	in.ObjectMeta.Labels["replicated.com/disaster-recovery"] = "ec-install"
+	in.Labels["replicated.com/disaster-recovery"] = "ec-install"
 
-	return cli.Create(ctx, in)
+	backoff := wait.Backoff{Steps: 5, Duration: 2 * time.Second, Factor: 1.0, Jitter: 0.1}
+	return wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		err := cli.Create(ctx, in)
+		if err != nil {
+			// Wait for the CRD to be truly ready
+			if meta.IsNoMatchError(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		return true, nil
+	})
 }
 
 func UpdateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, mutate func(in *ecv1beta1.Installation)) error {

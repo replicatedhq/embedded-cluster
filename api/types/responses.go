@@ -12,3 +12,8 @@ type InstallHostPreflightsStatusResponse struct {
 type GetListAvailableNetworkInterfacesResponse struct {
 	NetworkInterfaces []string `json:"networkInterfaces"`
 }
+
+// AppConfigValuesResponse represents a response containing app config values
+type AppConfigValuesResponse struct {
+	Values AppConfigValues `json:"values"`
+}

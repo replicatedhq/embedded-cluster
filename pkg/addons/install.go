@@ -16,19 +16,22 @@ import (
 )
 
 type InstallOptions struct {
-	AdminConsolePwd         string
-	AdminConsolePort        int
-	License                 *kotsv1beta1.License
-	IsAirgap                bool
-	TLSCertBytes            []byte
-	TLSKeyBytes             []byte
-	Hostname                string
+	AdminConsolePwd    string
+	AdminConsolePort   int
+	License            *kotsv1beta1.License
+	IsAirgap           bool
+	TLSCertBytes       []byte
+	TLSKeyBytes        []byte
+	Hostname           string
+	IsMultiNodeEnabled bool
+	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
+	EndUserConfigSpec  *ecv1beta1.ConfigSpec
+	KotsInstaller      adminconsole.KotsInstaller
+	ProxySpec          *ecv1beta1.ProxySpec
+
+	// Linux only options
+	ClusterID               string
 	DisasterRecoveryEnabled bool
-	IsMultiNodeEnabled      bool
-	EmbeddedConfigSpec      *ecv1beta1.ConfigSpec
-	EndUserConfigSpec       *ecv1beta1.ConfigSpec
-	KotsInstaller           adminconsole.KotsInstaller
-	ProxySpec               *ecv1beta1.ProxySpec
 	HostCABundlePath        string
 	DataDir                 string
 	K0sDataDir              string
@@ -36,8 +39,42 @@ type InstallOptions struct {
 	ServiceCIDR             string
 }
 
+type KubernetesInstallOptions struct {
+	AdminConsolePwd    string
+	AdminConsolePort   int
+	License            *kotsv1beta1.License
+	IsAirgap           bool
+	TLSCertBytes       []byte
+	TLSKeyBytes        []byte
+	Hostname           string
+	IsMultiNodeEnabled bool
+	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
+	EndUserConfigSpec  *ecv1beta1.ConfigSpec
+	KotsInstaller      adminconsole.KotsInstaller
+	ProxySpec          *ecv1beta1.ProxySpec
+}
+
 func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
 	addons := GetAddOnsForInstall(opts)
+
+	for _, addon := range addons {
+		a.sendProgress(addon.Name(), apitypes.StateRunning, "Installing")
+
+		overrides := a.addOnOverrides(addon, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)
+
+		if err := addon.Install(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, overrides); err != nil {
+			a.sendProgress(addon.Name(), apitypes.StateFailed, err.Error())
+			return errors.Wrapf(err, "install %s", addon.Name())
+		}
+
+		a.sendProgress(addon.Name(), apitypes.StateSucceeded, "Installed")
+	}
+
+	return nil
+}
+
+func (a *AddOns) InstallKubernetes(ctx context.Context, opts KubernetesInstallOptions) error {
+	addons := GetAddOnsForKubernetesInstall(opts)
 
 	for _, addon := range addons {
 		a.sendProgress(addon.Name(), apitypes.StateRunning, "Installing")
@@ -90,6 +127,7 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 			OpenEBSDataDir: opts.OpenEBSDataDir,
 		},
 		&embeddedclusteroperator.EmbeddedClusterOperator{
+			ClusterID:        opts.ClusterID,
 			IsAirgap:         opts.IsAirgap,
 			Proxy:            opts.ProxySpec,
 			HostCABundlePath: opts.HostCABundlePath,
@@ -112,6 +150,7 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	}
 
 	adminConsoleAddOn := &adminconsole.AdminConsole{
+		ClusterID:          opts.ClusterID,
 		IsAirgap:           opts.IsAirgap,
 		IsHA:               false,
 		Proxy:              opts.ProxySpec,
@@ -144,5 +183,26 @@ func GetAddOnsForRestore(opts RestoreOptions) []types.AddOn {
 			K0sDataDir:       opts.K0sDataDir,
 		},
 	}
+	return addOns
+}
+
+func GetAddOnsForKubernetesInstall(opts KubernetesInstallOptions) []types.AddOn {
+	addOns := []types.AddOn{}
+
+	adminConsoleAddOn := &adminconsole.AdminConsole{
+		IsAirgap:           opts.IsAirgap,
+		IsHA:               false,
+		IsMultiNodeEnabled: opts.IsMultiNodeEnabled,
+		Proxy:              opts.ProxySpec,
+		AdminConsolePort:   opts.AdminConsolePort,
+
+		Password:      opts.AdminConsolePwd,
+		TLSCertBytes:  opts.TLSCertBytes,
+		TLSKeyBytes:   opts.TLSKeyBytes,
+		Hostname:      opts.Hostname,
+		KotsInstaller: opts.KotsInstaller,
+	}
+	addOns = append(addOns, adminConsoleAddOn)
+
 	return addOns
 }

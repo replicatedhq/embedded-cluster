@@ -1,7 +1,7 @@
 package types
 
-// InfraSetupRequest represents a request to set up infrastructure
-type InfraSetupRequest struct {
+// LinuxInfraSetupRequest represents a request to set up infrastructure
+type LinuxInfraSetupRequest struct {
 	IgnoreHostPreflights bool `json:"ignoreHostPreflights"`
 }
 

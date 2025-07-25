@@ -2,11 +2,14 @@ package install
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 
-	"github.com/replicatedhq/embedded-cluster/api/internal/managers/infra"
-	"github.com/replicatedhq/embedded-cluster/api/internal/managers/installation"
-	"github.com/replicatedhq/embedded-cluster/api/internal/managers/preflight"
+	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
@@ -22,8 +25,8 @@ import (
 )
 
 type Controller interface {
-	GetInstallationConfig(ctx context.Context) (types.InstallationConfig, error)
-	ConfigureInstallation(ctx context.Context, config types.InstallationConfig) error
+	GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfig, error)
+	ConfigureInstallation(ctx context.Context, config types.LinuxInstallationConfig) error
 	GetInstallationStatus(ctx context.Context) (types.Status, error)
 	RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) error
 	GetHostPreflightStatus(ctx context.Context) (types.Status, error)
@@ -31,8 +34,9 @@ type Controller interface {
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
-	SetStatus(ctx context.Context, status types.Status) error
-	GetStatus(ctx context.Context) (types.Status, error)
+	TemplateAppConfig(ctx context.Context, values types.AppConfigValues, maskPasswords bool) (types.AppConfig, error)
+	PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) error
+	GetAppConfigValues(ctx context.Context) (types.AppConfigValues, error)
 }
 
 type RunHostPreflightsOptions struct {
@@ -42,23 +46,23 @@ type RunHostPreflightsOptions struct {
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	installationManager  installation.InstallationManager
-	hostPreflightManager preflight.HostPreflightManager
-	infraManager         infra.InfraManager
-	hostUtils            hostutils.HostUtilsInterface
-	netUtils             utils.NetUtils
-	metricsReporter      metrics.ReporterInterface
-	releaseData          *release.ReleaseData
-	password             string
-	tlsConfig            types.TLSConfig
-	license              []byte
-	airgapBundle         string
-	airgapMetadata       *airgap.AirgapMetadata
-	embeddedAssetsSize   int64
-	configValues         string
-	endUserConfig        *ecv1beta1.Config
-
-	install                   types.Install
+	installationManager       installation.InstallationManager
+	hostPreflightManager      preflight.HostPreflightManager
+	infraManager              infra.InfraManager
+	appConfigManager          appconfig.AppConfigManager
+	hostUtils                 hostutils.HostUtilsInterface
+	netUtils                  utils.NetUtils
+	metricsReporter           metrics.ReporterInterface
+	releaseData               *release.ReleaseData
+	password                  string
+	tlsConfig                 types.TLSConfig
+	license                   []byte
+	airgapBundle              string
+	airgapMetadata            *airgap.AirgapMetadata
+	embeddedAssetsSize        int64
+	configValues              types.AppConfigValues
+	endUserConfig             *ecv1beta1.Config
+	clusterID                 string
 	store                     store.Store
 	rc                        runtimeconfig.RuntimeConfig
 	stateMachine              statemachine.Interface
@@ -141,7 +145,7 @@ func WithEmbeddedAssetsSize(embeddedAssetsSize int64) InstallControllerOption {
 	}
 }
 
-func WithConfigValues(configValues string) InstallControllerOption {
+func WithConfigValues(configValues types.AppConfigValues) InstallControllerOption {
 	return func(c *InstallController) {
 		c.configValues = configValues
 	}
@@ -150,6 +154,12 @@ func WithConfigValues(configValues string) InstallControllerOption {
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) InstallControllerOption {
 	return func(c *InstallController) {
 		c.endUserConfig = endUserConfig
+	}
+}
+
+func WithClusterID(clusterID string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.clusterID = clusterID
 	}
 }
 
@@ -177,22 +187,41 @@ func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
 	}
 }
 
+func WithAppConfigManager(appConfigManager appconfig.AppConfigManager) InstallControllerOption {
+	return func(c *InstallController) {
+		c.appConfigManager = appConfigManager
+	}
+}
+
 func WithStateMachine(stateMachine statemachine.Interface) InstallControllerOption {
 	return func(c *InstallController) {
 		c.stateMachine = stateMachine
 	}
 }
 
+func WithStore(store store.Store) InstallControllerOption {
+	return func(c *InstallController) {
+		c.store = store
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
-		store:        store.NewMemoryStore(),
-		rc:           runtimeconfig.New(nil),
-		logger:       logger.NewDiscardLogger(),
-		stateMachine: NewStateMachine(),
+		store:  store.NewMemoryStore(),
+		rc:     runtimeconfig.New(nil),
+		logger: logger.NewDiscardLogger(),
 	}
 
 	for _, opt := range opts {
 		opt(controller)
+	}
+
+	if err := controller.validateReleaseData(); err != nil {
+		return nil, err
+	}
+
+	if controller.stateMachine == nil {
+		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
 	}
 
 	if controller.hostUtils == nil {
@@ -208,7 +237,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.installationManager == nil {
 		controller.installationManager = installation.NewInstallationManager(
 			installation.WithLogger(controller.logger),
-			installation.WithInstallationStore(controller.store.InstallationStore()),
+			installation.WithInstallationStore(controller.store.LinuxInstallationStore()),
 			installation.WithLicense(controller.license),
 			installation.WithAirgapBundle(controller.airgapBundle),
 			installation.WithHostUtils(controller.hostUtils),
@@ -219,8 +248,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.hostPreflightManager == nil {
 		controller.hostPreflightManager = preflight.NewHostPreflightManager(
 			preflight.WithLogger(controller.logger),
-			preflight.WithMetricsReporter(controller.metricsReporter),
-			preflight.WithHostPreflightStore(controller.store.PreflightStore()),
+			preflight.WithHostPreflightStore(controller.store.LinuxPreflightStore()),
 			preflight.WithNetUtils(controller.netUtils),
 		)
 	}
@@ -228,18 +256,53 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.infraManager == nil {
 		controller.infraManager = infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
-			infra.WithInfraStore(controller.store.InfraStore()),
+			infra.WithInfraStore(controller.store.LinuxInfraStore()),
 			infra.WithPassword(controller.password),
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
 			infra.WithAirgapMetadata(controller.airgapMetadata),
 			infra.WithEmbeddedAssetsSize(controller.embeddedAssetsSize),
-			infra.WithConfigValues(controller.configValues),
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
+			infra.WithClusterID(controller.clusterID),
 		)
 	}
 
+	if controller.appConfigManager == nil {
+		appConfigManager, err := appconfig.NewAppConfigManager(
+			*controller.releaseData.AppConfig,
+			appconfig.WithLogger(controller.logger),
+			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create app config manager: %w", err)
+		}
+		controller.appConfigManager = appConfigManager
+	}
+
+	if controller.configValues != nil {
+		err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("validate app config values: %w", err)
+		}
+		err = controller.appConfigManager.PatchConfigValues(controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("patch app config values: %w", err)
+		}
+	}
+
+	controller.registerReportingHandlers()
+
 	return controller, nil
+}
+
+func (c *InstallController) validateReleaseData() error {
+	if c.releaseData == nil {
+		return errors.New("release data not found")
+	}
+	if c.releaseData.AppConfig == nil {
+		return errors.New("app config not found")
+	}
+	return nil
 }

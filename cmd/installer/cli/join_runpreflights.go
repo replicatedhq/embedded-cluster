@@ -20,13 +20,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
+func JoinRunPreflightsCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	var flags JoinCmdFlags
 	rc := runtimeconfig.New(nil)
 
 	cmd := &cobra.Command{
 		Use:   "run-preflights",
-		Short: fmt.Sprintf("Run join host preflights for %s", name),
+		Short: fmt.Sprintf("Run join host preflights for %s", appTitle),
 		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := preRunJoin(&flags); err != nil {
@@ -44,7 +44,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
-			if err := runJoinRunPreflights(cmd.Context(), name, flags, rc, jcmd, args[0]); err != nil {
+			if err := runJoinRunPreflights(cmd.Context(), appSlug, flags, rc, jcmd, args[0]); err != nil {
 				return err
 			}
 
@@ -59,12 +59,12 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func runJoinRunPreflights(ctx context.Context, name string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string) error {
-	if err := runJoinVerifyAndPrompt(name, flags, rc, jcmd); err != nil {
+func runJoinRunPreflights(ctx context.Context, appSlug string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string) error {
+	if err := runJoinVerifyAndPrompt(appSlug, flags, rc, jcmd); err != nil {
 		return err
 	}
 
-	logrus.Debugf("materializing %s binaries", name)
+	logrus.Debugf("materializing %s binaries", appSlug)
 	if err := materializeFilesForJoin(ctx, rc, jcmd, kotsAPIAddress); err != nil {
 		return fmt.Errorf("failed to materialize files: %w", err)
 	}

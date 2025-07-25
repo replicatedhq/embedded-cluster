@@ -1,5 +1,5 @@
 import React from 'react';
-import { useConfig } from '../../contexts/ConfigContext';
+import { useSettings } from '../../contexts/SettingsContext';
 
 interface ButtonProps {
   children: React.ReactNode;
@@ -10,9 +10,10 @@ interface ButtonProps {
   disabled?: boolean;
   className?: string;
   icon?: React.ReactNode;
+  dataTestId?: string;
 }
 
-const Button: React.FC<ButtonProps> = ({
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   children,
   onClick,
   type = 'button',
@@ -21,9 +22,10 @@ const Button: React.FC<ButtonProps> = ({
   disabled = false,
   className = '',
   icon,
-}) => {
-  const { prototypeSettings } = useConfig();
-  const themeColor = prototypeSettings.themeColor;
+  dataTestId
+}, ref) => {
+  const { settings } = useSettings();
+  const themeColor = settings.themeColor;
 
   const baseStyles = 'inline-flex items-center justify-center font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 rounded-md';
 
@@ -44,6 +46,7 @@ const Button: React.FC<ButtonProps> = ({
 
   return (
     <button
+      ref={ref}
       type={type}
       onClick={onClick}
       disabled={disabled}
@@ -53,11 +56,14 @@ const Button: React.FC<ButtonProps> = ({
         backgroundColor: variant === 'primary' ? themeColor : undefined,
         borderColor: variant === 'outline' ? 'currentColor' : undefined,
       } as React.CSSProperties}
+      data-testid={dataTestId}
     >
       {icon && <span className="mr-2">{icon}</span>}
       {children}
     </button>
   );
-};
+});
+
+Button.displayName = 'Button';
 
 export default Button;

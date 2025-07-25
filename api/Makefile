@@ -5,7 +5,7 @@ include ../common.mk
 .PHONY: swagger
 swagger: swag
 	swag fmt -g api.go
-	swag init --v3.1 -g api.go
+	swag init --parseDependency --v3.1 -g api.go
 
 .PHONY: swag
 swag:
@@ -17,4 +17,4 @@ unit-tests:
 
 .PHONY: test-integration
 test-integration:
-	go test -race -tags $(GO_BUILD_TAGS) -v ./integration
+	go test -race -tags $(GO_BUILD_TAGS) -v ./integration/...

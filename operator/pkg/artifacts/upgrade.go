@@ -6,13 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"runtime"
 	"strings"
 
 	autopilotv1beta2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"go.uber.org/multierr"
@@ -274,11 +274,11 @@ func getArtifactJobForNode(
 	inDataEncoded := base64.StdEncoding.EncodeToString(inData)
 
 	job := copyArtifactsJob.DeepCopy()
-	job.ObjectMeta.Name = util.NameWithLengthLimit(copyArtifactsJobPrefix, node.Name)
-	job.ObjectMeta.Labels = applyECOperatorLabels(job.ObjectMeta.Labels, "upgrader")
-	job.ObjectMeta.Annotations = applyArtifactsJobAnnotations(job.GetAnnotations(), in, hash)
+	job.Name = util.NameWithLengthLimit(copyArtifactsJobPrefix, node.Name)
+	job.Labels = applyECOperatorLabels(job.Labels, "upgrader")
+	job.Annotations = applyArtifactsJobAnnotations(job.GetAnnotations(), in, hash)
 	job.Spec.Template.Spec.NodeName = node.Name
-	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = rc.EmbeddedClusterHomeDirectory()
+	job.Spec.Template.Spec.Volumes[0].HostPath.Path = rc.EmbeddedClusterHomeDirectory()
 	if in.Spec.AirGap {
 		job.Spec.Template.Spec.Containers[0].Command = copyArtifactsJobCommandAirgap
 	} else {
@@ -408,7 +408,7 @@ func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, rc
 		AirgapUpdate: &autopilotv1beta2.PlanCommandAirgapUpdate{
 			Version: meta.Versions["Kubernetes"],
 			Platforms: map[string]autopilotv1beta2.PlanResourceURL{
-				fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH): {
+				fmt.Sprintf("%s-%s", helpers.ClusterOS(), helpers.ClusterArch()): {
 					URL: imageURL,
 				},
 			},

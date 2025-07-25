@@ -13,6 +13,7 @@ image:
   pullPolicy: IfNotPresent
 
 utilsImage: busybox:latest
+goldpingerImage: bloomberg/goldpinger:latest
 
 extraEnv: []
 #  - name: HTTP_PROXY
@@ -56,6 +57,8 @@ affinity:
           operator: In
           values:
           - linux
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
 
 metrics:
   enabled: false

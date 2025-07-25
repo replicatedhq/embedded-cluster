@@ -6,17 +6,19 @@ import (
 	authhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/auth"
 	consolehandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/console"
 	healthhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/health"
+	kuberneteshandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/kubernetes"
 	linuxhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/linux"
 )
 
 type handlers struct {
-	auth    *authhandler.Handler
-	console *consolehandler.Handler
-	health  *healthhandler.Handler
-	linux   *linuxhandler.Handler
+	auth       *authhandler.Handler
+	console    *consolehandler.Handler
+	health     *healthhandler.Handler
+	linux      *linuxhandler.Handler
+	kubernetes *kuberneteshandler.Handler
 }
 
-func (a *api) initHandlers() error {
+func (a *API) initHandlers() error {
 	// Auth handler
 	authHandler, err := authhandler.New(
 		a.cfg.Password,
@@ -58,6 +60,17 @@ func (a *api) initHandlers() error {
 		return fmt.Errorf("new linux handler: %w", err)
 	}
 	a.handlers.linux = linuxHandler
+
+	// Kubernetes handler
+	kubernetesHandler, err := kuberneteshandler.New(
+		a.cfg,
+		kuberneteshandler.WithLogger(a.logger),
+		kuberneteshandler.WithInstallController(a.kubernetesInstallController),
+	)
+	if err != nil {
+		return fmt.Errorf("new kubernetes handler: %w", err)
+	}
+	a.handlers.kubernetes = kubernetesHandler
 
 	return nil
 }

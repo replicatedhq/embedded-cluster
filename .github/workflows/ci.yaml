@@ -40,7 +40,7 @@ jobs:
         run: |
           make vet
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           args: --build-tags containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay
 
@@ -67,7 +67,7 @@ jobs:
           cd web
           npm run test:unit
 
-  test:
+  unit-tests:
     name: Unit tests
     runs-on: ubuntu-latest
     steps:
@@ -79,8 +79,29 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Unit tests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           make unit-tests
+
+  should-run-int-tests-kind:
+    name: Should run integration tests (kind)
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.changed-files.outputs.any_changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v46.0.5
+        with:
+          files: |
+            kinds/**
+            pkg/**
+            pkg-new/**
+            tests/integration/**
 
   int-tests:
     name: Integration tests
@@ -88,8 +109,20 @@ jobs:
     needs:
       - int-tests-api
       - int-tests-kind
+      - int-tests-kind-ha-registry
+    if: ${{ !cancelled() }}
     steps:
-      - name: Succeed if all tests passed
+      # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
+      - name: fail if int-tests-api job was not successful
+        if: needs.int-tests-api.result != 'success' && needs.int-tests-api.result != 'skipped'
+        run: exit 1
+      - name: fail if int-tests-kind job was not successful
+        if: needs.int-tests-kind.result != 'success' && needs.int-tests-kind.result != 'skipped'
+        run: exit 1
+      - name: fail if int-tests-kind-ha-registry job was not successful
+        if: needs.int-tests-kind-ha-registry.result != 'success' && needs.int-tests-kind-ha-registry.result != 'skipped'
+        run: exit 1
+      - name: succeed if everything else passed
         run: echo "Integration tests succeeded"
 
   int-tests-api:
@@ -106,12 +139,15 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Run tests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           make test-integration
 
   int-tests-kind:
     name: Integration tests (kind)
     runs-on: ubuntu-latest
+    if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -124,12 +160,35 @@ jobs:
           cache-dependency-path: "**/*.sum"
       - name: Install kind
         run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.27.0/kind-linux-amd64
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-amd64
           chmod +x ./kind
           sudo mv ./kind /usr/local/bin/kind
       - name: Run tests
         run: |
-          make -C tests/integration test-kind
+          make -C tests/integration test-kind SHORT=true
+
+  int-tests-kind-ha-registry:
+    name: Integration tests (kind) HA registry
+    runs-on: ubuntu-latest
+    if: needs.should-run-int-tests-kind.outputs.run == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+      - name: Run tests
+        run: |
+          make -C tests/integration/kind test-registry RUN=TestRegistry_EnableHAAirgap
 
   dryrun-tests:
     name: Dryrun tests
@@ -144,7 +203,7 @@ jobs:
             ./dev/.gocache
             ./dev/.gomodcache
           key: dryrun-tests-go-cache
-      - name: Dryrun tests
+      - name: Run tests
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -217,11 +276,47 @@ jobs:
           name: buildtools
           path: output/bin/buildtools
 
+  should-run-e2e:
+    name: Should run e2e
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.changed-files.outputs.any_changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v46.0.5
+        with:
+          files: |
+            e2e/**
+            api/*.go
+            api/types/**
+            api/pkg/**
+            !api/pkg/template/**
+            cmd/**
+            kinds/**
+            operator/**
+            pkg/**
+            pkg-new/**
+            utils/**
+            go.{mod,sum}
+            Makefile
+            common.mk
+            dagger/**
+            deploy/**
+            fio/**
+            local-artifact-mirror/**
+            scripts/**
+
   build-current:
     name: Build current
     runs-on: ubuntu-latest
     needs:
       - git-sha
+      - should-run-e2e
+    if: needs.should-run-e2e.outputs.run == 'true'
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
@@ -301,6 +396,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - git-sha
+      - should-run-e2e
+    if: needs.should-run-e2e.outputs.run == 'true'
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
@@ -381,6 +478,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - git-sha
+      - should-run-e2e
+    if: needs.should-run-e2e.outputs.run == 'true'
     outputs:
       ec_version: ${{ steps.export.outputs.ec_version }}
       k0s_version: ${{ steps.export.outputs.k0s_version }}
@@ -415,6 +514,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - git-sha
+      - should-run-e2e
+    if: needs.should-run-e2e.outputs.run == 'true'
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
@@ -534,6 +635,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - git-sha
+      - should-run-e2e
+    if: needs.should-run-e2e.outputs.run == 'true'
     outputs:
       version_specifier: ${{ steps.export-version-specifier.outputs.version_specifier }}
     steps:
@@ -897,33 +1000,42 @@ jobs:
       - e2e-main
       - e2e-docker
       - sanitize
-      - test
+      - unit-tests
       - int-tests
       - web-tests
       - dryrun-tests
       - check-images
       - check-operator-crds
       - check-swagger-docs
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
       - name: fail if e2e job was not successful
-        if: needs.e2e.result != 'success'
+        if: needs.e2e.result != 'success' && needs.e2e.result != 'skipped'
         run: exit 1
       - name: fail if e2e-main job was not successful
         if: needs.e2e-main.result != 'success' && needs.e2e-main.result != 'skipped'
         run: exit 1
       - name: fail if e2e-docker job was not successful
-        if: needs.e2e-docker.result != 'success'
+        if: needs.e2e-docker.result != 'success' && needs.e2e-docker.result != 'skipped'
         run: exit 1
       - name: fail if sanitize job was not successful
         if: needs.sanitize.result != 'success'
         run: exit 1
-      - name: fail if test job was not successful
-        if: needs.test.result != 'success'
+      - name: fail if unit-tests job was not successful
+        if: needs.unit-tests.result != 'success'
+        run: exit 1
+      - name: fail if int-tests job was not successful
+        if: needs.int-tests.result != 'success'
+        run: exit 1
+      - name: fail if web-tests job was not successful
+        if: needs.web-tests.result != 'success'
+        run: exit 1
+      - name: fail if dryrun-tests job was not successful
+        if: needs.dryrun-tests.result != 'success'
         run: exit 1
       - name: fail if check-images job was not successful
-        if: needs.check-images.result != 'success'
+        if: needs.check-images.result != 'success' && needs.check-images.result != 'skipped'
         run: exit 1
       - name: fail if check-operator-crds job was not successful
         if: needs.check-operator-crds.result != 'success'

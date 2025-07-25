@@ -108,7 +108,7 @@ func (s *SeaweedFS) ensureService(ctx context.Context, kcli client.Client, servi
 		},
 	}
 
-	obj.ObjectMeta.Labels = ApplyLabels(obj.ObjectMeta.Labels, "s3")
+	obj.Labels = ApplyLabels(obj.Labels, "s3")
 
 	var existingObj corev1.Service
 	if err := kcli.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: obj.Namespace}, &existingObj); client.IgnoreNotFound(err) != nil {
@@ -162,7 +162,7 @@ func (s *SeaweedFS) ensureS3Secret(ctx context.Context, kcli client.Client) erro
 		},
 	}
 
-	obj.ObjectMeta.Labels = ApplyLabels(obj.ObjectMeta.Labels, "s3")
+	obj.Labels = ApplyLabels(obj.Labels, "s3")
 
 	if err := kcli.Create(ctx, obj); client.IgnoreAlreadyExists(err) != nil {
 		return errors.Wrap(err, "create s3 secret")

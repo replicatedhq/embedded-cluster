@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,17 +9,16 @@ import (
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientsetfake "k8s.io/client-go/kubernetes/fake"
-	k8scheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/metadata"
 	metadatafake "k8s.io/client-go/metadata/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,6 +35,9 @@ type DryRun struct {
 	// These fields are set on marshal
 	OSEnv      map[string]string `json:"osEnv"`
 	K8sObjects []string          `json:"k8sObjects"`
+
+	LogOutput string        `json:"logOutput"`
+	LogBuffer *bytes.Buffer `json:"-"`
 
 	// These fields are used as mocks
 	kcli    client.Client        `json:"-"`
@@ -197,16 +200,7 @@ func (d *DryRun) K8sObjectsFromClient() ([]string, error) {
 
 func (d *DryRun) KubeClient() (client.Client, error) {
 	if d.kcli == nil {
-		scheme := runtime.NewScheme()
-		if err := k8scheme.AddToScheme(scheme); err != nil {
-			return nil, fmt.Errorf("add k8s scheme: %w", err)
-		}
-		if err := apiextensionsv1.AddToScheme(scheme); err != nil {
-			return nil, fmt.Errorf("add apiextensions v1 scheme: %w", err)
-		}
-		if err := ecv1beta1.AddToScheme(scheme); err != nil {
-			return nil, fmt.Errorf("add ec v1beta1 scheme: %w", err)
-		}
+		scheme := kubeutils.Scheme
 		clientObjs := []client.Object{}
 		for _, o := range d.K8sObjects {
 			var u unstructured.Unstructured
@@ -226,16 +220,9 @@ func (d *DryRun) KubeClient() (client.Client, error) {
 
 func (d *DryRun) MetadataClient() (metadata.Interface, error) {
 	if d.mcli == nil {
-		scheme := runtime.NewScheme()
-		if err := k8scheme.AddToScheme(scheme); err != nil {
-			return nil, fmt.Errorf("add k8s scheme: %w", err)
-		}
-		if err := apiextensionsv1.AddToScheme(scheme); err != nil {
-			return nil, fmt.Errorf("add apiextensions v1 scheme: %w", err)
-		}
-		if err := ecv1beta1.AddToScheme(scheme); err != nil {
-			return nil, fmt.Errorf("add ec v1beta1 scheme: %w", err)
-		}
+		scheme := metadatafake.NewTestScheme()
+		metav1.AddMetaToScheme(scheme)
+		corev1.AddToScheme(scheme)
 		clientObjs := []runtime.Object{}
 		for _, o := range d.K8sObjects {
 			var m metav1.PartialObjectMetadata
@@ -251,16 +238,6 @@ func (d *DryRun) MetadataClient() (metadata.Interface, error) {
 
 func (d *DryRun) GetClientset() (kubernetes.Interface, error) {
 	if d.kclient == nil {
-		scheme := runtime.NewScheme()
-		if err := k8scheme.AddToScheme(scheme); err != nil {
-			return nil, fmt.Errorf("add k8s scheme: %w", err)
-		}
-		if err := apiextensionsv1.AddToScheme(scheme); err != nil {
-			return nil, fmt.Errorf("add apiextensions v1 scheme: %w", err)
-		}
-		if err := ecv1beta1.AddToScheme(scheme); err != nil {
-			return nil, fmt.Errorf("add ec v1beta1 scheme: %w", err)
-		}
 		clientObjs := []runtime.Object{}
 		for _, o := range d.K8sObjects {
 			var u unstructured.Unstructured

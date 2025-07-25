@@ -12,7 +12,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -108,7 +107,7 @@ func SetupLogging() {
 		return
 	}
 	logrus.SetLevel(logrus.DebugLevel)
-	fname := fmt.Sprintf("%s-%s.log", runtimeconfig.BinaryName(), time.Now().Format("20060102150405.000"))
+	fname := fmt.Sprintf("%s-%s.log", runtimeconfig.AppSlug(), time.Now().Format("20060102150405.000"))
 	logpath := runtimeconfig.PathToLog(fname)
 	logfile, err := os.OpenFile(logpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0400)
 	if err != nil {
@@ -127,7 +126,7 @@ func SetupLogging() {
 
 // setupCtrlLogging sets up the logging for the controller-runtime package to the writer specified.
 func setupCtrlLogging(w io.Writer) {
-	k8slogger := ctrlzap.New(func(o *zap.Options) {
+	k8slogger := ctrlzap.New(func(o *ctrlzap.Options) {
 		o.DestWriter = w
 	})
 	ctrllog.SetLogger(k8slogger)

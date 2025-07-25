@@ -11,6 +11,58 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// Global test data to avoid regenerating for each test
+var testReleaseData []byte
+
+func init() {
+	data, err := generateReleaseTGZ()
+	if err != nil {
+		panic("Failed to generate test release data: " + err.Error())
+	}
+	testReleaseData = data
+}
+
+func Test_newReleaseDataFrom(t *testing.T) {
+	release, err := newReleaseDataFrom([]byte{})
+	assert.NoError(t, err)
+	assert.NotNil(t, release)
+	cfg := release.EmbeddedClusterConfig
+	assert.NoError(t, err)
+	assert.Nil(t, cfg)
+}
+
+func TestGetApplication(t *testing.T) {
+	release, err := newReleaseDataFrom(testReleaseData)
+	assert.NoError(t, err)
+	app := release.Application
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+}
+
+func TestGetEmbeddedClusterConfig(t *testing.T) {
+	release, err := newReleaseDataFrom(testReleaseData)
+	assert.NoError(t, err)
+	cfg := release.EmbeddedClusterConfig
+	assert.NoError(t, err)
+	assert.NotNil(t, cfg)
+}
+
+func TestGetHostPreflights(t *testing.T) {
+	release, err := newReleaseDataFrom(testReleaseData)
+	assert.NoError(t, err)
+	preflights := release.HostPreflights
+	assert.NoError(t, err)
+	assert.NotNil(t, preflights)
+}
+
+func TestGetAppTitle(t *testing.T) {
+	release, err := newReleaseDataFrom(testReleaseData)
+	assert.NoError(t, err)
+	title := release.Application.Spec.Title
+	assert.NoError(t, err)
+	assert.Equal(t, "Embedded Cluster Smoke Test App", title)
+}
+
 func generateReleaseTGZ() ([]byte, error) {
 	content, err := os.ReadFile("testdata/release.yaml")
 	if err != nil {
@@ -49,43 +101,4 @@ func generateReleaseTGZ() ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
-}
-
-func Test_newReleaseDataFrom(t *testing.T) {
-	release, err := newReleaseDataFrom([]byte{})
-	assert.NoError(t, err)
-	assert.NotNil(t, release)
-	cfg := release.EmbeddedClusterConfig
-	assert.NoError(t, err)
-	assert.Nil(t, cfg)
-}
-
-func TestGetApplication(t *testing.T) {
-	data, err := generateReleaseTGZ()
-	assert.NoError(t, err)
-	release, err := newReleaseDataFrom(data)
-	assert.NoError(t, err)
-	app := release.Application
-	assert.NoError(t, err)
-	assert.NotNil(t, app)
-}
-
-func TestGetEmbeddedClusterConfig(t *testing.T) {
-	data, err := generateReleaseTGZ()
-	assert.NoError(t, err)
-	release, err := newReleaseDataFrom(data)
-	assert.NoError(t, err)
-	cfg := release.EmbeddedClusterConfig
-	assert.NoError(t, err)
-	assert.NotNil(t, cfg)
-}
-
-func TestGetHostPreflights(t *testing.T) {
-	data, err := generateReleaseTGZ()
-	assert.NoError(t, err)
-	release, err := newReleaseDataFrom(data)
-	assert.NoError(t, err)
-	preflights := release.HostPreflights
-	assert.NoError(t, err)
-	assert.NotNil(t, preflights)
 }
