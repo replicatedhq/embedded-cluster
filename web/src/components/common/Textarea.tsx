@@ -1,4 +1,4 @@
-import { ChangeEvent, CSSProperties } from 'react';
+import React, { ChangeEvent, CSSProperties } from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 import HelpText from './HelpText';
 
@@ -19,7 +19,7 @@ interface TextareaProps {
   dataTestId?: string;
 }
 
-const Textarea = ({
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({
   id,
   label,
   helpText,
@@ -34,7 +34,7 @@ const Textarea = ({
   className = '',
   labelClassName = '',
   dataTestId,
-}: TextareaProps) => {
+}, ref) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
 
@@ -45,6 +45,7 @@ const Textarea = ({
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       <textarea
+        ref={ref}
         id={id}
         value={value}
         onChange={onChange}
@@ -67,6 +68,8 @@ const Textarea = ({
       <HelpText helpText={helpText} defaultValue={defaultValue} error={error} />
     </div>
   );
-};
+});
+
+Textarea.displayName = 'Textarea';
 
 export default Textarea;

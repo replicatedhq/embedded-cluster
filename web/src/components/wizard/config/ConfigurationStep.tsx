@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
@@ -39,6 +39,13 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
   const [itemToFocus, setItemToFocus] = useState<AppConfigItem | null>(null);
   
+  // Holds refs to each item by name for focusing
+  const itemRefs = useRef<Record<string, HTMLElement | null>>({});
+  
+  // Helper function to assign refs dynamically
+  const setRef = (name: string) => (el: HTMLElement | null) => {
+    itemRefs.current[name] = el;
+  };
   
   const themeColor = settings.themeColor;
 
@@ -201,26 +208,12 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   useEffect(() => {
     if (!itemToFocus) return;
 
+    // Use refs to get the focusable element directly
     let itemElement: HTMLElement | null = null;
     
-    // For radio buttons, focus the first radio option
-    if (itemToFocus.type === 'radio' && itemToFocus.items && itemToFocus.items.length > 0) {
-      itemElement = document.getElementById(itemToFocus.items[0].name);
-    } else if (itemToFocus.type === 'file') {
-      // For file inputs, the hidden input can't be focused properly
-      // Find the file input container and focus on the upload button
-      const hiddenInput = document.getElementById(itemToFocus.name);
-      if (hiddenInput) {
-        // Look for the button within the file input's parent container
-        const container = hiddenInput.closest('.mb-4'); // FileInput wrapper
-        const uploadButton = container?.querySelector('button') as HTMLButtonElement;
-        if (uploadButton) {
-          itemElement = uploadButton;
-        }
-      }
-    } else {
-      itemElement = document.getElementById(itemToFocus.name);
-    }
+    // For all inputs including radio, use the main item ref
+    // Radio component forwards ref to the first option automatically
+    itemElement = itemRefs.current[itemToFocus.name];
     
     if (itemElement) {
       itemElement.focus();
@@ -304,6 +297,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       helpText: item.help_text,
       error: displayError,
       required: item.required,
+      ref: setRef(item.name),
     }
 
     switch (item.type) {

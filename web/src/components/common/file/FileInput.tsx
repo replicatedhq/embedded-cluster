@@ -28,7 +28,7 @@ interface FileInputState {
   internalError: string | null;
 }
 
-const FileInput: React.FC<FileInputProps> = ({
+const FileInput = React.forwardRef<HTMLButtonElement, FileInputProps>(({
   id,
   label,
   value,
@@ -44,7 +44,7 @@ const FileInput: React.FC<FileInputProps> = ({
   className = '',
   labelClassName = '',
   dataTestId,
-}) => {
+}, ref) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [state, setState] = useState<FileInputState>({
@@ -206,6 +206,7 @@ const FileInput: React.FC<FileInputProps> = ({
 
         <div className="flex items-center">
           <Button
+            ref={ref}
             variant="outline"
             onClick={handleClick}
             disabled={disabled || state.isProcessing}
@@ -236,6 +237,8 @@ const FileInput: React.FC<FileInputProps> = ({
       <HelpText dataTestId={dataTestId || id} helpText={helpText} defaultValue={defaultValue ? "File provided" : undefined} error={displayError || undefined} />
     </div>
   );
-};
+});
+
+FileInput.displayName = 'FileInput';
 
 export default FileInput;

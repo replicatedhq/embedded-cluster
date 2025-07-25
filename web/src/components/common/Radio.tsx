@@ -17,7 +17,7 @@ interface RadioProps {
   labelClassName?: string;
 }
 
-const Radio: React.FC<RadioProps> = ({
+const Radio = React.forwardRef<HTMLInputElement, RadioProps>(({
   id,
   label,
   helpText,
@@ -29,7 +29,7 @@ const Radio: React.FC<RadioProps> = ({
   disabled = false,
   className = '',
   labelClassName = '',
-}) => {
+}, ref) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
 
@@ -40,9 +40,10 @@ const Radio: React.FC<RadioProps> = ({
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       <div className="space-y-2">
-        {options.map(option => (
+        {options.map((option, index) => (
           <div key={option.name} className="flex items-center">
             <input
+              ref={index === 0 ? ref : undefined}
               type="radio"
               id={option.name}
               name={id}
@@ -68,6 +69,8 @@ const Radio: React.FC<RadioProps> = ({
       <HelpText helpText={helpText} error={error} />
     </div>
   );
-};
+});
+
+Radio.displayName = 'Radio';
 
 export default Radio;
