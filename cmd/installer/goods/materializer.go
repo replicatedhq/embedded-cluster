@@ -139,7 +139,7 @@ func calculateFSSize(fsys embed.FS, dir string) (int64, error) {
 
 		info, err := d.Info()
 		if err != nil {
-			return err
+			return fmt.Errorf("get %s dir info: %w", d.Name(), err)
 		}
 
 		totalSize += info.Size()
