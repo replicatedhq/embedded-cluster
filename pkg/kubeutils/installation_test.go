@@ -11,10 +11,9 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
+	"github.com/google/uuid"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/crds"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -203,6 +202,7 @@ func TestRecordInstallation(t *testing.T) {
 		{
 			name: "online installation without airgap",
 			opts: RecordInstallationOptions{
+				ClusterID: uuid.New().String(),
 				IsAirgap: false,
 				License: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
@@ -242,6 +242,7 @@ func TestRecordInstallation(t *testing.T) {
 		{
 			name: "airgap installation with uncompressed size",
 			opts: RecordInstallationOptions{
+				ClusterID: uuid.New().String(),
 				IsAirgap: true,
 				License: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
@@ -276,6 +277,7 @@ func TestRecordInstallation(t *testing.T) {
 		{
 			name: "airgap installation with large uncompressed size",
 			opts: RecordInstallationOptions{
+				ClusterID: uuid.New().String(),
 				IsAirgap: true,
 				License: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
@@ -354,8 +356,7 @@ func TestRecordInstallation(t *testing.T) {
 			assert.NotEmpty(t, resultInstallation.Name)
 			assert.Equal(t, "", resultInstallation.APIVersion) // I expected this to be "embeddedcluster.replicated.com/v1beta1"
 			assert.Equal(t, "", resultInstallation.Kind)       // I expected this to be "Installation"
-			assert.Equal(t, metrics.ClusterID().String(), resultInstallation.Spec.ClusterID)
-			assert.Equal(t, runtimeconfig.BinaryName(), resultInstallation.Spec.BinaryName)
+			assert.Equal(t, tt.opts.ClusterID, resultInstallation.Spec.ClusterID)
 			assert.Equal(t, ecv1beta1.InstallationSourceTypeCRD, resultInstallation.Spec.SourceType)
 			assert.Equal(t, "ec-install", resultInstallation.Labels["replicated.com/disaster-recovery"])
 		})
