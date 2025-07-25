@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"os"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
@@ -41,7 +40,7 @@ func TestSELinuxSupport(t *testing.T) {
 	// Download embedded-cluster release on the first node
 	t.Logf("Downloading embedded-cluster release on node 0")
 	downloadECRelease(t, cluster, 0)
-	
+
 	// Install embedded-cluster on the first node
 	t.Logf("Installing embedded-cluster on node 0")
 	installSingleNodeWithOptions(t, cluster, installOptions{
