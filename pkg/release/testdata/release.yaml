@@ -64,3 +64,22 @@ host-preflights.yaml: |-
               message: The filesystem at {{ .DataDir }} is more than 80% full. Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
           - pass:
               message: The filesystem at {{ .DataDir }} has sufficient space
+
+helmchart.yaml: |-
+  apiVersion: kots.io/v1beta2
+  kind: HelmChart
+  metadata:
+    name: test-chart
+  spec:
+    chart:
+      name: test-chart
+      chartVersion: "1.0.0"
+    namespace: test-namespace
+    values:
+      replicaCount: 1
+      image:
+        repository: nginx
+        tag: "1.21"
+
+test-chart-1.0.0.tgz: |-
+  fake-chart-archive-content-for-testing
