@@ -280,7 +280,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		appcontroller.WithAppConfigManager(controller.appConfigManager),
 		appcontroller.WithStateMachine(controller.stateMachine),
 		appcontroller.WithLogger(controller.logger),
-		appcontroller.WithConfigValues(controller.configValues),
 	)
 
 	if err != nil {

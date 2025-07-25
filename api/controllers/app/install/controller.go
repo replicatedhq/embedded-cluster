@@ -21,7 +21,6 @@ var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
 	appConfigManager appconfig.AppConfigManager
-	configValues     types.AppConfigValues
 	stateMachine     statemachine.Interface
 	logger           logrus.FieldLogger
 }
@@ -31,12 +30,6 @@ type InstallControllerOption func(*InstallController)
 func WithLogger(logger logrus.FieldLogger) InstallControllerOption {
 	return func(c *InstallController) {
 		c.logger = logger
-	}
-}
-
-func WithConfigValues(configValues types.AppConfigValues) InstallControllerOption {
-	return func(c *InstallController) {
-		c.configValues = configValues
 	}
 }
 
