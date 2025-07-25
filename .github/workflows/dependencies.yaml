@@ -34,6 +34,7 @@ jobs:
 
         if [ "$CURVERSION" != "$VERSION" ]; then
           sed -i "/^K0S_VERSION/c\K0S_VERSION = $VERSION" Makefile
+          sed -i "/^K0S_GO_VERSION/c\K0S_GO_VERSION = $VERSION" Makefile
           # replace the first occurrence of K0S_BINARY_SOURCE_OVERRIDE
           sed -i '0,/K0S_BINARY_SOURCE_OVERRIDE =.*/s/K0S_BINARY_SOURCE_OVERRIDE =.*/K0S_BINARY_SOURCE_OVERRIDE =/' Makefile
           make go.mod
