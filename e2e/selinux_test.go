@@ -41,11 +41,18 @@ func TestSELinuxSupport(t *testing.T) {
 	t.Logf("Installing embedded-cluster on node 0")
 	installSingleNodeWithOptions(t, cluster, installOptions{
 		adminConsolePort: "30003",
+		withEnv: map[string]string{
+			"PATH": "/usr/local/bin:/usr/bin:/bin",
+		},
 	})
 
 	// Verify installation succeeded by checking cluster state
 	t.Logf("Verifying cluster installation")
-	checkInstallationState(t, cluster)
+	checkInstallationStateWithOptions(t, cluster, installationStateOptions{
+		withEnv: map[string]string{
+			"PATH": "/usr/local/bin:/usr/bin:/bin",
+		},
+	})
 
 	// Verify SELinux contexts are correctly set
 	t.Logf("Verifying SELinux contexts for embedded-cluster files")
@@ -53,7 +60,9 @@ func TestSELinuxSupport(t *testing.T) {
 
 	// Run embedded preflight checks which include SELinux-specific tests
 	t.Logf("Running embedded preflight checks")
-	stdout, stderr, err := cluster.RunCommandOnNode(0, []string{"embedded-preflight.sh"})
+	stdout, stderr, err := cluster.RunCommandOnNode(0, []string{"embedded-preflight.sh"}, map[string]string{
+		"PATH": "/usr/local/bin:/usr/bin:/bin",
+	})
 	if err != nil {
 		t.Fatalf("Embedded preflight checks failed: %v (stdout: %s, stderr: %s)", err, stdout, stderr)
 	}
@@ -152,4 +161,3 @@ func waitForNodeReboot(t *testing.T, cluster *cmx.Cluster, nodeIndex int) {
 	// Use the existing WaitForReboot method from CMX cluster
 	cluster.WaitForReboot()
 }
-
