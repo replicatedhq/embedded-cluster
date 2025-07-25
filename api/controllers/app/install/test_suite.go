@@ -17,8 +17,8 @@ import (
 
 type AppInstallControllerTestSuite struct {
 	suite.Suite
-	installType        string
-	createStateMachine func(initialState statemachine.State) statemachine.Interface
+	InstallType        string
+	CreateStateMachine func(initialState statemachine.State) statemachine.Interface
 }
 
 func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
@@ -121,7 +121,7 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 		s.T().Run(tt.name, func(t *testing.T) {
 
 			manager := &appconfig.MockAppConfigManager{}
-			sm := s.createStateMachine(tt.currentState)
+			sm := s.CreateStateMachine(tt.currentState)
 			controller, err := NewInstallController(
 				WithStateMachine(sm),
 				WithAppConfigManager(manager),
