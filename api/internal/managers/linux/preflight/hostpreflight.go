@@ -10,21 +10,22 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootanalyze "github.com/replicatedhq/troubleshoot/pkg/analyze"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
 type PrepareHostPreflightOptions struct {
-	ReplicatedAppURL             string
-	ProxyRegistryURL             string
-	HostPreflightSpec            *troubleshootv1beta2.HostPreflightSpec
-	EmbeddedClusterConfig        *ecv1beta1.Config
-	TCPConnectionsRequired       []string
-	IsAirgap                     bool
-	IsJoin                       bool
-	IsUI                         bool
-	ControllerAirgapStorageSpace string
-	WorkerAirgapStorageSpace     string
+	ReplicatedAppURL       string
+	ProxyRegistryURL       string
+	HostPreflightSpec      *troubleshootv1beta2.HostPreflightSpec
+	EmbeddedClusterConfig  *ecv1beta1.Config
+	TCPConnectionsRequired []string
+	IsAirgap               bool
+	IsJoin                 bool
+	IsUI                   bool
+	AirgapInfo             *kotsv1beta1.Airgap
+	EmbeddedAssetsSize     int64
 }
 
 type RunHostPreflightOptions struct {
@@ -36,6 +37,17 @@ func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, rc run
 	nodeIP, err := m.netUtils.FirstValidAddress(rc.NetworkInterface())
 	if err != nil {
 		return nil, fmt.Errorf("determine node ip: %w", err)
+	}
+
+	// Calculate airgap storage space requirement (2x uncompressed size for controller nodes)
+	var controllerAirgapStorageSpace string
+	if opts.AirgapInfo != nil {
+		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(preflights.AirgapStorageSpaceCalcArgs{
+			UncompressedSize:   opts.AirgapInfo.Spec.UncompressedSize,
+			EmbeddedAssetsSize: opts.EmbeddedAssetsSize,
+			K0sImageSize:       opts.AirgapInfo.Spec.UncompressedSize,
+			IsController:       true,
+		})
 	}
 
 	// Use the shared Prepare function to prepare host preflights
@@ -56,8 +68,7 @@ func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, rc run
 		TCPConnectionsRequired:       opts.TCPConnectionsRequired,
 		IsJoin:                       opts.IsJoin,
 		IsUI:                         opts.IsUI,
-		ControllerAirgapStorageSpace: opts.ControllerAirgapStorageSpace,
-		WorkerAirgapStorageSpace:     opts.WorkerAirgapStorageSpace,
+		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
 	}
 	if cidr := rc.GlobalCIDR(); cidr != "" {
 		prepareOpts.GlobalCIDR = &cidr

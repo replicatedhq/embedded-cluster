@@ -29,9 +29,8 @@ func AirgapMetadataFromReader(reader io.Reader) (metadata *AirgapMetadata, err e
 
 	// iterate through tarball
 	tarreader := tar.NewReader(ungzip)
-	var nextFile *tar.Header
 	for {
-		nextFile, err = tarreader.Next()
+		nextFile, err := tarreader.Next()
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -56,6 +55,12 @@ func AirgapMetadataFromReader(reader io.Reader) (metadata *AirgapMetadata, err e
 
 		if nextFile.Name == ECAiragapImagePath {
 			metadata.K0sImageSize = nextFile.Size
+		}
+
+		if metadata.AirgapInfo != nil && metadata.K0sImageSize > 0 {
+			// we have all the metadata we need, break out of the loop
+			// Airgap bundles can be large, so we don't want to read the entire file
+			break
 		}
 	}
 
