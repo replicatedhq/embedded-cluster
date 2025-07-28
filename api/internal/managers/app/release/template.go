@@ -66,53 +66,8 @@ func (m *appReleaseManager) TemplateHelmChartCRs(ctx context.Context, configValu
 	return templatedCRs, nil
 }
 
-// GenerateHelmValues generates Helm values for a single templated HelmChart custom resource
-func (m *appReleaseManager) GenerateHelmValues(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) (map[string]any, error) {
-	if templatedCR == nil {
-		return nil, fmt.Errorf("templated CR is nil")
-	}
-
-	// Start with the base values
-	mergedValues := templatedCR.Spec.Values
-	if mergedValues == nil {
-		mergedValues = map[string]kotsv1beta2.MappedChartValue{}
-	}
-
-	// Process OptionalValues based on their conditions
-	for _, optionalValue := range templatedCR.Spec.OptionalValues {
-		if optionalValue == nil {
-			continue
-		}
-
-		// Check the "when" condition
-		shouldInclude, err := strconv.ParseBool(optionalValue.When)
-		if err != nil {
-			return nil, fmt.Errorf("parse when condition on optional value: %w", err)
-		}
-		if !shouldInclude {
-			continue
-		}
-
-		if optionalValue.RecursiveMerge {
-			// Use KOTS merge function for recursive merge
-			mergedValues = kotsv1beta2.MergeHelmChartValues(mergedValues, optionalValue.Values)
-		} else {
-			// Direct key replacement
-			maps.Copy(mergedValues, optionalValue.Values)
-		}
-	}
-
-	// Convert MappedChartValue to standard Go interface{} using GetHelmValues
-	helmValues, err := templatedCR.Spec.GetHelmValues(mergedValues)
-	if err != nil {
-		return nil, fmt.Errorf("get helm values for chart %s: %w", templatedCR.Name, err)
-	}
-
-	return helmValues, nil
-}
-
-// DryRunHelmChart finds the corresponding chart archive and performs a dry run templating of a Helm chart using the provided values
-func (m *appReleaseManager) DryRunHelmChart(ctx context.Context, templatedCR *kotsv1beta2.HelmChart, helmValues map[string]any) ([][]byte, error) {
+// DryRunHelmChart finds the corresponding chart archive and performs a dry run templating of a Helm chart
+func (m *appReleaseManager) DryRunHelmChart(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) ([][]byte, error) {
 	if templatedCR == nil {
 		return nil, fmt.Errorf("templated CR is nil")
 	}
@@ -130,6 +85,12 @@ func (m *appReleaseManager) DryRunHelmChart(ctx context.Context, templatedCR *ko
 		if exclude {
 			return nil, nil
 		}
+	}
+
+	// Generate Helm values from the templated CR
+	helmValues, err := m.GenerateHelmValues(ctx, templatedCR)
+	if err != nil {
+		return nil, fmt.Errorf("generate helm values for %s: %w", templatedCR.Name, err)
 	}
 
 	// Find the corresponding chart archive for this HelmChart CR
@@ -174,4 +135,49 @@ func (m *appReleaseManager) DryRunHelmChart(ctx context.Context, templatedCR *ko
 	}
 
 	return manifests, nil
+}
+
+// GenerateHelmValues generates Helm values for a single templated HelmChart custom resource
+func (m *appReleaseManager) GenerateHelmValues(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) (map[string]any, error) {
+	if templatedCR == nil {
+		return nil, fmt.Errorf("templated CR is nil")
+	}
+
+	// Start with the base values
+	mergedValues := templatedCR.Spec.Values
+	if mergedValues == nil {
+		mergedValues = map[string]kotsv1beta2.MappedChartValue{}
+	}
+
+	// Process OptionalValues based on their conditions
+	for _, optionalValue := range templatedCR.Spec.OptionalValues {
+		if optionalValue == nil {
+			continue
+		}
+
+		// Check the "when" condition
+		shouldInclude, err := strconv.ParseBool(optionalValue.When)
+		if err != nil {
+			return nil, fmt.Errorf("parse when condition on optional value: %w", err)
+		}
+		if !shouldInclude {
+			continue
+		}
+
+		if optionalValue.RecursiveMerge {
+			// Use KOTS merge function for recursive merge
+			mergedValues = kotsv1beta2.MergeHelmChartValues(mergedValues, optionalValue.Values)
+		} else {
+			// Direct key replacement
+			maps.Copy(mergedValues, optionalValue.Values)
+		}
+	}
+
+	// Convert MappedChartValue to standard Go interface{} using GetHelmValues
+	helmValues, err := templatedCR.Spec.GetHelmValues(mergedValues)
+	if err != nil {
+		return nil, fmt.Errorf("get helm values for chart %s: %w", templatedCR.Name, err)
+	}
+
+	return helmValues, nil
 }

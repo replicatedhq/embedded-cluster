@@ -12,7 +12,6 @@ import (
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -266,6 +265,288 @@ spec:
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestAppReleaseManager_DryRunHelmChart(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name              string
+		templatedCR       *kotsv1beta2.HelmChart
+		helmChartArchives [][]byte
+		expectError       bool
+		errorContains     string
+		validateManifest  func(t *testing.T, manifests [][]byte)
+	}{
+		{
+			name:          "nil templated CR",
+			templatedCR:   nil,
+			expectError:   true,
+			errorContains: "templated CR is nil",
+		},
+		{
+			name: "no chart archives",
+			templatedCR: createHelmChartFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+`),
+			helmChartArchives: [][]byte{},
+			expectError:       true,
+			errorContains:     "no helm chart archives found",
+		},
+		{
+			name: "chart archive not found",
+			templatedCR: createHelmChartFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+`),
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "redis", "1.0.0"),
+			},
+			expectError:   true,
+			errorContains: "no chart archive found for chart name nginx and version 1.0.0",
+		},
+		{
+			name: "successful dry run with kotsadm namespace fallback",
+			templatedCR: createHelmChartFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "3"
+    image:
+      tag: "1.20.0"
+`),
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "nginx", "1.0.0"),
+			},
+			expectError: false,
+			validateManifest: func(t *testing.T, manifests [][]byte) {
+				// Should have multiple manifest files
+				assert.GreaterOrEqual(t, len(manifests), 3, "should have at least 3 manifest files")
+
+				// Convert to combined string for easier testing
+				combined := ""
+				for _, manifest := range manifests {
+					combined += string(manifest) + "\n"
+				}
+
+				// Check that we have multiple resources
+				assert.Contains(t, combined, "kind: CustomResourceDefinition")
+				assert.Contains(t, combined, "kind: Deployment")
+				assert.Contains(t, combined, "kind: Service")
+				// Check that values were templated correctly
+				assert.Contains(t, combined, "replicas: 3")
+				assert.Contains(t, combined, "image: nginx:1.20.0")
+				// Check kotsadm namespace fallback
+				assert.Contains(t, combined, "namespace: kotsadm")
+			},
+		},
+		{
+			name: "successful dry run with custom namespace",
+			templatedCR: createHelmChartFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: my-nginx
+  namespace: kotsadm
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  releaseName: my-release
+  namespace: custom-ns
+  values:
+    service:
+      type: LoadBalancer
+`),
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "nginx", "1.0.0"),
+			},
+			expectError: false,
+			validateManifest: func(t *testing.T, manifests [][]byte) {
+				// Should have multiple manifest files
+				assert.GreaterOrEqual(t, len(manifests), 3, "should have at least 3 manifest files")
+
+				// Convert to combined string for easier testing
+				combined := ""
+				for _, manifest := range manifests {
+					combined += string(manifest) + "\n"
+				}
+
+				// Check that we have multiple resources
+				assert.Contains(t, combined, "kind: CustomResourceDefinition")
+				assert.Contains(t, combined, "kind: Deployment")
+				assert.Contains(t, combined, "kind: Service")
+				// Check that values were templated correctly
+				assert.Contains(t, combined, "replicas: 1")
+				assert.Contains(t, combined, "image: nginx:latest")
+				// Check that custom namespace is used
+				assert.Contains(t, combined, "namespace: custom-ns")
+				// Check that custom release name is used
+				assert.Contains(t, combined, "my-release")
+				// Check that service type was templated
+				assert.Contains(t, combined, "type: LoadBalancer")
+			},
+		},
+		{
+			name: "chart with exclude=false (should be processed)",
+			templatedCR: createHelmChartFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: test-chart
+  namespace: kotsadm
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  exclude: false
+  values:
+    replicaCount: "2"
+`),
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "nginx", "1.0.0"),
+			},
+			expectError: false,
+			validateManifest: func(t *testing.T, manifests [][]byte) {
+				// Should have multiple manifest files since exclude=false
+				assert.GreaterOrEqual(t, len(manifests), 3, "should have at least 3 manifest files")
+
+				// Convert to combined string for easier testing
+				combined := ""
+				for _, manifest := range manifests {
+					combined += string(manifest) + "\n"
+				}
+
+				// Check that resources are present
+				assert.Contains(t, combined, "kind: Deployment")
+				assert.Contains(t, combined, "replicas: 2")
+			},
+		},
+		{
+			name: "chart with exclude=true (should be skipped)",
+			templatedCR: createHelmChartFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: excluded-chart
+  namespace: kotsadm
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  exclude: true
+`),
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "nginx", "1.0.0"),
+			},
+			expectError: false,
+			validateManifest: func(t *testing.T, manifests [][]byte) {
+				// Should be nil since chart is excluded
+				assert.Nil(t, manifests, "excluded charts should return nil manifests")
+			},
+		},
+		{
+			name: "chart with mixed true/false optional values",
+			templatedCR: createHelmChartFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: mixed-optional-chart
+  namespace: kotsadm
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "2"
+  optionalValues:
+  - when: "false"
+    values:
+      replicaCount: "3"
+  - when: "true"
+    values:
+      replicaCount: "4"
+`),
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "nginx", "1.0.0"),
+			},
+			expectError: false,
+			validateManifest: func(t *testing.T, manifests [][]byte) {
+				// Should have multiple manifest files
+				assert.GreaterOrEqual(t, len(manifests), 3, "should have at least 3 manifest files")
+
+				// Convert to combined string for easier testing
+				combined := ""
+				for _, manifest := range manifests {
+					combined += string(manifest) + "\n"
+				}
+
+				// Check that we have multiple resources
+				assert.Contains(t, combined, "kind: Deployment")
+
+				// Should be 4 from when=true, not 3 from when=false, not 1 from base values, not 2 from chart values
+				assert.Contains(t, combined, "replicas: 4")
+				assert.NotContains(t, combined, "replicas: 1")
+				assert.NotContains(t, combined, "replicas: 2")
+				assert.NotContains(t, combined, "replicas: 3")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a basic config for the template engine
+			config := createTestConfig()
+
+			// Create release data with chart archives
+			releaseData := &release.ReleaseData{
+				HelmChartArchives: tt.helmChartArchives,
+			}
+			manager := NewAppReleaseManager(
+				config,
+				WithReleaseData(releaseData),
+			)
+
+			// Execute the function
+			result, err := manager.DryRunHelmChart(ctx, tt.templatedCR)
+
+			// Check error expectation
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+				assert.Nil(t, result)
+				return
+			}
+
+			require.NoError(t, err)
+
+			// Validate the actual manifest content if provided
+			if tt.validateManifest != nil {
+				tt.validateManifest(t, result)
+			}
 		})
 	}
 }
@@ -630,249 +911,6 @@ spec:
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestAppReleaseManager_DryRunHelmChart(t *testing.T) {
-	ctx := context.Background()
-
-	tests := []struct {
-		name              string
-		templatedCR       *kotsv1beta2.HelmChart
-		helmValues        map[string]any
-		helmChartArchives [][]byte
-		expectError       bool
-		errorContains     string
-		validateManifest  func(t *testing.T, manifests [][]byte)
-	}{
-		{
-			name:          "nil templated CR",
-			templatedCR:   nil,
-			helmValues:    map[string]any{},
-			expectError:   true,
-			errorContains: "templated CR is nil",
-		},
-		{
-			name: "no chart archives",
-			templatedCR: &kotsv1beta2.HelmChart{
-				Spec: kotsv1beta2.HelmChartSpec{
-					Chart: kotsv1beta2.ChartIdentifier{
-						Name:         "nginx",
-						ChartVersion: "1.0.0",
-					},
-				},
-			},
-			helmValues:        map[string]any{},
-			helmChartArchives: [][]byte{},
-			expectError:       true,
-			errorContains:     "no helm chart archives found",
-		},
-		{
-			name: "chart archive not found",
-			templatedCR: &kotsv1beta2.HelmChart{
-				Spec: kotsv1beta2.HelmChartSpec{
-					Chart: kotsv1beta2.ChartIdentifier{
-						Name:         "nginx",
-						ChartVersion: "1.0.0",
-					},
-				},
-			},
-			helmValues: map[string]any{},
-			helmChartArchives: [][]byte{
-				createComplexChartArchive(t, "redis", "1.0.0"),
-			},
-			expectError:   true,
-			errorContains: "no chart archive found for chart name nginx and version 1.0.0",
-		},
-		{
-			name: "successful dry run with kotsadm namespace fallback",
-			templatedCR: &kotsv1beta2.HelmChart{
-				Spec: kotsv1beta2.HelmChartSpec{
-					Chart: kotsv1beta2.ChartIdentifier{
-						Name:         "nginx",
-						ChartVersion: "1.0.0",
-					},
-				},
-			},
-			helmValues: map[string]any{
-				"replicaCount": 3,
-				"image": map[string]any{
-					"tag": "1.20.0",
-				},
-			},
-			helmChartArchives: [][]byte{
-				createComplexChartArchive(t, "nginx", "1.0.0"),
-			},
-			expectError: false,
-			validateManifest: func(t *testing.T, manifests [][]byte) {
-				// Should have multiple manifest files
-				assert.GreaterOrEqual(t, len(manifests), 3, "should have at least 3 manifest files")
-
-				// Convert to combined string for easier testing
-				combined := ""
-				for _, manifest := range manifests {
-					combined += string(manifest) + "\n"
-				}
-
-				// Check that we have multiple resources
-				assert.Contains(t, combined, "kind: CustomResourceDefinition")
-				assert.Contains(t, combined, "kind: Deployment")
-				assert.Contains(t, combined, "kind: Service")
-				// Check that values were templated correctly
-				assert.Contains(t, combined, "replicas: 3")
-				assert.Contains(t, combined, "image: nginx:1.20.0")
-				// Check kotsadm namespace fallback
-				assert.Contains(t, combined, "namespace: kotsadm")
-			},
-		},
-		{
-			name: "successful dry run with custom namespace",
-			templatedCR: &kotsv1beta2.HelmChart{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-nginx",
-					Namespace: "kotsadm",
-				},
-				Spec: kotsv1beta2.HelmChartSpec{
-					Chart: kotsv1beta2.ChartIdentifier{
-						Name:         "nginx",
-						ChartVersion: "1.0.0",
-					},
-					ReleaseName: "my-release",
-					Namespace:   "custom-ns",
-				},
-			},
-			helmValues: map[string]any{
-				"service": map[string]any{
-					"type": "LoadBalancer",
-				},
-			},
-			helmChartArchives: [][]byte{
-				createComplexChartArchive(t, "nginx", "1.0.0"),
-			},
-			expectError: false,
-			validateManifest: func(t *testing.T, manifests [][]byte) {
-				// Should have multiple manifest files
-				assert.GreaterOrEqual(t, len(manifests), 3, "should have at least 3 manifest files")
-
-				// Convert to combined string for easier testing
-				combined := ""
-				for _, manifest := range manifests {
-					combined += string(manifest) + "\n"
-				}
-
-				// Check that we have multiple resources
-				assert.Contains(t, combined, "kind: CustomResourceDefinition")
-				assert.Contains(t, combined, "kind: Deployment")
-				assert.Contains(t, combined, "kind: Service")
-				// Check that values were templated correctly
-				assert.Contains(t, combined, "replicas: 1")
-				assert.Contains(t, combined, "image: nginx:latest")
-				// Check that custom namespace is used
-				assert.Contains(t, combined, "namespace: custom-ns")
-				// Check that custom release name is used
-				assert.Contains(t, combined, "my-release")
-				// Check that service type was templated
-				assert.Contains(t, combined, "type: LoadBalancer")
-			},
-		},
-		{
-			name: "chart with exclude=false (should be processed)",
-			templatedCR: &kotsv1beta2.HelmChart{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-chart",
-					Namespace: "kotsadm",
-				},
-				Spec: kotsv1beta2.HelmChartSpec{
-					Chart: kotsv1beta2.ChartIdentifier{
-						Name:         "nginx",
-						ChartVersion: "1.0.0",
-					},
-					Exclude: multitype.FromBool(false),
-				},
-			},
-			helmValues: map[string]any{
-				"replicaCount": 2,
-			},
-			helmChartArchives: [][]byte{
-				createComplexChartArchive(t, "nginx", "1.0.0"),
-			},
-			expectError: false,
-			validateManifest: func(t *testing.T, manifests [][]byte) {
-				// Should have multiple manifest files since exclude=false
-				assert.GreaterOrEqual(t, len(manifests), 3, "should have at least 3 manifest files")
-
-				// Convert to combined string for easier testing
-				combined := ""
-				for _, manifest := range manifests {
-					combined += string(manifest) + "\n"
-				}
-
-				// Check that resources are present
-				assert.Contains(t, combined, "kind: Deployment")
-				assert.Contains(t, combined, "replicas: 2")
-			},
-		},
-		{
-			name: "chart with exclude=true (should be skipped)",
-			templatedCR: &kotsv1beta2.HelmChart{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "excluded-chart",
-					Namespace: "kotsadm",
-				},
-				Spec: kotsv1beta2.HelmChartSpec{
-					Chart: kotsv1beta2.ChartIdentifier{
-						Name:         "nginx",
-						ChartVersion: "1.0.0",
-					},
-					Exclude: multitype.FromBool(true),
-				},
-			},
-			helmValues: map[string]any{},
-			helmChartArchives: [][]byte{
-				createComplexChartArchive(t, "nginx", "1.0.0"),
-			},
-			expectError: false,
-			validateManifest: func(t *testing.T, manifests [][]byte) {
-				// Should be nil since chart is excluded
-				assert.Nil(t, manifests, "excluded charts should return nil manifests")
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create a basic config for the template engine
-			config := createTestConfig()
-
-			// Create release data with chart archives
-			releaseData := &release.ReleaseData{
-				HelmChartArchives: tt.helmChartArchives,
-			}
-			manager := NewAppReleaseManager(
-				config,
-				WithReleaseData(releaseData),
-			)
-
-			// Execute the function
-			result, err := manager.DryRunHelmChart(ctx, tt.templatedCR, tt.helmValues)
-
-			// Check error expectation
-			if tt.expectError {
-				require.Error(t, err)
-				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains)
-				}
-				assert.Nil(t, result)
-				return
-			}
-
-			require.NoError(t, err)
-
-			// Validate the actual manifest content if provided
-			if tt.validateManifest != nil {
-				tt.validateManifest(t, result)
-			}
 		})
 	}
 }
