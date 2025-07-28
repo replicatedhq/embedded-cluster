@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"os"
 	"strconv"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -138,6 +139,7 @@ func (m *appReleaseManager) DryRunHelmChart(ctx context.Context, templatedCR *ko
 	if err != nil {
 		return nil, fmt.Errorf("write chart archive to temp: %w", err)
 	}
+	defer os.Remove(chartPath)
 
 	// Fallback to admin console namespace if namespace is not set
 	namespace := templatedCR.GetNamespace()
