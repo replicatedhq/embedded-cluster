@@ -363,6 +363,13 @@ spec:
           required: true
           help_text: "Help text of a **_File_** config item type **_marked required_**"
 
+        - name: hidden_required
+          title: Hidden required
+          type: text
+          hidden: true
+          required: true
+          value: '{{repl ConfigOption "text_required" }}'
+
     - name: markdown-items
       title: Markdown Items
       items:

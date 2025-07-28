@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -136,8 +137,8 @@ func TestConfigureInstallation(t *testing.T) {
 				HTTPSProxy:       "https://proxy.example.com:3128",
 				NoProxy:          "localhost,127.0.0.1",
 			},
-			currentState:  StateApplicationConfigured,
-			expectedState: StateInstallationConfigured,
+			currentState:  states.StateApplicationConfigured,
+			expectedState: states.StateInstallationConfigured,
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig) {
 				mock.InOrder(
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(nil),
@@ -148,8 +149,8 @@ func TestConfigureInstallation(t *testing.T) {
 		{
 			name:          "configure installation error",
 			config:        types.KubernetesInstallationConfig{},
-			currentState:  StateApplicationConfigured,
-			expectedState: StateInstallationConfigurationFailed,
+			currentState:  states.StateApplicationConfigured,
+			expectedState: states.StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig) {
 				m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("validation error"))
 			},
@@ -160,8 +161,8 @@ func TestConfigureInstallation(t *testing.T) {
 			config: types.KubernetesInstallationConfig{
 				AdminConsolePort: 9000,
 			},
-			currentState:  StateInfrastructureInstalling,
-			expectedState: StateInfrastructureInstalling,
+			currentState:  states.StateInfrastructureInstalling,
+			expectedState: states.StateInfrastructureInstalling,
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig) {
 			},
 			expectedErr: true,
@@ -300,8 +301,8 @@ func TestSetupInfra(t *testing.T) {
 	}{
 		{
 			name:          "successful setup",
-			currentState:  StateInstallationConfigured,
-			expectedState: StateSucceeded,
+			currentState:  states.StateInstallationConfigured,
+			expectedState: states.StateSucceeded,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
 					am.On("GetKotsadmConfigValues").Return(configValues, nil),
@@ -314,8 +315,8 @@ func TestSetupInfra(t *testing.T) {
 		},
 		{
 			name:          "install infra error",
-			currentState:  StateInstallationConfigured,
-			expectedState: StateInfrastructureInstallFailed,
+			currentState:  states.StateInstallationConfigured,
+			expectedState: states.StateInfrastructureInstallFailed,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
 					am.On("GetKotsadmConfigValues").Return(configValues, nil),
@@ -329,8 +330,8 @@ func TestSetupInfra(t *testing.T) {
 		},
 		{
 			name:          "install infra error without report if infra store fails",
-			currentState:  StateInstallationConfigured,
-			expectedState: StateInfrastructureInstallFailed,
+			currentState:  states.StateInstallationConfigured,
+			expectedState: states.StateInfrastructureInstallFailed,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
 					am.On("GetKotsadmConfigValues").Return(configValues, nil),
@@ -342,8 +343,8 @@ func TestSetupInfra(t *testing.T) {
 		},
 		{
 			name:          "install infra panic",
-			currentState:  StateInstallationConfigured,
-			expectedState: StateInfrastructureInstallFailed,
+			currentState:  states.StateInstallationConfigured,
+			expectedState: states.StateInfrastructureInstallFailed,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
 					am.On("GetKotsadmConfigValues").Return(configValues, nil),
@@ -357,16 +358,16 @@ func TestSetupInfra(t *testing.T) {
 		},
 		{
 			name:          "invalid state transition",
-			currentState:  StateNew,
-			expectedState: StateNew,
+			currentState:  states.StateNew,
+			expectedState: states.StateNew,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 			},
 			expectedErr: assert.AnError, // Just check that an error occurs, don't care about exact message
 		},
 		{
 			name:          "config values error",
-			currentState:  StateInstallationConfigured,
-			expectedState: StateInstallationConfigured,
+			currentState:  states.StateInstallationConfigured,
+			expectedState: states.StateInstallationConfigured,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
 					am.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, assert.AnError),

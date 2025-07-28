@@ -289,9 +289,6 @@ func isRequiredItem(item kotsv1beta1.ConfigItem) bool {
 	if !isItemEnabled(item.When) {
 		return false
 	}
-	if item.Hidden {
-		return false
-	}
 	return true
 }
 

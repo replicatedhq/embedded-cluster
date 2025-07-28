@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,154 +17,154 @@ func TestStateMachineTransitions(t *testing.T) {
 	}{
 		{
 			name:       `State "New" can transition to "ApplicationConfiguring"`,
-			startState: StateNew,
+			startState: states.StateNew,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
+				states.StateApplicationConfiguring,
 			},
 		},
 		{
 			name:       `State "ApplicationConfiguring" can transition to "ApplicationConfigured" or "ApplicationConfigurationFailed"`,
-			startState: StateApplicationConfiguring,
+			startState: states.StateApplicationConfiguring,
 			validTransitions: []statemachine.State{
-				StateApplicationConfigured,
-				StateApplicationConfigurationFailed,
+				states.StateApplicationConfigured,
+				states.StateApplicationConfigurationFailed,
 			},
 		},
 		{
 			name:       `State "ApplicationConfigurationFailed" can transition to "ApplicationConfiguring"`,
-			startState: StateApplicationConfigurationFailed,
+			startState: states.StateApplicationConfigurationFailed,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
+				states.StateApplicationConfiguring,
 			},
 		},
 		{
 			name:       `State "ApplicationConfigured" can transition to "ApplicationConfiguring" or "InstallationConfiguring"`,
-			startState: StateApplicationConfigured,
+			startState: states.StateApplicationConfigured,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
-				StateInstallationConfiguring,
+				states.StateApplicationConfiguring,
+				states.StateInstallationConfiguring,
 			},
 		},
 		{
 			name:       `State "InstallationConfiguring" can transition to "InstallationConfigured" or "InstallationConfigurationFailed"`,
-			startState: StateInstallationConfiguring,
+			startState: states.StateInstallationConfiguring,
 			validTransitions: []statemachine.State{
-				StateInstallationConfigured,
-				StateInstallationConfigurationFailed,
+				states.StateInstallationConfigured,
+				states.StateInstallationConfigurationFailed,
 			},
 		},
 		{
 			name:       `State "InstallationConfigurationFailed" can transition to "ApplicationConfiguring" or "InstallationConfiguring"`,
-			startState: StateInstallationConfigurationFailed,
+			startState: states.StateInstallationConfigurationFailed,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
-				StateInstallationConfiguring,
+				states.StateApplicationConfiguring,
+				states.StateInstallationConfiguring,
 			},
 		},
 		{
 			name:       `State "InstallationConfigured" can transition to "ApplicationConfiguring", "InstallationConfiguring", or "HostConfiguring"`,
-			startState: StateInstallationConfigured,
+			startState: states.StateInstallationConfigured,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
-				StateInstallationConfiguring,
-				StateHostConfiguring,
+				states.StateApplicationConfiguring,
+				states.StateInstallationConfiguring,
+				states.StateHostConfiguring,
 			},
 		},
 		{
 			name:       `State "HostConfiguring" can transition to "HostConfigured" or "HostConfigurationFailed"`,
-			startState: StateHostConfiguring,
+			startState: states.StateHostConfiguring,
 			validTransitions: []statemachine.State{
-				StateHostConfigured,
-				StateHostConfigurationFailed,
+				states.StateHostConfigured,
+				states.StateHostConfigurationFailed,
 			},
 		},
 		{
 			name:       `State "HostConfigurationFailed" can transition to "ApplicationConfiguring", "InstallationConfiguring", or "HostConfiguring"`,
-			startState: StateHostConfigurationFailed,
+			startState: states.StateHostConfigurationFailed,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
-				StateInstallationConfiguring,
-				StateHostConfiguring,
+				states.StateApplicationConfiguring,
+				states.StateInstallationConfiguring,
+				states.StateHostConfiguring,
 			},
 		},
 		{
 			name:       `State "HostConfigured" can transition to "ApplicationConfiguring", "InstallationConfiguring", "HostConfiguring", or "PreflightsRunning"`,
-			startState: StateHostConfigured,
+			startState: states.StateHostConfigured,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
-				StateInstallationConfiguring,
-				StateHostConfiguring,
-				StatePreflightsRunning,
+				states.StateApplicationConfiguring,
+				states.StateInstallationConfiguring,
+				states.StateHostConfiguring,
+				states.StatePreflightsRunning,
 			},
 		},
 		{
 			name:       `State "PreflightsRunning" can transition to "PreflightsSucceeded", "PreflightsFailed", or "PreflightsExecutionFailed"`,
-			startState: StatePreflightsRunning,
+			startState: states.StatePreflightsRunning,
 			validTransitions: []statemachine.State{
-				StatePreflightsSucceeded,
-				StatePreflightsFailed,
-				StatePreflightsExecutionFailed,
+				states.StatePreflightsSucceeded,
+				states.StatePreflightsFailed,
+				states.StatePreflightsExecutionFailed,
 			},
 		},
 		{
 			name:       `State "PreflightsExecutionFailed" can transition to "ApplicationConfiguring", "InstallationConfiguring", "HostConfiguring", or "PreflightsRunning"`,
-			startState: StatePreflightsExecutionFailed,
+			startState: states.StatePreflightsExecutionFailed,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
-				StateInstallationConfiguring,
-				StateHostConfiguring,
-				StatePreflightsRunning,
+				states.StateApplicationConfiguring,
+				states.StateInstallationConfiguring,
+				states.StateHostConfiguring,
+				states.StatePreflightsRunning,
 			},
 		},
 		{
 			name:       `State "PreflightsSucceeded" can transition to "ApplicationConfiguring", "InstallationConfiguring", "HostConfiguring", "PreflightsRunning", or "InfrastructureInstalling"`,
-			startState: StatePreflightsSucceeded,
+			startState: states.StatePreflightsSucceeded,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
-				StateInstallationConfiguring,
-				StateHostConfiguring,
-				StatePreflightsRunning,
-				StateInfrastructureInstalling,
+				states.StateApplicationConfiguring,
+				states.StateInstallationConfiguring,
+				states.StateHostConfiguring,
+				states.StatePreflightsRunning,
+				states.StateInfrastructureInstalling,
 			},
 		},
 		{
 			name:       `State "PreflightsFailed" can transition to "ApplicationConfiguring", "InstallationConfiguring", "HostConfiguring", "PreflightsRunning", or "PreflightsFailedBypassed"`,
-			startState: StatePreflightsFailed,
+			startState: states.StatePreflightsFailed,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
-				StateInstallationConfiguring,
-				StateHostConfiguring,
-				StatePreflightsRunning,
-				StatePreflightsFailedBypassed,
+				states.StateApplicationConfiguring,
+				states.StateInstallationConfiguring,
+				states.StateHostConfiguring,
+				states.StatePreflightsRunning,
+				states.StatePreflightsFailedBypassed,
 			},
 		},
 		{
 			name:       `State "PreflightsFailedBypassed" can transition to "ApplicationConfiguring", "InstallationConfiguring", "HostConfiguring", "PreflightsRunning", or "InfrastructureInstalling"`,
-			startState: StatePreflightsFailedBypassed,
+			startState: states.StatePreflightsFailedBypassed,
 			validTransitions: []statemachine.State{
-				StateApplicationConfiguring,
-				StateInstallationConfiguring,
-				StateHostConfiguring,
-				StatePreflightsRunning,
-				StateInfrastructureInstalling,
+				states.StateApplicationConfiguring,
+				states.StateInstallationConfiguring,
+				states.StateHostConfiguring,
+				states.StatePreflightsRunning,
+				states.StateInfrastructureInstalling,
 			},
 		},
 		{
 			name:       `State "InfrastructureInstalling" can transition to "Succeeded" or "InfrastructureInstallFailed"`,
-			startState: StateInfrastructureInstalling,
+			startState: states.StateInfrastructureInstalling,
 			validTransitions: []statemachine.State{
-				StateSucceeded,
-				StateInfrastructureInstallFailed,
+				states.StateSucceeded,
+				states.StateInfrastructureInstallFailed,
 			},
 		},
 		{
 			name:             `State "InfrastructureInstallFailed" can not transition to any other state`,
-			startState:       StateInfrastructureInstallFailed,
+			startState:       states.StateInfrastructureInstallFailed,
 			validTransitions: []statemachine.State{},
 		},
 		{
 			name:             `State "Succeeded" can not transition to any other state`,
-			startState:       StateSucceeded,
+			startState:       states.StateSucceeded,
 			validTransitions: []statemachine.State{},
 		},
 	}
@@ -195,8 +196,8 @@ func TestStateMachineTransitions(t *testing.T) {
 
 func TestIsFinalState(t *testing.T) {
 	finalStates := []statemachine.State{
-		StateSucceeded,
-		StateInfrastructureInstallFailed,
+		states.StateSucceeded,
+		states.StateInfrastructureInstallFailed,
 	}
 
 	for state := range validStateTransitions {

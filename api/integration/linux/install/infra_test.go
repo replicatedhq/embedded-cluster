@@ -21,6 +21,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	linuxinfra "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	linuxpreflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -166,7 +167,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		// Create an install controller with the mocked managers
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithRuntimeConfig(rc),
-			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsSucceeded))),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StatePreflightsSucceeded))),
 			linuxinstall.WithHostPreflightManager(pfManager),
 			linuxinstall.WithInfraManager(infraManager),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
@@ -346,7 +347,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 
 		// Create an install controller with CLI flag allowing bypass
 		installController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsFailed))),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StatePreflightsFailed))),
 			linuxinstall.WithHostPreflightManager(pfManager),
 			linuxinstall.WithAllowIgnoreHostPreflights(true), // CLI flag allows bypass
 			linuxinstall.WithReleaseData(&release.ReleaseData{
@@ -404,7 +405,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 
 		// Create an install controller with CLI flag NOT allowing bypass
 		installController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsFailed))),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StatePreflightsFailed))),
 			linuxinstall.WithHostPreflightManager(pfManager),
 			linuxinstall.WithAllowIgnoreHostPreflights(false), // CLI flag does NOT allow bypass
 			linuxinstall.WithReleaseData(&release.ReleaseData{
@@ -469,7 +470,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 
 		// Create an install controller with CLI flag allowing bypass
 		installController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsFailed))),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StatePreflightsFailed))),
 			linuxinstall.WithHostPreflightManager(pfManager),
 			linuxinstall.WithAllowIgnoreHostPreflights(true), // CLI flag allows bypass
 			linuxinstall.WithReleaseData(&release.ReleaseData{
@@ -534,7 +535,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 
 		// Create an install controller
 		installController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsRunning))),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StatePreflightsRunning))),
 			linuxinstall.WithHostPreflightManager(pfManager),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
@@ -598,7 +599,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		// Create an install controller
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithRuntimeConfig(rc),
-			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateSucceeded))),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateSucceeded))),
 			linuxinstall.WithHostPreflightManager(pfManager),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
@@ -689,7 +690,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				AppConfig:             &appConfig,
 			}),
 			linuxinstall.WithRuntimeConfig(rc),
-			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StatePreflightsSucceeded))),
+			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StatePreflightsSucceeded))),
 		)
 		require.NoError(t, err)
 

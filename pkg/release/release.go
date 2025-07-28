@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/utils/pkg/embed"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	"gopkg.in/yaml.v2"
@@ -33,6 +35,8 @@ type ReleaseData struct {
 	ChannelRelease        *ChannelRelease
 	VeleroBackup          *velerov1.Backup
 	VeleroRestore         *velerov1.Restore
+	HelmChartCRs          []*kotsv1beta2.HelmChart
+	HelmChartArchives     [][]byte
 }
 
 // GetReleaseData returns the release data.
@@ -91,6 +95,24 @@ func GetVeleroRestore() *velerov1.Restore {
 // is found, returns nil and no error.
 func GetChannelRelease() *ChannelRelease {
 	return _releaseData.ChannelRelease
+}
+
+// GetHelmChartCRs reads and returns the HelmChart custom resources embedded as part of the release.
+// If no HelmChart CRs are found, returns an empty slice.
+func GetHelmChartCRs() []*kotsv1beta2.HelmChart {
+	if _releaseData.HelmChartCRs == nil {
+		return []*kotsv1beta2.HelmChart{}
+	}
+	return _releaseData.HelmChartCRs
+}
+
+// GetHelmChartArchives reads and returns the Helm chart archives embedded as part of the release.
+// If no chart archives are found, returns an empty slice.
+func GetHelmChartArchives() [][]byte {
+	if _releaseData.HelmChartArchives == nil {
+		return [][]byte{}
+	}
+	return _releaseData.HelmChartArchives
 }
 
 func init() {
@@ -206,6 +228,17 @@ func parseVeleroRestore(data []byte) (*velerov1.Restore, error) {
 		return nil, fmt.Errorf("unable to unmarshal velero restore: %w", err)
 	}
 	return &restore, nil
+}
+
+func parseHelmChartCR(data []byte) (*kotsv1beta2.HelmChart, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	var helmChart kotsv1beta2.HelmChart
+	if err := kyaml.Unmarshal(data, &helmChart); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal helm chart CR: %w", err)
+	}
+	return &helmChart, nil
 }
 
 // ChannelRelease contains information about a specific app release inside a channel.
@@ -324,11 +357,32 @@ func (r *ReleaseData) parse() error {
 				}
 			}
 
+		case bytes.Contains(content.Bytes(), []byte("apiVersion: kots.io/v1beta2")):
+			if bytes.Contains(content.Bytes(), []byte("kind: HelmChart")) {
+				helmChart, err := parseHelmChartCR(content.Bytes())
+				if err != nil {
+					return fmt.Errorf("failed to parse helm chart CR: %w", err)
+				}
+				if helmChart != nil {
+					if r.HelmChartCRs == nil {
+						r.HelmChartCRs = []*kotsv1beta2.HelmChart{}
+					}
+					r.HelmChartCRs = append(r.HelmChartCRs, helmChart)
+				}
+			}
+
 		case bytes.Contains(content.Bytes(), []byte("# channel release object")):
 			r.ChannelRelease, err = parseChannelRelease(content.Bytes())
 			if err != nil {
 				return fmt.Errorf("failed to parse channel release: %w", err)
 			}
+
+		case strings.HasSuffix(header.Name, ".tgz"):
+			// This is a chart archive (.tgz file)
+			if r.HelmChartArchives == nil {
+				r.HelmChartArchives = [][]byte{}
+			}
+			r.HelmChartArchives = append(r.HelmChartArchives, content.Bytes())
 		}
 	}
 }
