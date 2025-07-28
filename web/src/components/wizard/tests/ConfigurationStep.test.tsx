@@ -29,21 +29,27 @@ const MOCK_APP_CONFIG: AppConfig = {
           type: "text",
           value: "My App",
           default: "Default App",
-          help_text: "Enter the name of your application"
+          help_text: "Enter the name of your application",
+          hidden: false,
+          required: false,
         },
         {
           name: "description",
           title: "Application Description",
           type: "textarea",
           value: "This is my application\nIt does amazing things",
-          default: "Enter description here..."
+          default: "Enter description here...",
+          hidden: false,
+          required: false,
         },
         {
           name: "enable_feature",
           title: "Enable Feature",
           type: "bool",
           value: "0",
-          default: "0"
+          default: "0",
+          hidden: false,
+          required: false,
         },
         {
           name: "auth_type",
@@ -51,6 +57,8 @@ const MOCK_APP_CONFIG: AppConfig = {
           type: "radio",
           value: "auth_type_password",
           default: "auth_type_anonymous",
+          hidden: false,
+          required: false,
           items: [
             {
               name: "auth_type_anonymous",
@@ -65,18 +73,24 @@ const MOCK_APP_CONFIG: AppConfig = {
         {
           name: "info_label",
           title: "Visit our documentation at https://docs.example.com for more information.",
-          type: "label"
+          type: "label",
+          hidden: false,
+          required: false,
         },
         {
           name: "markdown_label",
           title: "This is **bold** text and *italic* text with a [link](https://example.com).",
-          type: "label"
+          type: "label",
+          hidden: false,
+          required: false,
         },
         {
           name: "ssl_certificate",
           title: "SSL Certificate",
           type: "file",
-          help_text: "Provide your SSL certificate file"
+          help_text: "Provide your SSL certificate file",
+          hidden: false,
+          required: false,
         }
       ]
     },
@@ -90,19 +104,25 @@ const MOCK_APP_CONFIG: AppConfig = {
           title: "Database Host",
           type: "text",
           value: "localhost",
-          default: "localhost"
+          default: "localhost",
+          hidden: false,
+          required: false,
         },
         {
           name: "db_config",
           title: "Database Configuration",
           type: "textarea",
           value: "",
-          default: "# Database configuration\nhost: localhost\nport: 5432"
+          default: "# Database configuration\nhost: localhost\nport: 5432",
+          hidden: false,
+          required: false,
         },
         {
           name: "db_warning",
           title: "**Important**: Changing database settings may require application restart. See our guide at https://help.example.com/database-config for details.",
-          type: "label"
+          type: "label",
+          hidden: false,
+          required: false,
         },
       ]
     }
@@ -628,14 +648,18 @@ describe.each([
               title: "Empty Text Field",
               type: "text",
               value: "", // Empty value
-              default: "Default Text Value" // Has default but should not show
+              default: "Default Text Value", // Has default but should not show
+              hidden: false,
+              required: false,
             },
             {
               name: "empty_textarea_field",
               title: "Empty Textarea Field",
               type: "textarea",
               value: "", // Empty value
-              default: "Default Textarea Value" // Has default but should not show
+              default: "Default Textarea Value", // Has default but should not show
+              hidden: false,
+              required: false,
             }
           ]
         }
@@ -682,6 +706,8 @@ describe.each([
                 title: "Authentication Method",
                 type: "radio",
                 value: "authentication_method_ldap",
+                hidden: false,
+                required: false,
                 items: [
                   {
                     name: "authentication_method_local",
@@ -698,6 +724,8 @@ describe.each([
                 title: "Database Type",
                 type: "radio",
                 default: "database_type_postgresql",
+                hidden: false,
+                required: false,
                 items: [
                   {
                     name: "database_type_mysql",
@@ -715,6 +743,8 @@ describe.each([
                 type: "radio",
                 value: "logging_level_debug",
                 default: "logging_level_info",
+                hidden: false,
+                required: false,
                 items: [
                   {
                     name: "logging_level_info",
@@ -734,6 +764,8 @@ describe.each([
                 name: "ssl_mode",
                 title: "SSL Mode",
                 type: "radio",
+                hidden: false,
+                required: false,
                 items: [
                   {
                     name: "ssl_mode_disabled",
@@ -750,6 +782,8 @@ describe.each([
                 title: "Notification Method",
                 type: "radio",
                 default: "notification_method_email",
+                hidden: false,
+                required: false,
                 items: [
                   {
                     name: "notification_method_email",
@@ -766,6 +800,8 @@ describe.each([
                 title: "Backup Schedule",
                 type: "radio",
                 value: "backup_schedule_daily",
+                hidden: false,
+                required: false,
                 items: [
                   {
                     name: "backup_schedule_daily",
@@ -1104,37 +1140,49 @@ describe.each([
                 name: "authentication_method",
                 title: "Authentication Method",
                 type: "bool",
-                value: "1"
+                value: "1",
+                hidden: false,
+                required: false
               },
               {
                 name: "database_type",
                 title: "Database Type",
                 type: "bool",
-                default: "1"
+                default: "1",
+                hidden: false,
+                required: false
               },
               {
                 name: "logging_level",
                 title: "Logging Level",
                 type: "bool",
                 value: "1",
-                default: "0"
+                default: "0",
+                hidden: false,
+                required: false
               },
               {
                 name: "ssl_mode",
                 title: "SSL Mode",
-                type: "bool"
+                type: "bool",
+                hidden: false,
+                required: false
               },
               {
                 name: "notification_method",
                 title: "Notification Method",
                 type: "bool",
-                default: "0"
+                default: "0",
+                hidden: false,
+                required: false
               },
               {
                 name: "backup_schedule",
                 title: "Backup Schedule",
                 type: "bool",
-                value: "0"
+                value: "0",
+                hidden: false,
+                required: false
               }
             ]
           }
@@ -1309,7 +1357,9 @@ describe.each([
               title: "User Password",
               type: "password",
               value: "••••••••",
-              default: "default_password"
+              default: "default_password",
+              hidden: false,
+              required: false
             }
           ]
         }
@@ -1368,7 +1418,9 @@ describe.each([
               title: "User Password",
               type: "password",
               value: "••••••••",
-              default: "default_password"
+              default: "default_password",
+              hidden: false,
+              required: false
             }
           ]
         }
@@ -1453,26 +1505,34 @@ describe.each([
               title: "Database Name",
               type: "text",
               value: "myapp",
-              default: "default_db"
+              default: "default_db",
+              hidden: false,
+              required: false
             },
             {
               name: "db_password",
               title: "Database Password",
               type: "text",
               value: "secret123",
-              default: "changeme"
+              default: "changeme",
+              hidden: false,
+              required: false
             },
             {
               name: "db_port",
               title: "Database Port",
               type: "text",
-              default: "5432"
+              default: "5432",
+              hidden: false,
+              required: false
             },
             {
               name: "enable_ssl",
               title: "Enable SSL",
               type: "bool",
-              default: "1"
+              default: "1",
+              hidden: false,
+              required: false
             }
           ]
         }
@@ -1675,6 +1735,316 @@ describe.each([
     });
   });
 
+  describe("Hidden items functionality", () => {
+    it("does not render hidden config items in the UI", async () => {
+      // Create config with both hidden and visible items
+      const configWithHiddenItems: AppConfig = {
+        groups: [
+          {
+            name: "settings",
+            title: "Settings",
+            description: "Configure application settings",
+            items: [
+              {
+                name: "visible_field",
+                title: "Visible Field",
+                type: "text",
+                value: "visible_value",
+                hidden: false,
+                required: false,
+              },
+              {
+                name: "hidden_field",
+                title: "Hidden Field",
+                type: "text",
+                value: "hidden_value",
+                hidden: true,
+                required: false,
+              },
+              {
+                name: "visible_checkbox",
+                title: "Visible Checkbox",
+                type: "bool",
+                value: "1",
+                hidden: false,
+                required: false,
+              },
+              {
+                name: "hidden_checkbox",
+                title: "Hidden Checkbox",
+                type: "bool",
+                value: "0",
+                hidden: true,
+                required: false,
+              }
+            ]
+          },
+          {
+            name: "database",
+            title: "Database",
+            description: "Configure database settings",
+            items: [
+              {
+                name: "visible_db_host",
+                title: "Database Host",
+                type: "text",
+                value: "localhost",
+                hidden: false,
+                required: false,
+              },
+              {
+                name: "hidden_db_password",
+                title: "Database Password",
+                type: "password",
+                value: "secret",
+                hidden: true,
+                required: false,
+              },
+              {
+                name: "hidden_radio_group",
+                title: "Hidden Radio Group",
+                type: "radio",
+                value: "option_a",
+                hidden: true,
+                required: false,
+                items: [
+                  {
+                    name: "option_a",
+                    title: "Option A"
+                  },
+                  {
+                    name: "option_b",
+                    title: "Option B"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/install/app/config/template`, () => {
+          return HttpResponse.json(configWithHiddenItems);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for config to load
+      await waitForForm();
+
+      // Verify visible items are rendered in the settings tab
+      expect(screen.getByTestId("config-item-visible_field")).toBeInTheDocument();
+      expect(screen.getByTestId("text-input-visible_field")).toBeInTheDocument();
+      expect(screen.getByTestId("config-item-visible_checkbox")).toBeInTheDocument();
+      expect(screen.getByTestId("bool-input-visible_checkbox")).toBeInTheDocument();
+
+      // Verify hidden items are NOT rendered in the settings tab
+      expect(screen.queryByTestId("config-item-hidden_field")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("text-input-hidden_field")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("config-item-hidden_checkbox")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("bool-input-hidden_checkbox")).not.toBeInTheDocument();
+
+      // Switch to database tab
+      fireEvent.click(screen.getByTestId("config-tab-database"));
+
+      // Verify visible items are rendered in the database tab
+      expect(screen.getByTestId("config-item-visible_db_host")).toBeInTheDocument();
+      expect(screen.getByTestId("text-input-visible_db_host")).toBeInTheDocument();
+
+      // Verify hidden items are NOT rendered in the database tab
+      expect(screen.queryByTestId("config-item-hidden_db_password")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("password-input-hidden_db_password")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("config-item-hidden_radio_group")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("radio-input-option_a")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("radio-input-option_b")).not.toBeInTheDocument();
+    });
+
+    it("hidden items do not affect form submission", async () => {
+      let submittedValues: { values: AppConfigValues } | null = null;
+
+      // Create config with hidden items that have values
+      const configWithHiddenItemsWithValues: AppConfig = {
+        groups: [
+          {
+            name: "settings",
+            title: "Settings",
+            description: "Configure application settings",
+            items: [
+              {
+                name: "visible_field",
+                title: "Visible Field",
+                type: "text",
+                value: "visible_value",
+                hidden: false,
+                required: false,
+              },
+              {
+                name: "hidden_field_with_value",
+                title: "Hidden Field With Value",
+                type: "text",
+                value: "hidden_value_should_not_submit",
+                hidden: true,
+                required: false,
+              },
+              {
+                name: "hidden_checkbox_checked",
+                title: "Hidden Checkbox Checked",
+                type: "bool",
+                value: "1",
+                hidden: true,
+                required: false,
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/install/app/config/template`, () => {
+          return HttpResponse.json(configWithHiddenItemsWithValues);
+        }),
+        http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+          const body = await request.json() as { values: AppConfigValues };
+          submittedValues = body;
+          return HttpResponse.json(body);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for config to load
+      await waitForForm();
+
+      // Verify only visible item is rendered
+      expect(screen.getByTestId("config-item-visible_field")).toBeInTheDocument();
+      expect(screen.queryByTestId("config-item-hidden_field_with_value")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("config-item-hidden_checkbox_checked")).not.toBeInTheDocument();
+
+      // Make a change to the visible field
+      const visibleInput = screen.getByTestId("text-input-visible_field");
+      fireEvent.change(visibleInput, { target: { value: "updated_visible_value" } });
+
+      // Submit form
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for the mutation to complete
+      await waitFor(
+        () => {
+          expect(mockOnNext).toHaveBeenCalled();
+        },
+        { timeout: 3000 }
+      );
+
+      // Verify only the visible field change was submitted
+      expect(submittedValues).not.toBeNull();
+      expect(submittedValues!).toEqual({
+        values: {
+          visible_field: { value: "updated_visible_value" }
+        }
+      });
+
+      // Verify hidden fields are not included in submission
+      expect(submittedValues!.values).not.toHaveProperty("hidden_field_with_value");
+      expect(submittedValues!.values).not.toHaveProperty("hidden_checkbox_checked");
+    });
+
+    it("handles groups with all hidden items correctly", async () => {
+      // Create config where one group has all items hidden
+      const configWithAllHiddenGroup: AppConfig = {
+        groups: [
+          {
+            name: "visible_group",
+            title: "Visible Group",
+            description: "This group has visible items",
+            items: [
+              {
+                name: "visible_field",
+                title: "Visible Field",
+                type: "text",
+                value: "visible_value",
+                hidden: false,
+                required: false,
+              }
+            ]
+          },
+          {
+            name: "hidden_group",
+            title: "Hidden Group",
+            description: "This group has all items hidden",
+            items: [
+              {
+                name: "hidden_field_1",
+                title: "Hidden Field 1",
+                type: "text",
+                value: "hidden_value_1",
+                hidden: true,
+                required: false,
+              },
+              {
+                name: "hidden_field_2",
+                title: "Hidden Field 2",
+                type: "bool",
+                value: "1",
+                hidden: true,
+                required: false,
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/install/app/config/template`, () => {
+          return HttpResponse.json(configWithAllHiddenGroup);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for config to load
+      await waitForForm();
+
+      // Verify both tabs are rendered (hidden items don't affect tab rendering)
+      expect(screen.getByTestId("config-tab-visible_group")).toBeInTheDocument();
+      expect(screen.getByTestId("config-tab-hidden_group")).toBeInTheDocument();
+
+      // Verify visible group shows its visible item
+      expect(screen.getByTestId("config-item-visible_field")).toBeInTheDocument();
+
+      // Switch to the group with all hidden items
+      fireEvent.click(screen.getByTestId("config-tab-hidden_group"));
+
+      // Verify the group description is still shown
+      expect(screen.getByText("This group has all items hidden")).toBeInTheDocument();
+
+      // Verify no hidden items are rendered
+      expect(screen.queryByTestId("config-item-hidden_field_1")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("config-item-hidden_field_2")).not.toBeInTheDocument();
+
+      // Verify the tab content area exists but is empty of config items
+      const configItems = screen.queryAllByTestId(/^config-item-/);
+      expect(configItems).toHaveLength(0); // No config items should be visible in this tab
+    });
+  });
+
   describe("Server-driven validation", () => {
     it("shows server validation error for required field when submission fails", async () => {
       // Create config with required field for this specific test
@@ -1691,6 +2061,7 @@ describe.each([
                 type: "text",
                 value: "",
                 required: true,
+                hidden: false,
                 help_text: "This field is required"
               }
             ]
@@ -1763,7 +2134,7 @@ describe.each([
         groups: [
           {
             name: "settings",
-            title: "Settings", 
+            title: "Settings",
             description: "Configure application settings",
             items: [
               {
@@ -1772,6 +2143,7 @@ describe.each([
                 type: "text",
                 value: "",
                 required: false,
+                hidden: false,
                 help_text: "This field is optional"
               },
               {
@@ -1780,6 +2152,7 @@ describe.each([
                 type: "text",
                 value: "",
                 required: true,
+                hidden: false,
                 help_text: "This is the first required field"
               },
               {
@@ -1788,6 +2161,7 @@ describe.each([
                 type: "text",
                 value: "",
                 required: true,
+                hidden: false,
                 help_text: "This is the second required field"
               }
             ]
@@ -1811,7 +2185,7 @@ describe.each([
                 message: "First Required Field is required"
               },
               {
-                field: "second_required_field", 
+                field: "second_required_field",
                 message: "Second Required Field is required"
               }
             ]
@@ -1866,7 +2240,7 @@ describe.each([
         groups: [
           {
             name: "settings",
-            title: "Settings", 
+            title: "Settings",
             description: "Configure application settings",
             items: [
               {
@@ -1875,6 +2249,7 @@ describe.each([
                 type: "text",
                 value: "filled",
                 required: false,
+                hidden: false,
                 help_text: "This field is optional"
               }
             ]
@@ -1882,7 +2257,7 @@ describe.each([
           {
             name: "database",
             title: "Database",
-            description: "Configure database settings", 
+            description: "Configure database settings",
             items: [
               {
                 name: "db_required_field",
@@ -1890,14 +2265,16 @@ describe.each([
                 type: "text",
                 value: "",
                 required: true,
+                hidden: false,
                 help_text: "This database field is required"
               },
               {
-                name: "db_optional_field", 
+                name: "db_optional_field",
                 title: "Database Optional Field",
                 type: "text",
                 value: "",
                 required: false,
+                hidden: false,
                 help_text: "This database field is optional"
               }
             ]
@@ -1946,10 +2323,10 @@ describe.each([
       // Verify we're on the settings tab initially (first tab is active by default)
       const settingsTab = screen.getByTestId("config-tab-settings");
       const databaseTab = screen.getByTestId("config-tab-database");
-      
+
       // Settings tab should be active (has the blue color styling)
       expect(settingsTab).toHaveStyle("color: rgb(49, 109, 230)");
-      
+
       // Database tab should be inactive (has gray color)
       expect(databaseTab).toHaveStyle("color: rgb(107, 114, 128)");
 
@@ -1991,7 +2368,7 @@ describe.each([
         groups: [
           {
             name: "settings",
-            title: "Settings", 
+            title: "Settings",
             description: "Configure application settings",
             items: [
               {
@@ -2000,6 +2377,7 @@ describe.each([
                 type: "text",
                 value: "",
                 required: true,
+                hidden: false,
                 help_text: "This field is required"
               }
             ]
@@ -2045,7 +2423,7 @@ describe.each([
       });
 
       const requiredInput = screen.getByTestId("text-input-required_text_field");
-      
+
       // Initially, field should have normal gray border
       expect(requiredInput).toHaveClass("border-gray-300");
       expect(requiredInput).not.toHaveClass("border-red-500");
@@ -2075,7 +2453,7 @@ describe.each([
         groups: [
           {
             name: "settings",
-            title: "Settings", 
+            title: "Settings",
             description: "Configure application settings",
             items: [
               {
@@ -2084,6 +2462,7 @@ describe.each([
                 type: "radio",
                 value: "", // Empty - no option selected
                 required: true,
+                hidden: false,
                 help_text: "Choose your authentication method",
                 items: [
                   {
@@ -2091,7 +2470,7 @@ describe.each([
                     title: "Local Authentication"
                   },
                   {
-                    name: "auth_method_ldap", 
+                    name: "auth_method_ldap",
                     title: "LDAP Authentication"
                   }
                 ]

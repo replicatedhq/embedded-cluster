@@ -42,7 +42,8 @@ export interface AppConfigItem {
   title: string;
   help_text?: string;
   error?: string;
-  required?: boolean;
+  required: boolean;
+  hidden: boolean;
   type: string;
   value?: string;
   default?: string;
