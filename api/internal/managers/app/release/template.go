@@ -87,16 +87,16 @@ func (m *appReleaseManager) DryRunHelmChart(ctx context.Context, templatedCR *ko
 		}
 	}
 
-	// Generate Helm values from the templated CR
-	helmValues, err := m.GenerateHelmValues(ctx, templatedCR)
-	if err != nil {
-		return nil, fmt.Errorf("generate helm values for %s: %w", templatedCR.Name, err)
-	}
-
 	// Find the corresponding chart archive for this HelmChart CR
 	chartArchive, err := findChartArchive(m.releaseData.HelmChartArchives, templatedCR)
 	if err != nil {
 		return nil, fmt.Errorf("find chart archive for %s: %w", templatedCR.Name, err)
+	}
+
+	// Generate Helm values from the templated CR
+	helmValues, err := m.GenerateHelmValues(ctx, templatedCR)
+	if err != nil {
+		return nil, fmt.Errorf("generate helm values for %s: %w", templatedCR.Name, err)
 	}
 
 	// Create a Helm client for dry run templating
