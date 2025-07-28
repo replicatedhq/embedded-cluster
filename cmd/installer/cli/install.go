@@ -1194,6 +1194,10 @@ func installExtensions(ctx context.Context, hcli helm.Client) error {
 }
 
 func checkAirgapMatches(airgapInfo *kotsv1beta1.Airgap) error {
+	if airgapInfo == nil {
+		return fmt.Errorf("airgap info is required")
+	}
+
 	rel := release.GetChannelRelease()
 	if rel == nil {
 		return fmt.Errorf("airgap bundle provided but no release was found in binary, please rerun without the airgap-bundle flag")

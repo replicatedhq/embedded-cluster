@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) (finalErr error) {
@@ -34,6 +35,11 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 	// Get the configured custom domains
 	ecDomains := utils.GetDomains(c.releaseData)
 
+	var airgapInfo *kotsv1beta1.Airgap
+	if c.airgapMetadata != nil {
+		airgapInfo = c.airgapMetadata.AirgapInfo
+	}
+
 	// Prepare host preflights
 	hpf, err := c.hostPreflightManager.PrepareHostPreflights(ctx, c.rc, preflight.PrepareHostPreflightOptions{
 		ReplicatedAppURL:      netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
@@ -42,7 +48,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		EmbeddedClusterConfig: c.releaseData.EmbeddedClusterConfig,
 		IsAirgap:              c.airgapBundle != "",
 		IsUI:                  opts.IsUI,
-		AirgapInfo:            c.airgapMetadata.AirgapInfo,
+		AirgapInfo:            airgapInfo,
 		EmbeddedAssetsSize:    c.embeddedAssetsSize,
 	})
 	if err != nil {

@@ -52,9 +52,8 @@ func UpdateCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("failed to get airgap metadata: %w", err)
 				}
-				airgapInfo := metadata.AirgapInfo
 
-				if err := checkAirgapMatches(airgapInfo); err != nil {
+				if err := checkAirgapMatches(metadata.AirgapInfo); err != nil {
 					return err // we want the user to see the error message without a prefix
 				}
 			}
