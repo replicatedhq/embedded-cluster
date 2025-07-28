@@ -103,12 +103,12 @@ func (m *appReleaseManager) GenerateHelmValues(ctx context.Context, templatedCR 
 	}
 
 	// Convert MappedChartValue to standard Go interface{} using GetHelmValues
-	chartValues, err := templatedCR.Spec.GetHelmValues(mergedValues)
+	helmValues, err := templatedCR.Spec.GetHelmValues(mergedValues)
 	if err != nil {
 		return nil, fmt.Errorf("get helm values for chart %s: %w", templatedCR.Name, err)
 	}
 
-	return chartValues, nil
+	return helmValues, nil
 }
 
 // DryRunHelmChart finds the corresponding chart archive and performs a dry run templating of a Helm chart using the provided values
@@ -119,6 +119,17 @@ func (m *appReleaseManager) DryRunHelmChart(ctx context.Context, templatedCR *ko
 
 	if m.releaseData == nil {
 		return nil, fmt.Errorf("release data not initialized")
+	}
+
+	// Check if the chart should be excluded
+	if !templatedCR.Spec.Exclude.IsEmpty() {
+		exclude, err := templatedCR.Spec.Exclude.Boolean()
+		if err != nil {
+			return nil, fmt.Errorf("parse templated CR exclude: %w", err)
+		}
+		if exclude {
+			return nil, nil
+		}
 	}
 
 	// Find the corresponding chart archive for this HelmChart CR

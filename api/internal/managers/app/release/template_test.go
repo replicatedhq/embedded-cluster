@@ -776,6 +776,68 @@ func TestAppReleaseManager_DryRunHelmChart(t *testing.T) {
 				assert.Contains(t, combined, "type: LoadBalancer")
 			},
 		},
+		{
+			name: "chart with exclude=false (should be processed)",
+			templatedCR: &kotsv1beta2.HelmChart{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-chart",
+					Namespace: "kotsadm",
+				},
+				Spec: kotsv1beta2.HelmChartSpec{
+					Chart: kotsv1beta2.ChartIdentifier{
+						Name:         "nginx",
+						ChartVersion: "1.0.0",
+					},
+					Exclude: multitype.FromBool(false),
+				},
+			},
+			helmValues: map[string]any{
+				"replicaCount": 2,
+			},
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "nginx", "1.0.0"),
+			},
+			expectError: false,
+			validateManifest: func(t *testing.T, manifests [][]byte) {
+				// Should have multiple manifest files since exclude=false
+				assert.GreaterOrEqual(t, len(manifests), 3, "should have at least 3 manifest files")
+
+				// Convert to combined string for easier testing
+				combined := ""
+				for _, manifest := range manifests {
+					combined += string(manifest) + "\n"
+				}
+
+				// Check that resources are present
+				assert.Contains(t, combined, "kind: Deployment")
+				assert.Contains(t, combined, "replicas: 2")
+			},
+		},
+		{
+			name: "chart with exclude=true (should be skipped)",
+			templatedCR: &kotsv1beta2.HelmChart{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "excluded-chart",
+					Namespace: "kotsadm",
+				},
+				Spec: kotsv1beta2.HelmChartSpec{
+					Chart: kotsv1beta2.ChartIdentifier{
+						Name:         "nginx",
+						ChartVersion: "1.0.0",
+					},
+					Exclude: multitype.FromBool(true),
+				},
+			},
+			helmValues: map[string]any{},
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "nginx", "1.0.0"),
+			},
+			expectError: false,
+			validateManifest: func(t *testing.T, manifests [][]byte) {
+				// Should be nil since chart is excluded
+				assert.Nil(t, manifests, "excluded charts should return nil manifests")
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -806,8 +868,6 @@ func TestAppReleaseManager_DryRunHelmChart(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			assert.NotNil(t, result)
-			assert.NotEmpty(t, result)
 
 			// Validate the actual manifest content if provided
 			if tt.validateManifest != nil {
