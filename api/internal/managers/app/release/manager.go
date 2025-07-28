@@ -16,6 +16,7 @@ import (
 type AppReleaseManager interface {
 	TemplateHelmChartCRs(ctx context.Context, configValues types.AppConfigValues) ([]*kotsv1beta2.HelmChart, error)
 	GenerateHelmValues(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) (map[string]any, error)
+	DryRunHelmChart(ctx context.Context, templatedCR *kotsv1beta2.HelmChart, helmValues map[string]any) ([][]byte, error)
 }
 
 type appReleaseManager struct {
