@@ -35,7 +35,7 @@ func TestAppReleaseManager_TemplateHelmChartCRs(t *testing.T) {
 		{
 			name: "single helm chart with repl templating",
 			helmChartCRs: []*kotsv1beta2.HelmChart{
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -69,7 +69,7 @@ spec:
 				"disable_monitoring": {Value: "false"},
 			},
 			expected: []*kotsv1beta2.HelmChart{
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -100,7 +100,7 @@ spec:
 		{
 			name: "multiple helm charts with mixed templating",
 			helmChartCRs: []*kotsv1beta2.HelmChart{
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -119,7 +119,7 @@ spec:
         limits:
           memory: 128Mi
 `),
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -153,7 +153,7 @@ spec:
 				"redis_persistence": {Value: "true"},
 			},
 			expected: []*kotsv1beta2.HelmChart{
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -172,7 +172,7 @@ spec:
         limits:
           memory: 128Mi
 `),
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -201,7 +201,7 @@ spec:
 			name: "skip nil helm chart",
 			helmChartCRs: []*kotsv1beta2.HelmChart{
 				nil,
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -215,7 +215,7 @@ spec:
 			},
 			configValues: types.AppConfigValues{},
 			expected: []*kotsv1beta2.HelmChart{
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -288,7 +288,7 @@ func TestAppReleaseManager_DryRunHelmChart(t *testing.T) {
 		},
 		{
 			name: "no chart archives",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -304,7 +304,7 @@ spec:
 		},
 		{
 			name: "chart archive not found",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -322,7 +322,7 @@ spec:
 		},
 		{
 			name: "successful dry run with kotsadm namespace fallback",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -363,7 +363,7 @@ spec:
 		},
 		{
 			name: "successful dry run with custom namespace",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -410,7 +410,7 @@ spec:
 		},
 		{
 			name: "chart with exclude=false (should be processed)",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -445,7 +445,7 @@ spec:
 		},
 		{
 			name: "chart with exclude=true (should be skipped)",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -468,7 +468,7 @@ spec:
 		},
 		{
 			name: "chart with mixed true/false optional values",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -568,7 +568,7 @@ func TestAppReleaseManager_GenerateHelmValues(t *testing.T) {
 		},
 		{
 			name: "helm chart with simple values",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -602,7 +602,7 @@ spec:
 		},
 		{
 			name: "helm chart with optional values",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -631,7 +631,7 @@ spec:
 		},
 		{
 			name: "helm chart with recursive merge",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -684,7 +684,7 @@ spec:
 		},
 		{
 			name: "helm chart with direct key replacement (no recursive merge)",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -731,7 +731,7 @@ spec:
 		},
 		{
 			name: "helm chart with when condition false",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -755,7 +755,7 @@ spec:
 		},
 		{
 			name: "helm chart with multiple optional values",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -798,7 +798,7 @@ spec:
 		},
 		{
 			name: "helm chart with no base values",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -824,7 +824,7 @@ spec:
 		},
 		{
 			name: "clear example of recursive merge vs direct replacement",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -876,7 +876,7 @@ spec:
 		},
 		{
 			name: "helm chart with invalid when condition",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -916,7 +916,7 @@ spec:
 }
 
 // Helper function to create HelmChart from YAML string
-func createHelmChartFromYAML(yamlStr string) *kotsv1beta2.HelmChart {
+func createHelmChartCRFromYAML(yamlStr string) *kotsv1beta2.HelmChart {
 	var chart kotsv1beta2.HelmChart
 	err := kyaml.Unmarshal([]byte(yamlStr), &chart)
 	if err != nil {
