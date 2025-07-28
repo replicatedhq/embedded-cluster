@@ -698,11 +698,7 @@ func TestAppReleaseManager_DryRunHelmChart(t *testing.T) {
 			helmValues: map[string]any{
 				"replicaCount": 3,
 				"image": map[string]any{
-					"repository": "nginx",
-					"tag":        "1.20.0",
-				},
-				"service": map[string]any{
-					"type": "ClusterIP",
+					"tag": "1.20.0",
 				},
 			},
 			helmChartArchives: [][]byte{
@@ -910,8 +906,26 @@ spec:
 {{- end }}
 `
 
+	valuesYaml := `replicaCount: 1
+
+image:
+  repository: nginx
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+`
+
 	files := map[string]string{
 		fmt.Sprintf("%s/Chart.yaml", name):                chartYaml,
+		fmt.Sprintf("%s/values.yaml", name):               valuesYaml,
 		fmt.Sprintf("%s/templates/crd.yaml", name):        crd,
 		fmt.Sprintf("%s/templates/deployment.yaml", name): deployment,
 		fmt.Sprintf("%s/templates/service.yaml", name):    service,

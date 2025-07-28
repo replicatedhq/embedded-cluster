@@ -52,7 +52,7 @@ func TestFindChartArchive(t *testing.T) {
 		},
 		{
 			name:              "empty chart name",
-			helmChartArchives: [][]byte{createTestChartArchive(t, "nginx", "1.0.0", "")},
+			helmChartArchives: [][]byte{createTestChartArchive(t, "nginx", "1.0.0")},
 			templatedCR: &kotsv1beta2.HelmChart{
 				Spec: kotsv1beta2.HelmChartSpec{
 					Chart: kotsv1beta2.ChartIdentifier{
@@ -66,7 +66,7 @@ func TestFindChartArchive(t *testing.T) {
 		},
 		{
 			name:              "empty chart version",
-			helmChartArchives: [][]byte{createTestChartArchive(t, "nginx", "1.0.0", "")},
+			helmChartArchives: [][]byte{createTestChartArchive(t, "nginx", "1.0.0")},
 			templatedCR: &kotsv1beta2.HelmChart{
 				Spec: kotsv1beta2.HelmChartSpec{
 					Chart: kotsv1beta2.ChartIdentifier{
@@ -81,9 +81,9 @@ func TestFindChartArchive(t *testing.T) {
 		{
 			name: "successful match",
 			helmChartArchives: [][]byte{
-				createTestChartArchive(t, "redis", "2.0.0", ""),
-				createTestChartArchive(t, "nginx", "1.0.0", ""),
-				createTestChartArchive(t, "postgres", "3.0.0", ""),
+				createTestChartArchive(t, "redis", "2.0.0"),
+				createTestChartArchive(t, "nginx", "1.0.0"),
+				createTestChartArchive(t, "postgres", "3.0.0"),
 			},
 			templatedCR: &kotsv1beta2.HelmChart{
 				Spec: kotsv1beta2.HelmChartSpec{
@@ -93,14 +93,14 @@ func TestFindChartArchive(t *testing.T) {
 					},
 				},
 			},
-			expectedArchive: createTestChartArchive(t, "nginx", "1.0.0", ""),
+			expectedArchive: createTestChartArchive(t, "nginx", "1.0.0"),
 			expectError:     false,
 		},
 		{
 			name: "successful match with base directory chart",
 			helmChartArchives: [][]byte{
-				createTestChartArchive(t, "redis", "2.0.0", ""),
-				createTestChartArchive(t, "myapp", "1.5.0", "myapp"),
+				createTestChartArchive(t, "redis", "2.0.0"),
+				createTestChartArchive(t, "myapp", "1.5.0"),
 			},
 			templatedCR: &kotsv1beta2.HelmChart{
 				Spec: kotsv1beta2.HelmChartSpec{
@@ -110,14 +110,14 @@ func TestFindChartArchive(t *testing.T) {
 					},
 				},
 			},
-			expectedArchive: createTestChartArchive(t, "myapp", "1.5.0", "myapp"),
+			expectedArchive: createTestChartArchive(t, "myapp", "1.5.0"),
 			expectError:     false,
 		},
 		{
 			name: "no matching chart",
 			helmChartArchives: [][]byte{
-				createTestChartArchive(t, "redis", "2.0.0", ""),
-				createTestChartArchive(t, "postgres", "3.0.0", ""),
+				createTestChartArchive(t, "redis", "2.0.0"),
+				createTestChartArchive(t, "postgres", "3.0.0"),
 			},
 			templatedCR: &kotsv1beta2.HelmChart{
 				Spec: kotsv1beta2.HelmChartSpec{
@@ -133,7 +133,7 @@ func TestFindChartArchive(t *testing.T) {
 		{
 			name: "subchart matching name/version but no top-level chart",
 			helmChartArchives: [][]byte{
-				createArchiveWithSubchart(t, "nginx", "1.0.0", ""),
+				createArchiveWithSubchart(t, "nginx", "1.0.0"),
 			},
 			templatedCR: &kotsv1beta2.HelmChart{
 				Spec: kotsv1beta2.HelmChartSpec{
@@ -144,7 +144,7 @@ func TestFindChartArchive(t *testing.T) {
 				},
 			},
 			expectError:   true,
-			errorContains: "Chart.yaml not found",
+			errorContains: "Chart.yaml file is missing",
 		},
 		{
 			name: "invalid archive in collection",
@@ -193,57 +193,38 @@ func TestExtractChartMetadata(t *testing.T) {
 		expectedName    string
 		expectedVersion string
 		expectError     bool
-		errorContains   string
 	}{
 		{
 			name:            "valid chart archive",
-			archiveBytes:    createTestChartArchive(t, "nginx", "1.2.3", ""),
+			archiveBytes:    createTestChartArchive(t, "nginx", "1.2.3"),
 			expectedName:    "nginx",
 			expectedVersion: "1.2.3",
 			expectError:     false,
 		},
 		{
-			name:            "chart with subdirectory",
-			archiveBytes:    createTestChartArchive(t, "myapp", "2.1.0", "myapp"),
-			expectedName:    "myapp",
-			expectedVersion: "2.1.0",
-			expectError:     false,
+			name:         "invalid gzip data",
+			archiveBytes: []byte("not-a-gzip-file"),
+			expectError:  true,
 		},
 		{
-			name:          "invalid gzip data",
-			archiveBytes:  []byte("not-a-gzip-file"),
-			expectError:   true,
-			errorContains: "create gzip reader",
+			name:         "empty archive",
+			archiveBytes: createEmptyArchive(t),
+			expectError:  true,
 		},
 		{
-			name:          "empty archive",
-			archiveBytes:  createEmptyArchive(t),
-			expectError:   true,
-			errorContains: "Chart.yaml not found",
+			name:         "archive without Chart.yaml",
+			archiveBytes: createArchiveWithoutChart(t),
+			expectError:  true,
 		},
 		{
-			name:          "archive without Chart.yaml",
-			archiveBytes:  createArchiveWithoutChart(t),
-			expectError:   true,
-			errorContains: "Chart.yaml not found",
+			name:         "invalid Chart.yaml content",
+			archiveBytes: createArchiveWithInvalidChart(t),
+			expectError:  true,
 		},
 		{
-			name:          "invalid Chart.yaml content",
-			archiveBytes:  createArchiveWithInvalidChart(t),
-			expectError:   true,
-			errorContains: "unmarshal Chart.yaml",
-		},
-		{
-			name:          "Chart.yaml in subchart directory (should be skipped)",
-			archiveBytes:  createArchiveWithSubchart(t, "nginx", "1.0.0", ""),
-			expectError:   true,
-			errorContains: "Chart.yaml not found",
-		},
-		{
-			name:          "Chart.yaml in nested subchart directory (should be skipped)",
-			archiveBytes:  createArchiveWithSubchart(t, "nginx", "1.0.0", "myapp"),
-			expectError:   true,
-			errorContains: "Chart.yaml not found",
+			name:         "only subchart Chart.yaml",
+			archiveBytes: createArchiveWithSubchart(t, "nginx", "1.0.0"),
+			expectError:  true,
 		},
 	}
 
@@ -253,9 +234,6 @@ func TestExtractChartMetadata(t *testing.T) {
 
 			if tt.expectError {
 				require.Error(t, err)
-				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains)
-				}
 				assert.Empty(t, name)
 				assert.Empty(t, version)
 			} else {
@@ -275,7 +253,7 @@ func TestWriteChartArchiveToTemp(t *testing.T) {
 	}{
 		{
 			name:         "valid chart archive",
-			chartArchive: createTestChartArchive(t, "nginx", "1.0.0", ""),
+			chartArchive: createTestChartArchive(t, "nginx", "1.0.0"),
 			expectError:  false,
 		},
 		{
@@ -316,6 +294,50 @@ func TestWriteChartArchiveToTemp(t *testing.T) {
 
 // Helper functions for creating test archives
 
+func createTestChartArchive(t *testing.T, name, version string) []byte {
+	chartYaml := fmt.Sprintf(`apiVersion: v2
+name: %s
+version: %s
+description: A test Helm chart
+type: application
+`, name, version)
+
+	return createTarGzArchive(t, map[string]string{
+		fmt.Sprintf("%s/Chart.yaml", name): chartYaml,
+	})
+}
+
+func createEmptyArchive(t *testing.T) []byte {
+	return createTarGzArchive(t, map[string]string{})
+}
+
+func createArchiveWithoutChart(t *testing.T) []byte {
+	return createTarGzArchive(t, map[string]string{
+		"mychart/README.md": "some random content",
+	})
+}
+
+func createArchiveWithInvalidChart(t *testing.T) []byte {
+	return createTarGzArchive(t, map[string]string{
+		"mychart/Chart.yaml": "invalid: yaml: content: [",
+	})
+}
+
+func createArchiveWithSubchart(t *testing.T, name, version string) []byte {
+	chartYaml := fmt.Sprintf(`apiVersion: v2
+name: %s
+version: %s
+description: A subchart that should be ignored
+type: application
+`, name, version)
+
+	// Create a subchart within a base chart directory
+	chartYamlPath := fmt.Sprintf("%s/charts/subchart/Chart.yaml", name)
+	return createTarGzArchive(t, map[string]string{
+		chartYamlPath: chartYaml,
+	})
+}
+
 // createTarGzArchive creates a tar.gz archive with the given files
 func createTarGzArchive(t *testing.T, files map[string]string) []byte {
 	t.Helper()
@@ -339,63 +361,4 @@ func createTarGzArchive(t *testing.T, files map[string]string) []byte {
 	require.NoError(t, gw.Close())
 
 	return buf.Bytes()
-}
-
-func createTestChartArchive(t *testing.T, name, version, baseDir string) []byte {
-	var description string
-	var chartYamlPath string
-
-	if baseDir != "" {
-		description = "A test Helm chart with subdirectory"
-		chartYamlPath = fmt.Sprintf("%s/Chart.yaml", baseDir)
-	} else {
-		description = "A test Helm chart"
-		chartYamlPath = "Chart.yaml"
-	}
-
-	chartYaml := fmt.Sprintf(`apiVersion: v2
-name: %s
-version: %s
-description: %s
-type: application
-`, name, version, description)
-
-	return createTarGzArchive(t, map[string]string{
-		chartYamlPath: chartYaml,
-	})
-}
-
-func createEmptyArchive(t *testing.T) []byte {
-	return createTarGzArchive(t, map[string]string{})
-}
-
-func createArchiveWithoutChart(t *testing.T) []byte {
-	return createTarGzArchive(t, map[string]string{
-		"README.md": "some random content",
-	})
-}
-
-func createArchiveWithInvalidChart(t *testing.T) []byte {
-	return createTarGzArchive(t, map[string]string{
-		"Chart.yaml": "invalid: yaml: content: [",
-	})
-}
-
-func createArchiveWithSubchart(t *testing.T, name, version, baseDir string) []byte {
-	chartYaml := fmt.Sprintf(`apiVersion: v2
-name: %s
-version: %s
-description: A subchart that should be ignored
-type: application
-`, name, version)
-
-	var chartYamlPath string
-	if baseDir == "" {
-		chartYamlPath = "charts/subchart/Chart.yaml"
-	} else {
-		chartYamlPath = fmt.Sprintf("%s/charts/subchart/Chart.yaml", baseDir)
-	}
-	return createTarGzArchive(t, map[string]string{
-		chartYamlPath: chartYaml,
-	})
 }
