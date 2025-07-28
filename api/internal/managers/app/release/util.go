@@ -42,8 +42,8 @@ func findChartArchive(helmChartArchives [][]byte, templatedCR *kotsv1beta2.HelmC
 }
 
 // extractChartMetadata extracts chart name and version from a .tgz archive
-func extractChartMetadata(archiveBytes []byte) (name, version string, err error) {
-	ch, err := loader.LoadArchive(bytes.NewReader(archiveBytes))
+func extractChartMetadata(chartArchive []byte) (name, version string, err error) {
+	ch, err := loader.LoadArchive(bytes.NewReader(chartArchive))
 	if err != nil {
 		return "", "", fmt.Errorf("load archive: %w", err)
 	}
