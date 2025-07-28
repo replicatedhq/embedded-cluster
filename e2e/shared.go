@@ -76,9 +76,9 @@ func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts install
 	line := []string{}
 
 	if opts.isAirgap {
-		line = append(line, "single-node-airgap-install.sh")
+		line = append(line, "/usr/local/bin/single-node-airgap-install.sh")
 	} else {
-		line = append(line, "single-node-install.sh")
+		line = append(line, "/usr/local/bin/single-node-install.sh")
 		// the cli/ui option is currently only applicable for online installs
 		if opts.viaCLI {
 			line = append(line, "cli")
@@ -136,7 +136,7 @@ func checkInstallationState(t *testing.T, tc cluster.Cluster) {
 }
 
 func checkInstallationStateWithOptions(t *testing.T, tc cluster.Cluster, opts installationStateOptions) {
-	line := []string{"check-installation-state.sh"}
+	line := []string{"/usr/local/bin/check-installation-state.sh"}
 	if opts.version != "" {
 		line = append(line, opts.version)
 	} else {
@@ -233,7 +233,7 @@ func joinWorkerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts 
 
 func waitForNodes(t *testing.T, tc cluster.Cluster, nodes int, envs map[string]string, args ...string) {
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunCommandOnNode(0, append([]string{"wait-for-ready-nodes.sh", fmt.Sprintf("%d", nodes)}, args...), envs)
+	stdout, stderr, err := tc.RunCommandOnNode(0, append([]string{"/usr/local/bin/wait-for-ready-nodes.sh", fmt.Sprintf("%d", nodes)}, args...), envs)
 	if err != nil {
 		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
 	}
@@ -241,7 +241,7 @@ func waitForNodes(t *testing.T, tc cluster.Cluster, nodes int, envs map[string]s
 
 func checkWorkerProfile(t *testing.T, tc cluster.Cluster, node int) {
 	t.Logf("checking worker profile on node %d", node)
-	line := []string{"check-worker-profile.sh"}
+	line := []string{"/usr/local/bin/check-worker-profile.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
 		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
@@ -249,7 +249,7 @@ func checkWorkerProfile(t *testing.T, tc cluster.Cluster, node int) {
 
 func checkNodeJoinCommand(t *testing.T, tc cluster.Cluster, node int) {
 	t.Logf("node join command generation on node %d", node)
-	line := []string{"check-node-join-command.sh"}
+	line := []string{"/usr/local/bin/check-node-join-command.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
 		t.Fatalf("fail to check if node join command is generated successfully on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
@@ -261,7 +261,7 @@ func downloadECRelease(t *testing.T, tc cluster.Cluster, node int) {
 
 func downloadECReleaseWithOptions(t *testing.T, tc cluster.Cluster, node int, opts downloadECReleaseOptions) {
 	t.Logf("%s: downloading embedded cluster release on node %d", time.Now().Format(time.RFC3339), node)
-	line := []string{"vandoor-prepare.sh"}
+	line := []string{"/usr/local/bin/vandoor-prepare.sh"}
 
 	if opts.version != "" {
 		line = append(line, opts.version)
@@ -292,7 +292,7 @@ func resetInstallationWithOptions(t *testing.T, tc cluster.Cluster, node int, op
 
 func resetInstallationWithError(t *testing.T, tc cluster.Cluster, node int, opts resetInstallationOptions) (string, string, error) {
 	t.Logf("%s: resetting the installation on node %d", time.Now().Format(time.RFC3339), node)
-	line := []string{"reset-installation.sh"}
+	line := []string{"/usr/local/bin/reset-installation.sh"}
 	if opts.force {
 		line = append(line, "--force")
 	}
@@ -304,7 +304,7 @@ func checkPostUpgradeState(t *testing.T, tc cluster.Cluster) {
 }
 
 func checkPostUpgradeStateWithOptions(t *testing.T, tc cluster.Cluster, opts postUpgradeStateOptions) {
-	line := []string{"check-postupgrade-state.sh"}
+	line := []string{"/usr/local/bin/check-postupgrade-state.sh"}
 
 	if opts.k8sVersion != "" {
 		line = append(line, opts.k8sVersion)
