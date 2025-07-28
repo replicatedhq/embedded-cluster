@@ -7,6 +7,7 @@ import { useWizard } from "../../../contexts/WizardModeContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { handleUnauthorized } from "../../../utils/auth";
+import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 
 /**
@@ -17,10 +18,10 @@ import { ChevronRight, ChevronLeft } from "lucide-react";
  * - Error formatting: formatErrorMessage("adminConsolePort invalid") -> "Admin Console Port invalid"
  */
 const fieldNames = {
-   adminConsolePort: "Admin Console Port",
-   httpProxy: "HTTP Proxy",
-   httpsProxy: "HTTPS Proxy",
-   noProxy: "Proxy Bypass List",
+  adminConsolePort: "Admin Console Port",
+  httpProxy: "HTTP Proxy",
+  httpsProxy: "HTTPS Proxy",
+  noProxy: "Proxy Bypass List",
 }
 
 interface KubernetesSetupStepProps {
@@ -139,15 +140,15 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
 
   const getFieldError = (fieldName: string) => {
     const fieldError = submitError?.errors?.find((err) => err.field === fieldName);
-    return fieldError ? formatErrorMessage(fieldError.message) : undefined;
+    return fieldError ? formatErrorMessage(fieldError.message, fieldNames) : undefined;
   };
 
   return (
     <div className="space-y-6" data-testid="kubernetes-setup">
       <Card>
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">{text.linuxSetupTitle}</h2>
-          <p className="text-gray-600 mt-1">Configure the installation settings.</p>
+          <h2 className="text-2xl font-bold text-gray-900">{text.kubernetesSetupTitle}</h2>
+          <p className="text-gray-600 mt-1">{text.kubernetesSetupDescription}</p>
         </div>
 
         {isConfigLoading ? (
@@ -157,52 +158,66 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
           </div>
         ) : (
           <>
-            <div className="space-y-4">
-              <Input
-                id="adminConsolePort"
-                label={fieldNames.adminConsolePort}
-                value={config.adminConsolePort?.toString() || ""}
-                onChange={handleInputChange}
-                placeholder="30000"
-                helpText="Port for the Admin Console"
-                error={getFieldError("adminConsolePort")}
-                required
-              />
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">System Configuration</h2>
+                <div className="space-y-4">
+                  <Input
+                    id="adminConsolePort"
+                    label={fieldNames.adminConsolePort}
+                    value={config.adminConsolePort?.toString() || ""}
+                    onChange={handleInputChange}
+                    placeholder="30000"
+                    helpText="Port for the Admin Console"
+                    error={getFieldError("adminConsolePort")}
+                    required
+                    className="w-96"
+                  />
+                </div>
+              </div>
 
-              <Input
-                id="httpProxy"
-                label={fieldNames.httpProxy}
-                value={config.httpProxy || ""}
-                onChange={handleInputChange}
-                placeholder="http://proxy.example.com:3128"
-                helpText="HTTP proxy server URL"
-                error={getFieldError("httpProxy")}
-              />
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Proxy Configuration</h2>
+                <div className="space-y-4">
+                  <Input
+                    id="httpProxy"
+                    label={fieldNames.httpProxy}
+                    value={config.httpProxy || ""}
+                    onChange={handleInputChange}
+                    placeholder="http://proxy.example.com:3128"
+                    helpText="HTTP proxy server URL"
+                    error={getFieldError("httpProxy")}
+                    className="w-96"
+                  />
 
-              <Input
-                id="httpsProxy"
-                label={fieldNames.httpsProxy}
-                value={config.httpsProxy || ""}
-                onChange={handleInputChange}
-                placeholder="https://proxy.example.com:3128"
-                helpText="HTTPS proxy server URL"
-                error={getFieldError("httpsProxy")}
-              />
+                  <Input
+                    id="httpsProxy"
+                    label={fieldNames.httpsProxy}
+                    value={config.httpsProxy || ""}
+                    onChange={handleInputChange}
+                    placeholder="https://proxy.example.com:3128"
+                    helpText="HTTPS proxy server URL"
+                    error={getFieldError("httpsProxy")}
+                    className="w-96"
+                  />
 
-              <Input
-                id="noProxy"
-                label={fieldNames.noProxy}
-                value={config.noProxy || ""}
-                onChange={handleInputChange}
-                placeholder="localhost,127.0.0.1,.example.com"
-                helpText="Comma-separated list of hosts to bypass the proxy"
-                error={getFieldError("noProxy")}
-              />
+                  <Input
+                    id="noProxy"
+                    label={fieldNames.noProxy}
+                    value={config.noProxy || ""}
+                    onChange={handleInputChange}
+                    placeholder="localhost,127.0.0.1,.example.com"
+                    helpText="Comma-separated list of hosts to bypass the proxy"
+                    error={getFieldError("noProxy")}
+                    className="w-96"
+                  />
+                </div>
+              </div>
             </div>
 
             {error && (
-              <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">
-                {submitError?.errors && submitError.errors.length > 0 
+              <div className="mt-6 p-3 bg-red-50 text-red-500 rounded-md">
+                {submitError?.errors && submitError.errors.length > 0
                   ? "Please fix the errors in the form above before proceeding."
                   : error
                 }
@@ -213,7 +228,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
       </Card>
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
+        <Button variant="outline" onClick={onBack} dataTestId="kubernetes-setup-button-back" icon={<ChevronLeft className="w-5 h-5" />}>
           Back
         </Button>
         <Button onClick={() => submitConfig(config)} icon={<ChevronRight className="w-5 h-5" />}>
@@ -223,22 +238,5 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
     </div>
   );
 };
-
-/**
- * Formats error messages by replacing technical field names with more user-friendly display names.
- * Example: "adminConsolePort" becomes "Admin Console Port".
- *
- * @param message - The error message to format
- * @returns The formatted error message with replaced field names
- */
-export function formatErrorMessage(message: string) {
-   let finalMsg = message
-   for (const [field, fieldName] of Object.entries(fieldNames)) {
-      // Case-insensitive regex that matches whole words only
-      // Example: "podCidr", "PodCidr", "PODCIDR" all become "Pod CIDR"
-      finalMsg = finalMsg.replace(new RegExp(`\\b${field}\\b`, 'gi'), fieldName)
-   }
-   return finalMsg
-}
 
 export default KubernetesSetupStep;

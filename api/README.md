@@ -99,6 +99,13 @@ Provides a client library for interacting with the API. The client package imple
    - Kubernetes installations focus on application management (deployment, upgrades, lifecycle) on an existing Kubernetes cluster
    - Once Linux installation finishes setting up the Kubernetes cluster, subsequent operations should follow the same workflow as Kubernetes installations
 
+3. **Consistent Processing of App Config**:
+   - All access to the application config must go through the AppConfigManager interface
+   - Direct access to `releaseData.AppConfig` should be avoided when possible
+   - This ensures consistent template processing across all config usage and prevents bypassing of template evaluation
+   - The manager stores the raw config internally and provides processed config through its interface methods
+   - Controllers check `appConfigManager == nil` to determine config availability rather than checking the raw config
+
 ## Integration
 
 The API package is designed to be used as part of the larger Embedded Cluster system. It provides both HTTP endpoints for external access and a client library for internal use.

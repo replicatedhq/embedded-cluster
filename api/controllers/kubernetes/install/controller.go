@@ -2,8 +2,10 @@ package install
 
 import (
 	"context"
-	"sync"
+	"errors"
+	"fmt"
 
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/installation"
@@ -15,8 +17,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
@@ -26,8 +28,8 @@ type Controller interface {
 	GetInstallationStatus(ctx context.Context) (types.Status, error)
 	SetupInfra(ctx context.Context) error
 	GetInfra(ctx context.Context) (types.Infra, error)
-	GetAppConfig(ctx context.Context) (kotsv1beta1.Config, error)
-	SetAppConfigValues(ctx context.Context, values map[string]string) error
+	// App controller methods
+	appcontroller.Controller
 }
 
 var _ Controller = (*InstallController)(nil)
@@ -43,13 +45,14 @@ type InstallController struct {
 	tlsConfig           types.TLSConfig
 	license             []byte
 	airgapBundle        string
-	configValues        string
+	configValues        types.AppConfigValues
 	endUserConfig       *ecv1beta1.Config
 	store               store.Store
 	ki                  kubernetesinstallation.Installation
 	stateMachine        statemachine.Interface
 	logger              logrus.FieldLogger
-	mu                  sync.RWMutex
+	// App controller composition
+	*appcontroller.InstallController
 }
 
 type InstallControllerOption func(*InstallController)
@@ -108,7 +111,7 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
-func WithConfigValues(configValues string) InstallControllerOption {
+func WithConfigValues(configValues types.AppConfigValues) InstallControllerOption {
 	return func(c *InstallController) {
 		c.configValues = configValues
 	}
@@ -152,13 +155,25 @@ func WithStore(store store.Store) InstallControllerOption {
 
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
-		store:        store.NewMemoryStore(),
-		logger:       logger.NewDiscardLogger(),
-		stateMachine: NewStateMachine(),
+		store:  store.NewMemoryStore(),
+		logger: logger.NewDiscardLogger(),
 	}
 
 	for _, opt := range opts {
 		opt(controller)
+	}
+
+	if err := controller.validateReleaseData(); err != nil {
+		return nil, err
+	}
+
+	if controller.stateMachine == nil {
+		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
+	}
+
+	// If none is provided, use the default env settings from helm to create a RESTClientGetter
+	if controller.restClientGetter == nil {
+		controller.restClientGetter = helmcli.New().RESTClientGetter()
 	}
 
 	if controller.installationManager == nil {
@@ -169,7 +184,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	}
 
 	if controller.infraManager == nil {
-		controller.infraManager = infra.NewInfraManager(
+		infraManager, err := infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
 			infra.WithInfraStore(controller.store.LinuxInfraStore()),
 			infra.WithRESTClientGetter(controller.restClientGetter),
@@ -177,18 +192,59 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
-			infra.WithConfigValues(controller.configValues),
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 		)
+		if err != nil {
+			return nil, fmt.Errorf("create infra manager: %w", err)
+		}
+		controller.infraManager = infraManager
 	}
 
 	if controller.appConfigManager == nil {
-		controller.appConfigManager = appconfig.NewAppConfigManager(
+		appConfigManager, err := appconfig.NewAppConfigManager(
+			*controller.releaseData.AppConfig,
 			appconfig.WithLogger(controller.logger),
 			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
 		)
+		if err != nil {
+			return nil, fmt.Errorf("create app config manager: %w", err)
+		}
+		controller.appConfigManager = appConfigManager
 	}
 
+	if controller.configValues != nil {
+		err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("validate app config values: %w", err)
+		}
+		err = controller.appConfigManager.PatchConfigValues(controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("patch app config values: %w", err)
+		}
+	}
+
+	// Initialize the app controller with the app config manager and state machine
+	appInstallController, err := appcontroller.NewInstallController(
+		appcontroller.WithAppConfigManager(controller.appConfigManager),
+		appcontroller.WithStateMachine(controller.stateMachine),
+		appcontroller.WithLogger(controller.logger),
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("create app install controller: %w", err)
+	}
+	controller.InstallController = appInstallController
+
 	return controller, nil
+}
+
+func (c *InstallController) validateReleaseData() error {
+	if c.releaseData == nil {
+		return errors.New("release data not found")
+	}
+	if c.releaseData.AppConfig == nil {
+		return errors.New("app config not found")
+	}
+	return nil
 }

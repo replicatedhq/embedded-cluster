@@ -3,24 +3,25 @@ package config
 import (
 	"sync"
 
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/tiendc/go-deepcopy"
 )
 
 var _ Store = &memoryStore{}
 
 type Store interface {
-	GetConfigValues() (map[string]string, error)
-	SetConfigValues(configValues map[string]string) error
+	GetConfigValues() (types.AppConfigValues, error)
+	SetConfigValues(configValues types.AppConfigValues) error
 }
 
 type memoryStore struct {
 	mu           sync.RWMutex
-	configValues map[string]string
+	configValues types.AppConfigValues
 }
 
 type StoreOption func(*memoryStore)
 
-func WithConfigValues(configValues map[string]string) StoreOption {
+func WithConfigValues(configValues types.AppConfigValues) StoreOption {
 	return func(s *memoryStore) {
 		s.configValues = configValues
 	}
@@ -28,7 +29,7 @@ func WithConfigValues(configValues map[string]string) StoreOption {
 
 func NewMemoryStore(opts ...StoreOption) Store {
 	s := &memoryStore{
-		configValues: map[string]string{},
+		configValues: types.AppConfigValues{},
 	}
 
 	for _, opt := range opts {
@@ -38,11 +39,11 @@ func NewMemoryStore(opts ...StoreOption) Store {
 	return s
 }
 
-func (s *memoryStore) GetConfigValues() (map[string]string, error) {
+func (s *memoryStore) GetConfigValues() (types.AppConfigValues, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var configValues map[string]string
+	var configValues types.AppConfigValues
 	if err := deepcopy.Copy(&configValues, &s.configValues); err != nil {
 		return nil, err
 	}
@@ -50,7 +51,7 @@ func (s *memoryStore) GetConfigValues() (map[string]string, error) {
 	return configValues, nil
 }
 
-func (s *memoryStore) SetConfigValues(configValues map[string]string) error {
+func (s *memoryStore) SetConfigValues(configValues types.AppConfigValues) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

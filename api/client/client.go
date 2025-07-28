@@ -16,14 +16,18 @@ type Client interface {
 	ConfigureLinuxInstallation(config types.LinuxInstallationConfig) (types.Status, error)
 	SetupLinuxInfra(ignoreHostPreflights bool) (types.Infra, error)
 	GetLinuxInfraStatus() (types.Infra, error)
-	GetLinuxAppConfig() (types.AppConfig, error)
+	GetLinuxAppConfigValues() (types.AppConfigValues, error)
+	PatchLinuxAppConfigValues(types.AppConfigValues) (types.AppConfigValues, error)
+	TemplateLinuxAppConfig(values types.AppConfigValues) (types.AppConfig, error)
 
 	GetKubernetesInstallationConfig() (types.KubernetesInstallationConfig, error)
 	ConfigureKubernetesInstallation(config types.KubernetesInstallationConfig) (types.Status, error)
 	GetKubernetesInstallationStatus() (types.Status, error)
 	SetupKubernetesInfra() (types.Infra, error)
 	GetKubernetesInfraStatus() (types.Infra, error)
-	GetKubernetesAppConfig() (types.AppConfig, error)
+	GetKubernetesAppConfigValues() (types.AppConfigValues, error)
+	PatchKubernetesAppConfigValues(types.AppConfigValues) (types.AppConfigValues, error)
+	TemplateKubernetesAppConfig(values types.AppConfigValues) (types.AppConfig, error)
 }
 
 type client struct {

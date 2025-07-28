@@ -53,9 +53,9 @@ func TestK0sDir(t *testing.T) {
 		}
 	}
 	if assert.NotNil(t, hostPodsVolume, "Velero host-pods volume should not be nil") {
-		assert.Equal(t, hostPodsVolume.VolumeSource.HostPath.Path, k0sDir+"/kubelet/pods")
+		assert.Equal(t, hostPodsVolume.HostPath.Path, k0sDir+"/kubelet/pods")
 	}
 	if assert.NotNil(t, hostPluginsVolume, "Velero host-plugins volume should not be nil") {
-		assert.Equal(t, hostPluginsVolume.VolumeSource.HostPath.Path, k0sDir+"/kubelet/plugins")
+		assert.Equal(t, hostPluginsVolume.HostPath.Path, k0sDir+"/kubelet/plugins")
 	}
 }

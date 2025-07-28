@@ -59,7 +59,7 @@ jobs:
     needs:
       - lint
       - test
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: succeed if everything passed
         run: echo "Validation succeeded"

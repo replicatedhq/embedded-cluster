@@ -16,8 +16,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api"
 	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
+	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	linuxinstallationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -195,22 +197,19 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 			// Create an install controller with the config manager
 			installController, err := linuxinstall.NewInstallController(
 				linuxinstall.WithRuntimeConfig(rc),
-				linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
+				linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateApplicationConfigured))),
 				linuxinstall.WithHostUtils(tc.mockHostUtils),
 				linuxinstall.WithNetUtils(tc.mockNetUtils),
+				linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 			)
 			require.NoError(t, err)
 
 			// Create the API with the install controller
-			apiInstance, err := api.New(
-				types.APIConfig{
-					Password: "password",
-				},
+			apiInstance := integration.NewAPIWithReleaseData(t,
 				api.WithLinuxInstallController(installController),
 				api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 				api.WithLogger(logger.NewDiscardLogger()),
 			)
-			require.NoError(t, err)
 
 			// Create a router and register the API routes
 			router := mux.NewRouter()
@@ -298,20 +297,17 @@ func TestLinuxConfigureInstallationValidation(t *testing.T) {
 	// Create an install controller with the config manager
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
-		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateApplicationConfigured))),
+		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	// Create a router and register the API routes
 	router := mux.NewRouter()
@@ -361,19 +357,16 @@ func TestLinuxConfigureInstallationBadRequest(t *testing.T) {
 	// Create an install controller with the config manager
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
-		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured))),
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateHostConfigured))),
+		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	router := mux.NewRouter()
 	apiInstance.RegisterRoutes(router)
@@ -401,15 +394,11 @@ func TestLinuxConfigureInstallationControllerError(t *testing.T) {
 	mockController.On("ConfigureInstallation", mock.Anything, mock.Anything).Return(assert.AnError)
 
 	// Create the API with the mock controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithLinuxInstallController(mockController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	router := mux.NewRouter()
 	apiInstance.RegisterRoutes(router)
@@ -453,6 +442,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
 		linuxinstall.WithInstallationManager(installationManager),
+		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
@@ -468,15 +458,11 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: "password",
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	// Create a router and register the API routes
 	router := mux.NewRouter()
@@ -528,19 +514,16 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		emptyInstallController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithRuntimeConfig(rc),
 			linuxinstall.WithInstallationManager(emptyInstallationManager),
+			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		emptyAPI, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		emptyAPI := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(emptyInstallController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		emptyRouter := mux.NewRouter()
@@ -599,15 +582,11 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		mockController.On("GetInstallationConfig", mock.Anything).Return(types.LinuxInstallationConfig{}, assert.AnError)
 
 		// Create the API with the mock controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -637,8 +616,6 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 
 // TestLinuxInstallationConfigWithAPIClient tests the installation configuration endpoints using the API client
 func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
-	password := "test-password"
-
 	// Create a runtimeconfig to be used in the install process
 	rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
 	tempDir := t.TempDir()
@@ -656,8 +633,9 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 	// Create an install controller with the config manager
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithRuntimeConfig(rc),
-		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(linuxinstall.StateApplicationConfigured))),
+		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateApplicationConfigured))),
 		linuxinstall.WithInstallationManager(installationManager),
+		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
@@ -681,15 +659,11 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with controllers
-	apiInstance, err := api.New(
-		types.APIConfig{
-			Password: password,
-		},
+	apiInstance := integration.NewAPIWithReleaseData(t,
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLinuxInstallController(installController),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
-	require.NoError(t, err)
 
 	// Create a router and register the API routes
 	router := mux.NewRouter()

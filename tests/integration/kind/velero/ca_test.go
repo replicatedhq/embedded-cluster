@@ -44,8 +44,8 @@ func TestVelero_HostCABundle(t *testing.T) {
 		}
 	}
 	if assert.NotNil(t, volume, "Velero host-ca-bundle volume should not be nil") {
-		assert.Equal(t, volume.VolumeSource.HostPath.Path, "/etc/ssl/certs/ca-certificates.crt")
-		assert.Equal(t, volume.VolumeSource.HostPath.Type, ptr.To(corev1.HostPathFileOrCreate))
+		assert.Equal(t, volume.HostPath.Path, "/etc/ssl/certs/ca-certificates.crt")
+		assert.Equal(t, volume.HostPath.Type, ptr.To(corev1.HostPathFileOrCreate))
 	}
 
 	var volumeMount *corev1.VolumeMount
@@ -65,8 +65,8 @@ func TestVelero_HostCABundle(t *testing.T) {
 		}
 	}
 	if assert.NotNil(t, volume, "Velero node agent host-ca-bundle volume should not be nil") {
-		assert.Equal(t, volume.VolumeSource.HostPath.Path, "/etc/ssl/certs/ca-certificates.crt")
-		assert.Equal(t, volume.VolumeSource.HostPath.Type, ptr.To(corev1.HostPathFileOrCreate))
+		assert.Equal(t, volume.HostPath.Path, "/etc/ssl/certs/ca-certificates.crt")
+		assert.Equal(t, volume.HostPath.Type, ptr.To(corev1.HostPathFileOrCreate))
 	}
 
 	volumeMount = nil

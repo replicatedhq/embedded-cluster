@@ -29,6 +29,22 @@ components:
           type: array
           uniqueItems: false
       type: object
+    types.AppConfigValue:
+      properties:
+        filename:
+          type: string
+        value:
+          type: string
+      type: object
+    types.AppConfigValues:
+      additionalProperties:
+        $ref: '#/components/schemas/types.AppConfigValue'
+      type: object
+    types.AppConfigValuesResponse:
+      properties:
+        values:
+          $ref: '#/components/schemas/types.AppConfigValues'
+      type: object
     types.AuthRequest:
       properties:
         password:
@@ -144,17 +160,15 @@ components:
         serviceCidr:
           type: string
       type: object
+    types.PatchAppConfigValuesRequest:
+      properties:
+        values:
+          $ref: '#/components/schemas/types.AppConfigValues'
+      type: object
     types.PostInstallRunHostPreflightsRequest:
       properties:
         isUi:
           type: boolean
-      type: object
-    types.SetAppConfigValuesRequest:
-      properties:
-        values:
-          additionalProperties:
-            type: string
-          type: object
       type: object
     types.State:
       type: string
@@ -171,6 +185,11 @@ components:
           type: string
         state:
           $ref: '#/components/schemas/types.State'
+      type: object
+    types.TemplateAppConfigRequest:
+      properties:
+        values:
+          $ref: '#/components/schemas/types.AppConfigValues'
       type: object
     v1beta1.ConfigChildItem:
       properties:
@@ -375,32 +394,17 @@ paths:
       summary: Get the health of the API
       tags:
       - health
-  /kubernetes/install/app/config:
-    get:
-      description: get the app config
-      operationId: getKubernetesInstallAppConfig
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.AppConfig'
-          description: OK
-      security:
-      - bearerauth: []
-      summary: Get the app config
-      tags:
-      - kubernetes-install
-  /kubernetes/install/app/config/values:
+  /kubernetes/install/app/config/template:
     post:
-      description: Set the app config values
-      operationId: postKubernetesInstallSetAppConfigValues
+      description: Template the app config with provided values and return the templated
+        config
+      operationId: postKubernetesInstallTemplateAppConfig
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.SetAppConfigValuesRequest'
-        description: Set App Config Values Request
+              $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+        description: Template App Config Request
         required: true
       responses:
         "200":
@@ -409,6 +413,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.AppConfig'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Template the app config with provided values
+      tags:
+      - kubernetes-install
+  /kubernetes/install/app/config/values:
+    patch:
+      description: Set the app config values with partial updates
+      operationId: patchKubernetesInstallAppConfigValues
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+        description: Patch App Config Values Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Set the app config values
@@ -485,6 +524,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.Status'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Configure the Kubernetes installation for install
@@ -506,32 +551,17 @@ paths:
       summary: Get installation configuration status for install
       tags:
       - kubernetes-install
-  /linux/install/app/config:
-    get:
-      description: get the app config
-      operationId: getLinuxInstallAppConfig
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.AppConfig'
-          description: OK
-      security:
-      - bearerauth: []
-      summary: Get the app config
-      tags:
-      - linux-install
-  /linux/install/app/config/values:
+  /linux/install/app/config/template:
     post:
-      description: Set the app config values
-      operationId: postLinuxInstallSetAppConfigValues
+      description: Template the app config with provided values and return the templated
+        config
+      operationId: postLinuxInstallTemplateAppConfig
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.SetAppConfigValuesRequest'
-        description: Set App Config Values Request
+              $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+        description: Template App Config Request
         required: true
       responses:
         "200":
@@ -540,6 +570,62 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.AppConfig'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Template the app config with provided values
+      tags:
+      - linux-install
+  /linux/install/app/config/values:
+    get:
+      description: Get the current app config values
+      operationId: getLinuxInstallAppConfigValues
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get the app config values
+      tags:
+      - linux-install
+    patch:
+      description: Set the app config values with partial updates
+      operationId: patchLinuxInstallAppConfigValues
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+        description: Patch App Config Values Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Set the app config values
@@ -659,6 +745,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.Status'
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
       security:
       - bearerauth: []
       summary: Configure the installation for install

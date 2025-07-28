@@ -17,13 +17,17 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration/assets"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	kubernetesinfra "github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -48,6 +52,33 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 	require.NoError(t, metav1.AddMetaToScheme(metascheme))
 	require.NoError(t, corev1.AddToScheme(metascheme))
 
+	appConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "network-config",
+					Title: "{{ print \"Network Configuration\" }}",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "service-cidr",
+							Type:    "text",
+							Title:   "{{ upper \"service cidr\" }}",
+							Default: multitype.FromString("{{ print \"10.96.0.0/12\" }}"),
+							Value:   multitype.FromString("{{ print \"10.96.0.0/12\" }}"),
+						},
+						{
+							Name:    "pod-cidr",
+							Type:    "text",
+							Title:   "{{ upper \"pod cidr\" }}",
+							Default: multitype.FromString("{{ print \"10.244.0.0/16\" }}"),
+							Value:   multitype.FromString("{{ print \"10.244.0.0/16\" }}"),
+						},
+					},
+				},
+			},
+		},
+	}
+
 	t.Run("Success", func(t *testing.T) {
 		hostname, err := os.Hostname()
 		require.NoError(t, err)
@@ -66,14 +97,12 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		ki := kubernetesinstallation.New(nil)
 
 		// Create infra manager with mocks
-		infraManager := kubernetesinfra.NewInfraManager(
+		infraManager, err := kubernetesinfra.NewInfraManager(
 			kubernetesinfra.WithKubeClient(fakeKcli),
 			kubernetesinfra.WithMetadataClient(fakeMcli),
 			kubernetesinfra.WithHelmClient(helmMock),
 			kubernetesinfra.WithLicense(assets.LicenseData),
-			kubernetesinfra.WithKotsInstaller(func() error {
-				return nil
-			}),
+			kubernetesinfra.WithKotsCLIInstaller(&MockKotsCLIInstaller{}),
 			kubernetesinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -82,18 +111,19 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
+		require.NoError(t, err)
 
 		mock.InOrder(
 			helmMock.On("Install", mock.Anything, mock.Anything).Times(1).Return(nil, nil), // 1 addon
-			helmMock.On("Close").Return(nil),
 		)
 
 		// Create an install controller with the mocked managers
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithInstallation(ki),
-			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateInstallationConfigured))),
+			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateInstallationConfigured))),
 			kubernetesinstall.WithInfraManager(infraManager),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
@@ -103,20 +133,17 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -203,14 +230,10 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create the API
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -230,7 +253,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 
 		// Parse the response body
 		var apiError types.APIError
-		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		err := json.NewDecoder(rec.Body).Decode(&apiError)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
 	})
@@ -254,14 +277,12 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		ki := kubernetesinstallation.New(nil)
 
 		// Create infra manager with mocks
-		infraManager := kubernetesinfra.NewInfraManager(
+		infraManager, err := kubernetesinfra.NewInfraManager(
 			kubernetesinfra.WithKubeClient(fakeKcli),
 			kubernetesinfra.WithMetadataClient(fakeMcli),
 			kubernetesinfra.WithHelmClient(helmMock),
 			kubernetesinfra.WithLicense(assets.LicenseData),
-			kubernetesinfra.WithKotsInstaller(func() error {
-				return nil
-			}),
+			kubernetesinfra.WithKotsCLIInstaller(&MockKotsCLIInstaller{}),
 			kubernetesinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -270,18 +291,19 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
+		require.NoError(t, err)
 
 		mock.InOrder(
 			helmMock.On("Install", mock.Anything, mock.Anything).Times(1).Return(nil, assert.AnError), // 1 addon
-			helmMock.On("Close").Return(nil),
 		)
 
 		// Create an install controller with the mocked managers
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithInstallation(ki),
-			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateInstallationConfigured))),
+			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateInstallationConfigured))),
 			kubernetesinstall.WithInfraManager(infraManager),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
@@ -291,20 +313,17 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 						ProxyRegistryDomain: "some-proxy.example.com",
 					},
 				},
+				AppConfig: &appConfig,
 			}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance, err := api.New(
-			types.APIConfig{
-				Password: "password",
-			},
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a router and register the API routes
 		router := mux.NewRouter()
@@ -349,4 +368,11 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		// Verify that the mock expectations were met
 		helmMock.AssertExpectations(t)
 	})
+}
+
+type MockKotsCLIInstaller struct {
+}
+
+func (m *MockKotsCLIInstaller) Install(opts kotscli.InstallOptions) error {
+	return nil
 }

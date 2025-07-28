@@ -20,7 +20,7 @@ import (
 	kyaml "sigs.k8s.io/yaml"
 )
 
-func (m *infraManager) Install(ctx context.Context, ki kubernetesinstallation.Installation) (finalErr error) {
+func (m *infraManager) Install(ctx context.Context, ki kubernetesinstallation.Installation, configValues kotsv1beta1.ConfigValues) (finalErr error) {
 	// TODO: check if kots is already installed
 
 	if err := m.setStatus(types.StateRunning, ""); err != nil {
@@ -42,17 +42,17 @@ func (m *infraManager) Install(ctx context.Context, ki kubernetesinstallation.In
 		}
 	}()
 
-	if err := m.install(ctx, ki); err != nil {
+	if err := m.install(ctx, ki, configValues); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (m *infraManager) initComponentsList(license *kotsv1beta1.License, ki kubernetesinstallation.Installation) error {
+func (m *infraManager) initComponentsList(license *kotsv1beta1.License, ki kubernetesinstallation.Installation, configValues kotsv1beta1.ConfigValues) error {
 	components := []types.InfraComponent{}
 
-	addOns := addons.GetAddOnsForKubernetesInstall(m.getAddonInstallOpts(license, ki))
+	addOns := addons.GetAddOnsForKubernetesInstall(m.getAddonInstallOpts(license, ki, configValues))
 	for _, addOn := range addOns {
 		components = append(components, types.InfraComponent{Name: addOn.Name()})
 	}
@@ -65,47 +65,31 @@ func (m *infraManager) initComponentsList(license *kotsv1beta1.License, ki kuber
 	return nil
 }
 
-func (m *infraManager) install(ctx context.Context, ki kubernetesinstallation.Installation) error {
+func (m *infraManager) install(ctx context.Context, ki kubernetesinstallation.Installation, configValues kotsv1beta1.ConfigValues) error {
 	license := &kotsv1beta1.License{}
 	if err := kyaml.Unmarshal(m.license, license); err != nil {
 		return fmt.Errorf("parse license: %w", err)
 	}
 
-	if err := m.initComponentsList(license, ki); err != nil {
+	if err := m.initComponentsList(license, ki, configValues); err != nil {
 		return fmt.Errorf("init components: %w", err)
 	}
 
-	kcli, err := m.kubeClient()
-	if err != nil {
-		return fmt.Errorf("create kube client: %w", err)
-	}
-
-	mcli, err := m.metadataClient()
-	if err != nil {
-		return fmt.Errorf("create metadata client: %w", err)
-	}
-
-	hcli, err := m.helmClient(ki)
-	if err != nil {
-		return fmt.Errorf("create helm client: %w", err)
-	}
-	defer hcli.Close()
-
-	_, err = m.recordInstallation(ctx, kcli, license, ki)
+	_, err := m.recordInstallation(ctx, m.kcli, license, ki)
 	if err != nil {
 		return fmt.Errorf("record installation: %w", err)
 	}
 
-	if err := m.installAddOns(ctx, kcli, mcli, hcli, license, ki); err != nil {
+	if err := m.installAddOns(ctx, m.kcli, m.mcli, m.hcli, license, ki, configValues); err != nil {
 		return fmt.Errorf("install addons: %w", err)
 	}
 
 	// TODO: we may need this later
-	// if err := kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateInstalled, "Installed"); err != nil {
+	// if err := kubeutils.SetInstallationState(ctx, m.kcli, in, ecv1beta1.InstallationStateInstalled, "Installed"); err != nil {
 	// 	return fmt.Errorf("update installation: %w", err)
 	// }
 
-	if err = support.CreateHostSupportBundle(ctx, kcli); err != nil {
+	if err = support.CreateHostSupportBundle(ctx, m.kcli); err != nil {
 		m.logger.Warnf("Unable to create host support bundle: %v", err)
 	}
 
@@ -118,7 +102,7 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 	return nil, nil
 }
 
-func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license *kotsv1beta1.License, ki kubernetesinstallation.Installation) error {
+func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license *kotsv1beta1.License, ki kubernetesinstallation.Installation, configValues kotsv1beta1.ConfigValues) error {
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -150,7 +134,7 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 		addons.WithProgressChannel(progressChan),
 	)
 
-	opts := m.getAddonInstallOpts(license, ki)
+	opts := m.getAddonInstallOpts(license, ki, configValues)
 
 	logFn("installing addons")
 	if err := addOns.InstallKubernetes(ctx, opts); err != nil {
@@ -160,7 +144,7 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 	return nil
 }
 
-func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, ki kubernetesinstallation.Installation) addons.KubernetesInstallOptions {
+func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, ki kubernetesinstallation.Installation, configValues kotsv1beta1.ConfigValues) addons.KubernetesInstallOptions {
 	opts := addons.KubernetesInstallOptions{
 		AdminConsolePwd:    m.password,
 		AdminConsolePort:   ki.AdminConsolePort(),

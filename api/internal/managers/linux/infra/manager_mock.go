@@ -5,6 +5,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -15,7 +16,7 @@ type MockInfraManager struct {
 	mock.Mock
 }
 
-func (m *MockInfraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues map[string]string) error {
+func (m *MockInfraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues kotsv1beta1.ConfigValues) error {
 	args := m.Called(ctx, rc, configValues)
 	return args.Error(0)
 }

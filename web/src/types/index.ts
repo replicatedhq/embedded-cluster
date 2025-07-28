@@ -1,3 +1,11 @@
+import { InstallationTarget } from './installation-target';
+
+export interface InitialState {
+  title: string;
+  icon?: string;
+  installTarget: InstallationTarget;
+}
+
 export interface InfraStatusResponse {
   components: InfraComponent[];
   status: InfraStatus;
@@ -32,6 +40,9 @@ export interface AppConfigGroup {
 export interface AppConfigItem {
   name: string;
   title: string;
+  help_text?: string;
+  error?: string;
+  required?: boolean;
   type: string;
   value?: string;
   default?: string;
@@ -44,3 +55,10 @@ export interface AppConfigChildItem {
   value?: string;
   default?: string;
 }
+
+export interface AppConfigValue {
+  value: string;
+  filename?: string;
+}
+
+export type AppConfigValues = Record<string, AppConfigValue>;

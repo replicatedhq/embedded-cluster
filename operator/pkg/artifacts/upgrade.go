@@ -274,11 +274,11 @@ func getArtifactJobForNode(
 	inDataEncoded := base64.StdEncoding.EncodeToString(inData)
 
 	job := copyArtifactsJob.DeepCopy()
-	job.ObjectMeta.Name = util.NameWithLengthLimit(copyArtifactsJobPrefix, node.Name)
-	job.ObjectMeta.Labels = applyECOperatorLabels(job.ObjectMeta.Labels, "upgrader")
-	job.ObjectMeta.Annotations = applyArtifactsJobAnnotations(job.GetAnnotations(), in, hash)
+	job.Name = util.NameWithLengthLimit(copyArtifactsJobPrefix, node.Name)
+	job.Labels = applyECOperatorLabels(job.Labels, "upgrader")
+	job.Annotations = applyArtifactsJobAnnotations(job.GetAnnotations(), in, hash)
 	job.Spec.Template.Spec.NodeName = node.Name
-	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = rc.EmbeddedClusterHomeDirectory()
+	job.Spec.Template.Spec.Volumes[0].HostPath.Path = rc.EmbeddedClusterHomeDirectory()
 	if in.Spec.AirGap {
 		job.Spec.Template.Spec.Containers[0].Command = copyArtifactsJobCommandAirgap
 	} else {

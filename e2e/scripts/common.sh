@@ -137,7 +137,7 @@ wait_for_pods_running() {
         current_time=$(date +%s)
         elapsed_time=$((current_time - start_time))
         if [ "$elapsed_time" -ge "$timeout" ]; then
-            kubectl get pods -A -o yaml || true
+            kubectl get pods -A || true
             kubectl describe nodes || true
             echo "Timed out waiting for all pods to be running."
             return 1
@@ -146,7 +146,6 @@ wait_for_pods_running() {
         non_running_pods=$(kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 != "Running" && $4 != "Completed" { print $0 }' | wc -l || echo 1)
         if [ "$non_running_pods" -ne 0 ]; then
             echo "Not all pods are running. Waiting."
-            kubectl get pods,nodes -A || true
             sleep 5
             continue
         fi
