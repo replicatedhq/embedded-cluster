@@ -997,6 +997,9 @@ jobs:
     name: Validate success # this name is used by .github/workflows/automated-prs-manager.yaml
     runs-on: ubuntu-latest
     needs:
+      - build-current
+      - build-previous-k0s
+      - build-upgrade
       - e2e
       - e2e-main
       - e2e-docker
@@ -1019,6 +1022,15 @@ jobs:
         run: exit 1
       - name: fail if e2e-docker job was not successful
         if: needs.e2e-docker.result != 'success' && needs.e2e-docker.result != 'skipped'
+        run: exit 1
+      - name: fail if build-current job was not successful
+        if: needs.build-current.result != 'success' && needs.build-current.result != 'skipped'
+        run: exit 1
+      - name: fail if build-previous-k0s job was not successful
+        if: needs.build-previous-k0s.result != 'success' && needs.build-previous-k0s.result != 'skipped'
+        run: exit 1
+      - name: fail if build-upgrade job was not successful
+        if: needs.build-upgrade.result != 'success' && needs.build-upgrade.result != 'skipped'
         run: exit 1
       - name: fail if sanitize job was not successful
         if: needs.sanitize.result != 'success'
