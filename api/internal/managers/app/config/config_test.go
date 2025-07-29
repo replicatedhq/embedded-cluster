@@ -15,14 +15,16 @@ import (
 
 func TestAppConfigManager_TemplateConfig(t *testing.T) {
 	tests := []struct {
-		name          string
-		config        kotsv1beta1.Config
-		configValues  types.AppConfigValues
-		maskPasswords bool
-		expected      types.AppConfig
+		name              string
+		config            kotsv1beta1.Config
+		configValues      types.AppConfigValues
+		maskPasswords     bool
+		filterHiddenItems bool
+		expected          types.AppConfig
 	}{
 		{
-			name: "filtering: hardcoded and templated when, mixed delims, sprig and repl",
+			name:              "filtering: hardcoded and templated when, mixed delims, sprig and repl",
+			filterHiddenItems: true,
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -133,7 +135,8 @@ func TestAppConfigManager_TemplateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "ConfigOptionEquals in when fields",
+			name:              "ConfigOptionEquals in when fields",
+			filterHiddenItems: true,
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -213,7 +216,8 @@ func TestAppConfigManager_TemplateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "empty config with no groups",
+			name:              "empty config with no groups",
+			filterHiddenItems: true,
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{},
@@ -224,7 +228,8 @@ func TestAppConfigManager_TemplateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "config with empty groups",
+			name:              "config with empty groups",
+			filterHiddenItems: true,
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -242,7 +247,8 @@ func TestAppConfigManager_TemplateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "conditional filtering with empty when conditions",
+			name:              "conditional filtering with empty when conditions",
+			filterHiddenItems: true,
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -290,7 +296,8 @@ func TestAppConfigManager_TemplateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "password masking enabled",
+			name:              "password masking enabled",
+			filterHiddenItems: true,
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -360,7 +367,8 @@ func TestAppConfigManager_TemplateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "password masking disabled",
+			name:              "password masking disabled",
+			filterHiddenItems: true,
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -430,7 +438,8 @@ func TestAppConfigManager_TemplateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "all groups and items disabled",
+			name:              "all groups and items disabled",
+			filterHiddenItems: true,
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -490,6 +499,335 @@ func TestAppConfigManager_TemplateConfig(t *testing.T) {
 				Groups: []kotsv1beta1.ConfigGroup{},
 			},
 		},
+		{
+			name:              "hidden items are filtered out",
+			filterHiddenItems: true,
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "visibility_group",
+							Title: "Visibility Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:   "visible_item",
+									Title:  "Visible Item",
+									Type:   "text",
+									Value:  multitype.FromString("visible_value"),
+									When:   "true",
+									Hidden: false,
+								},
+								{
+									Name:   "hidden_item",
+									Title:  "Hidden Item",
+									Type:   "text",
+									Value:  multitype.FromString("hidden_value"),
+									When:   "true",
+									Hidden: true,
+								},
+								{
+									Name:   "another_visible_item",
+									Title:  "Another Visible Item",
+									Type:   "password",
+									Value:  multitype.FromString("another_visible_value"),
+									When:   "true",
+									Hidden: false,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "visibility_group",
+						Title: "Visibility Group",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:   "visible_item",
+								Title:  "Visible Item",
+								Type:   "text",
+								Value:  multitype.FromString("visible_value"),
+								When:   "true",
+								Hidden: false,
+							},
+							{
+								Name:   "another_visible_item",
+								Title:  "Another Visible Item",
+								Type:   "password",
+								Value:  multitype.FromString("another_visible_value"),
+								When:   "true",
+								Hidden: false,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:              "all items hidden results in empty group being filtered out",
+			filterHiddenItems: true,
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "all_hidden_group",
+							Title: "All Hidden Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:   "hidden_item_1",
+									Title:  "Hidden Item 1",
+									Type:   "text",
+									Value:  multitype.FromString("hidden_value_1"),
+									When:   "true",
+									Hidden: true,
+								},
+								{
+									Name:   "hidden_item_2",
+									Title:  "Hidden Item 2",
+									Type:   "file",
+									Value:  multitype.FromString("hidden_value_2"),
+									When:   "true",
+									Hidden: true,
+								},
+							},
+						},
+						{
+							Name:  "visible_group",
+							Title: "Visible Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:   "visible_item",
+									Title:  "Visible Item",
+									Type:   "text",
+									Value:  multitype.FromString("visible_value"),
+									When:   "true",
+									Hidden: false,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "visible_group",
+						Title: "Visible Group",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:   "visible_item",
+								Title:  "Visible Item",
+								Type:   "text",
+								Value:  multitype.FromString("visible_value"),
+								When:   "true",
+								Hidden: false,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:              "hidden items with disabled when condition are still filtered",
+			filterHiddenItems: true,
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "mixed_visibility_group",
+							Title: "Mixed Visibility Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:   "disabled_visible_item",
+									Title:  "Disabled Visible Item",
+									Type:   "text",
+									Value:  multitype.FromString("disabled_visible_value"),
+									When:   "false",
+									Hidden: false,
+								},
+								{
+									Name:   "disabled_hidden_item",
+									Title:  "Disabled Hidden Item",
+									Type:   "text",
+									Value:  multitype.FromString("disabled_hidden_value"),
+									When:   "false",
+									Hidden: true,
+								},
+								{
+									Name:   "enabled_visible_item",
+									Title:  "Enabled Visible Item",
+									Type:   "text",
+									Value:  multitype.FromString("enabled_visible_value"),
+									When:   "true",
+									Hidden: false,
+								},
+								{
+									Name:   "enabled_hidden_item",
+									Title:  "Enabled Hidden Item",
+									Type:   "text",
+									Value:  multitype.FromString("enabled_hidden_value"),
+									When:   "true",
+									Hidden: true,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "mixed_visibility_group",
+						Title: "Mixed Visibility Group",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:   "enabled_visible_item",
+								Title:  "Enabled Visible Item",
+								Type:   "text",
+								Value:  multitype.FromString("enabled_visible_value"),
+								When:   "true",
+								Hidden: false,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:              "hidden password items with masking enabled",
+			filterHiddenItems: true,
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "password_visibility_group",
+							Title: "Password Visibility Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:   "visible_password",
+									Title:  "Visible Password",
+									Type:   "password",
+									Value:  multitype.FromString("visible_secret"),
+									When:   "true",
+									Hidden: false,
+								},
+								{
+									Name:   "hidden_password",
+									Title:  "Hidden Password",
+									Type:   "password",
+									Value:  multitype.FromString("hidden_secret"),
+									When:   "true",
+									Hidden: true,
+								},
+							},
+						},
+					},
+				},
+			},
+			maskPasswords: true,
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "password_visibility_group",
+						Title: "Password Visibility Group",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:   "visible_password",
+								Title:  "Visible Password",
+								Type:   "password",
+								Value:  multitype.FromString(PasswordMask),
+								When:   "true",
+								Hidden: false,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:              "hidden items with child items",
+			filterHiddenItems: true,
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "nested_visibility_group",
+							Title: "Nested Visibility Group",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:   "visible_parent",
+									Title:  "Visible Parent",
+									Type:   "group",
+									Value:  multitype.FromString("visible_parent_value"),
+									When:   "true",
+									Hidden: false,
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:  "child_item",
+											Title: "Child Item",
+											Value: multitype.FromString("child_value"),
+										},
+									},
+								},
+								{
+									Name:   "hidden_parent",
+									Title:  "Hidden Parent",
+									Type:   "group",
+									Value:  multitype.FromString("hidden_parent_value"),
+									When:   "true",
+									Hidden: true,
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:  "hidden_child_item",
+											Title: "Hidden Child Item",
+											Value: multitype.FromString("hidden_child_value"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "nested_visibility_group",
+						Title: "Nested Visibility Group",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:   "visible_parent",
+								Title:  "Visible Parent",
+								Type:   "group",
+								Value:  multitype.FromString("visible_parent_value"),
+								When:   "true",
+								Hidden: false,
+								Items: []kotsv1beta1.ConfigChildItem{
+									{
+										Name:  "child_item",
+										Title: "Child Item",
+										Value: multitype.FromString("child_value"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -497,7 +835,7 @@ func TestAppConfigManager_TemplateConfig(t *testing.T) {
 			manager, err := NewAppConfigManager(tt.config)
 			require.NoError(t, err)
 
-			result, err := manager.TemplateConfig(tt.configValues, tt.maskPasswords)
+			result, err := manager.TemplateConfig(tt.configValues, tt.maskPasswords, tt.filterHiddenItems)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
 		})
