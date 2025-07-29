@@ -30,7 +30,7 @@ func (p *PreflightsRunner) RunHostPreflights(ctx context.Context, spec *troubles
 		return nil, "", fmt.Errorf("marshal host preflight spec: %w", err)
 	}
 
-	return p.runPreflight(ctx, specYAML, opts)
+	return p.runPreflights(ctx, specYAML, opts)
 }
 
 // RunAppPreflights runs the provided app preflight spec locally.
@@ -44,11 +44,11 @@ func (p *PreflightsRunner) RunAppPreflights(ctx context.Context, spec *troublesh
 		return nil, "", fmt.Errorf("marshal app preflight spec: %w", err)
 	}
 
-	return p.runPreflight(ctx, specYAML, opts)
+	return p.runPreflights(ctx, specYAML, opts)
 }
 
-// runPreflight is the shared logic for running both host and app preflights
-func (p *PreflightsRunner) runPreflight(_ context.Context, specYAML []byte, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
+// runPreflights is the shared logic for running both host and app preflights
+func (p *PreflightsRunner) runPreflights(_ context.Context, specYAML []byte, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
 	// Write spec to temporary file
 	fpath, err := saveSpecToTempFile(specYAML)
 	if err != nil {
