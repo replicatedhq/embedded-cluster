@@ -63,31 +63,6 @@ components:
           type: array
           uniqueItems: false
       type: object
-    types.HostPreflightsOutput:
-      properties:
-        fail:
-          items:
-            $ref: '#/components/schemas/types.HostPreflightsRecord'
-          type: array
-          uniqueItems: false
-        pass:
-          items:
-            $ref: '#/components/schemas/types.HostPreflightsRecord'
-          type: array
-          uniqueItems: false
-        warn:
-          items:
-            $ref: '#/components/schemas/types.HostPreflightsRecord'
-          type: array
-          uniqueItems: false
-      type: object
-    types.HostPreflightsRecord:
-      properties:
-        message:
-          type: string
-        title:
-          type: string
-      type: object
     types.Infra:
       properties:
         components:
@@ -112,7 +87,7 @@ components:
         allowIgnoreHostPreflights:
           type: boolean
         output:
-          $ref: '#/components/schemas/types.HostPreflightsOutput'
+          $ref: '#/components/schemas/types.PreflightsOutput'
         status:
           $ref: '#/components/schemas/types.Status'
         titles:
@@ -169,6 +144,31 @@ components:
       properties:
         isUi:
           type: boolean
+      type: object
+    types.PreflightsOutput:
+      properties:
+        fail:
+          items:
+            $ref: '#/components/schemas/types.PreflightsRecord'
+          type: array
+          uniqueItems: false
+        pass:
+          items:
+            $ref: '#/components/schemas/types.PreflightsRecord'
+          type: array
+          uniqueItems: false
+        warn:
+          items:
+            $ref: '#/components/schemas/types.PreflightsRecord'
+          type: array
+          uniqueItems: false
+      type: object
+    types.PreflightsRecord:
+      properties:
+        message:
+          type: string
+        title:
+          type: string
       type: object
     types.State:
       type: string
