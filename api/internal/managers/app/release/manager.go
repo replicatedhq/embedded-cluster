@@ -15,6 +15,7 @@ import (
 // AppReleaseManager provides methods for managing the release of an app
 type AppReleaseManager interface {
 	TemplateHelmChartCRs(ctx context.Context, configValues types.AppConfigValues) ([]*kotsv1beta2.HelmChart, error)
+	DryRunHelmChart(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) ([][]byte, error)
 	GenerateHelmValues(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) (map[string]any, error)
 }
 

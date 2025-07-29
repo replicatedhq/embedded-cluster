@@ -2,6 +2,7 @@ package release
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -34,7 +35,7 @@ func TestAppReleaseManager_TemplateHelmChartCRs(t *testing.T) {
 		{
 			name: "single helm chart with repl templating",
 			helmChartCRs: []*kotsv1beta2.HelmChart{
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -68,7 +69,7 @@ spec:
 				"disable_monitoring": {Value: "false"},
 			},
 			expected: []*kotsv1beta2.HelmChart{
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -99,7 +100,7 @@ spec:
 		{
 			name: "multiple helm charts with mixed templating",
 			helmChartCRs: []*kotsv1beta2.HelmChart{
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -118,7 +119,7 @@ spec:
         limits:
           memory: 128Mi
 `),
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -152,7 +153,7 @@ spec:
 				"redis_persistence": {Value: "true"},
 			},
 			expected: []*kotsv1beta2.HelmChart{
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -171,7 +172,7 @@ spec:
         limits:
           memory: 128Mi
 `),
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -200,7 +201,7 @@ spec:
 			name: "skip nil helm chart",
 			helmChartCRs: []*kotsv1beta2.HelmChart{
 				nil,
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -214,7 +215,7 @@ spec:
 			},
 			configValues: types.AppConfigValues{},
 			expected: []*kotsv1beta2.HelmChart{
-				createHelmChartFromYAML(`
+				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -268,6 +269,288 @@ spec:
 	}
 }
 
+func TestAppReleaseManager_DryRunHelmChart(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name              string
+		templatedCR       *kotsv1beta2.HelmChart
+		helmChartArchives [][]byte
+		expectError       bool
+		errorContains     string
+		validateManifest  func(t *testing.T, manifests [][]byte)
+	}{
+		{
+			name:          "nil templated CR",
+			templatedCR:   nil,
+			expectError:   true,
+			errorContains: "templated CR is nil",
+		},
+		{
+			name: "no chart archives",
+			templatedCR: createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+`),
+			helmChartArchives: [][]byte{},
+			expectError:       true,
+			errorContains:     "no helm chart archives found",
+		},
+		{
+			name: "chart archive not found",
+			templatedCR: createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+`),
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "redis", "1.0.0"),
+			},
+			expectError:   true,
+			errorContains: "no chart archive found for chart name nginx and version 1.0.0",
+		},
+		{
+			name: "successful dry run with kotsadm namespace fallback",
+			templatedCR: createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "3"
+    image:
+      tag: "1.20.0"
+`),
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "nginx", "1.0.0"),
+			},
+			expectError: false,
+			validateManifest: func(t *testing.T, manifests [][]byte) {
+				// Should have multiple manifest files
+				assert.GreaterOrEqual(t, len(manifests), 3, "should have at least 3 manifest files")
+
+				// Convert to combined string for easier testing
+				combined := ""
+				for _, manifest := range manifests {
+					combined += string(manifest) + "\n"
+				}
+
+				// Check that we have multiple resources
+				assert.Contains(t, combined, "kind: CustomResourceDefinition")
+				assert.Contains(t, combined, "kind: Deployment")
+				assert.Contains(t, combined, "kind: Service")
+				// Check that values were templated correctly
+				assert.Contains(t, combined, "replicas: 3")
+				assert.Contains(t, combined, "image: nginx:1.20.0")
+				// Check kotsadm namespace fallback
+				assert.Contains(t, combined, "namespace: kotsadm")
+			},
+		},
+		{
+			name: "successful dry run with custom namespace",
+			templatedCR: createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: my-nginx
+  namespace: kotsadm
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  releaseName: my-release
+  namespace: custom-ns
+  values:
+    service:
+      type: LoadBalancer
+`),
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "nginx", "1.0.0"),
+			},
+			expectError: false,
+			validateManifest: func(t *testing.T, manifests [][]byte) {
+				// Should have multiple manifest files
+				assert.GreaterOrEqual(t, len(manifests), 3, "should have at least 3 manifest files")
+
+				// Convert to combined string for easier testing
+				combined := ""
+				for _, manifest := range manifests {
+					combined += string(manifest) + "\n"
+				}
+
+				// Check that we have multiple resources
+				assert.Contains(t, combined, "kind: CustomResourceDefinition")
+				assert.Contains(t, combined, "kind: Deployment")
+				assert.Contains(t, combined, "kind: Service")
+				// Check that values were templated correctly
+				assert.Contains(t, combined, "replicas: 1")
+				assert.Contains(t, combined, "image: nginx:latest")
+				// Check that custom namespace is used
+				assert.Contains(t, combined, "namespace: custom-ns")
+				// Check that custom release name is used
+				assert.Contains(t, combined, "my-release")
+				// Check that service type was templated
+				assert.Contains(t, combined, "type: LoadBalancer")
+			},
+		},
+		{
+			name: "chart with exclude=false (should be processed)",
+			templatedCR: createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: test-chart
+  namespace: kotsadm
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  exclude: false
+  values:
+    replicaCount: "2"
+`),
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "nginx", "1.0.0"),
+			},
+			expectError: false,
+			validateManifest: func(t *testing.T, manifests [][]byte) {
+				// Should have multiple manifest files since exclude=false
+				assert.GreaterOrEqual(t, len(manifests), 3, "should have at least 3 manifest files")
+
+				// Convert to combined string for easier testing
+				combined := ""
+				for _, manifest := range manifests {
+					combined += string(manifest) + "\n"
+				}
+
+				// Check that resources are present
+				assert.Contains(t, combined, "kind: Deployment")
+				assert.Contains(t, combined, "replicas: 2")
+			},
+		},
+		{
+			name: "chart with exclude=true (should be skipped)",
+			templatedCR: createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: excluded-chart
+  namespace: kotsadm
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  exclude: true
+`),
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "nginx", "1.0.0"),
+			},
+			expectError: false,
+			validateManifest: func(t *testing.T, manifests [][]byte) {
+				// Should be nil since chart is excluded
+				assert.Nil(t, manifests, "excluded charts should return nil manifests")
+			},
+		},
+		{
+			name: "chart with mixed true/false optional values",
+			templatedCR: createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: mixed-optional-chart
+  namespace: kotsadm
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "2"
+  optionalValues:
+  - when: "false"
+    values:
+      replicaCount: "3"
+  - when: "true"
+    values:
+      replicaCount: "4"
+`),
+			helmChartArchives: [][]byte{
+				createComplexChartArchive(t, "nginx", "1.0.0"),
+			},
+			expectError: false,
+			validateManifest: func(t *testing.T, manifests [][]byte) {
+				// Should have multiple manifest files
+				assert.GreaterOrEqual(t, len(manifests), 3, "should have at least 3 manifest files")
+
+				// Convert to combined string for easier testing
+				combined := ""
+				for _, manifest := range manifests {
+					combined += string(manifest) + "\n"
+				}
+
+				// Check that we have multiple resources
+				assert.Contains(t, combined, "kind: Deployment")
+
+				// Should be 4 from when=true, not 3 from when=false, not 1 from base values, not 2 from chart values
+				assert.Contains(t, combined, "replicas: 4")
+				assert.NotContains(t, combined, "replicas: 1")
+				assert.NotContains(t, combined, "replicas: 2")
+				assert.NotContains(t, combined, "replicas: 3")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a basic config for the template engine
+			config := createTestConfig()
+
+			// Create release data with chart archives
+			releaseData := &release.ReleaseData{
+				HelmChartArchives: tt.helmChartArchives,
+			}
+			manager := NewAppReleaseManager(
+				config,
+				WithReleaseData(releaseData),
+			)
+
+			// Execute the function
+			result, err := manager.DryRunHelmChart(ctx, tt.templatedCR)
+
+			// Check error expectation
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+				assert.Nil(t, result)
+				return
+			}
+
+			require.NoError(t, err)
+
+			// Validate the actual manifest content if provided
+			if tt.validateManifest != nil {
+				tt.validateManifest(t, result)
+			}
+		})
+	}
+}
+
 func TestAppReleaseManager_GenerateHelmValues(t *testing.T) {
 	ctx := context.Background()
 
@@ -285,7 +568,7 @@ func TestAppReleaseManager_GenerateHelmValues(t *testing.T) {
 		},
 		{
 			name: "helm chart with simple values",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -319,7 +602,7 @@ spec:
 		},
 		{
 			name: "helm chart with optional values",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -348,7 +631,7 @@ spec:
 		},
 		{
 			name: "helm chart with recursive merge",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -401,7 +684,7 @@ spec:
 		},
 		{
 			name: "helm chart with direct key replacement (no recursive merge)",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -448,7 +731,7 @@ spec:
 		},
 		{
 			name: "helm chart with when condition false",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -472,7 +755,7 @@ spec:
 		},
 		{
 			name: "helm chart with multiple optional values",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -515,7 +798,7 @@ spec:
 		},
 		{
 			name: "helm chart with no base values",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -541,7 +824,7 @@ spec:
 		},
 		{
 			name: "clear example of recursive merge vs direct replacement",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -593,7 +876,7 @@ spec:
 		},
 		{
 			name: "helm chart with invalid when condition",
-			templatedCR: createHelmChartFromYAML(`
+			templatedCR: createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -633,13 +916,121 @@ spec:
 }
 
 // Helper function to create HelmChart from YAML string
-func createHelmChartFromYAML(yamlStr string) *kotsv1beta2.HelmChart {
+func createHelmChartCRFromYAML(yamlStr string) *kotsv1beta2.HelmChart {
 	var chart kotsv1beta2.HelmChart
 	err := kyaml.Unmarshal([]byte(yamlStr), &chart)
 	if err != nil {
 		panic(err)
 	}
 	return &chart
+}
+
+// createComplexChartArchive creates a Helm chart archive with CRDs, deployment, and service
+func createComplexChartArchive(t *testing.T, name, version string) []byte {
+	chartYaml := fmt.Sprintf(`apiVersion: v2
+name: %s
+version: %s
+description: A complex test Helm chart
+type: application
+`, name, version)
+
+	crd := `apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: widgets.example.com
+  namespace: {{ .Release.Namespace }}
+spec:
+  group: example.com
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+  scope: Namespaced
+  names:
+    plural: widgets
+    singular: widget
+    kind: Widget
+`
+
+	deployment := `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "chart.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  replicas: {{ .Values.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}
+        image: {{ .Values.image.repository | default "nginx" }}:{{ .Values.image.tag | default "latest" }}
+        ports:
+        - containerPort: 80
+`
+
+	service := `apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "chart.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  type: {{ .Values.service.type | default "ClusterIP" }}
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: {{ .Chart.Name }}
+`
+
+	helpers := `{{- define "chart.fullname" -}}
+{{- if .Values.fullnameOverride }}
+{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+`
+
+	valuesYaml := `replicaCount: 1
+
+image:
+  repository: nginx
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+`
+
+	files := map[string]string{
+		fmt.Sprintf("%s/Chart.yaml", name):                chartYaml,
+		fmt.Sprintf("%s/values.yaml", name):               valuesYaml,
+		fmt.Sprintf("%s/templates/crd.yaml", name):        crd,
+		fmt.Sprintf("%s/templates/deployment.yaml", name): deployment,
+		fmt.Sprintf("%s/templates/service.yaml", name):    service,
+		fmt.Sprintf("%s/templates/_helpers.tpl", name):    helpers,
+	}
+
+	return createTarGzArchive(t, files)
 }
 
 // Helper function to create test config for template engine

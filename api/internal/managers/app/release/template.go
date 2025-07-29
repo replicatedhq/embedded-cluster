@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"os"
 	"strconv"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	kyaml "sigs.k8s.io/yaml"
 )
@@ -63,6 +66,77 @@ func (m *appReleaseManager) TemplateHelmChartCRs(ctx context.Context, configValu
 	return templatedCRs, nil
 }
 
+// DryRunHelmChart finds the corresponding chart archive and performs a dry run templating of a Helm chart
+func (m *appReleaseManager) DryRunHelmChart(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) ([][]byte, error) {
+	if templatedCR == nil {
+		return nil, fmt.Errorf("templated CR is nil")
+	}
+
+	if m.releaseData == nil {
+		return nil, fmt.Errorf("release data not initialized")
+	}
+
+	// Check if the chart should be excluded
+	if !templatedCR.Spec.Exclude.IsEmpty() {
+		exclude, err := templatedCR.Spec.Exclude.Boolean()
+		if err != nil {
+			return nil, fmt.Errorf("parse templated CR exclude: %w", err)
+		}
+		if exclude {
+			return nil, nil
+		}
+	}
+
+	// Find the corresponding chart archive for this HelmChart CR
+	chartArchive, err := findChartArchive(m.releaseData.HelmChartArchives, templatedCR)
+	if err != nil {
+		return nil, fmt.Errorf("find chart archive for %s: %w", templatedCR.Name, err)
+	}
+
+	// Generate Helm values from the templated CR
+	helmValues, err := m.GenerateHelmValues(ctx, templatedCR)
+	if err != nil {
+		return nil, fmt.Errorf("generate helm values for %s: %w", templatedCR.Name, err)
+	}
+
+	// Create a Helm client for dry run templating
+	helmClient, err := helm.NewClient(helm.HelmOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("create helm client: %w", err)
+	}
+	defer helmClient.Close()
+
+	// Write chart archive to a temporary file
+	chartPath, err := writeChartArchiveToTemp(chartArchive)
+	if err != nil {
+		return nil, fmt.Errorf("write chart archive to temp: %w", err)
+	}
+	defer os.Remove(chartPath)
+
+	// Fallback to admin console namespace if namespace is not set
+	namespace := templatedCR.GetNamespace()
+	if namespace == "" {
+		namespace = constants.KotsadmNamespace
+	}
+
+	// Prepare install options for dry run
+	installOpts := helm.InstallOptions{
+		ReleaseName:  templatedCR.GetReleaseName(),
+		ChartPath:    chartPath,
+		ChartVersion: templatedCR.GetChartVersion(),
+		Values:       helmValues,
+		Namespace:    namespace,
+	}
+
+	// Perform dry run rendering
+	manifests, err := helmClient.Render(ctx, installOpts)
+	if err != nil {
+		return nil, fmt.Errorf("render helm chart %s: %w", templatedCR.Name, err)
+	}
+
+	return manifests, nil
+}
+
 // GenerateHelmValues generates Helm values for a single templated HelmChart custom resource
 func (m *appReleaseManager) GenerateHelmValues(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) (map[string]any, error) {
 	if templatedCR == nil {
@@ -100,10 +174,10 @@ func (m *appReleaseManager) GenerateHelmValues(ctx context.Context, templatedCR 
 	}
 
 	// Convert MappedChartValue to standard Go interface{} using GetHelmValues
-	chartValues, err := templatedCR.Spec.GetHelmValues(mergedValues)
+	helmValues, err := templatedCR.Spec.GetHelmValues(mergedValues)
 	if err != nil {
 		return nil, fmt.Errorf("get helm values for chart %s: %w", templatedCR.Name, err)
 	}
 
-	return chartValues, nil
+	return helmValues, nil
 }
