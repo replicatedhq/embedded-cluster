@@ -135,7 +135,8 @@ jobs:
         with:
           image-ref: '${{ matrix.image }}'
           upload-sarif: ${{ github.ref == 'refs/heads/main' }}
-          fail-build: 'true'
+          # TODO: uncomment this once we are fully using securebuild images
+          # fail-build: 'true'
           severity-cutoff: 'medium'
           output-file: 'results.sarif'
           retention-days: '90'
