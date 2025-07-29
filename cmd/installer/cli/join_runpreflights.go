@@ -105,41 +105,45 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 
 	domains := domains.GetDomains(jcmd.InstallationSpec.Config, release.GetChannelRelease())
 
+	opts := preflights.PrepareOptions{
+		HostPreflightSpec:       release.GetHostPreflights(),
+		ReplicatedAppURL:        netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
+		ProxyRegistryURL:        netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
+		AdminConsolePort:        rc.AdminConsolePort(),
+		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
+		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                   rc.ProxySpec(),
+		PodCIDR:                 cidrCfg.PodCIDR,
+		ServiceCIDR:             cidrCfg.ServiceCIDR,
+		NodeIP:                  nodeIP,
+		IsAirgap:                jcmd.InstallationSpec.AirGap,
+		TCPConnectionsRequired:  jcmd.TCPConnectionsRequired,
+		IsJoin:                  true,
+	}
+
 	// Calculate airgap storage space requirement based on node type
-	var controllerAirgapStorageSpace string
-	var workerAirgapStorageSpace string
-	if jcmd.InstallationSpec.AirGap && jcmd.InstallationSpec.AirgapUncompressedSize > 0 {
+	if jcmd.InstallationSpec.AirGap {
 		// Determine if this is a controller node by checking the join command
 		isController := strings.Contains(jcmd.K0sJoinCommand, "controller")
-		logrus.Debugf("Node type determined from join command: %s", map[bool]string{true: "controller", false: "worker"}[isController])
+		logrus.Debugf("node type determined from join command: %s", map[bool]string{true: "controller", false: "worker"}[isController])
 
-		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(preflights.AirgapStorageSpaceCalcArgs{
+		airgapStorageSpace := preflights.CalculateAirgapStorageSpace(preflights.AirgapStorageSpaceCalcArgs{
 			UncompressedSize:   jcmd.InstallationSpec.AirgapUncompressedSize,
 			EmbeddedAssetsSize: flags.embeddedAssetsSize,
 			K0sImageSize:       jcmd.InstallationSpec.K0sImageSize,
 			IsController:       isController,
 		})
+
+		if isController {
+			opts.ControllerAirgapStorageSpace = airgapStorageSpace
+		} else {
+			opts.WorkerAirgapStorageSpace = airgapStorageSpace
+		}
 	}
 
-	hpf, err := preflights.Prepare(ctx, preflights.PrepareOptions{
-		HostPreflightSpec:            release.GetHostPreflights(),
-		ReplicatedAppURL:             netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
-		ProxyRegistryURL:             netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
-		AdminConsolePort:             rc.AdminConsolePort(),
-		LocalArtifactMirrorPort:      rc.LocalArtifactMirrorPort(),
-		DataDir:                      rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:                   rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:               rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                        rc.ProxySpec(),
-		PodCIDR:                      cidrCfg.PodCIDR,
-		ServiceCIDR:                  cidrCfg.ServiceCIDR,
-		NodeIP:                       nodeIP,
-		IsAirgap:                     jcmd.InstallationSpec.AirGap,
-		TCPConnectionsRequired:       jcmd.TCPConnectionsRequired,
-		IsJoin:                       true,
-		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
-		WorkerAirgapStorageSpace:     workerAirgapStorageSpace,
-	})
+	hpf, err := preflights.Prepare(ctx, opts)
 	if err != nil {
 		return err
 	}

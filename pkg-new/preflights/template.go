@@ -56,10 +56,6 @@ type AirgapStorageSpaceCalcArgs struct { // Use struct instead of positional arg
 // CalculateAirgapStorageSpace calculates required storage space for airgap installations.
 // Controller nodes need 2x uncompressed size, worker nodes need 1x ec infra image size. Returns "XGi" or "XMi".
 func CalculateAirgapStorageSpace(data AirgapStorageSpaceCalcArgs) string {
-	if data.UncompressedSize <= 0 {
-		return ""
-	}
-
 	requiredBytes := data.K0sImageSize
 	if data.IsController {
 		// Controller nodes require 2x the extracted bundle size for processing
